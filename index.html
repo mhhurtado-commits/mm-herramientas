@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Herramientas — Media Mendoza</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #a6ce39;
+    --green-dark: #7a9e1f;
+    --green-dim: #1a2a00;
+    --green-bg: #f2f8e6;
+    --red: #e63946;
+    --red-bg: #fdecea;
+    --black: #111111;
+    --surface: #181818;
+    --surface2: #212121;
+    --surface3: #2a2a2a;
+    --border: #2e2e2e;
+    --border-light: #3a3a3a;
+    --text: #eeeeee;
+    --text-muted: #888888;
+    --text-dim: #555555;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--black);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 52px;
+    background: #0d0d0d;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 10px; }
+  .logo-mark {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: var(--green);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-mark svg { width: 14px; height: 14px; }
+  .logo-name { font-size: 13px; font-weight: 600; color: #fff; letter-spacing: .02em; }
+  .logo-sep { color: var(--text-dim); font-size: 13px; margin: 0 2px; }
+  .logo-sub { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+  .topbar-badge {
+    font-size: 11px; color: var(--text-dim);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 3px 10px; border-radius: 20px;
+  }
+
+  /* ── TABS ── */
+  .tabs-bar {
+    position: fixed; top: 52px; left: 0; right: 0; z-index: 99;
+    background: #0d0d0d;
+    border-bottom: 1px solid var(--border);
+    display: flex; gap: 0; padding: 0 20px;
+  }
+  .tab-btn {
+    font-size: 12px; font-weight: 500;
+    padding: 12px 16px;
+    color: var(--text-dim);
+    border: none; background: transparent;
+    border-bottom: 2px solid transparent;
+    cursor: pointer; font-family: 'Inter', sans-serif;
+    transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text-muted); }
+  .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+  .tab-btn.disabled { color: #333; cursor: default; }
+  .tab-coming {
+    font-size: 10px; color: #333;
+    background: #1a1a1a; border: 1px solid #2a2a2a;
+    padding: 2px 6px; border-radius: 4px; margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    margin-top: 100px;
+    padding: 24px 20px;
+    max-width: 1200px;
+    margin-left: auto; margin-right: auto;
+  }
+
+  .panel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .panel {
+    background: var(--surface);
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .panel.dark { background: #141414; }
+
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-title { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .08em; }
+
+  /* ── SUBTABS ── */
+  .subtabs { display: flex; gap: 4px; }
+  .subtab {
+    font-size: 11px; font-weight: 500;
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid var(--border-light);
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; font-family: 'Inter', sans-serif;
+    transition: all .15s;
+  }
+  .subtab:hover { border-color: var(--green); color: var(--green); }
+  .subtab.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+  /* ── FIELDS ── */
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field-label { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; }
+
+  textarea, select, input[type="text"] {
+    width: 100%;
+    font-size: 13px; font-family: 'Inter', sans-serif;
+    color: var(--text);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    line-height: 1.55;
+    transition: border-color .15s;
+    resize: none;
+  }
+  textarea:focus, select:focus, input:focus {
+    outline: none; border-color: var(--green);
+  }
+  textarea::placeholder, input::placeholder { color: var(--text-dim); }
+  select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .char-count { font-size: 11px; color: var(--text-dim); text-align: right; margin-top: 2px; }
+
+  /* ── BUTTONS ── */
+  .btn-primary {
+    width: 100%; padding: 11px;
+    font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif;
+    background: var(--green); color: #1a2a00;
+    border: none; border-radius: var(--radius);
+    cursor: pointer; letter-spacing: .01em;
+    transition: background .15s, transform .1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary:hover { background: var(--green-dark); color: #fff; }
+  .btn-primary:active { transform: scale(.98); }
+  .btn-primary.red { background: var(--red); color: #fff; }
+  .btn-primary.red:hover { background: #c0232e; }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  /* ── SPINNER ── */
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(0,0,0,.2);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── RESULTS ── */
+  .results-area { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+
+  .result-placeholder {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 10px; padding: 40px 20px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--text-dim);
+  }
+  .result-placeholder svg { opacity: .3; }
+  .result-placeholder p { font-size: 12px; text-align: center; line-height: 1.6; }
+
+  .results-header { display: flex; align-items: center; justify-content: space-between; }
+  .results-label { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .08em; }
+  .badge {
+    font-size: 10px; font-weight: 600;
+    padding: 3px 9px; border-radius: 20px;
+    background: #1a2a00; color: var(--green);
+  }
+  .badge.red { background: #2a0a0a; color: var(--red); }
+
+  .result-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    animation: fadeIn .2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .result-num { font-size: 10px; font-weight: 700; color: var(--text-dim); margin-bottom: 5px; }
+  .result-text { font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 9px; }
+
+  .result-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+  .pill {
+    font-size: 10px; padding: 3px 10px; border-radius: 20px;
+    border: 1px solid var(--border-light);
+    color: var(--text-muted); background: transparent;
+    cursor: pointer; font-family: 'Inter', sans-serif;
+    transition: all .15s;
+  }
+  .pill:hover { border-color: var(--green); color: var(--green); }
+  .pill.accent { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+
+  /* ── ANGULOS ── */
+  .angulos-section { margin-top: 4px; }
+  .angulos-label { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 7px; }
+  .angulo-item {
+    border-left: 2px solid var(--green);
+    padding: 6px 10px;
+    background: var(--green-dim);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin-bottom: 5px;
+  }
+  .angulo-nombre { font-size: 11px; font-weight: 600; color: var(--green); }
+  .angulo-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+  /* ── REFORMULADO ── */
+  .reformulated {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    flex: 1;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .ref-ia-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 600;
+    background: var(--green-dim); color: var(--green);
+    padding: 3px 9px; border-radius: 20px;
+    width: fit-content;
+  }
+  .ref-section-label { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+  .ref-titulo { font-family: 'DM Serif Display', serif; font-size: 16px; color: var(--text); line-height: 1.35; }
+  .ref-categoria {
+    display: inline-block;
+    font-size: 10px; font-weight: 600;
+    background: var(--surface3); color: var(--text-muted);
+    border: 1px solid var(--border-light);
+    padding: 3px 9px; border-radius: 4px;
+    margin-bottom: 4px;
+  }
+  .ref-cuerpo { font-size: 12px; color: #aaa; line-height: 1.7; white-space: pre-wrap; }
+
+  .ref-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+  /* ── STATUS BAR ── */
+  .statusbar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 30px;
+    background: #0d0d0d;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 20px; gap: 14px;
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .status-text { font-size: 11px; color: var(--text-dim); }
+  .status-url { font-size: 11px; color: #333; margin-left: auto; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 48px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--surface3); border: 1px solid var(--border-light);
+    color: var(--text); font-size: 12px;
+    padding: 8px 16px; border-radius: 20px;
+    opacity: 0; transition: all .2s; pointer-events: none; white-space: nowrap;
+    z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── TABS VISIBILITY ── */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 720px) {
+    .panel-grid { grid-template-columns: 1fr; }
+    .row2 { grid-template-columns: 1fr; }
+    .main { padding: 16px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-mark">
+      <svg viewBox="0 0 14 14" fill="none"><rect width="14" height="14" rx="2" fill="#1a2a00"/><path d="M2 10L5.5 4 9 10M4 8h4" stroke="#a6ce39" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+    <span class="logo-name">MEDIA MENDOZA</span>
+    <span class="logo-sep">·</span>
+    <span class="logo-sub">Herramientas de redacción</span>
+  </div>
+  <div class="topbar-badge">Redacción</div>
+</div>
+
+<!-- TABS BAR -->
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="switchTab('titulares', this)">✦ Titulares</button>
+  <button class="tab-btn" onclick="switchTab('reformular', this)">⟳ Reformular nota</button>
+  <button class="tab-btn disabled">◻ Monitor de noticias <span class="tab-coming">próximamente</span></button>
+</div>
+
+<!-- MAIN -->
+<div class="main" style="margin-top:100px; padding-bottom: 50px;">
+
+  <!-- TAB: TITULARES -->
+  <div id="tab-titulares" class="tab-content active">
+    <div class="panel-grid">
+
+      <!-- Panel izquierdo: entrada -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Entrada</span>
+          <div class="subtabs">
+            <button class="subtab active" id="subtab-nota" onclick="switchSubtab('nota')">Pegar nota</button>
+            <button class="subtab" id="subtab-tema" onclick="switchSubtab('tema')">Describir tema</button>
+          </div>
+        </div>
+
+        <div id="input-nota">
+          <div class="field">
+            <label class="field-label">Cuerpo de la nota</label>
+            <textarea id="txt-nota" rows="9" placeholder="Pegá el texto completo de la nota aquí..."></textarea>
+            <div class="char-count" id="char-nota">0 caracteres</div>
+          </div>
+        </div>
+
+        <div id="input-tema" style="display:none">
+          <div class="field">
+            <label class="field-label">Descripción del tema</label>
+            <textarea id="txt-tema" rows="9" placeholder="Describí el tema de la nota. Ej: Corte de luz masivo en el Gran Mendoza durante la tarde del martes..."></textarea>
+            <div class="char-count" id="char-tema">0 caracteres</div>
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label class="field-label">Tono</label>
+            <select id="sel-tono">
+              <option value="informativo">Informativo</option>
+              <option value="impactante">Impactante</option>
+              <option value="neutro">Neutro</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label">Cantidad</label>
+            <select id="sel-cantidad">
+              <option value="5">5 titulares</option>
+              <option value="3">3 titulares</option>
+              <option value="8">8 titulares</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn-primary" id="btn-generar" onclick="generarTitulares()">
+          <div class="spinner" id="spin-titulares"></div>
+          <span id="btn-titulares-text">Generar titulares</span>
+        </button>
+      </div>
+
+      <!-- Panel derecho: resultados -->
+      <div class="panel dark">
+        <div class="panel-header">
+          <span class="panel-title">Resultados</span>
+          <span class="badge" id="badge-titulares" style="display:none"></span>
+        </div>
+
+        <div id="results-titulares">
+          <div class="result-placeholder">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M3 5h18M3 10h12M3 15h15M3 20h9" stroke="#555" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <p>Los titulares generados<br>aparecerán aquí.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TAB: REFORMULAR -->
+  <div id="tab-reformular" class="tab-content">
+    <div class="panel-grid">
+
+      <!-- Panel izquierdo: entrada -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Nota original</span>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Título del otro medio</label>
+          <input type="text" id="ref-titulo-input" placeholder="Pegá el título original de la nota...">
+        </div>
+
+        <div class="field">
+          <label class="field-label">Cuerpo de la nota original</label>
+          <textarea id="ref-cuerpo-input" rows="9" placeholder="Pegá el cuerpo completo de la nota que querés reformular..."></textarea>
+          <div class="char-count" id="char-ref">0 caracteres</div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Estilo de reformulación</label>
+          <select id="ref-estilo">
+            <option value="formal">Periodístico formal</option>
+            <option value="directo">Directo y conciso</option>
+            <option value="ampliado">Con contexto ampliado</option>
+          </select>
+        </div>
+
+        <button class="btn-primary red" id="btn-reformular" onclick="reformularNota()">
+          <div class="spinner" id="spin-reformular"></div>
+          <span id="btn-reformular-text">Reformular para Media Mendoza</span>
+        </button>
+      </div>
+
+      <!-- Panel derecho: resultado -->
+      <div class="panel dark">
+        <div class="panel-header">
+          <span class="panel-title">Nota reformulada</span>
+          <span class="badge red" id="badge-reformulada" style="display:none">Lista para publicar</span>
+        </div>
+
+        <div id="results-reformular">
+          <div class="result-placeholder">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <p>La nota reformulada<br>aparecerá aquí.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="status-dot"></div>
+  <div class="status-text">Conectado · Gemini 2.0 Flash</div>
+  <div class="status-url">tools-mediamendoza.pages.dev</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── CONFIG ──
+  const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
+
+  // ── TABS ──
+  function switchTab(tab, el) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    el.classList.add('active');
+  }
+
+  // ── SUBTABS TITULARES ──
+  let modoActual = 'nota';
+  function switchSubtab(modo) {
+    modoActual = modo;
+    document.getElementById('input-nota').style.display = modo === 'nota' ? 'block' : 'none';
+    document.getElementById('input-tema').style.display = modo === 'tema' ? 'block' : 'none';
+    document.getElementById('subtab-nota').classList.toggle('active', modo === 'nota');
+    document.getElementById('subtab-tema').classList.toggle('active', modo === 'tema');
+  }
+
+  // ── CHAR COUNTERS ──
+  document.getElementById('txt-nota').addEventListener('input', function() {
+    document.getElementById('char-nota').textContent = this.value.length + ' caracteres';
+  });
+  document.getElementById('txt-tema').addEventListener('input', function() {
+    document.getElementById('char-tema').textContent = this.value.length + ' caracteres';
+  });
+  document.getElementById('ref-cuerpo-input').addEventListener('input', function() {
+    document.getElementById('char-ref').textContent = this.value.length + ' caracteres';
+  });
+
+  // ── TOAST ──
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  // ── COPIAR ──
+  function copiar(texto) {
+    navigator.clipboard.writeText(texto).then(() => showToast('✓ Copiado al portapapeles'));
+  }
+
+  // ── LOADING STATE ──
+  function setLoading(btn, spin, text, loading) {
+    document.getElementById(btn).disabled = loading;
+    document.getElementById(spin).style.display = loading ? 'block' : 'none';
+    document.getElementById(text).textContent = loading ? 'Generando...' : (btn === 'btn-reformular' ? 'Reformular para Media Mendoza' : 'Generar titulares');
+  }
+
+  // ── GENERAR TITULARES ──
+  async function generarTitulares() {
+    const contenido = modoActual === 'nota'
+      ? document.getElementById('txt-nota').value.trim()
+      : document.getElementById('txt-tema').value.trim();
+
+    if (!contenido) { showToast('⚠ Ingresá el contenido primero'); return; }
+
+    setLoading('btn-generar', 'spin-titulares', 'btn-titulares-text', true);
+
+    try {
+      const res = await fetch(WORKER_URL + '/titulares', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          modo: modoActual,
+          contenido,
+          tono: document.getElementById('sel-tono').value,
+          cantidad: parseInt(document.getElementById('sel-cantidad').value),
+        })
+      });
+
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+
+      renderTitulares(data);
+
+    } catch (err) {
+      showToast('✗ Error: ' + err.message);
+    } finally {
+      setLoading('btn-generar', 'spin-titulares', 'btn-titulares-text', false);
+    }
+  }
+
+  function renderTitulares(data) {
+    const container = document.getElementById('results-titulares');
+    const badge = document.getElementById('badge-titulares');
+
+    badge.textContent = data.titulares.length + ' opciones';
+    badge.style.display = 'inline-block';
+
+    let html = '<div class="results-area">';
+
+    data.titulares.forEach((t, i) => {
+      html += `
+        <div class="result-card">
+          <div class="result-num">0${i + 1}</div>
+          <div class="result-text">${escHtml(t)}</div>
+          <div class="result-actions">
+            <button class="pill accent" onclick="copiar(${JSON.stringify(t)})">Copiar</button>
+            <button class="pill" onclick="usarEnPlaca(${JSON.stringify(t)})">Usar en placa ↗</button>
+          </div>
+        </div>`;
+    });
+
+    if (data.angulos && data.angulos.length) {
+      html += '<div class="divider"></div>';
+      html += '<div class="angulos-section"><div class="angulos-label">Ángulos identificados</div>';
+      data.angulos.forEach(a => {
+        html += `<div class="angulo-item"><div class="angulo-nombre">${escHtml(a.nombre)}</div><div class="angulo-desc">${escHtml(a.descripcion)}</div></div>`;
+      });
+      html += '</div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // ── REFORMULAR ──
+  async function reformularNota() {
+    const titulo = document.getElementById('ref-titulo-input').value.trim();
+    const contenido = document.getElementById('ref-cuerpo-input').value.trim();
+
+    if (!titulo || !contenido) { showToast('⚠ Completá título y cuerpo'); return; }
+
+    setLoading('btn-reformular', 'spin-reformular', 'btn-reformular-text', true);
+
+    try {
+      const res = await fetch(WORKER_URL + '/reformular', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo,
+          contenido,
+          estilo: document.getElementById('ref-estilo').value,
+        })
+      });
+
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+
+      renderReformulada(data);
+
+    } catch (err) {
+      showToast('✗ Error: ' + err.message);
+    } finally {
+      setLoading('btn-reformular', 'spin-reformular', 'btn-reformular-text', false);
+    }
+  }
+
+  function renderReformulada(data) {
+    const container = document.getElementById('results-reformular');
+    document.getElementById('badge-reformulada').style.display = 'inline-block';
+
+    const textoCompleto = `${data.titular}\n\n${data.cuerpo}`;
+
+    container.innerHTML = `
+      <div class="reformulated">
+        <div class="ref-ia-badge">✦ Reformulada por IA</div>
+        <div>
+          <div class="ref-section-label">Categoría sugerida</div>
+          <span class="ref-categoria">${escHtml(data.categoria_sugerida || '—')}</span>
+        </div>
+        <div>
+          <div class="ref-section-label">Titular</div>
+          <div class="ref-titulo">${escHtml(data.titular)}</div>
+        </div>
+        <div>
+          <div class="ref-section-label">Cuerpo</div>
+          <div class="ref-cuerpo">${escHtml(data.cuerpo)}</div>
+        </div>
+      </div>
+      <div class="ref-actions">
+        <button class="pill accent" onclick="copiar(${JSON.stringify(textoCompleto)})">Copiar todo</button>
+        <button class="pill accent" onclick="copiar(${JSON.stringify(data.titular)})">Copiar titular</button>
+        <button class="pill" onclick="usarEnPlaca(${JSON.stringify(data.titular)})">Usar titular en placa ↗</button>
+      </div>`;
+  }
+
+  // ── USAR EN PLACA ──
+  function usarEnPlaca(titular) {
+    const url = `https://editor-placas-mediamendoza.pages.dev/?titulo=${encodeURIComponent(titular)}`;
+    window.open(url, '_blank');
+  }
+
+  // ── ESCAPE HTML ──
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>
