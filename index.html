@@ -658,6 +658,7 @@ async function reformularNota(){
 }
 
 function renderReformulada(data){
+  const imgUrl = window._imagenActual || '';
   document.getElementById('badge-reformulada').style.display='inline-block';
   document.getElementById('btn-limpiar-r').style.display='inline-block';
 
@@ -678,13 +679,13 @@ function renderReformulada(data){
       <div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">${esc(cuerpoVal)}</div></div>
       ${hashtagsHtml}
     </div>
-    <div class="scrape-imagen" id="scrape-imagen-section" style="margin-top:10px">
-      <img id="scrape-img" src="" alt="Imagen de la nota" style="width:100%;max-height:200px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--border)">
+    \${imgUrl ? \`<div style="margin-top:10px">
+      <img src="\${imgUrl}" alt="Imagen de la nota" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0">
       <div style="display:flex;gap:5px;margin-top:5px">
-        <a id="scrape-img-link" href="" target="_blank" class="pill accent">Ver imagen</a>
-        <button class="pill" id="scrape-img-copy-url" data-url="" onclick="copiarTexto(this.getAttribute('data-url'))">Copiar link</button>
+        <a href="\${imgUrl}" target="_blank" class="pill accent">Ver imagen</a>
+        <button class="pill" onclick='copiarTexto("\${imgUrl.replace(/"/g,"")}")'>Copiar link</button>
       </div>
-    </div>
+    </div>\` : ''}
     <div class="ref-actions" style="margin-top:12px">
       <button class="pill accent" onclick='copiarTexto(${JSON.stringify(titularVal)})'>Copiar titular</button>
       <button class="pill accent" onclick='copiarTexto(${JSON.stringify(cuerpoVal)})'>Copiar cuerpo</button>
@@ -693,8 +694,7 @@ function renderReformulada(data){
       <button class="pill" style="border-color:var(--green);color:var(--green-dark)" onclick="guardarNotaActual()">★ Guardar nota</button>
     </div>`;
   // Guardar referencia a nota actual para poder guardarla
-  const imgActual = document.getElementById('scrape-img')?.src || '';
-  window._notaActual = {titular:titularVal, cuerpo:cuerpoVal, categoria:data.categoria_sugerida||'', hashtags:data.hashtags||[], imagen:imgActual};
+  window._notaActual = {titular:titularVal, cuerpo:cuerpoVal, categoria:data.categoria_sugerida||'', hashtags:data.hashtags||[], imagen:imgUrl};
 }
 
 // ── MONITOR — FUENTES KV ──
@@ -1039,16 +1039,7 @@ async function scrapearNota(){
     document.getElementById('char-ref').textContent = data.texto.length+' caracteres';
     status.className='scrape-status ok';
     status.textContent='✓ Nota obtenida · '+data.texto.length+' caracteres extraídos';
-    // Mostrar imagen si existe
-    const imgSection = document.getElementById('scrape-imagen-section');
-    if(data.imagen){
-      document.getElementById('scrape-img').src = data.imagen;
-      document.getElementById('scrape-img-link').href = data.imagen;
-      document.getElementById('scrape-img-copy-url').setAttribute('data-url', data.imagen);
-      imgSection.classList.add('show');
-    } else {
-      imgSection.classList.remove('show');
-    }
+    window._imagenActual = data.imagen || '';
     showToast('✓ Nota cargada correctamente');
   }catch(err){
     status.className='scrape-status err';
@@ -1178,6 +1169,7 @@ async function eliminarNotaGuardada(id, el){
 
 function cargarNotaGuardada(n){
   // Mostrar directamente en el panel de resultado
+  window._imagenActual = n.imagen||'';
   window._notaActual = {titular:n.titular||'', cuerpo:n.cuerpo||'', categoria:n.categoria||'', hashtags:n.hashtags||[], imagen:n.imagen||''};
   renderReformulada({ok:true, titular:n.titular||'', cuerpo:n.cuerpo||'', categoria_sugerida:n.categoria||'', hashtags:n.hashtags||[]});
   document.getElementById('badge-reformulada').style.display='inline-block';
@@ -1223,6 +1215,7 @@ function limpiarReformularReal(){
   const st=document.getElementById('scrape-status'); if(st){st.className='scrape-status';st.textContent='';}
   const imgSec=document.getElementById('scrape-imagen-section'); if(imgSec) imgSec.classList.remove('show');
   window._notaActual = null;
+  window._imagenActual = '';
 }
 </script>
 </body>
