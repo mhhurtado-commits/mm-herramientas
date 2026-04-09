@@ -203,6 +203,22 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .toggle-track.on .toggle-thumb{transform:translateX(16px)}
 .config-save-row{display:flex;align-items:center;gap:10px;margin-top:14px}
 .config-saved{font-size:11px;color:var(--green-dark);display:none}
+
+.notas-panel{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);padding:20px;margin-top:16px;box-shadow:var(--shadow)}
+.notas-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.notas-lista{display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto}
+.nota-guardada{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:6px}
+.nota-guardada-titulo{font-size:13px;font-weight:600;color:var(--text);line-height:1.4}
+.nota-guardada-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.nota-guardada-cat{font-size:10px;font-weight:700;color:var(--text-dim);background:var(--bg);border:1px solid var(--border);padding:2px 7px;border-radius:4px}
+.nota-guardada-fecha{font-size:10px;color:var(--text-dim)}
+.nota-guardada-actions{display:flex;gap:5px;margin-top:2px}
+.modal-confirm{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;display:none;align-items:center;justify-content:center}
+.modal-confirm.open{display:flex}
+.modal-confirm-box{background:var(--white);border-radius:var(--radius-xl);padding:24px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.18);text-align:center}
+.modal-confirm-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px}
+.modal-confirm-desc{font-size:12px;color:var(--text-muted);margin-bottom:20px;line-height:1.6}
+.modal-confirm-actions{display:flex;gap:8px;justify-content:center}
 </style>
 </head>
 <body>
@@ -335,7 +351,8 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
           <span class="panel-title">Nota reformulada</span>
           <div class="panel-actions">
             <span class="badge red" id="badge-reformulada" style="display:none">Lista</span>
-            <button class="btn-clear" id="btn-limpiar-r" onclick="limpiarReformular()" style="display:none">✕ Limpiar</button>
+            <button class="btn-sm" style="font-size:10px;padding:4px 10px" onclick="toggleNotasGuardadas()">★ Guardadas</button>
+            <button class="btn-clear" id="btn-limpiar-r" onclick="pedirLimpiarReformular()" style="display:none">✕ Limpiar</button>
           </div>
         </div>
         <div id="results-reformular">
@@ -344,6 +361,19 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
             <p>La nota reformulada<br>aparecerá aquí.</p>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTAS GUARDADAS (dentro de tab reformular) -->
+  <div id="notas-guardadas-section" style="display:none">
+    <div class="notas-panel">
+      <div class="notas-panel-header">
+        <span class="panel-title">Notas guardadas</span>
+        <button class="btn-clear" onclick="toggleNotasGuardadas()">✕ Cerrar</button>
+      </div>
+      <div class="notas-lista" id="notas-lista">
+        <span style="font-size:12px;color:var(--text-dim)">Cargando...</span>
       </div>
     </div>
   </div>
@@ -484,6 +514,19 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 
 </div>
 
+<!-- MODAL CONFIRMAR LIMPIAR -->
+<div class="modal-confirm" id="modal-limpiar">
+  <div class="modal-confirm-box">
+    <div class="modal-confirm-title">¿Guardar antes de limpiar?</div>
+    <div class="modal-confirm-desc">Tenés una nota generada. ¿Querés guardarla antes de limpiar el formulario?</div>
+    <div class="modal-confirm-actions">
+      <button class="btn-sm green" onclick="guardarYLimpiar()">Guardar y limpiar</button>
+      <button class="btn-sm" onclick="soloLimpiar()">Descartar y limpiar</button>
+      <button class="btn-sm" onclick="document.getElementById('modal-limpiar').classList.remove('open')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div class="statusbar">
   <div class="status-dot"></div>
   <div class="status-text">Conectado · Gemini 2.5 Flash Lite</div>
@@ -549,14 +592,7 @@ function limpiarTitulares(){
   document.getElementById('badge-titulares').style.display='none';
   document.getElementById('btn-limpiar-t').style.display='none';
 }
-function limpiarReformular(){
-  ['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('char-ref').textContent='0 caracteres';
-  document.getElementById('results-reformular').innerHTML=placeholderReformular();
-  document.getElementById('badge-reformulada').style.display='none';
-  document.getElementById('btn-limpiar-r').style.display='none';
-  const st=document.getElementById('scrape-status'); if(st){st.className='scrape-status';st.textContent='';}
-}
+function limpiarReformular(){ pedirLimpiarReformular(); }
 function placeholderTitulares(){ return `<div class="result-placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M3 5h18M3 10h12M3 15h15M3 20h9" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/></svg><p>Los titulares generados<br>aparecerán aquí.</p></div>`; }
 function placeholderReformular(){ return `<div class="result-placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><p>La nota reformulada<br>aparecerá aquí.</p></div>`; }
 
@@ -642,7 +678,10 @@ function renderReformulada(data){
       <button class="pill accent" onclick='copiarTexto(${JSON.stringify(cuerpoVal)})'>Copiar cuerpo</button>
       <button class="pill" onclick='copiarTexto(${JSON.stringify(titularVal+"\n\n"+cuerpoVal)})'>Copiar todo</button>
       <button class="pill" onclick='usarEnPlaca(${JSON.stringify(titularVal)})'>Usar en placa ↗</button>
+      <button class="pill" style="border-color:var(--green);color:var(--green-dark)" onclick="guardarNotaActual()">★ Guardar nota</button>
     </div>`;
+  // Guardar referencia a nota actual para poder guardarla
+  window._notaActual = {titular:titularVal, cuerpo:cuerpoVal, categoria:data.categoria_sugerida||'', hashtags:data.hashtags||[]};
 }
 
 // ── MONITOR — FUENTES KV ──
@@ -1049,6 +1088,107 @@ function cerrarModalFuentes(e){
     document.getElementById('modal-fuentes').classList.remove('open');
     resetAddForm();
   }
+}
+
+// ── NOTAS GUARDADAS ──
+let notasGuardadasVisible = false;
+
+function toggleNotasGuardadas(){
+  notasGuardadasVisible = !notasGuardadasVisible;
+  const sec = document.getElementById('notas-guardadas-section');
+  sec.style.display = notasGuardadasVisible ? 'block' : 'none';
+  if(notasGuardadasVisible) cargarNotasGuardadas();
+}
+
+async function cargarNotasGuardadas(){
+  const lista = document.getElementById('notas-lista');
+  lista.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">Cargando...</span>';
+  try{
+    const res = await fetch(WORKER+'/notas');
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    if(!data.notas.length){
+      lista.innerHTML='<span style="font-size:12px;color:var(--text-dim)">No hay notas guardadas.</span>';
+      return;
+    }
+    lista.innerHTML = '';
+    data.notas.forEach(n=>{
+      const fecha = n.fecha ? new Date(n.fecha).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+      const div = document.createElement('div');
+      div.className = 'nota-guardada';
+      div.innerHTML = `
+        <div class="nota-guardada-titulo">${esc(n.titular)}</div>
+        <div class="nota-guardada-meta">
+          ${n.categoria?`<span class="nota-guardada-cat">${esc(n.categoria)}</span>`:''}
+          <span class="nota-guardada-fecha">${fecha}</span>
+        </div>
+        <div class="nota-guardada-actions">
+          <button class="pill accent" onclick='cargarNotaGuardada(${JSON.stringify(n)})'>Cargar</button>
+          <button class="pill accent" onclick='copiarTexto(${JSON.stringify(n.titular+"\n\n"+n.cuerpo)})'>Copiar todo</button>
+          <button class="pill" style="margin-left:auto;border-color:var(--red);color:var(--red)" onclick="eliminarNotaGuardada('${n.id}',this.closest('.nota-guardada'))">Eliminar</button>
+        </div>`;
+      lista.appendChild(div);
+    });
+  }catch(e){ lista.innerHTML='<span style="font-size:12px;color:var(--red)">Error cargando notas</span>'; }
+}
+
+async function guardarNotaActual(){
+  const n = window._notaActual;
+  if(!n || !n.titular){ showToast('⚠ No hay nota generada para guardar'); return; }
+  const id = 'n_'+Date.now();
+  try{
+    const res = await fetch(WORKER+'/notas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,...n,fecha:Date.now()})});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    showToast('★ Nota guardada correctamente');
+    if(notasGuardadasVisible) cargarNotasGuardadas();
+  }catch(e){ showToast('✗ Error guardando: '+e.message); }
+}
+
+async function eliminarNotaGuardada(id, el){
+  try{
+    await fetch(WORKER+'/notas?id='+encodeURIComponent(id),{method:'DELETE'});
+    el.remove();
+    showToast('Nota eliminada');
+  }catch(e){ showToast('✗ Error eliminando'); }
+}
+
+function cargarNotaGuardada(n){
+  document.getElementById('ref-titulo-input').value = n.titular||'';
+  document.getElementById('ref-cuerpo-input').value = n.cuerpo||'';
+  document.getElementById('char-ref').textContent = (n.cuerpo||'').length+' caracteres';
+  toggleNotasGuardadas();
+  showToast('✓ Nota cargada en el formulario');
+}
+
+// ── LIMPIAR CON CONFIRM ──
+function pedirLimpiarReformular(){
+  if(window._notaActual && window._notaActual.titular){
+    document.getElementById('modal-limpiar').classList.add('open');
+  } else {
+    limpiarReformularReal();
+  }
+}
+
+async function guardarYLimpiar(){
+  document.getElementById('modal-limpiar').classList.remove('open');
+  await guardarNotaActual();
+  limpiarReformularReal();
+}
+
+function soloLimpiar(){
+  document.getElementById('modal-limpiar').classList.remove('open');
+  limpiarReformularReal();
+}
+
+function limpiarReformularReal(){
+  ['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('char-ref').textContent='0 caracteres';
+  document.getElementById('results-reformular').innerHTML=placeholderReformular();
+  document.getElementById('badge-reformulada').style.display='none';
+  document.getElementById('btn-limpiar-r').style.display='none';
+  const st=document.getElementById('scrape-status'); if(st){st.className='scrape-status';st.textContent='';}
+  window._notaActual = null;
 }
 </script>
 </body>
