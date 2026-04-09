@@ -217,16 +217,16 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 </div>
 
 <div class="tabs-bar">
-  <button class="tab-btn active" onclick="switchTab('titulares',this)">✦ Titulares</button>
+  <button class="tab-btn active" onclick="switchTab('monitor',this)">◉ Monitor</button>
   <button class="tab-btn" onclick="switchTab('reformular',this)">⟳ Reformular</button>
-  <button class="tab-btn" onclick="switchTab('monitor',this)">◉ Monitor</button>
+  <button class="tab-btn" onclick="switchTab('titulares',this)">✦ Titulares</button>
   <button class="tab-btn" onclick="switchTab('config',this)">⚙ Config</button>
 </div>
 
 <div class="main">
 
   <!-- TAB TITULARES -->
-  <div id="tab-titulares" class="tab-content active">
+  <div id="tab-titulares" class="tab-content">
     <div class="panel-grid">
       <div class="panel accent">
         <div class="panel-header">
@@ -315,7 +315,15 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
           <textarea id="txt-contexto-r" rows="3" placeholder="Datos extra, antecedentes, nombres, cifras para completar la nota con más información..."></textarea>
         </div>
         <div class="field"><label class="field-label">Estilo</label>
-          <select id="ref-estilo"><option value="formal">Periodístico formal</option><option value="directo">Directo y conciso</option><option value="ampliado">Con contexto ampliado</option></select>
+          <select id="ref-estilo">
+            <option value="formal">Periodístico formal</option>
+            <option value="directo">Directo y conciso</option>
+            <option value="ampliado">Con contexto ampliado</option>
+            <option value="breaking">Urgente / breaking news</option>
+            <option value="cronica">Crónica narrativa</option>
+            <option value="redes">Optimizado para redes sociales</option>
+            <option value="institucional">Comunicado institucional</option>
+          </select>
         </div>
         <button class="btn-primary red" id="btn-reformular" onclick="reformularNota()">
           <div class="spinner" id="spin-reformular"></div>
@@ -341,7 +349,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
   </div>
 
   <!-- TAB MONITOR -->
-  <div id="tab-monitor" class="tab-content">
+  <div id="tab-monitor" class="tab-content active">
 
     <!-- BARRA COMPACTA -->
     <div class="monitor-bar">
@@ -542,11 +550,12 @@ function limpiarTitulares(){
   document.getElementById('btn-limpiar-t').style.display='none';
 }
 function limpiarReformular(){
-  ['ref-titulo-input','ref-cuerpo-input','txt-contexto-r'].forEach(id=>document.getElementById(id).value='');
+  ['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('char-ref').textContent='0 caracteres';
   document.getElementById('results-reformular').innerHTML=placeholderReformular();
   document.getElementById('badge-reformulada').style.display='none';
   document.getElementById('btn-limpiar-r').style.display='none';
+  const st=document.getElementById('scrape-status'); if(st){st.className='scrape-status';st.textContent='';}
 }
 function placeholderTitulares(){ return `<div class="result-placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M3 5h18M3 10h12M3 15h15M3 20h9" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/></svg><p>Los titulares generados<br>aparecerán aquí.</p></div>`; }
 function placeholderReformular(){ return `<div class="result-placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><p>La nota reformulada<br>aparecerá aquí.</p></div>`; }
@@ -1011,7 +1020,7 @@ async function guardarEditorial(){
 
 
 // Init — cargar fuentes al abrir monitor si ya está en esa tab
-if(document.getElementById('tab-monitor').classList.contains('active')) cargarFuentes();
+cargarFuentes(); // monitor es tab por defecto
 
 function abrirModalFuentes(){
   document.getElementById('modal-fuentes').classList.add('open');
