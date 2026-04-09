@@ -220,7 +220,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .modal-confirm-desc{font-size:12px;color:var(--text-muted);margin-bottom:20px;line-height:1.6}
 .modal-confirm-actions{display:flex;gap:8px;justify-content:center}
 
-.scrape-imagen{margin-top:8px;display:none}
+.scrape-imagen{margin-top:8px;display:none!important}#scrape-imagen-section.show{display:block!important}
 .scrape-imagen img{width:100%;max-height:200px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--border)}
 .scrape-imagen-actions{display:flex;gap:5px;margin-top:5px}
 </style>
@@ -1044,9 +1044,9 @@ async function scrapearNota(){
       document.getElementById('scrape-img').src = data.imagen;
       document.getElementById('scrape-img-link').href = data.imagen;
       document.getElementById('scrape-img-copy-url').setAttribute('data-url', data.imagen);
-      imgSection.style.display='block';
+      imgSection.classList.add('show');
     } else {
-      imgSection.style.display='none';
+      imgSection.classList.remove('show');
     }
     showToast('✓ Nota cargada correctamente');
   }catch(err){
@@ -1177,7 +1177,7 @@ async function eliminarNotaGuardada(id, el){
 
 function cargarNotaGuardada(n){
   // Mostrar directamente en el panel de resultado
-  window._notaActual = {titular:n.titular||'', cuerpo:n.cuerpo||'', categoria:n.categoria||'', hashtags:n.hashtags||[]};
+  window._notaActual = {titular:n.titular||'', cuerpo:n.cuerpo||'', categoria:n.categoria||'', hashtags:n.hashtags||[], imagen:n.imagen||''};
   renderReformulada({ok:true, titular:n.titular||'', cuerpo:n.cuerpo||'', categoria_sugerida:n.categoria||'', hashtags:n.hashtags||[]});
   document.getElementById('badge-reformulada').style.display='inline-block';
   document.getElementById('btn-limpiar-r').style.display='inline-block';
@@ -1187,7 +1187,7 @@ function cargarNotaGuardada(n){
     document.getElementById('scrape-img').src = n.imagen;
     document.getElementById('scrape-img-link').href = n.imagen;
     document.getElementById('scrape-img-copy-url').setAttribute('data-url', n.imagen);
-    imgSec.style.display='block';
+    imgSec.classList.add('show');
   }
   toggleNotasGuardadas();
   showToast('✓ Nota cargada');
@@ -1220,7 +1220,7 @@ function limpiarReformularReal(){
   document.getElementById('badge-reformulada').style.display='none';
   document.getElementById('btn-limpiar-r').style.display='none';
   const st=document.getElementById('scrape-status'); if(st){st.className='scrape-status';st.textContent='';}
-  const imgSec=document.getElementById('scrape-imagen-section'); if(imgSec) imgSec.style.display='none';
+  const imgSec=document.getElementById('scrape-imagen-section'); if(imgSec) imgSec.classList.remove('show');
   window._notaActual = null;
 }
 </script>
