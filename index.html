@@ -1154,11 +1154,13 @@ async function eliminarNotaGuardada(id, el){
 }
 
 function cargarNotaGuardada(n){
-  document.getElementById('ref-titulo-input').value = n.titular||'';
-  document.getElementById('ref-cuerpo-input').value = n.cuerpo||'';
-  document.getElementById('char-ref').textContent = (n.cuerpo||'').length+' caracteres';
+  // Mostrar directamente en el panel de resultado
+  window._notaActual = {titular:n.titular||'', cuerpo:n.cuerpo||'', categoria:n.categoria||'', hashtags:n.hashtags||[]};
+  renderReformulada({ok:true, titular:n.titular||'', cuerpo:n.cuerpo||'', categoria_sugerida:n.categoria||'', hashtags:n.hashtags||[]});
+  document.getElementById('badge-reformulada').style.display='inline-block';
+  document.getElementById('btn-limpiar-r').style.display='inline-block';
   toggleNotasGuardadas();
-  showToast('✓ Nota cargada en el formulario');
+  showToast('✓ Nota cargada');
 }
 
 // ── LIMPIAR CON CONFIRM ──
