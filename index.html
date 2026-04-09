@@ -692,7 +692,8 @@ function renderReformulada(data){
       <button class="pill" style="border-color:var(--green);color:var(--green-dark)" onclick="guardarNotaActual()">★ Guardar nota</button>
     </div>`;
   // Guardar referencia a nota actual para poder guardarla
-  window._notaActual = {titular:titularVal, cuerpo:cuerpoVal, categoria:data.categoria_sugerida||'', hashtags:data.hashtags||[]};
+  const imgActual = document.getElementById('scrape-img')?.src || '';
+  window._notaActual = {titular:titularVal, cuerpo:cuerpoVal, categoria:data.categoria_sugerida||'', hashtags:data.hashtags||[], imagen:imgActual};
 }
 
 // ── MONITOR — FUENTES KV ──
@@ -1158,7 +1159,7 @@ async function guardarNotaActual(){
   if(!n || !n.titular){ showToast('⚠ No hay nota generada para guardar'); return; }
   const id = 'n_'+Date.now();
   try{
-    const res = await fetch(WORKER+'/notas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,...n,fecha:Date.now()})});
+    const res = await fetch(WORKER+'/notas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,...n,imagen:n.imagen||'',fecha:Date.now()})});
     const data = await res.json();
     if(!data.ok) throw new Error(data.error);
     showToast('★ Nota guardada correctamente');
@@ -1180,6 +1181,14 @@ function cargarNotaGuardada(n){
   renderReformulada({ok:true, titular:n.titular||'', cuerpo:n.cuerpo||'', categoria_sugerida:n.categoria||'', hashtags:n.hashtags||[]});
   document.getElementById('badge-reformulada').style.display='inline-block';
   document.getElementById('btn-limpiar-r').style.display='inline-block';
+  // Restaurar imagen si existe
+  if(n.imagen){
+    const imgSec = document.getElementById('scrape-imagen-section');
+    document.getElementById('scrape-img').src = n.imagen;
+    document.getElementById('scrape-img-link').href = n.imagen;
+    document.getElementById('scrape-img-copy-url').setAttribute('data-url', n.imagen);
+    imgSec.style.display='block';
+  }
   toggleNotasGuardadas();
   showToast('✓ Nota cargada');
 }
