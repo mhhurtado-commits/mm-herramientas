@@ -186,6 +186,23 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .fuente-row-name{font-size:12px;font-weight:600;color:var(--text)}
 .fuente-row-url{font-size:10px;color:var(--text-dim);margin-top:1px;word-break:break-all}
 .fuente-row-actions{display:flex;gap:5px;flex-shrink:0;margin-left:10px}
+
+.scrape-row{display:flex;gap:8px;align-items:flex-end}
+.scrape-row input{flex:1}
+.scrape-status{font-size:11px;padding:5px 10px;border-radius:var(--radius);display:none;margin-top:4px}
+.scrape-status.ok{background:var(--green-dim);color:var(--green-dark);border:1px solid var(--green-mid);display:block}
+.scrape-status.err{background:var(--red-bg);color:var(--red);border:1px solid #f5b8bc;display:block}
+.config-panel{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);padding:24px;max-width:720px;box-shadow:var(--shadow)}
+.config-title{font-size:13px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.config-desc{font-size:12px;color:var(--text-muted);margin-bottom:16px;line-height:1.6}
+.editorial-toggle{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+.editorial-toggle label{font-size:12px;font-weight:600;color:var(--text);cursor:pointer;flex:1}
+.toggle-track{width:36px;height:20px;background:var(--border-dark);border-radius:20px;position:relative;transition:background .2s;flex-shrink:0;cursor:pointer}
+.toggle-track.on{background:var(--green)}
+.toggle-thumb{position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle-track.on .toggle-thumb{transform:translateX(16px)}
+.config-save-row{display:flex;align-items:center;gap:10px;margin-top:14px}
+.config-saved{font-size:11px;color:var(--green-dark);display:none}
 </style>
 </head>
 <body>
@@ -203,6 +220,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
   <button class="tab-btn active" onclick="switchTab('titulares',this)">✦ Titulares</button>
   <button class="tab-btn" onclick="switchTab('reformular',this)">⟳ Reformular</button>
   <button class="tab-btn" onclick="switchTab('monitor',this)">◉ Monitor</button>
+  <button class="tab-btn" onclick="switchTab('config',this)">⚙ Config</button>
 </div>
 
 <div class="main">
@@ -277,8 +295,19 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
           <input type="text" id="ref-titulo-input" placeholder="Pegá el título original de la nota...">
         </div>
         <div class="field">
+          <label class="field-label">URL de la nota original (opcional)</label>
+          <div class="scrape-row">
+            <input type="text" id="ref-url-input" placeholder="https://www.otromedio.com/nota/...">
+            <button class="btn-sm" id="btn-scrape" onclick="scrapearNota()">
+              <span class="spinner" id="spin-scrape" style="display:none;width:12px;height:12px;border-width:2px"></span>
+              <span id="btn-scrape-text">Obtener nota</span>
+            </button>
+          </div>
+          <div class="scrape-status" id="scrape-status"></div>
+        </div>
+        <div class="field">
           <label class="field-label">Cuerpo de la nota original</label>
-          <textarea id="ref-cuerpo-input" rows="8" placeholder="Pegá el cuerpo completo de la nota que querés reformular..."></textarea>
+          <textarea id="ref-cuerpo-input" rows="8" placeholder="Pegá el cuerpo completo de la nota, o usá el botón 'Obtener nota' con la URL..."></textarea>
           <div class="char-count" id="char-ref">0 caracteres</div>
         </div>
         <div class="field">
@@ -407,6 +436,40 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
       <div class="monitor-empty">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="#ddd" stroke-width="1.5"/><path d="M21 21l-4.35-4.35" stroke="#ddd" stroke-width="1.5" stroke-linecap="round"/></svg>
         <p>Hacé clic en <strong>Buscar ahora</strong> para ver<br>las últimas noticias de tus fuentes.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB CONFIG -->
+  <div id="tab-config" class="tab-content">
+    <div class="config-panel">
+      <div class="config-title">Línea editorial</div>
+      <div class="config-desc">
+        Definí el estilo y la voz de Media Mendoza. Este texto se inyecta en cada generación de titulares y reformulación, guiando a la IA para que adopte el tono del diario.<br><br>
+        Podés incluir: estilo de escritura preferido, palabras o expresiones a evitar, ejemplos de titulares, tono (cercano, formal, urgente), enfoque local, etc.
+      </div>
+      <div class="editorial-toggle">
+        <label for="editorial-activo">Aplicar línea editorial en todas las generaciones</label>
+        <div class="toggle-track" id="editorial-track" onclick="toggleEditorial()"><div class="toggle-thumb"></div></div>
+      </div>
+      <div class="field">
+        <label class="field-label">Guía editorial para la IA</label>
+        <textarea id="editorial-prompt" rows="12" placeholder="Ejemplo:
+- Escribir en español rioplatense, usando vos en lugar de tú
+- Titulares directos, sin rodeos, que vayan al dato central
+- Evitar expresiones como 'en el marco de', 'llevó a cabo', 'manifestó'
+- Preferir verbos activos y presentes: 'el gobernador anuncia' en lugar de 'fue anunciado'
+- Tono cercano pero informativo, como un diario local de referencia
+- Siempre mencionar Mendoza o la zona si es relevante
+- Evitar eufemismos en noticias policiales, ser directo pero respetuoso
+- Los titulares no deben superar las 12 palabras"></textarea>
+      </div>
+      <div class="config-save-row">
+        <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="guardarEditorial()">
+          <span class="spinner" id="spin-editorial" style="display:none"></span>
+          <span id="btn-editorial-text">Guardar configuración</span>
+        </button>
+        <span class="config-saved" id="config-saved">✓ Guardado correctamente</span>
       </div>
     </div>
   </div>
@@ -871,6 +934,83 @@ function toggleAuto(){
 
 function usarEnPlaca(titular){
   window.open('https://editor-placas-mediamendoza.pages.dev/?titulo='+encodeURIComponent(titular),'_blank');
+}
+
+
+// ── SCRAPING ──
+async function scrapearNota(){
+  const url = document.getElementById('ref-url-input').value.trim();
+  if(!url){ showToast('⚠ Ingresá la URL de la nota'); return; }
+  const btn = document.getElementById('btn-scrape');
+  const spin = document.getElementById('spin-scrape');
+  const txt = document.getElementById('btn-scrape-text');
+  const status = document.getElementById('scrape-status');
+  btn.disabled=true; spin.style.display='inline-block'; txt.textContent='Obteniendo...';
+  status.className='scrape-status'; status.textContent='';
+  try{
+    const res = await fetch(WORKER+'/scrape?url='+encodeURIComponent(url));
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    if(data.titulo && !document.getElementById('ref-titulo-input').value){
+      document.getElementById('ref-titulo-input').value = data.titulo;
+    }
+    document.getElementById('ref-cuerpo-input').value = data.texto;
+    document.getElementById('char-ref').textContent = data.texto.length+' caracteres';
+    status.className='scrape-status ok';
+    status.textContent='✓ Nota obtenida · '+data.texto.length+' caracteres extraídos';
+    showToast('✓ Nota cargada correctamente');
+  }catch(err){
+    status.className='scrape-status err';
+    status.textContent='✗ '+err.message;
+  }finally{
+    btn.disabled=false; spin.style.display='none'; txt.textContent='Obtener nota';
+  }
+}
+
+// ── EDITORIAL ──
+let editorialActivo = false;
+
+async function cargarEditorial(){
+  try{
+    const res = await fetch(WORKER+'/editorial');
+    const data = await res.json();
+    if(data.ok && data.editorial){
+      document.getElementById('editorial-prompt').value = data.editorial.prompt || '';
+      editorialActivo = !!data.editorial.activo;
+      const track = document.getElementById('editorial-track');
+      if(editorialActivo) track.classList.add('on'); else track.classList.remove('on');
+    }
+  }catch(e){}
+}
+
+function toggleEditorial(){
+  editorialActivo = !editorialActivo;
+  const track = document.getElementById('editorial-track');
+  if(editorialActivo) track.classList.add('on'); else track.classList.remove('on');
+}
+
+async function guardarEditorial(){
+  const prompt = document.getElementById('editorial-prompt').value.trim();
+  const btn = document.getElementById('btn-editorial-text');
+  const spin = document.getElementById('spin-editorial');
+  btn.textContent='Guardando...'; spin.style.display='inline-block';
+  try{
+    const res = await fetch(WORKER+'/editorial',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,activo:editorialActivo})});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    const saved = document.getElementById('config-saved');
+    saved.style.display='inline';
+    setTimeout(()=>saved.style.display='none', 3000);
+    showToast('✓ Configuración guardada');
+  }catch(err){ showToast('✗ '+err.message); }
+  finally{ btn.textContent='Guardar configuración'; spin.style.display='none'; }
+}
+
+// Actualizar switchTab para cargar editorial
+const _origSwitchTab = switchTab;
+function switchTab(tab, el){
+  _origSwitchTab(tab, el);
+  if(tab==='config') cargarEditorial();
 }
 
 // Init — cargar fuentes al abrir monitor si ya está en esa tab
