@@ -828,6 +828,16 @@ async function buscarNoticias(){
   resultados.sort((a,b)=>new Date(b.pubDate||0)-new Date(a.pubDate||0));
   noticiasCache=resultados;
 
+  // Marcar cubiertas desde KV
+  try{
+    const cr = await fetch(WORKER+'/cubiertas');
+    const cd = await cr.json();
+    if(cd.ok && cd.links){
+      const set = new Set(cd.links);
+      noticiasCache.forEach(n=>{ if(set.has(n.link)) n.cubierta=true; });
+    }
+  }catch(e){}
+
   if(errores.length){
     const errDiv=document.getElementById('monitor-error');
     errDiv.style.display='block';
@@ -912,9 +922,17 @@ function renderNoticias(items){
   container.innerHTML=html;
 }
 
-function marcarCubierta(i){
-  noticiasCache[i].cubierta=!noticiasCache[i].cubierta;
+async function marcarCubierta(i){
+  const n = noticiasCache[i];
+  n.cubierta = !n.cubierta;
   aplicarFiltros();
+  try{
+    await fetch(WORKER+'/cubiertas',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({link:n.link, cubierta:n.cubierta})
+    });
+  }catch(e){ console.log('Error guardando cubierta:', e); }
 }
 
 function usarTitularMonitor(i){
