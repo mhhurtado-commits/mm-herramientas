@@ -219,6 +219,10 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .modal-confirm-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px}
 .modal-confirm-desc{font-size:12px;color:var(--text-muted);margin-bottom:20px;line-height:1.6}
 .modal-confirm-actions{display:flex;gap:8px;justify-content:center}
+
+.scrape-imagen{margin-top:8px;display:none}
+.scrape-imagen img{width:100%;max-height:200px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--border)}
+.scrape-imagen-actions{display:flex;gap:5px;margin-top:5px}
 </style>
 </head>
 <body>
@@ -320,6 +324,13 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
             </button>
           </div>
           <div class="scrape-status" id="scrape-status"></div>
+          <div class="scrape-imagen" id="scrape-imagen-section">
+            <img id="scrape-img" src="" alt="Imagen de la nota">
+            <div class="scrape-imagen-actions">
+              <a id="scrape-img-link" href="" target="_blank" class="pill accent">Ver imagen</a>
+              <button class="pill" id="scrape-img-copy-url" data-url="" onclick="copiarTexto(this.getAttribute('data-url'))">Copiar link</button>
+            </div>
+          </div>
         </div>
         <div class="field">
           <label class="field-label">Cuerpo de la nota original</label>
@@ -1026,6 +1037,16 @@ async function scrapearNota(){
     document.getElementById('char-ref').textContent = data.texto.length+' caracteres';
     status.className='scrape-status ok';
     status.textContent='✓ Nota obtenida · '+data.texto.length+' caracteres extraídos';
+    // Mostrar imagen si existe
+    const imgSection = document.getElementById('scrape-imagen-section');
+    if(data.imagen){
+      document.getElementById('scrape-img').src = data.imagen;
+      document.getElementById('scrape-img-link').href = data.imagen;
+      document.getElementById('scrape-img-copy-url').setAttribute('data-url', data.imagen);
+      imgSection.style.display='block';
+    } else {
+      imgSection.style.display='none';
+    }
     showToast('✓ Nota cargada correctamente');
   }catch(err){
     status.className='scrape-status err';
@@ -1190,6 +1211,7 @@ function limpiarReformularReal(){
   document.getElementById('badge-reformulada').style.display='none';
   document.getElementById('btn-limpiar-r').style.display='none';
   const st=document.getElementById('scrape-status'); if(st){st.className='scrape-status';st.textContent='';}
+  const imgSec=document.getElementById('scrape-imagen-section'); if(imgSec) imgSec.style.display='none';
   window._notaActual = null;
 }
 </script>
