@@ -512,6 +512,7 @@ function switchTab(tab,el){
   document.getElementById('tab-'+tab).classList.add('active');
   el.classList.add('active');
   if(tab==='monitor') cargarFuentes();
+  if(tab==='config') cargarEditorial();
 }
 
 // ── SUBTABS ──
@@ -1006,12 +1007,7 @@ async function guardarEditorial(){
   finally{ btn.textContent='Guardar configuración'; spin.style.display='none'; }
 }
 
-// Actualizar switchTab para cargar editorial
-const _origSwitchTab = switchTab;
-function switchTab(tab, el){
-  _origSwitchTab(tab, el);
-  if(tab==='config') cargarEditorial();
-}
+
 
 // Init — cargar fuentes al abrir monitor si ya está en esa tab
 if(document.getElementById('tab-monitor').classList.contains('active')) cargarFuentes();
