@@ -695,9 +695,7 @@ function renderReformulada(data){
     +'<div class="ref-actions" style="margin-top:12px">'
     +'<button class="pill accent" onclick="copiarTexto('+JSON.stringify(titularVal)+')">Copiar titular</button>'
     +'<button class="pill accent" onclick="copiarTexto('+JSON.stringify(cuerpoVal)+')">Copiar cuerpo</button>'
-    +'<button class="pill" onclick="copiarTexto('+JSON.stringify(titularVal+'
-
-'+cuerpoVal)+')">Copiar todo</button>'
+    +'<button class="pill" onclick="copiarTexto('+JSON.stringify(titularVal+'\n\n'+cuerpoVal)+')">Copiar todo</button>'
     +'<button class="pill" onclick="usarEnPlaca('+JSON.stringify(titularVal)+')">Usar en placa ↗</button>'
     +'<button class="pill" style="border-color:var(--green);color:var(--green-dark)" onclick="guardarNotaActual()">★ Guardar nota</button>'
     +'</div>';
