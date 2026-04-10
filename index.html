@@ -667,8 +667,8 @@ function renderReformulada(data){
   const hashtags = data.hashtags || [];
   const hashtagsHtml = hashtags.length
     ? '<div><div class="ref-section-label">Hashtags sugeridos</div>'
-      +'<div class="hashtags-row">'+hashtags.map(h=>'<span class="hashtag" onclick="copiarTexto('+JSON.stringify(h)+')">'+esc(h)+'</span>').join('')+'</div>'
-      +'<div style="margin-top:6px"><button class="pill" onclick="copiarTexto('+JSON.stringify(hashtags.join(' '))+')" >Copiar todos los hashtags</button></div></div>'
+      +'<div class="hashtags-row" id="hashtags-row-ref"></div>'
+      +'<div style="margin-top:6px"><button class="pill" id="btn-copy-hashtags">Copiar todos los hashtags</button></div></div>'
     : '';
 
   const imgHtml = imgUrl
@@ -691,13 +691,21 @@ function renderReformulada(data){
     +hashtagsHtml
     +'</div>'
     +imgHtml
-    +'<div class="ref-actions" style="margin-top:12px">'
-    +'<button class="pill accent" onclick="copiarTexto('+JSON.stringify(titularVal)+')">Copiar titular</button>'
-    +'<button class="pill accent" onclick="copiarTexto('+JSON.stringify(cuerpoVal)+')">Copiar cuerpo</button>'
-    +'<button class="pill" onclick="copiarTexto('+JSON.stringify(titularVal+'\n\n'+cuerpoVal)+')">Copiar todo</button>'
-    +'<button class="pill" onclick="usarEnPlaca('+JSON.stringify(titularVal)+')">Usar en placa ↗</button>'
-    +'<button class="pill" style="border-color:var(--green);color:var(--green-dark)" onclick="guardarNotaActual()">★ Guardar nota</button>'
-    +'</div>';
+    +'<div class="ref-actions" style="margin-top:12px" id="ref-actions-btns"></div>';
+  // Setear hashtags
+  if(hashtags.length){
+    const hr = document.getElementById('hashtags-row-ref');
+    if(hr){ hashtags.forEach(h=>{ const s=document.createElement('span'); s.className='hashtag'; s.textContent=h; s.onclick=()=>copiarTexto(h); hr.appendChild(s); }); }
+    const bh = document.getElementById('btn-copy-hashtags');
+    if(bh) bh.onclick=()=>copiarTexto(hashtags.join(' '));
+  }
+  // Setear botones con data attributes para evitar problemas con comillas
+  const ra = document.getElementById('ref-actions-btns');
+  const b1 = document.createElement('button'); b1.className='pill accent'; b1.textContent='Copiar titular'; b1.onclick=()=>copiarTexto(titularVal); ra.appendChild(b1);
+  const b2 = document.createElement('button'); b2.className='pill accent'; b2.textContent='Copiar cuerpo'; b2.onclick=()=>copiarTexto(cuerpoVal); ra.appendChild(b2);
+  const b3 = document.createElement('button'); b3.className='pill'; b3.textContent='Copiar todo'; b3.onclick=()=>copiarTexto(titularVal+'\n\n'+cuerpoVal); ra.appendChild(b3);
+  const b4 = document.createElement('button'); b4.className='pill'; b4.textContent='Usar en placa ↗'; b4.onclick=()=>usarEnPlaca(titularVal); ra.appendChild(b4);
+  const b5 = document.createElement('button'); b5.className='pill'; b5.style.cssText='border-color:var(--green);color:var(--green-dark)'; b5.textContent='★ Guardar nota'; b5.onclick=guardarNotaActual; ra.appendChild(b5);
 }
 // ── MONITOR — FUENTES KV ──
 let fuentes=[];
