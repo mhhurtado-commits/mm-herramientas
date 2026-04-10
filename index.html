@@ -666,38 +666,42 @@ function renderReformulada(data){
   const titularVal = data.titular || '';
   const cuerpoVal = data.cuerpo || '';
   const hashtags = data.hashtags || [];
-
   const hashtagsHtml = hashtags.length
-    ? `<div><div class="ref-section-label">Hashtags sugeridos</div>
-       <div class="hashtags-row">${hashtags.map(h=>`<span class="hashtag" onclick='copiarTexto(${JSON.stringify(h)})'>${esc(h)}</span>`).join('')}</div>
-       <div style="margin-top:6px"><button class="pill" onclick='copiarTexto(${JSON.stringify(hashtags.join(' '))})'>Copiar todos los hashtags</button></div></div>` : '';
+    ? '<div><div class="ref-section-label">Hashtags sugeridos</div>'
+      +'<div class="hashtags-row">'+hashtags.map(h=>'<span class="hashtag" onclick="copiarTexto('+JSON.stringify(h)+')">'+esc(h)+'</span>').join('')+'</div>'
+      +'<div style="margin-top:6px"><button class="pill" onclick="copiarTexto('+JSON.stringify(hashtags.join(' '))+')" >Copiar todos los hashtags</button></div></div>'
+    : '';
 
-  document.getElementById('results-reformular').innerHTML=`
-    <div class="ref-box">
-      <div class="ref-ia-badge">✦ Reformulada por IA</div>
-      <div><div class="ref-section-label">Categoría sugerida</div><span class="ref-categoria">${esc(data.categoria_sugerida||'—')}</span></div>
-      <div><div class="ref-section-label">Titular</div><div class="ref-titulo">${esc(titularVal)}</div></div>
-      <div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">${esc(cuerpoVal)}</div></div>
-      ${hashtagsHtml}
-    </div>
-    \${imgUrl ? \`<div style="margin-top:10px">
-      <img src="\${imgUrl}" alt="Imagen de la nota" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0">
-      <div style="display:flex;gap:5px;margin-top:5px">
-        <a href="\${imgUrl}" target="_blank" class="pill accent">Ver imagen</a>
-        <button class="pill" onclick='copiarTexto("\${imgUrl.replace(/"/g,"")}")'>Copiar link</button>
-      </div>
-    </div>\` : ''}
-    <div class="ref-actions" style="margin-top:12px">
-      <button class="pill accent" onclick='copiarTexto(${JSON.stringify(titularVal)})'>Copiar titular</button>
-      <button class="pill accent" onclick='copiarTexto(${JSON.stringify(cuerpoVal)})'>Copiar cuerpo</button>
-      <button class="pill" onclick='copiarTexto(${JSON.stringify(titularVal+"\n\n"+cuerpoVal)})'>Copiar todo</button>
-      <button class="pill" onclick='usarEnPlaca(${JSON.stringify(titularVal)})'>Usar en placa ↗</button>
-      <button class="pill" style="border-color:var(--green);color:var(--green-dark)" onclick="guardarNotaActual()">★ Guardar nota</button>
-    </div>`;
-  // Guardar referencia a nota actual para poder guardarla
-  window._notaActual = {titular:titularVal, cuerpo:cuerpoVal, categoria:data.categoria_sugerida||'', hashtags:data.hashtags||[], imagen:imgUrl};
+  const imgHtml = imgUrl
+    ? '<div style="margin-top:10px">'
+      +'<img src="'+imgUrl+'" alt="Imagen de la nota" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0">'
+      +'<div style="display:flex;gap:5px;margin-top:5px">'
+      +'<a href="'+imgUrl+'" target="_blank" class="pill accent">Ver imagen</a>'
+      +'<button class="pill" onclick="copiarTexto(this.dataset.url)" data-url="'+imgUrl+'">Copiar link</button>'
+      +'</div></div>'
+    : '';
+
+  window._notaActual = {titular:titularVal, cuerpo:cuerpoVal, categoria:data.categoria_sugerida||'', hashtags, imagen:imgUrl};
+
+  document.getElementById('results-reformular').innerHTML =
+    '<div class="ref-box">'
+    +'<div class="ref-ia-badge">✦ Reformulada por IA</div>'
+    +'<div><div class="ref-section-label">Categoría sugerida</div><span class="ref-categoria">'+esc(data.categoria_sugerida||'—')+'</span></div>'
+    +'<div><div class="ref-section-label">Titular</div><div class="ref-titulo">'+esc(titularVal)+'</div></div>'
+    +'<div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">'+esc(cuerpoVal)+'</div></div>'
+    +hashtagsHtml
+    +'</div>'
+    +imgHtml
+    +'<div class="ref-actions" style="margin-top:12px">'
+    +'<button class="pill accent" onclick="copiarTexto('+JSON.stringify(titularVal)+')">Copiar titular</button>'
+    +'<button class="pill accent" onclick="copiarTexto('+JSON.stringify(cuerpoVal)+')">Copiar cuerpo</button>'
+    +'<button class="pill" onclick="copiarTexto('+JSON.stringify(titularVal+'
+
+'+cuerpoVal)+')">Copiar todo</button>'
+    +'<button class="pill" onclick="usarEnPlaca('+JSON.stringify(titularVal)+')">Usar en placa ↗</button>'
+    +'<button class="pill" style="border-color:var(--green);color:var(--green-dark)" onclick="guardarNotaActual()">★ Guardar nota</button>'
+    +'</div>';
 }
-
 // ── MONITOR — FUENTES KV ──
 let fuentes=[];
 let fuentesActivas=new Set();
