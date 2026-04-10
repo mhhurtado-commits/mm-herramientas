@@ -223,6 +223,12 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .scrape-imagen{margin-top:8px;display:none}#scrape-imagen-section.show{display:block}
 .scrape-imagen img{width:100%;max-height:200px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--border)}
 .scrape-imagen-actions{display:flex;gap:5px;margin-top:5px}
+
+#web-search-track.on{background:var(--green)}
+#web-search-track.on .toggle-thumb{transform:translateX(14px)}
+.fuentes-nota{margin-top:10px;padding:10px 12px;background:var(--green-dim);border:1px solid var(--green-mid);border-radius:var(--radius)}
+.fuentes-nota-label{font-size:10px;font-weight:700;color:var(--green-dark);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.fuentes-nota-item{font-size:11px;color:var(--text-muted);margin-bottom:3px}
 </style>
 </head>
 <body>
@@ -254,6 +260,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
           <div class="subtabs">
             <button class="subtab active" id="subtab-nota" onclick="switchSubtab('nota')">Pegar nota</button>
             <button class="subtab" id="subtab-tema" onclick="switchSubtab('tema')">Tema</button>
+            <button class="subtab" id="subtab-redactar" onclick="switchSubtab('redactar')">✍ Redactar</button>
           </div>
         </div>
         <div id="input-nota">
@@ -270,6 +277,22 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
             <div class="char-count" id="char-tema">0 caracteres</div>
           </div>
         </div>
+
+        <div id="input-redactar" style="display:none">
+          <div class="field">
+            <label class="field-label">Ideas, borrador o fragmento</label>
+            <textarea id="txt-redactar" rows="9" placeholder="Escribí tus ideas, un borrador parcial, datos clave, citas, o cualquier información para armar la nota..."></textarea>
+            <div class="char-count" id="char-redactar">0 caracteres</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-top:4px">
+            <div class="toggle-track" id="web-search-track" onclick="toggleWebSearch()" style="width:32px;height:18px;background:var(--border-dark);border-radius:20px;position:relative;cursor:pointer;flex-shrink:0"><div class="toggle-thumb" style="position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div></div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">Buscar contexto en la web</div>
+              <div style="font-size:11px;color:var(--text-muted)">Gemini busca información adicional y cita las fuentes</div>
+            </div>
+          </div>
+        </div>
+
         <div class="field">
           <label class="field-label">Contexto adicional (opcional)</label>
           <textarea id="txt-contexto-t" rows="3" placeholder="Datos extra, antecedentes, nombres, cifras que ayuden a generar mejores titulares..."></textarea>
@@ -282,7 +305,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
             <select id="sel-cantidad"><option value="5">5 titulares</option><option value="3">3 titulares</option><option value="8">8 titulares</option></select>
           </div>
         </div>
-        <button class="btn-primary" id="btn-generar" onclick="generarTitulares()">
+        <button class="btn-primary" id="btn-generar" onclick="accionTitulares()">
           <div class="spinner" id="spin-titulares"></div>
           <span id="btn-titulares-text">Generar titulares</span>
         </button>
@@ -577,14 +600,21 @@ function switchSubtab(modo){
   modoActual=modo;
   document.getElementById('input-nota').style.display=modo==='nota'?'block':'none';
   document.getElementById('input-tema').style.display=modo==='tema'?'block':'none';
+  document.getElementById('input-redactar').style.display=modo==='redactar'?'block':'none';
   document.getElementById('subtab-nota').classList.toggle('active',modo==='nota');
   document.getElementById('subtab-tema').classList.toggle('active',modo==='tema');
+  document.getElementById('subtab-redactar').classList.toggle('active',modo==='redactar');
+  // Cambiar texto del botón según modo
+  const btnTxt = document.getElementById('btn-titulares-text');
+  btnTxt.textContent = modo==='redactar' ? 'Redactar nota' : 'Generar titulares';
+  // Ocultar opciones tono/cantidad si es redactar
+  document.querySelector('.row2').style.display = modo==='redactar' ? 'none' : 'grid';
 }
 
 // char counters
-['txt-nota','txt-tema','ref-cuerpo-input'].forEach(id=>{
+['txt-nota','txt-tema','ref-cuerpo-input','txt-redactar'].forEach(id=>{
   document.getElementById(id).addEventListener('input',function(){
-    const map={'txt-nota':'char-nota','txt-tema':'char-tema','ref-cuerpo-input':'char-ref'};
+    const map={'txt-nota':'char-nota','txt-tema':'char-tema','ref-cuerpo-input':'char-ref','txt-redactar':'char-redactar'};
     document.getElementById(map[id]).textContent=this.value.length+' caracteres';
   });
 });
@@ -1027,6 +1057,71 @@ function usarEnPlaca(titular){
   window.open('https://editor-placas-mediamendoza.pages.dev/?titulo='+encodeURIComponent(titular),'_blank');
 }
 
+
+
+// ── REDACTAR DESDE CERO ──
+let webSearchActivo = false;
+
+function toggleWebSearch(){
+  webSearchActivo = !webSearchActivo;
+  const track = document.getElementById('web-search-track');
+  if(webSearchActivo) track.classList.add('on'); else track.classList.remove('on');
+}
+
+function accionTitulares(){
+  if(modoActual === 'redactar') redactarNota();
+  else generarTitulares();
+}
+
+async function redactarNota(){
+  const ideas = document.getElementById('txt-redactar').value.trim();
+  if(!ideas){ showToast('⚠ Ingresá ideas o un borrador'); return; }
+  setLoading('btn-generar','spin-titulares','btn-titulares-text',true,'Generar titulares');
+  document.getElementById('btn-titulares-text').textContent = webSearchActivo ? 'Buscando y redactando...' : 'Redactando...';
+  try{
+    const res = await fetch(WORKER+'/redactar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ideas, buscarWeb:webSearchActivo})});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    renderNotaRedactada(data);
+  }catch(err){ showToast('✗ '+err.message); }
+  finally{ setLoading('btn-generar','spin-titulares','btn-titulares-text',false,'Generar titulares'); }
+}
+
+function renderNotaRedactada(data){
+  const badge = document.getElementById('badge-titulares');
+  badge.textContent = 'Nota lista';
+  badge.style.display='inline-block';
+  document.getElementById('btn-limpiar-t').style.display='inline-block';
+
+  const titular = data.titular||'';
+  const bajada = data.bajada||'';
+  const cuerpo = data.cuerpo||'';
+  const hashtags = data.hashtags||[];
+  const fuentes = data.fuentes||[];
+
+  let html = '<div class="ref-box">'
+    +'<div class="ref-ia-badge">✍ Nota redactada por IA</div>'
+    +(bajada?'<div><div class="ref-section-label">Bajada</div><div style="font-size:12px;color:var(--text-muted);font-style:italic">'+esc(bajada)+'</div></div>':'')
+    +'<div><div class="ref-section-label">Titular</div><div class="ref-titulo">'+esc(titular)+'</div></div>'
+    +'<div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">'+esc(cuerpo)+'</div></div>'
+    +(hashtags.length?'<div><div class="ref-section-label">Hashtags</div><div class="hashtags-row" id="hashtags-row-redactar"></div></div>':'')
+    +(fuentes.length?'<div class="fuentes-nota"><div class="fuentes-nota-label">Fuentes consultadas</div>'+fuentes.map(f=>'<div class="fuentes-nota-item">• '+esc(f)+'</div>').join('')+'</div>':'')
+    +'</div>'
+    +'<div class="ref-actions" style="margin-top:12px" id="ref-actions-redactar"></div>';
+
+  document.getElementById('results-titulares').innerHTML = html;
+
+  if(hashtags.length){
+    const hr = document.getElementById('hashtags-row-redactar');
+    hashtags.forEach(h=>{ const s=document.createElement('span'); s.className='hashtag'; s.textContent=h; s.onclick=()=>copiarTexto(h); hr.appendChild(s); });
+  }
+
+  const ra = document.getElementById('ref-actions-redactar');
+  const b1=document.createElement('button'); b1.className='pill accent'; b1.textContent='Copiar titular'; b1.onclick=()=>copiarTexto(titular); ra.appendChild(b1);
+  const b2=document.createElement('button'); b2.className='pill accent'; b2.textContent='Copiar cuerpo'; b2.onclick=()=>copiarTexto(cuerpo); ra.appendChild(b2);
+  const b3=document.createElement('button'); b3.className='pill'; b3.textContent='Copiar todo'; b3.onclick=()=>copiarTexto(titular+'\n\n'+(bajada?bajada+'\n\n':'')+cuerpo); ra.appendChild(b3);
+  const b4=document.createElement('button'); b4.className='pill'; b4.style.cssText='border-color:var(--green);color:var(--green-dark)'; b4.textContent='Usar en placa ↗'; b4.onclick=()=>usarEnPlaca(titular); ra.appendChild(b4);
+}
 
 // ── SCRAPING ──
 async function scrapearNota(){
