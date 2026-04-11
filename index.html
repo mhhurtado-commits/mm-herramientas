@@ -30,7 +30,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .tab-btn:hover{color:var(--text)}
 .tab-btn.active{color:var(--green-dark);border-bottom-color:var(--green)}
 
-.main{margin-top:108px;padding:20px;max-width:1280px;margin-left:auto;margin-right:auto;padding-bottom:50px}
+.main{margin-top:108px;padding:20px;max-width:1280px;margin-left:auto;margin-right:auto;padding-bottom:50px;overflow-x:hidden}
 .tab-content{display:none}.tab-content.active{display:block}
 
 .panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -146,8 +146,8 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .auto-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
 
 .update-info{font-size:11px;color:var(--text-dim);text-align:right;margin-bottom:8px}
-.noticias-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-.noticia-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;display:flex;flex-direction:column;gap:8px;transition:all .15s;animation:fadeIn .2s ease;box-shadow:var(--shadow)}
+.noticias-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;width:100%;overflow:hidden}
+.noticia-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;display:flex;flex-direction:column;gap:8px;transition:all .15s;animation:fadeIn .2s ease;box-shadow:var(--shadow);min-width:0;word-break:break-word;overflow:hidden}
 .noticia-card:hover{border-color:var(--green-mid);box-shadow:var(--shadow-md)}
 .noticia-card.cubierta{opacity:.35}
 .noticia-fuente-row{display:flex;align-items:center;justify-content:space-between}
@@ -498,7 +498,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
     <div class="monitor-error" id="monitor-error"></div>
     <div id="monitor-stats" class="monitor-stats" style="display:none"></div>
     <div class="update-info" id="monitor-update-info" style="display:none"></div>
-    <div id="monitor-results">
+    <div id="monitor-results" style="overflow-x:hidden;width:100%">
       <div class="monitor-empty">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="#ddd" stroke-width="1.5"/><path d="M21 21l-4.35-4.35" stroke="#ddd" stroke-width="1.5" stroke-linecap="round"/></svg>
         <p>Hacé clic en <strong>Buscar ahora</strong> para ver<br>las últimas noticias de tus fuentes.</p>
@@ -622,8 +622,9 @@ function switchSubtab(modo){
 
 // ── LIMPIAR ──
 function limpiarTitulares(){
-  ['txt-nota','txt-tema','txt-contexto-t'].forEach(id=>document.getElementById(id).value='');
-  ['char-nota','char-tema'].forEach(id=>document.getElementById(id).textContent='0 caracteres');
+  ['txt-nota','txt-tema','txt-contexto-t','txt-redactar'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['char-nota','char-tema','char-redactar'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='0 caracteres';});
+  webSearchActivo=false; const tr=document.getElementById('web-search-track'); const th=document.getElementById('web-search-thumb'); if(tr){tr.style.background='var(--border-dark)';} if(th){th.style.transform='translateX(0)';}
   document.getElementById('results-titulares').innerHTML=placeholderTitulares();
   document.getElementById('badge-titulares').style.display='none';
   document.getElementById('btn-limpiar-t').style.display='none';
@@ -1087,7 +1088,9 @@ async function redactarNota(){
   setLoading('btn-generar','spin-titulares','btn-titulares-text',true,'Generar titulares');
   document.getElementById('btn-titulares-text').textContent = webSearchActivo ? 'Buscando y redactando...' : 'Redactando...';
   try{
-    const res = await fetch(WORKER+'/redactar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ideas, buscarWeb:webSearchActivo})});
+    const ahora = new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Mendoza',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const ideasConFecha = ideas + "\n\n[FECHA Y HORA ACTUAL: " + ahora + " (hora de Mendoza, Argentina)]";
+    const res = await fetch(WORKER+'/redactar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ideas:ideasConFecha, buscarWeb:webSearchActivo})});
     const data = await res.json();
     if(!data.ok) throw new Error(data.error);
     renderNotaRedactada(data);
