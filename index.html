@@ -245,7 +245,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 <div class="tabs-bar">
   <button class="tab-btn active" onclick="switchTab('monitor',this)">◉ Monitor</button>
   <button class="tab-btn" onclick="switchTab('reformular',this)">⟳ Reformular</button>
-  <button class="tab-btn" onclick="switchTab('titulares',this)">✦ Titulares</button>
+  <button class="tab-btn" onclick="switchTab('titulares',this)">✍ Redactar</button>
   <button class="tab-btn" onclick="switchTab('config',this)">⚙ Config</button>
 </div>
 
@@ -258,12 +258,12 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
         <div class="panel-header">
           <span class="panel-title">Entrada</span>
           <div class="subtabs">
-            <button class="subtab active" id="subtab-nota" onclick="switchSubtab('nota')">Pegar nota</button>
-            <button class="subtab" id="subtab-tema" onclick="switchSubtab('tema')">Tema</button>
-            <button class="subtab" id="subtab-redactar" onclick="switchSubtab('redactar')">✍ Redactar</button>
+            <button class="subtab active" id="subtab-redactar" onclick="switchSubtab('redactar')">✍ Redactar</button>
+            <button class="subtab" id="subtab-nota" onclick="switchSubtab('nota')">Titulares</button>
+            <button class="subtab" id="subtab-tema" onclick="switchSubtab('tema')">Por tema</button>
           </div>
         </div>
-        <div id="input-nota">
+        <div id="input-nota" style="display:none">
           <div class="field">
             <label class="field-label">Cuerpo de la nota</label>
             <textarea id="txt-nota" rows="8" placeholder="Pegá el texto completo de la nota aquí..."></textarea>
@@ -278,14 +278,14 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
           </div>
         </div>
 
-        <div id="input-redactar" style="display:none">
+        <div id="input-redactar">
           <div class="field">
             <label class="field-label">Ideas, borrador o fragmento</label>
             <textarea id="txt-redactar" rows="9" placeholder="Escribí tus ideas, un borrador parcial, datos clave, citas, o cualquier información para armar la nota..."></textarea>
             <div class="char-count" id="char-redactar">0 caracteres</div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-top:4px">
-            <div class="toggle-track" id="web-search-track" onclick="toggleWebSearch()" style="width:32px;height:18px;background:var(--border-dark);border-radius:20px;position:relative;cursor:pointer;flex-shrink:0"><div class="toggle-thumb" style="position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div></div>
+            <div id="web-search-track" onclick="toggleWebSearch()" style="width:32px;height:18px;background:var(--border-dark);border-radius:20px;position:relative;cursor:pointer;flex-shrink:0;transition:background .2s"><div id="web-search-thumb" style="position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div></div>
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--text)">Buscar contexto en la web</div>
               <div style="font-size:11px;color:var(--text-muted)">Gemini busca información adicional y cita las fuentes</div>
@@ -307,7 +307,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
         </div>
         <button class="btn-primary" id="btn-generar" onclick="accionTitulares()">
           <div class="spinner" id="spin-titulares"></div>
-          <span id="btn-titulares-text">Generar titulares</span>
+          <span id="btn-titulares-text">Redactar nota</span>
         </button>
       </div>
       <div class="panel">
@@ -590,12 +590,13 @@ function switchTab(tab,el){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   el.classList.add('active');
+  window.scrollTo({top:0,behavior:'instant'});
   if(tab==='monitor') cargarFuentes();
   if(tab==='config') cargarEditorial();
 }
 
 // ── SUBTABS ──
-let modoActual='nota';
+let modoActual='redactar';
 function switchSubtab(modo){
   modoActual=modo;
   document.getElementById('input-nota').style.display=modo==='nota'?'block':'none';
@@ -1065,7 +1066,14 @@ let webSearchActivo = false;
 function toggleWebSearch(){
   webSearchActivo = !webSearchActivo;
   const track = document.getElementById('web-search-track');
-  if(webSearchActivo) track.classList.add('on'); else track.classList.remove('on');
+  const thumb = document.getElementById('web-search-thumb');
+  if(webSearchActivo){
+    track.style.background = 'var(--green)';
+    thumb.style.transform = 'translateX(14px)';
+  } else {
+    track.style.background = 'var(--border-dark)';
+    thumb.style.transform = 'translateX(0)';
+  }
 }
 
 function accionTitulares(){
