@@ -307,7 +307,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
         </div>
         <button class="btn-primary" id="btn-generar" onclick="accionTitulares()">
           <div class="spinner" id="spin-titulares"></div>
-          <span id="btn-titulares-text">Redactar nota</span>
+          <span id="btn-titulares-text">Redactar</span>
         </button>
       </div>
       <div class="panel">
@@ -607,7 +607,7 @@ function switchSubtab(modo){
   document.getElementById('subtab-redactar').classList.toggle('active',modo==='redactar');
   // Cambiar texto del botón según modo
   const btnTxt = document.getElementById('btn-titulares-text');
-  btnTxt.textContent = modo==='redactar' ? 'Redactar nota' : 'Generar titulares';
+  btnTxt.textContent = modo==='redactar' ? 'Redactar' : 'Generar titulares';
   // Ocultar opciones tono/cantidad si es redactar
   document.querySelector('.row2').style.display = modo==='redactar' ? 'none' : 'grid';
 }
