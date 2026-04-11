@@ -1116,7 +1116,12 @@ function renderNotaRedactada(data){
     +'<div><div class="ref-section-label">Titular</div><div class="ref-titulo">'+esc(titular)+'</div></div>'
     +'<div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">'+esc(cuerpo.replace(/^P\d+:\s*/gm,''))+'</div></div>'
     +(hashtags.length?'<div><div class="ref-section-label">Hashtags</div><div class="hashtags-row" id="hashtags-row-redactar"></div></div>':'')
-    +(fuentes.length?'<div class="fuentes-nota"><div class="fuentes-nota-label">Fuentes consultadas</div>'+fuentes.map(f=>typeof f==='object'?'<div class="fuentes-nota-item">• <a href="'+esc(f.url)+'" target="_blank" style="color:var(--green-dark)">'+esc(f.titulo)+'</a></div>':'<div class="fuentes-nota-item">• '+esc(f)+'</div>').join('')+'</div>':'')
+    +(fuentes.length?'<div class="fuentes-nota"><div class="fuentes-nota-label">Fuentes consultadas</div>'+fuentes.map(f=>{
+    if(typeof f!=='object') return '<div class="fuentes-nota-item">• '+esc(f)+'</div>';
+    return '<div class="fuentes-nota-item" style="margin-bottom:10px">'
+      +(f.imagen?'<img src="'+esc(f.imagen)+'" style="width:100%;max-height:160px;object-fit:cover;border-radius:6px;margin-bottom:5px;display:block">':'')
+      +'• <a href="'+esc(f.url)+'" target="_blank" style="color:var(--green-dark)">'+esc(f.titulo)+'</a></div>';
+  }).join('')+'</div>':'')
     +'</div>'
     +'<div class="ref-actions" style="margin-top:12px" id="ref-actions-redactar"></div>';
 
