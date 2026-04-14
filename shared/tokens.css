@@ -1,1 +1,104 @@
+/* ── Media Mendoza — Design Tokens compartidos ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap');
+@font-face{font-family:'BebasNeue';src:url('https://editor-placas-mediamendoza.pages.dev/BebasNeue-Regular.ttf') format('truetype');}
+
+:root{
+  /* Paleta */
+  --green:#a6ce39;
+  --green-dark:#7a9e1f;
+  --green-dim:#eaf3de;
+  --green-mid:#c8e87a;
+  --red:#e63946;
+  --red-bg:#fdecea;
+
+  /* Grises */
+  --bg:#f4f4f2;
+  --white:#fff;
+  --surface:#fafafa;
+  --border:#e0e0e0;
+  --border-dark:#ccc;
+  --text:#1a1a1a;
+  --text-muted:#666;
+  --text-dim:#999;
+
+  /* Radios */
+  --radius:8px;
+  --radius-lg:12px;
+  --radius-xl:16px;
+
+  /* Sombras */
+  --shadow:0 1px 3px rgba(0,0,0,.08);
+  --shadow-md:0 2px 8px rgba(0,0,0,.1);
+  --shadow-lg:0 4px 20px rgba(0,0,0,.13);
+
+  /* Tipografía */
+  --font-body:'Inter',sans-serif;
+  --font-display:'BebasNeue',sans-serif;
+  --font-serif:'DM Serif Display',serif;
+
+  /* Layout */
+  --topbar-h:56px;
+}
+
+/* Reset base */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.5}
+
+/* ── Topbar compartido ── */
+.mm-topbar{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  height:var(--topbar-h);
+  background:var(--white);
+  border-bottom:3px solid var(--green);
+  display:flex;align-items:center;
+  padding:0 20px;gap:14px;
+  box-shadow:var(--shadow);
+}
+.mm-topbar-logo img{height:30px;width:auto;display:block;}
+.mm-topbar-divider{width:1px;height:24px;background:var(--border);flex-shrink:0;}
+.mm-topbar-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;}
+.mm-topbar-badge{font-size:11px;font-weight:600;color:var(--green-dark);background:var(--green-dim);border:1px solid var(--green-mid);padding:3px 10px;border-radius:20px;}
+.mm-topbar-back{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:600;color:var(--text-muted);
+  text-decoration:none;padding:5px 10px;border-radius:20px;
+  border:1px solid var(--border);transition:all .15s;margin-left:auto;
+}
+.mm-topbar-back:hover{border-color:var(--green);color:var(--green-dark);}
+
+/* ── Statusbar compartida ── */
+.mm-statusbar{
+  position:fixed;bottom:0;left:0;right:0;height:30px;
+  background:var(--white);border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:14px;
+}
+.mm-statusbar-dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.mm-statusbar-text{font-size:11px;color:var(--text-dim);}
+.mm-statusbar-url{font-size:11px;color:var(--text-dim);margin-left:auto;}
+
+/* ── Toast compartido ── */
+.mm-toast{
+  position:fixed;bottom:48px;left:50%;
+  transform:translateX(-50%) translateY(10px);
+  background:var(--text);color:var(--white);
+  font-size:12px;font-weight:500;
+  padding:9px 18px;border-radius:20px;
+  opacity:0;transition:all .2s;pointer-events:none;
+  white-space:nowrap;z-index:200;
+}
+.mm-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── Botones compartidos ── */
+.mm-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-size:13px;font-weight:700;font-family:var(--font-body);
+  padding:10px 20px;border:none;border-radius:var(--radius);
+  cursor:pointer;letter-spacing:.02em;text-transform:uppercase;
+  transition:all .15s;text-decoration:none;
+}
+.mm-btn:active{transform:scale(.98);}
+.mm-btn-primary{background:var(--green);color:#1a2a00;box-shadow:0 2px 6px rgba(166,206,57,.4);}
+.mm-btn-primary:hover{background:var(--green-dark);color:#fff;}
+.mm-btn-secondary{background:var(--white);color:var(--text);border:1px solid var(--border-dark);}
+.mm-btn-secondary:hover{border-color:var(--green);color:var(--green-dark);}
 
