@@ -25,6 +25,15 @@ html,body{height:100%;font-family:'Montserrat',sans-serif;background:var(--g10);
 .tb-sep{width:1px;height:22px;background:var(--g20);flex-shrink:0;}
 .tb-title{font-family:'BebasNeue',sans-serif;font-size:1.35rem;color:var(--blk);letter-spacing:.8px;white-space:nowrap;}
 .tb-title span{color:var(--v);}
+.tb-back{
+  display:flex;align-items:center;gap:6px;
+  font-family:'Inter',sans-serif;
+  font-size:11px;font-weight:700;color:var(--g60);
+  text-decoration:none;padding:4px 12px;border-radius:20px;
+  border:1.5px solid var(--g20);transition:all .15s;
+  text-transform:uppercase;letter-spacing:.05em;
+}
+.tb-back:hover{border-color:var(--v);color:var(--v);}
 /* formato pills - solo desktop */
 .fmt-pills{display:flex;gap:4px;margin-left:auto;flex-shrink:0;}
 .fpill{font-family:'BebasNeue',sans-serif;font-size:.8rem;letter-spacing:.4px;padding:4px 10px;border-radius:20px;cursor:pointer;border:1.5px solid var(--g20);background:#fff;color:var(--g60);transition:all .15s;white-space:nowrap;}
