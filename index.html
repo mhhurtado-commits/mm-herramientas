@@ -7,122 +7,94 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --green:#a6ce39;--green-dark:#7a9e1f;--green-dim:#eaf3de;--green-mid:#c8e87a;
-  --bg:#f4f4f2;--white:#fff;--border:#e0e0e0;--border-dark:#ccc;
-  --text:#1a1a1a;--text-muted:#666;--text-dim:#999;
-  --radius:8px;--radius-lg:12px;--radius-xl:16px;
-  --shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 2px 8px rgba(0,0,0,.1);--shadow-lg:0 8px 32px rgba(0,0,0,.12);
-}
+:root{--green:#a6ce39;--green-dark:#7a9e1f;--green-dim:#eaf3de;--green-mid:#c8e87a;--bg:#f4f4f2;--white:#fff;--border:#e0e0e0;--border-dark:#ccc;--text:#1a1a1a;--text-muted:#666;--text-dim:#999;--radius:8px;--radius-xl:16px;--shadow:0 1px 3px rgba(0,0,0,.08);--shadow-lg:0 8px 32px rgba(0,0,0,.12)}
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;line-height:1.5}
-
-/* TOPBAR */
 .topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;background:var(--white);border-bottom:3px solid var(--green);display:flex;align-items:center;padding:0 20px;gap:14px;box-shadow:var(--shadow)}
 .topbar-logo img{height:30px;width:auto;display:block}
 .topbar-divider{width:1px;height:24px;background:var(--border)}
 .topbar-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em}
 .topbar-badge{font-size:11px;font-weight:600;color:var(--green-dark);background:var(--green-dim);border:1px solid var(--green-mid);padding:3px 10px;border-radius:20px;margin-left:auto}
-
-/* MAIN */
-main{padding-top:56px;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:50px}
+main{padding-top:56px;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding-bottom:50px}
 .hero{text-align:center;padding:48px 20px 32px;max-width:560px}
 .hero-eyebrow{font-size:11px;font-weight:700;color:var(--green-dark);text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px}
 .hero-title{font-family:'DM Serif Display',serif;font-size:clamp(2rem,5vw,3rem);color:var(--text);line-height:1.15;margin-bottom:14px}
 .hero-title span{color:var(--green-dark)}
 .hero-desc{font-size:13px;color:var(--text-muted);line-height:1.7}
-
-/* CARDS */
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;width:100%;max-width:820px;padding:0 20px}
-.card{
-  background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);
-  padding:28px 24px;display:flex;flex-direction:column;gap:14px;
-  box-shadow:var(--shadow);text-decoration:none;color:inherit;
-  transition:all .2s;position:relative;overflow:hidden;
-}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--green);transform:scaleX(0);transform-origin:left;transition:transform .2s;}
-.card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:var(--green-mid);}
-.card:hover::before{transform:scaleX(1);}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;width:100%;max-width:900px;padding:0 20px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);padding:28px 24px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow);text-decoration:none;color:inherit;transition:all .2s;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--green);transform:scaleX(0);transform-origin:left;transition:transform .2s}
+.card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:var(--green-mid)}
+.card:hover::before{transform:scaleX(1)}
 .card-icon{font-size:2rem;line-height:1}
 .card-badge{position:absolute;top:16px;right:16px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--green-dim);color:var(--green-dark);border:1px solid var(--green-mid)}
+.card-badge.new{background:#fdecea;color:#e63946;border-color:#f5b8bc}
 .card-title{font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--text)}
 .card-desc{font-size:12px;color:var(--text-muted);line-height:1.65;flex:1}
 .card-pills{display:flex;gap:5px;flex-wrap:wrap}
 .pill{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid var(--border-dark);color:var(--text-muted)}
-.card-arrow{font-size:18px;color:var(--green);margin-left:auto;transition:transform .2s}
-.card:hover .card-arrow{transform:translateX(4px)}
 .card-footer{display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--border)}
 .card-footer-label{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em}
-
-/* STATUSBAR */
+.card-arrow{font-size:18px;color:var(--green);margin-left:auto;transition:transform .2s}
+.card:hover .card-arrow{transform:translateX(4px)}
 .statusbar{position:fixed;bottom:0;left:0;right:0;height:30px;background:var(--white);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px}
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
-.status-text{font-size:11px;color:var(--text-dim)}
-.status-url{font-size:11px;color:var(--text-dim);margin-left:auto}
-
+.status-text,.status-url{font-size:11px;color:var(--text-dim)}
+.status-url{margin-left:auto}
 @media(max-width:600px){.cards{grid-template-columns:1fr}.hero{padding:32px 20px 24px}}
 </style>
 </head>
 <body>
-
 <div class="topbar">
-  <div class="topbar-logo">
-    <img src="data:image/jpeg;base64,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" alt="Media Mendoza">
-  </div>
+  <div class="topbar-logo"><img src="assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'"></div>
   <div class="topbar-divider"></div>
   <span class="topbar-title">Suite de Herramientas</span>
   <span class="topbar-badge">IA</span>
 </div>
-
 <main>
   <div class="hero">
     <div class="hero-eyebrow">Media Mendoza</div>
     <h1 class="hero-title">Suite de<br><span>Herramientas IA</span></h1>
-    <p class="hero-desc">Todas las herramientas de producción en un solo lugar. Redactá, reformulá y diseñá placas para redes con inteligencia artificial.</p>
+    <p class="hero-desc">Todas las herramientas de producción en un solo lugar. Redactá, reformulá, diseñá placas, difundí por WhatsApp y planificá tu cobertura.</p>
   </div>
-
   <div class="cards">
-
     <a href="/redaccion/" class="card">
       <div class="card-badge">4 herramientas</div>
       <div class="card-icon">✍️</div>
       <div class="card-title">Herramientas de Redacción</div>
       <p class="card-desc">Monitor de fuentes RSS, reformulación de notas, agente de redacción con búsqueda web y configuración de línea editorial.</p>
-      <div class="card-pills">
-        <span class="pill">Monitor</span>
-        <span class="pill">Reformular</span>
-        <span class="pill">Redactar</span>
-        <span class="pill">Config</span>
-      </div>
-      <div class="card-footer">
-        <span class="card-footer-label">Gemini 2.5 Flash Lite</span>
-        <span class="card-arrow">→</span>
-      </div>
+      <div class="card-pills"><span class="pill">Monitor</span><span class="pill">Reformular</span><span class="pill">Redactar</span><span class="pill">Config</span></div>
+      <div class="card-footer"><span class="card-footer-label">Gemini 2.5 Flash Lite</span><span class="card-arrow">→</span></div>
     </a>
-
     <a href="/placas/" class="card">
       <div class="card-badge">Editor visual</div>
       <div class="card-icon">🎨</div>
       <div class="card-title">Editor de Placas</div>
       <p class="card-desc">Diseñá placas para Instagram, historias, Facebook y Twitter/X. 16 plantillas, modos collage, foto circular y generador de mensajes WhatsApp.</p>
-      <div class="card-pills">
-        <span class="pill">16 plantillas</span>
-        <span class="pill">Collage</span>
-        <span class="pill">Msg WA</span>
-      </div>
-      <div class="card-footer">
-        <span class="card-footer-label">Editor canvas</span>
-        <span class="card-arrow">→</span>
-      </div>
+      <div class="card-pills"><span class="pill">16 plantillas</span><span class="pill">Collage</span><span class="pill">Canvas</span></div>
+      <div class="card-footer"><span class="card-footer-label">Editor canvas</span><span class="card-arrow">→</span></div>
     </a>
-
+    <a href="/whatsapp/" class="card">
+      <div class="card-badge new">Nuevo</div>
+      <div class="card-icon">💬</div>
+      <div class="card-title">Mensajes WhatsApp</div>
+      <p class="card-desc">Generá mensajes para grupo y canal a partir de la URL de cualquier nota. Programá envíos con recordatorios automáticos.</p>
+      <div class="card-pills"><span class="pill">Grupo</span><span class="pill">Canal</span><span class="pill">Programar</span></div>
+      <div class="card-footer"><span class="card-footer-label">Gemini 2.5 Flash Lite</span><span class="card-arrow">→</span></div>
+    </a>
+    <a href="/agenda/" class="card">
+      <div class="card-badge new">Nuevo</div>
+      <div class="card-icon">📅</div>
+      <div class="card-title">Agenda de Cobertura</div>
+      <p class="card-desc">Calendario con efemérides nacionales y mendocinas precargadas. Agregá eventos, asigná coberturas y recibí sugerencias de ángulos con IA.</p>
+      <div class="card-pills"><span class="pill">Efemérides</span><span class="pill">Ángulos IA</span><span class="pill">Calendario</span></div>
+      <div class="card-footer"><span class="card-footer-label">Gemini 2.5 Flash Lite</span><span class="card-arrow">→</span></div>
+    </a>
   </div>
 </main>
-
 <div class="statusbar">
   <div class="status-dot"></div>
   <div class="status-text">mediamendoza.pages.dev</div>
   <div class="status-url">Suite IA v2.0</div>
 </div>
-
 </body>
 </html>
