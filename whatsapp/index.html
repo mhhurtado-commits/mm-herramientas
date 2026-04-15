@@ -1,1 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WhatsApp — Media Mendoza</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#a6ce39;--green-dark:#7a9e1f;--green-dim:#eaf3de;--green-mid:#c8e87a;
+  --wa:#25d366;--wa-dark:#1ebe5d;--wa-dim:#e8faf0;
+  --bg:#f4f4f2;--white:#fff;--surface:#fafafa;
+  --border:#e0e0e0;--border-dark:#ccc;
+  --text:#1a1a1a;--text-muted:#666;--text-dim:#999;
+  --radius:8px;--radius-lg:12px;--radius-xl:16px;
+  --shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 2px 8px rgba(0,0,0,.1);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;line-height:1.5}
 
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;background:var(--white);border-bottom:3px solid var(--green);display:flex;align-items:center;padding:0 20px;gap:14px;box-shadow:var(--shadow)}
+.topbar-logo img{height:30px;width:auto;display:block}
+.topbar-divider{width:1px;height:24px;background:var(--border)}
+.topbar-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em}
+.topbar-back{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-muted);text-decoration:none;padding:4px 12px;border-radius:20px;border:1px solid var(--border);transition:all .15s;margin-left:auto;text-transform:uppercase;letter-spacing:.06em}
+.topbar-back:hover{border-color:var(--green);color:var(--green-dark);background:var(--green-dim)}
+.topbar-badge{font-size:11px;font-weight:600;color:var(--wa-dark);background:var(--wa-dim);border:1px solid #a3e6c7;padding:3px 10px;border-radius:20px}
+
+.main{margin-top:56px;padding:20px;max-width:1200px;margin-left:auto;margin-right:auto;padding-bottom:40px}
+
+/* ── GRID PRINCIPAL ── */
+.grid{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+/* ── PANEL IZQUIERDO ── */
+.panel{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
+.panel-accent{border-top:3px solid var(--green)}
+.panel-header{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;padding-bottom:12px;border-bottom:1px solid var(--border)}
+
+.field{display:flex;flex-direction:column;gap:5px}
+.field-label{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em}
+textarea,select,input[type="text"],input[type="url"],input[type="datetime-local"]{width:100%;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;line-height:1.55;transition:border-color .15s;resize:none}
+textarea:focus,select:focus,input:focus{outline:none;border-color:var(--green);background:var(--white)}
+textarea::placeholder,input::placeholder{color:var(--text-dim)}
+
+/* Nota preview */
+.nota-preview{background:var(--green-dim);border:1px solid var(--green-mid);border-radius:var(--radius-lg);padding:12px;display:none}
+.nota-preview.show{display:block}
+.nota-preview-img{width:100%;max-height:140px;object-fit:cover;border-radius:var(--radius);margin-bottom:8px;display:none}
+.nota-preview-img.show{display:block}
+.nota-preview-titulo{font-family:'DM Serif Display',serif;font-size:15px;color:var(--text);line-height:1.3;margin-bottom:4px}
+.nota-preview-url{font-size:11px;color:var(--green-dark);font-weight:600}
+
+/* Botones */
+.btn-primary{width:100%;padding:12px;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;background:var(--green);color:#1a2a00;border:none;border-radius:var(--radius);cursor:pointer;letter-spacing:.02em;text-transform:uppercase;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 6px rgba(166,206,57,.4)}
+.btn-primary:hover{background:var(--green-dark);color:#fff}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-wa{background:var(--wa);color:#fff;box-shadow:0 2px 6px rgba(37,211,102,.35)}
+.btn-wa:hover{background:var(--wa-dark);color:#fff}
+.btn-sm{font-size:11px;font-weight:600;padding:6px 14px;border-radius:var(--radius);border:1px solid var(--border-dark);background:var(--white);color:var(--text-muted);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-sm:hover{border-color:var(--green);color:var(--green-dark)}
+.btn-sm.wa{border-color:var(--wa);color:var(--wa-dark);background:var(--wa-dim)}
+.btn-sm.wa:hover{background:var(--wa);color:#fff}
+
+.spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.15);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;display:none;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TABS ── */
+.tabs-bar{display:flex;border-bottom:2px solid var(--border);margin-bottom:16px}
+.tab-btn{font-size:12px;font-weight:700;padding:10px 16px;color:var(--text-muted);border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;text-transform:uppercase;letter-spacing:.05em}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--green-dark);border-bottom-color:var(--green)}
+
+/* ── MENSAJE WA ── */
+.wa-message-box{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;position:relative}
+.wa-message-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.wa-icon{width:32px;height:32px;border-radius:50%;background:var(--wa);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0}
+.wa-message-meta{flex:1}
+.wa-message-type{font-size:11px;font-weight:700;color:var(--wa-dark);text-transform:uppercase;letter-spacing:.06em}
+.wa-message-categoria{font-size:11px;color:var(--text-dim)}
+.wa-message-text{font-size:13px;line-height:1.75;color:var(--text);white-space:pre-wrap;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;min-height:80px;font-family:'Inter',sans-serif;cursor:text}
+.wa-message-text:focus{outline:none;border-color:var(--green)}
+.wa-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+
+/* Placeholder */
+.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 20px;border:2px dashed var(--border);border-radius:var(--radius-lg);color:var(--text-dim)}
+.placeholder p{font-size:12px;text-align:center;line-height:1.7}
+
+/* ── PROGRAMADOS ── */
+.programados-list{display:flex;flex-direction:column;gap:8px}
+.prog-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;display:flex;gap:12px;align-items:flex-start;transition:all .15s}
+.prog-card:hover{border-color:var(--green-mid);box-shadow:var(--shadow)}
+.prog-card.enviado{opacity:.5}
+.prog-card.urgente{border-left:3px solid #e63946}
+.prog-card.pronto{border-left:3px solid var(--green)}
+.prog-time{flex-shrink:0;text-align:center;background:var(--green-dim);border:1px solid var(--green-mid);border-radius:var(--radius);padding:6px 10px;min-width:70px}
+.prog-time-hora{font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--green-dark);line-height:1}
+.prog-time-fecha{font-size:10px;color:var(--green-dark);font-weight:600;text-transform:uppercase}
+.prog-body{flex:1;min-width:0}
+.prog-titulo{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog-canal{font-size:11px;color:var(--text-muted);margin-bottom:6px}
+.prog-actions{display:flex;gap:5px;flex-wrap:wrap}
+.badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+.badge-enviado{background:#f0f0f0;color:var(--text-dim)}
+.badge-pendiente{background:var(--wa-dim);color:var(--wa-dark)}
+.badge-urgente{background:#fdecea;color:#e63946}
+
+/* Modal programar */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--white);border-radius:var(--radius-xl);width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:13px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em}
+.modal-close{font-size:16px;background:transparent;border:none;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius);transition:all .15s}
+.modal-close:hover{background:#fdecea;color:#e63946}
+.modal-body{padding:16px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px}
+.canal-check{display:flex;gap:10px}
+.canal-opt{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;transition:all .15s}
+.canal-opt:has(input:checked){background:var(--wa-dim);border-color:var(--wa);color:var(--wa-dark)}
+.canal-opt input{display:none}
+
+/* Statusbar */
+.statusbar{position:fixed;bottom:0;left:0;right:0;height:30px;background:var(--white);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.status-text,.status-url{font-size:11px;color:var(--text-dim)}
+.status-url{margin-left:auto}
+
+.toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:var(--white);font-size:12px;font-weight:500;padding:9px 18px;border-radius:20px;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;z-index:200}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.countdown{font-size:11px;font-weight:600;color:var(--wa-dark);padding:3px 9px;background:var(--wa-dim);border-radius:20px}
+.countdown.urgent{color:#e63946;background:#fdecea}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo"><img src="../assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'"></div>
+  <div class="topbar-divider"></div>
+  <span class="topbar-title">WhatsApp</span>
+  <a href="/" class="topbar-back">← Hub</a>
+  <span class="topbar-badge">💬 Mensajes</span>
+</div>
+
+<div class="main">
+
+  <!-- TABS -->
+  <div class="tabs-bar">
+    <button class="tab-btn active" onclick="switchTab('generar',this)">✦ Generar</button>
+    <button class="tab-btn" onclick="switchTab('programados',this)">🕐 Programados</button>
+  </div>
+
+  <!-- TAB GENERAR -->
+  <div id="tab-generar">
+    <div class="grid">
+
+      <!-- Panel izquierdo -->
+      <div class="panel panel-accent">
+        <div class="panel-header">Nota a difundir</div>
+
+        <div class="field">
+          <label class="field-label">URL de la nota</label>
+          <div style="display:flex;gap:8px">
+            <input type="url" id="notaUrl" placeholder="https://mediamendoza.com/...">
+            <button class="btn-sm" id="btnScrape" onclick="scrapeNota()" style="white-space:nowrap">
+              <span class="spinner" id="spinScrape"></span>
+              <span id="btnScrapeText">Obtener</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="nota-preview" id="notaPreview">
+          <img class="nota-preview-img" id="notaImg" alt="">
+          <div class="nota-preview-titulo" id="notaTitulo"></div>
+          <div class="nota-preview-url" id="notaUrlCorta"></div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Contexto adicional (opcional)</label>
+          <textarea id="contextoExtra" rows="2" placeholder="Ej: el hecho ocurrió esta mañana en el centro de San Rafael..."></textarea>
+        </div>
+
+        <button class="btn-primary" id="btnGenerar" onclick="generarMensajes()">
+          <span class="spinner" id="spinGenerar"></span>
+          <span id="btnGenerarText">Generar mensajes</span>
+        </button>
+      </div>
+
+      <!-- Panel derecho -->
+      <div>
+        <div id="resultadoGenerar">
+          <div class="placeholder">
+            <span style="font-size:2.5rem">💬</span>
+            <p>Ingresá la URL de la nota y hacé clic<br>en <strong>Generar mensajes</strong>.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TAB PROGRAMADOS -->
+  <div id="tab-programados" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div id="prog-stats" style="font-size:12px;color:var(--text-muted)">Cargando...</div>
+      <button class="btn-sm" onclick="cargarProgramados()">↺ Actualizar</button>
+    </div>
+    <div class="programados-list" id="programadosList">
+      <div class="placeholder">
+        <span style="font-size:2rem">🕐</span>
+        <p>No hay mensajes programados.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL PROGRAMAR -->
+<div class="modal-overlay" id="modalProg" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Programar envío</span>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text-muted);background:var(--wa-dim);border:1px solid #a3e6c7;border-radius:var(--radius);padding:10px 12px;line-height:1.6">
+        💡 El sistema guarda el mensaje y te muestra un recordatorio con el texto listo para copiar cuando llegue la hora. Para envíos automáticos por API de WhatsApp Business contactá al administrador.
+      </div>
+      <div class="field">
+        <label class="field-label">Fecha y hora de envío</label>
+        <input type="datetime-local" id="progFecha">
+      </div>
+      <div class="field">
+        <label class="field-label">Canal</label>
+        <div class="canal-check">
+          <label class="canal-opt"><input type="checkbox" id="checkGrupo" checked> 📱 Grupo</label>
+          <label class="canal-opt"><input type="checkbox" id="checkCanal"> 📣 Canal</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Nota</label>
+        <input type="text" id="progNota" placeholder="Título de la nota..." readonly style="background:var(--surface)">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary btn-wa" style="flex:1" onclick="confirmarProgramar()">
+        <span class="spinner" id="spinProg"></span>
+        <span id="btnProgText">Programar</span>
+      </button>
+      <button class="btn-sm" onclick="cerrarModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RECORDATORIO -->
+<div class="modal-overlay" id="modalRecordatorio" onclick="if(event.target===this)cerrarRecordatorio()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" style="color:var(--wa-dark)">⏰ Hora de enviar</span>
+      <button class="modal-close" onclick="cerrarRecordatorio()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="recordatorioContenido"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary btn-wa" style="flex:1" onclick="marcarEnviado()">✓ Marcar como enviado</button>
+      <button class="btn-sm" onclick="cerrarRecordatorio()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="statusbar">
+  <div class="status-dot"></div>
+  <div class="status-text">Conectado · Gemini 2.5 Flash Lite</div>
+  <div class="status-url">mediamendoza.pages.dev/whatsapp</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
+
+// Estado
+let S = { mensajes: null, notaData: null, progActual: null, recordatorioId: null };
+
+// ── Utils ──
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800) }
+function setLoading(btn,spin,text,on,label){ document.getElementById(btn).disabled=on; document.getElementById(spin).style.display=on?'inline-block':'none'; document.getElementById(text).textContent=on?'Procesando...':label }
+
+function switchTab(tab, el){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-generar').style.display = tab==='generar'?'block':'none';
+  document.getElementById('tab-programados').style.display = tab==='programados'?'block':'none';
+  if(tab==='programados') cargarProgramados();
+}
+
+function copiar(texto){ navigator.clipboard.writeText(texto).then(()=>toast('✓ Copiado')).catch(()=>{const t=document.createElement('textarea');t.value=texto;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('✓ Copiado')}) }
+
+function abrirWA(texto){
+  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+}
+
+// ── SCRAPE ──
+async function scrapeNota(){
+  const url = document.getElementById('notaUrl').value.trim();
+  if(!url){ toast('⚠ Ingresá la URL'); return }
+  setLoading('btnScrape','spinScrape','btnScrapeText',true,'Obtener');
+  try{
+    // Usamos el endpoint scrape existente
+    const res = await fetch(WORKER+'/scrape?url='+encodeURIComponent(url));
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'Error scraping');
+    S.notaData = data;
+    // Preview
+    const prev = document.getElementById('notaPreview');
+    document.getElementById('notaTitulo').textContent = data.titulo||'Sin título';
+    document.getElementById('notaUrlCorta').textContent = url;
+    if(data.imagen){ const img=document.getElementById('notaImg'); img.src=data.imagen; img.classList.add('show') }
+    prev.classList.add('show');
+    toast('✓ Nota cargada');
+  }catch(e){ toast('✗ '+e.message) }
+  setLoading('btnScrape','spinScrape','btnScrapeText',false,'Obtener');
+}
+
+// ── GENERAR ──
+async function generarMensajes(){
+  const notaUrl = document.getElementById('notaUrl').value.trim();
+  if(!notaUrl){ toast('⚠ Ingresá la URL'); return }
+  setLoading('btnGenerar','spinGenerar','btnGenerarText',true,'Generar mensajes');
+  document.getElementById('resultadoGenerar').innerHTML = '<div class="placeholder"><div class="spinner" style="display:inline-block;width:24px;height:24px;border-color:var(--green)"></div><p>Generando mensajes...</p></div>';
+  try{
+    const res = await fetch(WORKER+'/whatsapp/generar',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ notaUrl, contextoExtra: document.getElementById('contextoExtra').value.trim() })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    S.mensajes = data;
+    S.notaData = data.nota;
+    renderMensajes(data);
+  }catch(e){ toast('✗ '+e.message); document.getElementById('resultadoGenerar').innerHTML='<div class="placeholder"><p>Error: '+esc(e.message)+'</p></div>' }
+  setLoading('btnGenerar','spinGenerar','btnGenerarText',false,'Generar mensajes');
+}
+
+function renderMensajes(data){
+  const cat = data.categoria||'General';
+  const html = `
+    <div style="display:flex;flex-direction:column;gap:14px">
+
+      <div style="background:var(--green-dim);border:1px solid var(--green-mid);border-radius:var(--radius-lg);padding:12px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:1.2rem">📰</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${esc(data.nota?.titulo||'')}</div>
+          <div style="font-size:11px;color:var(--green-dark)">${esc(data.nota?.urlCorta||'')} · ${esc(cat)}</div>
+        </div>
+        <button class="btn-sm" onclick="generarMensajes()">↺</button>
+      </div>
+
+      <!-- GRUPO -->
+      <div class="wa-message-box">
+        <div class="wa-message-header">
+          <div class="wa-icon">📱</div>
+          <div class="wa-message-meta">
+            <div class="wa-message-type">Grupo</div>
+            <div class="wa-message-categoria">Para el grupo de WhatsApp</div>
+          </div>
+        </div>
+        <div class="wa-message-text" id="textoGrupo" contenteditable="true">${esc(data.grupo)}</div>
+        <div class="wa-actions">
+          <button class="btn-sm wa" onclick="abrirWA(document.getElementById('textoGrupo').innerText)">📱 Abrir WA</button>
+          <button class="btn-sm" onclick="copiar(document.getElementById('textoGrupo').innerText)">Copiar</button>
+          <button class="btn-sm" onclick="abrirModalProg('grupo')">🕐 Programar</button>
+        </div>
+      </div>
+
+      <!-- CANAL -->
+      <div class="wa-message-box">
+        <div class="wa-message-header">
+          <div class="wa-icon">📣</div>
+          <div class="wa-message-meta">
+            <div class="wa-message-type">Canal</div>
+            <div class="wa-message-categoria">Para el canal de difusión</div>
+          </div>
+        </div>
+        <div class="wa-message-text" id="textoCanal" contenteditable="true">${esc(data.canal)}</div>
+        <div class="wa-actions">
+          <button class="btn-sm wa" onclick="abrirWA(document.getElementById('textoCanal').innerText)">📣 Abrir WA</button>
+          <button class="btn-sm" onclick="copiar(document.getElementById('textoCanal').innerText)">Copiar</button>
+          <button class="btn-sm" onclick="abrirModalProg('canal')">🕐 Programar</button>
+        </div>
+      </div>
+
+      <button class="btn-primary btn-wa" onclick="abrirModalProg('ambos')">
+        🕐 Programar ambos mensajes
+      </button>
+    </div>`;
+  document.getElementById('resultadoGenerar').innerHTML = html;
+}
+
+// ── MODAL PROGRAMAR ──
+function abrirModalProg(tipo){
+  if(!S.mensajes){ toast('⚠ Generá los mensajes primero'); return }
+  S.progActual = tipo;
+  // Fecha default: ahora + 30min
+  const d = new Date(Date.now()+30*60000);
+  const pad = n=>String(n).padStart(2,'0');
+  const localISO = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  document.getElementById('progFecha').value = localISO;
+  document.getElementById('progNota').value = S.mensajes.nota?.titulo||'';
+  document.getElementById('checkGrupo').checked = tipo==='grupo'||tipo==='ambos';
+  document.getElementById('checkCanal').checked = tipo==='canal'||tipo==='ambos';
+  document.getElementById('modalProg').classList.add('open');
+}
+function cerrarModal(){ document.getElementById('modalProg').classList.remove('open') }
+
+async function confirmarProgramar(){
+  const fecha = document.getElementById('progFecha').value;
+  if(!fecha){ toast('⚠ Elegí fecha y hora'); return }
+  const canales = [];
+  if(document.getElementById('checkGrupo').checked) canales.push('grupo');
+  if(document.getElementById('checkCanal').checked) canales.push('canal');
+  if(!canales.length){ toast('⚠ Seleccioná al menos un canal'); return }
+  setLoading('btnProgText','spinProg','btnProgText',true,'Programar');
+  try{
+    const item = {
+      fecha: new Date(fecha).getTime(),
+      fechaLegible: fecha,
+      tituloNota: S.mensajes.nota?.titulo||'',
+      urlCorta: S.mensajes.nota?.urlCorta||'',
+      canales,
+      textoGrupo: document.getElementById('textoGrupo')?.innerText||S.mensajes.grupo,
+      textoCanal: document.getElementById('textoCanal')?.innerText||S.mensajes.canal,
+      categoria: S.mensajes.categoria||'General'
+    };
+    const res = await fetch(WORKER+'/whatsapp/programar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    cerrarModal();
+    toast('✓ Mensaje programado');
+  }catch(e){ toast('✗ '+e.message) }
+  document.getElementById('spinProg').style.display='none';
+  document.getElementById('btnProgText').textContent='Programar';
+  document.getElementById('btnProgText').closest('button').disabled=false;
+}
+
+// ── PROGRAMADOS ──
+async function cargarProgramados(){
+  try{
+    const res = await fetch(WORKER+'/whatsapp/programados');
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    const lista = data.programados||[];
+    const pend = lista.filter(p=>!p.enviado).length;
+    document.getElementById('prog-stats').textContent = `${lista.length} programado${lista.length!==1?'s':''} · ${pend} pendiente${pend!==1?'s':''}`;
+    if(!lista.length){
+      document.getElementById('programadosList').innerHTML='<div class="placeholder"><span style="font-size:2rem">🕐</span><p>No hay mensajes programados.</p></div>';
+      return;
+    }
+    const ahora = Date.now();
+    let html = '';
+    lista.forEach(p=>{
+      const diff = p.fecha - ahora;
+      const esUrgente = diff < 600000 && diff > 0; // menos de 10 min
+      const esVencido = diff < 0 && !p.enviado;
+      let diffText = '';
+      if(p.enviado) diffText = '<span class="badge badge-enviado">Enviado</span>';
+      else if(esVencido) diffText = '<span class="badge badge-urgente">⚠ Vencido</span>';
+      else if(diff < 3600000) diffText = `<span class="badge badge-pendiente">${Math.round(diff/60000)}min</span>`;
+      else {
+        const horas = Math.round(diff/3600000);
+        diffText = `<span class="badge badge-pendiente">${horas}h</span>`;
+      }
+      const fecha = new Date(p.fecha);
+      const hora = `${String(fecha.getHours()).padStart(2,'0')}:${String(fecha.getMinutes()).padStart(2,'0')}`;
+      const dia = `${fecha.getDate()}/${fecha.getMonth()+1}`;
+      html += `<div class="prog-card ${p.enviado?'enviado':''} ${esUrgente?'pronto':''} ${esVencido?'urgente':''}">
+        <div class="prog-time">
+          <div class="prog-time-hora">${hora}</div>
+          <div class="prog-time-fecha">${dia}</div>
+        </div>
+        <div class="prog-body">
+          <div class="prog-titulo">${esc(p.tituloNota||'Sin título')}</div>
+          <div class="prog-canal">${(p.canales||[]).map(c=>c==='grupo'?'📱 Grupo':'📣 Canal').join(' + ')} ${diffText}</div>
+          <div class="prog-actions">
+            ${(p.canales||[]).includes('grupo')?`<button class="btn-sm wa" onclick="verMensaje('${p.id}','grupo')">Ver Grupo</button>`:''}
+            ${(p.canales||[]).includes('canal')?`<button class="btn-sm wa" onclick="verMensaje('${p.id}','canal')">Ver Canal</button>`:''}
+            ${!p.enviado?`<button class="btn-sm" onclick="marcarEnviadoById('${p.id}')">✓ Enviado</button>`:''}
+            <button class="btn-sm" style="color:#e63946;border-color:#e63946" onclick="eliminarProg('${p.id}')">✕</button>
+          </div>
+        </div>
+      </div>`;
+    });
+    document.getElementById('programadosList').innerHTML = html;
+  }catch(e){ toast('✗ '+e.message) }
+}
+
+// Cache para ver mensajes
+const _progCache = {};
+async function verMensaje(id, tipo){
+  try{
+    const res = await fetch(WORKER+'/whatsapp/programados');
+    const data = await res.json();
+    const item = data.programados?.find(p=>p.id===id);
+    if(!item) return toast('No encontrado');
+    const texto = tipo==='grupo'?item.textoGrupo:item.textoCanal;
+    S.recordatorioId = id;
+    const tipoLabel = tipo==='grupo'?'📱 Grupo':'📣 Canal';
+    document.getElementById('recordatorioContenido').innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:var(--wa-dark);margin-bottom:10px">${tipoLabel} — ${esc(item.tituloNota||'')}</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:13px;line-height:1.75;white-space:pre-wrap;font-family:'Inter',sans-serif;max-height:300px;overflow-y:auto">${esc(texto)}</div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="btn-sm wa" onclick="abrirWA(${JSON.stringify(texto)})">📱 Abrir WA</button>
+        <button class="btn-sm" onclick="copiar(${JSON.stringify(texto)})">Copiar</button>
+      </div>`;
+    document.getElementById('modalRecordatorio').classList.add('open');
+  }catch(e){ toast('✗ '+e.message) }
+}
+function cerrarRecordatorio(){ document.getElementById('modalRecordatorio').classList.remove('open') }
+async function marcarEnviado(){
+  if(!S.recordatorioId) return;
+  await marcarEnviadoById(S.recordatorioId);
+  cerrarRecordatorio();
+}
+async function marcarEnviadoById(id){
+  try{
+    await fetch(WORKER+'/whatsapp/programado',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    toast('✓ Marcado como enviado');
+    cargarProgramados();
+  }catch(e){ toast('✗ '+e.message) }
+}
+async function eliminarProg(id){
+  if(!confirm('¿Eliminar este mensaje programado?')) return;
+  try{
+    await fetch(WORKER+'/whatsapp/programado?id='+encodeURIComponent(id),{method:'DELETE'});
+    toast('Eliminado');
+    cargarProgramados();
+  }catch(e){ toast('✗ '+e.message) }
+}
+
+// ── RECORDATORIO AUTOMÁTICO ──
+function checkRecordatorios(){
+  fetch(WORKER+'/whatsapp/programados')
+    .then(r=>r.json())
+    .then(data=>{
+      const ahora = Date.now();
+      const vencidos = (data.programados||[]).filter(p=>!p.enviado && p.fecha <= ahora && p.fecha >= ahora-600000);
+      vencidos.forEach(p=>{
+        S.recordatorioId = p.id;
+        const texto = p.canales?.includes('grupo') ? p.textoGrupo : p.textoCanal;
+        document.getElementById('recordatorioContenido').innerHTML = `
+          <div style="font-size:13px;font-weight:700;color:var(--wa-dark);margin-bottom:10px">⏰ Hora de enviar: ${esc(p.tituloNota||'')}</div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:13px;line-height:1.75;white-space:pre-wrap;font-family:'Inter',sans-serif;max-height:260px;overflow-y:auto">${esc(texto)}</div>
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <button class="btn-sm wa" onclick="abrirWA(${JSON.stringify(texto)})">📱 Abrir WA</button>
+            <button class="btn-sm" onclick="copiar(${JSON.stringify(texto)})">Copiar</button>
+          </div>`;
+        document.getElementById('modalRecordatorio').classList.add('open');
+      });
+    }).catch(()=>{});
+}
+
+// Checar recordatorios cada 60 segundos
+setInterval(checkRecordatorios, 60000);
+checkRecordatorios();
+
+// Si viene URL por query param
+window.addEventListener('load', ()=>{
+  const params = new URLSearchParams(window.location.search);
+  const url = params.get('url');
+  if(url){ document.getElementById('notaUrl').value = url; scrapeNota(); }
+});
+</script>
+
+<div class="statusbar">
+  <div class="status-dot"></div>
+  <div class="status-text">Conectado · Gemini 2.5 Flash Lite</div>
+  <div class="status-url">mediamendoza.pages.dev/whatsapp</div>
+</div>
+
+</body>
+</html>
