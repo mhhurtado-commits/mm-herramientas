@@ -23,8 +23,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .topbar-logo img{height:30px;width:auto;display:block}
 .topbar-divider{width:1px;height:24px;background:var(--border)}
 .topbar-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.topbar-back{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-muted);text-decoration:none;padding:4px 12px;border-radius:20px;border:1px solid var(--border);transition:all .15s;text-transform:uppercase;letter-spacing:.06em}
+.topbar-back:hover{border-color:var(--green);color:var(--green-dark);background:var(--green-dim)}
 .topbar-badge{font-size:11px;font-weight:600;color:var(--green-dark);background:var(--green-dim);border:1px solid var(--green-mid);padding:3px 10px;border-radius:20px}
-.topbar-back{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-muted);text-decoration:none;padding:4px 12px;border-radius:20px; border:1px solid var(--border);transition:all .15s; margin-left:auto;text-transform:uppercase;letter-spacing:.06em;}
+
 .tabs-bar{position:fixed;top:56px;left:0;right:0;z-index:99;background:var(--white);border-bottom:1px solid var(--border);display:flex;padding:0 20px;box-shadow:var(--shadow)}
 .tab-btn{font-size:12px;font-weight:700;padding:12px 16px;color:var(--text-muted);border:none;background:transparent;border-bottom:3px solid transparent;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;white-space:nowrap;text-transform:uppercase;letter-spacing:.05em}
 .tab-btn:hover{color:var(--text)}
@@ -94,7 +97,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .angulo-nombre{font-size:11px;font-weight:700;color:var(--green-dark)}
 .angulo-desc{font-size:11px;color:var(--text-muted);margin-top:2px}
 
-.ref-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:14px}
+.ref-box{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:14px}
 .ref-ia-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;background:var(--green-dim);color:var(--green-dark);border:1px solid var(--green-mid);padding:3px 9px;border-radius:20px;width:fit-content}
 .ref-section-label{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
 .ref-titulo{font-family:'DM Serif Display',serif;font-size:18px;color:var(--text);line-height:1.3}
@@ -125,7 +128,6 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .verify-status.ok{background:var(--green-dim);color:var(--green-dark);border:1px solid var(--green-mid);display:block}
 .verify-status.err{background:var(--red-bg);color:var(--red);border:1px solid #f5b8bc;display:block}
 
-/* FILTROS MONITOR */
 .monitor-filters{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);padding:14px 16px;margin-bottom:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;box-shadow:var(--shadow)}
 .filter-group{display:flex;flex-direction:column;gap:5px;min-width:140px}
 .filter-group.wide{flex:1;min-width:200px}
@@ -233,17 +235,16 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 </head>
 <body>
 
-<!-- TOPBAR REDACCIÓN (reemplazar el existente) -->
 <div class="topbar">
   <div class="topbar-left">
-    <div class="topbar-logo">
-      <img src="[LOGO_BASE64_ACTUAL]" alt="Media Mendoza">
-    </div>
+    <div class="topbar-logo"><img src="../assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'"></div>
     <div class="topbar-divider"></div>
     <span class="topbar-title">Herramientas de redacción</span>
   </div>
-  <a href="/" class="topbar-back">← Hub</a>
-  <div class="topbar-badge">Redacción</div>
+  <div class="topbar-right">
+    <a href="/" class="topbar-back">← Hub</a>
+    <div class="topbar-badge">Redacción</div>
+  </div>
 </div>
 
 <div class="tabs-bar">
@@ -351,7 +352,6 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
             </button>
           </div>
           <div class="scrape-status" id="scrape-status"></div>
-
         </div>
         <div class="field">
           <label class="field-label">Cuerpo de la nota original</label>
@@ -397,7 +397,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
     </div>
   </div>
 
-  <!-- NOTAS GUARDADAS (dentro de tab reformular) -->
+  <!-- NOTAS GUARDADAS -->
   <div id="notas-guardadas-section" style="display:none">
     <div class="notas-panel">
       <div class="notas-panel-header">
@@ -412,8 +412,6 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 
   <!-- TAB MONITOR -->
   <div id="tab-monitor" class="tab-content active">
-
-    <!-- BARRA COMPACTA -->
     <div class="monitor-bar">
       <button class="btn-buscar" id="btn-buscar" onclick="buscarNoticias()">
         <div class="spinner" id="spin-monitor" style="border-top-color:#1a2a00"></div>
@@ -562,786 +560,102 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 <div class="statusbar">
   <div class="status-dot"></div>
   <div class="status-text">Conectado · Gemini 2.5 Flash Lite</div>
-  <div class="status-url">mediamendoza.pages.dev</div>
+  <div class="status-url">mediamendoza.pages.dev/redaccion</div>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 
-// ── UTILS ──
 function esc(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+function copiarTexto(texto){ navigator.clipboard.writeText(texto).then(()=>showToast('✓ Copiado')).catch(()=>{ const ta=document.createElement('textarea'); ta.value=texto; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showToast('✓ Copiado'); }); }
+function setLoading(btnId,spinId,textId,on,label){ document.getElementById(btnId).disabled=on; document.getElementById(spinId).style.display=on?'inline-block':'none'; document.getElementById(textId).textContent=on?'Procesando...':label; }
 
-function copiarTexto(texto){
-  navigator.clipboard.writeText(texto).then(()=>showToast('✓ Copiado')).catch(()=>{
-    const ta=document.createElement('textarea');
-    ta.value=texto; document.body.appendChild(ta); ta.select();
-    document.execCommand('copy'); document.body.removeChild(ta);
-    showToast('✓ Copiado');
-  });
-}
+function switchTab(tab,el){ document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); document.getElementById('tab-'+tab).classList.add('active'); el.classList.add('active'); window.scrollTo({top:0,behavior:'instant'}); if(tab==='monitor') cargarFuentes(); if(tab==='config') cargarEditorial(); }
 
-function setLoading(btnId,spinId,textId,on,label){
-  document.getElementById(btnId).disabled=on;
-  document.getElementById(spinId).style.display=on?'inline-block':'none';
-  document.getElementById(textId).textContent=on?'Procesando...':label;
-}
-
-// ── TABS ──
-function switchTab(tab,el){
-  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+tab).classList.add('active');
-  el.classList.add('active');
-  window.scrollTo({top:0,behavior:'instant'});
-  if(tab==='monitor') cargarFuentes();
-  if(tab==='config') cargarEditorial();
-}
-
-// ── SUBTABS ──
 let modoActual='redactar';
-function switchSubtab(modo){
-  modoActual=modo;
-  document.getElementById('input-nota').style.display=modo==='nota'?'block':'none';
-  document.getElementById('input-tema').style.display=modo==='tema'?'block':'none';
-  document.getElementById('input-redactar').style.display=modo==='redactar'?'block':'none';
-  document.getElementById('subtab-nota').classList.toggle('active',modo==='nota');
-  document.getElementById('subtab-tema').classList.toggle('active',modo==='tema');
-  document.getElementById('subtab-redactar').classList.toggle('active',modo==='redactar');
-  // Cambiar texto del botón según modo
-  const btnTxt = document.getElementById('btn-titulares-text');
-  btnTxt.textContent = modo==='redactar' ? 'Redactar' : 'Generar titulares';
-  // Ocultar opciones tono/cantidad si es redactar
-  document.querySelector('.row2').style.display = modo==='redactar' ? 'none' : 'grid';
-}
+function switchSubtab(modo){ modoActual=modo; document.getElementById('input-nota').style.display=modo==='nota'?'block':'none'; document.getElementById('input-tema').style.display=modo==='tema'?'block':'none'; document.getElementById('input-redactar').style.display=modo==='redactar'?'block':'none'; document.getElementById('subtab-nota').classList.toggle('active',modo==='nota'); document.getElementById('subtab-tema').classList.toggle('active',modo==='tema'); document.getElementById('subtab-redactar').classList.toggle('active',modo==='redactar'); const btnTxt=document.getElementById('btn-titulares-text'); btnTxt.textContent=modo==='redactar'?'Redactar':'Generar titulares'; document.querySelector('.row2').style.display=modo==='redactar'?'none':'grid'; }
 
-// char counters
-['txt-nota','txt-tema','ref-cuerpo-input','txt-redactar'].forEach(id=>{
-  document.getElementById(id).addEventListener('input',function(){
-    const map={'txt-nota':'char-nota','txt-tema':'char-tema','ref-cuerpo-input':'char-ref','txt-redactar':'char-redactar'};
-    document.getElementById(map[id]).textContent=this.value.length+' caracteres';
-  });
-});
+['txt-nota','txt-tema','ref-cuerpo-input','txt-redactar'].forEach(id=>{ document.getElementById(id).addEventListener('input',function(){ const map={'txt-nota':'char-nota','txt-tema':'char-tema','ref-cuerpo-input':'char-ref','txt-redactar':'char-redactar'}; document.getElementById(map[id]).textContent=this.value.length+' caracteres'; }); });
 
-// ── LIMPIAR ──
-function limpiarTitulares(){
-  ['txt-nota','txt-tema','txt-contexto-t','txt-redactar'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  ['char-nota','char-tema','char-redactar'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='0 caracteres';});
-  webSearchActivo=false; const tr=document.getElementById('web-search-track'); const th=document.getElementById('web-search-thumb'); if(tr){tr.style.background='var(--border-dark)';} if(th){th.style.transform='translateX(0)';}
-  document.getElementById('results-titulares').innerHTML=placeholderTitulares();
-  document.getElementById('badge-titulares').style.display='none';
-  document.getElementById('btn-limpiar-t').style.display='none';
-}
-function limpiarReformular(){ pedirLimpiarReformular(); }
+function limpiarTitulares(){ ['txt-nota','txt-tema','txt-contexto-t','txt-redactar'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); ['char-nota','char-tema','char-redactar'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='0 caracteres';}); webSearchActivo=false; const tr=document.getElementById('web-search-track'); const th=document.getElementById('web-search-thumb'); if(tr){tr.style.background='var(--border-dark)';} if(th){th.style.transform='translateX(0)';} document.getElementById('results-titulares').innerHTML=placeholderTitulares(); document.getElementById('badge-titulares').style.display='none'; document.getElementById('btn-limpiar-t').style.display='none'; }
 function placeholderTitulares(){ return `<div class="result-placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M3 5h18M3 10h12M3 15h15M3 20h9" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/></svg><p>Los titulares generados<br>aparecerán aquí.</p></div>`; }
 function placeholderReformular(){ return `<div class="result-placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><p>La nota reformulada<br>aparecerá aquí.</p></div>`; }
 
-// ── TITULARES ──
-async function generarTitulares(){
-  const contenido = modoActual==='nota' ? document.getElementById('txt-nota').value.trim() : document.getElementById('txt-tema').value.trim();
-  const contexto = document.getElementById('txt-contexto-t').value.trim();
-  if(!contenido){ showToast('⚠ Ingresá el contenido primero'); return; }
-  setLoading('btn-generar','spin-titulares','btn-titulares-text',true,'Generar titulares');
-  try{
-    const res = await fetch(WORKER+'/titulares',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({modo:modoActual,contenido,contexto,tono:document.getElementById('sel-tono').value,cantidad:parseInt(document.getElementById('sel-cantidad').value)})});
-    const data = await res.json();
-    if(!data.ok) throw new Error(data.error);
-    renderTitulares(data);
-  }catch(err){ showToast('✗ '+err.message); }
-  finally{ setLoading('btn-generar','spin-titulares','btn-titulares-text',false,'Generar titulares'); }
-}
+async function generarTitulares(){ const contenido=modoActual==='nota'?document.getElementById('txt-nota').value.trim():document.getElementById('txt-tema').value.trim(); const contexto=document.getElementById('txt-contexto-t').value.trim(); if(!contenido){showToast('⚠ Ingresá el contenido primero');return;} setLoading('btn-generar','spin-titulares','btn-titulares-text',true,'Generar titulares'); try{ const res=await fetch(WORKER+'/titulares',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({modo:modoActual,contenido,contexto,tono:document.getElementById('sel-tono').value,cantidad:parseInt(document.getElementById('sel-cantidad').value)})}); const data=await res.json(); if(!data.ok) throw new Error(data.error); renderTitulares(data); }catch(err){showToast('✗ '+err.message);} finally{setLoading('btn-generar','spin-titulares','btn-titulares-text',false,'Generar titulares');} }
 
-function renderTitulares(data){
-  document.getElementById('badge-titulares').textContent=data.titulares.length+' opciones';
-  document.getElementById('badge-titulares').style.display='inline-block';
-  document.getElementById('btn-limpiar-t').style.display='inline-block';
-  let html='<div style="display:flex;flex-direction:column;gap:10px">';
-  data.titulares.forEach((t,i)=>{
-    const tEsc=esc(t);
-    const tJson=JSON.stringify(t);
-    html+=`<div class="result-card">
-      <div class="result-num">Titular ${i+1}</div>
-      <div class="result-text">${tEsc}</div>
-      <div class="result-actions">
-        <button class="pill accent" onclick='copiarTexto(${tJson})'>Copiar</button>
-        <button class="pill" onclick='usarEnPlaca(${tJson})'>Usar en placa ↗</button>
-      </div>
-    </div>`;
-  });
-  if(data.angulos && data.angulos.length){
-    html+='<div class="divider"></div><div class="section-label">Ángulos identificados</div>';
-    data.angulos.forEach(a=>{ html+=`<div class="angulo-item"><div class="angulo-nombre">${esc(a.nombre)}</div><div class="angulo-desc">${esc(a.descripcion)}</div></div>`; });
-  }
-  html+='</div>';
-  document.getElementById('results-titulares').innerHTML=html;
-}
+function renderTitulares(data){ document.getElementById('badge-titulares').textContent=data.titulares.length+' opciones'; document.getElementById('badge-titulares').style.display='inline-block'; document.getElementById('btn-limpiar-t').style.display='inline-block'; let html='<div style="display:flex;flex-direction:column;gap:10px">'; data.titulares.forEach((t,i)=>{ const tEsc=esc(t); const tJson=JSON.stringify(t); html+=`<div class="result-card"><div class="result-num">Titular ${i+1}</div><div class="result-text">${tEsc}</div><div class="result-actions"><button class="pill accent" onclick='copiarTexto(${tJson})'>Copiar</button><button class="pill" onclick='usarEnPlaca(${tJson})'>Usar en placa ↗</button></div></div>`; }); if(data.angulos&&data.angulos.length){ html+='<div class="divider"></div><div class="section-label">Ángulos identificados</div>'; data.angulos.forEach(a=>{html+=`<div class="angulo-item"><div class="angulo-nombre">${esc(a.nombre)}</div><div class="angulo-desc">${esc(a.descripcion)}</div></div>`;}); } html+='</div>'; document.getElementById('results-titulares').innerHTML=html; }
 
-// ── REFORMULAR ──
-async function reformularNota(){
-  const titulo=document.getElementById('ref-titulo-input').value.trim();
-  const contenido=document.getElementById('ref-cuerpo-input').value.trim();
-  const contexto=document.getElementById('txt-contexto-r').value.trim();
-  if(!titulo||!contenido){ showToast('⚠ Completá título y cuerpo'); return; }
-  setLoading('btn-reformular','spin-reformular','btn-reformular-text',true,'Reformular para Media Mendoza');
-  try{
-    const res=await fetch(WORKER+'/reformular',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo,contenido,contexto,estilo:document.getElementById('ref-estilo').value})});
-    const data=await res.json();
-    if(!data.ok) throw new Error(data.error);
-    renderReformulada(data);
-  }catch(err){ showToast('✗ '+err.message); }
-  finally{ setLoading('btn-reformular','spin-reformular','btn-reformular-text',false,'Reformular para Media Mendoza'); }
-}
+async function reformularNota(){ const titulo=document.getElementById('ref-titulo-input').value.trim(); const contenido=document.getElementById('ref-cuerpo-input').value.trim(); const contexto=document.getElementById('txt-contexto-r').value.trim(); if(!titulo||!contenido){showToast('⚠ Completá título y cuerpo');return;} setLoading('btn-reformular','spin-reformular','btn-reformular-text',true,'Reformular para Media Mendoza'); try{ const res=await fetch(WORKER+'/reformular',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo,contenido,contexto,estilo:document.getElementById('ref-estilo').value})}); const data=await res.json(); if(!data.ok) throw new Error(data.error); renderReformulada(data); }catch(err){showToast('✗ '+err.message);} finally{setLoading('btn-reformular','spin-reformular','btn-reformular-text',false,'Reformular para Media Mendoza');} }
 
-function renderReformulada(data){
-  const imgUrl = window._imagenActual || '';
-  document.getElementById('badge-reformulada').style.display='inline-block';
-  document.getElementById('btn-limpiar-r').style.display='inline-block';
+function renderReformulada(data){ const imgUrl=window._imagenActual||''; document.getElementById('badge-reformulada').style.display='inline-block'; document.getElementById('btn-limpiar-r').style.display='inline-block'; const titularVal=data.titular||''; const cuerpoVal=data.cuerpo||''; const hashtags=data.hashtags||[]; const hashtagsHtml=hashtags.length?'<div><div class="ref-section-label">Hashtags sugeridos</div><div class="hashtags-row" id="hashtags-row-ref"></div><div style="margin-top:6px"><button class="pill" id="btn-copy-hashtags">Copiar todos los hashtags</button></div></div>':''; const imgHtml=imgUrl?'<div style="margin-top:10px"><img src="'+imgUrl+'" alt="Imagen de la nota" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0"><div style="display:flex;gap:5px;margin-top:5px"><a href="'+imgUrl+'" target="_blank" class="pill accent">Ver imagen</a><button class="pill" onclick="copiarTexto(this.dataset.url)" data-url="'+imgUrl+'">Copiar link</button></div></div>':''; window._notaActual={titular:titularVal,cuerpo:cuerpoVal,categoria:data.categoria_sugerida||'',hashtags,imagen:imgUrl}; document.getElementById('results-reformular').innerHTML='<div class="ref-box"><div class="ref-ia-badge">✦ Reformulada por IA</div><div><div class="ref-section-label">Categoría sugerida</div><span class="ref-categoria">'+esc(data.categoria_sugerida||'—')+'</span></div><div><div class="ref-section-label">Titular</div><div class="ref-titulo">'+esc(titularVal)+'</div></div><div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">'+esc(cuerpoVal)+'</div></div>'+hashtagsHtml+'</div>'+imgHtml+'<div class="ref-actions" style="margin-top:12px" id="ref-actions-btns"></div>'; if(hashtags.length){ const hr=document.getElementById('hashtags-row-ref'); if(hr){hashtags.forEach(h=>{const s=document.createElement('span');s.className='hashtag';s.textContent=h;s.onclick=()=>copiarTexto(h);hr.appendChild(s);});} const bh=document.getElementById('btn-copy-hashtags'); if(bh) bh.onclick=()=>copiarTexto(hashtags.join(' ')); } const ra=document.getElementById('ref-actions-btns'); const b1=document.createElement('button');b1.className='pill accent';b1.textContent='Copiar titular';b1.onclick=()=>copiarTexto(titularVal);ra.appendChild(b1); const b2=document.createElement('button');b2.className='pill accent';b2.textContent='Copiar cuerpo';b2.onclick=()=>copiarTexto(cuerpoVal);ra.appendChild(b2); const b3=document.createElement('button');b3.className='pill';b3.textContent='Copiar todo';b3.onclick=()=>copiarTexto(titularVal+'\n\n'+cuerpoVal);ra.appendChild(b3); const b4=document.createElement('button');b4.className='pill';b4.textContent='Usar en placa ↗';b4.onclick=()=>usarEnPlaca(titularVal);ra.appendChild(b4); const b5=document.createElement('button');b5.className='pill';b5.style.cssText='border-color:var(--green);color:var(--green-dark)';b5.textContent='★ Guardar nota';b5.onclick=guardarNotaActual;ra.appendChild(b5); }
 
-  const titularVal = data.titular || '';
-  const cuerpoVal = data.cuerpo || '';
-  const hashtags = data.hashtags || [];
-  const hashtagsHtml = hashtags.length
-    ? '<div><div class="ref-section-label">Hashtags sugeridos</div>'
-      +'<div class="hashtags-row" id="hashtags-row-ref"></div>'
-      +'<div style="margin-top:6px"><button class="pill" id="btn-copy-hashtags">Copiar todos los hashtags</button></div></div>'
-    : '';
+let fuentes=[]; let fuentesActivas=new Set(); let noticiasCache=[]; let autoInterval=null; let feedVerificado=false; let feedVerificadoNombre='';
 
-  const imgHtml = imgUrl
-    ? '<div style="margin-top:10px">'
-      +'<img src="'+imgUrl+'" alt="Imagen de la nota" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0">'
-      +'<div style="display:flex;gap:5px;margin-top:5px">'
-      +'<a href="'+imgUrl+'" target="_blank" class="pill accent">Ver imagen</a>'
-      +'<button class="pill" onclick="copiarTexto(this.dataset.url)" data-url="'+imgUrl+'">Copiar link</button>'
-      +'</div></div>'
-    : '';
+async function cargarFuentes(){ try{ const res=await fetch(WORKER+'/fuentes'); const data=await res.json(); if(data.ok){ fuentes=data.fuentes||[]; fuentes.forEach(f=>fuentesActivas.add(f.id)); renderFuentes(); actualizarFiltroFuentes(); } }catch(e){ document.getElementById('fuentes-list').innerHTML='<span style="font-size:12px;color:var(--red)">Error cargando fuentes</span>'; } }
 
-  window._notaActual = {titular:titularVal, cuerpo:cuerpoVal, categoria:data.categoria_sugerida||'', hashtags, imagen:imgUrl};
+function renderFuentes(){ const list=document.getElementById('fuentes-list'); const count=document.getElementById('fuentes-count'); if(!fuentes.length){ list.innerHTML='<span style="font-size:12px;color:var(--text-dim)">Sin fuentes. Agregá una con el botón +</span>'; if(count) count.textContent=''; return; } if(count) count.textContent=fuentes.length+' fuente'+(fuentes.length!==1?'s':''); list.innerHTML=''; fuentes.forEach(f=>{ const row=document.createElement('div'); row.className='fuente-row'; const active=fuentesActivas.has(f.id); row.innerHTML=`<div style="flex:1;min-width:0"><div class="fuente-row-name">${esc(f.nombre)}</div><div class="fuente-row-url">${esc(f.url)}</div></div><div class="fuente-row-actions"><button class="btn-sm" style="font-size:10px;padding:4px 9px;${active?'background:var(--green-dim);border-color:var(--green);color:var(--green-dark)':''}" onclick="toggleFuenteById('${f.id}',this)">${active?'Activa':'Inactiva'}</button><button class="btn-sm" style="font-size:10px;padding:4px 9px" onclick="eliminarFuente('${f.id}','${esc(f.nombre)}')">Eliminar</button></div>`; list.appendChild(row); }); }
 
-  document.getElementById('results-reformular').innerHTML =
-    '<div class="ref-box">'
-    +'<div class="ref-ia-badge">✦ Reformulada por IA</div>'
-    +'<div><div class="ref-section-label">Categoría sugerida</div><span class="ref-categoria">'+esc(data.categoria_sugerida||'—')+'</span></div>'
-    +'<div><div class="ref-section-label">Titular</div><div class="ref-titulo">'+esc(titularVal)+'</div></div>'
-    +'<div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">'+esc(cuerpoVal)+'</div></div>'
-    +hashtagsHtml
-    +'</div>'
-    +imgHtml
-    +'<div class="ref-actions" style="margin-top:12px" id="ref-actions-btns"></div>';
-  // Setear hashtags
-  if(hashtags.length){
-    const hr = document.getElementById('hashtags-row-ref');
-    if(hr){ hashtags.forEach(h=>{ const s=document.createElement('span'); s.className='hashtag'; s.textContent=h; s.onclick=()=>copiarTexto(h); hr.appendChild(s); }); }
-    const bh = document.getElementById('btn-copy-hashtags');
-    if(bh) bh.onclick=()=>copiarTexto(hashtags.join(' '));
-  }
-  // Setear botones con data attributes para evitar problemas con comillas
-  const ra = document.getElementById('ref-actions-btns');
-  const b1 = document.createElement('button'); b1.className='pill accent'; b1.textContent='Copiar titular'; b1.onclick=()=>copiarTexto(titularVal); ra.appendChild(b1);
-  const b2 = document.createElement('button'); b2.className='pill accent'; b2.textContent='Copiar cuerpo'; b2.onclick=()=>copiarTexto(cuerpoVal); ra.appendChild(b2);
-  const b3 = document.createElement('button'); b3.className='pill'; b3.textContent='Copiar todo'; b3.onclick=()=>copiarTexto(titularVal+'\n\n'+cuerpoVal); ra.appendChild(b3);
-  const b4 = document.createElement('button'); b4.className='pill'; b4.textContent='Usar en placa ↗'; b4.onclick=()=>usarEnPlaca(titularVal); ra.appendChild(b4);
-  const b5 = document.createElement('button'); b5.className='pill'; b5.style.cssText='border-color:var(--green);color:var(--green-dark)'; b5.textContent='★ Guardar nota'; b5.onclick=guardarNotaActual; ra.appendChild(b5);
-}
-// ── MONITOR — FUENTES KV ──
-let fuentes=[];
-let fuentesActivas=new Set();
-let noticiasCache=[];
-let autoInterval=null;
-let feedVerificado=false;
-let feedVerificadoNombre='';
+function toggleFuenteById(id,btn){ if(fuentesActivas.has(id)){ if(fuentesActivas.size===1){showToast('⚠ Dejá al menos una fuente activa');return;} fuentesActivas.delete(id); btn.textContent='Inactiva'; btn.style.cssText='font-size:10px;padding:4px 9px'; }else{ fuentesActivas.add(id); btn.textContent='Activa'; btn.style.cssText='font-size:10px;padding:4px 9px;background:var(--green-dim);border-color:var(--green);color:var(--green-dark)'; } }
 
-async function cargarFuentes(){
-  try{
-    const res=await fetch(WORKER+'/fuentes');
-    const data=await res.json();
-    if(data.ok){
-      fuentes=data.fuentes||[];
-      fuentes.forEach(f=>fuentesActivas.add(f.id));
-      renderFuentes();
-      actualizarFiltroFuentes();
-    }
-  }catch(e){
-    document.getElementById('fuentes-list').innerHTML='<span style="font-size:12px;color:var(--red)">Error cargando fuentes</span>';
-  }
-}
+async function eliminarFuente(id,nombre){ if(!confirm('¿Eliminar "'+nombre+'" del monitor?')) return; try{ await fetch(WORKER+'/fuentes?id='+encodeURIComponent(id),{method:'DELETE'}); fuentes=fuentes.filter(f=>f.id!==id); fuentesActivas.delete(id); renderFuentes(); actualizarFiltroFuentes(); showToast('Fuente eliminada'); }catch(e){showToast('Error eliminando fuente');} }
 
-function renderFuentes(){
-  const list=document.getElementById('fuentes-list');
-  const count=document.getElementById('fuentes-count');
-  if(!fuentes.length){
-    list.innerHTML='<span style="font-size:12px;color:var(--text-dim)">Sin fuentes. Agregá una con el botón +</span>';
-    if(count) count.textContent='';
-    return;
-  }
-  if(count) count.textContent=fuentes.length+' fuente'+(fuentes.length!==1?'s':'');
-  list.innerHTML='';
-  fuentes.forEach(f=>{
-    const row=document.createElement('div');
-    row.className='fuente-row';
-    const active=fuentesActivas.has(f.id);
-    row.innerHTML=`<div style="flex:1;min-width:0">
-      <div class="fuente-row-name">${esc(f.nombre)}</div>
-      <div class="fuente-row-url">${esc(f.url)}</div>
-    </div>
-    <div class="fuente-row-actions">
-      <button class="btn-sm" style="font-size:10px;padding:4px 9px;${active?'background:var(--green-dim);border-color:var(--green);color:var(--green-dark)':''}" onclick="toggleFuenteById('${f.id}',this)">${active?'Activa':'Inactiva'}</button>
-      <button class="btn-sm" style="font-size:10px;padding:4px 9px" onclick="eliminarFuente('${f.id}','${esc(f.nombre)}')">Eliminar</button>
-    </div>`;
-    list.appendChild(row);
-  });
-}
+function actualizarFiltroFuentes(){ const sel=document.getElementById('filter-fuente'); const current=sel.value; sel.innerHTML='<option value="">Todas las fuentes</option>'; fuentes.forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=f.nombre;sel.appendChild(o);}); sel.value=current; }
 
-function toggleFuenteById(id,btn){
-  if(fuentesActivas.has(id)){
-    if(fuentesActivas.size===1){ showToast('⚠ Dejá al menos una fuente activa'); return; }
-    fuentesActivas.delete(id);
-    btn.textContent='Inactiva';
-    btn.style.cssText='font-size:10px;padding:4px 9px';
-  }else{
-    fuentesActivas.add(id);
-    btn.textContent='Activa';
-    btn.style.cssText='font-size:10px;padding:4px 9px;background:var(--green-dim);border-color:var(--green);color:var(--green-dark)';
-  }
-}
+function toggleAddForm(){ const form=document.getElementById('add-fuente-form'); form.classList.toggle('open'); if(!form.classList.contains('open')) resetAddForm(); }
+function resetAddForm(){ document.getElementById('nueva-fuente-nombre').value=''; document.getElementById('nueva-fuente-url').value=''; resetVerify(); }
+function resetVerify(){ feedVerificado=false; document.getElementById('verify-status').className='verify-status'; document.getElementById('verify-status').textContent=''; document.getElementById('btn-agregar-ok').disabled=true; }
 
+async function verificarFeed(){ const url=document.getElementById('nueva-fuente-url').value.trim(); if(!url){showToast('⚠ Ingresá la URL del feed');return;} const btn=document.getElementById('btn-verificar'); btn.disabled=true; document.getElementById('spin-verify').style.display='inline-block'; document.getElementById('btn-verify-text').textContent='...'; const status=document.getElementById('verify-status'); try{ const res=await fetch(`${WORKER}/verificar?url=${encodeURIComponent(url)}`); const data=await res.json(); if(data.ok&&data.valido){ feedVerificado=true; feedVerificadoNombre=data.nombre||''; status.className='verify-status ok'; status.textContent=`✓ Feed válido · "${data.nombre}" · ${data.items} noticias`; document.getElementById('btn-agregar-ok').disabled=false; if(!document.getElementById('nueva-fuente-nombre').value) document.getElementById('nueva-fuente-nombre').value=data.nombre; }else{ status.className='verify-status err'; status.textContent='✗ '+(data.error||'No es un feed RSS válido'); } }catch(e){ status.className='verify-status err'; status.textContent='✗ No se pudo verificar el feed'; }finally{ btn.disabled=false; document.getElementById('spin-verify').style.display='none'; document.getElementById('btn-verify-text').textContent='Verificar'; } }
 
+async function agregarFuente(){ if(!feedVerificado){showToast('⚠ Verificá el feed primero');return;} const nombre=document.getElementById('nueva-fuente-nombre').value.trim()||feedVerificadoNombre||'Feed RSS'; const url=document.getElementById('nueva-fuente-url').value.trim(); const id='f_'+Date.now(); try{ await fetch(WORKER+'/fuentes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,nombre,url,clase:'custom'})}); fuentes.push({id,nombre,url,clase:'custom'}); fuentesActivas.add(id); renderFuentes(); actualizarFiltroFuentes(); toggleAddForm(); showToast('✓ Fuente agregada: '+nombre); }catch(e){showToast('Error guardando fuente');} }
 
-async function eliminarFuente(id,nombre){
-  if(!confirm('¿Eliminar "'+nombre+'" del monitor?')) return;
-  try{
-    await fetch(WORKER+'/fuentes?id='+encodeURIComponent(id),{method:'DELETE'});
-    fuentes=fuentes.filter(f=>f.id!==id);
-    fuentesActivas.delete(id);
-    renderFuentes();
-    actualizarFiltroFuentes();
-    showToast('Fuente eliminada');
-  }catch(e){ showToast('Error eliminando fuente'); }
-}
+async function buscarNoticias(){ if(fuentesActivas.size===0){showToast('⚠ Activá al menos una fuente');return;} const btn=document.getElementById('btn-buscar'); btn.disabled=true; document.getElementById('spin-monitor').style.display='inline-block'; document.getElementById('btn-buscar-text').textContent='Buscando...'; document.getElementById('monitor-error').style.display='none'; const resultados=[]; const errores=[]; const fuentesSel=fuentes.filter(f=>fuentesActivas.has(f.id)); await Promise.all(fuentesSel.map(async fuente=>{ try{ const res=await fetch(`${WORKER}/rss?url=${encodeURIComponent(fuente.url)}`); if(!res.ok){errores.push(fuente.nombre);return;} const text=await res.text(); const xml=new DOMParser().parseFromString(text,'text/xml'); xml.querySelectorAll('item, entry').forEach(item=>{ const titulo=(item.querySelector('title')?.textContent||'').replace(/<[^>]*>/g,'').trim(); const desc=(item.querySelector('description, summary, content')?.textContent||'').replace(/<[^>]*>/g,'').trim(); const link=item.querySelector('link')?.textContent?.trim()||item.querySelector('link')?.getAttribute('href')||''; const pubDate=item.querySelector('pubDate, published, updated')?.textContent||''; if(!titulo) return; resultados.push({fuente:fuente.id,nombre:fuente.nombre,clase:fuente.clase||'custom',titulo,desc,link,pubDate,cubierta:false}); }); }catch(e){errores.push(fuente.nombre);} })); resultados.sort((a,b)=>new Date(b.pubDate||0)-new Date(a.pubDate||0)); noticiasCache=resultados; try{ const cr=await fetch(WORKER+'/cubiertas'); const cd=await cr.json(); if(cd.ok&&cd.links){ const set=new Set(cd.links); noticiasCache.forEach(n=>{if(set.has(n.link)) n.cubierta=true;}); } }catch(e){} if(errores.length){ const errDiv=document.getElementById('monitor-error'); errDiv.style.display='block'; errDiv.textContent=`⚠ No se pudieron cargar: ${errores.join(', ')}`; } actualizarFiltroFuentes(); aplicarFiltros(); btn.disabled=false; document.getElementById('spin-monitor').style.display='none'; document.getElementById('btn-buscar-text').textContent='Buscar ahora'; const info=document.getElementById('monitor-update-info'); info.style.display='block'; info.textContent=`Última actualización: ${new Date().toLocaleTimeString('es-AR')} · ${resultados.length} noticias totales`; }
 
-function actualizarFiltroFuentes(){
-  const sel=document.getElementById('filter-fuente');
-  const current=sel.value;
-  sel.innerHTML='<option value="">Todas las fuentes</option>';
-  fuentes.forEach(f=>{ const o=document.createElement('option'); o.value=f.id; o.textContent=f.nombre; sel.appendChild(o); });
-  sel.value=current;
-}
+function aplicarFiltros(){ const kw=document.getElementById('filter-keyword').value.trim().toLowerCase(); const fuente=document.getElementById('filter-fuente').value; const estado=document.getElementById('filter-estado').value; const orden=document.getElementById('filter-orden').value; let items=[...noticiasCache]; if(kw) items=items.filter(n=>n.titulo.toLowerCase().includes(kw)||(n.desc||'').toLowerCase().includes(kw)); if(fuente) items=items.filter(n=>n.fuente===fuente); if(estado==='pendiente') items=items.filter(n=>!n.cubierta); if(estado==='cubierta') items=items.filter(n=>n.cubierta); if(orden==='fuente') items.sort((a,b)=>a.nombre.localeCompare(b.nombre)); else if(orden==='titulo') items.sort((a,b)=>a.titulo.localeCompare(b.titulo)); else items.sort((a,b)=>new Date(b.pubDate||0)-new Date(a.pubDate||0)); renderNoticias(items); const stats=document.getElementById('monitor-stats'); if(noticiasCache.length){ stats.style.display='flex'; const cubiertas=noticiasCache.filter(n=>n.cubierta).length; stats.innerHTML=`<span class="stat-chip">${items.length} noticias</span><span class="stat-chip">${cubiertas} cubiertas</span><span class="stat-chip">${noticiasCache.length-cubiertas} pendientes</span>`; } }
 
-// ── AGREGAR FUENTE ──
-function toggleAddForm(){
-  const form=document.getElementById('add-fuente-form');
-  form.classList.toggle('open');
-  if(!form.classList.contains('open')) resetAddForm();
-}
-function resetAddForm(){
-  document.getElementById('nueva-fuente-nombre').value='';
-  document.getElementById('nueva-fuente-url').value='';
-  resetVerify();
-}
-function resetVerify(){
-  feedVerificado=false;
-  document.getElementById('verify-status').className='verify-status';
-  document.getElementById('verify-status').textContent='';
-  document.getElementById('btn-agregar-ok').disabled=true;
-}
+function limpiarFiltros(){ document.getElementById('filter-keyword').value=''; document.getElementById('filter-fuente').value=''; document.getElementById('filter-estado').value=''; document.getElementById('filter-orden').value='fecha'; aplicarFiltros(); }
 
-async function verificarFeed(){
-  const url=document.getElementById('nueva-fuente-url').value.trim();
-  if(!url){ showToast('⚠ Ingresá la URL del feed'); return; }
-  const btn=document.getElementById('btn-verificar');
-  btn.disabled=true;
-  document.getElementById('spin-verify').style.display='inline-block';
-  document.getElementById('btn-verify-text').textContent='...';
-  const status=document.getElementById('verify-status');
-  try{
-    const res=await fetch(`${WORKER}/verificar?url=${encodeURIComponent(url)}`);
-    const data=await res.json();
-    if(data.ok&&data.valido){
-      feedVerificado=true;
-      feedVerificadoNombre=data.nombre||'';
-      status.className='verify-status ok';
-      status.textContent=`✓ Feed válido · "${data.nombre}" · ${data.items} noticias`;
-      document.getElementById('btn-agregar-ok').disabled=false;
-      if(!document.getElementById('nueva-fuente-nombre').value) document.getElementById('nueva-fuente-nombre').value=data.nombre;
-    }else{
-      status.className='verify-status err';
-      status.textContent='✗ '+(data.error||'No es un feed RSS válido');
-    }
-  }catch(e){
-    status.className='verify-status err';
-    status.textContent='✗ No se pudo verificar el feed';
-  }finally{
-    btn.disabled=false;
-    document.getElementById('spin-verify').style.display='none';
-    document.getElementById('btn-verify-text').textContent='Verificar';
-  }
-}
+function renderNoticias(items){ const container=document.getElementById('monitor-results'); if(!items.length){ container.innerHTML=`<div class="monitor-empty"><svg width="44" height="44" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="#ddd" stroke-width="1.5"/><path d="M21 21l-4.35-4.35" stroke="#ddd" stroke-width="1.5" stroke-linecap="round"/></svg><p>No hay noticias con esos filtros.</p></div>`; return; } let html='<div class="noticias-grid">'; items.forEach(n=>{ const idx=noticiasCache.indexOf(n); const fecha=n.pubDate?new Date(n.pubDate).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''; html+=`<div class="noticia-card ${n.cubierta?'cubierta':''}" id="nc-${idx}"><div class="noticia-fuente-row"><span class="fuente-tag">${esc(n.nombre)}</span><span class="noticia-fecha">${fecha}</span></div><div class="noticia-titulo" onclick="window.open('${esc(n.link)}','_blank')">${esc(n.titulo)}</div>${n.desc?`<div class="noticia-desc">${esc(n.desc)}</div>`:''}<div class="noticia-acciones"><button class="pill accent" onclick="usarTitularMonitor(${idx})">Titulares ↗</button><button class="pill" onclick="reformularDesdeMonitor(${idx})">Reformular ↗</button><button class="pill" onclick='copiarTexto(${JSON.stringify(n.link)})' title="Copiar link">🔗 Link</button><button class="pill" style="margin-left:auto" onclick="marcarCubierta(${idx})">${n.cubierta?'↺ Descubrir':'✓ Cubierta'}</button></div></div>`; }); html+='</div>'; container.innerHTML=html; }
 
-async function agregarFuente(){
-  if(!feedVerificado){ showToast('⚠ Verificá el feed primero'); return; }
-  const nombre=document.getElementById('nueva-fuente-nombre').value.trim()||feedVerificadoNombre||'Feed RSS';
-  const url=document.getElementById('nueva-fuente-url').value.trim();
-  const id='f_'+Date.now();
-  try{
-    await fetch(WORKER+'/fuentes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,nombre,url,clase:'custom'})});
-    fuentes.push({id,nombre,url,clase:'custom'});
-    fuentesActivas.add(id);
-    renderFuentes();
-    actualizarFiltroFuentes();
-    toggleAddForm();
-    showToast('✓ Fuente agregada: '+nombre);
-  }catch(e){ showToast('Error guardando fuente'); }
-}
+async function marcarCubierta(i){ const n=noticiasCache[i]; n.cubierta=!n.cubierta; aplicarFiltros(); try{ await fetch(WORKER+'/cubiertas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({link:n.link,cubierta:n.cubierta})}); }catch(e){} }
 
-// ── MONITOR — BUSCAR ──
-async function buscarNoticias(){
-  if(fuentesActivas.size===0){ showToast('⚠ Activá al menos una fuente'); return; }
-  const btn=document.getElementById('btn-buscar');
-  btn.disabled=true;
-  document.getElementById('spin-monitor').style.display='inline-block';
-  document.getElementById('btn-buscar-text').textContent='Buscando...';
-  document.getElementById('monitor-error').style.display='none';
+function usarTitularMonitor(i){ const n=noticiasCache[i]; document.querySelectorAll('.tab-btn')[0].click(); switchSubtab('nota'); document.getElementById('txt-nota').value=n.titulo+(n.desc?'\n\n'+n.desc:''); document.getElementById('char-nota').textContent=document.getElementById('txt-nota').value.length+' caracteres'; showToast('✓ Cargado en Titulares'); }
+function reformularDesdeMonitor(i){ const n=noticiasCache[i]; document.querySelectorAll('.tab-btn')[1].click(); document.getElementById('ref-titulo-input').value=n.titulo; document.getElementById('ref-cuerpo-input').value=n.desc||''; document.getElementById('char-ref').textContent=(n.desc||'').length+' caracteres'; showToast('✓ Nota cargada para reformular'); }
+function toggleAuto(){ const track=document.getElementById('auto-track'); const label=document.getElementById('auto-label'); if(autoInterval){clearInterval(autoInterval);autoInterval=null;track.classList.remove('on');label.textContent='Auto 5min';}else{buscarNoticias();autoInterval=setInterval(buscarNoticias,5*60*1000);track.classList.add('on');label.textContent='Auto: ON';} }
+function usarEnPlaca(titular){ window.open('../placas/?titulo='+encodeURIComponent(titular),'_blank'); }
 
-  const resultados=[];
-  const errores=[];
-  const fuentesSel=fuentes.filter(f=>fuentesActivas.has(f.id));
+let webSearchActivo=false;
+function toggleWebSearch(){ webSearchActivo=!webSearchActivo; const track=document.getElementById('web-search-track'); const thumb=document.getElementById('web-search-thumb'); if(webSearchActivo){track.style.background='var(--green)';thumb.style.transform='translateX(14px)';}else{track.style.background='var(--border-dark)';thumb.style.transform='translateX(0)';} }
+function accionTitulares(){ if(modoActual==='redactar') redactarNota(); else generarTitulares(); }
 
-  await Promise.all(fuentesSel.map(async fuente=>{
-    try{
-      const res=await fetch(`${WORKER}/rss?url=${encodeURIComponent(fuente.url)}`);
-      if(!res.ok){ errores.push(fuente.nombre); return; }
-      const text=await res.text();
-      const xml=new DOMParser().parseFromString(text,'text/xml');
-      xml.querySelectorAll('item, entry').forEach(item=>{
-        const titulo=(item.querySelector('title')?.textContent||'').replace(/<[^>]*>/g,'').trim();
-        const desc=(item.querySelector('description, summary, content')?.textContent||'').replace(/<[^>]*>/g,'').trim();
-        const link=item.querySelector('link')?.textContent?.trim()||item.querySelector('link')?.getAttribute('href')||'';
-        const pubDate=item.querySelector('pubDate, published, updated')?.textContent||'';
-        if(!titulo) return;
-        resultados.push({fuente:fuente.id,nombre:fuente.nombre,clase:fuente.clase||'custom',titulo,desc,link,pubDate,cubierta:false});
-      });
-    }catch(e){ errores.push(fuente.nombre); }
-  }));
+async function redactarNota(){ const ideas=document.getElementById('txt-redactar').value.trim(); if(!ideas){showToast('⚠ Ingresá ideas o un borrador');return;} setLoading('btn-generar','spin-titulares','btn-titulares-text',true,'Generar titulares'); document.getElementById('btn-titulares-text').textContent=webSearchActivo?'Buscando y redactando...':'Redactando...'; try{ const ahora=new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Mendoza',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); const ideasConFecha=ideas+"\n\n[FECHA Y HORA ACTUAL: "+ahora+" (hora de Mendoza, Argentina)]"; const res=await fetch(WORKER+'/redactar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ideas:ideasConFecha,buscarWeb:webSearchActivo})}); const data=await res.json(); if(!data.ok) throw new Error(data.error); renderNotaRedactada(data); }catch(err){showToast('✗ '+err.message);} finally{setLoading('btn-generar','spin-titulares','btn-titulares-text',false,'Generar titulares');} }
 
-  resultados.sort((a,b)=>new Date(b.pubDate||0)-new Date(a.pubDate||0));
-  noticiasCache=resultados;
+function renderNotaRedactada(data){ const badge=document.getElementById('badge-titulares'); badge.textContent='Nota lista'; badge.style.display='inline-block'; document.getElementById('btn-limpiar-t').style.display='inline-block'; const titular=data.titular||''; const bajada=data.bajada||''; const cuerpo=data.cuerpo||''; const hashtags=data.hashtags||[]; const fuentes=data.fuentes||[]; let html='<div class="ref-box"><div class="ref-ia-badge">✍ Nota redactada por IA</div>'+(bajada?'<div><div class="ref-section-label">Bajada</div><div style="font-size:12px;color:var(--text-muted);font-style:italic">'+esc(bajada)+'</div></div>':'')+'<div><div class="ref-section-label">Titular</div><div class="ref-titulo">'+esc(titular)+'</div></div><div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">'+esc(cuerpo.replace(/^P\d+:\s*/gm,''))+'</div></div>'+(hashtags.length?'<div><div class="ref-section-label">Hashtags</div><div class="hashtags-row" id="hashtags-row-redactar"></div></div>':'')+(fuentes.length?'<div class="fuentes-nota"><div class="fuentes-nota-label">Fuentes consultadas</div>'+fuentes.map(f=>{ if(typeof f!=='object') return '<div class="fuentes-nota-item">• '+esc(f)+'</div>'; return '<div class="fuentes-nota-item" style="margin-bottom:10px">'+(f.imagen?'<img src="'+esc(f.imagen)+'" style="width:100%;max-height:160px;object-fit:cover;border-radius:6px;margin-bottom:5px;display:block">':'')+'• <a href="'+esc(f.url)+'" target="_blank" style="color:var(--green-dark)">'+esc(f.titulo)+'</a></div>'; }).join('')+'</div>':'')+'</div><div class="ref-actions" style="margin-top:12px" id="ref-actions-redactar"></div>'; document.getElementById('results-titulares').innerHTML=html; if(hashtags.length){ const hr=document.getElementById('hashtags-row-redactar'); hashtags.forEach(h=>{const s=document.createElement('span');s.className='hashtag';s.textContent=h;s.onclick=()=>copiarTexto(h);hr.appendChild(s);}); } const ra=document.getElementById('ref-actions-redactar'); const b1=document.createElement('button');b1.className='pill accent';b1.textContent='Copiar titular';b1.onclick=()=>copiarTexto(titular);ra.appendChild(b1); const b2=document.createElement('button');b2.className='pill accent';b2.textContent='Copiar cuerpo';b2.onclick=()=>copiarTexto(cuerpo);ra.appendChild(b2); const b3=document.createElement('button');b3.className='pill';b3.textContent='Copiar todo';b3.onclick=()=>copiarTexto(titular+'\n\n'+(bajada?bajada+'\n\n':'')+cuerpo);ra.appendChild(b3); const b4=document.createElement('button');b4.className='pill';b4.style.cssText='border-color:var(--green);color:var(--green-dark)';b4.textContent='Usar en placa ↗';b4.onclick=()=>usarEnPlaca(titular);ra.appendChild(b4); }
 
-  // Marcar cubiertas desde KV
-  try{
-    const cr = await fetch(WORKER+'/cubiertas');
-    const cd = await cr.json();
-    if(cd.ok && cd.links){
-      const set = new Set(cd.links);
-      noticiasCache.forEach(n=>{ if(set.has(n.link)) n.cubierta=true; });
-    }
-  }catch(e){}
+async function scrapearNota(){ const url=document.getElementById('ref-url-input').value.trim(); if(!url){showToast('⚠ Ingresá la URL de la nota');return;} const btn=document.getElementById('btn-scrape'); const spin=document.getElementById('spin-scrape'); const txt=document.getElementById('btn-scrape-text'); const status=document.getElementById('scrape-status'); btn.disabled=true;spin.style.display='inline-block';txt.textContent='Obteniendo...'; status.className='scrape-status';status.textContent=''; try{ const res=await fetch(WORKER+'/scrape?url='+encodeURIComponent(url)); const data=await res.json(); if(!data.ok) throw new Error(data.error); if(data.titulo&&!document.getElementById('ref-titulo-input').value){ document.getElementById('ref-titulo-input').value=data.titulo; } document.getElementById('ref-cuerpo-input').value=data.texto; document.getElementById('char-ref').textContent=data.texto.length+' caracteres'; status.className='scrape-status ok'; status.textContent='✓ Nota obtenida · '+data.texto.length+' caracteres extraídos'; window._imagenActual=data.imagen||''; showToast('✓ Nota cargada correctamente'); }catch(err){ status.className='scrape-status err'; status.textContent='✗ '+err.message; }finally{ btn.disabled=false;spin.style.display='none';txt.textContent='Obtener nota'; } }
 
-  if(errores.length){
-    const errDiv=document.getElementById('monitor-error');
-    errDiv.style.display='block';
-    errDiv.textContent=`⚠ No se pudieron cargar: ${errores.join(', ')}`;
-  }
+let editorialActivo=false;
+async function cargarEditorial(){ try{ const res=await fetch(WORKER+'/editorial'); const data=await res.json(); if(data.ok&&data.editorial){ document.getElementById('editorial-prompt').value=data.editorial.prompt||''; editorialActivo=!!data.editorial.activo; const track=document.getElementById('editorial-track'); if(editorialActivo) track.classList.add('on'); else track.classList.remove('on'); } }catch(e){} }
+function toggleEditorial(){ editorialActivo=!editorialActivo; const track=document.getElementById('editorial-track'); if(editorialActivo) track.classList.add('on'); else track.classList.remove('on'); }
+async function guardarEditorial(){ const prompt=document.getElementById('editorial-prompt').value.trim(); const btn=document.getElementById('btn-editorial-text'); const spin=document.getElementById('spin-editorial'); btn.textContent='Guardando...';spin.style.display='inline-block'; try{ const res=await fetch(WORKER+'/editorial',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,activo:editorialActivo})}); const data=await res.json(); if(!data.ok) throw new Error(data.error); const saved=document.getElementById('config-saved'); saved.style.display='inline'; setTimeout(()=>saved.style.display='none',3000); showToast('✓ Configuración guardada'); }catch(err){showToast('✗ '+err.message);} finally{btn.textContent='Guardar configuración';spin.style.display='none';} }
 
-  actualizarFiltroFuentes();
-  aplicarFiltros();
+cargarFuentes();
+function abrirModalFuentes(){ document.getElementById('modal-fuentes').classList.add('open'); cargarFuentes(); }
+function cerrarModalFuentes(e){ if(!e||e.target.id==='modal-fuentes'||e.currentTarget.tagName==='BUTTON'){ document.getElementById('modal-fuentes').classList.remove('open'); resetAddForm(); } }
 
-  btn.disabled=false;
-  document.getElementById('spin-monitor').style.display='none';
-  document.getElementById('btn-buscar-text').textContent='Buscar ahora';
-  const info=document.getElementById('monitor-update-info');
-  info.style.display='block';
-  info.textContent=`Última actualización: ${new Date().toLocaleTimeString('es-AR')} · ${resultados.length} noticias totales`;
-}
+let notasGuardadasVisible=false;
+function toggleNotasGuardadas(){ notasGuardadasVisible=!notasGuardadasVisible; const sec=document.getElementById('notas-guardadas-section'); sec.style.display=notasGuardadasVisible?'block':'none'; if(notasGuardadasVisible) cargarNotasGuardadas(); }
+async function cargarNotasGuardadas(){ const lista=document.getElementById('notas-lista'); lista.innerHTML='<span style="font-size:12px;color:var(--text-dim)">Cargando...</span>'; try{ const res=await fetch(WORKER+'/notas'); const data=await res.json(); if(!data.ok) throw new Error(data.error); if(!data.notas.length){ lista.innerHTML='<span style="font-size:12px;color:var(--text-dim)">No hay notas guardadas.</span>'; return; } lista.innerHTML=''; data.notas.forEach(n=>{ const fecha=n.fecha?new Date(n.fecha).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''; const div=document.createElement('div'); div.className='nota-guardada'; div.innerHTML=`<div class="nota-guardada-titulo">${esc(n.titular)}</div><div class="nota-guardada-meta">${n.categoria?`<span class="nota-guardada-cat">${esc(n.categoria)}</span>`:''}<span class="nota-guardada-fecha">${fecha}</span></div><div class="nota-guardada-actions"><button class="pill accent" onclick='cargarNotaGuardada(${JSON.stringify(n)})'>Cargar</button><button class="pill accent" onclick='copiarTexto(${JSON.stringify(n.titular+"\n\n"+n.cuerpo)})'>Copiar todo</button><button class="pill" style="margin-left:auto;border-color:var(--red);color:var(--red)" onclick="eliminarNotaGuardada('${n.id}',this.closest('.nota-guardada'))">Eliminar</button></div>`; lista.appendChild(div); }); }catch(e){lista.innerHTML='<span style="font-size:12px;color:var(--red)">Error cargando notas</span>';} }
+async function guardarNotaActual(){ const n=window._notaActual; if(!n||!n.titular){showToast('⚠ No hay nota generada para guardar');return;} const id='n_'+Date.now(); try{ const res=await fetch(WORKER+'/notas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,...n,imagen:n.imagen||'',fecha:Date.now()})}); const data=await res.json(); if(!data.ok) throw new Error(data.error); showToast('★ Nota guardada correctamente'); if(notasGuardadasVisible) cargarNotasGuardadas(); }catch(e){showToast('✗ Error guardando: '+e.message);} }
+async function eliminarNotaGuardada(id,el){ try{ await fetch(WORKER+'/notas?id='+encodeURIComponent(id),{method:'DELETE'}); el.remove(); showToast('Nota eliminada'); }catch(e){showToast('✗ Error eliminando');} }
+function cargarNotaGuardada(n){ window._imagenActual=n.imagen||''; window._notaActual={titular:n.titular||'',cuerpo:n.cuerpo||'',categoria:n.categoria||'',hashtags:n.hashtags||[],imagen:n.imagen||''}; renderReformulada({ok:true,titular:n.titular||'',cuerpo:n.cuerpo||'',categoria_sugerida:n.categoria||'',hashtags:n.hashtags||[]}); document.getElementById('badge-reformulada').style.display='inline-block'; document.getElementById('btn-limpiar-r').style.display='inline-block'; toggleNotasGuardadas(); showToast('✓ Nota cargada'); }
 
-// ── FILTROS ──
-function aplicarFiltros(){
-  const kw=document.getElementById('filter-keyword').value.trim().toLowerCase();
-  const fuente=document.getElementById('filter-fuente').value;
-  const estado=document.getElementById('filter-estado').value;
-  const orden=document.getElementById('filter-orden').value;
-
-  let items=[...noticiasCache];
-
-  if(kw) items=items.filter(n=>n.titulo.toLowerCase().includes(kw)||(n.desc||'').toLowerCase().includes(kw));
-  if(fuente) items=items.filter(n=>n.fuente===fuente);
-  if(estado==='pendiente') items=items.filter(n=>!n.cubierta);
-  if(estado==='cubierta') items=items.filter(n=>n.cubierta);
-
-  if(orden==='fuente') items.sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  else if(orden==='titulo') items.sort((a,b)=>a.titulo.localeCompare(b.titulo));
-  else items.sort((a,b)=>new Date(b.pubDate||0)-new Date(a.pubDate||0));
-
-  renderNoticias(items);
-
-  // stats
-  const stats=document.getElementById('monitor-stats');
-  if(noticiasCache.length){
-    stats.style.display='flex';
-    const cubiertas=noticiasCache.filter(n=>n.cubierta).length;
-    stats.innerHTML=`<span class="stat-chip">${items.length} noticias</span><span class="stat-chip">${cubiertas} cubiertas</span><span class="stat-chip">${noticiasCache.length-cubiertas} pendientes</span>`;
-  }
-}
-
-function limpiarFiltros(){
-  document.getElementById('filter-keyword').value='';
-  document.getElementById('filter-fuente').value='';
-  document.getElementById('filter-estado').value='';
-  document.getElementById('filter-orden').value='fecha';
-  aplicarFiltros();
-}
-
-function renderNoticias(items){
-  const container=document.getElementById('monitor-results');
-  if(!items.length){
-    container.innerHTML=`<div class="monitor-empty"><svg width="44" height="44" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="#ddd" stroke-width="1.5"/><path d="M21 21l-4.35-4.35" stroke="#ddd" stroke-width="1.5" stroke-linecap="round"/></svg><p>No hay noticias con esos filtros.</p></div>`;
-    return;
-  }
-  // Obtener índices reales en noticiasCache
-  let html='<div class="noticias-grid">';
-  items.forEach(n=>{
-    const idx=noticiasCache.indexOf(n);
-    const fecha=n.pubDate?new Date(n.pubDate).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
-    html+=`<div class="noticia-card ${n.cubierta?'cubierta':''}" id="nc-${idx}">
-      <div class="noticia-fuente-row">
-        <span class="fuente-tag">${esc(n.nombre)}</span>
-        <span class="noticia-fecha">${fecha}</span>
-      </div>
-      <div class="noticia-titulo" onclick="window.open('${esc(n.link)}','_blank')">${esc(n.titulo)}</div>
-      ${n.desc?`<div class="noticia-desc">${esc(n.desc)}</div>`:''}
-      <div class="noticia-acciones">
-        <button class="pill accent" onclick="usarTitularMonitor(${idx})">Titulares ↗</button>
-        <button class="pill" onclick="reformularDesdeMonitor(${idx})">Reformular ↗</button>
-        <button class="pill" onclick='copiarTexto(${JSON.stringify(n.link)})' title="Copiar link">🔗 Link</button>
-        <button class="pill" style="margin-left:auto" onclick="marcarCubierta(${idx})">${n.cubierta?'↺ Descubrir':'✓ Cubierta'}</button>
-      </div>
-    </div>`;
-  });
-  html+='</div>';
-  container.innerHTML=html;
-}
-
-async function marcarCubierta(i){
-  const n = noticiasCache[i];
-  n.cubierta = !n.cubierta;
-  aplicarFiltros();
-  try{
-    await fetch(WORKER+'/cubiertas',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({link:n.link, cubierta:n.cubierta})
-    });
-  }catch(e){ console.log('Error guardando cubierta:', e); }
-}
-
-function usarTitularMonitor(i){
-  const n=noticiasCache[i];
-  document.querySelectorAll('.tab-btn')[0].click();
-  switchSubtab('nota');
-  document.getElementById('txt-nota').value=n.titulo+(n.desc?'\n\n'+n.desc:'');
-  document.getElementById('char-nota').textContent=document.getElementById('txt-nota').value.length+' caracteres';
-  showToast('✓ Cargado en Titulares');
-}
-
-function reformularDesdeMonitor(i){
-  const n=noticiasCache[i];
-  document.querySelectorAll('.tab-btn')[1].click();
-  document.getElementById('ref-titulo-input').value=n.titulo;
-  // Cargamos el máximo de descripción disponible
-  document.getElementById('ref-cuerpo-input').value=n.desc||'';
-  document.getElementById('char-ref').textContent=(n.desc||'').length+' caracteres';
-  showToast('✓ Nota cargada para reformular');
-}
-
-function toggleAuto(){
-  const track=document.getElementById('auto-track');
-  const label=document.getElementById('auto-label');
-  if(autoInterval){ clearInterval(autoInterval); autoInterval=null; track.classList.remove('on'); label.textContent='Auto 5min'; }
-  else{ buscarNoticias(); autoInterval=setInterval(buscarNoticias,5*60*1000); track.classList.add('on'); label.textContent='Auto: ON'; }
-}
-
-function usarEnPlaca(titular){
-  window.open('https://editor-placas-mediamendoza.pages.dev/?titulo='+encodeURIComponent(titular),'_blank');
-}
-
-
-
-// ── REDACTAR DESDE CERO ──
-let webSearchActivo = false;
-
-function toggleWebSearch(){
-  webSearchActivo = !webSearchActivo;
-  const track = document.getElementById('web-search-track');
-  const thumb = document.getElementById('web-search-thumb');
-  if(webSearchActivo){
-    track.style.background = 'var(--green)';
-    thumb.style.transform = 'translateX(14px)';
-  } else {
-    track.style.background = 'var(--border-dark)';
-    thumb.style.transform = 'translateX(0)';
-  }
-}
-
-function accionTitulares(){
-  if(modoActual === 'redactar') redactarNota();
-  else generarTitulares();
-}
-
-async function redactarNota(){
-  const ideas = document.getElementById('txt-redactar').value.trim();
-  if(!ideas){ showToast('⚠ Ingresá ideas o un borrador'); return; }
-  setLoading('btn-generar','spin-titulares','btn-titulares-text',true,'Generar titulares');
-  document.getElementById('btn-titulares-text').textContent = webSearchActivo ? 'Buscando y redactando...' : 'Redactando...';
-  try{
-    const ahora = new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Mendoza',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    const ideasConFecha = ideas + "\n\n[FECHA Y HORA ACTUAL: " + ahora + " (hora de Mendoza, Argentina)]";
-    const res = await fetch(WORKER+'/redactar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ideas:ideasConFecha, buscarWeb:webSearchActivo})});
-    const data = await res.json();
-    if(!data.ok) throw new Error(data.error);
-    renderNotaRedactada(data);
-  }catch(err){ showToast('✗ '+err.message); }
-  finally{ setLoading('btn-generar','spin-titulares','btn-titulares-text',false,'Generar titulares'); }
-}
-
-function renderNotaRedactada(data){
-  const badge = document.getElementById('badge-titulares');
-  badge.textContent = 'Nota lista';
-  badge.style.display='inline-block';
-  document.getElementById('btn-limpiar-t').style.display='inline-block';
-
-  const titular = data.titular||'';
-  const bajada = data.bajada||'';
-  const cuerpo = data.cuerpo||'';
-  const hashtags = data.hashtags||[];
-  const fuentes = data.fuentes||[];
-
-  let html = '<div class="ref-box">'
-    +'<div class="ref-ia-badge">✍ Nota redactada por IA</div>'
-    +(bajada?'<div><div class="ref-section-label">Bajada</div><div style="font-size:12px;color:var(--text-muted);font-style:italic">'+esc(bajada)+'</div></div>':'')
-    +'<div><div class="ref-section-label">Titular</div><div class="ref-titulo">'+esc(titular)+'</div></div>'
-    +'<div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">'+esc(cuerpo.replace(/^P\d+:\s*/gm,''))+'</div></div>'
-    +(hashtags.length?'<div><div class="ref-section-label">Hashtags</div><div class="hashtags-row" id="hashtags-row-redactar"></div></div>':'')
-    +(fuentes.length?'<div class="fuentes-nota"><div class="fuentes-nota-label">Fuentes consultadas</div>'+fuentes.map(f=>{
-    if(typeof f!=='object') return '<div class="fuentes-nota-item">• '+esc(f)+'</div>';
-    return '<div class="fuentes-nota-item" style="margin-bottom:10px">'
-      +(f.imagen?'<img src="'+esc(f.imagen)+'" style="width:100%;max-height:160px;object-fit:cover;border-radius:6px;margin-bottom:5px;display:block">':'')
-      +'• <a href="'+esc(f.url)+'" target="_blank" style="color:var(--green-dark)">'+esc(f.titulo)+'</a></div>';
-  }).join('')+'</div>':'')
-    +'</div>'
-    +'<div class="ref-actions" style="margin-top:12px" id="ref-actions-redactar"></div>';
-
-  document.getElementById('results-titulares').innerHTML = html;
-
-  if(hashtags.length){
-    const hr = document.getElementById('hashtags-row-redactar');
-    hashtags.forEach(h=>{ const s=document.createElement('span'); s.className='hashtag'; s.textContent=h; s.onclick=()=>copiarTexto(h); hr.appendChild(s); });
-  }
-
-  const ra = document.getElementById('ref-actions-redactar');
-  const b1=document.createElement('button'); b1.className='pill accent'; b1.textContent='Copiar titular'; b1.onclick=()=>copiarTexto(titular); ra.appendChild(b1);
-  const b2=document.createElement('button'); b2.className='pill accent'; b2.textContent='Copiar cuerpo'; b2.onclick=()=>copiarTexto(cuerpo); ra.appendChild(b2);
-  const b3=document.createElement('button'); b3.className='pill'; b3.textContent='Copiar todo'; b3.onclick=()=>copiarTexto(titular+'\n\n'+(bajada?bajada+'\n\n':'')+cuerpo); ra.appendChild(b3);
-  const b4=document.createElement('button'); b4.className='pill'; b4.style.cssText='border-color:var(--green);color:var(--green-dark)'; b4.textContent='Usar en placa ↗'; b4.onclick=()=>usarEnPlaca(titular); ra.appendChild(b4);
-}
-
-// ── SCRAPING ──
-async function scrapearNota(){
-  const url = document.getElementById('ref-url-input').value.trim();
-  if(!url){ showToast('⚠ Ingresá la URL de la nota'); return; }
-  const btn = document.getElementById('btn-scrape');
-  const spin = document.getElementById('spin-scrape');
-  const txt = document.getElementById('btn-scrape-text');
-  const status = document.getElementById('scrape-status');
-  btn.disabled=true; spin.style.display='inline-block'; txt.textContent='Obteniendo...';
-  status.className='scrape-status'; status.textContent='';
-  try{
-    const res = await fetch(WORKER+'/scrape?url='+encodeURIComponent(url));
-    const data = await res.json();
-    if(!data.ok) throw new Error(data.error);
-    if(data.titulo && !document.getElementById('ref-titulo-input').value){
-      document.getElementById('ref-titulo-input').value = data.titulo;
-    }
-    document.getElementById('ref-cuerpo-input').value = data.texto;
-    document.getElementById('char-ref').textContent = data.texto.length+' caracteres';
-    status.className='scrape-status ok';
-    status.textContent='✓ Nota obtenida · '+data.texto.length+' caracteres extraídos';
-    window._imagenActual = data.imagen || '';
-    showToast('✓ Nota cargada correctamente');
-  }catch(err){
-    status.className='scrape-status err';
-    status.textContent='✗ '+err.message;
-  }finally{
-    btn.disabled=false; spin.style.display='none'; txt.textContent='Obtener nota';
-  }
-}
-
-// ── EDITORIAL ──
-let editorialActivo = false;
-
-async function cargarEditorial(){
-  try{
-    const res = await fetch(WORKER+'/editorial');
-    const data = await res.json();
-    if(data.ok && data.editorial){
-      document.getElementById('editorial-prompt').value = data.editorial.prompt || '';
-      editorialActivo = !!data.editorial.activo;
-      const track = document.getElementById('editorial-track');
-      if(editorialActivo) track.classList.add('on'); else track.classList.remove('on');
-    }
-  }catch(e){}
-}
-
-function toggleEditorial(){
-  editorialActivo = !editorialActivo;
-  const track = document.getElementById('editorial-track');
-  if(editorialActivo) track.classList.add('on'); else track.classList.remove('on');
-}
-
-async function guardarEditorial(){
-  const prompt = document.getElementById('editorial-prompt').value.trim();
-  const btn = document.getElementById('btn-editorial-text');
-  const spin = document.getElementById('spin-editorial');
-  btn.textContent='Guardando...'; spin.style.display='inline-block';
-  try{
-    const res = await fetch(WORKER+'/editorial',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,activo:editorialActivo})});
-    const data = await res.json();
-    if(!data.ok) throw new Error(data.error);
-    const saved = document.getElementById('config-saved');
-    saved.style.display='inline';
-    setTimeout(()=>saved.style.display='none', 3000);
-    showToast('✓ Configuración guardada');
-  }catch(err){ showToast('✗ '+err.message); }
-  finally{ btn.textContent='Guardar configuración'; spin.style.display='none'; }
-}
-
-
-
-// Init — cargar fuentes al abrir monitor si ya está en esa tab
-cargarFuentes(); // monitor es tab por defecto
-
-function abrirModalFuentes(){
-  document.getElementById('modal-fuentes').classList.add('open');
-  cargarFuentes();
-}
-function cerrarModalFuentes(e){
-  if(!e || e.target.id==='modal-fuentes' || e.currentTarget.tagName==='BUTTON'){
-    document.getElementById('modal-fuentes').classList.remove('open');
-    resetAddForm();
-  }
-}
-
-// ── NOTAS GUARDADAS ──
-let notasGuardadasVisible = false;
-
-function toggleNotasGuardadas(){
-  notasGuardadasVisible = !notasGuardadasVisible;
-  const sec = document.getElementById('notas-guardadas-section');
-  sec.style.display = notasGuardadasVisible ? 'block' : 'none';
-  if(notasGuardadasVisible) cargarNotasGuardadas();
-}
-
-async function cargarNotasGuardadas(){
-  const lista = document.getElementById('notas-lista');
-  lista.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">Cargando...</span>';
-  try{
-    const res = await fetch(WORKER+'/notas');
-    const data = await res.json();
-    if(!data.ok) throw new Error(data.error);
-    if(!data.notas.length){
-      lista.innerHTML='<span style="font-size:12px;color:var(--text-dim)">No hay notas guardadas.</span>';
-      return;
-    }
-    lista.innerHTML = '';
-    data.notas.forEach(n=>{
-      const fecha = n.fecha ? new Date(n.fecha).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
-      const div = document.createElement('div');
-      div.className = 'nota-guardada';
-      div.innerHTML = `
-        <div class="nota-guardada-titulo">${esc(n.titular)}</div>
-        <div class="nota-guardada-meta">
-          ${n.categoria?`<span class="nota-guardada-cat">${esc(n.categoria)}</span>`:''}
-          <span class="nota-guardada-fecha">${fecha}</span>
-        </div>
-        <div class="nota-guardada-actions">
-          <button class="pill accent" onclick='cargarNotaGuardada(${JSON.stringify(n)})'>Cargar</button>
-          <button class="pill accent" onclick='copiarTexto(${JSON.stringify(n.titular+"\n\n"+n.cuerpo)})'>Copiar todo</button>
-          <button class="pill" style="margin-left:auto;border-color:var(--red);color:var(--red)" onclick="eliminarNotaGuardada('${n.id}',this.closest('.nota-guardada'))">Eliminar</button>
-        </div>`;
-      lista.appendChild(div);
-    });
-  }catch(e){ lista.innerHTML='<span style="font-size:12px;color:var(--red)">Error cargando notas</span>'; }
-}
-
-async function guardarNotaActual(){
-  const n = window._notaActual;
-  if(!n || !n.titular){ showToast('⚠ No hay nota generada para guardar'); return; }
-  const id = 'n_'+Date.now();
-  try{
-    const res = await fetch(WORKER+'/notas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,...n,imagen:n.imagen||'',fecha:Date.now()})});
-    const data = await res.json();
-    if(!data.ok) throw new Error(data.error);
-    showToast('★ Nota guardada correctamente');
-    if(notasGuardadasVisible) cargarNotasGuardadas();
-  }catch(e){ showToast('✗ Error guardando: '+e.message); }
-}
-
-async function eliminarNotaGuardada(id, el){
-  try{
-    await fetch(WORKER+'/notas?id='+encodeURIComponent(id),{method:'DELETE'});
-    el.remove();
-    showToast('Nota eliminada');
-  }catch(e){ showToast('✗ Error eliminando'); }
-}
-
-function cargarNotaGuardada(n){
-  // Mostrar directamente en el panel de resultado
-  window._imagenActual = n.imagen||'';
-  window._notaActual = {titular:n.titular||'', cuerpo:n.cuerpo||'', categoria:n.categoria||'', hashtags:n.hashtags||[], imagen:n.imagen||''};
-  renderReformulada({ok:true, titular:n.titular||'', cuerpo:n.cuerpo||'', categoria_sugerida:n.categoria||'', hashtags:n.hashtags||[]});
-  document.getElementById('badge-reformulada').style.display='inline-block';
-  document.getElementById('btn-limpiar-r').style.display='inline-block';
-  // Restaurar imagen si existe
-  if(n.imagen){
-    const imgSec = document.getElementById('scrape-imagen-section');
-    document.getElementById('scrape-img').src = n.imagen;
-    document.getElementById('scrape-img-link').href = n.imagen;
-    document.getElementById('scrape-img-copy-url').setAttribute('data-url', n.imagen);
-    imgSec.classList.add('show');
-  }
-  toggleNotasGuardadas();
-  showToast('✓ Nota cargada');
-}
-
-// ── LIMPIAR CON CONFIRM ──
-function pedirLimpiarReformular(){
-  if(window._notaActual && window._notaActual.titular){
-    document.getElementById('modal-limpiar').classList.add('open');
-  } else {
-    limpiarReformularReal();
-  }
-}
-
-async function guardarYLimpiar(){
-  document.getElementById('modal-limpiar').classList.remove('open');
-  await guardarNotaActual();
-  limpiarReformularReal();
-}
-
-function soloLimpiar(){
-  document.getElementById('modal-limpiar').classList.remove('open');
-  limpiarReformularReal();
-}
-
-function limpiarReformularReal(){
-  ['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('char-ref').textContent='0 caracteres';
-  document.getElementById('results-reformular').innerHTML=placeholderReformular();
-  document.getElementById('badge-reformulada').style.display='none';
-  document.getElementById('btn-limpiar-r').style.display='none';
-  const st=document.getElementById('scrape-status'); if(st){st.className='scrape-status';st.textContent='';}
-  const imgSec=document.getElementById('scrape-imagen-section'); if(imgSec) imgSec.classList.remove('show');
-  window._notaActual = null;
-  window._imagenActual = '';
-}
+function pedirLimpiarReformular(){ if(window._notaActual&&window._notaActual.titular){ document.getElementById('modal-limpiar').classList.add('open'); }else{ limpiarReformularReal(); } }
+async function guardarYLimpiar(){ document.getElementById('modal-limpiar').classList.remove('open'); await guardarNotaActual(); limpiarReformularReal(); }
+function soloLimpiar(){ document.getElementById('modal-limpiar').classList.remove('open'); limpiarReformularReal(); }
+function limpiarReformularReal(){ ['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value=''); document.getElementById('char-ref').textContent='0 caracteres'; document.getElementById('results-reformular').innerHTML=placeholderReformular(); document.getElementById('badge-reformulada').style.display='none'; document.getElementById('btn-limpiar-r').style.display='none'; const st=document.getElementById('scrape-status');if(st){st.className='scrape-status';st.textContent='';} window._notaActual=null; window._imagenActual=''; }
 </script>
 </body>
 </html>
