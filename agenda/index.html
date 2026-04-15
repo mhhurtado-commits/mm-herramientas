@@ -1,1 +1,644 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Agenda — Media Mendoza</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#a6ce39;--green-dark:#7a9e1f;--green-dim:#eaf3de;--green-mid:#c8e87a;
+  --bg:#f4f4f2;--white:#fff;--surface:#fafafa;
+  --border:#e0e0e0;--border-dark:#ccc;
+  --text:#1a1a1a;--text-muted:#666;--text-dim:#999;
+  --radius:8px;--radius-lg:12px;--radius-xl:16px;
+  --shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 2px 8px rgba(0,0,0,.1);
 
+  /* Colores por tipo */
+  --c-feriado:#e63946;--c-feriado-bg:#fdecea;--c-feriado-mid:#f5b8bc;
+  --c-efemeride:#2563eb;--c-efemeride-bg:#eff6ff;--c-efemeride-mid:#bfdbfe;
+  --c-evento:#7c3aed;--c-evento-bg:#f5f3ff;--c-evento-mid:#ddd6fe;
+  --c-cobertura:#d97706;--c-cobertura-bg:#fffbeb;--c-cobertura-mid:#fde68a;
+  --c-local:#0891b2;--c-local-bg:#ecfeff;--c-local-mid:#a5f3fc;
+}
+html,body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;line-height:1.5}
+
+/* TOPBAR */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;background:var(--white);border-bottom:3px solid var(--green);display:flex;align-items:center;padding:0 20px;gap:14px;box-shadow:var(--shadow)}
+.topbar-logo img{height:30px;width:auto;display:block}
+.topbar-divider{width:1px;height:24px;background:var(--border)}
+.topbar-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em}
+.topbar-back{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-muted);text-decoration:none;padding:4px 12px;border-radius:20px;border:1px solid var(--border);transition:all .15s;text-transform:uppercase;letter-spacing:.06em}
+.topbar-back:hover{border-color:var(--green);color:var(--green-dark);background:var(--green-dim)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.topbar-badge{font-size:11px;font-weight:600;color:var(--green-dark);background:var(--green-dim);border:1px solid var(--green-mid);padding:3px 10px;border-radius:20px}
+
+/* MAIN */
+.main{margin-top:56px;padding:20px;max-width:1280px;margin-left:auto;margin-right:auto;padding-bottom:50px}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}}
+
+/* CALENDARIO */
+.cal-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.cal-nav{display:flex;gap:6px}
+.btn-nav{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:14px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;transition:all .15s}
+.btn-nav:hover{border-color:var(--green);color:var(--green-dark)}
+.cal-mes{font-family:'DM Serif Display',serif;font-size:1.5rem;color:var(--text)}
+.cal-hoy{font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:var(--white);color:var(--text-muted);cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:.06em}
+.cal-hoy:hover{border-color:var(--green);color:var(--green-dark)}
+
+/* Filtros */
+.filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.filtro{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;border:1.5px solid var(--border-dark);background:var(--white);color:var(--text-muted);cursor:pointer;transition:all .15s}
+.filtro:hover{border-color:var(--green)}
+.filtro.on.feriado{background:var(--c-feriado-bg);border-color:var(--c-feriado);color:var(--c-feriado)}
+.filtro.on.efemeride{background:var(--c-efemeride-bg);border-color:var(--c-efemeride);color:var(--c-efemeride)}
+.filtro.on.evento{background:var(--c-evento-bg);border-color:var(--c-evento);color:var(--c-evento)}
+.filtro.on.cobertura{background:var(--c-cobertura-bg);border-color:var(--c-cobertura);color:var(--c-cobertura)}
+.filtro.on.local{background:var(--c-local-bg);border-color:var(--c-local);color:var(--c-local)}
+
+/* Grid del calendario */
+.cal-grid{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow)}
+.cal-dias-semana{display:grid;grid-template-columns:repeat(7,1fr);background:var(--surface);border-bottom:1px solid var(--border)}
+.cal-dia-semana{padding:8px;text-align:center;font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em}
+.cal-dias-semana .domingo{color:var(--c-feriado)}
+.cal-celdas{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-celda{min-height:88px;padding:6px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;position:relative}
+.cal-celda:nth-child(7n){border-right:none}
+.cal-celda:hover{background:var(--green-dim)}
+.cal-celda.otro-mes{background:var(--surface)}
+.cal-celda.otro-mes .cal-num{color:var(--text-dim)}
+.cal-celda.hoy{background:var(--green-dim)}
+.cal-celda.hoy .cal-num{background:var(--green);color:#1a2a00;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.cal-celda.seleccionado{background:#fff8e7;border:2px solid var(--green)}
+.cal-num{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px;line-height:1}
+.cal-eventos{display:flex;flex-direction:column;gap:2px}
+.cal-evento-chip{font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip-feriado{background:var(--c-feriado-bg);color:var(--c-feriado)}
+.chip-efemeride{background:var(--c-efemeride-bg);color:var(--c-efemeride)}
+.chip-evento{background:var(--c-evento-bg);color:var(--c-evento)}
+.chip-cobertura{background:var(--c-cobertura-bg);color:var(--c-cobertura)}
+.chip-local{background:var(--c-local-bg);color:var(--c-local)}
+.cal-mas{font-size:9px;color:var(--text-dim);font-weight:600;padding:1px 4px}
+
+/* ── PANEL LATERAL ── */
+.panel{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);padding:18px;box-shadow:var(--shadow)}
+.panel-titulo{font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--text);margin-bottom:2px}
+.panel-sub{font-size:11px;color:var(--text-muted);margin-bottom:14px}
+
+/* ── LISTA DE EVENTOS DEL DÍA ── */
+.evento-item{border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;margin-bottom:8px;cursor:pointer;transition:all .15s;position:relative;border-left-width:3px}
+.evento-item:hover{box-shadow:var(--shadow-md)}
+.evento-item.feriado{border-left-color:var(--c-feriado)}
+.evento-item.efemeride{border-left-color:var(--c-efemeride)}
+.evento-item.evento{border-left-color:var(--c-evento)}
+.evento-item.cobertura{border-left-color:var(--c-cobertura)}
+.evento-item.local{border-left-color:var(--c-local)}
+.evento-titulo{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.evento-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tipo-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em}
+.badge-feriado{background:var(--c-feriado-bg);color:var(--c-feriado)}
+.badge-efemeride{background:var(--c-efemeride-bg);color:var(--c-efemeride)}
+.badge-evento{background:var(--c-evento-bg);color:var(--c-evento)}
+.badge-cobertura{background:var(--c-cobertura-bg);color:var(--c-cobertura)}
+.badge-local{background:var(--c-local-bg);color:var(--c-local)}
+.alcance-badge{font-size:9px;color:var(--text-dim);font-weight:600}
+
+/* Acciones rápidas */
+.quick-btns{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.btn-ia{font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid var(--green-mid);background:var(--green-dim);color:var(--green-dark);cursor:pointer;transition:all .15s}
+.btn-ia:hover{background:var(--green);color:#1a2a00}
+.btn-del{font-size:11px;padding:5px 10px;border-radius:20px;border:1px solid var(--c-feriado-mid);color:var(--c-feriado);background:var(--c-feriado-bg);cursor:pointer;transition:all .15s;display:none}
+.btn-del:hover{background:var(--c-feriado);color:#fff}
+.btn-del.show{display:inline-flex;align-items:center;gap:4px}
+
+/* ── ÁNGULOS IA ── */
+.angulos-box{background:var(--green-dim);border:1px solid var(--green-mid);border-radius:var(--radius-lg);padding:14px;margin-top:8px}
+.angulos-loading{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--green-dark)}
+.spinner{width:14px;height:14px;border:2px solid var(--green-mid);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.angulos-titulo{font-size:10px;font-weight:700;color:var(--green-dark);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.angulo-tag{font-size:10px;font-weight:700;color:var(--green-dark);text-transform:uppercase;letter-spacing:.07em;margin:10px 0 5px}
+.angulo-item{font-size:12px;color:var(--text);padding:5px 8px;background:var(--white);border-radius:var(--radius);margin-bottom:4px;border:1px solid var(--green-mid);line-height:1.5}
+.pregunta-item{font-size:12px;color:var(--text-muted);padding:5px 8px;background:rgba(255,255,255,.6);border-radius:var(--radius);margin-bottom:4px;line-height:1.5}
+.pregunta-item::before{content:'→ ';color:var(--green-dark);font-weight:700}
+.consejo-box{font-size:11px;color:var(--green-dark);background:rgba(255,255,255,.8);border-radius:var(--radius);padding:8px 10px;margin-top:6px;line-height:1.6;font-style:italic;border-left:3px solid var(--green)}
+
+/* Formulario agregar evento */
+.add-btn{width:100%;padding:10px;font-size:12px;font-weight:700;background:var(--green);color:#1a2a00;border:none;border-radius:var(--radius);cursor:pointer;letter-spacing:.03em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 2px 6px rgba(166,206,57,.35);transition:all .15s;margin-bottom:8px}
+.add-btn:hover{background:var(--green-dark);color:#fff}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--white);border-radius:var(--radius-xl);width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:13px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em}
+.modal-close{font-size:16px;background:transparent;border:none;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius);transition:all .15s}
+.modal-close:hover{background:#fdecea;color:#e63946}
+.modal-body{padding:16px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px}
+
+.field{display:flex;flex-direction:column;gap:5px}
+.field-label{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em}
+input[type="text"],input[type="date"],input[type="time"],textarea,select{width:100%;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;outline:none;transition:border-color .15s;resize:none}
+input:focus,textarea:focus,select:focus{border-color:var(--green);background:var(--white)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* Semana próxima */
+.semana-header{font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;margin-top:4px}
+.semana-item{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
+.semana-item:last-child{border-bottom:none}
+.semana-fecha{flex-shrink:0;text-align:center;min-width:40px}
+.semana-fecha-dia{font-family:'DM Serif Display',serif;font-size:1.1rem;color:var(--text);line-height:1}
+.semana-fecha-dow{font-size:9px;color:var(--text-dim);font-weight:600;text-transform:uppercase}
+.semana-items{flex:1;display:flex;flex-direction:column;gap:3px}
+.semana-chip{font-size:11px;color:var(--text);padding:2px 7px;border-radius:4px;line-height:1.4}
+
+/* Placeholder */
+.placeholder{display:flex;flex-direction:column;align-items:center;gap:10px;padding:32px 20px;color:var(--text-dim)}
+.placeholder p{font-size:12px;text-align:center;line-height:1.7}
+
+/* Statusbar */
+.statusbar{position:fixed;bottom:0;left:0;right:0;height:30px;background:var(--white);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.status-text,.status-url{font-size:11px;color:var(--text-dim)}
+.status-url{margin-left:auto}
+.toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:var(--white);font-size:12px;font-weight:500;padding:9px 18px;border-radius:20px;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;z-index:200}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:700px){.cal-celda{min-height:60px}.cal-evento-chip{display:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo"><img src="../assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'"></div>
+  <div class="topbar-divider"></div>
+  <span class="topbar-title">Agenda de Cobertura</span>
+  <div class="topbar-right">
+    <a href="/" class="topbar-back">← Hub</a>
+    <span class="topbar-badge">📅 Agenda</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="layout">
+
+    <!-- IZQUIERDA: Calendario -->
+    <div>
+
+      <div class="cal-header">
+        <div class="cal-nav">
+          <button class="btn-nav" onclick="cambiarMes(-1)">‹</button>
+          <button class="btn-nav" onclick="cambiarMes(1)">›</button>
+        </div>
+        <div class="cal-mes" id="calMes">Enero 2025</div>
+        <button class="cal-hoy" onclick="irAHoy()">Hoy</button>
+      </div>
+
+      <div class="filtros">
+        <span style="font-size:10px;font-weight:700;color:var(--text-dim);align-self:center">Filtrar:</span>
+        <div class="filtro on feriado"    onclick="toggleFiltro('feriado',this)">🔴 Feriados</div>
+        <div class="filtro on efemeride"  onclick="toggleFiltro('efemeride',this)">🔵 Efemérides</div>
+        <div class="filtro on evento"     onclick="toggleFiltro('evento',this)">🟣 Eventos</div>
+        <div class="filtro on cobertura"  onclick="toggleFiltro('cobertura',this)">🟡 Coberturas</div>
+        <div class="filtro on local"      onclick="toggleFiltro('local',this)">🩵 Local</div>
+      </div>
+
+      <div class="cal-grid">
+        <div class="cal-dias-semana">
+          <div class="cal-dia-semana domingo">Dom</div>
+          <div class="cal-dia-semana">Lun</div>
+          <div class="cal-dia-semana">Mar</div>
+          <div class="cal-dia-semana">Mié</div>
+          <div class="cal-dia-semana">Jue</div>
+          <div class="cal-dia-semana">Vie</div>
+          <div class="cal-dia-semana">Sáb</div>
+        </div>
+        <div class="cal-celdas" id="calCeldas"></div>
+      </div>
+
+      <!-- Próxima semana -->
+      <div id="proximaSemana" style="margin-top:16px"></div>
+
+    </div>
+
+    <!-- DERECHA: Panel -->
+    <div style="position:sticky;top:72px">
+
+      <div class="panel">
+        <div id="panelContenido">
+          <div class="panel-titulo">Seleccioná un día</div>
+          <div class="panel-sub">Hacé clic en cualquier fecha para ver los eventos o agregar uno nuevo.</div>
+          <div id="proximosHoy"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL AGREGAR EVENTO -->
+<div class="modal-overlay" id="modalEvento" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalEventoTitulo">Nuevo evento</span>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">Título del evento / cobertura</label>
+        <input type="text" id="evTitulo" placeholder="Ej: Conferencia de prensa gobernación...">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-label">Fecha</label>
+          <input type="date" id="evFecha">
+        </div>
+        <div class="field">
+          <label class="field-label">Hora (opcional)</label>
+          <input type="time" id="evHora">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-label">Tipo</label>
+          <select id="evTipo">
+            <option value="evento">Evento</option>
+            <option value="cobertura">Cobertura asignada</option>
+            <option value="alerta">Alerta de seguimiento</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Alcance</label>
+          <select id="evAlcance">
+            <option value="local">Local</option>
+            <option value="provincial">Provincial</option>
+            <option value="nacional">Nacional</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Descripción / notas</label>
+        <textarea id="evDesc" rows="3" placeholder="Detalles, contactos, notas de cobertura..."></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">Periodista asignado (opcional)</label>
+        <input type="text" id="evPeriodista" placeholder="Nombre del periodista...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="add-btn" style="margin:0;flex:1" onclick="guardarEvento()">
+        <span class="spinner" id="spinGuardar" style="display:none;border-color:rgba(255,255,255,.3);border-top-color:#fff"></span>
+        <span id="btnGuardarText">Guardar evento</span>
+      </button>
+      <button onclick="cerrarModal()" style="padding:10px 16px;border-radius:var(--radius);border:1px solid var(--border-dark);background:var(--white);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--text-muted)">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="statusbar">
+  <div class="status-dot"></div>
+  <div class="status-text">Conectado · Gemini 2.5 Flash Lite</div>
+  <div class="status-url">mediamendoza.pages.dev/agenda</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
+
+// ── Estado ──
+let HOY = new Date();
+let MES_ACTUAL = new Date(HOY.getFullYear(), HOY.getMonth(), 1);
+let DIA_SEL = null;
+let EFEMERIDES = [];
+let EVENTOS_KV = [];
+let FILTROS = { feriado:true, efemeride:true, evento:true, cobertura:true, local:true };
+let _angulosCache = {};
+
+// ── Utils ──
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800) }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS_CORTO = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+function fechaISO(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+function chipClass(tipo){ const m={feriado:'chip-feriado',efemeride:'chip-efemeride',evento:'chip-evento',cobertura:'chip-cobertura',alerta:'chip-cobertura',local:'chip-local'}; return m[tipo]||'chip-efemeride' }
+function badgeClass(tipo){ const m={feriado:'badge-feriado',efemeride:'badge-efemeride',evento:'badge-evento',cobertura:'badge-cobertura',alerta:'badge-cobertura',local:'badge-local'}; return m[tipo]||'badge-efemeride' }
+
+// ── Cargar efemérides ──
+async function cargarEfemerides(){
+  try{
+    const res = await fetch('../agenda/efemerides.json');
+    const data = await res.json();
+    EFEMERIDES = data.efemerides || [];
+  }catch(e){
+    // Fallback: array vacío, no rompe nada
+    EFEMERIDES = [];
+  }
+}
+
+// ── Cargar eventos KV ──
+async function cargarEventosKV(){
+  try{
+    const mes = `${MES_ACTUAL.getFullYear()}-${String(MES_ACTUAL.getMonth()+1).padStart(2,'0')}`;
+    const res = await fetch(WORKER+'/agenda/eventos?mes='+mes);
+    const data = await res.json();
+    if(data.ok) EVENTOS_KV = data.eventos || [];
+  }catch(e){ EVENTOS_KV = [] }
+}
+
+// ── Eventos de un día ──
+function eventosDelDia(fecha){ // fecha = Date
+  const mes = fecha.getMonth()+1;
+  const dia = fecha.getDate();
+  const isoStr = fechaISO(fecha);
+  const efs = EFEMERIDES.filter(e => e.mes===mes && e.dia===dia);
+  const evs = EVENTOS_KV.filter(e => e.fecha===isoStr);
+  return [
+    ...efs.map(e=>({...e, fuente:'efemeride'})),
+    ...evs.map(e=>({...e, fuente:'kv'}))
+  ].filter(e => {
+    if(!FILTROS[e.tipo] && !FILTROS[e.alcance==='local'?'local':e.tipo]) return false;
+    if(e.alcance==='local' && !FILTROS.local) return false;
+    if(e.tipo==='feriado' && !FILTROS.feriado) return false;
+    if(e.tipo==='efemeride' && !FILTROS.efemeride) return false;
+    if((e.tipo==='evento'||e.tipo==='alerta') && !FILTROS.evento) return false;
+    if(e.tipo==='cobertura' && !FILTROS.cobertura) return false;
+    return true;
+  });
+}
+
+// ── Renderizar calendario ──
+function renderCalendario(){
+  document.getElementById('calMes').textContent = `${MESES[MES_ACTUAL.getMonth()]} ${MES_ACTUAL.getFullYear()}`;
+  const primerDia = new Date(MES_ACTUAL.getFullYear(), MES_ACTUAL.getMonth(), 1);
+  const ultimoDia = new Date(MES_ACTUAL.getFullYear(), MES_ACTUAL.getMonth()+1, 0);
+  const startDow = primerDia.getDay(); // 0=dom
+  const celdas = document.getElementById('calCeldas');
+  celdas.innerHTML = '';
+
+  // Días del mes anterior
+  for(let i=0; i<startDow; i++){
+    const d = new Date(primerDia); d.setDate(d.getDate()-(startDow-i));
+    celdas.appendChild(crearCelda(d, true));
+  }
+  // Días del mes
+  for(let d=1; d<=ultimoDia.getDate(); d++){
+    const fecha = new Date(MES_ACTUAL.getFullYear(), MES_ACTUAL.getMonth(), d);
+    celdas.appendChild(crearCelda(fecha, false));
+  }
+  // Días del mes siguiente
+  const totalCeldas = celdas.children.length;
+  const faltantes = (7 - totalCeldas%7)%7;
+  for(let i=1; i<=faltantes; i++){
+    const d = new Date(ultimoDia); d.setDate(d.getDate()+i);
+    celdas.appendChild(crearCelda(d, true));
+  }
+
+  renderProximaSemana();
+  renderProximosHoy();
+}
+
+function crearCelda(fecha, otroMes){
+  const cel = document.createElement('div');
+  cel.className = 'cal-celda' + (otroMes?' otro-mes':'');
+  const iso = fechaISO(fecha);
+  const esHoy = iso === fechaISO(HOY);
+  const esSel = DIA_SEL && iso === fechaISO(DIA_SEL);
+  if(esHoy) cel.classList.add('hoy');
+  if(esSel) cel.classList.add('seleccionado');
+
+  const numDiv = document.createElement('div');
+  numDiv.className = 'cal-num';
+  numDiv.textContent = fecha.getDate();
+  cel.appendChild(numDiv);
+
+  const evts = eventosDelDia(fecha);
+  const evDiv = document.createElement('div');
+  evDiv.className = 'cal-eventos';
+  const max = 2;
+  evts.slice(0,max).forEach(ev=>{
+    const chip = document.createElement('div');
+    chip.className = 'cal-evento-chip '+chipClass(ev.alcance==='local'?'local':ev.tipo);
+    chip.textContent = ev.titulo;
+    chip.title = ev.titulo;
+    evDiv.appendChild(chip);
+  });
+  if(evts.length > max){
+    const mas = document.createElement('div');
+    mas.className = 'cal-mas';
+    mas.textContent = `+${evts.length-max} más`;
+    evDiv.appendChild(mas);
+  }
+  cel.appendChild(evDiv);
+  cel.onclick = () => seleccionarDia(fecha);
+  return cel;
+}
+
+function seleccionarDia(fecha){
+  DIA_SEL = fecha;
+  renderCalendario();
+  renderPanelDia(fecha);
+}
+
+// ── Panel del día ──
+function renderPanelDia(fecha){
+  const evts = eventosDelDia(fecha);
+  const iso = fechaISO(fecha);
+  const nombreDia = DIAS_CORTO[fecha.getDay()];
+  const label = `${nombreDia} ${fecha.getDate()} de ${MESES[fecha.getMonth()]}`;
+
+  let html = `
+    <div class="panel-titulo">${label}</div>
+    <div class="panel-sub">${evts.length} evento${evts.length!==1?'s':''} este día</div>
+    <button class="add-btn" onclick="abrirModalEvento('${iso}')">+ Agregar evento / cobertura</button>`;
+
+  if(!evts.length){
+    html += `<div class="placeholder" style="padding:20px 10px">
+      <span style="font-size:1.8rem">📭</span>
+      <p>Sin eventos. Podés agregar<br>coberturas o alertas.</p>
+    </div>`;
+  } else {
+    evts.forEach((ev,i)=>{
+      const tipo = ev.alcance==='local'?'local':ev.tipo;
+      const esKv = ev.fuente==='kv';
+      html += `<div class="evento-item ${tipo}" onclick="toggleAngulos('${iso}_${i}',${JSON.stringify(ev).replace(/"/g,'&quot;')})">
+        <div class="evento-titulo">${esc(ev.titulo)}</div>
+        <div class="evento-meta">
+          <span class="tipo-badge ${badgeClass(tipo)}">${ev.tipo||'evento'}</span>
+          ${ev.alcance?`<span class="alcance-badge">${ev.alcance}</span>`:''}
+          ${ev.hora?`<span class="alcance-badge">🕐 ${ev.hora}</span>`:''}
+          ${ev.periodista?`<span class="alcance-badge">👤 ${ev.periodista}</span>`:''}
+        </div>
+        ${ev.descripcion?`<div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5">${esc(ev.descripcion)}</div>`:''}
+        <div class="quick-btns">
+          <button class="btn-ia" onclick="event.stopPropagation();generarAngulos('${iso}_${i}',${JSON.stringify(ev).replace(/"/g,'&quot;')})">✦ Ángulos IA</button>
+          ${esKv?`<button class="btn-del show" onclick="event.stopPropagation();eliminarEvento('${ev.id}')">✕ Eliminar</button>`:''}
+        </div>
+        <div id="angulos-${iso}_${i}"></div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('panelContenido').innerHTML = html;
+}
+
+// ── Ángulos IA ──
+async function generarAngulos(key, ev){
+  const container = document.getElementById('angulos-'+key);
+  if(!container) return;
+  if(_angulosCache[key]){ container.innerHTML = _angulosCache[key]; return }
+
+  container.innerHTML = `<div class="angulos-box"><div class="angulos-loading"><span class="spinner"></span> Generando sugerencias...</div></div>`;
+  try{
+    const res = await fetch(WORKER+'/agenda/angulos',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ titulo:ev.titulo, descripcion:ev.descripcion||'', fecha:ev.fecha||ev.dia, tipo:ev.tipo })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    const html = `<div class="angulos-box">
+      <div class="angulos-titulo">✦ Sugerencias de cobertura</div>
+      <div class="angulo-tag">Ángulos</div>
+      ${(data.angulos||[]).map(a=>`<div class="angulo-item">• ${esc(a)}</div>`).join('')}
+      <div class="angulo-tag">Preguntas clave</div>
+      ${(data.preguntas||[]).map(p=>`<div class="pregunta-item">${esc(p)}</div>`).join('')}
+      <div class="angulo-tag">Fuentes sugeridas</div>
+      ${(data.fuentes_sugeridas||[]).map(f=>`<div class="angulo-item" style="font-size:11px">🔎 ${esc(f)}</div>`).join('')}
+      ${data.consejo?`<div class="consejo-box">💡 ${esc(data.consejo)}</div>`:''}
+    </div>`;
+    _angulosCache[key] = html;
+    container.innerHTML = html;
+  }catch(e){ container.innerHTML=`<div style="font-size:11px;color:#e63946;padding:6px">Error: ${esc(e.message)}</div>` }
+}
+
+function toggleAngulos(key, ev){
+  const container = document.getElementById('angulos-'+key);
+  if(!container) return;
+  if(container.innerHTML && !container.innerHTML.includes('btn')) { container.innerHTML=''; return }
+}
+
+// ── Próxima semana ──
+function renderProximaSemana(){
+  const inicio = new Date(HOY);
+  inicio.setDate(inicio.getDate()+1);
+  let html = `<div class="panel" style="margin-top:0">
+    <div class="semana-header">Próximos 7 días</div>`;
+  for(let i=0;i<7;i++){
+    const d = new Date(inicio); d.setDate(d.getDate()+i);
+    const evts = eventosDelDia(d);
+    if(!evts.length) continue;
+    html += `<div class="semana-item">
+      <div class="semana-fecha">
+        <div class="semana-fecha-dia">${d.getDate()}</div>
+        <div class="semana-fecha-dow">${DIAS_CORTO[d.getDay()]}</div>
+      </div>
+      <div class="semana-items">
+        ${evts.slice(0,3).map(ev=>`<div class="semana-chip ${chipClass(ev.alcance==='local'?'local':ev.tipo)}">${esc(ev.titulo)}</div>`).join('')}
+        ${evts.length>3?`<div style="font-size:10px;color:var(--text-dim)">+${evts.length-3} más</div>`:''}
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  document.getElementById('proximaSemana').innerHTML = html;
+}
+
+function renderProximosHoy(){
+  const evHoy = eventosDelDia(HOY);
+  if(!evHoy.length){ document.getElementById('proximosHoy').innerHTML=''; return }
+  const html = `<div style="margin-top:10px">
+    <div class="semana-header">Hoy — ${HOY.getDate()} de ${MESES[HOY.getMonth()]}</div>
+    ${evHoy.map(ev=>`<div style="font-size:12px;color:var(--text);padding:4px 0;border-bottom:1px solid var(--border)">
+      <span class="tipo-badge ${badgeClass(ev.alcance==='local'?'local':ev.tipo)}" style="margin-right:5px">${ev.tipo}</span>${esc(ev.titulo)}
+    </div>`).join('')}
+  </div>`;
+  document.getElementById('proximosHoy').innerHTML = html;
+}
+
+// ── Modal agregar ──
+function abrirModalEvento(fechaISO){
+  document.getElementById('evTitulo').value='';
+  document.getElementById('evFecha').value=fechaISO||'';
+  document.getElementById('evHora').value='';
+  document.getElementById('evDesc').value='';
+  document.getElementById('evPeriodista').value='';
+  document.getElementById('modalEvento').classList.add('open');
+}
+function cerrarModal(){ document.getElementById('modalEvento').classList.remove('open') }
+
+async function guardarEvento(){
+  const titulo = document.getElementById('evTitulo').value.trim();
+  const fecha = document.getElementById('evFecha').value;
+  if(!titulo||!fecha){ toast('⚠ Completá título y fecha'); return }
+  document.getElementById('spinGuardar').style.display='inline-block';
+  document.getElementById('btnGuardarText').textContent='Guardando...';
+  try{
+    const body = {
+      titulo, fecha,
+      hora: document.getElementById('evHora').value,
+      tipo: document.getElementById('evTipo').value,
+      alcance: document.getElementById('evAlcance').value,
+      descripcion: document.getElementById('evDesc').value.trim(),
+      periodista: document.getElementById('evPeriodista').value.trim()
+    };
+    const res = await fetch(WORKER+'/agenda/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    cerrarModal();
+    toast('✓ Evento guardado');
+    await cargarEventosKV();
+    renderCalendario();
+    if(DIA_SEL) renderPanelDia(DIA_SEL);
+  }catch(e){ toast('✗ '+e.message) }
+  document.getElementById('spinGuardar').style.display='none';
+  document.getElementById('btnGuardarText').textContent='Guardar evento';
+}
+
+async function eliminarEvento(id){
+  if(!confirm('¿Eliminar este evento?')) return;
+  try{
+    await fetch(WORKER+'/agenda/evento?id='+encodeURIComponent(id),{method:'DELETE'});
+    toast('Evento eliminado');
+    await cargarEventosKV();
+    renderCalendario();
+    if(DIA_SEL) renderPanelDia(DIA_SEL);
+  }catch(e){ toast('✗ '+e.message) }
+}
+
+// ── Navegación ──
+function cambiarMes(delta){
+  MES_ACTUAL = new Date(MES_ACTUAL.getFullYear(), MES_ACTUAL.getMonth()+delta, 1);
+  cargarEventosKV().then(renderCalendario);
+}
+function irAHoy(){
+  MES_ACTUAL = new Date(HOY.getFullYear(), HOY.getMonth(), 1);
+  DIA_SEL = HOY;
+  cargarEventosKV().then(()=>{ renderCalendario(); renderPanelDia(HOY); });
+}
+function toggleFiltro(tipo, el){
+  FILTROS[tipo] = !FILTROS[tipo];
+  el.classList.toggle('on', FILTROS[tipo]);
+  renderCalendario();
+}
+
+// ── Init ──
+async function init(){
+  await cargarEfemerides();
+  await cargarEventosKV();
+  renderCalendario();
+  // Mostrar hoy por defecto
+  DIA_SEL = HOY;
+  renderCalendario();
+  renderPanelDia(HOY);
+}
+init();
+</script>
+
+</body>
+</html>
