@@ -482,7 +482,7 @@ async function handleWhatsappGenerar(body, env) {
 
 const prompt = `Sos editor de WhatsApp del diario digital Media Mendoza (sur de Mendoza, Argentina).
 
-Tu tarea es generar mensajes listos para copiar y pegar en WhatsApp, siguiendo EXACTAMENTE el estilo editorial del medio.
+Tu tarea es generar mensajes listos para copiar y pegar en WhatsApp.
 
 DATOS:
 Titulo: ${nota.titulo || "Sin titulo"}
@@ -492,40 +492,55 @@ Contenido: ${(nota.body || "").substring(0, 2000)}
 URL: ${nota.urlCorta || nota.url || ""}
 ${contextoExtra ? `Contexto adicional: ${contextoExtra}` : ""}
 
-REGLAS GENERALES:
+REGLAS OBLIGATORIAS:
 - NO inventar información
-- Usar español argentino
-- Claridad periodística
-- Optimizar para clic (gancho)
-- Mantener estructura exacta
+- Español argentino
+- Usar saltos de línea reales con \\n
+- No generar bloques de texto largos
+- Usar negrita SOLO con asteriscos simples: *palabra*
+- No usar **doble asterisco**
+- SI NO RESPETÁS LOS SALTOS DE LÍNEA Y LAS NEGRITAS, LA RESPUESTA ES INCORRECTA.
 
-FORMATO GRUPO:
-- Arranca con emojis + categoría en mayúsculas
-- Frase corta tipo título periodístico
-- Bajada breve explicando
-- Línea "👇"
-- Sección: 🎥 MÁS INFORMACIÓN Y REQUISITOS:
-- Link en línea aparte con 👉
-- CTA comunidad (grupo + canal)
-- Slogan final EXACTO
+FORMATO GRUPO (ESTRUCTURA FIJA):
+[LINEA 1]
+Emojis relacionados + *CATEGORIA EN MAYUSCULAS* +: frase corta
+
+[LINEA 2]
+Bajada no muy larga con alguna palabra clave en *negrita*
+
+[LINEA 3]
+👇
+
+[LINEA 4]
+Emojis + *CTA al link*
+
+[LINEA 5]
+👉 link
+
+[LINEA 6-7]
+*CTA comunidad (exacto)*
+
+[FINAL]
+*Slogan exacto*
 
 FORMATO CANAL:
-- Similar pero más limpio
+- Mismo esquema pero más limpio
 - Menos emojis
-- Sin tanto tono conversacional
-- Mantener estructura informativa
+- Mantener negritas en palabras clave
 
-CTA FIJO:
-📱 Grupo de Noticias: https://bit.ly/mediamendoza-grupo  
-📣 Canal de Difusión: https://bit.ly/mediamendoza-canal  
+CTA FIJO (COPIAR EXACTO):
+*📱 Grupo de Noticias:* https://bit.ly/mediamendoza-grupo
+*📣 Canal de Difusión:* https://bit.ly/mediamendoza-canal
 
 SLOGAN:
-📰 Media Mendoza - Noticias confiables del sur mendocino
+*📰 Media Mendoza - Noticias confiables del sur mendocino*
 
 IMPORTANTE:
-- Respetar saltos de línea
+- Respetar TODOS los saltos de línea
+- Cada bloque debe ir separado con \\n
+- No unir párrafos
 - No agregar texto fuera del JSON
-- No usar backticks
+- SI NO RESPETÁS LOS SALTOS DE LÍNEA Y LAS NEGRITAS, LA RESPUESTA ES INCORRECTA.
 
 RESPUESTA:
 {"grupo":"...","canal":"..."}`;
