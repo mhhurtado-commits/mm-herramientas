@@ -495,61 +495,43 @@ ${contextoExtra ? `Contexto adicional: ${contextoExtra}` : ""}
 REGLAS OBLIGATORIAS:
 - NO inventar información
 - Español argentino
-- Usar saltos de línea reales con \\n
-- No generar bloques de texto largos
+- USAR \\n para cada salto de línea (OBLIGATORIO)
+- NO escribir en un solo párrafo
 - Usar negrita SOLO con asteriscos simples: *palabra*
 - No usar **doble asterisco**
-- SI NO RESPETÁS LOS SALTOS DE LÍNEA Y LAS NEGRITAS, LA RESPUESTA ES INCORRECTA.
+- SI NO RESPETÁS LOS \\n Y LAS NEGRITAS, LA RESPUESTA ES INCORRECTA
 
 FORMATO GRUPO (ESTRUCTURA FIJA):
-[LINEA 1]
-Emojis relacionados + *CATEGORIA EN MAYUSCULAS* +: frase corta
 
-[LINEA 2]
-Bajada no muy larga con alguna palabra clave en *negrita*
-
-[LINEA 3]
-👇
-
-[LINEA 4]
-Emojis + *CTA al link*
-
-[LINEA 5]
-👉 link
-
-[LINEA 6-7]
-*CTA comunidad (exacto)*
-
-[FINAL]
-*Slogan exacto*
-
-FORMATO CANAL:
-- Mismo esquema pero más limpio
-- Menos emojis
-- Mantener negritas en palabras clave
-
-CTA FIJO (COPIAR EXACTO):
-*📱 Grupo de Noticias:* https://bit.ly/mediamendoza-grupo
-*📣 Canal de Difusión:* https://bit.ly/mediamendoza-canal
-
-SLOGAN:
+🚨 [EMOJIS] *${nota.categoria?.toUpperCase() || "GENERAL"}*: frase corta\\n
+\\n
+Bajada no muy breve con alguna palabra en *negrita* EMOJIS👇\\n
+\\n👉 *MÁS INFORMACIÓN:* ${nota.urlCorta || nota.url || ""}\\n
+\\n
+*📱 Grupo de Noticias:* https://bit.ly/mediamendoza-grupo\\n
+*📣 Canal de Difusión:* https://bit.ly/mediamendoza-canal\\n
+\\n
 *📰 Media Mendoza - Noticias confiables del sur mendocino*
 
+FORMATO CANAL:
+- Igual estructura pero:
+- Menos emojis
+- Más limpio
+- Mantener negritas
+
 IMPORTANTE:
-- Respetar TODOS los saltos de línea
-- Cada bloque debe ir separado con \\n
-- No unir párrafos
-- No agregar texto fuera del JSON
-- SI NO RESPETÁS LOS SALTOS DE LÍNEA Y LAS NEGRITAS, LA RESPUESTA ES INCORRECTA.
+- NO agregues texto fuera del JSON
+- NO expliques nada
+- SOLO responder JSON válido
 
 RESPUESTA:
-{"grupo":"...","canal":"..."}`;
+{"grupo":"texto con \\n","canal":"texto con \\n"}`;
 
   const resultado = await callGemini(prompt, env);
   if (resultado.error) return jsonError(resultado.error, 500);
 
-  const grupo = limpiarEspacios(resultado.data?.grupo || "");
-  const canal = limpiarEspacios(resultado.data?.canal || "");
+  const grupo = (resultado.data?.grupo || "").trim();
+  const canal = (resultado.data?.canal || "").trim();
   if (!grupo || !canal) return jsonError("La IA no devolvio ambos mensajes", 502);
 
   return jsonOk({
