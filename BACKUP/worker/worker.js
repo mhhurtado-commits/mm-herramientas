@@ -18,9 +18,6 @@ const GEMINI_MODEL = "gemini-2.5-flash-lite";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const GEMINI_SEARCH_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const EDITORIAL_KV_KEY = "config:editorial";
-const MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024;
-const WHATSAPP_PREFIX = "whatsapp:programado:";
-const AGENDA_PREFIX = "agenda:evento:";
 
 const BROWSER_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -31,74 +28,6 @@ const BROWSER_HEADERS = {
 
 function esXMLvalido(t) {
   return t.includes("<rss")||t.includes("<feed")||t.includes("<channel")||t.includes("<item")||t.includes("<entry")||(t.trimStart().startsWith("<?xml")&&t.includes("<title"));
-}
-
-function decodeHtml(text = "") {
-  return text
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-}
-
-function limpiarEspacios(text = "") {
-  return decodeHtml(text).replace(/\s+/g, " ").trim();
-}
-
-function extractMeta(html, ...patterns) {
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    const value = limpiarEspacios(match?.[1] || "");
-    if (value) return value;
-  }
-  return "";
-}
-
-function normalizarTituloSitio(title = "") {
-  return title
-    .replace(/\s+[|\-–—]\s+(Media Mendoza|mediamendoza\.com).*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function inferirCategoriaDesdeUrl(targetUrl) {
-  try {
-    const u = new URL(targetUrl);
-    const first = u.pathname.split("/").filter(Boolean)[0] || "";
-    return limpiarEspacios(first.replace(/[-_]+/g, " "));
-  } catch {
-    return "";
-  }
-}
-
-function generarId(prefix) {
-  return `${prefix}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function acortarUrlNota(targetUrl) {
-  try {
-    const u = new URL(targetUrl);
-    const parts = u.pathname.split("/").filter(Boolean);
-    if (parts.length >= 2) {
-      const numMatch = parts[1].match(/^(\d+)/);
-      if (numMatch) return `${u.origin}/${parts[0]}/${numMatch[1]}`;
-    }
-    return `${u.origin}${u.pathname}`;
-  } catch {
-    return targetUrl;
-  }
-}
-
-async function listarObjetosKV(env, prefix) {
-  const list = await env.KV.list({ prefix });
-  const items = [];
-  for (const key of list.keys) {
-    const val = await env.KV.get(key.name, "json");
-    if (val) items.push(val);
-  }
-  return items;
 }
 
 // Extrae texto limpio de HTML
@@ -120,66 +49,12 @@ function extraerTexto(html) {
   return html.split('\n').map(l=>l.trim()).filter(l=>l.length>30).slice(0,80).join('\n');
 }
 
-async function fetchHtml(targetUrl, cacheTtl = 300) {
-  const res = await fetch(targetUrl, {
-    headers: BROWSER_HEADERS,
-    redirect: "follow",
-    cf: { cacheTtl, cacheEverything: true },
-  });
-  if (!res.ok) throw new Error(`Error ${res.status} al obtener la URL`);
-  return { res, html: await res.text() };
-}
-
-function extraerDatosNotaParaPlacas(html, targetUrl) {
-  const title = normalizarTituloSitio(extractMeta(
-    html,
-    /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,300})["']/i,
-    /<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']{1,300})["']/i,
-    /<title[^>]*>([^<]{1,300})<\/title>/i
-  ));
-
-  const description = extractMeta(
-    html,
-    /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']{1,500})["']/i,
-    /<meta[^>]+name=["']description["'][^>]+content=["']([^"']{1,500})["']/i,
-    /<meta[^>]+name=["']twitter:description["'][^>]+content=["']([^"']{1,500})["']/i
-  );
-
-  const image = extractMeta(
-    html,
-    /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,1500})["']/i,
-    /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']{1,1500})["']/i
-  );
-
-  const category = extractMeta(
-    html,
-    /<meta[^>]+property=["']article:section["'][^>]+content=["']([^"']{1,120})["']/i,
-    /<meta[^>]+name=["']section["'][^>]+content=["']([^"']{1,120})["']/i,
-    /<meta[^>]+name=["']category["'][^>]+content=["']([^"']{1,120})["']/i
-  ) || inferirCategoriaDesdeUrl(targetUrl);
-
-  return {
-    title,
-    category,
-    description,
-    body: extraerTexto(html),
-    image,
-    url: targetUrl,
-  };
-}
-
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
     const url = new URL(request.url);
     const path = url.pathname;
-
-    if (path === "/") {
-      if (request.method === "GET" && url.searchParams.has("url")) return handlePlacasUrl(url);
-      if (request.method === "GET" && url.searchParams.has("image")) return handlePlacasImage(url);
-      if (request.method === "POST" && url.searchParams.get("ai") === "1") return handlePlacasAI(request, env);
-    }
 
     if (request.method === "GET") {
       if (path === "/rss") return handleRSS(url);
@@ -188,8 +63,6 @@ export default {
       if (path === "/fuentes") return handleGetFuentes(env);
       if (path === "/editorial") return handleGetEditorial(env);
       if (path === "/cubiertas") return handleGetCubiertas(env);
-      if (path === "/whatsapp/programados") return handleGetWhatsappProgramados(env);
-      if (path === "/agenda/eventos") return handleGetAgendaEventos(url, env);
       if (path === "/redactar") return jsonError("Usar POST", 405);
       if (path === "/notas") return handleGetNotas(env);
       return jsonError("Ruta no encontrada", 404);
@@ -198,8 +71,6 @@ export default {
     if (request.method === "DELETE") {
       if (path === "/fuentes") return handleDeleteFuente(url, env);
       if (path === "/notas") return handleDeleteNota(url, env);
-      if (path === "/whatsapp/programado") return handleDeleteWhatsappProgramado(url, env);
-      if (path === "/agenda/evento") return handleDeleteAgendaEvento(url, env);
       return jsonError("Ruta no encontrada", 404);
     }
 
@@ -216,11 +87,6 @@ export default {
     if (path === "/cubiertas") return handlePostCubierta(body, env);
     if (path === "/redactar") return handleRedactar(body, env);
     if (path === "/notas") return handlePostNota(body, env);
-    if (path === "/whatsapp/generar") return handleWhatsappGenerar(body, env);
-    if (path === "/whatsapp/programar") return handlePostWhatsappProgramar(body, env);
-    if (path === "/whatsapp/marcar-enviado") return handlePostWhatsappMarcarEnviado(body, env);
-    if (path === "/agenda/evento") return handlePostAgendaEvento(body, env);
-    if (path === "/agenda/angulos") return handleAgendaAngulos(body, env);
 
     return jsonError("Ruta no encontrada", 404);
   },
@@ -235,7 +101,13 @@ async function handleScrape(url) {
   try { new URL(targetUrl); } catch { return jsonError("URL invalida", 400); }
 
   try {
-    const { html } = await fetchHtml(targetUrl, 300);
+    const res = await fetch(targetUrl, {
+      headers: BROWSER_HEADERS,
+      redirect: "follow",
+      cf: { cacheTtl: 300, cacheEverything: true },
+    });
+    if (!res.ok) return jsonError(`Error ${res.status} al obtener la nota`, 502);
+    const html = await res.text();
 
     // Intentar extraer título de og:title o <title>
     const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,200})["']/i);
@@ -253,92 +125,6 @@ async function handleScrape(url) {
   } catch (err) {
     return jsonError(`Error scrapeando: ${err.message}`, 502);
   }
-}
-
-// ------------------------------------------------------------
-// COMPATIBILIDAD PLACAS
-// GET /?url=https://...
-// GET /?image=https://...
-// POST /?ai=1
-// ------------------------------------------------------------
-async function handlePlacasUrl(url) {
-  const targetUrl = url.searchParams.get("url");
-  if (!targetUrl) return jsonError("Parametro url requerido", 400);
-  try { new URL(targetUrl); } catch { return jsonError("URL invalida", 400); }
-
-  try {
-    const { html } = await fetchHtml(targetUrl, 300);
-    const data = extraerDatosNotaParaPlacas(html, targetUrl);
-    if (!data.title && !data.body) return jsonError("No se pudo extraer contenido de la nota", 422);
-    return jsonOk(data);
-  } catch (err) {
-    return jsonError(`Error obteniendo nota: ${err.message}`, 502);
-  }
-}
-
-async function handlePlacasImage(url) {
-  const imageUrl = url.searchParams.get("image");
-  if (!imageUrl) return jsonError("Parametro image requerido", 400);
-  try { new URL(imageUrl); } catch { return jsonError("URL invalida", 400); }
-
-  try {
-    const res = await fetch(imageUrl, {
-      headers: {
-        "User-Agent": BROWSER_HEADERS["User-Agent"],
-        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-        "Accept-Language": BROWSER_HEADERS["Accept-Language"],
-      },
-      redirect: "follow",
-      cf: { cacheTtl: 3600, cacheEverything: true },
-    });
-    if (!res.ok) return jsonError(`Error ${res.status} al obtener la imagen`, 502);
-
-    const contentType = res.headers.get("Content-Type") || "application/octet-stream";
-    if (!contentType.startsWith("image/")) return jsonError("La URL no devolvio una imagen", 422);
-
-    const contentLength = Number(res.headers.get("Content-Length") || "0");
-    if (contentLength && contentLength > MAX_PROXY_IMAGE_BYTES) {
-      return jsonError("La imagen es demasiado pesada para proxy", 413);
-    }
-
-    return new Response(res.body, {
-      headers: {
-        ...CORS_HEADERS,
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=3600",
-      },
-    });
-  } catch (err) {
-    return jsonError(`Error obteniendo imagen: ${err.message}`, 502);
-  }
-}
-
-async function handlePlacasAI(request, env) {
-  let body;
-  try { body = await request.json(); }
-  catch { return jsonError("JSON invalido", 400); }
-
-  const system = String(body.system || "").trim();
-  const user = String(body.user || "").trim();
-  if (!system || !user) return jsonError("Faltan campos: system y user", 400);
-
-  const prompt = `${system}
-
-Responde SOLO con JSON sin backticks con esta forma exacta:
-{"grupo":"mensaje para grupo","canal":"mensaje para canal"}
-
-${user}`;
-
-  const resultado = await callGemini(prompt, env);
-  if (resultado.error) return jsonError(resultado.error, 500);
-
-  const grupo = limpiarEspacios(resultado.data?.grupo || "");
-  const canal = limpiarEspacios(resultado.data?.canal || "");
-  if (!grupo && !canal) return jsonError("La IA no devolvio mensajes validos", 502);
-
-  return jsonOk({
-    text: JSON.stringify({ grupo, canal }),
-  });
 }
 
 // ------------------------------------------------------------
@@ -440,262 +226,6 @@ async function handleDeleteNota(url, env) {
 // CUBIERTAS — KV
 // Guarda los links de noticias marcadas como cubiertas
 // ------------------------------------------------------------
-async function handleWhatsappGenerar(body, env) {
-  const notaUrl = String(body.notaUrl || "").trim();
-  const contextoExtra = String(body.contextoExtra || "").trim();
-  const contenido = String(body.contenido || "").trim();
-  const tituloManual = String(body.titulo || "").trim();
-  const categoriaManual = String(body.categoria || "").trim();
-
-  let nota = {
-    titulo: tituloManual,
-    categoria: categoriaManual,
-    descripcion: "",
-    body: contenido,
-    url: notaUrl,
-    urlCorta: notaUrl ? acortarUrlNota(notaUrl) : "",
-    image: "",
-  };
-
-  if (notaUrl) {
-    try { new URL(notaUrl); } catch { return jsonError("URL invalida", 400); }
-    try {
-      const { html } = await fetchHtml(notaUrl, 300);
-      const scraped = extraerDatosNotaParaPlacas(html, notaUrl);
-      nota = {
-        titulo: scraped.title || nota.titulo,
-        categoria: scraped.category || nota.categoria,
-        descripcion: scraped.description || "",
-        body: scraped.body || nota.body,
-        url: notaUrl,
-        urlCorta: acortarUrlNota(notaUrl),
-        image: scraped.image || "",
-      };
-    } catch (err) {
-      return jsonError(`No se pudo obtener la nota: ${err.message}`, 502);
-    }
-  }
-
-  if (!nota.titulo && !nota.body) {
-    return jsonError("Falta notaUrl o contenido para generar el mensaje", 400);
-  }
-
-const prompt = `Sos editor de WhatsApp del diario digital Media Mendoza (sur de Mendoza, Argentina).
-
-Tu tarea es generar mensajes listos para copiar y pegar en WhatsApp, siguiendo EXACTAMENTE el estilo editorial del medio.
-
-DATOS:
-Titulo: ${nota.titulo || "Sin titulo"}
-Categoria: ${nota.categoria || "General"}
-Descripcion: ${nota.descripcion || ""}
-Contenido: ${(nota.body || "").substring(0, 2000)}
-URL: ${nota.urlCorta || nota.url || ""}
-${contextoExtra ? `Contexto adicional: ${contextoExtra}` : ""}
-
-REGLAS GENERALES:
-- NO inventar información
-- Usar español argentino
-- Claridad periodística
-- Optimizar para clic (gancho)
-- Mantener estructura exacta
-
-FORMATO GRUPO:
-- Arranca con emojis + categoría en mayúsculas
-- Frase corta tipo título periodístico
-- Bajada breve explicando
-- Línea "👇"
-- Sección: 🎥 MÁS INFORMACIÓN Y REQUISITOS:
-- Link en línea aparte con 👉
-- CTA comunidad (grupo + canal)
-- Slogan final EXACTO
-
-FORMATO CANAL:
-- Similar pero más limpio
-- Menos emojis
-- Sin tanto tono conversacional
-- Mantener estructura informativa
-
-CTA FIJO:
-📱 Grupo de Noticias: https://bit.ly/mediamendoza-grupo  
-📣 Canal de Difusión: https://bit.ly/mediamendoza-canal  
-
-SLOGAN:
-📰 Media Mendoza - Noticias confiables del sur mendocino
-
-IMPORTANTE:
-- Respetar saltos de línea
-- No agregar texto fuera del JSON
-- No usar backticks
-
-RESPUESTA:
-{"grupo":"...","canal":"..."}`;
-
-  const resultado = await callGemini(prompt, env);
-  if (resultado.error) return jsonError(resultado.error, 500);
-
-  const grupo = limpiarEspacios(resultado.data?.grupo || "");
-  const canal = limpiarEspacios(resultado.data?.canal || "");
-  if (!grupo || !canal) return jsonError("La IA no devolvio ambos mensajes", 502);
-
-  return jsonOk({
-    nota: {
-      titulo: nota.titulo || "Sin titulo",
-      url: nota.url || "",
-      urlCorta: nota.urlCorta || nota.url || "",
-      imagen: nota.image || "",
-    },
-    categoria: nota.categoria || "General",
-    grupo,
-    canal,
-  });
-}
-
-async function handlePostWhatsappProgramar(body, env) {
-  if (!body || typeof body !== "object") return jsonError("Body invalido", 400);
-  if (!body.fecha) return jsonError("Falta campo: fecha", 400);
-
-  const item = {
-    id: body.id || generarId("wp_"),
-    fecha: Number(body.fecha),
-    fechaLegible: body.fechaLegible || "",
-    tituloNota: String(body.tituloNota || "").trim(),
-    urlCorta: String(body.urlCorta || "").trim(),
-    canales: Array.isArray(body.canales) ? body.canales.filter(Boolean) : [],
-    textoGrupo: String(body.textoGrupo || "").trim(),
-    textoCanal: String(body.textoCanal || "").trim(),
-    categoria: String(body.categoria || "General").trim(),
-    enviado: !!body.enviado,
-    creado: body.creado || Date.now(),
-  };
-
-  if (!item.canales.length) return jsonError("Falta al menos un canal", 400);
-
-  try {
-    await env.KV.put(`${WHATSAPP_PREFIX}${item.id}`, JSON.stringify(item));
-    return jsonOk({ guardado: true, id: item.id });
-  } catch (err) {
-    return jsonError("Error KV: " + err.message, 500);
-  }
-}
-
-async function handleGetWhatsappProgramados(env) {
-  try {
-    const programados = await listarObjetosKV(env, WHATSAPP_PREFIX);
-    programados.sort((a, b) => (a.fecha || 0) - (b.fecha || 0));
-    return jsonOk({ programados });
-  } catch (err) {
-    return jsonError("Error KV: " + err.message, 500);
-  }
-}
-
-async function handlePostWhatsappMarcarEnviado(body, env) {
-  const id = String(body.id || "").trim();
-  if (!id) return jsonError("Falta campo: id", 400);
-
-  try {
-    const key = `${WHATSAPP_PREFIX}${id}`;
-    const actual = await env.KV.get(key, "json");
-    if (!actual) return jsonError("Mensaje no encontrado", 404);
-
-    const actualizado = {
-      ...actual,
-      estado: "enviado",
-      enviado: true,
-    };
-
-    await env.KV.put(key, JSON.stringify(actualizado));
-    return jsonOk({ guardado: true, id, programado: actualizado });
-  } catch (err) {
-    return jsonError("Error KV: " + err.message, 500);
-  }
-}
-
-async function handleDeleteWhatsappProgramado(url, env) {
-  const id = url.searchParams.get("id");
-  if (!id) return jsonError("Falta id", 400);
-  try {
-    await env.KV.delete(`${WHATSAPP_PREFIX}${id}`);
-    return jsonOk({ eliminado: true });
-  } catch (err) {
-    return jsonError("Error KV: " + err.message, 500);
-  }
-}
-
-async function handleGetAgendaEventos(url, env) {
-  try {
-    const mes = String(url.searchParams.get("mes") || "").trim();
-    let eventos = await listarObjetosKV(env, AGENDA_PREFIX);
-    if (mes) eventos = eventos.filter(e => String(e.fecha || "").startsWith(mes));
-    eventos.sort((a, b) => String(a.fecha || "").localeCompare(String(b.fecha || "")) || String(a.hora || "").localeCompare(String(b.hora || "")));
-    return jsonOk({ eventos });
-  } catch (err) {
-    return jsonError("Error KV: " + err.message, 500);
-  }
-}
-
-async function handlePostAgendaEvento(body, env) {
-  const titulo = String(body.titulo || "").trim();
-  const fecha = String(body.fecha || "").trim();
-  if (!titulo || !fecha) return jsonError("Faltan campos: titulo y fecha", 400);
-
-  const evento = {
-    id: body.id || generarId("ag_"),
-    titulo,
-    fecha,
-    hora: String(body.hora || "").trim(),
-    tipo: String(body.tipo || "evento").trim(),
-    alcance: String(body.alcance || "local").trim(),
-    descripcion: String(body.descripcion || "").trim(),
-    periodista: String(body.periodista || "").trim(),
-    creado: body.creado || Date.now(),
-  };
-
-  try {
-    await env.KV.put(`${AGENDA_PREFIX}${evento.id}`, JSON.stringify(evento));
-    return jsonOk({ guardado: true, id: evento.id, evento });
-  } catch (err) {
-    return jsonError("Error KV: " + err.message, 500);
-  }
-}
-
-async function handleDeleteAgendaEvento(url, env) {
-  const id = url.searchParams.get("id");
-  if (!id) return jsonError("Falta id", 400);
-  try {
-    await env.KV.delete(`${AGENDA_PREFIX}${id}`);
-    return jsonOk({ eliminado: true });
-  } catch (err) {
-    return jsonError("Error KV: " + err.message, 500);
-  }
-}
-
-async function handleAgendaAngulos(body, env) {
-  const titulo = String(body.titulo || "").trim();
-  if (!titulo) return jsonError("Falta campo: titulo", 400);
-
-  const prompt = `Sos editor de agenda y cobertura del diario digital mendocino Media Mendoza.
-Analiza este evento y propone ideas utiles para cobertura periodistica.
-
-EVENTO:
-Titulo: ${titulo}
-Descripcion: ${String(body.descripcion || "").trim()}
-Fecha: ${String(body.fecha || "").trim()}
-Tipo: ${String(body.tipo || "").trim()}
-
-Responde SOLO con JSON sin backticks:
-{"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"..."}`;
-
-  const resultado = await callGemini(prompt, env);
-  if (resultado.error) return jsonError(resultado.error, 500);
-
-  return jsonOk({
-    angulos: Array.isArray(resultado.data?.angulos) ? resultado.data.angulos : [],
-    preguntas: Array.isArray(resultado.data?.preguntas) ? resultado.data.preguntas : [],
-    fuentes_sugeridas: Array.isArray(resultado.data?.fuentes_sugeridas) ? resultado.data.fuentes_sugeridas : [],
-    consejo: String(resultado.data?.consejo || "").trim(),
-  });
-}
-
 async function handleGetCubiertas(env) {
   try {
     const list = await env.KV.list({ prefix: "cubierta:" });

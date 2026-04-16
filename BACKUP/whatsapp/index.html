@@ -527,16 +527,10 @@ async function marcarEnviado(){
 }
 async function marcarEnviadoById(id){
   try{
-    await fetch(WORKER+'/whatsapp/marcar-enviado',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({id})
-    });
+    await fetch(WORKER+'/whatsapp/programado',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
     toast('✓ Marcado como enviado');
     cargarProgramados();
-  }catch(e){
-    toast('✗ '+e.message);
-  }
+  }catch(e){ toast('✗ '+e.message) }
 }
 async function eliminarProg(id){
   if(!confirm('¿Eliminar este mensaje programado?')) return;

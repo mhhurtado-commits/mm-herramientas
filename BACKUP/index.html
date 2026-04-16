@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Herramientas IA — Media Mendoza</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--green:#a6ce39;--green-dark:#7a9e1f;--green-dim:#eaf3de;--green-mid:#c8e87a;--bg:#f4f4f2;--white:#fff;--border:#e0e0e0;--border-dark:#ccc;--text:#1a1a1a;--text-muted:#666;--text-dim:#999;--radius:8px;--radius-xl:16px;--shadow:0 1px 3px rgba(0,0,0,.08);--shadow-lg:0 8px 32px rgba(0,0,0,.12)}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;line-height:1.5}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;background:var(--white);border-bottom:3px solid var(--green);display:flex;align-items:center;padding:0 20px;gap:14px;box-shadow:var(--shadow)}
+.topbar-logo img{height:30px;width:auto;display:block}
+.topbar-divider{width:1px;height:24px;background:var(--border)}
+.topbar-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em}
+.topbar-badge{font-size:11px;font-weight:600;color:var(--green-dark);background:var(--green-dim);border:1px solid var(--green-mid);padding:3px 10px;border-radius:20px;margin-left:auto}
+main{padding-top:56px;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding-bottom:50px}
+.hero{text-align:center;padding:48px 20px 32px;max-width:560px}
+.hero-eyebrow{font-size:11px;font-weight:700;color:var(--green-dark);text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px}
+.hero-title{font-family:'DM Serif Display',serif;font-size:clamp(2rem,5vw,3rem);color:var(--text);line-height:1.15;margin-bottom:14px}
+.hero-title span{color:var(--green-dark)}
+.hero-desc{font-size:13px;color:var(--text-muted);line-height:1.7}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;width:100%;max-width:900px;padding:0 20px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);padding:28px 24px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow);text-decoration:none;color:inherit;transition:all .2s;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--green);transform:scaleX(0);transform-origin:left;transition:transform .2s}
+.card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:var(--green-mid)}
+.card:hover::before{transform:scaleX(1)}
+.card-icon{font-size:2rem;line-height:1}
+.card-badge{position:absolute;top:16px;right:16px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--green-dim);color:var(--green-dark);border:1px solid var(--green-mid)}
+.card-badge.new{background:#fdecea;color:#e63946;border-color:#f5b8bc}
+.card-title{font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--text)}
+.card-desc{font-size:12px;color:var(--text-muted);line-height:1.65;flex:1}
+.card-pills{display:flex;gap:5px;flex-wrap:wrap}
+.pill{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid var(--border-dark);color:var(--text-muted)}
+.card-footer{display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--border)}
+.card-footer-label{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em}
+.card-arrow{font-size:18px;color:var(--green);margin-left:auto;transition:transform .2s}
+.card:hover .card-arrow{transform:translateX(4px)}
+.statusbar{position:fixed;bottom:0;left:0;right:0;height:30px;background:var(--white);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.status-text,.status-url{font-size:11px;color:var(--text-dim)}
+.status-url{margin-left:auto}
+@media(max-width:600px){.cards{grid-template-columns:1fr}.hero{padding:32px 20px 24px}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-logo"><img src="assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'"></div>
+  <div class="topbar-divider"></div>
+  <span class="topbar-title">Suite de Herramientas</span>
+  <span class="topbar-badge">IA</span>
+</div>
+<main>
+  <div class="hero">
+    <div class="hero-eyebrow">Media Mendoza</div>
+    <h1 class="hero-title">Suite de<br><span>Herramientas IA</span></h1>
+    <p class="hero-desc">Todas las herramientas de producción en un solo lugar. Redactá, reformulá, diseñá placas, difundí por WhatsApp y planificá tu cobertura.</p>
+  </div>
+  <div class="cards">
+    <a href="/redaccion/" class="card">
+      <div class="card-badge">4 herramientas</div>
+      <div class="card-icon">✍️</div>
+      <div class="card-title">Herramientas de Redacción</div>
+      <p class="card-desc">Monitor de fuentes RSS, reformulación de notas, agente de redacción con búsqueda web y configuración de línea editorial.</p>
+      <div class="card-pills"><span class="pill">Monitor</span><span class="pill">Reformular</span><span class="pill">Redactar</span><span class="pill">Config</span></div>
+      <div class="card-footer"><span class="card-footer-label">Gemini 2.5 Flash Lite</span><span class="card-arrow">→</span></div>
+    </a>
+    <a href="/placas/" class="card">
+      <div class="card-badge">Editor visual</div>
+      <div class="card-icon">🎨</div>
+      <div class="card-title">Editor de Placas</div>
+      <p class="card-desc">Diseñá placas para Instagram, historias, Facebook y Twitter/X. 16 plantillas, modos collage, foto circular y generador de mensajes WhatsApp.</p>
+      <div class="card-pills"><span class="pill">16 plantillas</span><span class="pill">Collage</span><span class="pill">Canvas</span></div>
+      <div class="card-footer"><span class="card-footer-label">Editor canvas</span><span class="card-arrow">→</span></div>
+    </a>
+    <a href="/whatsapp/" class="card">
+      <div class="card-badge new">Nuevo</div>
+      <div class="card-icon">💬</div>
+      <div class="card-title">Mensajes WhatsApp</div>
+      <p class="card-desc">Generá mensajes para grupo y canal a partir de la URL de cualquier nota. Programá envíos con recordatorios automáticos.</p>
+      <div class="card-pills"><span class="pill">Grupo</span><span class="pill">Canal</span><span class="pill">Programar</span></div>
+      <div class="card-footer"><span class="card-footer-label">Gemini 2.5 Flash Lite</span><span class="card-arrow">→</span></div>
+    </a>
+    <a href="/agenda/" class="card">
+      <div class="card-badge new">Nuevo</div>
+      <div class="card-icon">📅</div>
+      <div class="card-title">Agenda de Cobertura</div>
+      <p class="card-desc">Calendario con efemérides nacionales y mendocinas precargadas. Agregá eventos, asigná coberturas y recibí sugerencias de ángulos con IA.</p>
+      <div class="card-pills"><span class="pill">Efemérides</span><span class="pill">Ángulos IA</span><span class="pill">Calendario</span></div>
+      <div class="card-footer"><span class="card-footer-label">Gemini 2.5 Flash Lite</span><span class="card-arrow">→</span></div>
+    </a>
+  </div>
+</main>
+<div class="statusbar">
+  <div class="status-dot"></div>
+  <div class="status-text">mediamendoza.pages.dev</div>
+  <div class="status-url">Suite IA v2.0</div>
+</div>
+</body>
+</html>
