@@ -1,11 +1,8 @@
 // ============================================================
-// Media Mendoza — Worker v4
-// POST /titulares, POST /reformular
-// GET  /rss?url=..., GET /verificar?url=...
-// GET  /scrape?url=...     → extrae texto de una nota
-// GET  /fuentes, POST /fuentes, DELETE /fuentes?id=
-// GET  /editorial          → leer prompt editorial desde KV
-// POST /editorial          → guardar prompt editorial en KV
+// Media Mendoza — Worker v5
+// Cambios respecto a v4:
+//   GET  /agenda/angulos/cache?key=  → leer ángulos IA desde KV
+//   POST /agenda/angulos             → genera ángulos Y los guarda en KV si viene kvKey
 // ============================================================
 
 const CORS_HEADERS = {
@@ -16,11 +13,13 @@ const CORS_HEADERS = {
 
 const GEMINI_MODEL = "gemini-2.5-flash-lite";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const GEMINI_SEARCH_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const EDITORIAL_KV_KEY = "config:editorial";
 const MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024;
 const WHATSAPP_PREFIX = "whatsapp:programado:";
 const AGENDA_PREFIX = "agenda:evento:";
+const ANGULOS_PREFIX = "agenda:angulos:";
+// TTL de ángulos IA: 30 días (en segundos)
+const ANGULOS_TTL = 60 * 60 * 24 * 30;
 
 const BROWSER_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -101,22 +100,16 @@ async function listarObjetosKV(env, prefix) {
   return items;
 }
 
-// Extrae texto limpio de HTML
 function extraerTexto(html) {
-  // Eliminar scripts, styles, nav, header, footer, aside
   html = html.replace(/<script[\s\S]*?<\/script>/gi, '')
              .replace(/<style[\s\S]*?<\/style>/gi, '')
              .replace(/<nav[\s\S]*?<\/nav>/gi, '')
              .replace(/<header[\s\S]*?<\/header>/gi, '')
              .replace(/<footer[\s\S]*?<\/footer>/gi, '')
              .replace(/<aside[\s\S]*?<\/aside>/gi, '');
-  // Convertir párrafos y headings a saltos de línea
   html = html.replace(/<\/(p|h[1-6]|li|br|div)>/gi, '\n');
-  // Eliminar todas las etiquetas restantes
   html = html.replace(/<[^>]+>/g, '');
-  // Limpiar entidades HTML comunes
   html = html.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-  // Limpiar espacios y líneas vacías múltiples
   return html.split('\n').map(l=>l.trim()).filter(l=>l.length>30).slice(0,80).join('\n');
 }
 
@@ -137,35 +130,24 @@ function extraerDatosNotaParaPlacas(html, targetUrl) {
     /<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']{1,300})["']/i,
     /<title[^>]*>([^<]{1,300})<\/title>/i
   ));
-
   const description = extractMeta(
     html,
     /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']{1,500})["']/i,
     /<meta[^>]+name=["']description["'][^>]+content=["']([^"']{1,500})["']/i,
     /<meta[^>]+name=["']twitter:description["'][^>]+content=["']([^"']{1,500})["']/i
   );
-
   const image = extractMeta(
     html,
     /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,1500})["']/i,
     /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']{1,1500})["']/i
   );
-
   const category = extractMeta(
     html,
     /<meta[^>]+property=["']article:section["'][^>]+content=["']([^"']{1,120})["']/i,
     /<meta[^>]+name=["']section["'][^>]+content=["']([^"']{1,120})["']/i,
     /<meta[^>]+name=["']category["'][^>]+content=["']([^"']{1,120})["']/i
   ) || inferirCategoriaDesdeUrl(targetUrl);
-
-  return {
-    title,
-    category,
-    description,
-    body: extraerTexto(html),
-    image,
-    url: targetUrl,
-  };
+  return { title, category, description, body: extraerTexto(html), image, url: targetUrl };
 }
 
 export default {
@@ -190,6 +172,7 @@ export default {
       if (path === "/cubiertas") return handleGetCubiertas(env);
       if (path === "/whatsapp/programados") return handleGetWhatsappProgramados(env);
       if (path === "/agenda/eventos") return handleGetAgendaEventos(url, env);
+      if (path === "/agenda/angulos/cache") return handleGetAngulosCache(url, env);
       if (path === "/redactar") return jsonError("Usar POST", 405);
       if (path === "/notas") return handleGetNotas(env);
       return jsonError("Ruta no encontrada", 404);
@@ -227,28 +210,88 @@ export default {
 };
 
 // ------------------------------------------------------------
-// SCRAPING — GET /scrape?url=https://...
+// AGENDA — ÁNGULOS IA — GET caché + POST genera y guarda
+// ------------------------------------------------------------
+
+// GET /agenda/angulos/cache?key=...
+async function handleGetAngulosCache(url, env) {
+  const key = String(url.searchParams.get("key") || "").trim();
+  if (!key) return jsonError("Falta parametro key", 400);
+  try {
+    const val = await env.KV.get(ANGULOS_PREFIX + key, "json");
+    if (!val) return jsonOk({ data: null });
+    return jsonOk({ data: val });
+  } catch (err) {
+    return jsonError("Error KV: " + err.message, 500);
+  }
+}
+
+// POST /agenda/angulos — genera y opcionalmente guarda en KV
+async function handleAgendaAngulos(body, env) {
+  const titulo = String(body.titulo || "").trim();
+  if (!titulo) return jsonError("Falta campo: titulo", 400);
+
+  const kvKey = String(body.kvKey || "").trim();
+
+  // Si viene kvKey, revisar si ya está guardado
+  if (kvKey) {
+    try {
+      const cached = await env.KV.get(ANGULOS_PREFIX + kvKey, "json");
+      if (cached) return jsonOk({ ...cached, fromCache: true });
+    } catch(e) {}
+  }
+
+  const prompt = `Sos editor de agenda y cobertura del diario digital mendocino Media Mendoza.
+Analiza este evento y propone ideas utiles para cobertura periodistica.
+
+EVENTO:
+Titulo: ${titulo}
+Descripcion: ${String(body.descripcion || "").trim()}
+Fecha: ${String(body.fecha || "").trim()}
+Tipo: ${String(body.tipo || "").trim()}
+
+Responde SOLO con JSON sin backticks:
+{"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"..."}`;
+
+  const resultado = await callGemini(prompt, env);
+  if (resultado.error) return jsonError(resultado.error, 500);
+
+  const data = {
+    angulos: Array.isArray(resultado.data?.angulos) ? resultado.data.angulos : [],
+    preguntas: Array.isArray(resultado.data?.preguntas) ? resultado.data.preguntas : [],
+    fuentes_sugeridas: Array.isArray(resultado.data?.fuentes_sugeridas) ? resultado.data.fuentes_sugeridas : [],
+    consejo: String(resultado.data?.consejo || "").trim(),
+  };
+
+  // Guardar en KV si viene kvKey
+  if (kvKey) {
+    try {
+      await env.KV.put(ANGULOS_PREFIX + kvKey, JSON.stringify(data), { expirationTtl: ANGULOS_TTL });
+    } catch(e) {
+      // No falla si no se puede guardar, igual devuelve el resultado
+    }
+  }
+
+  return jsonOk(data);
+}
+
+// ------------------------------------------------------------
+// SCRAPING
 // ------------------------------------------------------------
 async function handleScrape(url) {
   const targetUrl = url.searchParams.get("url");
   if (!targetUrl) return jsonError("Parametro url requerido", 400);
   try { new URL(targetUrl); } catch { return jsonError("URL invalida", 400); }
-
   try {
     const { html } = await fetchHtml(targetUrl, 300);
-
-    // Intentar extraer título de og:title o <title>
     const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,200})["']/i);
     const titleTag = html.match(/<title[^>]*>([^<]{1,200})<\/title>/i);
     const titulo = (ogTitle?.[1] || titleTag?.[1] || '').replace(/\s+/g,' ').trim();
     const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,500})["']/i)
                  || html.match(/<meta[^>]+content=["']([^"']{1,500})["'][^>]+property=["']og:image["']/i);
     const imagen = ogImage?.[1] || '';
-
     const texto = extraerTexto(html);
-
     if (!texto || texto.length < 100) return jsonError("No se pudo extraer contenido de la nota", 422);
-
     return jsonOk({ titulo, texto, imagen, url: targetUrl });
   } catch (err) {
     return jsonError(`Error scrapeando: ${err.message}`, 502);
@@ -257,15 +300,11 @@ async function handleScrape(url) {
 
 // ------------------------------------------------------------
 // COMPATIBILIDAD PLACAS
-// GET /?url=https://...
-// GET /?image=https://...
-// POST /?ai=1
 // ------------------------------------------------------------
 async function handlePlacasUrl(url) {
   const targetUrl = url.searchParams.get("url");
   if (!targetUrl) return jsonError("Parametro url requerido", 400);
   try { new URL(targetUrl); } catch { return jsonError("URL invalida", 400); }
-
   try {
     const { html } = await fetchHtml(targetUrl, 300);
     const data = extraerDatosNotaParaPlacas(html, targetUrl);
@@ -280,7 +319,6 @@ async function handlePlacasImage(url) {
   const imageUrl = url.searchParams.get("image");
   if (!imageUrl) return jsonError("Parametro image requerido", 400);
   try { new URL(imageUrl); } catch { return jsonError("URL invalida", 400); }
-
   try {
     const res = await fetch(imageUrl, {
       headers: {
@@ -292,21 +330,12 @@ async function handlePlacasImage(url) {
       cf: { cacheTtl: 3600, cacheEverything: true },
     });
     if (!res.ok) return jsonError(`Error ${res.status} al obtener la imagen`, 502);
-
     const contentType = res.headers.get("Content-Type") || "application/octet-stream";
     if (!contentType.startsWith("image/")) return jsonError("La URL no devolvio una imagen", 422);
-
     const contentLength = Number(res.headers.get("Content-Length") || "0");
-    if (contentLength && contentLength > MAX_PROXY_IMAGE_BYTES) {
-      return jsonError("La imagen es demasiado pesada para proxy", 413);
-    }
-
+    if (contentLength && contentLength > MAX_PROXY_IMAGE_BYTES) return jsonError("La imagen es demasiado pesada para proxy", 413);
     return new Response(res.body, {
-      headers: {
-        ...CORS_HEADERS,
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=3600",
-      },
+      headers: { ...CORS_HEADERS, "Content-Type": contentType, "Cache-Control": "public, max-age=3600" },
     });
   } catch (err) {
     return jsonError(`Error obteniendo imagen: ${err.message}`, 502);
@@ -317,32 +346,20 @@ async function handlePlacasAI(request, env) {
   let body;
   try { body = await request.json(); }
   catch { return jsonError("JSON invalido", 400); }
-
   const system = String(body.system || "").trim();
   const user = String(body.user || "").trim();
   if (!system || !user) return jsonError("Faltan campos: system y user", 400);
-
-  const prompt = `${system}
-
-Responde SOLO con JSON sin backticks con esta forma exacta:
-{"grupo":"mensaje para grupo","canal":"mensaje para canal"}
-
-${user}`;
-
+  const prompt = `${system}\n\nResponde SOLO con JSON sin backticks con esta forma exacta:\n{"grupo":"mensaje para grupo","canal":"mensaje para canal"}\n\n${user}`;
   const resultado = await callGemini(prompt, env);
   if (resultado.error) return jsonError(resultado.error, 500);
-
   const grupo = limpiarEspacios(resultado.data?.grupo || "");
   const canal = limpiarEspacios(resultado.data?.canal || "");
   if (!grupo && !canal) return jsonError("La IA no devolvio mensajes validos", 502);
-
-  return jsonOk({
-    text: JSON.stringify({ grupo, canal }),
-  });
+  return jsonOk({ text: JSON.stringify({ grupo, canal }) });
 }
 
 // ------------------------------------------------------------
-// EDITORIAL — KV
+// EDITORIAL
 // ------------------------------------------------------------
 async function handleGetEditorial(env) {
   try {
@@ -365,7 +382,7 @@ async function handlePostEditorial(body, env) {
 }
 
 // ------------------------------------------------------------
-// FUENTES — KV
+// FUENTES
 // ------------------------------------------------------------
 async function handleGetFuentes(env) {
   try {
@@ -405,7 +422,7 @@ async function handleDeleteFuente(url, env) {
 }
 
 // ------------------------------------------------------------
-// NOTAS GUARDADAS — KV
+// NOTAS GUARDADAS
 // ------------------------------------------------------------
 async function handleGetNotas(env) {
   try {
@@ -437,8 +454,36 @@ async function handleDeleteNota(url, env) {
 }
 
 // ------------------------------------------------------------
-// CUBIERTAS — KV
-// Guarda los links de noticias marcadas como cubiertas
+// CUBIERTAS
+// ------------------------------------------------------------
+async function handleGetCubiertas(env) {
+  try {
+    const list = await env.KV.list({ prefix: "cubierta:" });
+    const links = list.keys.map(k => k.name.replace("cubierta:", ""));
+    return jsonOk({ links });
+  } catch (err) {
+    return jsonError("Error leyendo KV: " + err.message, 500);
+  }
+}
+
+async function handlePostCubierta(body, env) {
+  const { link, cubierta } = body;
+  if (!link) return jsonError("Falta campo: link", 400);
+  try {
+    const key = "cubierta:" + link.substring(0, 400);
+    if (cubierta) {
+      await env.KV.put(key, "1", { expirationTtl: 60 * 60 * 24 * 30 });
+    } else {
+      await env.KV.delete(key);
+    }
+    return jsonOk({ guardado: true });
+  } catch (err) {
+    return jsonError("Error en KV: " + err.message, 500);
+  }
+}
+
+// ------------------------------------------------------------
+// WHATSAPP
 // ------------------------------------------------------------
 async function handleWhatsappGenerar(body, env) {
   const notaUrl = String(body.notaUrl || "").trim();
@@ -447,38 +492,20 @@ async function handleWhatsappGenerar(body, env) {
   const tituloManual = String(body.titulo || "").trim();
   const categoriaManual = String(body.categoria || "").trim();
 
-  let nota = {
-    titulo: tituloManual,
-    categoria: categoriaManual,
-    descripcion: "",
-    body: contenido,
-    url: notaUrl,
-    urlCorta: notaUrl ? acortarUrlNota(notaUrl) : "",
-    image: "",
-  };
+  let nota = { titulo: tituloManual, categoria: categoriaManual, descripcion: "", body: contenido, url: notaUrl, urlCorta: notaUrl ? acortarUrlNota(notaUrl) : "", image: "" };
 
   if (notaUrl) {
     try { new URL(notaUrl); } catch { return jsonError("URL invalida", 400); }
     try {
       const { html } = await fetchHtml(notaUrl, 300);
       const scraped = extraerDatosNotaParaPlacas(html, notaUrl);
-      nota = {
-        titulo: scraped.title || nota.titulo,
-        categoria: scraped.category || nota.categoria,
-        descripcion: scraped.description || "",
-        body: scraped.body || nota.body,
-        url: notaUrl,
-        urlCorta: acortarUrlNota(notaUrl),
-        image: scraped.image || "",
-      };
+      nota = { titulo: scraped.title || nota.titulo, categoria: scraped.category || nota.categoria, descripcion: scraped.description || "", body: scraped.body || nota.body, url: notaUrl, urlCorta: acortarUrlNota(notaUrl), image: scraped.image || "" };
     } catch (err) {
       return jsonError(`No se pudo obtener la nota: ${err.message}`, 502);
     }
   }
 
-  if (!nota.titulo && !nota.body) {
-    return jsonError("Falta notaUrl o contenido para generar el mensaje", 400);
-  }
+  if (!nota.titulo && !nota.body) return jsonError("Falta notaUrl o contenido para generar el mensaje", 400);
 
 const prompt = `Sos editor de WhatsApp del diario digital Media Mendoza (sur de Mendoza, Argentina).
 
@@ -529,28 +556,15 @@ RESPUESTA:
 
   const resultado = await callGemini(prompt, env);
   if (resultado.error) return jsonError(resultado.error, 500);
-
   const grupo = (resultado.data?.grupo || "").trim();
   const canal = (resultado.data?.canal || "").trim();
   if (!grupo || !canal) return jsonError("La IA no devolvio ambos mensajes", 502);
-
-  return jsonOk({
-    nota: {
-      titulo: nota.titulo || "Sin titulo",
-      url: nota.url || "",
-      urlCorta: nota.urlCorta || nota.url || "",
-      imagen: nota.image || "",
-    },
-    categoria: nota.categoria || "General",
-    grupo,
-    canal,
-  });
+  return jsonOk({ nota: { titulo: nota.titulo || "Sin titulo", url: nota.url || "", urlCorta: nota.urlCorta || nota.url || "", imagen: nota.image || "" }, categoria: nota.categoria || "General", grupo, canal });
 }
 
 async function handlePostWhatsappProgramar(body, env) {
   if (!body || typeof body !== "object") return jsonError("Body invalido", 400);
   if (!body.fecha) return jsonError("Falta campo: fecha", 400);
-
   const item = {
     id: body.id || generarId("wp_"),
     fecha: Number(body.fecha),
@@ -564,9 +578,7 @@ async function handlePostWhatsappProgramar(body, env) {
     enviado: !!body.enviado,
     creado: body.creado || Date.now(),
   };
-
   if (!item.canales.length) return jsonError("Falta al menos un canal", 400);
-
   try {
     await env.KV.put(`${WHATSAPP_PREFIX}${item.id}`, JSON.stringify(item));
     return jsonOk({ guardado: true, id: item.id });
@@ -588,18 +600,11 @@ async function handleGetWhatsappProgramados(env) {
 async function handlePostWhatsappMarcarEnviado(body, env) {
   const id = String(body.id || "").trim();
   if (!id) return jsonError("Falta campo: id", 400);
-
   try {
     const key = `${WHATSAPP_PREFIX}${id}`;
     const actual = await env.KV.get(key, "json");
     if (!actual) return jsonError("Mensaje no encontrado", 404);
-
-    const actualizado = {
-      ...actual,
-      estado: "enviado",
-      enviado: true,
-    };
-
+    const actualizado = { ...actual, estado: "enviado", enviado: true };
     await env.KV.put(key, JSON.stringify(actualizado));
     return jsonOk({ guardado: true, id, programado: actualizado });
   } catch (err) {
@@ -618,6 +623,9 @@ async function handleDeleteWhatsappProgramado(url, env) {
   }
 }
 
+// ------------------------------------------------------------
+// AGENDA EVENTOS
+// ------------------------------------------------------------
 async function handleGetAgendaEventos(url, env) {
   try {
     const mes = String(url.searchParams.get("mes") || "").trim();
@@ -634,7 +642,6 @@ async function handlePostAgendaEvento(body, env) {
   const titulo = String(body.titulo || "").trim();
   const fecha = String(body.fecha || "").trim();
   if (!titulo || !fecha) return jsonError("Faltan campos: titulo y fecha", 400);
-
   const evento = {
     id: body.id || generarId("ag_"),
     titulo,
@@ -646,7 +653,6 @@ async function handlePostAgendaEvento(body, env) {
     periodista: String(body.periodista || "").trim(),
     creado: body.creado || Date.now(),
   };
-
   try {
     await env.KV.put(`${AGENDA_PREFIX}${evento.id}`, JSON.stringify(evento));
     return jsonOk({ guardado: true, id: evento.id, evento });
@@ -666,62 +672,8 @@ async function handleDeleteAgendaEvento(url, env) {
   }
 }
 
-async function handleAgendaAngulos(body, env) {
-  const titulo = String(body.titulo || "").trim();
-  if (!titulo) return jsonError("Falta campo: titulo", 400);
-
-  const prompt = `Sos editor de agenda y cobertura del diario digital mendocino Media Mendoza.
-Analiza este evento y propone ideas utiles para cobertura periodistica.
-
-EVENTO:
-Titulo: ${titulo}
-Descripcion: ${String(body.descripcion || "").trim()}
-Fecha: ${String(body.fecha || "").trim()}
-Tipo: ${String(body.tipo || "").trim()}
-
-Responde SOLO con JSON sin backticks:
-{"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"..."}`;
-
-  const resultado = await callGemini(prompt, env);
-  if (resultado.error) return jsonError(resultado.error, 500);
-
-  return jsonOk({
-    angulos: Array.isArray(resultado.data?.angulos) ? resultado.data.angulos : [],
-    preguntas: Array.isArray(resultado.data?.preguntas) ? resultado.data.preguntas : [],
-    fuentes_sugeridas: Array.isArray(resultado.data?.fuentes_sugeridas) ? resultado.data.fuentes_sugeridas : [],
-    consejo: String(resultado.data?.consejo || "").trim(),
-  });
-}
-
-async function handleGetCubiertas(env) {
-  try {
-    const list = await env.KV.list({ prefix: "cubierta:" });
-    const links = list.keys.map(k => k.name.replace("cubierta:", ""));
-    return jsonOk({ links });
-  } catch (err) {
-    return jsonError("Error leyendo KV: " + err.message, 500);
-  }
-}
-
-async function handlePostCubierta(body, env) {
-  const { link, cubierta } = body;
-  if (!link) return jsonError("Falta campo: link", 400);
-  try {
-    const key = "cubierta:" + link.substring(0, 400);
-    if (cubierta) {
-      // TTL de 30 días — se limpia solo
-      await env.KV.put(key, "1", { expirationTtl: 60 * 60 * 24 * 30 });
-    } else {
-      await env.KV.delete(key);
-    }
-    return jsonOk({ guardado: true });
-  } catch (err) {
-    return jsonError("Error en KV: " + err.message, 500);
-  }
-}
-
 // ------------------------------------------------------------
-// RSS PROXY
+// RSS / VERIFICAR
 // ------------------------------------------------------------
 async function handleRSS(url) {
   const feedUrl = url.searchParams.get("url");
@@ -738,9 +690,6 @@ async function handleRSS(url) {
   }
 }
 
-// ------------------------------------------------------------
-// VERIFICAR RSS
-// ------------------------------------------------------------
 async function handleVerificar(url) {
   const feedUrl = url.searchParams.get("url");
   if (!feedUrl) return jsonError("Parametro url requerido", 400);
@@ -760,17 +709,15 @@ async function handleVerificar(url) {
 }
 
 // ------------------------------------------------------------
-// TITULARES
+// TITULARES / REFORMULAR / REDACTAR
 // ------------------------------------------------------------
 async function handleTitulares(body, env) {
   const { modo, contenido, contexto="", tono="informativo", cantidad=5 } = body;
   if (!modo || !contenido) return jsonError("Faltan campos: modo y contenido", 400);
-
   const editorial = await getEditorial(env);
   const estiloEditorial = editorial ? `\nLINEA EDITORIAL DE MEDIA MENDOZA:\n"""\n${editorial}\n"""\n` : "";
   const contextoExtra = contexto ? `\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
   const esNota = modo === "nota";
-
   const prompt = `Sos el editor del diario digital mendocino Media Mendoza (mediamendoza.com).
 ${estiloEditorial}
 ${esNota ? `Analizá este texto y generá exactamente ${cantidad} titulares periodísticos.\n\nTEXTO:\n"""\n${contenido}\n"""` : `Generá exactamente ${cantidad} titulares sobre este tema.\n\nTEMA:\n"""\n${contenido}\n"""`}
@@ -779,19 +726,14 @@ ${contextoExtra}
 
 Responde SOLO con JSON sin backticks:
 {"titulares":["T1","T2"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
-
   const resultado = await callGemini(prompt, env);
   if (resultado.error) return jsonError(resultado.error, 500);
   return jsonOk(resultado.data);
 }
 
-// ------------------------------------------------------------
-// REFORMULAR
-// ------------------------------------------------------------
 async function handleReformular(body, env) {
   const { titulo, contenido, contexto="", estilo="formal" } = body;
   if (!titulo || !contenido) return jsonError("Faltan campos: titulo y contenido", 400);
-
   const editorial = await getEditorial(env);
   const estiloEditorial = editorial ? `\nLINEA EDITORIAL DE MEDIA MENDOZA:\n"""\n${editorial}\n"""\n` : "";
   const estiloDesc = {
@@ -804,7 +746,6 @@ async function handleReformular(body, env) {
     institucional: "formal institucional, lenguaje neutro y oficial, sin opinion, estructura de comunicado de prensa",
   }[estilo] || "periodistico formal";
   const contextoExtra = contexto ? `\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
-
   const prompt = `Sos redactor del diario digital mendocino Media Mendoza (mediamendoza.com).
 ${estiloEditorial}
 Reformulá completamente esta nota para publicarla en Media Mendoza.
@@ -823,14 +764,27 @@ ${contextoExtra}
 
 Responde SOLO con JSON sin backticks:
 {"titular":"...","cuerpo":"P1...\n\nP2...\n\nP3...","categoria_sugerida":"Politica|Economia|Sociedad|Policiales|Deportes|Cultura|Tecnologia","hashtags":["#h1","#h2","#h3","#h4"]}`;
-
   const resultado = await callGemini(prompt, env);
   if (resultado.error) return jsonError(resultado.error, 500);
   return jsonOk(resultado.data);
 }
 
+async function handleRedactar(body, env) {
+  const { ideas, buscarWeb = false } = body;
+  if (!ideas) return jsonError("Falta campo: ideas", 400);
+  const editorial = await getEditorial(env);
+  const base = editorial || "Actua como redactor profesional del diario digital Media Mendoza. Medio cercano al sur de Mendoza (San Rafael). Estilo formal periodistico, piramide invertida, no inventar datos, SEO natural.";
+  const jsonSchema = '{"titular":"","bajada":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
+  const instruccionBusqueda = buscarWeb ? "Busca contexto en la web y cita las fuentes al final." : "Redacta solo con la informacion provista.";
+  const prompt = base + "\n\nCONTENIDO:\n" + ideas + "\n\n" + instruccionBusqueda + "\n\nResponde SOLO con JSON sin backticks. En el campo cuerpo usa parrafos separados por \\n\\n, SIN prefijos P1: P2: P3:: " + jsonSchema;
+  const fn = buscarWeb ? callGeminiConBusqueda : callGemini;
+  const resultado = await fn(prompt, env);
+  if (resultado.error) return jsonError(resultado.error, 500);
+  return jsonOk(resultado.data);
+}
+
 // ------------------------------------------------------------
-// HELPERS
+// HELPERS GEMINI
 // ------------------------------------------------------------
 async function getEditorial(env) {
   try {
@@ -840,40 +794,11 @@ async function getEditorial(env) {
   return null;
 }
 
-async function handleRedactar(body, env) {
-  const { ideas, buscarWeb = false } = body;
-  if (!ideas) return jsonError("Falta campo: ideas", 400);
-
-  const editorial = await getEditorial(env);
-  const base = editorial || "Actua como redactor profesional del diario digital Media Mendoza. Medio cercano al sur de Mendoza (San Rafael). Estilo formal periodistico, piramide invertida, no inventar datos, SEO natural.";
-
-  const jsonSchema = '{"titular":"","bajada":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
-  const instruccionBusqueda = buscarWeb
-    ? "Busca contexto en la web y cita las fuentes al final."
-    : "Redacta solo con la informacion provista.";
-
-  const prompt = base
-    + "\n\nCONTENIDO:\n" + ideas
-    + "\n\n" + instruccionBusqueda
-    + "\n\nResponde SOLO con JSON sin backticks. En el campo cuerpo usa parrafos separados por \\n\\n, SIN prefijos P1: P2: P3:: " + jsonSchema;
-
-  const fn = buscarWeb ? callGeminiConBusqueda : callGemini;
-  const resultado = await fn(prompt, env);
-  if (resultado.error) return jsonError(resultado.error, 500);
-  return jsonOk(resultado.data);
-}
-
 async function callGeminiConBusqueda(prompt, env) {
-  const keys = [env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,
-                env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
+  const keys = [env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if (!keys.length) return { error: "No hay API keys configuradas" };
-
   const ideasTexto = prompt.split("\n\nCONTENIDO:\n")[1]?.split("\n\n")[0] || prompt.substring(0, 200);
-
-  // PASO 1: Buscar URLs reales con DuckDuckGo
   const fuentesReales = await buscarDuckDuckGo(ideasTexto);
-
-  // PASO 2: Scrapear contenido de las primeras 3 URLs
   let contextoWeb = "";
   const fuentesVerificadas = [];
   for (const fuente of fuentesReales.slice(0, 3)) {
@@ -883,15 +808,12 @@ async function callGeminiConBusqueda(prompt, env) {
       const html = await res.text();
       const texto = extraerTexto(html).substring(0, 800);
       if (texto.length < 100) continue;
-      const ogImg = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,500})["']/i)
-                 || html.match(/<meta[^>]+content=["']([^"']{1,500})["'][^>]+property=["']og:image["']/i);
+      const ogImg = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,500})["']/i) || html.match(/<meta[^>]+content=["']([^"']{1,500})["'][^>]+property=["']og:image["']/i);
       const imagen = ogImg?.[1] || '';
       contextoWeb += "\nFUENTE: " + fuente.titulo + " (" + fuente.url + ")\n" + texto + "\n---";
       fuentesVerificadas.push({ titulo: fuente.titulo, url: fuente.url, imagen });
     } catch(e) { continue; }
   }
-
-  // PASO 3: Redactar con contexto real
   const promptFinal = prompt + (contextoWeb ? "\n\nCONTENIDO REAL ENCONTRADO EN LA WEB:\n" + contextoWeb : "");
   const resultado = await callGemini(promptFinal, env);
   if (resultado.error) return resultado;
@@ -901,48 +823,29 @@ async function callGeminiConBusqueda(prompt, env) {
 
 async function buscarDuckDuckGo(query) {
   try {
-    // DuckDuckGo HTML search — sin API key
     const url = "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query) + "&kl=es-ar";
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": BROWSER_HEADERS["User-Agent"],
-        "Accept": "text/html",
-        "Accept-Language": "es-AR,es;q=0.9",
-      },
-      redirect: "follow",
-    });
+    const res = await fetch(url, { headers: { "User-Agent": BROWSER_HEADERS["User-Agent"], "Accept": "text/html", "Accept-Language": "es-AR,es;q=0.9" }, redirect: "follow" });
     if (!res.ok) return [];
     const html = await res.text();
-
-    // Extraer resultados — DuckDuckGo HTML usa clase .result__a
     const resultados = [];
     const linkRegex = /class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</g;
     let match;
     while ((match = linkRegex.exec(html)) !== null && resultados.length < 5) {
       let url = match[1];
       const titulo = match[2].trim();
-      // DuckDuckGo a veces usa redirect, extraer URL real
       if (url.includes("uddg=")) {
         const decoded = decodeURIComponent(url.split("uddg=")[1]?.split("&")[0] || "");
         if (decoded.startsWith("http")) url = decoded;
       }
-      if (url.startsWith("http") && titulo) {
-        resultados.push({ url, titulo });
-      }
+      if (url.startsWith("http") && titulo) resultados.push({ url, titulo });
     }
-    console.log("DuckDuckGo encontró:", resultados.length, "resultados");
     return resultados;
-  } catch(e) {
-    console.log("DuckDuckGo error:", e.message);
-    return [];
-  }
+  } catch(e) { return []; }
 }
-
 
 async function callGemini(prompt, env) {
   const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
   if (keys.length === 0) return { error: "No hay API keys configuradas" };
-
   for (let i = 0; i < keys.length; i++) {
     for (let intento = 1; intento <= 2; intento++) {
       try {
@@ -951,7 +854,6 @@ async function callGemini(prompt, env) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.7,maxOutputTokens:2000} }),
         });
-        console.log(`Key ${i+1}, intento ${intento}: ${res.status}`);
         if (res.status === 429) { if (intento<2){await sleep(3000);continue;} else break; }
         if (res.status===500||res.status===503) { if (intento<2){await sleep(3000);continue;} else break; }
         if (!res.ok) break;
