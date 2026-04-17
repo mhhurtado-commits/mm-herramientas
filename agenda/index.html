@@ -183,7 +183,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--green);background:var
 .status-url{margin-left:auto}
 .toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:var(--white);font-size:12px;font-weight:500;padding:9px 18px;border-radius:20px;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;z-index:600}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-@media(max-width:700px){.cal-celda{min-height:60px}.cal-evento-chip{display:none}}
+@media(max-width:700px){.cal-celda{min-height:64px}}
 </style>
 </head>
 <body>
@@ -452,6 +452,7 @@ function crearCelda(fecha,otroMes){
   const cel=document.createElement('div');
   cel.className='cal-celda'+(otroMes?' otro-mes':'');
   const iso=fechaISO(fecha);
+  cel.dataset.iso=iso;
   if(iso===fechaISO(HOY)) cel.classList.add('hoy');
   if(DIA_SEL&&iso===fechaISO(DIA_SEL)) cel.classList.add('seleccionado');
   const num=document.createElement('div'); num.className='cal-num'; num.textContent=fecha.getDate(); cel.appendChild(num);
@@ -469,7 +470,10 @@ function crearCelda(fecha,otroMes){
 
 function seleccionarDia(fecha){
   DIA_SEL=fecha;
-  renderCalendario();
+  // Actualiza solo las clases visuales sin reconstruir todo
+  document.querySelectorAll('.cal-celda').forEach(c=>{
+    c.classList.toggle('seleccionado', c.dataset.iso===fechaISO(fecha));
+  });
   renderPanelDia(fecha);
 }
 
@@ -589,15 +593,16 @@ function renderProximaSemana(){
   document.getElementById('proximaSemana').innerHTML=html+'</div>';
 }
 
-// Ir a un día concreto desde cualquier widget (próxima semana, "hoy")
 function irADia(isoStr){
   const [y,m,d]=isoStr.split('-').map(Number);
   const fecha=new Date(y,m-1,d);
   if(fecha.getFullYear()!==MES_ACTUAL.getFullYear()||fecha.getMonth()!==MES_ACTUAL.getMonth()){
     MES_ACTUAL=new Date(fecha.getFullYear(),fecha.getMonth(),1);
+    DIA_SEL=fecha;
+    cargarEventosKV().then(()=>{renderCalendario();renderPanelDia(fecha);});
+  } else {
+    seleccionarDia(fecha);
   }
-  seleccionarDia(fecha);
-  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function renderProximosHoy(){
