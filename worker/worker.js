@@ -123,94 +123,126 @@ export default {
 // TITULARES / REFORMULAR / REDACTAR
 // ============================================================
 
-// Descripciones detalladas de cada estilo — diferencias reales de estructura y tono
+// Instrucciones de formato/estructura por estilo.
+// Se colocan ANTES del editorial para que las reglas de voz queden al final (mayor peso en LLMs).
 const ESTILOS_DESC = {
-  formal: `
-ESTILO: Periodístico formal (pirámide invertida clásica).
-- Primer párrafo: responde qué, quién, cuándo, dónde, por qué en máximo 2 oraciones.
-- Cuerpo: desarrolla en orden de importancia descendente.
-- Lenguaje neutro, sin adjetivos valorativos, sin opinión.
-- Verbos en pasado simple o presente de actualidad ("dijo", "anunció", "es").
-- Titular: sustantivo + verbo + dato central, máximo 10 palabras.
-- Extensión: 4 párrafos.`,
+  formal: `FORMATO REQUERIDO — Periodístico formal, pirámide invertida:
+- Titular: sustantivo + verbo + dato central, máximo 10 palabras, sin mayúsculas innecesarias.
+- Párrafo 1: responde qué, quién, cuándo, dónde, cómo en máximo 2 oraciones.
+- Desarrollo: orden de importancia descendente, 3-4 párrafos.
+- Cierre: dato proyectivo o declaración final.
+- Lenguaje neutro, sin adjetivos valorativos.`,
 
-  directo: `
-ESTILO: Directo y conciso — máxima información en mínimas palabras.
-- Titular: el dato más impactante, máximo 7 palabras, sin verbo de atribución.
-- Cuerpo: máximo 3 párrafos cortos (2-3 oraciones cada uno).
-- Sin contexto histórico extenso, sin citas largas.
-- Cada oración debe poder eliminarse sin que se pierda la noticia central.
-- Lenguaje simple, sin tecnicismos.`,
+  directo: `FORMATO REQUERIDO — Nota corta y directa al dato:
+- Titular: el hecho más impactante, máximo 7 palabras.
+- Cuerpo: exactamente 3 párrafos de 2 oraciones cada uno.
+- Sin contexto histórico extenso ni citas largas.
+- Cada oración debe justificar su existencia: si se puede borrar sin perder info, borrala.`,
 
-  ampliado: `
-ESTILO: Con contexto ampliado — periodismo de profundidad.
-- Titular informativo pero con matiz explicativo.
-- Primer párrafo: el hecho central.
-- Segundo párrafo: antecedentes y contexto histórico o político relevante.
-- Tercer párrafo: datos complementarios, cifras, comparaciones.
-- Cuarto párrafo: perspectivas o posibles consecuencias.
-- Quinto párrafo (cierre): declaración o dato de cierre que dé perspectiva.
+  ampliado: `FORMATO REQUERIDO — Nota de profundidad con contexto:
+- Titular informativo con matiz explicativo.
+- Párrafo 1: el hecho central.
+- Párrafo 2: antecedentes o contexto relevante.
+- Párrafo 3: datos, cifras o comparaciones.
+- Párrafo 4: perspectivas o consecuencias probables.
+- Párrafo 5 (cierre): declaración o dato que da perspectiva final.
 - Extensión: 5 párrafos.`,
 
-  breaking: `
-ESTILO: Urgente / breaking news — información en tiempo real.
-- Titular: alerta máxima, verbo en presente, máximo 8 palabras. Puede empezar con "URGENTE:" o "ALERTA:".
-- Primer párrafo: el hecho en una sola oración, presente o pasado inmediato.
-- Segundo párrafo: lo que se sabe hasta ahora.
-- Tercer párrafo: lo que falta confirmar o lo que se espera.
-- Sin especulación, solo datos verificados.
-- Tono: velocidad y precisión sobre elegancia.`,
+  breaking: `FORMATO REQUERIDO — Urgente / breaking news:
+- Titular: verbo en presente, máximo 8 palabras. Puede empezar con "URGENTE:" o "ALERTA:".
+- Párrafo 1: el hecho en una sola oración, tiempo presente.
+- Párrafo 2: lo que se sabe hasta ahora.
+- Párrafo 3: lo que falta confirmar o se espera.
+- Sin especulación. Velocidad y precisión sobre elegancia.`,
 
-  cronica: `
-ESTILO: Crónica narrativa — periodismo literario.
-- Titular: evocador, puede ser una imagen o frase memorable, no solo informativo.
-- Primer párrafo: escena o detalle concreto que "entra" al lector en la historia (no el dato central).
-- Segundo párrafo: quién o qué está en el centro de la historia.
-- Tercer párrafo: el hecho noticioso, ahora que el lector ya está enganchado.
-- Cuarto párrafo: contexto y consecuencias.
-- Cierre: detalle que resuena con la apertura o reflexión breve.
-- Uso de descripciones, metáforas breves, ritmo variado.`,
+  cronica: `FORMATO REQUERIDO — Crónica narrativa, periodismo literario:
+- Titular: evocador, puede ser imagen o frase memorable (no solo informativo).
+- Párrafo 1: escena o detalle concreto que mete al lector en la historia — NO el dato central todavía.
+- Párrafo 2: presentación del protagonista o situación.
+- Párrafo 3: el hecho noticioso, ahora que el lector está enganchado.
+- Párrafo 4: contexto y consecuencias.
+- Cierre: detalle que resuena con la apertura.
+- Usá descripciones breves y ritmo variado.`,
 
-  redes: `
-ESTILO: Optimizado para redes sociales — formato digital nativo.
+  deportes: `FORMATO REQUERIDO — Nota deportiva, tono dinámico y coloquial:
+- Titular: activo, con verbo potente, puede usar expresiones del ambiente deportivo (ej: "se consagró", "goleó", "se cayó la ilusión").
+- Tono: dinámico, apasionado pero sin exagerar. Como hablaría un periodista deportivo en radio.
+- Párrafo 1: el resultado o hecho principal con impacto.
+- Párrafo 2: desarrollo del partido/evento, momentos clave.
+- Párrafo 3: datos destacados (goleadores, tiempos, estadísticas si las hay).
+- Cierre: contexto de la competencia o qué viene después.
+- Permitido usar vocabulario del deporte: "red", "golazo", "festejo", "el equipo", "los dirigidos por".`,
+
+  espectaculos: `FORMATO REQUERIDO — Nota de espectáculos/cultura, tono cercano y entretenido:
+- Titular: puede ser llamativo, con juego de palabras o gancho pop. Evitar lo demasiado formal.
+- Tono: cercano, amigable, como contarle algo a un lector que disfruta del entretenimiento. Coloquial sin ser descuidado.
+- Párrafo 1: el hecho o novedad de forma atractiva.
+- Párrafo 2: contexto del artista/evento/obra.
+- Párrafo 3: dato curioso, reacción del público o impacto.
+- Cierre: qué sigue, cuándo, dónde. Información útil para el lector.
+- Podés mencionar reacciones en redes o impacto popular si es relevante.`,
+
+  redes: `FORMATO REQUERIDO — Nota optimizada para redes sociales:
 - Titular: gancho inmediato, puede ser pregunta retórica o dato sorprendente.
-- Cuerpo: párrafos de máximo 2 oraciones, separados con línea en blanco.
-- Incluir datos concretos y cifras si están disponibles (generan más engagement).
-- Último párrafo: dato de cierre o pregunta que invite a comentar.
-- Lenguaje coloquial pero correcto, sin ser informal en exceso.
-- Máximo 3 párrafos en total.`,
+- Cuerpo: exactamente 3 párrafos de máximo 2 oraciones cada uno.
+- Incluí datos concretos y cifras si están disponibles.
+- Cierre: dato que invite a compartir o comentar.
+- Lenguaje coloquial pero correcto.`,
 
-  institucional: `
-ESTILO: Comunicado institucional — voz oficial.
-- Titular: formal, puede empezar con el nombre del organismo o funcionario.
-- Estructura: hecho → justificación o contexto normativo → declaración oficial → datos técnicos si aplica.
-- Uso de tercera persona siempre.
-- Sin opinión editorial, sin adjetivos valorativos propios del periodismo.
-- Frases completas, tono solemne pero claro.
-- Puede incluir cita textual de declaración oficial como párrafo separado entre comillas.
+  institucional: `FORMATO REQUERIDO — Comunicado institucional:
+- Titular: formal, puede nombrar al organismo o funcionario.
+- Estructura: hecho → justificación normativa → declaración oficial → datos técnicos.
+- Tercera persona siempre.
+- Sin adjetivos valorativos ni opinión.
+- Puede incluir cita textual oficial como párrafo entre comillas.
 - Extensión: 4 párrafos.`
 };
+
+// Comprime el editorial largo en reglas accionables cortas para el LLM.
+// Esto evita que Gemini "olvide" un bloque muy extenso al principio del prompt.
+function comprimirEditorial(texto) {
+  if (!texto) return null;
+  // Extraer líneas con contenido concreto (bullets, reglas, no texto de presentación)
+  const lineas = texto.split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 5)
+    // Filtrar encabezados decorativos y frases de presentación genéricas
+    .filter(l => !l.match(/^(Actuá como|Media Mendoza es|El enfoque|La línea|📰|🧭|✍️|🧱|📍|🚨|🔎|⚙️|🧪|OPCIONAL)/))
+    // Quedarse con bullets y reglas concretas
+    .filter(l => l.startsWith('-') || l.startsWith('•') || l.match(/^(No |Usar |Incluir |Evitar |Redactar |Destacar |Usar |Pueden )/i))
+    .slice(0, 20); // máximo 20 reglas
+
+  if (!lineas.length) {
+    // Si no encontró bullets, tomar las primeras líneas relevantes
+    return texto.split('\n').map(l=>l.trim()).filter(l=>l.length>10).slice(0,15).join('\n');
+  }
+  return lineas.join('\n');
+}
 
 async function handleTitulares(body, env) {
   const { modo, contenido, contexto = "", tono = "informativo", cantidad = 5 } = body;
   if (!modo || !contenido) return jsonError("Faltan campos: modo y contenido", 400);
 
-  const editorial = await getEditorial(env);
-  const bloqueEditorial = editorial
-    ? `\nLÍNEA EDITORIAL (seguí estas reglas sin excepción en TODOS los titulares):\n"""\n${editorial}\n"""\n`
-    : "";
-  const bloqueContexto = contexto ? `\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
+  const editorialRaw = await getEditorial(env);
+  const editorial = comprimirEditorial(editorialRaw);
 
   const instruccionContenido = modo === "nota"
     ? `Analizá este texto y generá exactamente ${cantidad} titulares con distintos enfoques.\n\nTEXTO:\n"""\n${contenido}\n"""`
     : `Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
 
+  const bloqueContexto = contexto ? `\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
+
+  const bloqueEditorial = editorial
+    ? `\nREGLAS EDITORIALES (aplicar en todos los titulares):\n${editorial}\n`
+    : "";
+
   const prompt = `Sos el editor del diario digital mendocino Media Mendoza.
-${bloqueEditorial}
+
 ${instruccionContenido}
 ${bloqueContexto}
 Tono: ${tono}. Cada titular debe tener un enfoque diferente.
-Respondé SOLO con JSON sin backticks ni explicaciones:
+${bloqueEditorial}
+Respondé SOLO con JSON sin backticks:
 {"titulares":["T1","T2"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
 
   const r = await callGemini(prompt, env);
@@ -222,25 +254,19 @@ async function handleReformular(body, env) {
   const { titulo, contenido, contexto = "", estilo = "formal" } = body;
   if (!titulo || !contenido) return jsonError("Faltan campos: titulo y contenido", 400);
 
-  const editorial = await getEditorial(env);
-
-  // Bloque editorial: se inyecta con instrucción explícita de cumplimiento
-  const bloqueEditorial = editorial
-    ? `LÍNEA EDITORIAL — OBLIGATORIO CUMPLIR EN TODA LA NOTA:
-Las siguientes reglas definen la voz y el estilo del diario. Respetá cada punto sin excepción.
-"""
-${editorial}
-"""
-`
-    : "";
+  const editorialRaw = await getEditorial(env);
+  const editorial = comprimirEditorial(editorialRaw);
 
   const estiloInstrucciones = ESTILOS_DESC[estilo] || ESTILOS_DESC.formal;
-  const bloqueContexto = contexto ? `\nINFORMACIÓN ADICIONAL PARA ENRIQUECER LA NOTA:\n"""\n${contexto}\n"""\n` : "";
+  const bloqueContexto = contexto ? `\nINFORMACIÓN ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
+  const bloqueEditorial = editorial
+    ? `REGLAS DE VOZ Y ESTILO DEL DIARIO (respetar siempre):\n${editorial}\n`
+    : "";
 
-  const prompt = `Sos redactor del diario digital mendocino Media Mendoza (sur de Mendoza, Argentina).
-
-${bloqueEditorial}
-Reformulá completamente la siguiente nota. No copies frases del original. Reescribí con tus propias palabras.
+  // Orden deliberado: tarea → contenido → contexto → formato → reglas editoriales → JSON
+  // Las reglas editoriales al final tienen más peso en el modelo.
+  const prompt = `Sos redactor del diario digital mendocino Media Mendoza.
+Reformulá completamente la nota. No copies frases del original. Reescribí con tus propias palabras.
 
 NOTA ORIGINAL:
 Título: "${titulo}"
@@ -251,9 +277,10 @@ ${contenido}
 ${bloqueContexto}
 ${estiloInstrucciones}
 
-Generá también 4 o 5 hashtags relevantes en español para redes sociales.
+Generá también 4 o 5 hashtags relevantes en español.
 
-Respondé SOLO con JSON sin backticks ni explicaciones:
+${bloqueEditorial}
+Respondé SOLO con JSON sin backticks:
 {"titular":"...","cuerpo":"Párrafo 1...\n\nPárrafo 2...\n\nPárrafo 3...","categoria_sugerida":"...","hashtags":["#h1","#h2"]}`;
 
   const r = await callGemini(prompt, env);
@@ -265,32 +292,30 @@ async function handleRedactar(body, env) {
   const { ideas, buscarWeb = false } = body;
   if (!ideas) return jsonError("Falta campo: ideas", 400);
 
-  const editorial = await getEditorial(env);
+  const editorialRaw = await getEditorial(env);
+  const editorial = comprimirEditorial(editorialRaw);
 
   const bloqueEditorial = editorial
-    ? `LÍNEA EDITORIAL — OBLIGATORIO CUMPLIR EN TODA LA NOTA:
-"""
-${editorial}
-"""
-`
-    : "Redactor profesional del diario digital Media Mendoza, sur de Mendoza (San Rafael, Argentina). Estilo formal periodístico, pirámide invertida, no inventar datos, SEO natural.";
+    ? `REGLAS DE VOZ Y ESTILO DEL DIARIO (respetar siempre):\n${editorial}\n`
+    : "Estilo formal periodístico, pirámide invertida, no inventar datos, SEO natural.\n";
 
   const instruccionBusqueda = buscarWeb
-    ? "Buscá contexto adicional en la web para enriquecer la nota con datos actuales."
-    : "Redactá solo con la información provista, sin inventar datos.";
+    ? "Buscá contexto en la web para enriquecer la nota con datos actuales."
+    : "Redactá solo con la info provista, sin inventar datos.";
 
   const schema = '{"titular":"","bajada":"","cuerpo":"Párrafo 1...\n\nPárrafo 2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
 
-  const prompt = `${bloqueEditorial}
+  // Orden: tarea → contenido → instrucción web → reglas editoriales → schema
+  const prompt = `Sos redactor del diario digital mendocino Media Mendoza.
+Redactá una nota periodística completa con titular, bajada, cuerpo (mínimo 3 párrafos), categoría y hashtags.
 
-CONTENIDO A REDACTAR:
+CONTENIDO:
 ${ideas}
 
 ${instruccionBusqueda}
 
-Generá una nota periodística completa con titular, bajada, cuerpo (mínimo 3 párrafos separados por línea en blanco), categoría sugerida y hashtags.
-
-Respondé SOLO con JSON sin backticks. En el campo "cuerpo" usá \\n\\n entre párrafos. Sin prefijos P1, P2:
+${bloqueEditorial}
+Respondé SOLO con JSON sin backticks. En "cuerpo" usá \\n\\n entre párrafos, sin prefijos P1 P2:
 ${schema}`;
 
   const fn = buscarWeb ? callGeminiConBusqueda : callGemini;
