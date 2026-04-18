@@ -1,9 +1,10 @@
 // ============================================================
-// Media Mendoza — Worker v6
-// Novedades respecto a v5:
-//   GET    /agenda/efemerides         → listar efemérides KV
-//   POST   /agenda/efemeride          → crear / actualizar efeméride en KV
-//   DELETE /agenda/efemeride?id=      → eliminar efeméride de KV
+// Media Mendoza — Worker v7
+// Cambios respecto a v6:
+//   - handleReformular: prompt editorial inyectado correctamente
+//   - handleReformular: estilos con instrucciones distintas y concretas
+//   - handleTitulares: prompt editorial corregido
+//   - handleRedactar: prompt editorial corregido
 // ============================================================
 
 const CORS_HEADERS = {
@@ -18,9 +19,9 @@ const EDITORIAL_KV_KEY = "config:editorial";
 const MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024;
 const WHATSAPP_PREFIX  = "whatsapp:programado:";
 const AGENDA_EV_PREFIX = "agenda:evento:";
-const AGENDA_EF_PREFIX = "agenda:efemeride:";  // ← nuevo prefijo
+const AGENDA_EF_PREFIX = "agenda:efemeride:";
 const ANGULOS_PREFIX   = "agenda:angulos:";
-const ANGULOS_TTL      = 60 * 60 * 24 * 30;    // 30 días
+const ANGULOS_TTL      = 60 * 60 * 24 * 30;
 
 const BROWSER_HEADERS = {
   "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -66,7 +67,6 @@ export default {
     const url=new URL(request.url);
     const path=url.pathname;
 
-    // Compatibilidad Placas (raíz)
     if(path==="/"){
       if(request.method==="GET"&&url.searchParams.has("url"))  return handlePlacasUrl(url);
       if(request.method==="GET"&&url.searchParams.has("image"))return handlePlacasImage(url);
@@ -83,7 +83,7 @@ export default {
       if(path==="/notas")                    return handleGetNotas(env);
       if(path==="/whatsapp/programados")     return handleGetWhatsappProgramados(env);
       if(path==="/agenda/eventos")           return handleGetAgendaEventos(url,env);
-      if(path==="/agenda/efemerides")        return handleGetAgendaEfemerides(env);      // ← nuevo
+      if(path==="/agenda/efemerides")        return handleGetAgendaEfemerides(env);
       if(path==="/agenda/angulos/cache")     return handleGetAngulosCache(url,env);
       if(path==="/redactar")                 return jsonError("Usar POST",405);
       return jsonError("Ruta no encontrada",404);
@@ -94,7 +94,7 @@ export default {
       if(path==="/notas")                    return handleDeleteNota(url,env);
       if(path==="/whatsapp/programado")      return handleDeleteWhatsappProgramado(url,env);
       if(path==="/agenda/evento")            return handleDeleteAgendaEvento(url,env);
-      if(path==="/agenda/efemeride")         return handleDeleteAgendaEfemeride(url,env); // ← nuevo
+      if(path==="/agenda/efemeride")         return handleDeleteAgendaEfemeride(url,env);
       return jsonError("Ruta no encontrada",404);
     }
 
@@ -112,7 +112,7 @@ export default {
     if(path==="/whatsapp/programar")         return handlePostWhatsappProgramar(body,env);
     if(path==="/whatsapp/marcar-enviado")    return handlePostWhatsappMarcarEnviado(body,env);
     if(path==="/agenda/evento")              return handlePostAgendaEvento(body,env);
-    if(path==="/agenda/efemeride")           return handlePostAgendaEfemeride(body,env);  // ← nuevo
+    if(path==="/agenda/efemeride")           return handlePostAgendaEfemeride(body,env);
     if(path==="/agenda/angulos")             return handleAgendaAngulos(body,env);
 
     return jsonError("Ruta no encontrada",404);
@@ -120,7 +120,187 @@ export default {
 };
 
 // ============================================================
-// AGENDA — EFEMÉRIDES KV (nuevo en v6)
+// TITULARES / REFORMULAR / REDACTAR
+// ============================================================
+
+// Descripciones detalladas de cada estilo — diferencias reales de estructura y tono
+const ESTILOS_DESC = {
+  formal: `
+ESTILO: Periodístico formal (pirámide invertida clásica).
+- Primer párrafo: responde qué, quién, cuándo, dónde, por qué en máximo 2 oraciones.
+- Cuerpo: desarrolla en orden de importancia descendente.
+- Lenguaje neutro, sin adjetivos valorativos, sin opinión.
+- Verbos en pasado simple o presente de actualidad ("dijo", "anunció", "es").
+- Titular: sustantivo + verbo + dato central, máximo 10 palabras.
+- Extensión: 4 párrafos.`,
+
+  directo: `
+ESTILO: Directo y conciso — máxima información en mínimas palabras.
+- Titular: el dato más impactante, máximo 7 palabras, sin verbo de atribución.
+- Cuerpo: máximo 3 párrafos cortos (2-3 oraciones cada uno).
+- Sin contexto histórico extenso, sin citas largas.
+- Cada oración debe poder eliminarse sin que se pierda la noticia central.
+- Lenguaje simple, sin tecnicismos.`,
+
+  ampliado: `
+ESTILO: Con contexto ampliado — periodismo de profundidad.
+- Titular informativo pero con matiz explicativo.
+- Primer párrafo: el hecho central.
+- Segundo párrafo: antecedentes y contexto histórico o político relevante.
+- Tercer párrafo: datos complementarios, cifras, comparaciones.
+- Cuarto párrafo: perspectivas o posibles consecuencias.
+- Quinto párrafo (cierre): declaración o dato de cierre que dé perspectiva.
+- Extensión: 5 párrafos.`,
+
+  breaking: `
+ESTILO: Urgente / breaking news — información en tiempo real.
+- Titular: alerta máxima, verbo en presente, máximo 8 palabras. Puede empezar con "URGENTE:" o "ALERTA:".
+- Primer párrafo: el hecho en una sola oración, presente o pasado inmediato.
+- Segundo párrafo: lo que se sabe hasta ahora.
+- Tercer párrafo: lo que falta confirmar o lo que se espera.
+- Sin especulación, solo datos verificados.
+- Tono: velocidad y precisión sobre elegancia.`,
+
+  cronica: `
+ESTILO: Crónica narrativa — periodismo literario.
+- Titular: evocador, puede ser una imagen o frase memorable, no solo informativo.
+- Primer párrafo: escena o detalle concreto que "entra" al lector en la historia (no el dato central).
+- Segundo párrafo: quién o qué está en el centro de la historia.
+- Tercer párrafo: el hecho noticioso, ahora que el lector ya está enganchado.
+- Cuarto párrafo: contexto y consecuencias.
+- Cierre: detalle que resuena con la apertura o reflexión breve.
+- Uso de descripciones, metáforas breves, ritmo variado.`,
+
+  redes: `
+ESTILO: Optimizado para redes sociales — formato digital nativo.
+- Titular: gancho inmediato, puede ser pregunta retórica o dato sorprendente.
+- Cuerpo: párrafos de máximo 2 oraciones, separados con línea en blanco.
+- Incluir datos concretos y cifras si están disponibles (generan más engagement).
+- Último párrafo: dato de cierre o pregunta que invite a comentar.
+- Lenguaje coloquial pero correcto, sin ser informal en exceso.
+- Máximo 3 párrafos en total.`,
+
+  institucional: `
+ESTILO: Comunicado institucional — voz oficial.
+- Titular: formal, puede empezar con el nombre del organismo o funcionario.
+- Estructura: hecho → justificación o contexto normativo → declaración oficial → datos técnicos si aplica.
+- Uso de tercera persona siempre.
+- Sin opinión editorial, sin adjetivos valorativos propios del periodismo.
+- Frases completas, tono solemne pero claro.
+- Puede incluir cita textual de declaración oficial como párrafo separado entre comillas.
+- Extensión: 4 párrafos.`
+};
+
+async function handleTitulares(body, env) {
+  const { modo, contenido, contexto = "", tono = "informativo", cantidad = 5 } = body;
+  if (!modo || !contenido) return jsonError("Faltan campos: modo y contenido", 400);
+
+  const editorial = await getEditorial(env);
+  const bloqueEditorial = editorial
+    ? `\nLÍNEA EDITORIAL (seguí estas reglas sin excepción en TODOS los titulares):\n"""\n${editorial}\n"""\n`
+    : "";
+  const bloqueContexto = contexto ? `\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
+
+  const instruccionContenido = modo === "nota"
+    ? `Analizá este texto y generá exactamente ${cantidad} titulares con distintos enfoques.\n\nTEXTO:\n"""\n${contenido}\n"""`
+    : `Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
+
+  const prompt = `Sos el editor del diario digital mendocino Media Mendoza.
+${bloqueEditorial}
+${instruccionContenido}
+${bloqueContexto}
+Tono: ${tono}. Cada titular debe tener un enfoque diferente.
+Respondé SOLO con JSON sin backticks ni explicaciones:
+{"titulares":["T1","T2"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
+
+  const r = await callGemini(prompt, env);
+  if (r.error) return jsonError(r.error, 500);
+  return jsonOk(r.data);
+}
+
+async function handleReformular(body, env) {
+  const { titulo, contenido, contexto = "", estilo = "formal" } = body;
+  if (!titulo || !contenido) return jsonError("Faltan campos: titulo y contenido", 400);
+
+  const editorial = await getEditorial(env);
+
+  // Bloque editorial: se inyecta con instrucción explícita de cumplimiento
+  const bloqueEditorial = editorial
+    ? `LÍNEA EDITORIAL — OBLIGATORIO CUMPLIR EN TODA LA NOTA:
+Las siguientes reglas definen la voz y el estilo del diario. Respetá cada punto sin excepción.
+"""
+${editorial}
+"""
+`
+    : "";
+
+  const estiloInstrucciones = ESTILOS_DESC[estilo] || ESTILOS_DESC.formal;
+  const bloqueContexto = contexto ? `\nINFORMACIÓN ADICIONAL PARA ENRIQUECER LA NOTA:\n"""\n${contexto}\n"""\n` : "";
+
+  const prompt = `Sos redactor del diario digital mendocino Media Mendoza (sur de Mendoza, Argentina).
+
+${bloqueEditorial}
+Reformulá completamente la siguiente nota. No copies frases del original. Reescribí con tus propias palabras.
+
+NOTA ORIGINAL:
+Título: "${titulo}"
+Cuerpo:
+"""
+${contenido}
+"""
+${bloqueContexto}
+${estiloInstrucciones}
+
+Generá también 4 o 5 hashtags relevantes en español para redes sociales.
+
+Respondé SOLO con JSON sin backticks ni explicaciones:
+{"titular":"...","cuerpo":"Párrafo 1...\n\nPárrafo 2...\n\nPárrafo 3...","categoria_sugerida":"...","hashtags":["#h1","#h2"]}`;
+
+  const r = await callGemini(prompt, env);
+  if (r.error) return jsonError(r.error, 500);
+  return jsonOk(r.data);
+}
+
+async function handleRedactar(body, env) {
+  const { ideas, buscarWeb = false } = body;
+  if (!ideas) return jsonError("Falta campo: ideas", 400);
+
+  const editorial = await getEditorial(env);
+
+  const bloqueEditorial = editorial
+    ? `LÍNEA EDITORIAL — OBLIGATORIO CUMPLIR EN TODA LA NOTA:
+"""
+${editorial}
+"""
+`
+    : "Redactor profesional del diario digital Media Mendoza, sur de Mendoza (San Rafael, Argentina). Estilo formal periodístico, pirámide invertida, no inventar datos, SEO natural.";
+
+  const instruccionBusqueda = buscarWeb
+    ? "Buscá contexto adicional en la web para enriquecer la nota con datos actuales."
+    : "Redactá solo con la información provista, sin inventar datos.";
+
+  const schema = '{"titular":"","bajada":"","cuerpo":"Párrafo 1...\n\nPárrafo 2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
+
+  const prompt = `${bloqueEditorial}
+
+CONTENIDO A REDACTAR:
+${ideas}
+
+${instruccionBusqueda}
+
+Generá una nota periodística completa con titular, bajada, cuerpo (mínimo 3 párrafos separados por línea en blanco), categoría sugerida y hashtags.
+
+Respondé SOLO con JSON sin backticks. En el campo "cuerpo" usá \\n\\n entre párrafos. Sin prefijos P1, P2:
+${schema}`;
+
+  const fn = buscarWeb ? callGeminiConBusqueda : callGemini;
+  const r = await fn(prompt, env);
+  if (r.error) return jsonError(r.error, 500);
+  return jsonOk(r.data);
+}
+
+// ============================================================
+// AGENDA — EFEMÉRIDES KV
 // ============================================================
 
 async function handleGetAgendaEfemerides(env){
@@ -141,7 +321,7 @@ async function handlePostAgendaEfemeride(body,env){
   const efemeride={
     id:          body.id||generarId("ef_"),
     titulo,
-    tituloBase:  body.tituloBase||titulo,  // para sobreescribir JSON original
+    tituloBase:  body.tituloBase||titulo,
     dia,
     mes,
     tipo:        String(body.tipo||"efemeride").trim(),
@@ -165,7 +345,7 @@ async function handleDeleteAgendaEfemeride(url,env){
 }
 
 // ============================================================
-// AGENDA — ÁNGULOS IA (cache KV)
+// AGENDA — ÁNGULOS IA
 // ============================================================
 
 async function handleGetAngulosCache(url,env){
@@ -478,44 +658,18 @@ async function handleVerificar(url){
 }
 
 // ============================================================
-// TITULARES / REFORMULAR / REDACTAR
-// ============================================================
-async function handleTitulares(body,env){
-  const {modo,contenido,contexto="",tono="informativo",cantidad=5}=body;
-  if(!modo||!contenido) return jsonError("Faltan campos: modo y contenido",400);
-  const editorial=await getEditorial(env);
-  const sEd=editorial?`\nLINEA EDITORIAL:\n"""\n${editorial}\n"""\n`:"";
-  const sCx=contexto?`\nCONTEXTO:\n"""\n${contexto}\n"""\n`:"";
-  const prompt=`Sos el editor del diario digital mendocino Media Mendoza.\n${sEd}\n${modo==="nota"?`Analizá este texto y generá exactamente ${cantidad} titulares.\n\nTEXTO:\n"""\n${contenido}\n"""` :`Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`}\n${sCx}\nTono: ${tono}. ${cantidad} titulares con distintos enfoques.\nResponde SOLO con JSON: {"titulares":["T1"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
-  const r=await callGemini(prompt,env); if(r.error) return jsonError(r.error,500); return jsonOk(r.data);
-}
-async function handleReformular(body,env){
-  const {titulo,contenido,contexto="",estilo="formal"}=body;
-  if(!titulo||!contenido) return jsonError("Faltan campos: titulo y contenido",400);
-  const editorial=await getEditorial(env);
-  const sEd=editorial?`\nLINEA EDITORIAL:\n"""\n${editorial}\n"""\n`:"";
-  const estiloDesc={formal:"periodistico formal, piramide invertida",directo:"directo y conciso, datos primero",ampliado:"con contexto ampliado",breaking:"urgente, muy conciso, presente",cronica:"narrativa literaria",redes:"para redes, coloquial, parrafos cortos",institucional:"formal oficial, sin opinion"}[estilo]||"periodistico formal";
-  const prompt=`Sos redactor del diario digital mendocino Media Mendoza.\n${sEd}\nReformulá completamente:\nTitulo: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${contexto?`\nContexto: ${contexto}`:""}\\nEstilo: ${estiloDesc}. Sin copiar frases. 3-5 párrafos. 4-5 hashtags.\nResponde SOLO con JSON: {"titular":"...","cuerpo":"P1...\\n\\nP2...","categoria_sugerida":"...","hashtags":["#h1"]}`;
-  const r=await callGemini(prompt,env); if(r.error) return jsonError(r.error,500); return jsonOk(r.data);
-}
-async function handleRedactar(body,env){
-  const {ideas,buscarWeb=false}=body; if(!ideas) return jsonError("Falta campo: ideas",400);
-  const editorial=await getEditorial(env);
-  const base=editorial||"Redactor profesional del diario digital Media Mendoza, sur de Mendoza (San Rafael). Estilo formal periodistico, piramide invertida, no inventar datos, SEO natural.";
-  const schema='{"titular":"","bajada":"","cuerpo":"P1...\\n\\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
-  const prompt=base+"\n\nCONTENIDO:\n"+ideas+"\n\n"+(buscarWeb?"Busca contexto en la web.":"Redacta solo con la info provista.")+"\n\nResponde SOLO con JSON sin backticks, cuerpo con \\n\\n entre párrafos, SIN prefijos P1 P2: "+schema;
-  const fn=buscarWeb?callGeminiConBusqueda:callGemini;
-  const r=await fn(prompt,env); if(r.error) return jsonError(r.error,500); return jsonOk(r.data);
-}
-
-// ============================================================
 // GEMINI
 // ============================================================
 async function getEditorial(env){
-  try{const v=await env.KV.get(EDITORIAL_KV_KEY,"json");if(v&&v.activo&&v.prompt)return v.prompt}catch(e){}return null;
+  try{
+    const v=await env.KV.get(EDITORIAL_KV_KEY,"json");
+    if(v && v.activo && v.prompt) return v.prompt;
+  }catch(e){}
+  return null;
 }
+
 async function callGeminiConBusqueda(prompt,env){
-  const ideasTexto=prompt.split("\n\nCONTENIDO:\n")[1]?.split("\n\n")[0]||prompt.substring(0,200);
+  const ideasTexto=prompt.split("\n\nCONTENIDO A REDACTAR:\n")[1]?.split("\n\n")[0]||prompt.substring(0,200);
   const fuentesReales=await buscarDuckDuckGo(ideasTexto);
   let contextoWeb=""; const fuentesVerificadas=[];
   for(const fuente of fuentesReales.slice(0,3)){
@@ -529,12 +683,13 @@ async function callGeminiConBusqueda(prompt,env){
       fuentesVerificadas.push({titulo:fuente.titulo,url:fuente.url,imagen:ogImg?.[1]||''});
     }catch(e){continue}
   }
-  const promptFinal=prompt+(contextoWeb?"\n\nCONTENIDO WEB:\n"+contextoWeb:"");
+  const promptFinal=prompt+(contextoWeb?"\n\nCONTENIDO WEB ENCONTRADO:\n"+contextoWeb:"");
   const resultado=await callGemini(promptFinal,env);
   if(resultado.error) return resultado;
   if(fuentesVerificadas.length) resultado.data.fuentes=fuentesVerificadas;
   return resultado;
 }
+
 async function buscarDuckDuckGo(query){
   try{
     const url="https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar";
@@ -550,6 +705,7 @@ async function buscarDuckDuckGo(query){
     return resultados;
   }catch(e){return []}
 }
+
 async function callGemini(prompt,env){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys configuradas"};
@@ -570,6 +726,7 @@ async function callGemini(prompt,env){
   }
   return {error:"Todas las API keys estan agotadas. Intentalo en unos minutos."};
 }
+
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
 function jsonError(message,status=400){return new Response(JSON.stringify({ok:false,error:message}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
