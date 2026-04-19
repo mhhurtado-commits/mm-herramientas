@@ -1105,9 +1105,7 @@ async function fetchUrl(){
     const cat=(data.category||'').replace(/_/g,' ');
     document.getElementById('catIn').value=cat;S.cat=cat;
     // Guardar descripción y cuerpo para el generador WA
-    S._waDesc=data.description||'';
-    S._waBody=data.body||'';
-    ELS.title={x:null,y:null,w:null,h:null,visible:true};
+        ELS.title={x:null,y:null,w:null,h:null,visible:true};
     ELS.cat={x:null,y:null,w:null,h:null,visible:true};
     if(data.image)await loadRemoteImg(data.image);
     else showToast('Sin imagen. Subí una manualmente.');
@@ -1412,7 +1410,6 @@ const MOB_PANELS = {
       <input type="url" id="m-urlIn" placeholder="https://mediamendoza.com/..." value="${document.getElementById('urlIn').value}">
       <button class="urlbtn" onclick="mobFetch()">→</button>
     </div>
-    <button class="btn btn-wa" onclick="openWAModal()" style="width:100%;margin:6px 0 2px;padding:9px;border-radius:7px;font-size:.82rem;font-weight:700;border:none;cursor:pointer;background:#25d366;color:#fff">💬 Generar mensaje WhatsApp</button>
     <label class="fl">Título</label>
     <textarea id="m-titIn" rows="2">${S.title}</textarea>
     <label class="fl">Categoría</label>
@@ -1624,168 +1621,6 @@ function syncSlider(key, val){
   if(el) el.value=val;
   const rv=document.getElementById('rv-'+key);
   if(rv&&RMAP[key]) rv.textContent=RMAP[key].s(+val);
-}
-
-// ══════════════════════════════════════════
-// GENERADOR DE MENSAJES WHATSAPP
-// ══════════════════════════════════════════
-
-const WA_PROMPT = `Sos el Editor de Redes Sociales de Media Mendoza, un diario digital del sur mendocino (San Rafael, General Alvear y Malargüe). Tu objetivo es convertir notas periodísticas en mensajes atractivos, claros y optimizados para WhatsApp.
-
-TONO: Cordial, informativo, profesional pero cercano al vecino mendocino. Español rioplatense (usá "vos", "tenés", "leé").
-
-REGLAS DE ORO:
-1. No inventar datos. No completar información que no esté en el texto de entrada.
-2. Solo incluir el link si el usuario lo proporciona. Prohibido inventar URLs.
-3. CIUDAD: Media Mendoza cubre el sur mendocino. La ciudad por defecto es SAN RAFAEL. Usá "GENERAL ALVEAR" o "MALARGÜE" solo si la nota lo menciona explícitamente. Nunca usar solo "MENDOZA" — siempre la ciudad específica del sur.
-4. CATEGORÍA: Es clave para el tono y los emojis. Policiales → tono urgente, emoji 🚨. Política → 🏛️. Economía → 💰. Deportes → ⚽. Cultura → 🎭. Salud → 🏥. Clima/Tiempo → 🌦️. Turismo → 🏔️. Sociedad/Comunidad → 👥. Usá la categoría para elegir el emoji del encabezado y para darle el tono correcto al mensaje.
-5. URL CORTA: Si la URL tiene la forma https://mediamendoza.com/categoria/123456-texto-largo, acortarla a https://mediamendoza.com/categoria/123456 — solo dominio + categoría + número de nota, sin el slug de texto.
-6. Para el mensaje de GRUPO: crear un gancho que genere tensión/curiosidad sin revelar el desenlace. Máximo 3 líneas antes del link.
-7. Longitud máxima: Grupo = 8 líneas totales. Canal = 12 líneas totales.
-
-FORMATO DE SALIDA — MUY IMPORTANTE: responder ÚNICAMENTE con el siguiente JSON, sin ningún texto antes ni después, sin backticks, sin markdown:
-{"grupo":"mensaje completo aquí","canal":"mensaje completo aquí"}
-
-Si el mensaje incluye comillas dobles dentro del texto, reemplazarlas por comillas simples.
-No usar saltos de línea dentro de los valores JSON — usar el caracter \n como texto.
-
-ESTRUCTURA GRUPO (Estilo Alerta):
-- Encabezado: [emoji categoría] *CIUDAD: TITULAR GANCHO EN MAYÚSCULAS*
-- Bajada: 2-3 líneas con el dato más impactante, SIN revelar el desenlace
-- CTA: 🔗 *LEÉ LA NOTA COMPLETA:* 👉 [URL corta]
-- Cierre: *¡Sumate!* 📱 https://bit.ly/mediamendoza-grupo 📣 https://bit.ly/mediamendoza-canal
-- Firma: *📰 Media Mendoza - Noticias confiables del sur mendocino*
-
-ESTRUCTURA CANAL (Estilo Resumen):
-- Encabezado: [emoji] *CIUDAD: TITULAR EN MAYÚSCULAS*
-- Bullets con: • Qué pasó • Quiénes intervienen • Dónde/Cuándo • Situación actual
-- CTA: 🔗 *MÁS DETALLES:* 👉 [URL corta]
-- Firma: *📰 Media Mendoza - Noticias confiables del sur mendocino*`;
-
-let _waTab = 'grupo';
-let _waMessages = {grupo:'', canal:''};
-let _waGenerating = false;
-
-function openWAModal(){
-  if(!S.title){showToast('Primero cargá una nota con título');return;}
-  document.getElementById('waModalBg').classList.add('open');
-  waGenerate();
-}
-function closeWAModal(){
-  document.getElementById('waModalBg').classList.remove('open');
-}
-function waSetTab(tab){
-  _waTab=tab;
-  document.querySelectorAll('.wa-tab').forEach(t=>t.classList.remove('on'));
-  document.getElementById('wa-tab-'+tab).classList.add('on');
-  const msg=document.getElementById('waMsg');
-  if(_waMessages[tab]){
-    msg.classList.remove('loading');
-    msg.textContent=_waMessages[tab];
-  } else {
-    msg.classList.add('loading');
-    msg.textContent='Generando...';
-  }
-}
-function waCopy(){
-  const text=_waMessages[_waTab];
-  if(!text){showToast('Esperá que termine de generar');return;}
-  navigator.clipboard.writeText(text).then(()=>{
-    showToast('✅ Mensaje copiado al portapapeles');
-  }).catch(()=>{
-    // fallback
-    const ta=document.createElement('textarea');
-    ta.value=text;document.body.appendChild(ta);ta.select();
-    document.execCommand('copy');document.body.removeChild(ta);
-    showToast('✅ Mensaje copiado');
-  });
-}
-async function waGenerate(){
-  if(_waGenerating)return;
-  _waGenerating=true;
-  _waMessages={grupo:'',canal:''};
-  const msg=document.getElementById('waMsg');
-  msg.classList.add('loading');
-  msg.textContent='Generando mensajes con IA...';
-
-  const urlRaw=document.getElementById('urlIn').value.trim();
-  // Acortar URL: quedarse solo con dominio/categoria/número-de-nota
-  let url=urlRaw;
-  if(url){
-    try{
-      const u=new URL(url);
-      const parts=u.pathname.split('/').filter(Boolean);
-      // parts[0]=categoria, parts[1]=123456-slug → tomar solo los dígitos iniciales
-      if(parts.length>=2){
-        const numMatch=parts[1].match(/^(\d+)/);
-        if(numMatch) url=u.origin+'/'+parts[0]+'/'+numMatch[1];
-      }
-    }catch(e){}
-  }
-  const titulo=S.title||'';
-  const categoria=S.cat||'';
-  const extra=document.getElementById('waExtraInput')?.value.trim()||'';
-
-  const desc=S._waDesc||'';
-  const body=S._waBody||'';
-  const entrada=`Título: ${titulo}
-Categoría: ${categoria}${desc?'\nDescripción: '+desc:''}${body?'\nContenido de la nota: '+body:''}${url?'\nURL: '+url:''}${extra?'\nContexto adicional: '+extra:''}`;
-
-  try{
-    // El Worker hace de proxy para evitar CORS con la API de Anthropic
-    const res=await fetch(WORKER+'?ai=1',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        system:WA_PROMPT,
-        user:'Generá los dos mensajes para esta nota:\n\n'+entrada
-      })
-    });
-    if(!res.ok){
-      const errText=await res.text();
-      throw new Error('Worker error '+res.status+': '+errText);
-    }
-    const data=await res.json();
-    if(data.error) throw new Error(data.error);
-    const raw=typeof data==='string'?data:(data.text||data.content||'');
-    if(!raw) throw new Error('Respuesta vacía del modelo');
-
-    // Estrategia 1: intentar parsear JSON
-    let parsed=null;
-    try{
-      let clean=raw.replace(/```json/gi,'').replace(/```/g,'').trim();
-      const jsonMatch=clean.match(/\{[\s\S]*\}/);
-      if(jsonMatch) parsed=JSON.parse(jsonMatch[0]);
-    }catch(e){}
-
-    // Estrategia 2: buscar delimitadores ===GRUPO=== y ===CANAL===
-    if(!parsed){
-      const gMatch=raw.match(/===GRUPO===[\s\S]*?\n([\s\S]*?)(?===CANAL===|$)/i);
-      const cMatch=raw.match(/===CANAL===[\s\S]*?\n([\s\S]*?)$/i);
-      if(gMatch||cMatch){
-        parsed={
-          grupo:(gMatch?gMatch[1].trim():''),
-          canal:(cMatch?cMatch[1].trim():'')
-        };
-      }
-    }
-
-    // Estrategia 3: usar toda la respuesta como grupo, indicar que faltó el canal
-    if(!parsed){
-      parsed={grupo:raw.trim(), canal:'(Regenerá para obtener versión canal)'};
-    }
-
-    _waMessages.grupo=parsed.grupo||'No se pudo generar el mensaje de grupo.';
-    _waMessages.canal=parsed.canal||'No se pudo generar el mensaje de canal.';
-  }catch(e){
-    console.error('WA generate error:',e);
-    _waMessages.grupo='Error: '+e.message;
-    _waMessages.canal=_waMessages.grupo;
-  }
-
-  _waGenerating=false;
-  msg.classList.remove('loading');
-  msg.textContent=_waMessages[_waTab];
 }
 
 // ── INIT ──
