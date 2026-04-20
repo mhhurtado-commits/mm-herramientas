@@ -1,10 +1,7 @@
 // ============================================================
-// Media Mendoza — Worker v7
-// Cambios respecto a v6:
-//   - handleReformular: prompt editorial inyectado correctamente
-//   - handleReformular: estilos con instrucciones distintas y concretas
-//   - handleTitulares: prompt editorial corregido
-//   - handleRedactar: prompt editorial corregido
+// Media Mendoza — Worker v8
+// Cambios respecto a v7:
+//   - handleWhatsappGenerar: prompt reescrito con formato exacto
 // ============================================================
 
 const CORS_HEADERS = {
@@ -123,8 +120,6 @@ export default {
 // TITULARES / REFORMULAR / REDACTAR
 // ============================================================
 
-// Instrucciones de formato/estructura por estilo.
-// Se colocan ANTES del editorial para que las reglas de voz queden al final (mayor peso en LLMs).
 const ESTILOS_DESC = {
   formal: `FORMATO REQUERIDO — Periodístico formal, pirámide invertida:
 - Titular: sustantivo + verbo + dato central, máximo 10 palabras, sin mayúsculas innecesarias.
@@ -165,22 +160,20 @@ const ESTILOS_DESC = {
 - Usá descripciones breves y ritmo variado.`,
 
   deportes: `FORMATO REQUERIDO — Nota deportiva, tono dinámico y coloquial:
-- Titular: activo, con verbo potente, puede usar expresiones del ambiente deportivo (ej: "se consagró", "goleó", "se cayó la ilusión").
-- Tono: dinámico, apasionado pero sin exagerar. Como hablaría un periodista deportivo en radio.
+- Titular: activo, con verbo potente, puede usar expresiones del ambiente deportivo.
+- Tono: dinámico, apasionado pero sin exagerar.
 - Párrafo 1: el resultado o hecho principal con impacto.
 - Párrafo 2: desarrollo del partido/evento, momentos clave.
-- Párrafo 3: datos destacados (goleadores, tiempos, estadísticas si las hay).
-- Cierre: contexto de la competencia o qué viene después.
-- Permitido usar vocabulario del deporte: "red", "golazo", "festejo", "el equipo", "los dirigidos por".`,
+- Párrafo 3: datos destacados.
+- Cierre: contexto de la competencia o qué viene después.`,
 
   espectaculos: `FORMATO REQUERIDO — Nota de espectáculos/cultura, tono cercano y entretenido:
-- Titular: puede ser llamativo, con juego de palabras o gancho pop. Evitar lo demasiado formal.
-- Tono: cercano, amigable, como contarle algo a un lector que disfruta del entretenimiento. Coloquial sin ser descuidado.
+- Titular: puede ser llamativo, con juego de palabras o gancho pop.
+- Tono: cercano, amigable. Coloquial sin ser descuidado.
 - Párrafo 1: el hecho o novedad de forma atractiva.
 - Párrafo 2: contexto del artista/evento/obra.
 - Párrafo 3: dato curioso, reacción del público o impacto.
-- Cierre: qué sigue, cuándo, dónde. Información útil para el lector.
-- Podés mencionar reacciones en redes o impacto popular si es relevante.`,
+- Cierre: qué sigue, cuándo, dónde.`,
 
   redes: `FORMATO REQUERIDO — Nota optimizada para redes sociales:
 - Titular: gancho inmediato, puede ser pregunta retórica o dato sorprendente.
@@ -198,22 +191,16 @@ const ESTILOS_DESC = {
 - Extensión: 4 párrafos.`
 };
 
-// Comprime el editorial largo en reglas accionables cortas para el LLM.
-// Esto evita que Gemini "olvide" un bloque muy extenso al principio del prompt.
 function comprimirEditorial(texto) {
   if (!texto) return null;
-  // Extraer líneas con contenido concreto (bullets, reglas, no texto de presentación)
   const lineas = texto.split('\n')
     .map(l => l.trim())
     .filter(l => l.length > 5)
-    // Filtrar encabezados decorativos y frases de presentación genéricas
     .filter(l => !l.match(/^(Actuá como|Media Mendoza es|El enfoque|La línea|📰|🧭|✍️|🧱|📍|🚨|🔎|⚙️|🧪|OPCIONAL)/))
-    // Quedarse con bullets y reglas concretas
     .filter(l => l.startsWith('-') || l.startsWith('•') || l.match(/^(No |Usar |Incluir |Evitar |Redactar |Destacar |Usar |Pueden )/i))
-    .slice(0, 20); // máximo 20 reglas
+    .slice(0, 20);
 
   if (!lineas.length) {
-    // Si no encontró bullets, tomar las primeras líneas relevantes
     return texto.split('\n').map(l=>l.trim()).filter(l=>l.length>10).slice(0,15).join('\n');
   }
   return lineas.join('\n');
@@ -231,10 +218,7 @@ async function handleTitulares(body, env) {
     : `Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
 
   const bloqueContexto = contexto ? `\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
-
-  const bloqueEditorial = editorial
-    ? `\nREGLAS EDITORIALES (aplicar en todos los titulares):\n${editorial}\n`
-    : "";
+  const bloqueEditorial = editorial ? `\nREGLAS EDITORIALES (aplicar en todos los titulares):\n${editorial}\n` : "";
 
   const prompt = `Sos el editor del diario digital mendocino Media Mendoza.
 
@@ -259,12 +243,8 @@ async function handleReformular(body, env) {
 
   const estiloInstrucciones = ESTILOS_DESC[estilo] || ESTILOS_DESC.formal;
   const bloqueContexto = contexto ? `\nINFORMACIÓN ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
-  const bloqueEditorial = editorial
-    ? `REGLAS DE VOZ Y ESTILO DEL DIARIO (respetar siempre):\n${editorial}\n`
-    : "";
+  const bloqueEditorial = editorial ? `REGLAS DE VOZ Y ESTILO DEL DIARIO (respetar siempre):\n${editorial}\n` : "";
 
-  // Orden deliberado: tarea → contenido → contexto → formato → reglas editoriales → JSON
-  // Las reglas editoriales al final tienen más peso en el modelo.
   const prompt = `Sos redactor del diario digital mendocino Media Mendoza.
 Reformulá completamente la nota. No copies frases del original. Reescribí con tus propias palabras.
 
@@ -305,7 +285,6 @@ async function handleRedactar(body, env) {
 
   const schema = '{"titular":"","bajada":"","cuerpo":"Párrafo 1...\n\nPárrafo 2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
 
-  // Orden: tarea → contenido → instrucción web → reglas editoriales → schema
   const prompt = `Sos redactor del diario digital mendocino Media Mendoza.
 Redactá una nota periodística completa con titular, bajada, cuerpo (mínimo 3 párrafos), categoría y hashtags.
 
@@ -597,36 +576,63 @@ async function handlePostCubierta(body,env){
 }
 
 // ============================================================
-// WHATSAPP
+// WHATSAPP — GENERAR (v8: prompt con formato exacto)
 // ============================================================
 async function handleWhatsappGenerar(body,env){
-  const notaUrl=String(body.notaUrl||"").trim(); const contenido=String(body.contenido||"").trim();
-  const tituloM=String(body.titulo||"").trim(); const categoriaM=String(body.categoria||"").trim();
+  const notaUrl=String(body.notaUrl||"").trim();
+  const contenido=String(body.contenido||"").trim();
+  const tituloM=String(body.titulo||"").trim();
+  const categoriaM=String(body.categoria||"").trim();
   const contextoExtra=String(body.contextoExtra||"").trim();
+
   let nota={titulo:tituloM,categoria:categoriaM,descripcion:"",body:contenido,url:notaUrl,urlCorta:notaUrl?acortarUrlNota(notaUrl):"",image:""};
+
   if(notaUrl){
     try{new URL(notaUrl)}catch{return jsonError("URL invalida",400)}
-    try{const {html}=await fetchHtml(notaUrl,300);const s=extraerDatosNota(html,notaUrl);nota={titulo:s.title||nota.titulo,categoria:s.category||nota.categoria,descripcion:s.description||"",body:s.body||nota.body,url:notaUrl,urlCorta:acortarUrlNota(notaUrl),image:s.image||""}}
-    catch(err){return jsonError(`No se pudo obtener la nota: ${err.message}`,502)}
+    try{
+      const {html}=await fetchHtml(notaUrl,300);
+      const s=extraerDatosNota(html,notaUrl);
+      nota={titulo:s.title||nota.titulo,categoria:s.category||nota.categoria,descripcion:s.description||"",body:s.body||nota.body,url:notaUrl,urlCorta:acortarUrlNota(notaUrl),image:s.image||""};
+    }catch(err){return jsonError(`No se pudo obtener la nota: ${err.message}`,502)}
   }
   if(!nota.titulo&&!nota.body) return jsonError("Falta notaUrl o contenido",400);
-  const prompt=`Sos editor de WhatsApp del diario digital Media Mendoza (sur de Mendoza, Argentina).
-DATOS:
-Titulo: ${nota.titulo||"Sin titulo"}
-Categoria: ${nota.categoria||"General"}
-Contenido: ${(nota.body||"").substring(0,2000)}
-URL: ${nota.urlCorta||nota.url||""}
-${contextoExtra?`Contexto adicional: ${contextoExtra}`:""}
-REGLAS: NO inventar, español argentino, usar \\n para saltos, negritas con *asterisco simple*, NO doble asterisco.
-FORMATO GRUPO: 🚨 *CATEGORIA*: frase corta\\n\\nBajada con *negrita*👇\\n👉 *MÁS INFORMACIÓN:* ${nota.urlCorta||nota.url||""}\\n\\n*📱 Grupo:* https://bit.ly/mediamendoza-grupo\\n*📣 Canal:* https://bit.ly/mediamendoza-canal\\n\\n*📰 Media Mendoza - Noticias confiables del sur mendocino*
-FORMATO CANAL: igual pero menos emojis, más limpio.
-Responde SOLO con JSON: {"grupo":"...","canal":"..."}`;
+
+  // Detectar localidad mencionada en la nota
+  const localidades = ["San Rafael","General Alvear","Malargüe","Alvear"];
+  const localidadDetectada = localidades.find(l => (nota.titulo+nota.body).includes(l)) || "San Rafael";
+
+  const prompt = `Sos editor de redes sociales de Media Mendoza, diario digital del sur de Mendoza, Argentina.
+Transformá esta noticia en dos mensajes de WhatsApp. Tono: directo, profesional, con emojis estratégicos. Español rioplatense.
+
+NOTICIA:
+Título: ${nota.titulo||"Sin titulo"}
+Categoría: ${nota.categoria||"General"}
+Localidad: ${localidadDetectada}
+Contenido: ${(nota.body||"").substring(0,1500)}
+URL: ${nota.urlCorta||nota.url||""}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}
+
+FORMATO EXACTO PARA "grupo":
+[emoji alerta según categoría] *[LOCALIDAD o CATEGORÍA EN MAYÚSCULAS]:* [titular impactante]\n\n[2-3 líneas con lo más importante: qué, dónde, cuándo. Usar *negritas* en datos clave] 👇\n\n🔗 *MÁS DETALLES AQUÍ:*\n👉 ${nota.urlCorta||nota.url||""}\n\n*¡Sumate a nuestra comunidad!*\n📱 *Grupo de Noticias:* https://bit.ly/mediamendoza-grupo\n📣 *Canal de Difusión:* https://bit.ly/mediamendoza-canal\n\n*📰 Media Mendoza - Noticias confiables del sur mendocino*
+
+FORMATO EXACTO PARA "canal":
+[emoji alerta] [emoji categoría] *[CATEGORÍA]:* [titular impactante]\n\n• [punto clave 1 con emoji al final]\n• [punto clave 2 con emoji al final]\n• [punto clave 3 con emoji al final]\n• [punto clave 4 si hay info suficiente con emoji al final]\n\n🔗 *LEÉ LA NOTA COMPLETA:*\n👉 ${nota.urlCorta||nota.url||""}\n\n*📰 Media Mendoza - Noticias confiables del sur mendocino*
+
+REGLAS:
+- Negritas: solo en *palabra clave* o *dato importante*, no en frases largas
+- NO doble asterisco (**), solo asterisco simple (*)
+- No inventar datos que no estén en el contenido
+- Emojis de alerta según categoría: policiales=🚨, tiempo=🌬️, deportes=⚽, política=🏛️, accidente=🚗, salud=🏥, general=📢
+
+Respondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
+
   const resultado=await callGemini(prompt,env);
   if(resultado.error) return jsonError(resultado.error,500);
-  const grupo=(resultado.data?.grupo||"").trim(); const canal=(resultado.data?.canal||"").trim();
+  const grupo=(resultado.data?.grupo||"").trim();
+  const canal=(resultado.data?.canal||"").trim();
   if(!grupo||!canal) return jsonError("La IA no devolvio ambos mensajes",502);
   return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:nota.urlCorta||nota.url||"",imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal});
 }
+
 async function handlePostWhatsappProgramar(body,env){
   if(!body?.fecha) return jsonError("Falta campo: fecha",400);
   const item={id:body.id||generarId("wp_"),fecha:Number(body.fecha),fechaLegible:body.fechaLegible||"",tituloNota:String(body.tituloNota||"").trim(),urlCorta:String(body.urlCorta||"").trim(),canales:Array.isArray(body.canales)?body.canales.filter(Boolean):[],textoGrupo:String(body.textoGrupo||"").trim(),textoCanal:String(body.textoCanal||"").trim(),categoria:String(body.categoria||"General").trim(),enviado:!!body.enviado,creado:body.creado||Date.now()};

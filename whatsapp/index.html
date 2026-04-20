@@ -26,13 +26,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .topbar-back:hover{border-color:var(--green);color:var(--green-dark);background:var(--green-dim)}
 .topbar-badge{font-size:11px;font-weight:600;color:var(--wa-dark);background:var(--wa-dim);border:1px solid #a3e6c7;padding:3px 10px;border-radius:20px}
 
-.main{margin-top:56px;padding:20px;max-width:1200px;margin-left:auto;margin-right:auto;padding-bottom:40px}
+.main{margin-top:56px;padding:20px;max-width:1200px;margin-left:auto;margin-right:auto;padding-bottom:60px}
 
-/* ── GRID PRINCIPAL ── */
 .grid{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start}
 @media(max-width:900px){.grid{grid-template-columns:1fr}}
 
-/* ── PANEL IZQUIERDO ── */
 .panel{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
 .panel-accent{border-top:3px solid var(--green)}
 .panel-header{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;padding-bottom:12px;border-bottom:1px solid var(--border)}
@@ -43,7 +41,20 @@ textarea,select,input[type="text"],input[type="url"],input[type="datetime-local"
 textarea:focus,select:focus,input:focus{outline:none;border-color:var(--green);background:var(--white)}
 textarea::placeholder,input::placeholder{color:var(--text-dim)}
 
-/* Nota preview */
+/* Campo contexto destacado */
+.contexto-box{background:#fffbeb;border:1.5px solid #f0d060;border-radius:var(--radius-lg);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.contexto-box .field-label{color:#a07000}
+.contexto-box textarea{background:#fff8dc;border-color:#e8c840}
+.contexto-box textarea:focus{border-color:#c8a000;background:#fff}
+.contexto-hint{font-size:11px;color:#a07000;line-height:1.5}
+
+/* Panel contexto post-generación */
+.contexto-post{background:#fffbeb;border:1.5px solid #f0d060;border-radius:var(--radius-lg);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.contexto-post-header{display:flex;align-items:center;justify-content:space-between}
+.contexto-post-title{font-size:11px;font-weight:700;color:#a07000;text-transform:uppercase;letter-spacing:.06em}
+.contexto-post textarea{background:#fff8dc;border-color:#e8c840;font-size:12px}
+.contexto-post textarea:focus{border-color:#c8a000;background:#fff}
+
 .nota-preview{background:var(--green-dim);border:1px solid var(--green-mid);border-radius:var(--radius-lg);padding:12px;display:none}
 .nota-preview.show{display:block}
 .nota-preview-img{width:100%;max-height:140px;object-fit:cover;border-radius:var(--radius);margin-bottom:8px;display:none}
@@ -51,7 +62,6 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 .nota-preview-titulo{font-family:'DM Serif Display',serif;font-size:15px;color:var(--text);line-height:1.3;margin-bottom:4px}
 .nota-preview-url{font-size:11px;color:var(--green-dark);font-weight:600}
 
-/* Botones */
 .btn-primary{width:100%;padding:12px;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;background:var(--green);color:#1a2a00;border:none;border-radius:var(--radius);cursor:pointer;letter-spacing:.02em;text-transform:uppercase;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 6px rgba(166,206,57,.4)}
 .btn-primary:hover{background:var(--green-dark);color:#fff}
 .btn-primary:active{transform:scale(.98)}
@@ -62,17 +72,17 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 .btn-sm:hover{border-color:var(--green);color:var(--green-dark)}
 .btn-sm.wa{border-color:var(--wa);color:var(--wa-dark);background:var(--wa-dim)}
 .btn-sm.wa:hover{background:var(--wa);color:#fff}
+.btn-sm.amarillo{border-color:#e8c840;color:#a07000;background:#fffbeb}
+.btn-sm.amarillo:hover{background:#f0d060;color:#5a4000}
 
 .spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.15);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;display:none;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ── TABS ── */
 .tabs-bar{display:flex;border-bottom:2px solid var(--border);margin-bottom:16px}
 .tab-btn{font-size:12px;font-weight:700;padding:10px 16px;color:var(--text-muted);border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;text-transform:uppercase;letter-spacing:.05em}
 .tab-btn:hover{color:var(--text)}
 .tab-btn.active{color:var(--green-dark);border-bottom-color:var(--green)}
 
-/* ── MENSAJE WA ── */
 .wa-message-box{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;position:relative}
 .wa-message-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .wa-icon{width:32px;height:32px;border-radius:50%;background:var(--wa);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0}
@@ -83,11 +93,9 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 .wa-message-text:focus{outline:none;border-color:var(--green)}
 .wa-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 
-/* Placeholder */
 .placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 20px;border:2px dashed var(--border);border-radius:var(--radius-lg);color:var(--text-dim)}
 .placeholder p{font-size:12px;text-align:center;line-height:1.7}
 
-/* ── PROGRAMADOS ── */
 .programados-list{display:flex;flex-direction:column;gap:8px}
 .prog-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;display:flex;gap:12px;align-items:flex-start;transition:all .15s}
 .prog-card:hover{border-color:var(--green-mid);box-shadow:var(--shadow)}
@@ -106,7 +114,6 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 .badge-pendiente{background:var(--wa-dim);color:var(--wa-dark)}
 .badge-urgente{background:#fdecea;color:#e63946}
 
-/* Modal programar */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.open{display:flex}
 .modal-box{background:var(--white);border-radius:var(--radius-xl);width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.18)}
@@ -121,7 +128,6 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 .canal-opt:has(input:checked){background:var(--wa-dim);border-color:var(--wa);color:var(--wa-dark)}
 .canal-opt input{display:none}
 
-/* Statusbar */
 .statusbar{position:fixed;bottom:0;left:0;right:0;height:30px;background:var(--white);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px}
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
 .status-text,.status-url{font-size:11px;color:var(--text-dim)}
@@ -129,9 +135,6 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 
 .toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:var(--white);font-size:12px;font-weight:500;padding:9px 18px;border-radius:20px;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;z-index:200}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-.countdown{font-size:11px;font-weight:600;color:var(--wa-dark);padding:3px 9px;background:var(--wa-dim);border-radius:20px}
-.countdown.urgent{color:#e63946;background:#fdecea}
 </style>
 </head>
 <body>
@@ -146,7 +149,6 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 
 <div class="main">
 
-  <!-- TABS -->
   <div class="tabs-bar">
     <button class="tab-btn active" onclick="switchTab('generar',this)">✦ Generar</button>
     <button class="tab-btn" onclick="switchTab('programados',this)">🕐 Programados</button>
@@ -177,9 +179,11 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
           <div class="nota-preview-url" id="notaUrlCorta"></div>
         </div>
 
-        <div class="field">
-          <label class="field-label">Contexto adicional (opcional)</label>
-          <textarea id="contextoExtra" rows="2" placeholder="Ej: el hecho ocurrió esta mañana en el centro de San Rafael..."></textarea>
+        <!-- CONTEXTO DESTACADO -->
+        <div class="contexto-box">
+          <label class="field-label">📝 Contexto adicional</label>
+          <textarea id="contextoExtra" rows="3" placeholder="Ej: ocurrió esta mañana · el detenido es vecino del barrio · hay un video viral · el intendente hizo declaraciones..."></textarea>
+          <div class="contexto-hint">💡 Agregá datos extra que no estén en la nota: hora, lugar exacto, contexto local, reacciones, etc. Mejora mucho el resultado.</div>
         </div>
 
         <button class="btn-primary" id="btnGenerar" onclick="generarMensajes()">
@@ -226,7 +230,7 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
     </div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--text-muted);background:var(--wa-dim);border:1px solid #a3e6c7;border-radius:var(--radius);padding:10px 12px;line-height:1.6">
-        💡 El sistema guarda el mensaje y te muestra un recordatorio con el texto listo para copiar cuando llegue la hora. Para envíos automáticos por API de WhatsApp Business contactá al administrador.
+        💡 El sistema guarda el mensaje y te muestra un recordatorio con el texto listo para copiar cuando llegue la hora.
       </div>
       <div class="field">
         <label class="field-label">Fecha y hora de envío</label>
@@ -280,11 +284,8 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 
 <script>
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-
-// Estado
 let S = { mensajes: null, notaData: null, progActual: null, recordatorioId: null };
 
-// ── Utils ──
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800) }
 function setLoading(btn,spin,text,on,label){ document.getElementById(btn).disabled=on; document.getElementById(spin).style.display=on?'inline-block':'none'; document.getElementById(text).textContent=on?'Procesando...':label }
@@ -298,10 +299,7 @@ function switchTab(tab, el){
 }
 
 function copiar(texto){ navigator.clipboard.writeText(texto).then(()=>toast('✓ Copiado')).catch(()=>{const t=document.createElement('textarea');t.value=texto;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('✓ Copiado')}) }
-
-function abrirWA(texto){
-  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
-}
+function abrirWA(texto){ window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank') }
 
 // ── SCRAPE ──
 async function scrapeNota(){
@@ -309,12 +307,10 @@ async function scrapeNota(){
   if(!url){ toast('⚠ Ingresá la URL'); return }
   setLoading('btnScrape','spinScrape','btnScrapeText',true,'Obtener');
   try{
-    // Usamos el endpoint scrape existente
     const res = await fetch(WORKER+'/scrape?url='+encodeURIComponent(url));
     const data = await res.json();
     if(!data.ok) throw new Error(data.error||'Error scraping');
     S.notaData = data;
-    // Preview
     const prev = document.getElementById('notaPreview');
     document.getElementById('notaTitulo').textContent = data.titulo||'Sin título';
     document.getElementById('notaUrlCorta').textContent = url;
@@ -346,7 +342,32 @@ async function generarMensajes(){
   setLoading('btnGenerar','spinGenerar','btnGenerarText',false,'Generar mensajes');
 }
 
-function renderMensajes(data){
+// ── REGENERAR CON CONTEXTO EXTRA ──
+async function regenerarConContexto(){
+  const notaUrl = document.getElementById('notaUrl').value.trim();
+  const contextoPost = document.getElementById('contextoPost')?.value.trim()||'';
+  const contextoOrig = document.getElementById('contextoExtra').value.trim();
+  const contextoFinal = [contextoOrig, contextoPost].filter(Boolean).join(' | ');
+  if(!notaUrl){ toast('⚠ No hay URL cargada'); return }
+  const btn = document.getElementById('btnRegenerar');
+  const spin = document.getElementById('spinRegenerar');
+  btn.disabled=true; spin.style.display='inline-block';
+  try{
+    const res = await fetch(WORKER+'/whatsapp/generar',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ notaUrl, contextoExtra: contextoFinal })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    S.mensajes = data;
+    renderMensajes(data, contextoPost);
+    toast('✓ Mensajes regenerados');
+  }catch(e){ toast('✗ '+e.message) }
+  btn.disabled=false; spin.style.display='none';
+}
+
+function renderMensajes(data, contextoPost=''){
   const cat = data.categoria||'General';
   const html = `
     <div style="display:flex;flex-direction:column;gap:14px">
@@ -357,7 +378,19 @@ function renderMensajes(data){
           <div style="font-size:13px;font-weight:600;color:var(--text)">${esc(data.nota?.titulo||'')}</div>
           <div style="font-size:11px;color:var(--green-dark)">${esc(data.nota?.urlCorta||'')} · ${esc(cat)}</div>
         </div>
-        <button class="btn-sm" onclick="generarMensajes()">↺</button>
+        <button class="btn-sm" onclick="generarMensajes()">↺ Regenerar</button>
+      </div>
+
+      <!-- CONTEXTO POST-GENERACIÓN -->
+      <div class="contexto-post">
+        <div class="contexto-post-header">
+          <span class="contexto-post-title">📝 Agregar contexto y regenerar</span>
+        </div>
+        <textarea id="contextoPost" rows="2" placeholder="Ej: el alcalde dio declaraciones · hay un video en redes · se confirmó la detención...">${esc(contextoPost)}</textarea>
+        <button class="btn-sm amarillo" id="btnRegenerar" onclick="regenerarConContexto()" style="align-self:flex-start">
+          <span class="spinner" id="spinRegenerar"></span>
+          ✦ Regenerar con este contexto
+        </button>
       </div>
 
       <!-- GRUPO -->
@@ -405,7 +438,6 @@ function renderMensajes(data){
 function abrirModalProg(tipo){
   if(!S.mensajes){ toast('⚠ Generá los mensajes primero'); return }
   S.progActual = tipo;
-  // Fecha default: ahora + 30min
   const d = new Date(Date.now()+30*60000);
   const pad = n=>String(n).padStart(2,'0');
   const localISO = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -464,16 +496,13 @@ async function cargarProgramados(){
     let html = '';
     lista.forEach(p=>{
       const diff = p.fecha - ahora;
-      const esUrgente = diff < 600000 && diff > 0; // menos de 10 min
+      const esUrgente = diff < 600000 && diff > 0;
       const esVencido = diff < 0 && !p.enviado;
       let diffText = '';
       if(p.enviado) diffText = '<span class="badge badge-enviado">Enviado</span>';
       else if(esVencido) diffText = '<span class="badge badge-urgente">⚠ Vencido</span>';
       else if(diff < 3600000) diffText = `<span class="badge badge-pendiente">${Math.round(diff/60000)}min</span>`;
-      else {
-        const horas = Math.round(diff/3600000);
-        diffText = `<span class="badge badge-pendiente">${horas}h</span>`;
-      }
+      else { const horas = Math.round(diff/3600000); diffText = `<span class="badge badge-pendiente">${horas}h</span>`; }
       const fecha = new Date(p.fecha);
       const hora = `${String(fecha.getHours()).padStart(2,'0')}:${String(fecha.getMinutes()).padStart(2,'0')}`;
       const dia = `${fecha.getDate()}/${fecha.getMonth()+1}`;
@@ -498,8 +527,6 @@ async function cargarProgramados(){
   }catch(e){ toast('✗ '+e.message) }
 }
 
-// Cache para ver mensajes
-const _progCache = {};
 async function verMensaje(id, tipo){
   try{
     const res = await fetch(WORKER+'/whatsapp/programados');
@@ -527,16 +554,10 @@ async function marcarEnviado(){
 }
 async function marcarEnviadoById(id){
   try{
-    await fetch(WORKER+'/whatsapp/marcar-enviado',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({id})
-    });
+    await fetch(WORKER+'/whatsapp/marcar-enviado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
     toast('✓ Marcado como enviado');
     cargarProgramados();
-  }catch(e){
-    toast('✗ '+e.message);
-  }
+  }catch(e){ toast('✗ '+e.message) }
 }
 async function eliminarProg(id){
   if(!confirm('¿Eliminar este mensaje programado?')) return;
@@ -547,7 +568,6 @@ async function eliminarProg(id){
   }catch(e){ toast('✗ '+e.message) }
 }
 
-// ── RECORDATORIO AUTOMÁTICO ──
 function checkRecordatorios(){
   fetch(WORKER+'/whatsapp/programados')
     .then(r=>r.json())
@@ -569,23 +589,15 @@ function checkRecordatorios(){
     }).catch(()=>{});
 }
 
-// Checar recordatorios cada 60 segundos
 setInterval(checkRecordatorios, 60000);
 checkRecordatorios();
 
-// Si viene URL por query param
 window.addEventListener('load', ()=>{
   const params = new URLSearchParams(window.location.search);
   const url = params.get('url');
   if(url){ document.getElementById('notaUrl').value = url; scrapeNota(); }
 });
 </script>
-
-<div class="statusbar">
-  <div class="status-dot"></div>
-  <div class="status-text">Conectado · Gemini 2.5 Flash Lite</div>
-  <div class="status-url">mediamendoza.pages.dev/whatsapp</div>
-</div>
 
 </body>
 </html>
