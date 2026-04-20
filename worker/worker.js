@@ -612,7 +612,7 @@ Contenido: ${(nota.body||"").substring(0,1500)}
 URL: ${nota.urlCorta||nota.url||""}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}
 
 FORMATO EXACTO PARA "grupo":
-[emoji alerta según categoría] *[LOCALIDAD o CATEGORÍA EN MAYÚSCULAS]:* [titular impactante]\n\n[2-3 líneas con lo más importante: qué, dónde, cuándo. Usar *negritas* en datos clave] 👇\n\n🔗 *MÁS DETALLES AQUÍ:*\n👉 ${nota.urlCorta||nota.url||""}\n\n*¡Sumate a nuestra comunidad!*\n📱 *Grupo de Noticias:* https://bit.ly/mediamendoza-grupo\n📣 *Canal de Difusión:* https://bit.ly/mediamendoza-canal\n\n*📰 Media Mendoza - Noticias confiables del sur mendocino*
+[emoji alerta según categoría] *[LOCALIDAD o CATEGORÍA EN MAYÚSCULAS]:* [titular impactante]\n\n[2-3 líneas con lo más importante: qué, dónde, cuándo. Usar *negritas* en datos clave] 👇\n\n🔗 *MÁS DETALLES AQUÍ:*\n👉 ${nota.urlCorta||nota.url||""}\n\n*¡Sumate a nuestra comunidad!*\n📱 *Grupo de Noticias:* https://mediamendoza.pages.dev/grupo\n📣 *Canal de Difusión:* https://mediamendoza.pages.dev/canal\n\n*📰 Media Mendoza - Noticias confiables del sur mendocino*
 
 FORMATO EXACTO PARA "canal":
 [emoji alerta] [emoji categoría] *[CATEGORÍA]:* [titular impactante]\n\n• [punto clave 1 con emoji al final]\n• [punto clave 2 con emoji al final]\n• [punto clave 3 con emoji al final]\n• [punto clave 4 si hay info suficiente con emoji al final]\n\n🔗 *LEÉ LA NOTA COMPLETA:*\n👉 ${nota.urlCorta||nota.url||""}\n\n*📰 Media Mendoza - Noticias confiables del sur mendocino*
