@@ -534,14 +534,15 @@ async function handleWhatsappGenerar(body,env){
     .replace(/\{LOCALIDAD\}/g,localidad)
     .replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
 
-  const prompt=`${promptFinal}
+  // Si el prompt de Config ya tiene {CONTENIDO} reemplazado, no hace falta mandarlo de nuevo.
+  // Solo agregamos los datos de la noticia si el template NO usó la variable {CONTENIDO}.
+  const noticiaDatos = promptTemplate.includes("{CONTENIDO}")
+    ? "" // ya fue reemplazado arriba
+    : `\n\nNOTICIA A PROCESAR:\nTítulo: ${nota.titulo||"Sin titulo"}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
 
-NOTICIA:
-Título: ${nota.titulo||"Sin titulo"}
-Categoría: ${nota.categoria||"General"}
-Localidad: ${localidad}
-Contenido: ${(nota.body||"").substring(0,1500)}
-URL: ${urlFinal}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}
+  const contextoBloque = contextoExtra ? `\nContexto extra del redactor: ${contextoExtra}` : "";
+
+  const prompt=`${promptFinal}${noticiaDatos}${contextoBloque}
 
 Respondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
 
