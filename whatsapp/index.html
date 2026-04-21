@@ -14,7 +14,7 @@
   --border:#e0e0e0;--border-dark:#ccc;
   --text:#1a1a1a;--text-muted:#666;--text-dim:#999;
   --radius:8px;--radius-lg:12px;--radius-xl:16px;
-  --shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 2px 8px rgba(0,0,0,.1);
+  --shadow:0 1px 3px rgba(0,0,0,.08);
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;line-height:1.5}
 
@@ -27,7 +27,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .topbar-badge{font-size:11px;font-weight:600;color:var(--wa-dark);background:var(--wa-dim);border:1px solid #a3e6c7;padding:3px 10px;border-radius:20px}
 
 .main{margin-top:56px;padding:20px;max-width:1200px;margin-left:auto;margin-right:auto;padding-bottom:60px}
-
 .grid{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start}
 @media(max-width:900px){.grid{grid-template-columns:1fr}}
 
@@ -41,16 +40,12 @@ textarea,select,input[type="text"],input[type="url"],input[type="datetime-local"
 textarea:focus,select:focus,input:focus{outline:none;border-color:var(--green);background:var(--white)}
 textarea::placeholder,input::placeholder{color:var(--text-dim)}
 
-/* Campo contexto destacado */
 .contexto-box{background:#fffbeb;border:1.5px solid #f0d060;border-radius:var(--radius-lg);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
 .contexto-box .field-label{color:#a07000}
 .contexto-box textarea{background:#fff8dc;border-color:#e8c840}
 .contexto-box textarea:focus{border-color:#c8a000;background:#fff}
 .contexto-hint{font-size:11px;color:#a07000;line-height:1.5}
-
-/* Panel contexto post-generación */
 .contexto-post{background:#fffbeb;border:1.5px solid #f0d060;border-radius:var(--radius-lg);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-.contexto-post-header{display:flex;align-items:center;justify-content:space-between}
 .contexto-post-title{font-size:11px;font-weight:700;color:#a07000;text-transform:uppercase;letter-spacing:.06em}
 .contexto-post textarea{background:#fff8dc;border-color:#e8c840;font-size:12px}
 .contexto-post textarea:focus{border-color:#c8a000;background:#fff}
@@ -66,24 +61,28 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 .btn-primary:hover{background:var(--green-dark);color:#fff}
 .btn-primary:active{transform:scale(.98)}
 .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
-.btn-wa{background:var(--wa);color:#fff;box-shadow:0 2px 6px rgba(37,211,102,.35)}
-.btn-wa:hover{background:var(--wa-dark);color:#fff}
+.btn-wa{background:var(--wa);color:#fff !important;box-shadow:0 2px 6px rgba(37,211,102,.35)}
+.btn-wa:hover{background:var(--wa-dark) !important}
 .btn-sm{font-size:11px;font-weight:600;padding:6px 14px;border-radius:var(--radius);border:1px solid var(--border-dark);background:var(--white);color:var(--text-muted);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
 .btn-sm:hover{border-color:var(--green);color:var(--green-dark)}
 .btn-sm.wa{border-color:var(--wa);color:var(--wa-dark);background:var(--wa-dim)}
 .btn-sm.wa:hover{background:var(--wa);color:#fff}
 .btn-sm.amarillo{border-color:#e8c840;color:#a07000;background:#fffbeb}
 .btn-sm.amarillo:hover{background:#f0d060;color:#5a4000}
+.btn-sm.danger{border-color:#f5c6c8;color:#e63946;background:#fdecea}
+.btn-sm.danger:hover{background:#e63946;color:#fff;border-color:#e63946}
+.btn-row{display:flex;gap:8px}
+.btn-row .btn-primary{flex:1}
 
 .spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.15);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;display:none;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-.tabs-bar{display:flex;border-bottom:2px solid var(--border);margin-bottom:16px}
-.tab-btn{font-size:12px;font-weight:700;padding:10px 16px;color:var(--text-muted);border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;text-transform:uppercase;letter-spacing:.05em}
+.tabs-bar{display:flex;border-bottom:2px solid var(--border);margin-bottom:16px;gap:2px}
+.tab-btn{font-size:12px;font-weight:700;padding:10px 16px;color:var(--text-muted);border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
 .tab-btn:hover{color:var(--text)}
 .tab-btn.active{color:var(--green-dark);border-bottom-color:var(--green)}
 
-.wa-message-box{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;position:relative}
+.wa-message-box{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
 .wa-message-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .wa-icon{width:32px;height:32px;border-radius:50%;background:var(--wa);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0}
 .wa-message-meta{flex:1}
@@ -95,6 +94,39 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 
 .placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 20px;border:2px dashed var(--border);border-radius:var(--radius-lg);color:var(--text-dim)}
 .placeholder p{font-size:12px;text-align:center;line-height:1.7}
+
+/* ── PROGRAMADOS ── */
+.agenda-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.agenda-stats{font-size:12px;color:var(--text-muted)}
+.agenda-acciones{display:flex;gap:6px;align-items:center}
+.vista-toggle{display:flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.vista-btn{font-size:11px;font-weight:600;padding:5px 12px;border:none;background:var(--white);color:var(--text-muted);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.vista-btn.active{background:var(--green);color:#1a2a00}
+
+.notif-banner{background:#f0f7ff;border:1px solid #bee3f8;border-radius:var(--radius-lg);padding:10px 14px;display:flex;align-items:center;gap:10px;font-size:12px;color:#2b6cb0;margin-bottom:12px}
+.notif-banner button{margin-left:auto;flex-shrink:0}
+
+.agenda-dias{display:flex;flex-direction:column;gap:12px}
+.agenda-dia-grupo{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
+.agenda-dia-header{background:var(--green-dim);border-bottom:1px solid var(--green-mid);padding:8px 14px;display:flex;align-items:center;gap:10px}
+.agenda-dia-fecha{font-family:'DM Serif Display',serif;font-size:1rem;color:var(--green-dark)}
+.agenda-dia-subtitulo{font-size:11px;color:var(--green-dark);font-weight:600}
+.agenda-dia-badge{margin-left:auto;font-size:10px;font-weight:700;background:var(--green);color:#1a2a00;padding:2px 8px;border-radius:20px}
+.agenda-dia-items{display:flex;flex-direction:column}
+.agenda-item{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid var(--border);transition:background .1s}
+.agenda-item:last-child{border-bottom:none}
+.agenda-item:hover{background:var(--surface)}
+.agenda-item.enviado{opacity:.45}
+.agenda-item-hora{flex-shrink:0;font-family:'DM Serif Display',serif;font-size:1.1rem;color:var(--text);min-width:46px;text-align:right;line-height:1.2;padding-top:3px}
+.agenda-item-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:7px}
+.agenda-item-dot.pendiente{background:var(--wa)}
+.agenda-item-dot.urgente{background:#e63946;animation:pulse 1.2s infinite}
+.agenda-item-dot.enviado{background:var(--border-dark)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.agenda-item-body{flex:1;min-width:0}
+.agenda-item-titulo{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.agenda-item-canales{font-size:11px;color:var(--text-muted);margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.agenda-item-acciones{display:flex;gap:5px;flex-wrap:wrap}
 
 .programados-list{display:flex;flex-direction:column;gap:8px}
 .prog-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;display:flex;gap:12px;align-items:flex-start;transition:all .15s}
@@ -114,26 +146,52 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 .badge-pendiente{background:var(--wa-dim);color:var(--wa-dark)}
 .badge-urgente{background:#fdecea;color:#e63946}
 
+/* ── CONFIG ── */
+.config-section{display:flex;flex-direction:column;gap:20px}
+.config-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
+.config-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.config-card-title{font-size:13px;font-weight:700;color:var(--text)}
+.config-card-desc{font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.5}
+.config-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:var(--green-dim);color:var(--green-dark);border:1px solid var(--green-mid);flex-shrink:0;white-space:nowrap}
+.config-badge.custom{background:var(--wa-dim);color:var(--wa-dark);border-color:#a3e6c7}
+.prompt-editor{font-size:12px;font-family:'Inter',sans-serif;min-height:280px;line-height:1.65;resize:vertical}
+.config-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.config-saved{font-size:11px;color:var(--green-dark);font-weight:600;opacity:0;transition:opacity .3s}
+.config-saved.show{opacity:1}
+.config-info{background:var(--green-dim);border:1px solid var(--green-mid);border-radius:var(--radius);padding:10px 12px;font-size:11px;color:#3a5a00;line-height:1.65}
+.variables-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.variable-chip{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;font-size:11px;cursor:pointer;transition:all .15s}
+.variable-chip:hover{border-color:var(--green);background:var(--green-dim)}
+.variable-chip code{font-family:monospace;font-size:11px;color:var(--green-dark);font-weight:600;display:block}
+.variable-chip p{color:var(--text-muted);margin-top:2px;font-size:10px}
+
+/* ── MODALS ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.open{display:flex}
-.modal-box{background:var(--white);border-radius:var(--radius-xl);width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-box{background:var(--white);border-radius:var(--radius-xl);width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.18)}
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
 .modal-title{font-size:13px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em}
 .modal-close{font-size:16px;background:transparent;border:none;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius);transition:all .15s}
 .modal-close:hover{background:#fdecea;color:#e63946}
 .modal-body{padding:16px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
 .modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px}
-.canal-check{display:flex;gap:10px}
+.canal-check{display:flex;gap:10px;flex-wrap:wrap}
 .canal-opt{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;transition:all .15s}
 .canal-opt:has(input:checked){background:var(--wa-dim);border-color:var(--wa);color:var(--wa-dark)}
 .canal-opt input{display:none}
+
+.msg-edit-tabs{display:flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:6px}
+.msg-edit-tab{flex:1;font-size:11px;font-weight:700;padding:7px;border:none;background:var(--surface);color:var(--text-muted);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;text-align:center}
+.msg-edit-tab.active{background:var(--wa);color:#fff}
+.msg-edit-area{font-size:12px;font-family:'Inter',sans-serif;min-height:180px;line-height:1.75;resize:vertical}
+.msg-char-count{font-size:10px;color:var(--text-dim);text-align:right;margin-top:3px}
 
 .statusbar{position:fixed;bottom:0;left:0;right:0;height:30px;background:var(--white);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px}
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
 .status-text,.status-url{font-size:11px;color:var(--text-dim)}
 .status-url{margin-left:auto}
 
-.toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:var(--white);font-size:12px;font-weight:500;padding:9px 18px;border-radius:20px;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;z-index:200}
+.toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:var(--white);font-size:12px;font-weight:500;padding:9px 18px;border-radius:20px;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;z-index:600}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
@@ -152,16 +210,14 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
   <div class="tabs-bar">
     <button class="tab-btn active" onclick="switchTab('generar',this)">✦ Generar</button>
     <button class="tab-btn" onclick="switchTab('programados',this)">🕐 Programados</button>
+    <button class="tab-btn" onclick="switchTab('config',this)">⚙ Config</button>
   </div>
 
   <!-- TAB GENERAR -->
   <div id="tab-generar">
     <div class="grid">
-
-      <!-- Panel izquierdo -->
       <div class="panel panel-accent">
         <div class="panel-header">Nota a difundir</div>
-
         <div class="field">
           <label class="field-label">URL de la nota</label>
           <div style="display:flex;gap:8px">
@@ -172,27 +228,24 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
             </button>
           </div>
         </div>
-
         <div class="nota-preview" id="notaPreview">
           <img class="nota-preview-img" id="notaImg" alt="">
           <div class="nota-preview-titulo" id="notaTitulo"></div>
           <div class="nota-preview-url" id="notaUrlCorta"></div>
         </div>
-
-        <!-- CONTEXTO DESTACADO -->
         <div class="contexto-box">
           <label class="field-label">📝 Contexto adicional</label>
-          <textarea id="contextoExtra" rows="3" placeholder="Ej: ocurrió esta mañana · el detenido es vecino del barrio · hay un video viral · el intendente hizo declaraciones..."></textarea>
-          <div class="contexto-hint">💡 Agregá datos extra que no estén en la nota: hora, lugar exacto, contexto local, reacciones, etc. Mejora mucho el resultado.</div>
+          <textarea id="contextoExtra" rows="3" placeholder="Ej: ocurrió esta mañana · el detenido es vecino del barrio · hay un video viral..."></textarea>
+          <div class="contexto-hint">💡 Datos extra que no estén en la nota: hora, lugar exacto, contexto local, reacciones, etc.</div>
         </div>
-
-        <button class="btn-primary" id="btnGenerar" onclick="generarMensajes()">
-          <span class="spinner" id="spinGenerar"></span>
-          <span id="btnGenerarText">Generar mensajes</span>
-        </button>
+        <div class="btn-row">
+          <button class="btn-primary" id="btnGenerar" onclick="generarMensajes()">
+            <span class="spinner" id="spinGenerar"></span>
+            <span id="btnGenerarText">Generar mensajes</span>
+          </button>
+          <button class="btn-sm danger" onclick="limpiarFormulario()" title="Limpiar todo y empezar de nuevo" style="padding:0 14px">🗑 Limpiar</button>
+        </div>
       </div>
-
-      <!-- Panel derecho -->
       <div>
         <div id="resultadoGenerar">
           <div class="placeholder">
@@ -201,24 +254,87 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
           </div>
         </div>
       </div>
-
     </div>
   </div>
 
   <!-- TAB PROGRAMADOS -->
   <div id="tab-programados" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div id="prog-stats" style="font-size:12px;color:var(--text-muted)">Cargando...</div>
-      <button class="btn-sm" onclick="cargarProgramados()">↺ Actualizar</button>
-    </div>
-    <div class="programados-list" id="programadosList">
-      <div class="placeholder">
-        <span style="font-size:2rem">🕐</span>
-        <p>No hay mensajes programados.</p>
+    <div class="agenda-header">
+      <div class="agenda-stats" id="prog-stats">Cargando...</div>
+      <div class="agenda-acciones">
+        <div class="vista-toggle">
+          <button class="vista-btn active" id="vistaAgendaBtn" onclick="setVista('agenda')">📅 Agenda</button>
+          <button class="vista-btn" id="vistaListaBtn" onclick="setVista('lista')">☰ Lista</button>
+        </div>
+        <button class="btn-sm" onclick="cargarProgramados()">↺</button>
       </div>
+    </div>
+    <div class="notif-banner" id="notifBanner" style="display:none">
+      <span>🔔</span>
+      <span>Activá notificaciones push para recibir alertas cuando llegue la hora de enviar.</span>
+      <button class="btn-sm wa" onclick="pedirNotificaciones()">Activar</button>
+    </div>
+    <div id="programadosContenido">
+      <div class="placeholder"><span style="font-size:2rem">🕐</span><p>No hay mensajes programados.</p></div>
     </div>
   </div>
 
+  <!-- TAB CONFIG -->
+  <div id="tab-config" style="display:none">
+    <div class="config-section">
+
+      <div class="config-card">
+        <div class="config-card-header">
+          <div>
+            <div class="config-card-title">📝 Prompt de mensajes WhatsApp</div>
+            <div class="config-card-desc">Instrucciones que recibe la IA al generar los mensajes. Editalo sin tocar el código del worker.</div>
+          </div>
+          <span class="config-badge" id="configStatusBadge">Cargando...</span>
+        </div>
+        <div class="config-info">
+          💡 El prompt se combina con los datos de cada nota. Podés usar estas variables que se reemplazan automáticamente:<br><br>
+          <strong>{TITULO}</strong> · <strong>{CATEGORIA}</strong> · <strong>{LOCALIDAD}</strong> · <strong>{URL}</strong> · <strong>{LINK_GRUPO}</strong> · <strong>{LINK_CANAL}</strong> · <strong>{CONTENIDO}</strong>
+        </div>
+        <div class="field">
+          <label class="field-label">Instrucciones para la IA</label>
+          <textarea class="prompt-editor" id="promptEditor" rows="16" placeholder="Cargando..."></textarea>
+        </div>
+        <div class="config-actions">
+          <button class="btn-primary" id="btnGuardarPrompt" onclick="guardarPromptWA()" style="max-width:200px">
+            <span class="spinner" id="spinGuardarPrompt"></span>
+            <span id="btnGuardarPromptText">Guardar cambios</span>
+          </button>
+          <button class="btn-sm" onclick="restaurarPromptDefecto()">↺ Restaurar original</button>
+          <span class="config-saved" id="configSaved">✓ Guardado</span>
+        </div>
+      </div>
+
+      <div class="config-card">
+        <div class="config-card-header">
+          <div>
+            <div class="config-card-title">🔗 Links de comunidad</div>
+            <div class="config-card-desc">URLs que aparecen al pie de los mensajes del Grupo. Usá {LINK_GRUPO} y {LINK_CANAL} en el prompt.</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">Grupo de WhatsApp</label>
+          <input type="url" id="linkGrupo" placeholder="https://chat.whatsapp.com/...">
+        </div>
+        <div class="field">
+          <label class="field-label">Canal de difusión</label>
+          <input type="url" id="linkCanal" placeholder="https://whatsapp.com/channel/...">
+        </div>
+        <div class="config-actions">
+          <button class="btn-primary" id="btnGuardarLinks" onclick="guardarLinks()" style="max-width:200px">
+            <span class="spinner" id="spinGuardarLinks"></span>
+            <span id="btnGuardarLinksText">Guardar links</span>
+          </button>
+          <span class="config-saved" id="configSavedLinks">✓ Guardado</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <!-- MODAL PROGRAMAR -->
@@ -230,7 +346,7 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
     </div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--text-muted);background:var(--wa-dim);border:1px solid #a3e6c7;border-radius:var(--radius);padding:10px 12px;line-height:1.6">
-        💡 El sistema guarda el mensaje y te muestra un recordatorio con el texto listo para copiar cuando llegue la hora.
+        💡 Guardá el mensaje y recibí una notificación cuando llegue la hora.
       </div>
       <div class="field">
         <label class="field-label">Fecha y hora de envío</label>
@@ -245,7 +361,17 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
       </div>
       <div class="field">
         <label class="field-label">Nota</label>
-        <input type="text" id="progNota" placeholder="Título de la nota..." readonly style="background:var(--surface)">
+        <input type="text" id="progNota" readonly style="background:var(--surface)">
+      </div>
+      <div class="field">
+        <label class="field-label">Texto del mensaje (editable antes de programar)</label>
+        <div class="msg-edit-tabs">
+          <button class="msg-edit-tab active" id="editTabGrupo" onclick="switchMsgTab('grupo')">📱 Grupo</button>
+          <button class="msg-edit-tab" id="editTabCanal" onclick="switchMsgTab('canal')">📣 Canal</button>
+        </div>
+        <textarea class="msg-edit-area" id="editMsgGrupo"></textarea>
+        <textarea class="msg-edit-area" id="editMsgCanal" style="display:none"></textarea>
+        <div class="msg-char-count" id="msgCharCount">0 caracteres</div>
       </div>
     </div>
     <div class="modal-footer">
@@ -258,19 +384,53 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
   </div>
 </div>
 
-<!-- MODAL RECORDATORIO -->
+<!-- MODAL VER / RECORDATORIO -->
 <div class="modal-overlay" id="modalRecordatorio" onclick="if(event.target===this)cerrarRecordatorio()">
   <div class="modal-box">
     <div class="modal-header">
       <span class="modal-title" style="color:var(--wa-dark)">⏰ Hora de enviar</span>
       <button class="modal-close" onclick="cerrarRecordatorio()">✕</button>
     </div>
-    <div class="modal-body">
-      <div id="recordatorioContenido"></div>
-    </div>
+    <div class="modal-body"><div id="recordatorioContenido"></div></div>
     <div class="modal-footer">
       <button class="btn-primary btn-wa" style="flex:1" onclick="marcarEnviado()">✓ Marcar como enviado</button>
       <button class="btn-sm" onclick="cerrarRecordatorio()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR PROGRAMADO -->
+<div class="modal-overlay" id="modalEditar" onclick="if(event.target===this)cerrarModalEditar()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">✏ Editar mensaje programado</span>
+      <button class="modal-close" onclick="cerrarModalEditar()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">Nota</label>
+        <input type="text" id="editProgNota" readonly style="background:var(--surface)">
+      </div>
+      <div class="field">
+        <label class="field-label">Fecha y hora</label>
+        <input type="datetime-local" id="editProgFecha">
+      </div>
+      <div class="field">
+        <label class="field-label">Mensajes</label>
+        <div class="msg-edit-tabs">
+          <button class="msg-edit-tab active" id="editProgTabGrupo" onclick="switchEditProgTab('grupo')">📱 Grupo</button>
+          <button class="msg-edit-tab" id="editProgTabCanal" onclick="switchEditProgTab('canal')">📣 Canal</button>
+        </div>
+        <textarea class="msg-edit-area" id="editProgMsgGrupo" rows="9"></textarea>
+        <textarea class="msg-edit-area" id="editProgMsgCanal" rows="9" style="display:none"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" style="flex:1" onclick="guardarEdicionProg()">
+        <span class="spinner" id="spinEditProg"></span>
+        <span id="btnEditProgText">Guardar cambios</span>
+      </button>
+      <button class="btn-sm" onclick="cerrarModalEditar()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -284,123 +444,160 @@ textarea::placeholder,input::placeholder{color:var(--text-dim)}
 
 <script>
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-let S = { mensajes: null, notaData: null, progActual: null, recordatorioId: null };
 
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
-function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800) }
-function setLoading(btn,spin,text,on,label){ document.getElementById(btn).disabled=on; document.getElementById(spin).style.display=on?'inline-block':'none'; document.getElementById(text).textContent=on?'Procesando...':label }
+const PROMPT_DEFECTO = `Sos editor de redes sociales de Media Mendoza, diario digital del sur de Mendoza, Argentina.
+Transformá esta noticia en dos mensajes de WhatsApp. Tono: directo, profesional, con emojis estratégicos. Español rioplatense.
 
-function switchTab(tab, el){
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('tab-generar').style.display = tab==='generar'?'block':'none';
-  document.getElementById('tab-programados').style.display = tab==='programados'?'block':'none';
-  if(tab==='programados') cargarProgramados();
+FORMATO EXACTO PARA "grupo":
+[emoji alerta según categoría] *[LOCALIDAD o CATEGORÍA EN MAYÚSCULAS]:* [titular impactante]
+
+[2-3 líneas con lo más importante: qué, dónde, cuándo. Usar *negritas* en datos clave] 👇
+
+🔗 *MÁS DETALLES AQUÍ:*
+👉 {URL}
+
+*¡Sumate a nuestra comunidad!*
+📱 *Grupo de Noticias:* {LINK_GRUPO}
+📣 *Canal de Difusión:* {LINK_CANAL}
+
+*📰 Media Mendoza - Noticias confiables del sur mendocino*
+
+FORMATO EXACTO PARA "canal":
+[emoji alerta] [emoji categoría] *[CATEGORÍA]:* [titular impactante]
+
+• [punto clave 1 con emoji al final]
+• [punto clave 2 con emoji al final]
+• [punto clave 3 con emoji al final]
+• [punto clave 4 si hay info suficiente con emoji al final]
+
+🔗 *LEÉ LA NOTA COMPLETA:*
+👉 {URL}
+
+*📰 Media Mendoza - Noticias confiables del sur mendocino*
+
+REGLAS:
+- Negritas: solo en *palabra clave* o *dato importante*, no en frases largas
+- NO doble asterisco (**), solo asterisco simple (*)
+- No inventar datos que no estén en el contenido
+- Emojis de alerta según categoría: policiales=🚨, tiempo=🌬️, deportes=⚽, política=🏛️, accidente=🚗, salud=🏥, general=📢`;
+
+let S = { mensajes:null, notaData:null, progActual:null, recordatorioId:null, editProgId:null, vistaActual:'agenda' };
+
+// ── UTILS ──
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800)}
+function setLoading(btnId,spinId,textId,on,label){
+  const b=document.getElementById(btnId); if(b) b.disabled=on;
+  const sp=document.getElementById(spinId); if(sp) sp.style.display=on?'inline-block':'none';
+  const tx=document.getElementById(textId); if(tx) tx.textContent=on?'Procesando...':label;
 }
 
-function copiar(texto){ navigator.clipboard.writeText(texto).then(()=>toast('✓ Copiado')).catch(()=>{const t=document.createElement('textarea');t.value=texto;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('✓ Copiado')}) }
-function abrirWA(texto){ window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank') }
+// ── TABS ──
+function switchTab(tab,el){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  ['generar','programados','config'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===tab?'block':'none';
+  });
+  if(tab==='programados') cargarProgramados();
+  if(tab==='config') cargarConfig();
+}
+
+function copiar(texto){navigator.clipboard.writeText(texto).then(()=>toast('✓ Copiado')).catch(()=>{const t=document.createElement('textarea');t.value=texto;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('✓ Copiado')})}
+function abrirWA(texto){window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank')}
+
+// ── LIMPIAR ──
+function limpiarFormulario(){
+  if(!confirm('¿Limpiar el formulario y empezar de nuevo?')) return;
+  document.getElementById('notaUrl').value='';
+  document.getElementById('contextoExtra').value='';
+  document.getElementById('notaPreview').classList.remove('show');
+  document.getElementById('notaImg').classList.remove('show');
+  document.getElementById('resultadoGenerar').innerHTML='<div class="placeholder"><span style="font-size:2.5rem">💬</span><p>Ingresá la URL de la nota y hacé clic<br>en <strong>Generar mensajes</strong>.</p></div>';
+  S.mensajes=null; S.notaData=null;
+  toast('✓ Formulario limpio');
+}
 
 // ── SCRAPE ──
 async function scrapeNota(){
-  const url = document.getElementById('notaUrl').value.trim();
-  if(!url){ toast('⚠ Ingresá la URL'); return }
+  const url=document.getElementById('notaUrl').value.trim();
+  if(!url){toast('⚠ Ingresá la URL');return}
   setLoading('btnScrape','spinScrape','btnScrapeText',true,'Obtener');
   try{
-    const res = await fetch(WORKER+'/scrape?url='+encodeURIComponent(url));
-    const data = await res.json();
+    const res=await fetch(WORKER+'/scrape?url='+encodeURIComponent(url));
+    const data=await res.json();
     if(!data.ok) throw new Error(data.error||'Error scraping');
-    S.notaData = data;
-    const prev = document.getElementById('notaPreview');
-    document.getElementById('notaTitulo').textContent = data.titulo||'Sin título';
-    document.getElementById('notaUrlCorta').textContent = url;
-    if(data.imagen){ const img=document.getElementById('notaImg'); img.src=data.imagen; img.classList.add('show') }
-    prev.classList.add('show');
+    S.notaData=data;
+    document.getElementById('notaTitulo').textContent=data.titulo||'Sin título';
+    document.getElementById('notaUrlCorta').textContent=url;
+    if(data.imagen){const img=document.getElementById('notaImg');img.src=data.imagen;img.classList.add('show')}
+    document.getElementById('notaPreview').classList.add('show');
     toast('✓ Nota cargada');
-  }catch(e){ toast('✗ '+e.message) }
+  }catch(e){toast('✗ '+e.message)}
   setLoading('btnScrape','spinScrape','btnScrapeText',false,'Obtener');
 }
 
 // ── GENERAR ──
 async function generarMensajes(){
-  const notaUrl = document.getElementById('notaUrl').value.trim();
-  if(!notaUrl){ toast('⚠ Ingresá la URL'); return }
+  const notaUrl=document.getElementById('notaUrl').value.trim();
+  if(!notaUrl){toast('⚠ Ingresá la URL');return}
   setLoading('btnGenerar','spinGenerar','btnGenerarText',true,'Generar mensajes');
-  document.getElementById('resultadoGenerar').innerHTML = '<div class="placeholder"><div class="spinner" style="display:inline-block;width:24px;height:24px;border-color:var(--green)"></div><p>Generando mensajes...</p></div>';
+  document.getElementById('resultadoGenerar').innerHTML='<div class="placeholder"><div class="spinner" style="display:inline-block;width:24px;height:24px;border-color:var(--green)"></div><p>Generando mensajes...</p></div>';
   try{
-    const res = await fetch(WORKER+'/whatsapp/generar',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ notaUrl, contextoExtra: document.getElementById('contextoExtra').value.trim() })
+    const res=await fetch(WORKER+'/whatsapp/generar',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({notaUrl,contextoExtra:document.getElementById('contextoExtra').value.trim()})
     });
-    const data = await res.json();
+    const data=await res.json();
     if(!data.ok) throw new Error(data.error);
-    S.mensajes = data;
-    S.notaData = data.nota;
+    S.mensajes=data; S.notaData=data.nota;
     renderMensajes(data);
-  }catch(e){ toast('✗ '+e.message); document.getElementById('resultadoGenerar').innerHTML='<div class="placeholder"><p>Error: '+esc(e.message)+'</p></div>' }
+  }catch(e){toast('✗ '+e.message);document.getElementById('resultadoGenerar').innerHTML='<div class="placeholder"><p>Error: '+esc(e.message)+'</p></div>'}
   setLoading('btnGenerar','spinGenerar','btnGenerarText',false,'Generar mensajes');
 }
 
-// ── REGENERAR CON CONTEXTO EXTRA ──
 async function regenerarConContexto(){
-  const notaUrl = document.getElementById('notaUrl').value.trim();
-  const contextoPost = document.getElementById('contextoPost')?.value.trim()||'';
-  const contextoOrig = document.getElementById('contextoExtra').value.trim();
-  const contextoFinal = [contextoOrig, contextoPost].filter(Boolean).join(' | ');
-  if(!notaUrl){ toast('⚠ No hay URL cargada'); return }
-  const btn = document.getElementById('btnRegenerar');
-  const spin = document.getElementById('spinRegenerar');
+  const notaUrl=document.getElementById('notaUrl').value.trim();
+  const cp=document.getElementById('contextoPost')?.value.trim()||'';
+  const co=document.getElementById('contextoExtra').value.trim();
+  const cf=[co,cp].filter(Boolean).join(' | ');
+  if(!notaUrl){toast('⚠ No hay URL');return}
+  const btn=document.getElementById('btnRegenerar'),spin=document.getElementById('spinRegenerar');
   btn.disabled=true; spin.style.display='inline-block';
   try{
-    const res = await fetch(WORKER+'/whatsapp/generar',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ notaUrl, contextoExtra: contextoFinal })
+    const res=await fetch(WORKER+'/whatsapp/generar',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({notaUrl,contextoExtra:cf})
     });
-    const data = await res.json();
+    const data=await res.json();
     if(!data.ok) throw new Error(data.error);
-    S.mensajes = data;
-    renderMensajes(data, contextoPost);
-    toast('✓ Mensajes regenerados');
-  }catch(e){ toast('✗ '+e.message) }
+    S.mensajes=data; renderMensajes(data,cp); toast('✓ Mensajes regenerados');
+  }catch(e){toast('✗ '+e.message)}
   btn.disabled=false; spin.style.display='none';
 }
 
-function renderMensajes(data, contextoPost=''){
-  const cat = data.categoria||'General';
-  const html = `
+function renderMensajes(data,cp=''){
+  document.getElementById('resultadoGenerar').innerHTML=`
     <div style="display:flex;flex-direction:column;gap:14px">
-
       <div style="background:var(--green-dim);border:1px solid var(--green-mid);border-radius:var(--radius-lg);padding:12px;display:flex;align-items:center;gap:10px">
         <span style="font-size:1.2rem">📰</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--text)">${esc(data.nota?.titulo||'')}</div>
-          <div style="font-size:11px;color:var(--green-dark)">${esc(data.nota?.urlCorta||'')} · ${esc(cat)}</div>
+          <div style="font-size:11px;color:var(--green-dark)">${esc(data.nota?.urlCorta||'')} · ${esc(data.categoria||'')}</div>
         </div>
         <button class="btn-sm" onclick="generarMensajes()">↺ Regenerar</button>
       </div>
-
-      <!-- CONTEXTO POST-GENERACIÓN -->
       <div class="contexto-post">
-        <div class="contexto-post-header">
-          <span class="contexto-post-title">📝 Agregar contexto y regenerar</span>
-        </div>
-        <textarea id="contextoPost" rows="2" placeholder="Ej: el alcalde dio declaraciones · hay un video en redes · se confirmó la detención...">${esc(contextoPost)}</textarea>
+        <span class="contexto-post-title">📝 Agregar contexto y regenerar</span>
+        <textarea id="contextoPost" rows="2" placeholder="Ej: el alcalde dio declaraciones · hay un video en redes...">${esc(cp)}</textarea>
         <button class="btn-sm amarillo" id="btnRegenerar" onclick="regenerarConContexto()" style="align-self:flex-start">
-          <span class="spinner" id="spinRegenerar"></span>
-          ✦ Regenerar con este contexto
+          <span class="spinner" id="spinRegenerar"></span>✦ Regenerar con este contexto
         </button>
       </div>
-
-      <!-- GRUPO -->
       <div class="wa-message-box">
         <div class="wa-message-header">
           <div class="wa-icon">📱</div>
-          <div class="wa-message-meta">
-            <div class="wa-message-type">Grupo</div>
-            <div class="wa-message-categoria">Para el grupo de WhatsApp</div>
-          </div>
+          <div class="wa-message-meta"><div class="wa-message-type">Grupo</div><div class="wa-message-categoria">Para el grupo de WhatsApp</div></div>
         </div>
         <div class="wa-message-text" id="textoGrupo" contenteditable="true">${esc(data.grupo)}</div>
         <div class="wa-actions">
@@ -409,15 +606,10 @@ function renderMensajes(data, contextoPost=''){
           <button class="btn-sm" onclick="abrirModalProg('grupo')">🕐 Programar</button>
         </div>
       </div>
-
-      <!-- CANAL -->
       <div class="wa-message-box">
         <div class="wa-message-header">
           <div class="wa-icon">📣</div>
-          <div class="wa-message-meta">
-            <div class="wa-message-type">Canal</div>
-            <div class="wa-message-categoria">Para el canal de difusión</div>
-          </div>
+          <div class="wa-message-meta"><div class="wa-message-type">Canal</div><div class="wa-message-categoria">Para el canal de difusión</div></div>
         </div>
         <div class="wa-message-text" id="textoCanal" contenteditable="true">${esc(data.canal)}</div>
         <div class="wa-actions">
@@ -426,178 +618,375 @@ function renderMensajes(data, contextoPost=''){
           <button class="btn-sm" onclick="abrirModalProg('canal')">🕐 Programar</button>
         </div>
       </div>
-
-      <button class="btn-primary btn-wa" onclick="abrirModalProg('ambos')">
-        🕐 Programar ambos mensajes
-      </button>
+      <button class="btn-primary btn-wa" onclick="abrirModalProg('ambos')">🕐 Programar ambos mensajes</button>
     </div>`;
-  document.getElementById('resultadoGenerar').innerHTML = html;
 }
 
 // ── MODAL PROGRAMAR ──
+let msgTabActual='grupo';
+function switchMsgTab(tab){
+  msgTabActual=tab;
+  document.getElementById('editTabGrupo').classList.toggle('active',tab==='grupo');
+  document.getElementById('editTabCanal').classList.toggle('active',tab==='canal');
+  document.getElementById('editMsgGrupo').style.display=tab==='grupo'?'block':'none';
+  document.getElementById('editMsgCanal').style.display=tab==='canal'?'block':'none';
+  actualizarCharCount();
+}
+function actualizarCharCount(){
+  const ta=document.getElementById(msgTabActual==='grupo'?'editMsgGrupo':'editMsgCanal');
+  document.getElementById('msgCharCount').textContent=(ta?.value||'').length+' caracteres';
+}
+
 function abrirModalProg(tipo){
-  if(!S.mensajes){ toast('⚠ Generá los mensajes primero'); return }
-  S.progActual = tipo;
-  const d = new Date(Date.now()+30*60000);
-  const pad = n=>String(n).padStart(2,'0');
-  const localISO = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  document.getElementById('progFecha').value = localISO;
-  document.getElementById('progNota').value = S.mensajes.nota?.titulo||'';
-  document.getElementById('checkGrupo').checked = tipo==='grupo'||tipo==='ambos';
-  document.getElementById('checkCanal').checked = tipo==='canal'||tipo==='ambos';
+  if(!S.mensajes){toast('⚠ Generá los mensajes primero');return}
+  S.progActual=tipo;
+  const d=new Date(Date.now()+30*60000);
+  const pad=n=>String(n).padStart(2,'0');
+  document.getElementById('progFecha').value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  document.getElementById('progNota').value=S.mensajes.nota?.titulo||'';
+  document.getElementById('checkGrupo').checked=tipo==='grupo'||tipo==='ambos';
+  document.getElementById('checkCanal').checked=tipo==='canal'||tipo==='ambos';
+  document.getElementById('editMsgGrupo').value=document.getElementById('textoGrupo')?.innerText||S.mensajes.grupo||'';
+  document.getElementById('editMsgCanal').value=document.getElementById('textoCanal')?.innerText||S.mensajes.canal||'';
+  switchMsgTab(tipo==='canal'?'canal':'grupo');
+  ['editMsgGrupo','editMsgCanal'].forEach(id=>{document.getElementById(id).oninput=actualizarCharCount});
   document.getElementById('modalProg').classList.add('open');
 }
-function cerrarModal(){ document.getElementById('modalProg').classList.remove('open') }
+function cerrarModal(){document.getElementById('modalProg').classList.remove('open')}
 
 async function confirmarProgramar(){
-  const fecha = document.getElementById('progFecha').value;
-  if(!fecha){ toast('⚠ Elegí fecha y hora'); return }
-  const canales = [];
+  const fecha=document.getElementById('progFecha').value;
+  if(!fecha){toast('⚠ Elegí fecha y hora');return}
+  const canales=[];
   if(document.getElementById('checkGrupo').checked) canales.push('grupo');
   if(document.getElementById('checkCanal').checked) canales.push('canal');
-  if(!canales.length){ toast('⚠ Seleccioná al menos un canal'); return }
+  if(!canales.length){toast('⚠ Seleccioná al menos un canal');return}
   setLoading('btnProgText','spinProg','btnProgText',true,'Programar');
   try{
-    const item = {
-      fecha: new Date(fecha).getTime(),
-      fechaLegible: fecha,
-      tituloNota: S.mensajes.nota?.titulo||'',
-      urlCorta: S.mensajes.nota?.urlCorta||'',
+    const item={
+      fecha:new Date(fecha).getTime(), fechaLegible:fecha,
+      tituloNota:S.mensajes.nota?.titulo||'', urlCorta:S.mensajes.nota?.urlCorta||'',
       canales,
-      textoGrupo: document.getElementById('textoGrupo')?.innerText||S.mensajes.grupo,
-      textoCanal: document.getElementById('textoCanal')?.innerText||S.mensajes.canal,
-      categoria: S.mensajes.categoria||'General'
+      textoGrupo:document.getElementById('editMsgGrupo').value.trim(),
+      textoCanal:document.getElementById('editMsgCanal').value.trim(),
+      categoria:S.mensajes.categoria||'General'
     };
-    const res = await fetch(WORKER+'/whatsapp/programar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)});
-    const data = await res.json();
+    const res=await fetch(WORKER+'/whatsapp/programar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)});
+    const data=await res.json();
     if(!data.ok) throw new Error(data.error);
-    cerrarModal();
-    toast('✓ Mensaje programado');
-  }catch(e){ toast('✗ '+e.message) }
-  document.getElementById('spinProg').style.display='none';
-  document.getElementById('btnProgText').textContent='Programar';
-  document.getElementById('btnProgText').closest('button').disabled=false;
+    cerrarModal(); toast('✓ Mensaje programado');
+    if(Notification.permission==='default') pedirNotificaciones();
+  }catch(e){toast('✗ '+e.message)}
+  setLoading('btnProgText','spinProg','btnProgText',false,'Programar');
 }
 
 // ── PROGRAMADOS ──
 async function cargarProgramados(){
   try{
-    const res = await fetch(WORKER+'/whatsapp/programados');
-    const data = await res.json();
+    const res=await fetch(WORKER+'/whatsapp/programados');
+    const data=await res.json();
     if(!data.ok) throw new Error(data.error);
-    const lista = data.programados||[];
-    const pend = lista.filter(p=>!p.enviado).length;
-    document.getElementById('prog-stats').textContent = `${lista.length} programado${lista.length!==1?'s':''} · ${pend} pendiente${pend!==1?'s':''}`;
+    const lista=data.programados||[];
+    const pend=lista.filter(p=>!p.enviado).length;
+    document.getElementById('prog-stats').textContent=`${lista.length} programado${lista.length!==1?'s':''} · ${pend} pendiente${pend!==1?'s':''}`;
+    document.getElementById('notifBanner').style.display=Notification.permission==='default'?'flex':'none';
     if(!lista.length){
-      document.getElementById('programadosList').innerHTML='<div class="placeholder"><span style="font-size:2rem">🕐</span><p>No hay mensajes programados.</p></div>';
+      document.getElementById('programadosContenido').innerHTML='<div class="placeholder"><span style="font-size:2rem">🕐</span><p>No hay mensajes programados.</p></div>';
       return;
     }
-    const ahora = Date.now();
-    let html = '';
-    lista.forEach(p=>{
-      const diff = p.fecha - ahora;
-      const esUrgente = diff < 600000 && diff > 0;
-      const esVencido = diff < 0 && !p.enviado;
-      let diffText = '';
-      if(p.enviado) diffText = '<span class="badge badge-enviado">Enviado</span>';
-      else if(esVencido) diffText = '<span class="badge badge-urgente">⚠ Vencido</span>';
-      else if(diff < 3600000) diffText = `<span class="badge badge-pendiente">${Math.round(diff/60000)}min</span>`;
-      else { const horas = Math.round(diff/3600000); diffText = `<span class="badge badge-pendiente">${horas}h</span>`; }
-      const fecha = new Date(p.fecha);
-      const hora = `${String(fecha.getHours()).padStart(2,'0')}:${String(fecha.getMinutes()).padStart(2,'0')}`;
-      const dia = `${fecha.getDate()}/${fecha.getMonth()+1}`;
-      html += `<div class="prog-card ${p.enviado?'enviado':''} ${esUrgente?'pronto':''} ${esVencido?'urgente':''}">
-        <div class="prog-time">
-          <div class="prog-time-hora">${hora}</div>
-          <div class="prog-time-fecha">${dia}</div>
-        </div>
-        <div class="prog-body">
-          <div class="prog-titulo">${esc(p.tituloNota||'Sin título')}</div>
-          <div class="prog-canal">${(p.canales||[]).map(c=>c==='grupo'?'📱 Grupo':'📣 Canal').join(' + ')} ${diffText}</div>
-          <div class="prog-actions">
+    S.vistaActual==='agenda'?renderAgenda(lista):renderLista(lista);
+  }catch(e){toast('✗ '+e.message)}
+}
+
+function setVista(v){
+  S.vistaActual=v;
+  document.getElementById('vistaAgendaBtn').classList.toggle('active',v==='agenda');
+  document.getElementById('vistaListaBtn').classList.toggle('active',v==='lista');
+  cargarProgramados();
+}
+
+function renderAgenda(lista){
+  const ahora=Date.now();
+  const grupos={};
+  lista.forEach(p=>{
+    const f=new Date(p.fecha);
+    const key=`${f.getFullYear()}-${String(f.getMonth()+1).padStart(2,'0')}-${String(f.getDate()).padStart(2,'0')}`;
+    if(!grupos[key]) grupos[key]=[];
+    grupos[key].push(p);
+  });
+  let html='<div class="agenda-dias">';
+  Object.keys(grupos).sort().forEach(dia=>{
+    const items=grupos[dia];
+    const f=new Date(dia+'T12:00:00');
+    const hoy=new Date(); hoy.setHours(0,0,0,0);
+    const fd=new Date(dia+'T12:00:00'); fd.setHours(0,0,0,0);
+    const diff=Math.round((fd-hoy)/86400000);
+    const lbl=diff===0?'Hoy':diff===1?'Mañana':diff===-1?'Ayer':f.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+    const pend=items.filter(p=>!p.enviado).length;
+    html+=`<div class="agenda-dia-grupo">
+      <div class="agenda-dia-header">
+        <div class="agenda-dia-fecha">${lbl.charAt(0).toUpperCase()+lbl.slice(1)}</div>
+        <div class="agenda-dia-subtitulo">${f.toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'})}</div>
+        ${pend?`<div class="agenda-dia-badge">${pend} pendiente${pend!==1?'s':''}</div>`:''}
+      </div><div class="agenda-dia-items">`;
+    items.forEach(p=>{
+      const dif=p.fecha-ahora;
+      const urgente=dif<600000&&dif>0&&!p.enviado;
+      const vencido=dif<0&&!p.enviado;
+      const dot=p.enviado?'enviado':urgente||vencido?'urgente':'pendiente';
+      const fh=new Date(p.fecha);
+      const hora=`${String(fh.getHours()).padStart(2,'0')}:${String(fh.getMinutes()).padStart(2,'0')}`;
+      let badge=p.enviado?'<span class="badge badge-enviado">Enviado</span>':
+        vencido?'<span class="badge badge-urgente">⚠ Vencido</span>':
+        dif<3600000?`<span class="badge badge-pendiente">${Math.round(dif/60000)}min</span>`:
+        `<span class="badge badge-pendiente">${Math.round(dif/3600000)}h</span>`;
+      html+=`<div class="agenda-item ${p.enviado?'enviado':''}">
+        <div class="agenda-item-hora">${hora}</div>
+        <div class="agenda-item-dot ${dot}"></div>
+        <div class="agenda-item-body">
+          <div class="agenda-item-titulo">${esc(p.tituloNota||'Sin título')}</div>
+          <div class="agenda-item-canales">${(p.canales||[]).map(c=>c==='grupo'?'📱 Grupo':'📣 Canal').join(' · ')} ${badge}</div>
+          <div class="agenda-item-acciones">
             ${(p.canales||[]).includes('grupo')?`<button class="btn-sm wa" onclick="verMensaje('${p.id}','grupo')">Ver Grupo</button>`:''}
             ${(p.canales||[]).includes('canal')?`<button class="btn-sm wa" onclick="verMensaje('${p.id}','canal')">Ver Canal</button>`:''}
-            ${!p.enviado?`<button class="btn-sm" onclick="marcarEnviadoById('${p.id}')">✓ Enviado</button>`:''}
-            <button class="btn-sm" style="color:#e63946;border-color:#e63946" onclick="eliminarProg('${p.id}')">✕</button>
+            <button class="btn-sm" onclick="abrirModalEditar('${p.id}')">✏ Editar</button>
+            ${!p.enviado?`<button class="btn-sm" onclick="marcarEnviadoById('${p.id}')">✓</button>`:''}
+            <button class="btn-sm danger" onclick="eliminarProg('${p.id}')">✕</button>
           </div>
         </div>
       </div>`;
     });
-    document.getElementById('programadosList').innerHTML = html;
-  }catch(e){ toast('✗ '+e.message) }
+    html+='</div></div>';
+  });
+  html+='</div>';
+  document.getElementById('programadosContenido').innerHTML=html;
 }
 
-async function verMensaje(id, tipo){
+function renderLista(lista){
+  const ahora=Date.now();
+  let html='<div class="programados-list">';
+  lista.forEach(p=>{
+    const dif=p.fecha-ahora;
+    const urgente=dif<600000&&dif>0;
+    const vencido=dif<0&&!p.enviado;
+    let badge=p.enviado?'<span class="badge badge-enviado">Enviado</span>':
+      vencido?'<span class="badge badge-urgente">⚠ Vencido</span>':
+      dif<3600000?`<span class="badge badge-pendiente">${Math.round(dif/60000)}min</span>`:
+      `<span class="badge badge-pendiente">${Math.round(dif/3600000)}h</span>`;
+    const f=new Date(p.fecha);
+    const hora=`${String(f.getHours()).padStart(2,'0')}:${String(f.getMinutes()).padStart(2,'0')}`;
+    const dia=`${f.getDate()}/${f.getMonth()+1}`;
+    html+=`<div class="prog-card ${p.enviado?'enviado':''} ${urgente?'pronto':''} ${vencido?'urgente':''}">
+      <div class="prog-time"><div class="prog-time-hora">${hora}</div><div class="prog-time-fecha">${dia}</div></div>
+      <div class="prog-body">
+        <div class="prog-titulo">${esc(p.tituloNota||'Sin título')}</div>
+        <div class="prog-canal">${(p.canales||[]).map(c=>c==='grupo'?'📱 Grupo':'📣 Canal').join(' + ')} ${badge}</div>
+        <div class="prog-actions">
+          ${(p.canales||[]).includes('grupo')?`<button class="btn-sm wa" onclick="verMensaje('${p.id}','grupo')">Ver Grupo</button>`:''}
+          ${(p.canales||[]).includes('canal')?`<button class="btn-sm wa" onclick="verMensaje('${p.id}','canal')">Ver Canal</button>`:''}
+          <button class="btn-sm" onclick="abrirModalEditar('${p.id}')">✏ Editar</button>
+          ${!p.enviado?`<button class="btn-sm" onclick="marcarEnviadoById('${p.id}')">✓ Enviado</button>`:''}
+          <button class="btn-sm danger" onclick="eliminarProg('${p.id}')">✕</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById('programadosContenido').innerHTML=html;
+}
+
+// ── MODAL EDITAR PROGRAMADO ──
+async function abrirModalEditar(id){
   try{
-    const res = await fetch(WORKER+'/whatsapp/programados');
-    const data = await res.json();
-    const item = data.programados?.find(p=>p.id===id);
+    const res=await fetch(WORKER+'/whatsapp/programados');
+    const data=await res.json();
+    const item=data.programados?.find(p=>p.id===id);
     if(!item) return toast('No encontrado');
-    const texto = tipo==='grupo'?item.textoGrupo:item.textoCanal;
-    S.recordatorioId = id;
-    const tipoLabel = tipo==='grupo'?'📱 Grupo':'📣 Canal';
-    document.getElementById('recordatorioContenido').innerHTML = `
-      <div style="font-size:12px;font-weight:700;color:var(--wa-dark);margin-bottom:10px">${tipoLabel} — ${esc(item.tituloNota||'')}</div>
+    S.editProgId=id;
+    document.getElementById('editProgNota').value=item.tituloNota||'';
+    const f=new Date(item.fecha);
+    const pad=n=>String(n).padStart(2,'0');
+    document.getElementById('editProgFecha').value=`${f.getFullYear()}-${pad(f.getMonth()+1)}-${pad(f.getDate())}T${pad(f.getHours())}:${pad(f.getMinutes())}`;
+    document.getElementById('editProgMsgGrupo').value=item.textoGrupo||'';
+    document.getElementById('editProgMsgCanal').value=item.textoCanal||'';
+    switchEditProgTab('grupo');
+    document.getElementById('modalEditar').classList.add('open');
+  }catch(e){toast('✗ '+e.message)}
+}
+function cerrarModalEditar(){document.getElementById('modalEditar').classList.remove('open')}
+
+let editProgTabActual='grupo';
+function switchEditProgTab(tab){
+  editProgTabActual=tab;
+  document.getElementById('editProgTabGrupo').classList.toggle('active',tab==='grupo');
+  document.getElementById('editProgTabCanal').classList.toggle('active',tab==='canal');
+  document.getElementById('editProgMsgGrupo').style.display=tab==='grupo'?'block':'none';
+  document.getElementById('editProgMsgCanal').style.display=tab==='canal'?'block':'none';
+}
+
+async function guardarEdicionProg(){
+  if(!S.editProgId) return;
+  const fecha=document.getElementById('editProgFecha').value;
+  if(!fecha){toast('⚠ Elegí fecha y hora');return}
+  setLoading('btnEditProgText','spinEditProg','btnEditProgText',true,'Guardar cambios');
+  try{
+    const r0=await fetch(WORKER+'/whatsapp/programados');
+    const d0=await r0.json();
+    const original=d0.programados?.find(p=>p.id===S.editProgId);
+    if(!original) throw new Error('No encontrado');
+    const updated={...original,
+      fecha:new Date(fecha).getTime(), fechaLegible:fecha,
+      textoGrupo:document.getElementById('editProgMsgGrupo').value.trim(),
+      textoCanal:document.getElementById('editProgMsgCanal').value.trim()
+    };
+    const res=await fetch(WORKER+'/whatsapp/programar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});
+    const data=await res.json();
+    if(!data.ok) throw new Error(data.error);
+    cerrarModalEditar(); toast('✓ Cambios guardados'); cargarProgramados();
+  }catch(e){toast('✗ '+e.message)}
+  setLoading('btnEditProgText','spinEditProg','btnEditProgText',false,'Guardar cambios');
+}
+
+// ── VER / RECORDATORIO ──
+async function verMensaje(id,tipo){
+  try{
+    const res=await fetch(WORKER+'/whatsapp/programados');
+    const data=await res.json();
+    const item=data.programados?.find(p=>p.id===id);
+    if(!item) return toast('No encontrado');
+    const texto=tipo==='grupo'?item.textoGrupo:item.textoCanal;
+    S.recordatorioId=id;
+    document.getElementById('recordatorioContenido').innerHTML=`
+      <div style="font-size:12px;font-weight:700;color:var(--wa-dark);margin-bottom:10px">${tipo==='grupo'?'📱 Grupo':'📣 Canal'} — ${esc(item.tituloNota||'')}</div>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:13px;line-height:1.75;white-space:pre-wrap;font-family:'Inter',sans-serif;max-height:300px;overflow-y:auto">${esc(texto)}</div>
       <div style="display:flex;gap:6px;margin-top:10px">
         <button class="btn-sm wa" onclick="abrirWA(${JSON.stringify(texto)})">📱 Abrir WA</button>
         <button class="btn-sm" onclick="copiar(${JSON.stringify(texto)})">Copiar</button>
       </div>`;
     document.getElementById('modalRecordatorio').classList.add('open');
-  }catch(e){ toast('✗ '+e.message) }
+  }catch(e){toast('✗ '+e.message)}
 }
-function cerrarRecordatorio(){ document.getElementById('modalRecordatorio').classList.remove('open') }
-async function marcarEnviado(){
-  if(!S.recordatorioId) return;
-  await marcarEnviadoById(S.recordatorioId);
-  cerrarRecordatorio();
-}
+function cerrarRecordatorio(){document.getElementById('modalRecordatorio').classList.remove('open')}
+async function marcarEnviado(){if(!S.recordatorioId) return; await marcarEnviadoById(S.recordatorioId); cerrarRecordatorio()}
 async function marcarEnviadoById(id){
   try{
     await fetch(WORKER+'/whatsapp/marcar-enviado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
-    toast('✓ Marcado como enviado');
-    cargarProgramados();
-  }catch(e){ toast('✗ '+e.message) }
+    toast('✓ Marcado como enviado'); cargarProgramados();
+  }catch(e){toast('✗ '+e.message)}
 }
 async function eliminarProg(id){
   if(!confirm('¿Eliminar este mensaje programado?')) return;
   try{
     await fetch(WORKER+'/whatsapp/programado?id='+encodeURIComponent(id),{method:'DELETE'});
-    toast('Eliminado');
-    cargarProgramados();
-  }catch(e){ toast('✗ '+e.message) }
+    toast('Eliminado'); cargarProgramados();
+  }catch(e){toast('✗ '+e.message)}
 }
 
+// ── NOTIFICACIONES PUSH ──
+async function pedirNotificaciones(){
+  try{
+    const p=await Notification.requestPermission();
+    document.getElementById('notifBanner').style.display='none';
+    if(p==='granted') toast('🔔 Notificaciones activadas');
+    else toast('⚠ Notificaciones no habilitadas en este navegador');
+  }catch(e){toast('⚠ No se pudieron activar notificaciones')}
+}
+function enviarNotifPush(titulo,texto){
+  if(Notification.permission!=='granted') return;
+  try{new Notification('⏰ Hora de enviar — Media Mendoza',{body:titulo+'\n'+texto.substring(0,80)+'...',icon:'../assets/logo.png',tag:'wa-recordatorio'})}catch(e){}
+}
 function checkRecordatorios(){
-  fetch(WORKER+'/whatsapp/programados')
-    .then(r=>r.json())
-    .then(data=>{
-      const ahora = Date.now();
-      const vencidos = (data.programados||[]).filter(p=>!p.enviado && p.fecha <= ahora && p.fecha >= ahora-600000);
-      vencidos.forEach(p=>{
-        S.recordatorioId = p.id;
-        const texto = p.canales?.includes('grupo') ? p.textoGrupo : p.textoCanal;
-        document.getElementById('recordatorioContenido').innerHTML = `
-          <div style="font-size:13px;font-weight:700;color:var(--wa-dark);margin-bottom:10px">⏰ Hora de enviar: ${esc(p.tituloNota||'')}</div>
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:13px;line-height:1.75;white-space:pre-wrap;font-family:'Inter',sans-serif;max-height:260px;overflow-y:auto">${esc(texto)}</div>
-          <div style="display:flex;gap:6px;margin-top:10px">
-            <button class="btn-sm wa" onclick="abrirWA(${JSON.stringify(texto)})">📱 Abrir WA</button>
-            <button class="btn-sm" onclick="copiar(${JSON.stringify(texto)})">Copiar</button>
-          </div>`;
-        document.getElementById('modalRecordatorio').classList.add('open');
-      });
-    }).catch(()=>{});
+  fetch(WORKER+'/whatsapp/programados').then(r=>r.json()).then(data=>{
+    const ahora=Date.now();
+    (data.programados||[]).filter(p=>!p.enviado&&p.fecha<=ahora&&p.fecha>=ahora-600000).forEach(p=>{
+      S.recordatorioId=p.id;
+      const texto=p.canales?.includes('grupo')?p.textoGrupo:p.textoCanal;
+      enviarNotifPush(p.tituloNota||'',texto||'');
+      document.getElementById('recordatorioContenido').innerHTML=`
+        <div style="font-size:13px;font-weight:700;color:var(--wa-dark);margin-bottom:10px">⏰ Hora de enviar: ${esc(p.tituloNota||'')}</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:13px;line-height:1.75;white-space:pre-wrap;font-family:'Inter',sans-serif;max-height:260px;overflow-y:auto">${esc(texto)}</div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <button class="btn-sm wa" onclick="abrirWA(${JSON.stringify(texto)})">📱 Abrir WA</button>
+          <button class="btn-sm" onclick="copiar(${JSON.stringify(texto)})">Copiar</button>
+        </div>`;
+      document.getElementById('modalRecordatorio').classList.add('open');
+    });
+  }).catch(()=>{});
 }
-
-setInterval(checkRecordatorios, 60000);
+setInterval(checkRecordatorios,60000);
 checkRecordatorios();
 
-window.addEventListener('load', ()=>{
-  const params = new URLSearchParams(window.location.search);
-  const url = params.get('url');
-  if(url){ document.getElementById('notaUrl').value = url; scrapeNota(); }
+// ── CONFIG ──
+async function cargarConfig(){
+  try{
+    const r=await fetch(WORKER+'/whatsapp/config/prompt');
+    if(r.ok){
+      const d=await r.json();
+      if(d.ok&&d.prompt){
+        document.getElementById('promptEditor').value=d.prompt;
+        const badge=document.getElementById('configStatusBadge');
+        badge.textContent='Personalizado'; badge.classList.add('custom');
+      } else {
+        document.getElementById('promptEditor').value=PROMPT_DEFECTO;
+        document.getElementById('configStatusBadge').textContent='Por defecto';
+      }
+    } else {
+      document.getElementById('promptEditor').value=PROMPT_DEFECTO;
+      document.getElementById('configStatusBadge').textContent='Por defecto';
+    }
+  }catch(e){
+    document.getElementById('promptEditor').value=PROMPT_DEFECTO;
+    document.getElementById('configStatusBadge').textContent='Sin conexión';
+  }
+  try{
+    const r2=await fetch(WORKER+'/whatsapp/config/links');
+    if(r2.ok){const d2=await r2.json();if(d2.ok&&d2.links){document.getElementById('linkGrupo').value=d2.links.grupo||'';document.getElementById('linkCanal').value=d2.links.canal||''}}
+  }catch(e){}
+}
+
+async function guardarPromptWA(){
+  const prompt=document.getElementById('promptEditor').value.trim();
+  if(!prompt){toast('⚠ El prompt no puede estar vacío');return}
+  setLoading('btnGuardarPrompt','spinGuardarPrompt','btnGuardarPromptText',true,'Guardar cambios');
+  try{
+    const res=await fetch(WORKER+'/whatsapp/config/prompt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
+    const data=await res.json();
+    if(!data.ok) throw new Error(data.error||'Error guardando');
+    const badge=document.getElementById('configStatusBadge');
+    badge.textContent='Personalizado'; badge.classList.add('custom');
+    const s=document.getElementById('configSaved'); s.classList.add('show'); setTimeout(()=>s.classList.remove('show'),3000);
+    toast('✓ Prompt guardado en KV');
+  }catch(e){toast('✗ '+e.message)}
+  setLoading('btnGuardarPrompt','spinGuardarPrompt','btnGuardarPromptText',false,'Guardar cambios');
+}
+
+function restaurarPromptDefecto(){
+  if(!confirm('¿Restaurar el prompt original? Los cambios guardados se perderán.')) return;
+  document.getElementById('promptEditor').value=PROMPT_DEFECTO;
+  const badge=document.getElementById('configStatusBadge');
+  badge.textContent='Por defecto'; badge.classList.remove('custom');
+  toast('↺ Prompt restaurado — guardá para confirmar');
+}
+
+async function guardarLinks(){
+  const links={grupo:document.getElementById('linkGrupo').value.trim(),canal:document.getElementById('linkCanal').value.trim()};
+  setLoading('btnGuardarLinks','spinGuardarLinks','btnGuardarLinksText',true,'Guardar links');
+  try{
+    const res=await fetch(WORKER+'/whatsapp/config/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({links})});
+    const data=await res.json();
+    if(!data.ok) throw new Error(data.error||'Error guardando');
+    const s=document.getElementById('configSavedLinks'); s.classList.add('show'); setTimeout(()=>s.classList.remove('show'),3000);
+    toast('✓ Links guardados en KV');
+  }catch(e){toast('✗ '+e.message)}
+  setLoading('btnGuardarLinks','spinGuardarLinks','btnGuardarLinksText',false,'Guardar links');
+}
+
+// ── INIT ──
+window.addEventListener('load',()=>{
+  if(Notification.permission==='granted') S.notifPermiso=true;
+  const url=new URLSearchParams(window.location.search).get('url');
+  if(url){document.getElementById('notaUrl').value=url; scrapeNota();}
 });
 </script>
-
 </body>
 </html>

@@ -1,7 +1,9 @@
 // ============================================================
-// Media Mendoza — Worker v8
-// Cambios respecto a v7:
-//   - handleWhatsappGenerar: prompt reescrito con formato exacto
+// Media Mendoza — Worker v9
+// Cambios respecto a v8:
+//   - GET/POST /whatsapp/config/prompt  → prompt editable desde Config
+//   - GET/POST /whatsapp/config/links   → links de comunidad editables
+//   - handleWhatsappGenerar: usa prompt y links de KV si existen
 // ============================================================
 
 const CORS_HEADERS = {
@@ -10,15 +12,17 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-const GEMINI_MODEL   = "gemini-2.5-flash-lite";
-const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const EDITORIAL_KV_KEY = "config:editorial";
+const GEMINI_MODEL      = "gemini-2.5-flash-lite";
+const GEMINI_URL        = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const EDITORIAL_KV_KEY  = "config:editorial";
+const WA_PROMPT_KV_KEY  = "config:wa_prompt";
+const WA_LINKS_KV_KEY   = "config:wa_links";
 const MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024;
-const WHATSAPP_PREFIX  = "whatsapp:programado:";
-const AGENDA_EV_PREFIX = "agenda:evento:";
-const AGENDA_EF_PREFIX = "agenda:efemeride:";
-const ANGULOS_PREFIX   = "agenda:angulos:";
-const ANGULOS_TTL      = 60 * 60 * 24 * 30;
+const WHATSAPP_PREFIX   = "whatsapp:programado:";
+const AGENDA_EV_PREFIX  = "agenda:evento:";
+const AGENDA_EF_PREFIX  = "agenda:efemeride:";
+const ANGULOS_PREFIX    = "agenda:angulos:";
+const ANGULOS_TTL       = 60 * 60 * 24 * 30;
 
 const BROWSER_HEADERS = {
   "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -71,50 +75,88 @@ export default {
     }
 
     if(request.method==="GET"){
-      if(path==="/rss")                      return handleRSS(url);
-      if(path==="/verificar")                return handleVerificar(url);
-      if(path==="/scrape")                   return handleScrape(url);
-      if(path==="/fuentes")                  return handleGetFuentes(env);
-      if(path==="/editorial")                return handleGetEditorial(env);
-      if(path==="/cubiertas")                return handleGetCubiertas(env);
-      if(path==="/notas")                    return handleGetNotas(env);
-      if(path==="/whatsapp/programados")     return handleGetWhatsappProgramados(env);
-      if(path==="/agenda/eventos")           return handleGetAgendaEventos(url,env);
-      if(path==="/agenda/efemerides")        return handleGetAgendaEfemerides(env);
-      if(path==="/agenda/angulos/cache")     return handleGetAngulosCache(url,env);
-      if(path==="/redactar")                 return jsonError("Usar POST",405);
+      if(path==="/rss")                          return handleRSS(url);
+      if(path==="/verificar")                    return handleVerificar(url);
+      if(path==="/scrape")                       return handleScrape(url);
+      if(path==="/fuentes")                      return handleGetFuentes(env);
+      if(path==="/editorial")                    return handleGetEditorial(env);
+      if(path==="/cubiertas")                    return handleGetCubiertas(env);
+      if(path==="/notas")                        return handleGetNotas(env);
+      if(path==="/whatsapp/programados")         return handleGetWhatsappProgramados(env);
+      if(path==="/whatsapp/config/prompt")       return handleGetWaPrompt(env);
+      if(path==="/whatsapp/config/links")        return handleGetWaLinks(env);
+      if(path==="/agenda/eventos")               return handleGetAgendaEventos(url,env);
+      if(path==="/agenda/efemerides")            return handleGetAgendaEfemerides(env);
+      if(path==="/agenda/angulos/cache")         return handleGetAngulosCache(url,env);
+      if(path==="/redactar")                     return jsonError("Usar POST",405);
       return jsonError("Ruta no encontrada",404);
     }
 
     if(request.method==="DELETE"){
-      if(path==="/fuentes")                  return handleDeleteFuente(url,env);
-      if(path==="/notas")                    return handleDeleteNota(url,env);
-      if(path==="/whatsapp/programado")      return handleDeleteWhatsappProgramado(url,env);
-      if(path==="/agenda/evento")            return handleDeleteAgendaEvento(url,env);
-      if(path==="/agenda/efemeride")         return handleDeleteAgendaEfemeride(url,env);
+      if(path==="/fuentes")                      return handleDeleteFuente(url,env);
+      if(path==="/notas")                        return handleDeleteNota(url,env);
+      if(path==="/whatsapp/programado")          return handleDeleteWhatsappProgramado(url,env);
+      if(path==="/agenda/evento")                return handleDeleteAgendaEvento(url,env);
+      if(path==="/agenda/efemeride")             return handleDeleteAgendaEfemeride(url,env);
       return jsonError("Ruta no encontrada",404);
     }
 
     if(request.method!=="POST") return jsonError("Metodo no permitido",405);
     let body; try{body=await request.json()}catch{return jsonError("JSON invalido",400)}
 
-    if(path==="/titulares")                  return handleTitulares(body,env);
-    if(path==="/reformular")                 return handleReformular(body,env);
-    if(path==="/fuentes")                    return handlePostFuente(body,env);
-    if(path==="/editorial")                  return handlePostEditorial(body,env);
-    if(path==="/cubiertas")                  return handlePostCubierta(body,env);
-    if(path==="/redactar")                   return handleRedactar(body,env);
-    if(path==="/notas")                      return handlePostNota(body,env);
-    if(path==="/whatsapp/generar")           return handleWhatsappGenerar(body,env);
-    if(path==="/whatsapp/programar")         return handlePostWhatsappProgramar(body,env);
-    if(path==="/whatsapp/marcar-enviado")    return handlePostWhatsappMarcarEnviado(body,env);
-    if(path==="/agenda/evento")              return handlePostAgendaEvento(body,env);
-    if(path==="/agenda/efemeride")           return handlePostAgendaEfemeride(body,env);
-    if(path==="/agenda/angulos")             return handleAgendaAngulos(body,env);
+    if(path==="/titulares")                      return handleTitulares(body,env);
+    if(path==="/reformular")                     return handleReformular(body,env);
+    if(path==="/fuentes")                        return handlePostFuente(body,env);
+    if(path==="/editorial")                      return handlePostEditorial(body,env);
+    if(path==="/cubiertas")                      return handlePostCubierta(body,env);
+    if(path==="/redactar")                       return handleRedactar(body,env);
+    if(path==="/notas")                          return handlePostNota(body,env);
+    if(path==="/whatsapp/generar")               return handleWhatsappGenerar(body,env);
+    if(path==="/whatsapp/programar")             return handlePostWhatsappProgramar(body,env);
+    if(path==="/whatsapp/marcar-enviado")        return handlePostWhatsappMarcarEnviado(body,env);
+    if(path==="/whatsapp/config/prompt")         return handlePostWaPrompt(body,env);
+    if(path==="/whatsapp/config/links")          return handlePostWaLinks(body,env);
+    if(path==="/agenda/evento")                  return handlePostAgendaEvento(body,env);
+    if(path==="/agenda/efemeride")               return handlePostAgendaEfemeride(body,env);
+    if(path==="/agenda/angulos")                 return handleAgendaAngulos(body,env);
 
     return jsonError("Ruta no encontrada",404);
   },
 };
+
+// ============================================================
+// CONFIG WA — PROMPT Y LINKS
+// ============================================================
+async function handleGetWaPrompt(env){
+  try{
+    const v=await env.KV.get(WA_PROMPT_KV_KEY,"text");
+    return jsonOk({prompt:v||null});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handlePostWaPrompt(body,env){
+  const prompt=String(body.prompt||"").trim();
+  if(!prompt) return jsonError("Falta campo: prompt",400);
+  try{
+    await env.KV.put(WA_PROMPT_KV_KEY,prompt);
+    return jsonOk({guardado:true});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handleGetWaLinks(env){
+  try{
+    const v=await env.KV.get(WA_LINKS_KV_KEY,"json");
+    return jsonOk({links:v||{grupo:"",canal:""}});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handlePostWaLinks(body,env){
+  const links={
+    grupo:String(body.links?.grupo||"").trim(),
+    canal:String(body.links?.canal||"").trim()
+  };
+  try{
+    await env.KV.put(WA_LINKS_KV_KEY,JSON.stringify(links));
+    return jsonOk({guardado:true});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
+}
 
 // ============================================================
 // TITULARES / REFORMULAR / REDACTAR
@@ -131,8 +173,7 @@ const ESTILOS_DESC = {
   directo: `FORMATO REQUERIDO — Nota corta y directa al dato:
 - Titular: el hecho más impactante, máximo 7 palabras.
 - Cuerpo: exactamente 3 párrafos de 2 oraciones cada uno.
-- Sin contexto histórico extenso ni citas largas.
-- Cada oración debe justificar su existencia: si se puede borrar sin perder info, borrala.`,
+- Sin contexto histórico extenso ni citas largas.`,
 
   ampliado: `FORMATO REQUERIDO — Nota de profundidad con contexto:
 - Titular informativo con matiz explicativo.
@@ -140,95 +181,72 @@ const ESTILOS_DESC = {
 - Párrafo 2: antecedentes o contexto relevante.
 - Párrafo 3: datos, cifras o comparaciones.
 - Párrafo 4: perspectivas o consecuencias probables.
-- Párrafo 5 (cierre): declaración o dato que da perspectiva final.
-- Extensión: 5 párrafos.`,
+- Párrafo 5 (cierre): declaración o dato que da perspectiva final.`,
 
   breaking: `FORMATO REQUERIDO — Urgente / breaking news:
 - Titular: verbo en presente, máximo 8 palabras. Puede empezar con "URGENTE:" o "ALERTA:".
 - Párrafo 1: el hecho en una sola oración, tiempo presente.
 - Párrafo 2: lo que se sabe hasta ahora.
-- Párrafo 3: lo que falta confirmar o se espera.
-- Sin especulación. Velocidad y precisión sobre elegancia.`,
+- Párrafo 3: lo que falta confirmar o se espera.`,
 
-  cronica: `FORMATO REQUERIDO — Crónica narrativa, periodismo literario:
-- Titular: evocador, puede ser imagen o frase memorable (no solo informativo).
-- Párrafo 1: escena o detalle concreto que mete al lector en la historia — NO el dato central todavía.
+  cronica: `FORMATO REQUERIDO — Crónica narrativa:
+- Titular: evocador, puede ser imagen o frase memorable.
+- Párrafo 1: escena o detalle concreto.
 - Párrafo 2: presentación del protagonista o situación.
-- Párrafo 3: el hecho noticioso, ahora que el lector está enganchado.
+- Párrafo 3: el hecho noticioso.
 - Párrafo 4: contexto y consecuencias.
-- Cierre: detalle que resuena con la apertura.
-- Usá descripciones breves y ritmo variado.`,
+- Cierre: detalle que resuena con la apertura.`,
 
-  deportes: `FORMATO REQUERIDO — Nota deportiva, tono dinámico y coloquial:
-- Titular: activo, con verbo potente, puede usar expresiones del ambiente deportivo.
+  deportes: `FORMATO REQUERIDO — Nota deportiva:
+- Titular: activo, con verbo potente.
 - Tono: dinámico, apasionado pero sin exagerar.
-- Párrafo 1: el resultado o hecho principal con impacto.
-- Párrafo 2: desarrollo del partido/evento, momentos clave.
+- Párrafo 1: el resultado o hecho principal.
+- Párrafo 2: momentos clave.
 - Párrafo 3: datos destacados.
-- Cierre: contexto de la competencia o qué viene después.`,
+- Cierre: qué viene después.`,
 
-  espectaculos: `FORMATO REQUERIDO — Nota de espectáculos/cultura, tono cercano y entretenido:
-- Titular: puede ser llamativo, con juego de palabras o gancho pop.
-- Tono: cercano, amigable. Coloquial sin ser descuidado.
-- Párrafo 1: el hecho o novedad de forma atractiva.
+  espectaculos: `FORMATO REQUERIDO — Nota de espectáculos/cultura:
+- Titular: puede ser llamativo, con juego de palabras.
+- Tono: cercano, amigable.
+- Párrafo 1: el hecho o novedad.
 - Párrafo 2: contexto del artista/evento/obra.
-- Párrafo 3: dato curioso, reacción del público o impacto.
+- Párrafo 3: dato curioso o reacción del público.
 - Cierre: qué sigue, cuándo, dónde.`,
 
-  redes: `FORMATO REQUERIDO — Nota optimizada para redes sociales:
-- Titular: gancho inmediato, puede ser pregunta retórica o dato sorprendente.
+  redes: `FORMATO REQUERIDO — Nota optimizada para redes:
+- Titular: gancho inmediato, puede ser pregunta retórica.
 - Cuerpo: exactamente 3 párrafos de máximo 2 oraciones cada uno.
-- Incluí datos concretos y cifras si están disponibles.
-- Cierre: dato que invite a compartir o comentar.
-- Lenguaje coloquial pero correcto.`,
+- Incluí datos concretos y cifras.
+- Cierre: dato que invite a compartir o comentar.`,
 
   institucional: `FORMATO REQUERIDO — Comunicado institucional:
 - Titular: formal, puede nombrar al organismo o funcionario.
-- Estructura: hecho → justificación normativa → declaración oficial → datos técnicos.
-- Tercera persona siempre.
-- Sin adjetivos valorativos ni opinión.
-- Puede incluir cita textual oficial como párrafo entre comillas.
+- Estructura: hecho → justificación → declaración oficial → datos técnicos.
+- Tercera persona siempre. Sin adjetivos valorativos.
 - Extensión: 4 párrafos.`
 };
 
 function comprimirEditorial(texto) {
   if (!texto) return null;
   const lineas = texto.split('\n')
-    .map(l => l.trim())
-    .filter(l => l.length > 5)
+    .map(l => l.trim()).filter(l => l.length > 5)
     .filter(l => !l.match(/^(Actuá como|Media Mendoza es|El enfoque|La línea|📰|🧭|✍️|🧱|📍|🚨|🔎|⚙️|🧪|OPCIONAL)/))
-    .filter(l => l.startsWith('-') || l.startsWith('•') || l.match(/^(No |Usar |Incluir |Evitar |Redactar |Destacar |Usar |Pueden )/i))
+    .filter(l => l.startsWith('-') || l.startsWith('•') || l.match(/^(No |Usar |Incluir |Evitar |Redactar |Destacar |Pueden )/i))
     .slice(0, 20);
-
-  if (!lineas.length) {
-    return texto.split('\n').map(l=>l.trim()).filter(l=>l.length>10).slice(0,15).join('\n');
-  }
+  if (!lineas.length) return texto.split('\n').map(l=>l.trim()).filter(l=>l.length>10).slice(0,15).join('\n');
   return lineas.join('\n');
 }
 
 async function handleTitulares(body, env) {
   const { modo, contenido, contexto = "", tono = "informativo", cantidad = 5 } = body;
   if (!modo || !contenido) return jsonError("Faltan campos: modo y contenido", 400);
-
-  const editorialRaw = await getEditorial(env);
-  const editorial = comprimirEditorial(editorialRaw);
-
-  const instruccionContenido = modo === "nota"
+  const editorial = comprimirEditorial(await getEditorial(env));
+  const instruccion = modo === "nota"
     ? `Analizá este texto y generá exactamente ${cantidad} titulares con distintos enfoques.\n\nTEXTO:\n"""\n${contenido}\n"""`
     : `Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
-
-  const bloqueContexto = contexto ? `\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
-  const bloqueEditorial = editorial ? `\nREGLAS EDITORIALES (aplicar en todos los titulares):\n${editorial}\n` : "";
-
-  const prompt = `Sos el editor del diario digital mendocino Media Mendoza.
-
-${instruccionContenido}
-${bloqueContexto}
-Tono: ${tono}. Cada titular debe tener un enfoque diferente.
-${bloqueEditorial}
-Respondé SOLO con JSON sin backticks:
-{"titulares":["T1","T2"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
-
+  const bloqueCtx = contexto ? `\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
+  const bloqueEd = editorial ? `\nREGLAS EDITORIALES:\n${editorial}\n` : "";
+  const prompt = `Sos el editor del diario digital mendocino Media Mendoza.\n${instruccion}\n${bloqueCtx}Tono: ${tono}. Cada titular debe tener un enfoque diferente.\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titulares":["T1","T2"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
   const r = await callGemini(prompt, env);
   if (r.error) return jsonError(r.error, 500);
   return jsonOk(r.data);
@@ -237,32 +255,11 @@ Respondé SOLO con JSON sin backticks:
 async function handleReformular(body, env) {
   const { titulo, contenido, contexto = "", estilo = "formal" } = body;
   if (!titulo || !contenido) return jsonError("Faltan campos: titulo y contenido", 400);
-
-  const editorialRaw = await getEditorial(env);
-  const editorial = comprimirEditorial(editorialRaw);
-
-  const estiloInstrucciones = ESTILOS_DESC[estilo] || ESTILOS_DESC.formal;
-  const bloqueContexto = contexto ? `\nINFORMACIÓN ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
-  const bloqueEditorial = editorial ? `REGLAS DE VOZ Y ESTILO DEL DIARIO (respetar siempre):\n${editorial}\n` : "";
-
-  const prompt = `Sos redactor del diario digital mendocino Media Mendoza.
-Reformulá completamente la nota. No copies frases del original. Reescribí con tus propias palabras.
-
-NOTA ORIGINAL:
-Título: "${titulo}"
-Cuerpo:
-"""
-${contenido}
-"""
-${bloqueContexto}
-${estiloInstrucciones}
-
-Generá también 4 o 5 hashtags relevantes en español.
-
-${bloqueEditorial}
-Respondé SOLO con JSON sin backticks:
-{"titular":"...","cuerpo":"Párrafo 1...\n\nPárrafo 2...\n\nPárrafo 3...","categoria_sugerida":"...","hashtags":["#h1","#h2"]}`;
-
+  const editorial = comprimirEditorial(await getEditorial(env));
+  const estiloInstr = ESTILOS_DESC[estilo] || ESTILOS_DESC.formal;
+  const bloqueCtx = contexto ? `\nINFORMACIÓN ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
+  const bloqueEd = editorial ? `REGLAS DE VOZ Y ESTILO:\n${editorial}\n` : "";
+  const prompt = `Sos redactor del diario digital mendocino Media Mendoza.\nReformulá completamente la nota. No copies frases del original.\n\nNOTA ORIGINAL:\nTítulo: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${bloqueCtx}\n${estiloInstr}\n\nGenerá también 4 o 5 hashtags relevantes en español.\n\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titular":"...","cuerpo":"Párrafo 1...\n\nPárrafo 2...\n\nPárrafo 3...","categoria_sugerida":"...","hashtags":["#h1","#h2"]}`;
   const r = await callGemini(prompt, env);
   if (r.error) return jsonError(r.error, 500);
   return jsonOk(r.data);
@@ -271,32 +268,11 @@ Respondé SOLO con JSON sin backticks:
 async function handleRedactar(body, env) {
   const { ideas, buscarWeb = false } = body;
   if (!ideas) return jsonError("Falta campo: ideas", 400);
-
-  const editorialRaw = await getEditorial(env);
-  const editorial = comprimirEditorial(editorialRaw);
-
-  const bloqueEditorial = editorial
-    ? `REGLAS DE VOZ Y ESTILO DEL DIARIO (respetar siempre):\n${editorial}\n`
-    : "Estilo formal periodístico, pirámide invertida, no inventar datos, SEO natural.\n";
-
-  const instruccionBusqueda = buscarWeb
-    ? "Buscá contexto en la web para enriquecer la nota con datos actuales."
-    : "Redactá solo con la info provista, sin inventar datos.";
-
+  const editorial = comprimirEditorial(await getEditorial(env));
+  const bloqueEd = editorial ? `REGLAS DE VOZ Y ESTILO:\n${editorial}\n` : "Estilo formal periodístico, pirámide invertida, no inventar datos.\n";
+  const instrBusq = buscarWeb ? "Buscá contexto en la web para enriquecer la nota." : "Redactá solo con la info provista, sin inventar datos.";
   const schema = '{"titular":"","bajada":"","cuerpo":"Párrafo 1...\n\nPárrafo 2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
-
-  const prompt = `Sos redactor del diario digital mendocino Media Mendoza.
-Redactá una nota periodística completa con titular, bajada, cuerpo (mínimo 3 párrafos), categoría y hashtags.
-
-CONTENIDO:
-${ideas}
-
-${instruccionBusqueda}
-
-${bloqueEditorial}
-Respondé SOLO con JSON sin backticks. En "cuerpo" usá \\n\\n entre párrafos, sin prefijos P1 P2:
-${schema}`;
-
+  const prompt = `Sos redactor del diario digital mendocino Media Mendoza.\nRedactá una nota periodística completa.\n\nCONTENIDO:\n${ideas}\n\n${instrBusq}\n\n${bloqueEd}Respondé SOLO con JSON sin backticks. En "cuerpo" usá \\n\\n entre párrafos:\n${schema}`;
   const fn = buscarWeb ? callGeminiConBusqueda : callGemini;
   const r = await fn(prompt, env);
   if (r.error) return jsonError(r.error, 500);
@@ -306,135 +282,58 @@ ${schema}`;
 // ============================================================
 // AGENDA — EFEMÉRIDES KV
 // ============================================================
-
 async function handleGetAgendaEfemerides(env){
-  try{
-    const efemerides=await listarObjetosKV(env,AGENDA_EF_PREFIX);
-    efemerides.sort((a,b)=>a.mes-b.mes||a.dia-b.dia);
-    return jsonOk({efemerides});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{const e=await listarObjetosKV(env,AGENDA_EF_PREFIX);e.sort((a,b)=>a.mes-b.mes||a.dia-b.dia);return jsonOk({efemerides:e})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
-
 async function handlePostAgendaEfemeride(body,env){
-  const titulo=String(body.titulo||"").trim();
-  const dia   =parseInt(body.dia)||0;
-  const mes   =parseInt(body.mes)||0;
-  if(!titulo||!dia||!mes||dia<1||dia>31||mes<1||mes>12)
-    return jsonError("Faltan campos válidos: titulo, dia, mes",400);
-
-  const efemeride={
-    id:          body.id||generarId("ef_"),
-    titulo,
-    tituloBase:  body.tituloBase||titulo,
-    dia,
-    mes,
-    tipo:        String(body.tipo||"efemeride").trim(),
-    alcance:     String(body.alcance||"local").trim(),
-    descripcion: String(body.descripcion||"").trim(),
-    creado:      body.creado||Date.now(),
-  };
-  try{
-    await env.KV.put(`${AGENDA_EF_PREFIX}${efemeride.id}`, JSON.stringify(efemeride));
-    return jsonOk({guardado:true,id:efemeride.id,efemeride});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  const titulo=String(body.titulo||"").trim();const dia=parseInt(body.dia)||0;const mes=parseInt(body.mes)||0;
+  if(!titulo||!dia||!mes||dia<1||dia>31||mes<1||mes>12) return jsonError("Faltan campos válidos",400);
+  const ef={id:body.id||generarId("ef_"),titulo,tituloBase:body.tituloBase||titulo,dia,mes,tipo:String(body.tipo||"efemeride").trim(),alcance:String(body.alcance||"local").trim(),descripcion:String(body.descripcion||"").trim(),creado:body.creado||Date.now()};
+  try{await env.KV.put(`${AGENDA_EF_PREFIX}${ef.id}`,JSON.stringify(ef));return jsonOk({guardado:true,id:ef.id,efemeride:ef})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
-
 async function handleDeleteAgendaEfemeride(url,env){
-  const id=url.searchParams.get("id");
-  if(!id) return jsonError("Falta id",400);
-  try{
-    await env.KV.delete(`${AGENDA_EF_PREFIX}${id}`);
-    return jsonOk({eliminado:true});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  const id=url.searchParams.get("id");if(!id) return jsonError("Falta id",400);
+  try{await env.KV.delete(`${AGENDA_EF_PREFIX}${id}`);return jsonOk({eliminado:true})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
 // ============================================================
 // AGENDA — ÁNGULOS IA
 // ============================================================
-
 async function handleGetAngulosCache(url,env){
-  const key=String(url.searchParams.get("key")||"").trim();
-  if(!key) return jsonError("Falta parametro key",400);
-  try{
-    const val=await env.KV.get(ANGULOS_PREFIX+key,"json");
-    return jsonOk({data:val||null});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  const key=String(url.searchParams.get("key")||"").trim();if(!key) return jsonError("Falta key",400);
+  try{const v=await env.KV.get(ANGULOS_PREFIX+key,"json");return jsonOk({data:v||null})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
-
 async function handleAgendaAngulos(body,env){
-  const titulo=String(body.titulo||"").trim();
-  if(!titulo) return jsonError("Falta campo: titulo",400);
+  const titulo=String(body.titulo||"").trim();if(!titulo) return jsonError("Falta campo: titulo",400);
   const kvKey=String(body.kvKey||"").trim();
-
-  if(kvKey){
-    try{const cached=await env.KV.get(ANGULOS_PREFIX+kvKey,"json");if(cached) return jsonOk({...cached,fromCache:true})}catch(e){}
-  }
-
-  const prompt=`Sos editor de agenda y cobertura del diario digital mendocino Media Mendoza.
-Analiza este evento y propone ideas utiles para cobertura periodistica.
-
-EVENTO:
-Titulo: ${titulo}
-Descripcion: ${String(body.descripcion||"").trim()}
-Fecha: ${String(body.fecha||"").trim()}
-Tipo: ${String(body.tipo||"").trim()}
-
-Responde SOLO con JSON sin backticks:
-{"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"..."}`;
-
-  const resultado=await callGemini(prompt,env);
-  if(resultado.error) return jsonError(resultado.error,500);
-
-  const data={
-    angulos:          Array.isArray(resultado.data?.angulos)?resultado.data.angulos:[],
-    preguntas:        Array.isArray(resultado.data?.preguntas)?resultado.data.preguntas:[],
-    fuentes_sugeridas:Array.isArray(resultado.data?.fuentes_sugeridas)?resultado.data.fuentes_sugeridas:[],
-    consejo:          String(resultado.data?.consejo||"").trim(),
-  };
-
-  if(kvKey){
-    try{await env.KV.put(ANGULOS_PREFIX+kvKey,JSON.stringify(data),{expirationTtl:ANGULOS_TTL})}catch(e){}
-  }
+  if(kvKey){try{const c=await env.KV.get(ANGULOS_PREFIX+kvKey,"json");if(c) return jsonOk({...c,fromCache:true})}catch(e){}}
+  const prompt=`Sos editor de agenda del diario Media Mendoza.\nAnaliza este evento y propone ideas para cobertura periodistica.\n\nEVENTO:\nTitulo: ${titulo}\nDescripcion: ${String(body.descripcion||"").trim()}\nFecha: ${String(body.fecha||"").trim()}\nTipo: ${String(body.tipo||"").trim()}\n\nResponde SOLO con JSON sin backticks:\n{"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"..."}`;
+  const resultado=await callGemini(prompt,env);if(resultado.error) return jsonError(resultado.error,500);
+  const data={angulos:Array.isArray(resultado.data?.angulos)?resultado.data.angulos:[],preguntas:Array.isArray(resultado.data?.preguntas)?resultado.data.preguntas:[],fuentes_sugeridas:Array.isArray(resultado.data?.fuentes_sugeridas)?resultado.data.fuentes_sugeridas:[],consejo:String(resultado.data?.consejo||"").trim()};
+  if(kvKey){try{await env.KV.put(ANGULOS_PREFIX+kvKey,JSON.stringify(data),{expirationTtl:ANGULOS_TTL})}catch(e){}}
   return jsonOk(data);
 }
 
 // ============================================================
 // AGENDA — EVENTOS KV
 // ============================================================
-
 async function handleGetAgendaEventos(url,env){
-  try{
-    const mes=String(url.searchParams.get("mes")||"").trim();
-    let eventos=await listarObjetosKV(env,AGENDA_EV_PREFIX);
-    if(mes) eventos=eventos.filter(e=>String(e.fecha||"").startsWith(mes));
-    eventos.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));
-    return jsonOk({eventos});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{const mes=String(url.searchParams.get("mes")||"").trim();let ev=await listarObjetosKV(env,AGENDA_EV_PREFIX);if(mes) ev=ev.filter(e=>String(e.fecha||"").startsWith(mes));ev.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));return jsonOk({eventos:ev})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
-
 async function handlePostAgendaEvento(body,env){
-  const titulo=String(body.titulo||"").trim();
-  const fecha =String(body.fecha||"").trim();
+  const titulo=String(body.titulo||"").trim();const fecha=String(body.fecha||"").trim();
   if(!titulo||!fecha) return jsonError("Faltan campos: titulo y fecha",400);
-  const evento={
-    id:          body.id||generarId("ag_"),
-    titulo,fecha,
-    hora:        String(body.hora||"").trim(),
-    tipo:        String(body.tipo||"evento").trim(),
-    alcance:     String(body.alcance||"local").trim(),
-    descripcion: String(body.descripcion||"").trim(),
-    periodista:  String(body.periodista||"").trim(),
-    creado:      body.creado||Date.now(),
-  };
-  try{
-    await env.KV.put(`${AGENDA_EV_PREFIX}${evento.id}`,JSON.stringify(evento));
-    return jsonOk({guardado:true,id:evento.id,evento});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  const ev={id:body.id||generarId("ag_"),titulo,fecha,hora:String(body.hora||"").trim(),tipo:String(body.tipo||"evento").trim(),alcance:String(body.alcance||"local").trim(),descripcion:String(body.descripcion||"").trim(),periodista:String(body.periodista||"").trim(),creado:body.creado||Date.now()};
+  try{await env.KV.put(`${AGENDA_EV_PREFIX}${ev.id}`,JSON.stringify(ev));return jsonOk({guardado:true,id:ev.id,evento:ev})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
-
 async function handleDeleteAgendaEvento(url,env){
-  const id=url.searchParams.get("id");
-  if(!id) return jsonError("Falta id",400);
+  const id=url.searchParams.get("id");if(!id) return jsonError("Falta id",400);
   try{await env.KV.delete(`${AGENDA_EV_PREFIX}${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -443,8 +342,7 @@ async function handleDeleteAgendaEvento(url,env){
 // SCRAPING
 // ============================================================
 async function handleScrape(url){
-  const targetUrl=url.searchParams.get("url");
-  if(!targetUrl) return jsonError("Parametro url requerido",400);
+  const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("Parametro url requerido",400);
   try{new URL(targetUrl)}catch{return jsonError("URL invalida",400)}
   try{
     const {html}=await fetchHtml(targetUrl,300);
@@ -463,19 +361,13 @@ async function handleScrape(url){
 // COMPATIBILIDAD PLACAS
 // ============================================================
 async function handlePlacasUrl(url){
-  const targetUrl=url.searchParams.get("url");
-  if(!targetUrl) return jsonError("Parametro url requerido",400);
+  const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("Parametro url requerido",400);
   try{new URL(targetUrl)}catch{return jsonError("URL invalida",400)}
-  try{
-    const {html}=await fetchHtml(targetUrl,300);
-    const data=extraerDatosNota(html,targetUrl);
-    if(!data.title&&!data.body) return jsonError("No se pudo extraer contenido",422);
-    return jsonOk(data);
-  }catch(err){return jsonError(`Error: ${err.message}`,502)}
+  try{const {html}=await fetchHtml(targetUrl,300);const data=extraerDatosNota(html,targetUrl);if(!data.title&&!data.body) return jsonError("No se pudo extraer contenido",422);return jsonOk(data)}
+  catch(err){return jsonError(`Error: ${err.message}`,502)}
 }
 async function handlePlacasImage(url){
-  const imageUrl=url.searchParams.get("image");
-  if(!imageUrl) return jsonError("Parametro image requerido",400);
+  const imageUrl=url.searchParams.get("image");if(!imageUrl) return jsonError("Parametro image requerido",400);
   try{new URL(imageUrl)}catch{return jsonError("URL invalida",400)}
   try{
     const res=await fetch(imageUrl,{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"image/*,*/*;q=0.8"},redirect:"follow",cf:{cacheTtl:3600,cacheEverything:true}});
@@ -489,12 +381,11 @@ async function handlePlacasImage(url){
 }
 async function handlePlacasAI(request,env){
   let body; try{body=await request.json()}catch{return jsonError("JSON invalido",400)}
-  const system=String(body.system||"").trim(); const user=String(body.user||"").trim();
+  const system=String(body.system||"").trim();const user=String(body.user||"").trim();
   if(!system||!user) return jsonError("Faltan campos: system y user",400);
   const prompt=`${system}\n\nResponde SOLO con JSON sin backticks:\n{"grupo":"...","canal":"..."}\n\n${user}`;
-  const resultado=await callGemini(prompt,env);
-  if(resultado.error) return jsonError(resultado.error,500);
-  const grupo=limpiarEspacios(resultado.data?.grupo||""); const canal=limpiarEspacios(resultado.data?.canal||"");
+  const resultado=await callGemini(prompt,env);if(resultado.error) return jsonError(resultado.error,500);
+  const grupo=limpiarEspacios(resultado.data?.grupo||"");const canal=limpiarEspacios(resultado.data?.canal||"");
   if(!grupo&&!canal) return jsonError("La IA no devolvio mensajes validos",502);
   return jsonOk({text:JSON.stringify({grupo,canal})});
 }
@@ -503,7 +394,7 @@ async function handlePlacasAI(request,env){
 // EDITORIAL
 // ============================================================
 async function handleGetEditorial(env){
-  try{const val=await env.KV.get(EDITORIAL_KV_KEY,"json");return jsonOk({editorial:val||{prompt:"",activo:false}})}
+  try{const v=await env.KV.get(EDITORIAL_KV_KEY,"json");return jsonOk({editorial:v||{prompt:"",activo:false}})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostEditorial(body,env){
@@ -516,22 +407,16 @@ async function handlePostEditorial(body,env){
 // FUENTES
 // ============================================================
 async function handleGetFuentes(env){
-  try{
-    const list=await env.KV.list({prefix:"fuente:"});const fuentes=[];
-    for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)fuentes.push(v)}
-    fuentes.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
-    return jsonOk({fuentes});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{const list=await env.KV.list({prefix:"fuente:"});const fuentes=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)fuentes.push(v)}fuentes.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));return jsonOk({fuentes})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostFuente(body,env){
-  const {id,nombre,url,clase}=body;
-  if(!id||!nombre||!url) return jsonError("Faltan campos: id, nombre, url",400);
+  const {id,nombre,url,clase}=body;if(!id||!nombre||!url) return jsonError("Faltan campos: id, nombre, url",400);
   try{await env.KV.put(`fuente:${id}`,JSON.stringify({id,nombre,url,clase:clase||"custom"}));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleDeleteFuente(url,env){
-  const id=url.searchParams.get("id");
-  if(!id) return jsonError("Parametro id requerido",400);
+  const id=url.searchParams.get("id");if(!id) return jsonError("Parametro id requerido",400);
   try{await env.KV.delete(`fuente:${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -540,20 +425,16 @@ async function handleDeleteFuente(url,env){
 // NOTAS
 // ============================================================
 async function handleGetNotas(env){
-  try{
-    const list=await env.KV.list({prefix:"nota:"});const notas=[];
-    for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)notas.push(v)}
-    notas.sort((a,b)=>(b.fecha||0)-(a.fecha||0));return jsonOk({notas});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{const list=await env.KV.list({prefix:"nota:"});const notas=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)notas.push(v)}notas.sort((a,b)=>(b.fecha||0)-(a.fecha||0));return jsonOk({notas})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostNota(body,env){
-  const {id,titular,cuerpo,categoria,hashtags,imagen,fecha}=body;
-  if(!id||!titular) return jsonError("Faltan campos",400);
+  const {id,titular,cuerpo,categoria,hashtags,imagen,fecha}=body;if(!id||!titular) return jsonError("Faltan campos",400);
   try{await env.KV.put(`nota:${id}`,JSON.stringify({id,titular,cuerpo,categoria,hashtags,imagen:imagen||'',fecha:fecha||Date.now()}));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleDeleteNota(url,env){
-  const id=url.searchParams.get("id"); if(!id) return jsonError("Falta id",400);
+  const id=url.searchParams.get("id");if(!id) return jsonError("Falta id",400);
   try{await env.KV.delete(`nota:${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -566,18 +447,52 @@ async function handleGetCubiertas(env){
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostCubierta(body,env){
-  const {link,cubierta}=body; if(!link) return jsonError("Falta campo: link",400);
-  try{
-    const key="cubierta:"+link.substring(0,400);
-    if(cubierta) await env.KV.put(key,"1",{expirationTtl:60*60*24*30});
-    else await env.KV.delete(key);
-    return jsonOk({guardado:true});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  const {link,cubierta}=body;if(!link) return jsonError("Falta campo: link",400);
+  try{const key="cubierta:"+link.substring(0,400);if(cubierta) await env.KV.put(key,"1",{expirationTtl:60*60*24*30});else await env.KV.delete(key);return jsonOk({guardado:true})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
 // ============================================================
-// WHATSAPP — GENERAR (v8: prompt con formato exacto)
+// WHATSAPP — GENERAR (v9: usa prompt y links de KV)
 // ============================================================
+
+// Prompt por defecto (se usa si no hay nada en KV)
+const WA_PROMPT_DEFECTO = `Sos editor de redes sociales de Media Mendoza, diario digital del sur de Mendoza, Argentina.
+Transformá esta noticia en dos mensajes de WhatsApp. Tono: directo, profesional, con emojis estratégicos. Español rioplatense.
+
+FORMATO EXACTO PARA "grupo":
+[emoji alerta según categoría] *[LOCALIDAD o CATEGORÍA EN MAYÚSCULAS]:* [titular impactante]
+
+[2-3 líneas con lo más importante: qué, dónde, cuándo. Usar *negritas* en datos clave] 👇
+
+🔗 *MÁS DETALLES AQUÍ:*
+👉 {URL}
+
+*¡Sumate a nuestra comunidad!*
+📱 *Grupo de Noticias:* {LINK_GRUPO}
+📣 *Canal de Difusión:* {LINK_CANAL}
+
+*📰 Media Mendoza - Noticias confiables del sur mendocino*
+
+FORMATO EXACTO PARA "canal":
+[emoji alerta] [emoji categoría] *[CATEGORÍA]:* [titular impactante]
+
+• [punto clave 1 con emoji al final]
+• [punto clave 2 con emoji al final]
+• [punto clave 3 con emoji al final]
+• [punto clave 4 si hay info suficiente con emoji al final]
+
+🔗 *LEÉ LA NOTA COMPLETA:*
+👉 {URL}
+
+*📰 Media Mendoza - Noticias confiables del sur mendocino*
+
+REGLAS:
+- Negritas: solo en *palabra clave* o *dato importante*, no en frases largas
+- NO doble asterisco (**), solo asterisco simple (*)
+- No inventar datos que no estén en el contenido
+- Emojis de alerta según categoría: policiales=🚨, tiempo=🌬️, deportes=⚽, política=🏛️, accidente=🚗, salud=🏥, general=📢`;
+
 async function handleWhatsappGenerar(body,env){
   const notaUrl=String(body.notaUrl||"").trim();
   const contenido=String(body.contenido||"").trim();
@@ -597,31 +512,36 @@ async function handleWhatsappGenerar(body,env){
   }
   if(!nota.titulo&&!nota.body) return jsonError("Falta notaUrl o contenido",400);
 
-  // Detectar localidad mencionada en la nota
-  const localidades = ["San Rafael","General Alvear","Malargüe","Alvear"];
-  const localidadDetectada = localidades.find(l => (nota.titulo+nota.body).includes(l)) || "San Rafael";
+  // Cargar prompt y links desde KV (o usar defaults)
+  let promptTemplate = WA_PROMPT_DEFECTO;
+  try{const p=await env.KV.get(WA_PROMPT_KV_KEY,"text");if(p) promptTemplate=p}catch(e){}
 
-  const prompt = `Sos editor de redes sociales de Media Mendoza, diario digital del sur de Mendoza, Argentina.
-Transformá esta noticia en dos mensajes de WhatsApp. Tono: directo, profesional, con emojis estratégicos. Español rioplatense.
+  let links={grupo:"https://bit.ly/mediamendoza-grupo",canal:"https://bit.ly/mediamendoza-canal"};
+  try{const l=await env.KV.get(WA_LINKS_KV_KEY,"json");if(l){if(l.grupo) links.grupo=l.grupo;if(l.canal) links.canal=l.canal}}catch(e){}
+
+  // Detectar localidad
+  const localidades=["San Rafael","General Alvear","Malargüe","Alvear"];
+  const localidad=localidades.find(l=>(nota.titulo+nota.body).includes(l))||"San Rafael";
+
+  // Reemplazar variables en el prompt
+  const urlFinal=nota.urlCorta||nota.url||"";
+  const promptFinal=promptTemplate
+    .replace(/\{URL\}/g,urlFinal)
+    .replace(/\{LINK_GRUPO\}/g,links.grupo)
+    .replace(/\{LINK_CANAL\}/g,links.canal)
+    .replace(/\{TITULO\}/g,nota.titulo||"Sin titulo")
+    .replace(/\{CATEGORIA\}/g,nota.categoria||"General")
+    .replace(/\{LOCALIDAD\}/g,localidad)
+    .replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
+
+  const prompt=`${promptFinal}
 
 NOTICIA:
 Título: ${nota.titulo||"Sin titulo"}
 Categoría: ${nota.categoria||"General"}
-Localidad: ${localidadDetectada}
+Localidad: ${localidad}
 Contenido: ${(nota.body||"").substring(0,1500)}
-URL: ${nota.urlCorta||nota.url||""}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}
-
-FORMATO EXACTO PARA "grupo":
-[emoji alerta según categoría] *[LOCALIDAD o CATEGORÍA EN MAYÚSCULAS]:* [titular impactante]\n\n[2-3 líneas con lo más importante: qué, dónde, cuándo. Usar *negritas* en datos clave] 👇\n\n🔗 *MÁS DETALLES AQUÍ:*\n👉 ${nota.urlCorta||nota.url||""}\n\n*¡Sumate a nuestra comunidad!*\n📱 *Grupo de Noticias:* https://mediamendoza.pages.dev/grupo\n📣 *Canal de Difusión:* https://mediamendoza.pages.dev/canal\n\n*📰 Media Mendoza - Noticias confiables del sur mendocino*
-
-FORMATO EXACTO PARA "canal":
-[emoji alerta] [emoji categoría] *[CATEGORÍA]:* [titular impactante]\n\n• [punto clave 1 con emoji al final]\n• [punto clave 2 con emoji al final]\n• [punto clave 3 con emoji al final]\n• [punto clave 4 si hay info suficiente con emoji al final]\n\n🔗 *LEÉ LA NOTA COMPLETA:*\n👉 ${nota.urlCorta||nota.url||""}\n\n*📰 Media Mendoza - Noticias confiables del sur mendocino*
-
-REGLAS:
-- Negritas: solo en *palabra clave* o *dato importante*, no en frases largas
-- NO doble asterisco (**), solo asterisco simple (*)
-- No inventar datos que no estén en el contenido
-- Emojis de alerta según categoría: policiales=🚨, tiempo=🌬️, deportes=⚽, política=🏛️, accidente=🚗, salud=🏥, general=📢
+URL: ${urlFinal}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}
 
 Respondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
 
@@ -630,7 +550,7 @@ Respondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
   const grupo=(resultado.data?.grupo||"").trim();
   const canal=(resultado.data?.canal||"").trim();
   if(!grupo||!canal) return jsonError("La IA no devolvio ambos mensajes",502);
-  return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:nota.urlCorta||nota.url||"",imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal});
+  return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal});
 }
 
 async function handlePostWhatsappProgramar(body,env){
@@ -645,16 +565,16 @@ async function handleGetWhatsappProgramados(env){
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostWhatsappMarcarEnviado(body,env){
-  const id=String(body.id||"").trim(); if(!id) return jsonError("Falta campo: id",400);
+  const id=String(body.id||"").trim();if(!id) return jsonError("Falta campo: id",400);
   try{
     const key=`${WHATSAPP_PREFIX}${id}`;const actual=await env.KV.get(key,"json");
     if(!actual) return jsonError("Mensaje no encontrado",404);
-    const act={...actual,estado:"enviado",enviado:true};
-    await env.KV.put(key,JSON.stringify(act));return jsonOk({guardado:true,id,programado:act});
+    await env.KV.put(key,JSON.stringify({...actual,estado:"enviado",enviado:true}));
+    return jsonOk({guardado:true,id});
   }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleDeleteWhatsappProgramado(url,env){
-  const id=url.searchParams.get("id"); if(!id) return jsonError("Falta id",400);
+  const id=url.searchParams.get("id");if(!id) return jsonError("Falta id",400);
   try{await env.KV.delete(`${WHATSAPP_PREFIX}${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -663,7 +583,7 @@ async function handleDeleteWhatsappProgramado(url,env){
 // RSS / VERIFICAR
 // ============================================================
 async function handleRSS(url){
-  const feedUrl=url.searchParams.get("url"); if(!feedUrl) return jsonError("Parametro url requerido",400);
+  const feedUrl=url.searchParams.get("url");if(!feedUrl) return jsonError("Parametro url requerido",400);
   try{new URL(feedUrl)}catch{return jsonError("URL invalida",400)}
   try{
     const res=await fetch(feedUrl,{headers:{...BROWSER_HEADERS,'Accept-Encoding':'identity'},redirect:"follow",cf:{cacheTtl:180,cacheEverything:true}});
@@ -674,7 +594,7 @@ async function handleRSS(url){
   }catch(err){return jsonError(`Error obteniendo feed: ${err.message}`,502)}
 }
 async function handleVerificar(url){
-  const feedUrl=url.searchParams.get("url"); if(!feedUrl) return jsonError("Parametro url requerido",400);
+  const feedUrl=url.searchParams.get("url");if(!feedUrl) return jsonError("Parametro url requerido",400);
   try{new URL(feedUrl)}catch{return jsonError("URL invalida",400)}
   try{
     const res=await fetch(feedUrl,{headers:{...BROWSER_HEADERS,'Accept-Encoding':'identity'},redirect:"follow"});
@@ -692,22 +612,19 @@ async function handleVerificar(url){
 // GEMINI
 // ============================================================
 async function getEditorial(env){
-  try{
-    const v=await env.KV.get(EDITORIAL_KV_KEY,"json");
-    if(v && v.activo && v.prompt) return v.prompt;
-  }catch(e){}
+  try{const v=await env.KV.get(EDITORIAL_KV_KEY,"json");if(v&&v.activo&&v.prompt) return v.prompt}catch(e){}
   return null;
 }
 
 async function callGeminiConBusqueda(prompt,env){
   const ideasTexto=prompt.split("\n\nCONTENIDO A REDACTAR:\n")[1]?.split("\n\n")[0]||prompt.substring(0,200);
   const fuentesReales=await buscarDuckDuckGo(ideasTexto);
-  let contextoWeb=""; const fuentesVerificadas=[];
+  let contextoWeb="";const fuentesVerificadas=[];
   for(const fuente of fuentesReales.slice(0,3)){
     try{
       const res=await fetch(fuente.url,{headers:BROWSER_HEADERS,redirect:"follow",signal:AbortSignal.timeout(5000)});
       if(!res.ok) continue;
-      const html=await res.text(); const texto=extraerTexto(html).substring(0,800);
+      const html=await res.text();const texto=extraerTexto(html).substring(0,800);
       if(texto.length<100) continue;
       const ogImg=html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,500})["']/i);
       contextoWeb+="\nFUENTE: "+fuente.titulo+" ("+fuente.url+")\n"+texto+"\n---";
@@ -726,10 +643,10 @@ async function buscarDuckDuckGo(query){
     const url="https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar";
     const res=await fetch(url,{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"text/html","Accept-Language":"es-AR,es;q=0.9"},redirect:"follow"});
     if(!res.ok) return [];
-    const html=await res.text(); const resultados=[];
-    const linkRegex=/class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</g; let match;
+    const html=await res.text();const resultados=[];
+    const linkRegex=/class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</g;let match;
     while((match=linkRegex.exec(html))!==null&&resultados.length<5){
-      let u=match[1]; const t=match[2].trim();
+      let u=match[1];const t=match[2].trim();
       if(u.includes("uddg=")){const d=decodeURIComponent(u.split("uddg=")[1]?.split("&")[0]||"");if(d.startsWith("http"))u=d}
       if(u.startsWith("http")&&t) resultados.push({url:u,titulo:t});
     }
@@ -749,10 +666,10 @@ async function callGemini(prompt,env){
         if(!res.ok) break;
         const data=await res.json();
         const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||"";
-        const match=raw.match(/\{[\s\S]*\}/); if(!match) break;
-        let parsed; try{parsed=JSON.parse(match[0])}catch{break}
+        const match=raw.match(/\{[\s\S]*\}/);if(!match) break;
+        let parsed;try{parsed=JSON.parse(match[0])}catch{break}
         return {data:parsed};
-      }catch(err){if(intento<2)await sleep(3000)}
+      }catch(err){if(intento<2) await sleep(3000)}
     }
   }
   return {error:"Todas las API keys estan agotadas. Intentalo en unos minutos."};
