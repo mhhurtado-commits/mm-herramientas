@@ -484,29 +484,12 @@ function showError(msg) {
 }
 function hideError() { document.getElementById('errorBox').classList.remove('show'); }
 
-// ═══ SCRAPING ═══
+// ═══ SCRAPING (usa el Worker igual que la app WhatsApp) ═══
 async function fetchArticle(url) {
-  const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-  const res = await fetch(proxy);
+  const res = await fetch(`${WORKER}/scrape?url=${encodeURIComponent(url)}`);
   const data = await res.json();
-  const html = data.contents;
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  ['nav','footer','aside','script','style','header','iframe','noscript'].forEach(tag => {
-    doc.querySelectorAll(tag).forEach(el => el.remove());
-  });
-  const candidates = [
-    doc.querySelector('article'),
-    doc.querySelector('[class*="article"]'),
-    doc.querySelector('[class*="nota"]'),
-    doc.querySelector('[class*="content"]'),
-    doc.querySelector('main'),
-    doc.body
-  ].filter(Boolean);
-  const el = candidates[0];
-  const title = doc.querySelector('h1')?.textContent?.trim() || '';
-  const body = (el.innerText || el.textContent || '').replace(/\s{3,}/g, '\n\n').trim();
-  return `TÍTULO: ${title}\n\n${body.substring(0, 4000)}`;
+  if (!data.ok) throw new Error(data.error || 'No se pudo obtener la nota');
+  return `TÍTULO: ${data.titulo || ''}\n\n${(data.texto || '').substring(0, 4000)}`;
 }
 
 // ═══ GENERAR ═══
