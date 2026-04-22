@@ -1,9 +1,9 @@
 // ============================================================
-// Media Mendoza — Worker v9
-// Cambios respecto a v8:
-//   - GET/POST /whatsapp/config/prompt  → prompt editable desde Config
-//   - GET/POST /whatsapp/config/links   → links de comunidad editables
-//   - handleWhatsappGenerar: usa prompt y links de KV si existen
+// Media Mendoza — Worker v10
+// Cambios respecto a v9:
+//   - GET/POST /social/prompt  → prompts de redes editables en KV
+//   - POST /social/generar     → generación con Gemini para redes sociales
+//   - Fix: /social/generar estaba erróneamente en bloque GET
 // ============================================================
 
 const CORS_HEADERS = {
@@ -86,7 +86,6 @@ export default {
       if(path==="/whatsapp/config/prompt")       return handleGetWaPrompt(env);
       if(path==="/whatsapp/config/links")        return handleGetWaLinks(env);
       if(path==="/social/prompt")                return handleGetSocialPrompt(url,env);
-      if(path==="/social/generar")               return handleSocialGenerar(body,env);
       if(path==="/agenda/eventos")               return handleGetAgendaEventos(url,env);
       if(path==="/agenda/efemerides")            return handleGetAgendaEfemerides(env);
       if(path==="/agenda/angulos/cache")         return handleGetAngulosCache(url,env);
@@ -119,6 +118,7 @@ export default {
     if(path==="/whatsapp/config/prompt")         return handlePostWaPrompt(body,env);
     if(path==="/whatsapp/config/links")          return handlePostWaLinks(body,env);
     if(path==="/social/prompt")                  return handlePostSocialPrompt(body,env);
+    if(path==="/social/generar")                 return handleSocialGenerar(body,env);
     if(path==="/agenda/evento")                  return handlePostAgendaEvento(body,env);
     if(path==="/agenda/efemeride")               return handlePostAgendaEfemeride(body,env);
     if(path==="/agenda/angulos")                 return handleAgendaAngulos(body,env);
@@ -128,157 +128,116 @@ export default {
 };
 
 // ============================================================
+// SOCIAL — PROMPTS Y GENERACIÓN
+// ============================================================
+async function handleGetSocialPrompt(url,env){
+  const net=url.searchParams.get("net");
+  if(!net) return jsonError("Falta parámetro net",400);
+  try{const v=await env.KV.get("social:prompt:"+net,"text");return jsonOk({prompt:v||null})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handlePostSocialPrompt(body,env){
+  const net=String(body.net||"").trim();
+  const prompt=String(body.prompt||"").trim();
+  if(!net||!prompt) return jsonError("Faltan campos",400);
+  try{await env.KV.put("social:prompt:"+net,prompt);return jsonOk({guardado:true})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handleSocialGenerar(body,env){
+  const systemPrompt=String(body.systemPrompt||"").trim();
+  const userMsg=String(body.userMsg||"").trim();
+  if(!systemPrompt||!userMsg) return jsonError("Faltan campos",400);
+  const prompt=`${systemPrompt}\n\nResponde SOLO con JSON sin backticks ni markdown.\n\n${userMsg}`;
+  const resultado=await callGemini(prompt,env);
+  if(resultado.error) return jsonError(resultado.error,500);
+  return jsonOk({result:resultado.data});
+}
+
+// ============================================================
 // CONFIG WA — PROMPT Y LINKS
 // ============================================================
 async function handleGetWaPrompt(env){
-  try{
-    const v=await env.KV.get(WA_PROMPT_KV_KEY,"text");
-    return jsonOk({prompt:v||null});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{const v=await env.KV.get(WA_PROMPT_KV_KEY,"text");return jsonOk({prompt:v||null})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostWaPrompt(body,env){
   const prompt=String(body.prompt||"").trim();
   if(!prompt) return jsonError("Falta campo: prompt",400);
-  try{
-    await env.KV.put(WA_PROMPT_KV_KEY,prompt);
-    return jsonOk({guardado:true});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{await env.KV.put(WA_PROMPT_KV_KEY,prompt);return jsonOk({guardado:true})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleGetWaLinks(env){
-  try{
-    const v=await env.KV.get(WA_LINKS_KV_KEY,"json");
-    return jsonOk({links:v||{grupo:"",canal:""}});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{const v=await env.KV.get(WA_LINKS_KV_KEY,"json");return jsonOk({links:v||{grupo:"",canal:""}})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostWaLinks(body,env){
-  const links={
-    grupo:String(body.links?.grupo||"").trim(),
-    canal:String(body.links?.canal||"").trim()
-  };
-  try{
-    await env.KV.put(WA_LINKS_KV_KEY,JSON.stringify(links));
-    return jsonOk({guardado:true});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
+  const links={grupo:String(body.links?.grupo||"").trim(),canal:String(body.links?.canal||"").trim()};
+  try{await env.KV.put(WA_LINKS_KV_KEY,JSON.stringify(links));return jsonOk({guardado:true})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
 // ============================================================
 // TITULARES / REFORMULAR / REDACTAR
 // ============================================================
-
 const ESTILOS_DESC = {
-  formal: `FORMATO REQUERIDO — Periodístico formal, pirámide invertida:
-- Titular: sustantivo + verbo + dato central, máximo 10 palabras, sin mayúsculas innecesarias.
-- Párrafo 1: responde qué, quién, cuándo, dónde, cómo en máximo 2 oraciones.
-- Desarrollo: orden de importancia descendente, 3-4 párrafos.
-- Cierre: dato proyectivo o declaración final.
-- Lenguaje neutro, sin adjetivos valorativos.`,
-
-  directo: `FORMATO REQUERIDO — Nota corta y directa al dato:
-- Titular: el hecho más impactante, máximo 7 palabras.
-- Cuerpo: exactamente 3 párrafos de 2 oraciones cada uno.
-- Sin contexto histórico extenso ni citas largas.`,
-
-  ampliado: `FORMATO REQUERIDO — Nota de profundidad con contexto:
-- Titular informativo con matiz explicativo.
-- Párrafo 1: el hecho central.
-- Párrafo 2: antecedentes o contexto relevante.
-- Párrafo 3: datos, cifras o comparaciones.
-- Párrafo 4: perspectivas o consecuencias probables.
-- Párrafo 5 (cierre): declaración o dato que da perspectiva final.`,
-
-  breaking: `FORMATO REQUERIDO — Urgente / breaking news:
-- Titular: verbo en presente, máximo 8 palabras. Puede empezar con "URGENTE:" o "ALERTA:".
-- Párrafo 1: el hecho en una sola oración, tiempo presente.
-- Párrafo 2: lo que se sabe hasta ahora.
-- Párrafo 3: lo que falta confirmar o se espera.`,
-
-  cronica: `FORMATO REQUERIDO — Crónica narrativa:
-- Titular: evocador, puede ser imagen o frase memorable.
-- Párrafo 1: escena o detalle concreto.
-- Párrafo 2: presentación del protagonista o situación.
-- Párrafo 3: el hecho noticioso.
-- Párrafo 4: contexto y consecuencias.
-- Cierre: detalle que resuena con la apertura.`,
-
-  deportes: `FORMATO REQUERIDO — Nota deportiva:
-- Titular: activo, con verbo potente.
-- Tono: dinámico, apasionado pero sin exagerar.
-- Párrafo 1: el resultado o hecho principal.
-- Párrafo 2: momentos clave.
-- Párrafo 3: datos destacados.
-- Cierre: qué viene después.`,
-
-  espectaculos: `FORMATO REQUERIDO — Nota de espectáculos/cultura:
-- Titular: puede ser llamativo, con juego de palabras.
-- Tono: cercano, amigable.
-- Párrafo 1: el hecho o novedad.
-- Párrafo 2: contexto del artista/evento/obra.
-- Párrafo 3: dato curioso o reacción del público.
-- Cierre: qué sigue, cuándo, dónde.`,
-
-  redes: `FORMATO REQUERIDO — Nota optimizada para redes:
-- Titular: gancho inmediato, puede ser pregunta retórica.
-- Cuerpo: exactamente 3 párrafos de máximo 2 oraciones cada uno.
-- Incluí datos concretos y cifras.
-- Cierre: dato que invite a compartir o comentar.`,
-
-  institucional: `FORMATO REQUERIDO — Comunicado institucional:
-- Titular: formal, puede nombrar al organismo o funcionario.
-- Estructura: hecho → justificación → declaración oficial → datos técnicos.
-- Tercera persona siempre. Sin adjetivos valorativos.
-- Extensión: 4 párrafos.`
+  formal:`FORMATO REQUERIDO — Periodístico formal, pirámide invertida:\n- Titular: sustantivo + verbo + dato central, máximo 10 palabras, sin mayúsculas innecesarias.\n- Párrafo 1: responde qué, quién, cuándo, dónde, cómo en máximo 2 oraciones.\n- Desarrollo: orden de importancia descendente, 3-4 párrafos.\n- Cierre: dato proyectivo o declaración final.\n- Lenguaje neutro, sin adjetivos valorativos.`,
+  directo:`FORMATO REQUERIDO — Nota corta y directa al dato:\n- Titular: el hecho más impactante, máximo 7 palabras.\n- Cuerpo: exactamente 3 párrafos de 2 oraciones cada uno.\n- Sin contexto histórico extenso ni citas largas.`,
+  ampliado:`FORMATO REQUERIDO — Nota de profundidad con contexto:\n- Titular informativo con matiz explicativo.\n- Párrafo 1: el hecho central.\n- Párrafo 2: antecedentes o contexto relevante.\n- Párrafo 3: datos, cifras o comparaciones.\n- Párrafo 4: perspectivas o consecuencias probables.\n- Párrafo 5 (cierre): declaración o dato que da perspectiva final.`,
+  breaking:`FORMATO REQUERIDO — Urgente / breaking news:\n- Titular: verbo en presente, máximo 8 palabras. Puede empezar con "URGENTE:" o "ALERTA:".\n- Párrafo 1: el hecho en una sola oración, tiempo presente.\n- Párrafo 2: lo que se sabe hasta ahora.\n- Párrafo 3: lo que falta confirmar o se espera.`,
+  cronica:`FORMATO REQUERIDO — Crónica narrativa:\n- Titular: evocador, puede ser imagen o frase memorable.\n- Párrafo 1: escena o detalle concreto.\n- Párrafo 2: presentación del protagonista o situación.\n- Párrafo 3: el hecho noticioso.\n- Párrafo 4: contexto y consecuencias.\n- Cierre: detalle que resuena con la apertura.`,
+  deportes:`FORMATO REQUERIDO — Nota deportiva:\n- Titular: activo, con verbo potente.\n- Tono: dinámico, apasionado pero sin exagerar.\n- Párrafo 1: el resultado o hecho principal.\n- Párrafo 2: momentos clave.\n- Párrafo 3: datos destacados.\n- Cierre: qué viene después.`,
+  espectaculos:`FORMATO REQUERIDO — Nota de espectáculos/cultura:\n- Titular: puede ser llamativo, con juego de palabras.\n- Tono: cercano, amigable.\n- Párrafo 1: el hecho o novedad.\n- Párrafo 2: contexto del artista/evento/obra.\n- Párrafo 3: dato curioso o reacción del público.\n- Cierre: qué sigue, cuándo, dónde.`,
+  redes:`FORMATO REQUERIDO — Nota optimizada para redes:\n- Titular: gancho inmediato, puede ser pregunta retórica.\n- Cuerpo: exactamente 3 párrafos de máximo 2 oraciones cada uno.\n- Incluí datos concretos y cifras.\n- Cierre: dato que invite a compartir o comentar.`,
+  institucional:`FORMATO REQUERIDO — Comunicado institucional:\n- Titular: formal, puede nombrar al organismo o funcionario.\n- Estructura: hecho → justificación → declaración oficial → datos técnicos.\n- Tercera persona siempre. Sin adjetivos valorativos.\n- Extensión: 4 párrafos.`
 };
 
-function comprimirEditorial(texto) {
-  if (!texto) return null;
-  const lineas = texto.split('\n')
-    .map(l => l.trim()).filter(l => l.length > 5)
-    .filter(l => !l.match(/^(Actuá como|Media Mendoza es|El enfoque|La línea|📰|🧭|✍️|🧱|📍|🚨|🔎|⚙️|🧪|OPCIONAL)/))
-    .filter(l => l.startsWith('-') || l.startsWith('•') || l.match(/^(No |Usar |Incluir |Evitar |Redactar |Destacar |Pueden )/i))
-    .slice(0, 20);
-  if (!lineas.length) return texto.split('\n').map(l=>l.trim()).filter(l=>l.length>10).slice(0,15).join('\n');
+function comprimirEditorial(texto){
+  if(!texto) return null;
+  const lineas=texto.split('\n').map(l=>l.trim()).filter(l=>l.length>5)
+    .filter(l=>!l.match(/^(Actuá como|Media Mendoza es|El enfoque|La línea|📰|🧭|✍️|🧱|📍|🚨|🔎|⚙️|🧪|OPCIONAL)/))
+    .filter(l=>l.startsWith('-')||l.startsWith('•')||l.match(/^(No |Usar |Incluir |Evitar |Redactar |Destacar |Pueden )/i))
+    .slice(0,20);
+  if(!lineas.length) return texto.split('\n').map(l=>l.trim()).filter(l=>l.length>10).slice(0,15).join('\n');
   return lineas.join('\n');
 }
 
-async function handleTitulares(body, env) {
-  const { modo, contenido, contexto = "", tono = "informativo", cantidad = 5 } = body;
-  if (!modo || !contenido) return jsonError("Faltan campos: modo y contenido", 400);
-  const editorial = comprimirEditorial(await getEditorial(env));
-  const instruccion = modo === "nota"
-    ? `Analizá este texto y generá exactamente ${cantidad} titulares con distintos enfoques.\n\nTEXTO:\n"""\n${contenido}\n"""`
-    : `Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
-  const bloqueCtx = contexto ? `\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
-  const bloqueEd = editorial ? `\nREGLAS EDITORIALES:\n${editorial}\n` : "";
-  const prompt = `Sos el editor del diario digital mendocino Media Mendoza.\n${instruccion}\n${bloqueCtx}Tono: ${tono}. Cada titular debe tener un enfoque diferente.\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titulares":["T1","T2"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
-  const r = await callGemini(prompt, env);
-  if (r.error) return jsonError(r.error, 500);
+async function handleTitulares(body,env){
+  const{modo,contenido,contexto="",tono="informativo",cantidad=5}=body;
+  if(!modo||!contenido) return jsonError("Faltan campos: modo y contenido",400);
+  const editorial=comprimirEditorial(await getEditorial(env));
+  const instruccion=modo==="nota"?`Analizá este texto y generá exactamente ${cantidad} titulares con distintos enfoques.\n\nTEXTO:\n"""\n${contenido}\n"""` :`Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
+  const bloqueCtx=contexto?`\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n`:"";
+  const bloqueEd=editorial?`\nREGLAS EDITORIALES:\n${editorial}\n`:"";
+  const prompt=`Sos el editor del diario digital mendocino Media Mendoza.\n${instruccion}\n${bloqueCtx}Tono: ${tono}. Cada titular debe tener un enfoque diferente.\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titulares":["T1","T2"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
+  const r=await callGemini(prompt,env);
+  if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
 }
 
-async function handleReformular(body, env) {
-  const { titulo, contenido, contexto = "", estilo = "formal" } = body;
-  if (!titulo || !contenido) return jsonError("Faltan campos: titulo y contenido", 400);
-  const editorial = comprimirEditorial(await getEditorial(env));
-  const estiloInstr = ESTILOS_DESC[estilo] || ESTILOS_DESC.formal;
-  const bloqueCtx = contexto ? `\nINFORMACIÓN ADICIONAL:\n"""\n${contexto}\n"""\n` : "";
-  const bloqueEd = editorial ? `REGLAS DE VOZ Y ESTILO:\n${editorial}\n` : "";
-  const prompt = `Sos redactor del diario digital mendocino Media Mendoza.\nReformulá completamente la nota. No copies frases del original.\n\nNOTA ORIGINAL:\nTítulo: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${bloqueCtx}\n${estiloInstr}\n\nGenerá también 4 o 5 hashtags relevantes en español.\n\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titular":"...","cuerpo":"Párrafo 1...\n\nPárrafo 2...\n\nPárrafo 3...","categoria_sugerida":"...","hashtags":["#h1","#h2"]}`;
-  const r = await callGemini(prompt, env);
-  if (r.error) return jsonError(r.error, 500);
+async function handleReformular(body,env){
+  const{titulo,contenido,contexto="",estilo="formal"}=body;
+  if(!titulo||!contenido) return jsonError("Faltan campos: titulo y contenido",400);
+  const editorial=comprimirEditorial(await getEditorial(env));
+  const estiloInstr=ESTILOS_DESC[estilo]||ESTILOS_DESC.formal;
+  const bloqueCtx=contexto?`\nINFORMACIÓN ADICIONAL:\n"""\n${contexto}\n"""\n`:"";
+  const bloqueEd=editorial?`REGLAS DE VOZ Y ESTILO:\n${editorial}\n`:"";
+  const prompt=`Sos redactor del diario digital mendocino Media Mendoza.\nReformulá completamente la nota. No copies frases del original.\n\nNOTA ORIGINAL:\nTítulo: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${bloqueCtx}\n${estiloInstr}\n\nGenerá también 4 o 5 hashtags relevantes en español.\n\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titular":"...","cuerpo":"Párrafo 1...\n\nPárrafo 2...\n\nPárrafo 3...","categoria_sugerida":"...","hashtags":["#h1","#h2"]}`;
+  const r=await callGemini(prompt,env);
+  if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
 }
 
-async function handleRedactar(body, env) {
-  const { ideas, buscarWeb = false } = body;
-  if (!ideas) return jsonError("Falta campo: ideas", 400);
-  const editorial = comprimirEditorial(await getEditorial(env));
-  const bloqueEd = editorial ? `REGLAS DE VOZ Y ESTILO:\n${editorial}\n` : "Estilo formal periodístico, pirámide invertida, no inventar datos.\n";
-  const instrBusq = buscarWeb ? "Buscá contexto en la web para enriquecer la nota." : "Redactá solo con la info provista, sin inventar datos.";
-  const schema = '{"titular":"","bajada":"","cuerpo":"Párrafo 1...\n\nPárrafo 2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
-  const prompt = `Sos redactor del diario digital mendocino Media Mendoza.\nRedactá una nota periodística completa.\n\nCONTENIDO:\n${ideas}\n\n${instrBusq}\n\n${bloqueEd}Respondé SOLO con JSON sin backticks. En "cuerpo" usá \\n\\n entre párrafos:\n${schema}`;
-  const fn = buscarWeb ? callGeminiConBusqueda : callGemini;
-  const r = await fn(prompt, env);
-  if (r.error) return jsonError(r.error, 500);
+async function handleRedactar(body,env){
+  const{ideas,buscarWeb=false}=body;
+  if(!ideas) return jsonError("Falta campo: ideas",400);
+  const editorial=comprimirEditorial(await getEditorial(env));
+  const bloqueEd=editorial?`REGLAS DE VOZ Y ESTILO:\n${editorial}\n`:"Estilo formal periodístico, pirámide invertida, no inventar datos.\n";
+  const instrBusq=buscarWeb?"Buscá contexto en la web para enriquecer la nota.":"Redactá solo con la info provista, sin inventar datos.";
+  const schema='{"titular":"","bajada":"","cuerpo":"Párrafo 1...\n\nPárrafo 2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
+  const prompt=`Sos redactor del diario digital mendocino Media Mendoza.\nRedactá una nota periodística completa.\n\nCONTENIDO:\n${ideas}\n\n${instrBusq}\n\n${bloqueEd}Respondé SOLO con JSON sin backticks. En "cuerpo" usá \\n\\n entre párrafos:\n${schema}`;
+  const fn=buscarWeb?callGeminiConBusqueda:callGemini;
+  const r=await fn(prompt,env);
+  if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
 }
 
@@ -348,7 +307,7 @@ async function handleScrape(url){
   const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("Parametro url requerido",400);
   try{new URL(targetUrl)}catch{return jsonError("URL invalida",400)}
   try{
-    const {html}=await fetchHtml(targetUrl,300);
+    const{html}=await fetchHtml(targetUrl,300);
     const ogTitle=html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,200})["']/i);
     const titleTag=html.match(/<title[^>]*>([^<]{1,200})<\/title>/i);
     const titulo=(ogTitle?.[1]||titleTag?.[1]||'').replace(/\s+/g,' ').trim();
@@ -366,7 +325,7 @@ async function handleScrape(url){
 async function handlePlacasUrl(url){
   const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("Parametro url requerido",400);
   try{new URL(targetUrl)}catch{return jsonError("URL invalida",400)}
-  try{const {html}=await fetchHtml(targetUrl,300);const data=extraerDatosNota(html,targetUrl);if(!data.title&&!data.body) return jsonError("No se pudo extraer contenido",422);return jsonOk(data)}
+  try{const{html}=await fetchHtml(targetUrl,300);const data=extraerDatosNota(html,targetUrl);if(!data.title&&!data.body) return jsonError("No se pudo extraer contenido",422);return jsonOk(data)}
   catch(err){return jsonError(`Error: ${err.message}`,502)}
 }
 async function handlePlacasImage(url){
@@ -383,7 +342,7 @@ async function handlePlacasImage(url){
   }catch(err){return jsonError(`Error obteniendo imagen: ${err.message}`,502)}
 }
 async function handlePlacasAI(request,env){
-  let body; try{body=await request.json()}catch{return jsonError("JSON invalido",400)}
+  let body;try{body=await request.json()}catch{return jsonError("JSON invalido",400)}
   const system=String(body.system||"").trim();const user=String(body.user||"").trim();
   if(!system||!user) return jsonError("Faltan campos: system y user",400);
   const prompt=`${system}\n\nResponde SOLO con JSON sin backticks:\n{"grupo":"...","canal":"..."}\n\n${user}`;
@@ -414,7 +373,7 @@ async function handleGetFuentes(env){
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostFuente(body,env){
-  const {id,nombre,url,clase}=body;if(!id||!nombre||!url) return jsonError("Faltan campos: id, nombre, url",400);
+  const{id,nombre,url,clase}=body;if(!id||!nombre||!url) return jsonError("Faltan campos: id, nombre, url",400);
   try{await env.KV.put(`fuente:${id}`,JSON.stringify({id,nombre,url,clase:clase||"custom"}));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -432,7 +391,7 @@ async function handleGetNotas(env){
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostNota(body,env){
-  const {id,titular,cuerpo,categoria,hashtags,imagen,fecha}=body;if(!id||!titular) return jsonError("Faltan campos",400);
+  const{id,titular,cuerpo,categoria,hashtags,imagen,fecha}=body;if(!id||!titular) return jsonError("Faltan campos",400);
   try{await env.KV.put(`nota:${id}`,JSON.stringify({id,titular,cuerpo,categoria,hashtags,imagen:imagen||'',fecha:fecha||Date.now()}));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -450,17 +409,15 @@ async function handleGetCubiertas(env){
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostCubierta(body,env){
-  const {link,cubierta}=body;if(!link) return jsonError("Falta campo: link",400);
+  const{link,cubierta}=body;if(!link) return jsonError("Falta campo: link",400);
   try{const key="cubierta:"+link.substring(0,400);if(cubierta) await env.KV.put(key,"1",{expirationTtl:60*60*24*30});else await env.KV.delete(key);return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
 // ============================================================
-// WHATSAPP — GENERAR (v9: usa prompt y links de KV)
+// WHATSAPP
 // ============================================================
-
-// Prompt por defecto (se usa si no hay nada en KV)
-const WA_PROMPT_DEFECTO = `Sos editor de redes sociales de Media Mendoza, diario digital del sur de Mendoza, Argentina.
+const WA_PROMPT_DEFECTO=`Sos editor de redes sociales de Media Mendoza, diario digital del sur de Mendoza, Argentina.
 Transformá esta noticia en dos mensajes de WhatsApp. Tono: directo, profesional, con emojis estratégicos. Español rioplatense.
 
 FORMATO EXACTO PARA "grupo":
@@ -502,53 +459,27 @@ async function handleWhatsappGenerar(body,env){
   const tituloM=String(body.titulo||"").trim();
   const categoriaM=String(body.categoria||"").trim();
   const contextoExtra=String(body.contextoExtra||"").trim();
-
   let nota={titulo:tituloM,categoria:categoriaM,descripcion:"",body:contenido,url:notaUrl,urlCorta:notaUrl?acortarUrlNota(notaUrl):"",image:""};
-
   if(notaUrl){
     try{new URL(notaUrl)}catch{return jsonError("URL invalida",400)}
     try{
-      const {html}=await fetchHtml(notaUrl,300);
+      const{html}=await fetchHtml(notaUrl,300);
       const s=extraerDatosNota(html,notaUrl);
       nota={titulo:s.title||nota.titulo,categoria:s.category||nota.categoria,descripcion:s.description||"",body:s.body||nota.body,url:notaUrl,urlCorta:acortarUrlNota(notaUrl),image:s.image||""};
     }catch(err){return jsonError(`No se pudo obtener la nota: ${err.message}`,502)}
   }
   if(!nota.titulo&&!nota.body) return jsonError("Falta notaUrl o contenido",400);
-
-  // Cargar prompt y links desde KV (o usar defaults)
-  let promptTemplate = WA_PROMPT_DEFECTO;
+  let promptTemplate=WA_PROMPT_DEFECTO;
   try{const p=await env.KV.get(WA_PROMPT_KV_KEY,"text");if(p) promptTemplate=p}catch(e){}
-
   let links={grupo:"https://bit.ly/mediamendoza-grupo",canal:"https://bit.ly/mediamendoza-canal"};
-  try{const l=await env.KV.get(WA_LINKS_KV_KEY,"json");if(l){if(l.grupo) links.grupo=l.grupo;if(l.canal) links.canal=l.canal}}catch(e){}
-
-  // Detectar localidad
+  try{const l=await env.KV.get(WA_LINKS_KV_KEY,"json");if(l){if(l.grupo)links.grupo=l.grupo;if(l.canal)links.canal=l.canal}}catch(e){}
   const localidades=["San Rafael","General Alvear","Malargüe","Alvear"];
   const localidad=localidades.find(l=>(nota.titulo+nota.body).includes(l))||"San Rafael";
-
-  // Reemplazar variables en el prompt
   const urlFinal=nota.urlCorta||nota.url||"";
-  const promptFinal=promptTemplate
-    .replace(/\{URL\}/g,urlFinal)
-    .replace(/\{LINK_GRUPO\}/g,links.grupo)
-    .replace(/\{LINK_CANAL\}/g,links.canal)
-    .replace(/\{TITULO\}/g,nota.titulo||"Sin titulo")
-    .replace(/\{CATEGORIA\}/g,nota.categoria||"General")
-    .replace(/\{LOCALIDAD\}/g,localidad)
-    .replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
-
-  // Si el prompt de Config ya tiene {CONTENIDO} reemplazado, no hace falta mandarlo de nuevo.
-  // Solo agregamos los datos de la noticia si el template NO usó la variable {CONTENIDO}.
-  const noticiaDatos = promptTemplate.includes("{CONTENIDO}")
-    ? "" // ya fue reemplazado arriba
-    : `\n\nNOTICIA A PROCESAR:\nTítulo: ${nota.titulo||"Sin titulo"}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
-
-  const contextoBloque = contextoExtra ? `\nContexto extra del redactor: ${contextoExtra}` : "";
-
-  const prompt=`${promptFinal}${noticiaDatos}${contextoBloque}
-
-Respondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
-
+  const promptFinal=promptTemplate.replace(/\{URL\}/g,urlFinal).replace(/\{LINK_GRUPO\}/g,links.grupo).replace(/\{LINK_CANAL\}/g,links.canal).replace(/\{TITULO\}/g,nota.titulo||"Sin titulo").replace(/\{CATEGORIA\}/g,nota.categoria||"General").replace(/\{LOCALIDAD\}/g,localidad).replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
+  const noticiaDatos=promptTemplate.includes("{CONTENIDO}")?"" :`\n\nNOTICIA A PROCESAR:\nTítulo: ${nota.titulo||"Sin titulo"}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
+  const contextoBloque=contextoExtra?`\nContexto extra del redactor: ${contextoExtra}`:"";
+  const prompt=`${promptFinal}${noticiaDatos}${contextoBloque}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
   const resultado=await callGemini(prompt,env);
   if(resultado.error) return jsonError(resultado.error,500);
   const grupo=(resultado.data?.grupo||"").trim();
@@ -556,7 +487,6 @@ Respondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
   if(!grupo||!canal) return jsonError("La IA no devolvio ambos mensajes",502);
   return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal});
 }
-
 async function handlePostWhatsappProgramar(body,env){
   if(!body?.fecha) return jsonError("Falta campo: fecha",400);
   const item={id:body.id||generarId("wp_"),fecha:Number(body.fecha),fechaLegible:body.fechaLegible||"",tituloNota:String(body.tituloNota||"").trim(),urlCorta:String(body.urlCorta||"").trim(),canales:Array.isArray(body.canales)?body.canales.filter(Boolean):[],textoGrupo:String(body.textoGrupo||"").trim(),textoCanal:String(body.textoCanal||"").trim(),categoria:String(body.categoria||"General").trim(),enviado:!!body.enviado,creado:body.creado||Date.now()};
@@ -619,7 +549,6 @@ async function getEditorial(env){
   try{const v=await env.KV.get(EDITORIAL_KV_KEY,"json");if(v&&v.activo&&v.prompt) return v.prompt}catch(e){}
   return null;
 }
-
 async function callGeminiConBusqueda(prompt,env){
   const ideasTexto=prompt.split("\n\nCONTENIDO A REDACTAR:\n")[1]?.split("\n\n")[0]||prompt.substring(0,200);
   const fuentesReales=await buscarDuckDuckGo(ideasTexto);
@@ -641,7 +570,6 @@ async function callGeminiConBusqueda(prompt,env){
   if(fuentesVerificadas.length) resultado.data.fuentes=fuentesVerificadas;
   return resultado;
 }
-
 async function buscarDuckDuckGo(query){
   try{
     const url="https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar";
@@ -657,7 +585,6 @@ async function buscarDuckDuckGo(query){
     return resultados;
   }catch(e){return []}
 }
-
 async function callGemini(prompt,env){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys configuradas"};
@@ -677,33 +604,6 @@ async function callGemini(prompt,env){
     }
   }
   return {error:"Todas las API keys estan agotadas. Intentalo en unos minutos."};
-}
-async function handleGetSocialPrompt(url,env){
-  const net=url.searchParams.get("net");
-  if(!net) return jsonError("Falta parámetro net",400);
-  try{
-    const v=await env.KV.get("social:prompt:"+net,"text");
-    return jsonOk({prompt:v||null});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
-}
-async function handlePostSocialPrompt(body,env){
-  const net=String(body.net||"").trim();
-  const prompt=String(body.prompt||"").trim();
-  if(!net||!prompt) return jsonError("Faltan campos",400);
-  try{
-    await env.KV.put("social:prompt:"+net,prompt);
-    return jsonOk({guardado:true});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
-}
-async function handleSocialGenerar(body, env){
-  const systemPrompt = String(body.systemPrompt||"").trim();
-  const userMsg      = String(body.userMsg||"").trim();
-  if(!systemPrompt||!userMsg) return jsonError("Faltan campos",400);
-
-  const prompt = `${systemPrompt}\n\nResponde SOLO con JSON sin backticks ni markdown.\n\n${userMsg}`;
-  const resultado = await callGemini(prompt, env);
-  if(resultado.error) return jsonError(resultado.error, 500);
-  return jsonOk({ result: resultado.data });
 }
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
