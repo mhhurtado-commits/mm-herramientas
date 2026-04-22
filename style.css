@@ -1,0 +1,262 @@
+/* ============================================================
+   Media Mendoza — Design System compartido
+   Importar en cada herramienta: <link rel="stylesheet" href="../style.css">
+   En el index raíz: <link rel="stylesheet" href="style.css">
+   ============================================================ */
+
+@font-face {
+  font-family: 'BebasNeue';
+  src: url('placas/BebasNeue-Regular.ttf') format('truetype');
+}
+
+/* ── Tokens ── */
+:root {
+  --v:       #a6ce39;
+  --vo:      #8fb82d;
+  --vl:      #eaf3de;
+  --bg:      #0a0b08;
+  --bg2:     #111309;
+  --surface: #161810;
+  --line:    rgba(255,255,255,.07);
+  --line2:   rgba(255,255,255,.12);
+  --white:   #f5f5f0;
+  --dim:     #6b6d5e;
+  --muted:   #9b9d8a;
+
+  --font-display: 'BebasNeue', sans-serif;
+  --font-serif:   'DM Serif Display', serif;
+  --font-body:    'Inter', sans-serif;
+
+  --header-h: 56px;
+  --footer-h: 46px;
+
+  --radius-sm: 2px;
+  --radius:    4px;
+
+  --shadow: 0 4px 24px rgba(0,0,0,.4);
+}
+
+/* ── Reset base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header compartido ── */
+.mm-header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: stretch;
+  height: var(--header-h);
+  border-bottom: 1px solid var(--line2);
+  background: rgba(10,11,8,.93);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.mm-header-brand {
+  display: flex; align-items: center;
+  padding: 0 28px;
+  border-right: 1px solid var(--line);
+  gap: 10px;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+.mm-header-logo {
+  height: 24px; width: auto; display: block;
+  filter: brightness(0) invert(1);
+  opacity: .85;
+}
+.mm-header-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  color: var(--white);
+  opacity: .65;
+}
+.mm-header-section {
+  flex: 1; display: flex; align-items: center;
+  padding: 0 28px;
+}
+.mm-header-label {
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--dim);
+}
+.mm-header-back {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--dim);
+  text-decoration: none;
+  border: 1px solid var(--line2);
+  padding: 6px 14px;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.mm-header-back:hover { border-color: var(--v); color: var(--v); }
+.mm-header-status {
+  display: flex; align-items: center;
+  padding: 0 24px;
+  border-left: 1px solid var(--line);
+  gap: 8px;
+  flex-shrink: 0;
+}
+.mm-status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--v);
+}
+.mm-status-txt {
+  font-size: 9px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--v);
+}
+
+/* ── Footer compartido ── */
+.mm-footer {
+  border-top: 1px solid var(--line);
+  padding: 0 80px;
+  height: var(--footer-h);
+  display: flex; align-items: center; gap: 16px;
+  background: var(--bg2);
+}
+.mm-footer-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%; background: var(--v);
+  flex-shrink: 0;
+  animation: mm-blink 2.5s ease infinite;
+}
+@keyframes mm-blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+.mm-footer-txt {
+  font-size: 9px; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--dim);
+}
+.mm-footer-sep { flex: 1; height: 1px; background: var(--line); }
+.mm-footer-meta {
+  display: flex; gap: 24px;
+}
+.mm-footer-item {
+  font-size: 9px; letter-spacing: 1.5px;
+  color: var(--dim); opacity: .5;
+}
+
+/* ── Toast ── */
+.mm-toast {
+  position: fixed; bottom: 56px; left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--surface); color: var(--white);
+  font-size: 11px; font-weight: 500; letter-spacing: .3px;
+  padding: 10px 20px;
+  border: 1px solid var(--line2);
+  border-left: 2px solid var(--v);
+  opacity: 0; transition: all .22s;
+  pointer-events: none; white-space: nowrap; z-index: 999;
+}
+.mm-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Botones ── */
+.mm-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-body);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 10px 20px;
+  border: 1px solid var(--line2);
+  background: transparent; color: var(--muted);
+  cursor: pointer; transition: all .15s;
+  text-decoration: none;
+}
+.mm-btn:hover { border-color: var(--v); color: var(--v); }
+.mm-btn-primary {
+  background: var(--v); color: #0a0b08;
+  border-color: var(--v);
+}
+.mm-btn-primary:hover { background: var(--vo); border-color: var(--vo); color: #0a0b08; }
+
+/* ── Spinner ── */
+.mm-spinner {
+  width: 12px; height: 12px;
+  border: 1.5px solid rgba(255,255,255,.15);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: mm-spin .7s linear infinite;
+  display: none;
+}
+@keyframes mm-spin { to { transform: rotate(360deg); } }
+
+/* ── Inputs ── */
+.mm-input, .mm-textarea, .mm-select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 12px;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color .15s;
+  -webkit-appearance: none; appearance: none;
+  resize: none;
+}
+.mm-input:focus, .mm-textarea:focus, .mm-select:focus {
+  border-color: var(--v);
+}
+.mm-input::placeholder, .mm-textarea::placeholder { color: var(--dim); }
+.mm-label {
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--dim);
+  display: block; margin-bottom: 6px;
+}
+
+/* ── Panel / Card ── */
+.mm-panel {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  padding: 24px;
+}
+.mm-panel-title {
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--dim);
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+}
+
+/* ── Badge / Tag ── */
+.mm-tag {
+  display: inline-block;
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid var(--line2);
+  color: var(--dim);
+}
+.mm-tag-green {
+  border-color: rgba(166,206,57,.3);
+  color: var(--v);
+  background: rgba(166,206,57,.06);
+}
+
+/* ── Animación de entrada estándar ── */
+@keyframes mm-fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.mm-animate { animation: mm-fadeUp .5s ease both; }
+.mm-animate-1 { animation-delay: .08s; }
+.mm-animate-2 { animation-delay: .16s; }
+.mm-animate-3 { animation-delay: .24s; }
+.mm-animate-4 { animation-delay: .32s; }
+
+/* ── Utilities ── */
+.mm-divider { height: 1px; background: var(--line); }
