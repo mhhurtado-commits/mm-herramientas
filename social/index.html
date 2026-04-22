@@ -499,23 +499,14 @@ async function generateForNetwork(net, article, context, customPrompt) {
     ? `ARTÍCULO:\n${article}\n\nCONTEXTO ADICIONAL:\n${context}`
     : `ARTÍCULO:\n${article}`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMsg }]
-    })
+  const res = await fetch(`${WORKER}/social/generar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ net, systemPrompt, userMsg })
   });
   const data = await res.json();
-  const text = data.content?.map(b => b.text || '').join('');
-  try {
-    return JSON.parse(text.replace(/```json|```/g, '').trim());
-  } catch {
-    return { titulo: 'Resultado', texto: text };
-  }
+  if (!data.ok) throw new Error(data.error || 'Error generando contenido');
+  return data.result;
 }
 
 let allResults = {};
