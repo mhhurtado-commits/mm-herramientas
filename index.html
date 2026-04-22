@@ -61,8 +61,6 @@
   line-height: 1.85;
   letter-spacing: .2px;
 }
-
-/* Lado derecho — logo cuadrado + metadatos compactos */
 .masthead-right {
   display: flex;
   flex-direction: column;
@@ -188,7 +186,6 @@
   opacity: .35; transition: transform .2s ease, opacity .2s;
 }
 
-/* ── Responsive ── */
 @media(max-width:960px){
   .masthead { grid-template-columns: 1fr; }
   .masthead-left { padding: 0 28px 48px; border-right: none; border-bottom: 1px solid var(--line); }
@@ -205,7 +202,6 @@
 </head>
 <body>
 
-<!-- HEADER -->
 <header class="mm-header">
   <a href="/" class="mm-header-brand">
     <img src="assets/logo.png" alt="MM" class="mm-header-logo" onerror="this.style.display='none'">
@@ -222,7 +218,6 @@
 
 <div style="padding-top:var(--header-h)">
 
-  <!-- MASTHEAD -->
   <div class="masthead mm-animate">
     <div class="masthead-left">
       <div class="logo-hero">
@@ -234,7 +229,7 @@
         <span class="l2">Periodística</span>
         <span class="l3">con IA</span>
       </h1>
-      <p class="masthead-desc">Todas las herramientas del equipo de redacción en un solo lugar. Desde el monitoreo de fuentes hasta la difusión en WhatsApp.</p>
+      <p class="masthead-desc">Todas las herramientas del equipo de redacción en un solo lugar. Desde el monitoreo de fuentes hasta la difusión en redes sociales.</p>
     </div>
     <div class="masthead-right">
       <div class="masthead-logo-sq">
@@ -242,7 +237,7 @@
       </div>
       <div class="masthead-meta">
         <div class="meta-item">
-          <div class="meta-item-val">04</div>
+          <div class="meta-item-val">05</div>
           <div class="meta-item-key">Herramientas</div>
         </div>
         <div class="meta-item">
@@ -261,7 +256,6 @@
     </div>
   </div>
 
-  <!-- TOOLS -->
   <div class="tools">
     <div class="tools-header">
       <div class="tools-col-label">—</div>
@@ -348,11 +342,31 @@
       </div>
       <div class="tool-cell tool-arrow">→</div>
     </a>
+
+    <a href="/social/" class="tool-row mm-animate mm-animate-4">
+      <div class="tool-cell"><div class="tool-num">05</div></div>
+      <div class="tool-cell">
+        <div class="tool-name">Social</div>
+        <div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div>
+      </div>
+      <div class="tool-cell desc-cell">
+        <p class="tool-desc">Generá contenido optimizado para Facebook, Instagram y X desde la URL de cualquier nota. Prompts editables por red.</p>
+      </div>
+      <div class="tool-cell pills-cell">
+        <div class="tool-pills">
+          <span class="tool-pill">Facebook</span>
+          <span class="tool-pill">Instagram</span>
+          <span class="tool-pill">X / Twitter</span>
+          <span class="tool-pill">Prompts editables</span>
+        </div>
+      </div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
   </div>
 
 </div>
 
-<!-- FOOTER -->
 <footer class="mm-footer">
   <div class="mm-footer-dot"></div>
   <span class="mm-footer-txt">Gemini 2.5 Flash Lite · Activo</span>
@@ -360,7 +374,7 @@
   <div class="mm-footer-meta">
     <span class="mm-footer-item">Cloudflare Pages</span>
     <span class="mm-footer-item">mediamendoza.pages.dev</span>
-    <span class="mm-footer-item">v2.0 — 2025</span>
+    <span class="mm-footer-item">v2.0 — 2026</span>
   </div>
 </footer>
 
