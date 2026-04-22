@@ -86,6 +86,7 @@ export default {
       if(path==="/whatsapp/config/prompt")       return handleGetWaPrompt(env);
       if(path==="/whatsapp/config/links")        return handleGetWaLinks(env);
       if(path==="/social/prompt")                return handleGetSocialPrompt(url,env);
+      if(path==="/social/generar")               return handleSocialGenerar(body,env);
       if(path==="/agenda/eventos")               return handleGetAgendaEventos(url,env);
       if(path==="/agenda/efemerides")            return handleGetAgendaEfemerides(env);
       if(path==="/agenda/angulos/cache")         return handleGetAngulosCache(url,env);
@@ -693,6 +694,16 @@ async function handlePostSocialPrompt(body,env){
     await env.KV.put("social:prompt:"+net,prompt);
     return jsonOk({guardado:true});
   }catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handleSocialGenerar(body, env){
+  const systemPrompt = String(body.systemPrompt||"").trim();
+  const userMsg      = String(body.userMsg||"").trim();
+  if(!systemPrompt||!userMsg) return jsonError("Faltan campos",400);
+
+  const prompt = `${systemPrompt}\n\nResponde SOLO con JSON sin backticks ni markdown.\n\n${userMsg}`;
+  const resultado = await callGemini(prompt, env);
+  if(resultado.error) return jsonError(resultado.error, 500);
+  return jsonOk({ result: resultado.data });
 }
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
