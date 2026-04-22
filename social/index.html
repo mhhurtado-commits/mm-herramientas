@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Social — Media Mendoza</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --border: #2a2a2a;
+    --accent: #a6ce39;
+    --accent2: #ff4757;
+    --text: #f0f0f0;
+    --muted: #666;
+    --dim: #444;
+    --fb: #1877f2;
+    --ig: #e1306c;
+    --x: #e0e0e0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 28px;
+    display: flex; align-items: center; gap: 14px;
+    position: sticky; top: 0; background: var(--bg); z-index: 10;
+  }
+  .back-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); width: 32px; height: 32px;
+    border-radius: 8px; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s; text-decoration: none;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 17px; }
+  .logo span { color: var(--accent); }
+
+  /* TABS */
+  .tabs-bar {
+    display: flex; border-bottom: 1px solid var(--border);
+    padding: 0 28px; gap: 2px;
+  }
+  .tab-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    padding: 13px 18px;
+    color: var(--muted); background: none; border: none;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    cursor: pointer; transition: all .2s; letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* MAIN */
+  main { max-width: 820px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  /* INPUT CARD */
+  .input-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px; margin-bottom: 18px;
+  }
+  .field-label {
+    font-size: 10px; font-weight: 500; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 8px; display: block;
+  }
+  input[type="url"], textarea {
+    background: #111; border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 14px; padding: 11px 14px; border-radius: 9px;
+    outline: none; transition: border-color .2s; width: 100%;
+  }
+  input[type="url"]:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 68px; }
+
+  .context-toggle {
+    background: none; border: none; color: var(--muted);
+    font-size: 12px; cursor: pointer; padding: 8px 0 0;
+    display: flex; align-items: center; gap: 5px;
+    font-family: 'DM Sans', sans-serif; transition: color .2s;
+  }
+  .context-toggle:hover { color: var(--accent); }
+  .context-area { margin-top: 12px; display: none; }
+  .context-area.open { display: block; }
+
+  /* NETWORK CHIPS */
+  .nets-label {
+    font-size: 10px; font-weight: 500; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 10px; display: block;
+  }
+  .nets-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .net-chip {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 16px; border-radius: 30px;
+    border: 1px solid var(--border); cursor: pointer;
+    font-size: 13px; font-weight: 500; background: #111;
+    transition: all .15s; user-select: none;
+  }
+  .net-chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .net-chip.active[data-net="facebook"] { border-color: var(--fb); color: var(--fb); background: rgba(24,119,242,.07); }
+  .net-chip.active[data-net="instagram"] { border-color: var(--ig); color: var(--ig); background: rgba(225,48,108,.07); }
+  .net-chip.active[data-net="x"] { border-color: var(--x); color: var(--x); background: rgba(240,240,240,.05); }
+
+  /* GEN BTN */
+  .gen-btn {
+    width: 100%; padding: 14px;
+    background: var(--accent); color: #0a0a0a;
+    border: none; border-radius: 11px;
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 15px; cursor: pointer;
+    transition: opacity .2s, transform .1s; letter-spacing: .02em;
+  }
+  .gen-btn:hover { opacity: .88; }
+  .gen-btn:active { transform: scale(.99); }
+  .gen-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+  /* STATUS */
+  .status {
+    display: none; align-items: center; gap: 10px;
+    padding: 13px 16px; background: #111;
+    border: 1px solid var(--border); border-radius: 9px;
+    margin: 16px 0; font-size: 13px; color: var(--muted);
+  }
+  .status.show { display: flex; }
+  .spinner {
+    width: 15px; height: 15px;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ERROR */
+  .error-box {
+    display: none; background: #180a0a;
+    border: 1px solid #4a1a1a; color: #ff6b6b;
+    border-radius: 9px; padding: 13px 16px;
+    font-size: 13px; margin: 14px 0;
+  }
+  .error-box.show { display: block; }
+
+  /* RESULTS */
+  .results { display: none; }
+  .results.show { display: block; }
+  .results-header {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-bottom: 14px;
+  }
+  .results-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 17px; }
+  .copy-all-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-size: 12px; padding: 6px 13px;
+    border-radius: 8px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: all .2s;
+  }
+  .copy-all-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* RESULT CARD */
+  .result-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 13px; margin-bottom: 12px; overflow: hidden;
+    animation: fadeUp .3s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .card-top {
+    display: flex; align-items: center; gap: 9px;
+    padding: 13px 16px; border-bottom: 1px solid var(--border);
+  }
+  .net-emoji { font-size: 15px; }
+  .net-label { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; }
+  .char-badge {
+    margin-left: auto; font-size: 10px; color: var(--muted);
+    background: #1e1e1e; padding: 2px 8px; border-radius: 20px;
+  }
+  .card-body { padding: 15px 16px; }
+  .result-title {
+    font-weight: 600; font-size: 14px; margin-bottom: 9px;
+    line-height: 1.4; color: var(--accent);
+  }
+  .result-text {
+    font-size: 13px; line-height: 1.75; color: #bbb;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .card-foot {
+    padding: 10px 16px; border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 7px;
+  }
+  .icon-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-size: 12px; padding: 5px 12px;
+    border-radius: 7px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: all .15s;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .icon-btn:hover { border-color: #555; color: var(--text); }
+  .icon-btn.copied { border-color: var(--accent); color: var(--accent); }
+
+  /* Net colors on cards */
+  .result-card[data-net="facebook"] .net-label { color: var(--fb); }
+  .result-card[data-net="instagram"] .net-label { color: var(--ig); }
+  .result-card[data-net="x"] .net-label { color: #ccc; }
+
+  .regen-row { display: none; margin-top: 6px; }
+  .regen-row.show { display: flex; gap: 8px; }
+  .regen-btn {
+    background: #111; border: 1px solid var(--border);
+    color: var(--muted); font-size: 13px; padding: 9px 16px;
+    border-radius: 9px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: all .2s;
+  }
+  .regen-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ─── CONFIG TAB ─── */
+  #tabConfig { display: none; }
+  .config-section { margin-bottom: 28px; }
+  .config-title {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .config-desc { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+  .net-config-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 13px; margin-bottom: 12px; overflow: hidden;
+  }
+  .net-config-header {
+    display: flex; align-items: center; gap: 9px;
+    padding: 13px 16px; border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none; transition: background .15s;
+  }
+  .net-config-header:hover { background: #1a1a1a; }
+  .net-config-header .net-label { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; }
+  .net-config-header .chevron { margin-left: auto; color: var(--muted); font-size: 12px; transition: transform .2s; }
+  .net-config-header.open .chevron { transform: rotate(180deg); }
+  .net-config-body { display: none; padding: 16px; }
+  .net-config-body.open { display: block; }
+  .net-config-body textarea {
+    min-height: 160px; font-size: 12px; line-height: 1.65;
+    margin-bottom: 10px;
+  }
+  .config-actions { display: flex; align-items: center; gap: 10px; }
+  .save-btn {
+    background: var(--accent); color: #0a0a0a; border: none;
+    padding: 9px 20px; border-radius: 8px; font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 13px; cursor: pointer; transition: opacity .2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .save-btn:hover { opacity: .85; }
+  .save-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .restore-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-size: 12px; padding: 8px 14px;
+    border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: all .2s;
+  }
+  .restore-btn:hover { border-color: #555; color: var(--text); }
+  .saved-badge {
+    font-size: 11px; color: var(--accent); opacity: 0;
+    transition: opacity .3s;
+  }
+  .saved-badge.show { opacity: 1; }
+  .config-info {
+    background: #111; border: 1px solid var(--border); border-radius: 9px;
+    padding: 12px 14px; font-size: 12px; color: var(--muted);
+    line-height: 1.65; margin-bottom: 20px;
+  }
+  .config-info strong { color: #aaa; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="back-btn" title="Volver al Hub">←</a>
+  <div class="logo">Media <span>Social</span></div>
+</header>
+
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="switchTab('generar', this)">⚡ Generar</button>
+  <button class="tab-btn" onclick="switchTab('config', this)">⚙ Config prompts</button>
+</div>
+
+<!-- ═══ TAB GENERAR ═══ -->
+<main id="tabGenerar">
+
+  <div class="input-card">
+    <label class="field-label">Link de la nota</label>
+    <input type="url" id="urlInput" placeholder="https://..." />
+    <button class="context-toggle" onclick="toggleContext()">
+      <span id="ctxArrow">▸</span> Agregar contexto adicional
+    </button>
+    <div class="context-area" id="contextArea">
+      <textarea id="contextInput" placeholder="Ej: tono urgente, enfocarse en impacto local, es nota de último momento..."></textarea>
+    </div>
+  </div>
+
+  <span class="nets-label">Redes a generar</span>
+  <div class="nets-row" id="netsRow">
+    <div class="net-chip active" data-net="facebook" onclick="toggleNet(this)">
+      <span class="dot" style="background:var(--fb)"></span> Facebook
+    </div>
+    <div class="net-chip active" data-net="instagram" onclick="toggleNet(this)">
+      <span class="dot" style="background:var(--ig)"></span> Instagram
+    </div>
+    <div class="net-chip active" data-net="x" onclick="toggleNet(this)">
+      <span class="dot" style="background:var(--x)"></span> X / Twitter
+    </div>
+  </div>
+
+  <button class="gen-btn" id="genBtn" onclick="generate()">⚡ Generar contenido</button>
+
+  <div class="status" id="status">
+    <div class="spinner"></div>
+    <span id="statusText">Analizando la nota...</span>
+  </div>
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="results" id="results">
+    <div class="results-header">
+      <div class="results-title">Contenido generado</div>
+      <button class="copy-all-btn" onclick="copyAll()">Copiar todo</button>
+    </div>
+    <div id="cardsContainer"></div>
+    <div class="regen-row" id="regenRow">
+      <button class="regen-btn" onclick="generate()">↻ Regenerar todo</button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ═══ TAB CONFIG ═══ -->
+<main id="tabConfig">
+
+  <div class="config-info">
+    <strong>¿Para qué sirve esto?</strong><br>
+    Cada red tiene su propio prompt que le dice a la IA cómo escribir. Podés editarlos aquí y se guardan en KV.
+    Si dejás el campo vacío y guardás, vuelve al prompt por defecto.<br><br>
+    <strong>Tip:</strong> Podés incluir ejemplos de posts, palabras a evitar, tono específico, etc.
+  </div>
+
+  <!-- Facebook -->
+  <div class="net-config-card">
+    <div class="net-config-header" onclick="toggleConfig('facebook', this)">
+      <span class="net-emoji">📘</span>
+      <span class="net-label" style="color:var(--fb)">Facebook</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="net-config-body" id="config-facebook">
+      <label class="field-label">Prompt de generación</label>
+      <textarea id="prompt-facebook" placeholder="Cargando..."></textarea>
+      <div class="config-actions">
+        <button class="save-btn" onclick="savePrompt('facebook')">
+          <span class="spinner" id="spin-facebook" style="display:none;border-top-color:#0a0a0a"></span>
+          Guardar
+        </button>
+        <button class="restore-btn" onclick="restorePrompt('facebook')">↺ Restaurar</button>
+        <span class="saved-badge" id="saved-facebook">✓ Guardado</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instagram -->
+  <div class="net-config-card">
+    <div class="net-config-header" onclick="toggleConfig('instagram', this)">
+      <span class="net-emoji">📸</span>
+      <span class="net-label" style="color:var(--ig)">Instagram</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="net-config-body" id="config-instagram">
+      <label class="field-label">Prompt de generación</label>
+      <textarea id="prompt-instagram" placeholder="Cargando..."></textarea>
+      <div class="config-actions">
+        <button class="save-btn" onclick="savePrompt('instagram')">
+          <span class="spinner" id="spin-instagram" style="display:none;border-top-color:#0a0a0a"></span>
+          Guardar
+        </button>
+        <button class="restore-btn" onclick="restorePrompt('instagram')">↺ Restaurar</button>
+        <span class="saved-badge" id="saved-instagram">✓ Guardado</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- X -->
+  <div class="net-config-card">
+    <div class="net-config-header" onclick="toggleConfig('x', this)">
+      <span class="net-emoji">✖️</span>
+      <span class="net-label" style="color:#ccc">X / Twitter</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="net-config-body" id="config-x">
+      <label class="field-label">Prompt de generación</label>
+      <textarea id="prompt-x" placeholder="Cargando..."></textarea>
+      <div class="config-actions">
+        <button class="save-btn" onclick="savePrompt('x')">
+          <span class="spinner" id="spin-x" style="display:none;border-top-color:#0a0a0a"></span>
+          Guardar
+        </button>
+        <button class="restore-btn" onclick="restorePrompt('x')">↺ Restaurar</button>
+        <span class="saved-badge" id="saved-x">✓ Guardado</span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
+
+// ═══ PROMPTS POR DEFECTO ═══
+const DEFAULT_PROMPTS = {
+  facebook: `Sos community manager de Media Mendoza, diario del sur de Mendoza, Argentina.
+Generá un post para Facebook a partir del artículo.
+Tono: cercano, periodístico, directo. Español rioplatense.
+Formato de respuesta (JSON puro, sin markdown):
+{
+  "titulo": "título atractivo para el post, puede ser pregunta o dato impactante",
+  "texto": "post completo. 3-5 párrafos. Emojis con moderación. Llamada a la acción al final."
+}`,
+
+  instagram: `Sos community manager de Media Mendoza, diario del sur de Mendoza, Argentina.
+Generá un caption para Instagram a partir del artículo.
+Tono: visual, dinámico, directo. Español rioplatense.
+Formato de respuesta (JSON puro, sin markdown):
+{
+  "titulo": "frase gancho de 1 línea, impactante",
+  "texto": "caption completo. Máximo 2200 caracteres. Párrafos cortos. Emojis para dar ritmo. 5-8 hashtags relevantes al final."
+}`,
+
+  x: `Sos community manager de Media Mendoza, diario del sur de Mendoza, Argentina.
+Generá contenido para X (Twitter) a partir del artículo.
+Tono: directo, impactante, sin rodeos. Español rioplatense.
+Formato de respuesta (JSON puro, sin markdown):
+{
+  "titulo": "tweet principal, máximo 280 caracteres, impactante",
+  "texto": "hilo de 3 tweets adicionales numerados (2/4, 3/4, 4/4). Cada uno máximo 280 caracteres."
+}`
+};
+
+const NET_META = {
+  facebook: { icon: '📘', name: 'Facebook' },
+  instagram: { icon: '📸', name: 'Instagram' },
+  x:         { icon: '✖️',  name: 'X / Twitter' }
+};
+
+// ═══ TABS ═══
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tabGenerar').style.display = tab === 'generar' ? 'block' : 'none';
+  document.getElementById('tabConfig').style.display  = tab === 'config'  ? 'block' : 'none';
+  if (tab === 'config') loadAllPrompts();
+}
+
+// ═══ CONTEXTO ═══
+function toggleContext() {
+  const area = document.getElementById('contextArea');
+  const arrow = document.getElementById('ctxArrow');
+  area.classList.toggle('open');
+  arrow.textContent = area.classList.contains('open') ? '▾' : '▸';
+}
+
+// ═══ REDES ═══
+function toggleNet(el) { el.classList.toggle('active'); }
+function getActiveNets() {
+  return [...document.querySelectorAll('.net-chip.active')].map(el => el.dataset.net);
+}
+
+// ═══ STATUS / ERROR ═══
+function setStatus(msg) {
+  document.getElementById('status').classList.add('show');
+  document.getElementById('statusText').textContent = msg;
+}
+function hideStatus() { document.getElementById('status').classList.remove('show'); }
+function showError(msg) {
+  const e = document.getElementById('errorBox');
+  e.textContent = msg; e.classList.add('show');
+}
+function hideError() { document.getElementById('errorBox').classList.remove('show'); }
+
+// ═══ SCRAPING ═══
+async function fetchArticle(url) {
+  const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+  const res = await fetch(proxy);
+  const data = await res.json();
+  const html = data.contents;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  ['nav','footer','aside','script','style','header','iframe','noscript'].forEach(tag => {
+    doc.querySelectorAll(tag).forEach(el => el.remove());
+  });
+  const candidates = [
+    doc.querySelector('article'),
+    doc.querySelector('[class*="article"]'),
+    doc.querySelector('[class*="nota"]'),
+    doc.querySelector('[class*="content"]'),
+    doc.querySelector('main'),
+    doc.body
+  ].filter(Boolean);
+  const el = candidates[0];
+  const title = doc.querySelector('h1')?.textContent?.trim() || '';
+  const body = (el.innerText || el.textContent || '').replace(/\s{3,}/g, '\n\n').trim();
+  return `TÍTULO: ${title}\n\n${body.substring(0, 4000)}`;
+}
+
+// ═══ GENERAR ═══
+async function generateForNetwork(net, article, context, customPrompt) {
+  const systemPrompt = customPrompt || DEFAULT_PROMPTS[net];
+  const userMsg = context
+    ? `ARTÍCULO:\n${article}\n\nCONTEXTO ADICIONAL:\n${context}`
+    : `ARTÍCULO:\n${article}`;
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMsg }]
+    })
+  });
+  const data = await res.json();
+  const text = data.content?.map(b => b.text || '').join('');
+  try {
+    return JSON.parse(text.replace(/```json|```/g, '').trim());
+  } catch {
+    return { titulo: 'Resultado', texto: text };
+  }
+}
+
+let allResults = {};
+
+async function generate() {
+  hideError();
+  const url = document.getElementById('urlInput').value.trim();
+  const context = document.getElementById('contextInput').value.trim();
+  const nets = getActiveNets();
+
+  if (!url) { showError('Por favor ingresá el link de la nota.'); return; }
+  if (!url.startsWith('http')) { showError('El link debe comenzar con http:// o https://'); return; }
+  if (!nets.length) { showError('Seleccioná al menos una red social.'); return; }
+
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('cardsContainer').innerHTML = '';
+  allResults = {};
+
+  try {
+    setStatus('Descargando la nota...');
+    const article = await fetchArticle(url);
+
+    // Cargar prompts personalizados desde KV
+    setStatus(`Generando para ${nets.length} ${nets.length === 1 ? 'red' : 'redes'}...`);
+    const customPrompts = {};
+    await Promise.all(nets.map(async net => {
+      try {
+        const r = await fetch(`${WORKER}/social/prompt?net=${net}`);
+        const d = await r.json();
+        if (d.ok && d.prompt) customPrompts[net] = d.prompt;
+      } catch {}
+    }));
+
+    const promises = nets.map(net => generateForNetwork(net, article, context, customPrompts[net] || null));
+    const results = await Promise.all(promises);
+
+    hideStatus();
+    const container = document.getElementById('cardsContainer');
+    nets.forEach((net, i) => {
+      allResults[net] = results[i];
+      container.appendChild(renderCard(net, results[i], i * 80));
+    });
+
+    document.getElementById('results').classList.add('show');
+    document.getElementById('regenRow').classList.add('show');
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (err) {
+    hideStatus();
+    showError('Error al procesar la nota. Verificá el link e intentá nuevamente. (' + err.message + ')');
+  }
+  btn.disabled = false;
+}
+
+// ═══ RENDER CARD ═══
+function renderCard(net, result, delay) {
+  const m = NET_META[net];
+  const fullText = result.titulo + '\n\n' + result.texto;
+  const card = document.createElement('div');
+  card.className = 'result-card';
+  card.dataset.net = net;
+  card.style.animationDelay = delay + 'ms';
+
+  const titleHtml = escapeHtml(result.titulo);
+  const textHtml  = escapeHtml(result.texto);
+
+  card.innerHTML = `
+    <div class="card-top">
+      <span class="net-emoji">${m.icon}</span>
+      <span class="net-label">${m.name}</span>
+      <span class="char-badge">${result.texto.length} car.</span>
+    </div>
+    <div class="card-body">
+      <div class="result-title">${titleHtml}</div>
+      <div class="result-text">${textHtml}</div>
+    </div>
+    <div class="card-foot">
+      <button class="icon-btn" onclick="copyCard(this, '${escapeTpl(fullText)}')">📋 Copiar</button>
+    </div>`;
+  return card;
+}
+
+function escapeHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escapeTpl(s) {
+  return s.replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$').replace(/'/g,"\\'");
+}
+
+function copyCard(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ Copiado'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋 Copiar'; btn.classList.remove('copied'); }, 1800);
+  });
+}
+function copyAll() {
+  const parts = Object.entries(allResults).map(([net, r]) =>
+    `=== ${NET_META[net].name.toUpperCase()} ===\n${r.titulo}\n\n${r.texto}`
+  );
+  navigator.clipboard.writeText(parts.join('\n\n---\n\n'));
+}
+
+// ═══ CONFIG PROMPTS ═══
+function toggleConfig(net, header) {
+  const body = document.getElementById('config-' + net);
+  header.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+async function loadAllPrompts() {
+  for (const net of ['facebook','instagram','x']) {
+    const ta = document.getElementById('prompt-' + net);
+    if (!ta) continue;
+    try {
+      const r = await fetch(`${WORKER}/social/prompt?net=${net}`);
+      const d = await r.json();
+      ta.value = (d.ok && d.prompt) ? d.prompt : DEFAULT_PROMPTS[net];
+    } catch {
+      ta.value = DEFAULT_PROMPTS[net];
+    }
+  }
+}
+
+async function savePrompt(net) {
+  const ta = document.getElementById('prompt-' + net);
+  const spin = document.getElementById('spin-' + net);
+  const badge = document.getElementById('saved-' + net);
+  const btn = ta.closest('.net-config-body').querySelector('.save-btn');
+
+  btn.disabled = true;
+  spin.style.display = 'inline-block';
+
+  const prompt = ta.value.trim() || DEFAULT_PROMPTS[net];
+
+  try {
+    const r = await fetch(`${WORKER}/social/prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ net, prompt })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    badge.classList.add('show');
+    setTimeout(() => badge.classList.remove('show'), 2500);
+  } catch (err) {
+    alert('Error guardando: ' + err.message);
+  }
+  spin.style.display = 'none';
+  btn.disabled = false;
+}
+
+function restorePrompt(net) {
+  if (!confirm('¿Restaurar el prompt por defecto? Se perderán los cambios no guardados.')) return;
+  document.getElementById('prompt-' + net).value = DEFAULT_PROMPTS[net];
+}
+</script>
+</body>
+</html>

@@ -85,6 +85,7 @@ export default {
       if(path==="/whatsapp/programados")         return handleGetWhatsappProgramados(env);
       if(path==="/whatsapp/config/prompt")       return handleGetWaPrompt(env);
       if(path==="/whatsapp/config/links")        return handleGetWaLinks(env);
+      if(path==="/social/prompt")                return handleGetSocialPrompt(url,env);
       if(path==="/agenda/eventos")               return handleGetAgendaEventos(url,env);
       if(path==="/agenda/efemerides")            return handleGetAgendaEfemerides(env);
       if(path==="/agenda/angulos/cache")         return handleGetAngulosCache(url,env);
@@ -116,6 +117,7 @@ export default {
     if(path==="/whatsapp/marcar-enviado")        return handlePostWhatsappMarcarEnviado(body,env);
     if(path==="/whatsapp/config/prompt")         return handlePostWaPrompt(body,env);
     if(path==="/whatsapp/config/links")          return handlePostWaLinks(body,env);
+    if(path==="/social/prompt")                  return handlePostSocialPrompt(body,env);
     if(path==="/agenda/evento")                  return handlePostAgendaEvento(body,env);
     if(path==="/agenda/efemeride")               return handlePostAgendaEfemeride(body,env);
     if(path==="/agenda/angulos")                 return handleAgendaAngulos(body,env);
@@ -675,7 +677,23 @@ async function callGemini(prompt,env){
   }
   return {error:"Todas las API keys estan agotadas. Intentalo en unos minutos."};
 }
-
+async function handleGetSocialPrompt(url,env){
+  const net=url.searchParams.get("net");
+  if(!net) return jsonError("Falta parámetro net",400);
+  try{
+    const v=await env.KV.get("social:prompt:"+net,"text");
+    return jsonOk({prompt:v||null});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handlePostSocialPrompt(body,env){
+  const net=String(body.net||"").trim();
+  const prompt=String(body.prompt||"").trim();
+  if(!net||!prompt) return jsonError("Faltan campos",400);
+  try{
+    await env.KV.put("social:prompt:"+net,prompt);
+    return jsonOk({guardado:true});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
+}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
 function jsonError(message,status=400){return new Response(JSON.stringify({ok:false,error:message}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
