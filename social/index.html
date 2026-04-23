@@ -203,6 +203,22 @@
   color: var(--muted); white-space: pre-wrap;
   word-break: break-word; font-weight: 300;
 }
+.result-title[contenteditable="true"],
+.result-text[contenteditable="true"] {
+  outline: none;
+  border: 1px solid transparent;
+  padding: 4px 6px; margin: -4px -6px;
+  border-radius: 2px; transition: border-color .15s;
+  cursor: text;
+}
+.result-title[contenteditable="true"]:hover,
+.result-text[contenteditable="true"]:hover { border-color: var(--line2); }
+.result-title[contenteditable="true"]:focus,
+.result-text[contenteditable="true"]:focus { border-color: var(--v); background: rgba(166,206,57,.03); }
+.edit-hint {
+  font-size: 9px; color: var(--dim); letter-spacing: 1px;
+  margin-left: auto; text-transform: uppercase;
+}
 .card-foot {
   padding: 10px 16px;
   border-top: 1px solid var(--line);
@@ -708,7 +724,6 @@ async function generate() {
 // ── RENDER CARD ──
 function renderCard(net, result, delay) {
   const m = NET_META[net];
-  const fullText = result.titulo + '\n\n' + result.texto;
   const card = document.createElement('div');
   card.className = 'result-card';
   card.dataset.net = net;
@@ -717,15 +732,21 @@ function renderCard(net, result, delay) {
     <div class="card-top">
       <span class="net-emoji">${m.icon}</span>
       <span class="net-label">${m.name}</span>
-      <span class="char-badge">${result.texto.length} car.</span>
+      <span class="char-badge" id="chars-${net}">${result.texto.length} car.</span>
+      <span class="edit-hint">Editable</span>
     </div>
     <div class="card-body">
-      <div class="result-title">${escapeHtml(result.titulo)}</div>
-      <div class="result-text">${escapeHtml(result.texto)}</div>
+      <div class="result-title" id="title-${net}" contenteditable="true">${escapeHtml(result.titulo)}</div>
+      <div class="result-text" id="text-${net}" contenteditable="true">${escapeHtml(result.texto)}</div>
     </div>
     <div class="card-foot">
-      <button class="btn-card" onclick="copyCard(this, '${escapeTpl(fullText)}')">Copiar</button>
+      <button class="btn-card" onclick="copyCard(this, '${net}')">Copiar</button>
     </div>`;
+  // Update char count on input
+  card.querySelector('.result-text').addEventListener('input', function() {
+    const el = document.getElementById('chars-' + net);
+    if (el) el.textContent = this.innerText.length + ' car.';
+  });
   return card;
 }
 
@@ -735,16 +756,25 @@ function escapeHtml(s) {
 function escapeTpl(s) {
   return s.replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$').replace(/'/g,"\\'");
 }
-function copyCard(btn, text) {
-  navigator.clipboard.writeText(text).then(() => {
+function copyCard(btn, net) {
+  const titleEl = document.getElementById('title-' + net);
+  const textEl  = document.getElementById('text-'  + net);
+  const title = titleEl ? titleEl.innerText.trim() : '';
+  const text  = textEl  ? textEl.innerText.trim()  : '';
+  const full  = title + (title && text ? '\n\n' : '') + text;
+  navigator.clipboard.writeText(full).then(() => {
     btn.textContent = '✓ Copiado'; btn.classList.add('copied');
     setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 1800);
   });
 }
 function copyAll() {
-  const parts = Object.entries(allResults).map(([net, r]) =>
-    `=== ${NET_META[net].name.toUpperCase()} ===\n${r.titulo}\n\n${r.texto}`
-  );
+  const parts = Object.keys(allResults).map(net => {
+    const titleEl = document.getElementById('title-' + net);
+    const textEl  = document.getElementById('text-'  + net);
+    const title = titleEl ? titleEl.innerText.trim() : allResults[net].titulo;
+    const text  = textEl  ? textEl.innerText.trim()  : allResults[net].texto;
+    return `=== ${NET_META[net].name.toUpperCase()} ===\n${title}\n\n${text}`;
+  });
   navigator.clipboard.writeText(parts.join('\n\n---\n\n'));
 }
 
