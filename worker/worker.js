@@ -1,9 +1,11 @@
 // ============================================================
-// Media Mendoza — Worker v10
-// Cambios respecto a v9:
-//   - GET/POST /social/prompt  → prompts de redes editables en KV
-//   - POST /social/generar     → generación con Gemini para redes sociales
-//   - Fix: /social/generar estaba erróneamente en bloque GET
+// Media Mendoza — Worker v11
+// Cambios respecto a v10:
+//   - POST /social/reel/guion       → genera guion con Gemini
+//   - POST /social/reel/generar     → ElevenLabs + Creatomate + R2
+//   - DELETE /social/reel/borrar    → elimina archivo de R2
+//   - GET/POST /social/reel/config  → prompt y voz editables en KV
+//   - Rotación de keys ElevenLabs y Creatomate (hasta 5 cada una)
 // ============================================================
 
 const CORS_HEADERS = {
@@ -12,17 +14,29 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-const GEMINI_MODEL      = "gemini-2.5-flash-lite";
-const GEMINI_URL        = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const EDITORIAL_KV_KEY  = "config:editorial";
-const WA_PROMPT_KV_KEY  = "config:wa_prompt";
-const WA_LINKS_KV_KEY   = "config:wa_links";
+const GEMINI_MODEL     = "gemini-2.5-flash-lite";
+const GEMINI_URL       = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const EDITORIAL_KV_KEY = "config:editorial";
+const WA_PROMPT_KV_KEY = "config:wa_prompt";
+const WA_LINKS_KV_KEY  = "config:wa_links";
+const REEL_CONFIG_KEY  = "config:reel";
 const MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024;
-const WHATSAPP_PREFIX   = "whatsapp:programado:";
-const AGENDA_EV_PREFIX  = "agenda:evento:";
-const AGENDA_EF_PREFIX  = "agenda:efemeride:";
-const ANGULOS_PREFIX    = "agenda:angulos:";
-const ANGULOS_TTL       = 60 * 60 * 24 * 30;
+const WHATSAPP_PREFIX  = "whatsapp:programado:";
+const AGENDA_EV_PREFIX = "agenda:evento:";
+const AGENDA_EF_PREFIX = "agenda:efemeride:";
+const ANGULOS_PREFIX   = "agenda:angulos:";
+const ANGULOS_TTL      = 60 * 60 * 24 * 30;
+const R2_BUCKET        = "mm-reels";
+const LOGO_URL         = "https://mediamendoza.pages.dev/assets/logo.png";
+const DEFAULT_VOICE_ID = "ByVRQtaK1WDOvTmP1PKO"; // Agustín
+
+const REEL_PROMPT_DEFAULT = `Sos locutor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
+Escribí un guion para un reel de Instagram/Facebook de máximo 30 segundos (unas 60-80 palabras).
+Tono: directo, urgente, informativo. Español rioplatense.
+El guion debe ir al dato central desde la primera oración, sin introducción.
+No uses signos como guiones, paréntesis ni hashtags. Solo texto fluido para leer en voz alta.
+Respondé SOLO con JSON sin backticks:
+{"titulo":"título corto para mostrar en el video, máximo 8 palabras","guion":"texto completo para leer en voz alta"}`;
 
 const BROWSER_HEADERS = {
   "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -31,7 +45,7 @@ const BROWSER_HEADERS = {
   "Cache-Control":   "no-cache",
 };
 
-// ── Helpers genéricos ──
+// ── Helpers ──
 function esXMLvalido(t){return t.includes("<rss")||t.includes("<feed")||t.includes("<channel")||t.includes("<item")||t.includes("<entry")||(t.trimStart().startsWith("<?xml")&&t.includes("<title"))}
 function decodeHtml(text=""){return text.replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'")}
 function limpiarEspacios(text=""){return decodeHtml(text).replace(/\s+/g," ").trim()}
@@ -41,6 +55,9 @@ function inferirCategoriaDesdeUrl(url){try{const u=new URL(url);const f=u.pathna
 function generarId(prefix){return `${prefix}${Date.now()}_${Math.random().toString(36).slice(2,8)}`}
 function acortarUrlNota(url){try{const u=new URL(url);const p=u.pathname.split("/").filter(Boolean);if(p.length>=2){const n=p[1].match(/^(\d+)/);if(n)return `${u.origin}/${p[0]}/${n[1]}`}return `${u.origin}${u.pathname}`}catch{return url}}
 async function listarObjetosKV(env,prefix){const list=await env.KV.list({prefix});const items=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)items.push(v)}return items}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
+function jsonError(message,status=400){return new Response(JSON.stringify({ok:false,error:message}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
 
 function extraerTexto(html){
   html=html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<nav[\s\S]*?<\/nav>/gi,'').replace(/<header[\s\S]*?<\/header>/gi,'').replace(/<footer[\s\S]*?<\/footer>/gi,'').replace(/<aside[\s\S]*?<\/aside>/gi,'');
@@ -61,7 +78,7 @@ function extraerDatosNota(html,url){
   return {title,category,description,body:extraerTexto(html),image,url};
 }
 
-// ── Router principal ──
+// ── Router ──
 export default {
   async fetch(request, env) {
     if(request.method==="OPTIONS") return new Response(null,{headers:CORS_HEADERS});
@@ -69,63 +86,340 @@ export default {
     const path=url.pathname;
 
     if(path==="/"){
-      if(request.method==="GET"&&url.searchParams.has("url"))  return handlePlacasUrl(url);
-      if(request.method==="GET"&&url.searchParams.has("image"))return handlePlacasImage(url);
+      if(request.method==="GET"&&url.searchParams.has("url"))   return handlePlacasUrl(url);
+      if(request.method==="GET"&&url.searchParams.has("image")) return handlePlacasImage(url);
       if(request.method==="POST"&&url.searchParams.get("ai")==="1") return handlePlacasAI(request,env);
     }
 
     if(request.method==="GET"){
-      if(path==="/rss")                          return handleRSS(url);
-      if(path==="/verificar")                    return handleVerificar(url);
-      if(path==="/scrape")                       return handleScrape(url);
-      if(path==="/fuentes")                      return handleGetFuentes(env);
-      if(path==="/editorial")                    return handleGetEditorial(env);
-      if(path==="/cubiertas")                    return handleGetCubiertas(env);
-      if(path==="/notas")                        return handleGetNotas(env);
-      if(path==="/whatsapp/programados")         return handleGetWhatsappProgramados(env);
-      if(path==="/whatsapp/config/prompt")       return handleGetWaPrompt(env);
-      if(path==="/whatsapp/config/links")        return handleGetWaLinks(env);
-      if(path==="/social/prompt")                return handleGetSocialPrompt(url,env);
-      if(path==="/agenda/eventos")               return handleGetAgendaEventos(url,env);
-      if(path==="/agenda/efemerides")            return handleGetAgendaEfemerides(env);
-      if(path==="/agenda/angulos/cache")         return handleGetAngulosCache(url,env);
-      if(path==="/redactar")                     return jsonError("Usar POST",405);
+      if(path==="/rss")                         return handleRSS(url);
+      if(path==="/verificar")                   return handleVerificar(url);
+      if(path==="/scrape")                      return handleScrape(url);
+      if(path==="/fuentes")                     return handleGetFuentes(env);
+      if(path==="/editorial")                   return handleGetEditorial(env);
+      if(path==="/cubiertas")                   return handleGetCubiertas(env);
+      if(path==="/notas")                       return handleGetNotas(env);
+      if(path==="/whatsapp/programados")        return handleGetWhatsappProgramados(env);
+      if(path==="/whatsapp/config/prompt")      return handleGetWaPrompt(env);
+      if(path==="/whatsapp/config/links")       return handleGetWaLinks(env);
+      if(path==="/social/prompt")               return handleGetSocialPrompt(url,env);
+      if(path==="/social/reel/config")          return handleGetReelConfig(env);
+      if(path==="/agenda/eventos")              return handleGetAgendaEventos(url,env);
+      if(path==="/agenda/efemerides")           return handleGetAgendaEfemerides(env);
+      if(path==="/agenda/angulos/cache")        return handleGetAngulosCache(url,env);
+      if(path==="/redactar")                    return jsonError("Usar POST",405);
       return jsonError("Ruta no encontrada",404);
     }
 
     if(request.method==="DELETE"){
-      if(path==="/fuentes")                      return handleDeleteFuente(url,env);
-      if(path==="/notas")                        return handleDeleteNota(url,env);
-      if(path==="/whatsapp/programado")          return handleDeleteWhatsappProgramado(url,env);
-      if(path==="/agenda/evento")                return handleDeleteAgendaEvento(url,env);
-      if(path==="/agenda/efemeride")             return handleDeleteAgendaEfemeride(url,env);
+      if(path==="/fuentes")                     return handleDeleteFuente(url,env);
+      if(path==="/notas")                       return handleDeleteNota(url,env);
+      if(path==="/whatsapp/programado")         return handleDeleteWhatsappProgramado(url,env);
+      if(path==="/agenda/evento")               return handleDeleteAgendaEvento(url,env);
+      if(path==="/agenda/efemeride")            return handleDeleteAgendaEfemeride(url,env);
+      if(path==="/social/reel/borrar")          return handleDeleteReel(url,env);
       return jsonError("Ruta no encontrada",404);
     }
 
     if(request.method!=="POST") return jsonError("Metodo no permitido",405);
     let body; try{body=await request.json()}catch{return jsonError("JSON invalido",400)}
 
-    if(path==="/titulares")                      return handleTitulares(body,env);
-    if(path==="/reformular")                     return handleReformular(body,env);
-    if(path==="/fuentes")                        return handlePostFuente(body,env);
-    if(path==="/editorial")                      return handlePostEditorial(body,env);
-    if(path==="/cubiertas")                      return handlePostCubierta(body,env);
-    if(path==="/redactar")                       return handleRedactar(body,env);
-    if(path==="/notas")                          return handlePostNota(body,env);
-    if(path==="/whatsapp/generar")               return handleWhatsappGenerar(body,env);
-    if(path==="/whatsapp/programar")             return handlePostWhatsappProgramar(body,env);
-    if(path==="/whatsapp/marcar-enviado")        return handlePostWhatsappMarcarEnviado(body,env);
-    if(path==="/whatsapp/config/prompt")         return handlePostWaPrompt(body,env);
-    if(path==="/whatsapp/config/links")          return handlePostWaLinks(body,env);
-    if(path==="/social/prompt")                  return handlePostSocialPrompt(body,env);
-    if(path==="/social/generar")                 return handleSocialGenerar(body,env);
-    if(path==="/agenda/evento")                  return handlePostAgendaEvento(body,env);
-    if(path==="/agenda/efemeride")               return handlePostAgendaEfemeride(body,env);
-    if(path==="/agenda/angulos")                 return handleAgendaAngulos(body,env);
+    if(path==="/titulares")                     return handleTitulares(body,env);
+    if(path==="/reformular")                    return handleReformular(body,env);
+    if(path==="/fuentes")                       return handlePostFuente(body,env);
+    if(path==="/editorial")                     return handlePostEditorial(body,env);
+    if(path==="/cubiertas")                     return handlePostCubierta(body,env);
+    if(path==="/redactar")                      return handleRedactar(body,env);
+    if(path==="/notas")                         return handlePostNota(body,env);
+    if(path==="/whatsapp/generar")              return handleWhatsappGenerar(body,env);
+    if(path==="/whatsapp/programar")            return handlePostWhatsappProgramar(body,env);
+    if(path==="/whatsapp/marcar-enviado")       return handlePostWhatsappMarcarEnviado(body,env);
+    if(path==="/whatsapp/config/prompt")        return handlePostWaPrompt(body,env);
+    if(path==="/whatsapp/config/links")         return handlePostWaLinks(body,env);
+    if(path==="/social/prompt")                 return handlePostSocialPrompt(body,env);
+    if(path==="/social/generar")                return handleSocialGenerar(body,env);
+    if(path==="/social/reel/guion")             return handleReelGuion(body,env);
+    if(path==="/social/reel/generar")           return handleReelGenerar(body,env);
+    if(path==="/social/reel/config")            return handlePostReelConfig(body,env);
+    if(path==="/agenda/evento")                 return handlePostAgendaEvento(body,env);
+    if(path==="/agenda/efemeride")              return handlePostAgendaEfemeride(body,env);
+    if(path==="/agenda/angulos")                return handleAgendaAngulos(body,env);
 
     return jsonError("Ruta no encontrada",404);
   },
 };
+
+// ============================================================
+// REEL — CONFIG (prompt + voz en KV)
+// ============================================================
+async function handleGetReelConfig(env){
+  try{
+    const v=await env.KV.get(REEL_CONFIG_KEY,"json");
+    return jsonOk({
+      prompt: v?.prompt || REEL_PROMPT_DEFAULT,
+      voiceId: v?.voiceId || DEFAULT_VOICE_ID,
+      voiceName: v?.voiceName || "Agustín"
+    });
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handlePostReelConfig(body,env){
+  try{
+    const actual = await env.KV.get(REEL_CONFIG_KEY,"json") || {};
+    const config = {
+      prompt:    String(body.prompt    || actual.prompt    || REEL_PROMPT_DEFAULT).trim(),
+      voiceId:   String(body.voiceId   || actual.voiceId   || DEFAULT_VOICE_ID).trim(),
+      voiceName: String(body.voiceName || actual.voiceName || "Agustín").trim()
+    };
+    await env.KV.put(REEL_CONFIG_KEY, JSON.stringify(config));
+    return jsonOk({guardado:true, config});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+
+// ============================================================
+// REEL — GENERAR GUION (Gemini)
+// ============================================================
+async function handleReelGuion(body,env){
+  const articulo = String(body.articulo||"").trim();
+  if(!articulo) return jsonError("Falta campo: articulo",400);
+  const config = await env.KV.get(REEL_CONFIG_KEY,"json").catch(()=>null);
+  const prompt = (config?.prompt || REEL_PROMPT_DEFAULT) + `\n\nARTÍCULO:\n${articulo.substring(0,3000)}`;
+  const r = await callGemini(prompt,env);
+  if(r.error) return jsonError(r.error,500);
+  return jsonOk({titulo: r.data?.titulo||"", guion: r.data?.guion||""});
+}
+
+// ============================================================
+// REEL — GENERAR VIDEO (ElevenLabs + Creatomate + R2)
+// ============================================================
+async function handleReelGenerar(body,env){
+  const guion    = String(body.guion||"").trim();
+  const titulo   = String(body.titulo||"").trim();
+  const imagenUrl= String(body.imagenUrl||"").trim();
+  const voiceId  = String(body.voiceId||DEFAULT_VOICE_ID).trim();
+
+  if(!guion)  return jsonError("Falta campo: guion",400);
+  if(!titulo) return jsonError("Falta campo: titulo",400);
+
+  // ── 1. ElevenLabs: generar audio ──
+  const elevenKeys = [
+    env.ELEVENLABS_KEY_1, env.ELEVENLABS_KEY_2, env.ELEVENLABS_KEY_3,
+    env.ELEVENLABS_KEY_4, env.ELEVENLABS_KEY_5
+  ].filter(Boolean);
+  if(!elevenKeys.length) return jsonError("No hay API keys de ElevenLabs",500);
+
+  let audioBuffer = null;
+  for(const key of elevenKeys){
+    try{
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,{
+        method:"POST",
+        headers:{"xi-api-key":key,"Content-Type":"application/json","Accept":"audio/mpeg"},
+        body:JSON.stringify({
+          text: guion,
+          model_id: "eleven_multilingual_v2",
+          voice_settings:{ stability:0.5, similarity_boost:0.75, style:0.3, use_speaker_boost:true }
+        })
+      });
+      if(res.status===429||res.status===401) continue;
+      if(!res.ok) continue;
+      audioBuffer = await res.arrayBuffer();
+      break;
+    }catch(e){continue}
+  }
+  if(!audioBuffer) return jsonError("No se pudo generar el audio. Keys de ElevenLabs agotadas o inválidas.",502);
+
+  // ── 2. R2: guardar audio temporalmente ──
+  const reelId   = generarId("reel_");
+  const audioKey = `${reelId}/audio.mp3`;
+  const videoKey = `${reelId}/video.mp4`;
+
+  try{
+    await env.R2.put(audioKey, audioBuffer, {
+      httpMetadata:{ contentType:"audio/mpeg" },
+      customMetadata:{ reelId, expira: String(Date.now() + 86400000) }
+    });
+  }catch(err){return jsonError("Error guardando audio en R2: "+err.message,500)}
+
+  // URL pública del audio (R2 público o usando worker URL)
+  const audioPublicUrl = `https://pub-${env.R2_PUBLIC_ID||"mm-reels"}.r2.dev/${audioKey}`;
+
+  // ── 3. Creatomate: renderizar video ──
+  const creatomateKeys = [
+    env.CREATOMATE_KEY_1, env.CREATOMATE_KEY_2, env.CREATOMATE_KEY_3,
+    env.CREATOMATE_KEY_4, env.CREATOMATE_KEY_5
+  ].filter(Boolean);
+  if(!creatomateKeys.length){
+    await env.R2.delete(audioKey).catch(()=>{});
+    return jsonError("No hay API keys de Creatomate",500);
+  }
+
+  // Template de Creatomate: formato Reel 9:16
+  const template = {
+    output_format: "mp4",
+    width: 1080,
+    height: 1920,
+    frame_rate: 30,
+    duration: null, // se ajusta al audio
+    elements: [
+      // Fondo: imagen de la nota (cubre toda la pantalla)
+      {
+        type: "image",
+        track: 1,
+        time: 0,
+        x: "50%", y: "50%",
+        width: "100%", height: "100%",
+        x_anchor: "50%", y_anchor: "50%",
+        source: imagenUrl || LOGO_URL,
+        fit: "cover"
+      },
+      // Overlay oscuro para legibilidad
+      {
+        type: "shape",
+        track: 2,
+        time: 0,
+        shape: "rectangle",
+        x: "50%", y: "50%",
+        width: "100%", height: "100%",
+        x_anchor: "50%", y_anchor: "50%",
+        fill_color: "rgba(0,0,0,0.52)"
+      },
+      // Logo Media Mendoza (arriba centrado)
+      {
+        type: "image",
+        track: 3,
+        time: 0,
+        x: "50%", y: "8%",
+        width: "40%",
+        x_anchor: "50%", y_anchor: "50%",
+        source: LOGO_URL,
+        fit: "contain"
+      },
+      // Título (centro superior)
+      {
+        type: "text",
+        track: 4,
+        time: 0,
+        x: "50%", y: "45%",
+        width: "88%",
+        x_anchor: "50%", y_anchor: "50%",
+        text: titulo,
+        font_family: "Montserrat",
+        font_weight: "700",
+        font_size: "62 vmin",
+        fill_color: "#ffffff",
+        text_align: "center",
+        line_height: 1.15,
+        animations: [{ time: "start", duration: 0.6, easing: "ease-out", type: "slide", direction: "up" }]
+      },
+      // Subtítulos (guion como texto animado, abajo)
+      {
+        type: "text",
+        track: 5,
+        time: 0,
+        x: "50%", y: "78%",
+        width: "88%",
+        x_anchor: "50%", y_anchor: "50%",
+        text: guion,
+        font_family: "Montserrat",
+        font_weight: "500",
+        font_size: "34 vmin",
+        fill_color: "#ffffff",
+        background_color: "rgba(0,0,0,0.55)",
+        background_x_padding: "14%",
+        background_y_padding: "8%",
+        text_align: "center",
+        line_height: 1.4,
+        transcript: true  // subtítulos sincronizados con el audio
+      },
+      // Audio
+      {
+        type: "audio",
+        track: 6,
+        time: 0,
+        source: audioPublicUrl,
+        audio_fade_out: 0.5
+      }
+    ]
+  };
+
+  let renderUrl = null;
+  let renderId  = null;
+  for(const key of creatomateKeys){
+    try{
+      const res = await fetch("https://api.creatomate.com/v1/renders",{
+        method:"POST",
+        headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json"},
+        body: JSON.stringify({ source: template })
+      });
+      if(res.status===429||res.status===401) continue;
+      if(!res.ok) continue;
+      const data = await res.json();
+      renderId  = data?.[0]?.id || null;
+      renderUrl = data?.[0]?.url || null;
+      break;
+    }catch(e){continue}
+  }
+
+  if(!renderId){
+    await env.R2.delete(audioKey).catch(()=>{});
+    return jsonError("No se pudo iniciar el render en Creatomate. Keys agotadas.",502);
+  }
+
+  // ── 4. Polling hasta que Creatomate termine (máx 90 seg) ──
+  let videoFinalUrl = null;
+  const startTime = Date.now();
+  const pollKey = creatomateKeys[0];
+  while(Date.now()-startTime < 90000){
+    await sleep(4000);
+    try{
+      const poll = await fetch(`https://api.creatomate.com/v1/renders/${renderId}`,{
+        headers:{"Authorization":"Bearer "+pollKey}
+      });
+      const d = await poll.json();
+      if(d.status==="succeeded"){ videoFinalUrl = d.url; break; }
+      if(d.status==="failed") break;
+    }catch(e){break}
+  }
+
+  if(!videoFinalUrl){
+    await env.R2.delete(audioKey).catch(()=>{});
+    return jsonError("El render de Creatomate tardó demasiado o falló. Intentá de nuevo.",502);
+  }
+
+  // ── 5. R2: guardar el video final ──
+  try{
+    const videoRes = await fetch(videoFinalUrl);
+    if(videoRes.ok){
+      const videoBuffer = await videoRes.arrayBuffer();
+      await env.R2.put(videoKey, videoBuffer, {
+        httpMetadata:{ contentType:"video/mp4" },
+        customMetadata:{ reelId, expira: String(Date.now() + 86400000) }
+      });
+    }
+  }catch(e){ /* no crítico, devolvemos url de creatomate como fallback */ }
+
+  // ── 6. Limpiar audio de R2 (ya no lo necesitamos) ──
+  await env.R2.delete(audioKey).catch(()=>{});
+
+  return jsonOk({
+    reelId,
+    videoKey,
+    videoUrl: videoFinalUrl, // URL de Creatomate (válida 24hs)
+    titulo,
+    guion
+  });
+}
+
+// ============================================================
+// REEL — BORRAR de R2
+// ============================================================
+async function handleDeleteReel(url,env){
+  const key = url.searchParams.get("key");
+  if(!key) return jsonError("Falta parámetro key",400);
+  try{
+    await env.R2.delete(key);
+    return jsonOk({eliminado:true});
+  }catch(err){return jsonError("Error R2: "+err.message,500)}
+}
 
 // ============================================================
 // SOCIAL — PROMPTS Y GENERACIÓN
@@ -154,7 +448,7 @@ async function handleSocialGenerar(body,env){
 }
 
 // ============================================================
-// CONFIG WA — PROMPT Y LINKS
+// CONFIG WA
 // ============================================================
 async function handleGetWaPrompt(env){
   try{const v=await env.KV.get(WA_PROMPT_KV_KEY,"text");return jsonOk({prompt:v||null})}
@@ -179,16 +473,16 @@ async function handlePostWaLinks(body,env){
 // ============================================================
 // TITULARES / REFORMULAR / REDACTAR
 // ============================================================
-const ESTILOS_DESC = {
-  formal:`FORMATO REQUERIDO — Periodístico formal, pirámide invertida:\n- Titular: sustantivo + verbo + dato central, máximo 10 palabras, sin mayúsculas innecesarias.\n- Párrafo 1: responde qué, quién, cuándo, dónde, cómo en máximo 2 oraciones.\n- Desarrollo: orden de importancia descendente, 3-4 párrafos.\n- Cierre: dato proyectivo o declaración final.\n- Lenguaje neutro, sin adjetivos valorativos.`,
-  directo:`FORMATO REQUERIDO — Nota corta y directa al dato:\n- Titular: el hecho más impactante, máximo 7 palabras.\n- Cuerpo: exactamente 3 párrafos de 2 oraciones cada uno.\n- Sin contexto histórico extenso ni citas largas.`,
-  ampliado:`FORMATO REQUERIDO — Nota de profundidad con contexto:\n- Titular informativo con matiz explicativo.\n- Párrafo 1: el hecho central.\n- Párrafo 2: antecedentes o contexto relevante.\n- Párrafo 3: datos, cifras o comparaciones.\n- Párrafo 4: perspectivas o consecuencias probables.\n- Párrafo 5 (cierre): declaración o dato que da perspectiva final.`,
-  breaking:`FORMATO REQUERIDO — Urgente / breaking news:\n- Titular: verbo en presente, máximo 8 palabras. Puede empezar con "URGENTE:" o "ALERTA:".\n- Párrafo 1: el hecho en una sola oración, tiempo presente.\n- Párrafo 2: lo que se sabe hasta ahora.\n- Párrafo 3: lo que falta confirmar o se espera.`,
-  cronica:`FORMATO REQUERIDO — Crónica narrativa:\n- Titular: evocador, puede ser imagen o frase memorable.\n- Párrafo 1: escena o detalle concreto.\n- Párrafo 2: presentación del protagonista o situación.\n- Párrafo 3: el hecho noticioso.\n- Párrafo 4: contexto y consecuencias.\n- Cierre: detalle que resuena con la apertura.`,
-  deportes:`FORMATO REQUERIDO — Nota deportiva:\n- Titular: activo, con verbo potente.\n- Tono: dinámico, apasionado pero sin exagerar.\n- Párrafo 1: el resultado o hecho principal.\n- Párrafo 2: momentos clave.\n- Párrafo 3: datos destacados.\n- Cierre: qué viene después.`,
-  espectaculos:`FORMATO REQUERIDO — Nota de espectáculos/cultura:\n- Titular: puede ser llamativo, con juego de palabras.\n- Tono: cercano, amigable.\n- Párrafo 1: el hecho o novedad.\n- Párrafo 2: contexto del artista/evento/obra.\n- Párrafo 3: dato curioso o reacción del público.\n- Cierre: qué sigue, cuándo, dónde.`,
-  redes:`FORMATO REQUERIDO — Nota optimizada para redes:\n- Titular: gancho inmediato, puede ser pregunta retórica.\n- Cuerpo: exactamente 3 párrafos de máximo 2 oraciones cada uno.\n- Incluí datos concretos y cifras.\n- Cierre: dato que invite a compartir o comentar.`,
-  institucional:`FORMATO REQUERIDO — Comunicado institucional:\n- Titular: formal, puede nombrar al organismo o funcionario.\n- Estructura: hecho → justificación → declaración oficial → datos técnicos.\n- Tercera persona siempre. Sin adjetivos valorativos.\n- Extensión: 4 párrafos.`
+const ESTILOS_DESC={
+  formal:`FORMATO REQUERIDO — Periodístico formal, pirámide invertida:\n- Titular: sustantivo + verbo + dato central, máximo 10 palabras.\n- Párrafo 1: qué, quién, cuándo, dónde, cómo en máximo 2 oraciones.\n- Desarrollo: orden de importancia descendente, 3-4 párrafos.\n- Cierre: dato proyectivo o declaración final.`,
+  directo:`FORMATO REQUERIDO — Nota corta:\n- Titular: el hecho más impactante, máximo 7 palabras.\n- Cuerpo: exactamente 3 párrafos de 2 oraciones cada uno.`,
+  ampliado:`FORMATO REQUERIDO — Nota de profundidad:\n- Párrafo 1: hecho central.\n- Párrafo 2: antecedentes.\n- Párrafo 3: datos y cifras.\n- Párrafo 4: perspectivas.\n- Párrafo 5: cierre.`,
+  breaking:`FORMATO REQUERIDO — Urgente:\n- Titular: verbo en presente, máximo 8 palabras.\n- Párrafo 1: hecho en una oración.\n- Párrafo 2: lo que se sabe.\n- Párrafo 3: lo que falta confirmar.`,
+  cronica:`FORMATO REQUERIDO — Crónica narrativa:\n- Titular evocador.\n- Apertura con escena concreta.\n- Presentación del protagonista.\n- El hecho noticioso.\n- Contexto y cierre.`,
+  deportes:`FORMATO REQUERIDO — Nota deportiva:\n- Titular activo.\n- Resultado, momentos clave, datos, próximo paso.`,
+  espectaculos:`FORMATO REQUERIDO — Espectáculos/cultura:\n- Titular llamativo.\n- Hecho, contexto, dato curioso, qué sigue.`,
+  redes:`FORMATO REQUERIDO — Para redes:\n- Titular gancho.\n- 3 párrafos de 2 oraciones. Datos concretos. Cierre que invite a compartir.`,
+  institucional:`FORMATO REQUERIDO — Comunicado:\n- Titular formal.\n- Hecho → justificación → declaración → datos técnicos. 4 párrafos.`
 };
 
 function comprimirEditorial(texto){
@@ -205,10 +499,10 @@ async function handleTitulares(body,env){
   const{modo,contenido,contexto="",tono="informativo",cantidad=5}=body;
   if(!modo||!contenido) return jsonError("Faltan campos: modo y contenido",400);
   const editorial=comprimirEditorial(await getEditorial(env));
-  const instruccion=modo==="nota"?`Analizá este texto y generá exactamente ${cantidad} titulares con distintos enfoques.\n\nTEXTO:\n"""\n${contenido}\n"""` :`Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
-  const bloqueCtx=contexto?`\nCONTEXTO ADICIONAL:\n"""\n${contexto}\n"""\n`:"";
+  const instruccion=modo==="nota"?`Analizá este texto y generá exactamente ${cantidad} titulares.\n\nTEXTO:\n"""\n${contenido}\n"""` :`Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
+  const bloqueCtx=contexto?`\nCONTEXTO:\n"""\n${contexto}\n"""\n`:"";
   const bloqueEd=editorial?`\nREGLAS EDITORIALES:\n${editorial}\n`:"";
-  const prompt=`Sos el editor del diario digital mendocino Media Mendoza.\n${instruccion}\n${bloqueCtx}Tono: ${tono}. Cada titular debe tener un enfoque diferente.\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titulares":["T1","T2"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
+  const prompt=`Sos el editor del diario digital mendocino Media Mendoza.\n${instruccion}\n${bloqueCtx}Tono: ${tono}.\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titulares":["T1","T2"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
   const r=await callGemini(prompt,env);
   if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
@@ -220,8 +514,8 @@ async function handleReformular(body,env){
   const editorial=comprimirEditorial(await getEditorial(env));
   const estiloInstr=ESTILOS_DESC[estilo]||ESTILOS_DESC.formal;
   const bloqueCtx=contexto?`\nINFORMACIÓN ADICIONAL:\n"""\n${contexto}\n"""\n`:"";
-  const bloqueEd=editorial?`REGLAS DE VOZ Y ESTILO:\n${editorial}\n`:"";
-  const prompt=`Sos redactor del diario digital mendocino Media Mendoza.\nReformulá completamente la nota. No copies frases del original.\n\nNOTA ORIGINAL:\nTítulo: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${bloqueCtx}\n${estiloInstr}\n\nGenerá también 4 o 5 hashtags relevantes en español.\n\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titular":"...","cuerpo":"Párrafo 1...\n\nPárrafo 2...\n\nPárrafo 3...","categoria_sugerida":"...","hashtags":["#h1","#h2"]}`;
+  const bloqueEd=editorial?`REGLAS:\n${editorial}\n`:"";
+  const prompt=`Sos redactor del diario digital mendocino Media Mendoza.\nReformulá completamente la nota.\n\nNOTA ORIGINAL:\nTítulo: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${bloqueCtx}\n${estiloInstr}\n\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titular":"...","cuerpo":"P1...\n\nP2...\n\nP3...","categoria_sugerida":"...","hashtags":["#h1"]}`;
   const r=await callGemini(prompt,env);
   if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
@@ -231,10 +525,10 @@ async function handleRedactar(body,env){
   const{ideas,buscarWeb=false}=body;
   if(!ideas) return jsonError("Falta campo: ideas",400);
   const editorial=comprimirEditorial(await getEditorial(env));
-  const bloqueEd=editorial?`REGLAS DE VOZ Y ESTILO:\n${editorial}\n`:"Estilo formal periodístico, pirámide invertida, no inventar datos.\n";
-  const instrBusq=buscarWeb?"Buscá contexto en la web para enriquecer la nota.":"Redactá solo con la info provista, sin inventar datos.";
-  const schema='{"titular":"","bajada":"","cuerpo":"Párrafo 1...\n\nPárrafo 2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
-  const prompt=`Sos redactor del diario digital mendocino Media Mendoza.\nRedactá una nota periodística completa.\n\nCONTENIDO:\n${ideas}\n\n${instrBusq}\n\n${bloqueEd}Respondé SOLO con JSON sin backticks. En "cuerpo" usá \\n\\n entre párrafos:\n${schema}`;
+  const bloqueEd=editorial?`REGLAS:\n${editorial}\n`:"Estilo formal periodístico, pirámide invertida.\n";
+  const instrBusq=buscarWeb?"Buscá contexto en la web.":"Redactá solo con la info provista.";
+  const schema='{"titular":"","bajada":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
+  const prompt=`Sos redactor del diario digital mendocino Media Mendoza.\nRedactá una nota periodística completa.\n\nCONTENIDO:\n${ideas}\n\n${instrBusq}\n\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n${schema}`;
   const fn=buscarWeb?callGeminiConBusqueda:callGemini;
   const r=await fn(prompt,env);
   if(r.error) return jsonError(r.error,500);
@@ -242,7 +536,7 @@ async function handleRedactar(body,env){
 }
 
 // ============================================================
-// AGENDA — EFEMÉRIDES KV
+// AGENDA
 // ============================================================
 async function handleGetAgendaEfemerides(env){
   try{const e=await listarObjetosKV(env,AGENDA_EF_PREFIX);e.sort((a,b)=>a.mes-b.mes||a.dia-b.dia);return jsonOk({efemerides:e})}
@@ -260,10 +554,6 @@ async function handleDeleteAgendaEfemeride(url,env){
   try{await env.KV.delete(`${AGENDA_EF_PREFIX}${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
-
-// ============================================================
-// AGENDA — ÁNGULOS IA
-// ============================================================
 async function handleGetAngulosCache(url,env){
   const key=String(url.searchParams.get("key")||"").trim();if(!key) return jsonError("Falta key",400);
   try{const v=await env.KV.get(ANGULOS_PREFIX+key,"json");return jsonOk({data:v||null})}
@@ -273,16 +563,12 @@ async function handleAgendaAngulos(body,env){
   const titulo=String(body.titulo||"").trim();if(!titulo) return jsonError("Falta campo: titulo",400);
   const kvKey=String(body.kvKey||"").trim();
   if(kvKey){try{const c=await env.KV.get(ANGULOS_PREFIX+kvKey,"json");if(c) return jsonOk({...c,fromCache:true})}catch(e){}}
-  const prompt=`Sos editor de agenda del diario Media Mendoza.\nAnaliza este evento y propone ideas para cobertura periodistica.\n\nEVENTO:\nTitulo: ${titulo}\nDescripcion: ${String(body.descripcion||"").trim()}\nFecha: ${String(body.fecha||"").trim()}\nTipo: ${String(body.tipo||"").trim()}\n\nResponde SOLO con JSON sin backticks:\n{"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"..."}`;
+  const prompt=`Sos editor de agenda del diario Media Mendoza.\nAnaliza este evento.\n\nEVENTO:\nTitulo: ${titulo}\nDescripcion: ${String(body.descripcion||"").trim()}\nFecha: ${String(body.fecha||"").trim()}\nTipo: ${String(body.tipo||"").trim()}\n\nResponde SOLO con JSON sin backticks:\n{"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"..."}`;
   const resultado=await callGemini(prompt,env);if(resultado.error) return jsonError(resultado.error,500);
   const data={angulos:Array.isArray(resultado.data?.angulos)?resultado.data.angulos:[],preguntas:Array.isArray(resultado.data?.preguntas)?resultado.data.preguntas:[],fuentes_sugeridas:Array.isArray(resultado.data?.fuentes_sugeridas)?resultado.data.fuentes_sugeridas:[],consejo:String(resultado.data?.consejo||"").trim()};
   if(kvKey){try{await env.KV.put(ANGULOS_PREFIX+kvKey,JSON.stringify(data),{expirationTtl:ANGULOS_TTL})}catch(e){}}
   return jsonOk(data);
 }
-
-// ============================================================
-// AGENDA — EVENTOS KV
-// ============================================================
 async function handleGetAgendaEventos(url,env){
   try{const mes=String(url.searchParams.get("mes")||"").trim();let ev=await listarObjetosKV(env,AGENDA_EV_PREFIX);if(mes) ev=ev.filter(e=>String(e.fecha||"").startsWith(mes));ev.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));return jsonOk({eventos:ev})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
@@ -320,7 +606,7 @@ async function handleScrape(url){
 }
 
 // ============================================================
-// COMPATIBILIDAD PLACAS
+// PLACAS
 // ============================================================
 async function handlePlacasUrl(url){
   const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("Parametro url requerido",400);
@@ -366,14 +652,14 @@ async function handlePostEditorial(body,env){
 }
 
 // ============================================================
-// FUENTES
+// FUENTES / NOTAS / CUBIERTAS
 // ============================================================
 async function handleGetFuentes(env){
   try{const list=await env.KV.list({prefix:"fuente:"});const fuentes=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)fuentes.push(v)}fuentes.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));return jsonOk({fuentes})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostFuente(body,env){
-  const{id,nombre,url,clase}=body;if(!id||!nombre||!url) return jsonError("Faltan campos: id, nombre, url",400);
+  const{id,nombre,url,clase}=body;if(!id||!nombre||!url) return jsonError("Faltan campos",400);
   try{await env.KV.put(`fuente:${id}`,JSON.stringify({id,nombre,url,clase:clase||"custom"}));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -382,10 +668,6 @@ async function handleDeleteFuente(url,env){
   try{await env.KV.delete(`fuente:${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
-
-// ============================================================
-// NOTAS
-// ============================================================
 async function handleGetNotas(env){
   try{const list=await env.KV.list({prefix:"nota:"});const notas=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)notas.push(v)}notas.sort((a,b)=>(b.fecha||0)-(a.fecha||0));return jsonOk({notas})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
@@ -400,10 +682,6 @@ async function handleDeleteNota(url,env){
   try{await env.KV.delete(`nota:${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
-
-// ============================================================
-// CUBIERTAS
-// ============================================================
 async function handleGetCubiertas(env){
   try{const list=await env.KV.list({prefix:"cubierta:"});return jsonOk({links:list.keys.map(k=>k.name.replace("cubierta:",""))})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
@@ -421,45 +699,25 @@ const WA_PROMPT_DEFECTO=`Sos editor de redes sociales de Media Mendoza, diario d
 Transformá esta noticia en dos mensajes de WhatsApp. Tono: directo, profesional, con emojis estratégicos. Español rioplatense.
 
 FORMATO EXACTO PARA "grupo":
-[emoji alerta según categoría] *[LOCALIDAD o CATEGORÍA EN MAYÚSCULAS]:* [titular impactante]
-
-[2-3 líneas con lo más importante: qué, dónde, cuándo. Usar *negritas* en datos clave] 👇
-
-🔗 *MÁS DETALLES AQUÍ:*
-👉 {URL}
-
-*¡Sumate a nuestra comunidad!*
-📱 *Grupo de Noticias:* {LINK_GRUPO}
-📣 *Canal de Difusión:* {LINK_CANAL}
-
-*📰 Media Mendoza - Noticias confiables del sur mendocino*
+[emoji] *[LOCALIDAD/CATEGORÍA EN MAYÚSCULAS]:* [titular]
+[2-3 líneas clave con *negritas*] 👇
+🔗 *MÁS DETALLES:* 👉 {URL}
+*¡Sumate!* 📱 {LINK_GRUPO} 📣 {LINK_CANAL}
+*📰 Media Mendoza*
 
 FORMATO EXACTO PARA "canal":
-[emoji alerta] [emoji categoría] *[CATEGORÍA]:* [titular impactante]
+[emoji] *[CATEGORÍA]:* [titular]
+• [punto 1] • [punto 2] • [punto 3]
+🔗 👉 {URL}
+*📰 Media Mendoza*
 
-• [punto clave 1 con emoji al final]
-• [punto clave 2 con emoji al final]
-• [punto clave 3 con emoji al final]
-• [punto clave 4 si hay info suficiente con emoji al final]
-
-🔗 *LEÉ LA NOTA COMPLETA:*
-👉 {URL}
-
-*📰 Media Mendoza - Noticias confiables del sur mendocino*
-
-REGLAS:
-- Negritas: solo en *palabra clave* o *dato importante*, no en frases largas
-- NO doble asterisco (**), solo asterisco simple (*)
-- No inventar datos que no estén en el contenido
-- Emojis de alerta según categoría: policiales=🚨, tiempo=🌬️, deportes=⚽, política=🏛️, accidente=🚗, salud=🏥, general=📢`;
+REGLAS: negritas solo en datos clave, NO **, emojis según categoría: policiales=🚨, deportes=⚽, política=🏛️, accidente=🚗, salud=🏥, general=📢`;
 
 async function handleWhatsappGenerar(body,env){
   const notaUrl=String(body.notaUrl||"").trim();
   const contenido=String(body.contenido||"").trim();
-  const tituloM=String(body.titulo||"").trim();
-  const categoriaM=String(body.categoria||"").trim();
   const contextoExtra=String(body.contextoExtra||"").trim();
-  let nota={titulo:tituloM,categoria:categoriaM,descripcion:"",body:contenido,url:notaUrl,urlCorta:notaUrl?acortarUrlNota(notaUrl):"",image:""};
+  let nota={titulo:String(body.titulo||"").trim(),categoria:String(body.categoria||"").trim(),descripcion:"",body:contenido,url:notaUrl,urlCorta:notaUrl?acortarUrlNota(notaUrl):"",image:""};
   if(notaUrl){
     try{new URL(notaUrl)}catch{return jsonError("URL invalida",400)}
     try{
@@ -477,8 +735,8 @@ async function handleWhatsappGenerar(body,env){
   const localidad=localidades.find(l=>(nota.titulo+nota.body).includes(l))||"San Rafael";
   const urlFinal=nota.urlCorta||nota.url||"";
   const promptFinal=promptTemplate.replace(/\{URL\}/g,urlFinal).replace(/\{LINK_GRUPO\}/g,links.grupo).replace(/\{LINK_CANAL\}/g,links.canal).replace(/\{TITULO\}/g,nota.titulo||"Sin titulo").replace(/\{CATEGORIA\}/g,nota.categoria||"General").replace(/\{LOCALIDAD\}/g,localidad).replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
-  const noticiaDatos=promptTemplate.includes("{CONTENIDO}")?"" :`\n\nNOTICIA A PROCESAR:\nTítulo: ${nota.titulo||"Sin titulo"}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
-  const contextoBloque=contextoExtra?`\nContexto extra del redactor: ${contextoExtra}`:"";
+  const noticiaDatos=promptTemplate.includes("{CONTENIDO}")?"" :`\n\nNOTICIA:\nTítulo: ${nota.titulo||"Sin titulo"}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
+  const contextoBloque=contextoExtra?`\nContexto extra: ${contextoExtra}`:"";
   const prompt=`${promptFinal}${noticiaDatos}${contextoBloque}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
   const resultado=await callGemini(prompt,env);
   if(resultado.error) return jsonError(resultado.error,500);
@@ -550,7 +808,7 @@ async function getEditorial(env){
   return null;
 }
 async function callGeminiConBusqueda(prompt,env){
-  const ideasTexto=prompt.split("\n\nCONTENIDO A REDACTAR:\n")[1]?.split("\n\n")[0]||prompt.substring(0,200);
+  const ideasTexto=prompt.substring(0,200);
   const fuentesReales=await buscarDuckDuckGo(ideasTexto);
   let contextoWeb="";const fuentesVerificadas=[];
   for(const fuente of fuentesReales.slice(0,3)){
@@ -564,7 +822,7 @@ async function callGeminiConBusqueda(prompt,env){
       fuentesVerificadas.push({titulo:fuente.titulo,url:fuente.url,imagen:ogImg?.[1]||''});
     }catch(e){continue}
   }
-  const promptFinal=prompt+(contextoWeb?"\n\nCONTENIDO WEB ENCONTRADO:\n"+contextoWeb:"");
+  const promptFinal=prompt+(contextoWeb?"\n\nCONTENIDO WEB:\n"+contextoWeb:"");
   const resultado=await callGemini(promptFinal,env);
   if(resultado.error) return resultado;
   if(fuentesVerificadas.length) resultado.data.fuentes=fuentesVerificadas;
@@ -573,7 +831,7 @@ async function callGeminiConBusqueda(prompt,env){
 async function buscarDuckDuckGo(query){
   try{
     const url="https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar";
-    const res=await fetch(url,{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"text/html","Accept-Language":"es-AR,es;q=0.9"},redirect:"follow"});
+    const res=await fetch(url,{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"text/html"},redirect:"follow"});
     if(!res.ok) return [];
     const html=await res.text();const resultados=[];
     const linkRegex=/class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</g;let match;
@@ -605,6 +863,3 @@ async function callGemini(prompt,env){
   }
   return {error:"Todas las API keys estan agotadas. Intentalo en unos minutos."};
 }
-function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
-function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
-function jsonError(message,status=400){return new Response(JSON.stringify({ok:false,error:message}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}

@@ -360,6 +360,112 @@
 
 /* STATUSBAR */
 .mm-statusbar-url { font-size: 11px; color: var(--dim); margin-left: auto; }
+
+/* ── REEL TAB ── */
+#tabReel { display: none; }
+.reel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media(max-width:700px){ .reel-grid{ grid-template-columns:1fr; } }
+
+.reel-panel {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  padding: 22px;
+}
+.reel-panel-title {
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--dim); padding-bottom: 14px;
+  border-bottom: 1px solid var(--line); margin-bottom: 18px;
+}
+.voice-row {
+  display: flex; gap: 8px; align-items: flex-end;
+}
+.voice-row .mm-input { flex: 1; }
+.voice-id-input {
+  font-size: 11px; color: var(--dim);
+  font-family: monospace; letter-spacing: .5px;
+}
+.reel-step {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 10px; color: var(--dim);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 12px; font-weight: 600;
+}
+.reel-step-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--line2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--v); flex-shrink: 0;
+  font-family: var(--font-display); font-size: .9rem;
+}
+.btn-generar-guion {
+  width: 100%; padding: 12px;
+  background: none; border: 1px solid var(--v);
+  color: var(--v); font-family: var(--font-body);
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-bottom: 14px;
+}
+.btn-generar-guion:hover { background: rgba(166,206,57,.08); }
+.btn-generar-guion:disabled { opacity: .35; cursor: not-allowed; }
+
+.btn-generar-reel {
+  width: 100%; padding: 14px;
+  background: var(--v); color: var(--bg);
+  border: none; font-family: var(--font-body);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-generar-reel:hover { background: var(--vo); }
+.btn-generar-reel:disabled { opacity: .3; cursor: not-allowed; }
+
+.reel-progress {
+  display: none;
+  flex-direction: column; gap: 10px;
+  padding: 16px; background: var(--bg2);
+  border: 1px solid var(--line2); margin-top: 14px;
+}
+.reel-progress.show { display: flex; }
+.progress-step {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: var(--dim); letter-spacing: .3px;
+}
+.progress-step.active { color: var(--v); }
+.progress-step.done { color: var(--muted); }
+.progress-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--line2); flex-shrink: 0; transition: background .3s;
+}
+.progress-step.active .progress-dot { background: var(--v); animation: pulse-dot 1s infinite; }
+.progress-step.done .progress-dot { background: var(--muted); }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.reel-result {
+  display: none; margin-top: 14px;
+  background: var(--bg2); border: 1px solid var(--line2); padding: 18px;
+}
+.reel-result.show { display: block; }
+.reel-result video {
+  width: 100%; border-radius: 2px;
+  margin-bottom: 12px; background: #000;
+  max-height: 400px;
+}
+.reel-result-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.reel-warning {
+  font-size: 10px; color: var(--dim);
+  letter-spacing: .5px; margin-top: 8px;
+  line-height: 1.6;
+}
+
 </style>
 </head>
 <body>
@@ -391,6 +497,7 @@
 
   <div class="social-tabs">
     <button class="social-tab active" onclick="switchTab('generar', this)">⚡ Generar</button>
+    <button class="social-tab" onclick="switchTab('reel', this)">🎬 Reel</button>
     <button class="social-tab" onclick="switchTab('config', this)">⚙ Config prompts</button>
   </div>
 
@@ -455,6 +562,121 @@
     </div>
 
   </div>
+
+
+  <!-- ═══ TAB REEL ═══ -->
+  <div id="tabReel">
+
+    <div class="reel-grid">
+
+      <!-- Panel izquierdo: inputs -->
+      <div>
+        <div class="reel-panel">
+          <div class="reel-panel-title">Configuración del Reel</div>
+
+          <div class="reel-step">
+            <span class="reel-step-num">1</span> Voz
+          </div>
+          <div class="mm-field">
+            <label class="mm-label">Nombre de la voz</label>
+            <input type="text" id="reelVoiceName" class="mm-input" value="Agustín" placeholder="Ej: Agustín">
+          </div>
+          <div class="mm-field">
+            <label class="mm-label">Voice ID de ElevenLabs</label>
+            <div class="voice-row">
+              <input type="text" id="reelVoiceId" class="mm-input voice-id-input"
+                value="ByVRQtaK1WDOvTmP1PKO" placeholder="Voice ID...">
+              <button class="btn-card" onclick="saveReelVoice()" title="Guardar voz en KV">Guardar</button>
+            </div>
+            <span style="font-size:10px;color:var(--dim);margin-top:4px;display:block">
+              ElevenLabs → Voices → click en la voz → copiar Voice ID
+            </span>
+          </div>
+
+          <div class="reel-step" style="margin-top:18px">
+            <span class="reel-step-num">2</span> Guion
+          </div>
+          <div class="mm-field">
+            <label class="mm-label">Título del Reel</label>
+            <input type="text" id="reelTitulo" class="mm-input"
+              placeholder="Se genera automáticamente o escribí uno...">
+          </div>
+          <div class="mm-field">
+            <label class="mm-label">Guion (editable)</label>
+            <textarea id="reelGuion" class="mm-textarea" rows="6"
+              placeholder="Se genera con IA o escribí el guion directamente..."></textarea>
+            <span id="reelGuionChars" style="font-size:10px;color:var(--dim);text-align:right;margin-top:3px;display:block">0 caracteres</span>
+          </div>
+          <button class="btn-generar-guion" id="btnGuion" onclick="generarGuion()">
+            <span class="mm-spinner" id="spinGuion"></span>
+            ✦ Generar guion con IA
+          </button>
+
+          <div class="reel-step">
+            <span class="reel-step-num">3</span> Imagen
+          </div>
+          <div class="mm-field">
+            <label class="mm-label">URL de la imagen de la nota</label>
+            <input type="url" id="reelImagen" class="mm-input"
+              placeholder="Se toma de la nota scrapeada o pegá una URL...">
+          </div>
+          <div style="font-size:10px;color:var(--dim);margin-bottom:16px;line-height:1.6">
+            Si generaste contenido en la pestaña Generar, la imagen se carga automáticamente.
+          </div>
+
+          <button class="btn-generar-reel" id="btnReel" onclick="generarReel()">
+            <span class="mm-spinner" id="spinReel" style="border-top-color:#0a0a0a"></span>
+            🎬 Generar Reel
+          </button>
+        </div>
+      </div>
+
+      <!-- Panel derecho: progreso + resultado -->
+      <div>
+        <div class="reel-panel">
+          <div class="reel-panel-title">Estado</div>
+
+          <div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:16px;font-weight:300">
+            El proceso tarda entre <strong style="color:var(--muted)">60 y 90 segundos</strong>.
+            Una vez descargado el video, se borra de R2 automáticamente.
+          </div>
+
+          <div class="reel-progress" id="reelProgress">
+            <div class="progress-step" id="ps1">
+              <div class="progress-dot"></div> Generando audio con ElevenLabs...
+            </div>
+            <div class="progress-step" id="ps2">
+              <div class="progress-dot"></div> Subiendo audio a R2...
+            </div>
+            <div class="progress-step" id="ps3">
+              <div class="progress-dot"></div> Renderizando video en Creatomate...
+            </div>
+            <div class="progress-step" id="ps4">
+              <div class="progress-dot"></div> Guardando video final...
+            </div>
+          </div>
+
+          <div class="reel-result" id="reelResult">
+            <video id="reelVideo" controls playsinline></video>
+            <div class="reel-result-actions">
+              <a id="reelDownload" class="btn-generar" download="reel-media-mendoza.mp4"
+                style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:12px 20px;font-size:9px">
+                ⬇ Descargar MP4
+              </a>
+              <button class="btn-card" onclick="borrarReel()">🗑 Borrar de R2</button>
+            </div>
+            <div class="reel-warning">
+              ⚠ El video se borra automáticamente de R2 a las 24hs. Descargalo antes.
+            </div>
+          </div>
+
+          <div id="reelError" class="error-bar"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 
   <!-- ═══ TAB CONFIG ═══ -->
   <div id="tabConfig">
@@ -591,8 +813,10 @@ function switchTab(tab, btn) {
   document.querySelectorAll('.social-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tabGenerar').style.display = tab === 'generar' ? 'block' : 'none';
+  document.getElementById('tabReel').style.display    = tab === 'reel'    ? 'block' : 'none';
   document.getElementById('tabConfig').style.display  = tab === 'config'  ? 'block' : 'none';
   if (tab === 'config') loadAllPrompts();
+  if (tab === 'reel') loadReelConfig();
 }
 
 // ── CONTEXTO ──
@@ -648,6 +872,8 @@ async function fetchArticle(url) {
   const res = await fetch(`${WORKER}/scrape?url=${encodeURIComponent(url)}`);
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'No se pudo obtener la nota');
+  // Guardamos la imagen para usarla en el Reel
+  if (data.imagen) window._lastImagenUrl = data.imagen;
   return `TÍTULO: ${data.titulo || ''}\n\n${(data.texto || '').substring(0, 4000)}`;
 }
 
@@ -825,6 +1051,176 @@ function restorePrompt(net) {
   if (!confirm('¿Restaurar el prompt por defecto?')) return;
   document.getElementById('prompt-' + net).value = DEFAULT_PROMPTS[net];
 }
+
+// ═══ REEL ═══
+let reelVideoKey = null;
+
+async function loadReelConfig() {
+  try {
+    const r = await fetch(`${WORKER}/social/reel/config`);
+    const d = await r.json();
+    if (d.ok) {
+      document.getElementById('reelVoiceId').value   = d.voiceId   || 'ByVRQtaK1WDOvTmP1PKO';
+      document.getElementById('reelVoiceName').value = d.voiceName || 'Agustín';
+    }
+  } catch {}
+}
+
+async function saveReelVoice() {
+  const voiceId   = document.getElementById('reelVoiceId').value.trim();
+  const voiceName = document.getElementById('reelVoiceName').value.trim();
+  if (!voiceId) { alert('Ingresá el Voice ID'); return; }
+  try {
+    const r = await fetch(`${WORKER}/social/reel/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voiceId, voiceName })
+    });
+    const d = await r.json();
+    if (d.ok) { alert('✓ Voz guardada: ' + voiceName); }
+    else throw new Error(d.error);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function generarGuion() {
+  // Tomar el artículo del tab generar si hay URL cargada
+  const urlInput = document.getElementById('urlInput').value.trim();
+  let articulo = '';
+  if (urlInput) {
+    const btn = document.getElementById('btnGuion');
+    const spin = document.getElementById('spinGuion');
+    btn.disabled = true; spin.style.display = 'inline-block';
+    try {
+      articulo = await fetchArticle(urlInput);
+    } catch {}
+    btn.disabled = false; spin.style.display = 'none';
+  }
+  if (!articulo) {
+    // Usar lo que hay en los campos de texto generados
+    const titleEl = document.getElementById('title-facebook') || document.getElementById('title-instagram') || document.getElementById('title-x');
+    const textEl  = document.getElementById('text-facebook')  || document.getElementById('text-instagram')  || document.getElementById('text-x');
+    articulo = (titleEl?.innerText||'') + '\n\n' + (textEl?.innerText||'');
+  }
+  if (!articulo.trim()) {
+    alert('Primero generá contenido en la pestaña Generar, o cargá una URL.');
+    return;
+  }
+  const btn = document.getElementById('btnGuion');
+  const spin = document.getElementById('spinGuion');
+  btn.disabled = true; spin.style.display = 'inline-block';
+  try {
+    const r = await fetch(`${WORKER}/social/reel/guion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ articulo })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    document.getElementById('reelTitulo').value = d.titulo || '';
+    document.getElementById('reelGuion').value  = d.guion  || '';
+    document.getElementById('reelGuionChars').textContent = (d.guion||'').length + ' caracteres';
+    // Auto-completar imagen si hay una en el scrape
+    if (!document.getElementById('reelImagen').value && window._lastImagenUrl) {
+      document.getElementById('reelImagen').value = window._lastImagenUrl;
+    }
+  } catch(e) {
+    alert('Error generando guion: ' + e.message);
+  }
+  btn.disabled = false; spin.style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const guionTA = document.getElementById('reelGuion');
+  if (guionTA) {
+    guionTA.addEventListener('input', function() {
+      document.getElementById('reelGuionChars').textContent = this.value.length + ' caracteres';
+    });
+  }
+});
+
+function setProgressStep(step) {
+  // step: 1-4, 0 = reset
+  ['ps1','ps2','ps3','ps4'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('active','done');
+    if (i+1 < step) el.classList.add('done');
+    if (i+1 === step) el.classList.add('active');
+  });
+}
+
+async function generarReel() {
+  const guion    = document.getElementById('reelGuion').value.trim();
+  const titulo   = document.getElementById('reelTitulo').value.trim();
+  const imagenUrl= document.getElementById('reelImagen').value.trim();
+  const voiceId  = document.getElementById('reelVoiceId').value.trim() || 'ByVRQtaK1WDOvTmP1PKO';
+
+  if (!guion)  { alert('Escribí o generá el guion primero.'); return; }
+  if (!titulo) { alert('Ingresá un título para el reel.');     return; }
+
+  const btn  = document.getElementById('btnReel');
+  const spin = document.getElementById('spinReel');
+  const prog = document.getElementById('reelProgress');
+  const result = document.getElementById('reelResult');
+  const errEl  = document.getElementById('reelError');
+
+  btn.disabled = true; spin.style.display = 'inline-block';
+  prog.classList.add('show');
+  result.classList.remove('show');
+  errEl.classList.remove('show');
+  reelVideoKey = null;
+
+  setProgressStep(1);
+  try {
+    // El worker hace todo: ElevenLabs → R2 → Creatomate → R2
+    // Mostramos los pasos con delays visuales mientras esperamos
+    setTimeout(() => setProgressStep(2), 8000);
+    setTimeout(() => setProgressStep(3), 15000);
+    setTimeout(() => setProgressStep(4), 70000);
+
+    const r = await fetch(`${WORKER}/social/reel/generar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guion, titulo, imagenUrl, voiceId })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+
+    setProgressStep(5); // todas done
+    ['ps1','ps2','ps3','ps4'].forEach(id => {
+      const el = document.getElementById(id);
+      el.classList.remove('active'); el.classList.add('done');
+    });
+
+    reelVideoKey = d.videoKey || null;
+
+    // Mostrar video
+    const video = document.getElementById('reelVideo');
+    const dl    = document.getElementById('reelDownload');
+    video.src = d.videoUrl;
+    dl.href   = d.videoUrl;
+    result.classList.add('show');
+
+  } catch(e) {
+    errEl.textContent = 'Error: ' + e.message;
+    errEl.classList.add('show');
+    prog.classList.remove('show');
+  }
+
+  btn.disabled = false; spin.style.display = 'none';
+}
+
+async function borrarReel() {
+  if (!reelVideoKey) { alert('No hay video en R2 para borrar.'); return; }
+  if (!confirm('¿Borrar el video de R2? No se puede deshacer.')) return;
+  try {
+    await fetch(`${WORKER}/social/reel/borrar?key=${encodeURIComponent(reelVideoKey)}`, { method: 'DELETE' });
+    document.getElementById('reelResult').classList.remove('show');
+    document.getElementById('reelProgress').classList.remove('show');
+    reelVideoKey = null;
+    alert('✓ Video borrado de R2.');
+  } catch(e) { alert('Error borrando: ' + e.message); }
+}
+
 </script>
 </body>
 </html>
