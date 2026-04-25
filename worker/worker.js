@@ -55,6 +55,8 @@ async function listarObjetosKV(env,prefix){const list=await env.KV.list({prefix}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
 function jsonError(msg,status=400){return new Response(JSON.stringify({ok:false,error:msg}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
+function escapeXml(str=""){return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;")}
+function inferAzureLocaleFromVoiceName(voiceName=""){const m=String(voiceName).match(/^([a-z]{2,3}-[A-Z]{2})-/);return m?m[1]:"es-AR"}
 
 function extraerTexto(html){
   html=html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<nav[\s\S]*?<\/nav>/gi,'').replace(/<header[\s\S]*?<\/header>/gi,'').replace(/<footer[\s\S]*?<\/footer>/gi,'').replace(/<aside[\s\S]*?<\/aside>/gi,'');
@@ -219,8 +221,46 @@ async function handleReelGenerar(body,env){
   ];
 
   let audioBuffer = null;
+  let azureError = "";
+
+  const azureKey = String(env.AZURE_TTS_KEY_1 || "").trim();
+  const azureRegion = String(env.AZURE_TTS_REGION_1 || "").trim();
+  if(azureKey && azureRegion){
+    try{
+      const azureVoice = voiceId || "es-AR-ElenaNeural";
+      const azureLocale = inferAzureLocaleFromVoiceName(azureVoice);
+      const ssml = `<speak version="1.0" xml:lang="${azureLocale}"><voice name="${escapeXml(azureVoice)}">${escapeXml(guion)}</voice></speak>`;
+      const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,{
+        method:"POST",
+        headers:{
+          "Ocp-Apim-Subscription-Key": azureKey,
+          "Content-Type":"application/ssml+xml",
+          "X-Microsoft-OutputFormat":"audio-24khz-96kbitrate-mono-mp3",
+          "User-Agent":"mm-worker"
+        },
+        body:ssml
+      });
+      if(!res.ok){
+        const errBody = await res.text().catch(()=>"");
+        azureError = `Azure TTS: HTTP ${res.status} → ${errBody.substring(0,200)}`;
+        console.log("Azure TTS fallback:", azureError);
+      }else{
+        const buf = await res.arrayBuffer();
+        if(buf.byteLength > 100) audioBuffer = buf;
+        else{
+          azureError = "Azure TTS: audio vacío";
+          console.log("Azure TTS fallback:", azureError);
+        }
+      }
+    }catch(e){
+      azureError = `Azure TTS: ${e.message}`;
+      console.log("Azure TTS fallback:", azureError);
+    }
+  }
+
   const elevenErrors = [];
 
+  if(!audioBuffer){
   for(const voz of intentos){
     const keyName = voz.keyAlias || 'ELEVENLABS_KEY_1';
     const key = env[keyName];
@@ -255,7 +295,13 @@ async function handleReelGenerar(body,env){
       continue;
     }
   }
-  if(!audioBuffer) return jsonError(`ElevenLabs: ${elevenErrors.join(" | ")}`,502);
+  }
+  if(!audioBuffer){
+    const errores = [];
+    if(azureError) errores.push(azureError);
+    if(elevenErrors.length) errores.push(`ElevenLabs: ${elevenErrors.join(" | ")}`);
+    return jsonError(errores.join(" || ") || "No se pudo generar el audio",502);
+  }
 
   // ── 2. R2: guardar audio ──
   const reelId   = generarId("reel_");
