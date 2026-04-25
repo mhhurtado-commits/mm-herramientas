@@ -154,7 +154,7 @@ async function handleGetReelConfig(env){
     const prompt = await env.KV.get(REEL_PROMPT_KEY,"text");
     const voces  = await env.KV.get(REEL_VOCES_KEY,"json");
     // Voces: array de {id, nombre}. Si no hay, devolver la de Agustín por defecto
-    const vocesDefault = [{id: DEFAULT_VOICE_ID, nombre: DEFAULT_VOICE_NAME, keyAlias: 'ELEVENLABS_KEY_1'}];
+    const vocesDefault = [{id: 'VRYQwkcNAnQtTqWe6SBe', nombre: 'Hombre Mediamendoza', keyAlias: 'ELEVENLABS_KEY_1'}];
     return jsonOk({
       prompt: prompt || REEL_PROMPT_DEFAULT,
       voces: voces || vocesDefault
@@ -204,31 +204,32 @@ async function handleReelGenerar(body,env){
   if(!titulo) return jsonError("Falta campo: titulo",400);
 
   // ── 1. ElevenLabs ──
-  // Buscar la key asociada a esta voz (keyAlias guardado en KV junto a la voz)
-  // Si no tiene keyAlias, rotar todas las keys disponibles
-  const vocesKV = await env.KV.get(REEL_VOCES_KEY,"json").catch(()=>null) || [];
-  const vozData = vocesKV.find(v => v.id === voiceId);
-  const keyAlias = vozData?.keyAlias || null;
+  // Cada voz tiene su keyAlias (la cuenta donde fue creada).
+  // Si esa key falla por cuota (429), busca otra voz de otra cuenta como fallback.
+  const vocesKV = await env.KV.get(REEL_VOCES_KEY,"json").catch(()=>null)
+    || [{id: 'VRYQwkcNAnQtTqWe6SBe', nombre: 'Hombre Mediamendoza', keyAlias: 'ELEVENLABS_KEY_1'}];
 
-  // Armar lista de keys: si hay keyAlias, esa key va primero
-  const allElevenKeys = [
-    env.ELEVENLABS_KEY_1, env.ELEVENLABS_KEY_2, env.ELEVENLABS_KEY_3,
-    env.ELEVENLABS_KEY_4, env.ELEVENLABS_KEY_5
-  ].filter(Boolean);
-  if(!allElevenKeys.length) return jsonError("No hay API keys de ElevenLabs configuradas",500);
+  // Voz seleccionada por el usuario
+  const vozPrincipal = vocesKV.find(v => v.id === voiceId) || vocesKV[0];
 
-  // Si hay keyAlias, poner esa key primero y no rotar las demás
-  // (voz privada pertenece solo a esa cuenta)
-  let keysToTry = allElevenKeys;
-  if(keyAlias && env[keyAlias]){
-    keysToTry = [env[keyAlias]]; // solo la key correcta
-  }
+  // Construir lista de intentos: primero la voz elegida, luego las demás como fallback
+  const intentos = [
+    vozPrincipal,
+    ...vocesKV.filter(v => v.id !== vozPrincipal.id)
+  ];
 
   let audioBuffer = null;
   const elevenErrors = [];
-  for(const key of keysToTry){
+
+  for(const voz of intentos){
+    const keyName = voz.keyAlias || 'ELEVENLABS_KEY_1';
+    const key = env[keyName];
+    if(!key){
+      elevenErrors.push(`${voz.nombre}: key "${keyName}" no configurada`);
+      continue;
+    }
     try{
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,{
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voz.id}`,{
         method: "POST",
         headers: {"xi-api-key":key,"Content-Type":"application/json","Accept":"audio/mpeg"},
         body: JSON.stringify({
@@ -237,20 +238,24 @@ async function handleReelGenerar(body,env){
           voice_settings:{ stability:0.5, similarity_boost:0.75, style:0.3, use_speaker_boost:true }
         })
       });
+      if(res.status===429){
+        elevenErrors.push(`${voz.nombre}: cuota agotada, probando siguiente voz`);
+        continue; // intentar con otra voz/cuenta
+      }
       if(!res.ok){
         const errBody = await res.text().catch(()=>"");
-        elevenErrors.push(`key ...${key.slice(-4)} → HTTP ${res.status}: ${errBody.substring(0,300)}`);
+        elevenErrors.push(`${voz.nombre}: HTTP ${res.status} → ${errBody.substring(0,200)}`);
         continue;
       }
       const buf = await res.arrayBuffer();
       if(buf.byteLength > 100){ audioBuffer = buf; break; }
-      elevenErrors.push(`key ...${key.slice(-4)} → audio vacío (${buf.byteLength} bytes)`);
+      elevenErrors.push(`${voz.nombre}: audio vacío`);
     }catch(e){
-      elevenErrors.push(`key ...${key.slice(-4)} → fetch error: ${e.message}`);
+      elevenErrors.push(`${voz.nombre}: ${e.message}`);
       continue;
     }
   }
-  if(!audioBuffer) return jsonError(`ElevenLabs falló. Detalle: ${elevenErrors.join(" | ")}`,502);
+  if(!audioBuffer) return jsonError(`ElevenLabs: ${elevenErrors.join(" | ")}`,502);
 
   // ── 2. R2: guardar audio ──
   const reelId   = generarId("reel_");
@@ -283,45 +288,59 @@ async function handleReelGenerar(body,env){
     height: 1920,
     frame_rate: 30,
     elements: [
+      // Fondo: imagen de la nota, cubre toda la pantalla
       {
         type: "image", track: 1, time: 0,
         x: "50%", y: "50%", width: "100%", height: "100%",
         x_anchor: "50%", y_anchor: "50%",
         source: imagenUrl || LOGO_URL, fit: "cover"
       },
+      // Overlay oscuro permanente
       {
         type: "shape", track: 2, time: 0, shape: "rectangle",
         x: "50%", y: "50%", width: "100%", height: "100%",
         x_anchor: "50%", y_anchor: "50%",
-        fill_color: "rgba(0,0,0,0.5)"
+        fill_color: "rgba(0,0,0,0.45)"
       },
+      // Logo siempre visible arriba
       {
         type: "image", track: 3, time: 0,
-        x: "50%", y: "8%", width: "38%",
+        x: "50%", y: "7%", width: "36%",
         x_anchor: "50%", y_anchor: "50%",
         source: LOGO_URL, fit: "contain"
       },
+      // Título: aparece los primeros 3 segundos, luego desaparece
       {
-        type: "text", track: 4, time: 0,
-        x: "50%", y: "44%", width: "86%",
+        type: "text", track: 4,
+        time: 0, duration: 3,
+        x: "50%", y: "45%", width: "86%",
         x_anchor: "50%", y_anchor: "50%",
         text: titulo,
         font_family: "Montserrat", font_weight: "700",
-        font_size: 72, fill_color: "#ffffff",
+        font_size: 68, fill_color: "#ffffff",
         text_align: "center", line_height: 1.15,
-        animations: [{ time:"start", duration:0.5, easing:"ease-out", type:"slide", direction:"up" }]
+        animations: [
+          { time: "start", duration: 0.5, easing: "ease-out", type: "slide", direction: "up" },
+          { time: "end",   duration: 0.4, easing: "ease-in",  type: "fade" }
+        ]
       },
+      // Subtítulos: empiezan en segundo 3, duran el resto del video
       {
-        type: "text", track: 5, time: 0,
-        x: "50%", y: "80%", width: "86%",
+        type: "text", track: 5,
+        time: 3,
+        x: "50%", y: "80%", width: "88%",
         x_anchor: "50%", y_anchor: "50%",
         text: guion,
         font_family: "Montserrat", font_weight: "500",
-        font_size: 36, fill_color: "#ffffff",
-        background_color: "rgba(0,0,0,0.6)",
-        background_x_padding: "6%", background_y_padding: "4%",
-        text_align: "center", line_height: 1.5
+        font_size: 34, fill_color: "#ffffff",
+        background_color: "rgba(0,0,0,0.65)",
+        background_x_padding: "5%", background_y_padding: "4%",
+        text_align: "center", line_height: 1.55,
+        animations: [
+          { time: "start", duration: 0.4, easing: "ease-out", type: "fade" }
+        ]
       },
+      // Audio
       {
         type: "audio", track: 6, time: 0,
         source: audioPublicUrl, audio_fade_out: 0.5
