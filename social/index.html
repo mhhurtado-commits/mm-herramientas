@@ -578,19 +578,10 @@
             <span class="reel-step-num">1</span> Voz
           </div>
           <div class="mm-field">
-            <label class="mm-label">Nombre de la voz</label>
-            <input type="text" id="reelVoiceName" class="mm-input" value="Agustín" placeholder="Ej: Agustín">
-          </div>
-          <div class="mm-field">
-            <label class="mm-label">Voice ID de ElevenLabs</label>
-            <div class="voice-row">
-              <input type="text" id="reelVoiceId" class="mm-input voice-id-input"
-                value="ByVRQtaK1WDOvTmP1PKO" placeholder="Voice ID...">
-              <button class="btn-card" onclick="saveReelVoice()" title="Guardar voz en KV">Guardar</button>
-            </div>
-            <span style="font-size:10px;color:var(--dim);margin-top:4px;display:block">
-              ElevenLabs → Voices → click en la voz → copiar Voice ID
-            </span>
+            <label class="mm-label">Seleccioná la voz</label>
+            <select id="reelVoiceSelect" class="mm-textarea" style="min-height:auto;padding:10px 12px;cursor:pointer">
+              <option value="ByVRQtaK1WDOvTmP1PKO">Agustín</option>
+            </select>
           </div>
 
           <div class="reel-step" style="margin-top:18px">
@@ -674,6 +665,37 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- Panel config reel: voces + prompt -->
+    <div style="margin-top:16px">
+      <div class="reel-panel">
+        <div class="reel-panel-title">Administrar voces</div>
+        <div id="reelVocesList" style="margin-bottom:14px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:flex-end">
+          <div class="mm-field" style="margin-bottom:0">
+            <label class="mm-label">Nombre</label>
+            <input type="text" id="nuevaVozNombre" class="mm-input" placeholder="Ej: María">
+          </div>
+          <div class="mm-field" style="margin-bottom:0">
+            <label class="mm-label">Voice ID</label>
+            <input type="text" id="nuevaVozId" class="mm-input voice-id-input" placeholder="ElevenLabs Voice ID">
+          </div>
+          <button class="btn-save" onclick="agregarVoz()" style="white-space:nowrap">+ Agregar</button>
+        </div>
+        <div style="font-size:10px;color:var(--dim);margin-top:8px;line-height:1.6">
+          ElevenLabs → My Voices → click en la voz → copiar Voice ID
+        </div>
+      </div>
+
+      <div class="reel-panel" style="margin-top:10px">
+        <div class="reel-panel-title">Prompt del guion</div>
+        <textarea id="reelPromptTA" class="mm-textarea" rows="8" placeholder="Cargando..."></textarea>
+        <div class="config-actions" style="margin-top:10px">
+          <button class="btn-save" id="btnGuardarPromptReel" onclick="guardarPromptReel()">Guardar</button>
+          <span class="saved-badge" id="savedPromptReel">✓ Guardado</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1054,96 +1076,150 @@ function restorePrompt(net) {
 
 // ═══ REEL ═══
 let reelVideoKey = null;
+let reelVoces    = [];  // [{id, nombre}]
 
 async function loadReelConfig() {
   try {
     const r = await fetch(`${WORKER}/social/reel/config`);
     const d = await r.json();
-    if (d.ok) {
-      document.getElementById('reelVoiceId').value   = d.voiceId   || 'ByVRQtaK1WDOvTmP1PKO';
-      document.getElementById('reelVoiceName').value = d.voiceName || 'Agustín';
-    }
-  } catch {}
+    if (!d.ok) return;
+    // Cargar prompt
+    if (d.prompt) document.getElementById('reelPromptTA').value = d.prompt;
+    // Cargar voces
+    reelVoces = d.voces || [{id: 'ByVRQtaK1WDOvTmP1PKO', nombre: 'Agustín'}];
+    renderVocesList();
+    renderVocesSelect();
+  } catch(e) { console.error('loadReelConfig:', e); }
 }
 
-async function saveReelVoice() {
-  const voiceId   = document.getElementById('reelVoiceId').value.trim();
-  const voiceName = document.getElementById('reelVoiceName').value.trim();
-  if (!voiceId) { alert('Ingresá el Voice ID'); return; }
+function renderVocesSelect() {
+  const sel = document.getElementById('reelVoiceSelect');
+  sel.innerHTML = '';
+  reelVoces.forEach((v,i) => {
+    const opt = document.createElement('option');
+    opt.value = v.id;
+    opt.textContent = v.nombre;
+    sel.appendChild(opt);
+  });
+}
+
+function renderVocesList() {
+  const lista = document.getElementById('reelVocesList');
+  if (!lista) return;
+  lista.innerHTML = '';
+  reelVoces.forEach((v, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)';
+    row.innerHTML = `
+      <span style="font-size:12px;color:var(--muted);flex:1">${v.nombre}</span>
+      <span style="font-size:10px;color:var(--dim);font-family:monospace">${v.id.substring(0,14)}...</span>
+      <button onclick="eliminarVoz(${i})" style="background:none;border:1px solid var(--line2);color:var(--dim);padding:3px 8px;cursor:pointer;font-size:10px;font-family:var(--font-body)">✕</button>
+    `;
+    lista.appendChild(row);
+  });
+}
+
+async function agregarVoz() {
+  const nombre = document.getElementById('nuevaVozNombre').value.trim();
+  const id     = document.getElementById('nuevaVozId').value.trim();
+  if (!nombre || !id) { alert('Completá nombre y Voice ID'); return; }
+  reelVoces.push({id, nombre});
+  await guardarVoces();
+  document.getElementById('nuevaVozNombre').value = '';
+  document.getElementById('nuevaVozId').value = '';
+  renderVocesList();
+  renderVocesSelect();
+}
+
+async function eliminarVoz(i) {
+  if (reelVoces.length <= 1) { alert('Dejá al menos una voz'); return; }
+  reelVoces.splice(i, 1);
+  await guardarVoces();
+  renderVocesList();
+  renderVocesSelect();
+}
+
+async function guardarVoces() {
+  try {
+    await fetch(`${WORKER}/social/reel/config`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({voces: reelVoces})
+    });
+  } catch(e) { alert('Error guardando voces: '+e.message); }
+}
+
+async function guardarPromptReel() {
+  const prompt = document.getElementById('reelPromptTA').value.trim();
+  const btn = document.getElementById('btnGuardarPromptReel');
+  const badge = document.getElementById('savedPromptReel');
+  btn.disabled = true;
   try {
     const r = await fetch(`${WORKER}/social/reel/config`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ voiceId, voiceName })
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({prompt})
     });
     const d = await r.json();
-    if (d.ok) { alert('✓ Voz guardada: ' + voiceName); }
-    else throw new Error(d.error);
-  } catch(e) { alert('Error: ' + e.message); }
+    if (!d.ok) throw new Error(d.error);
+    badge.classList.add('show');
+    setTimeout(() => badge.classList.remove('show'), 2500);
+  } catch(e) { alert('Error: '+e.message); }
+  btn.disabled = false;
 }
 
 async function generarGuion() {
-  // Tomar el artículo del tab generar si hay URL cargada
   const urlInput = document.getElementById('urlInput').value.trim();
   let articulo = '';
   if (urlInput) {
-    const btn = document.getElementById('btnGuion');
-    const spin = document.getElementById('spinGuion');
-    btn.disabled = true; spin.style.display = 'inline-block';
-    try {
-      articulo = await fetchArticle(urlInput);
-    } catch {}
-    btn.disabled = false; spin.style.display = 'none';
+    try { articulo = await fetchArticle(urlInput); } catch {}
   }
   if (!articulo) {
-    // Usar lo que hay en los campos de texto generados
-    const titleEl = document.getElementById('title-facebook') || document.getElementById('title-instagram') || document.getElementById('title-x');
-    const textEl  = document.getElementById('text-facebook')  || document.getElementById('text-instagram')  || document.getElementById('text-x');
-    articulo = (titleEl?.innerText||'') + '\n\n' + (textEl?.innerText||'');
+    // Usar contenido generado si existe
+    for (const net of ['facebook','instagram','x']) {
+      const t = document.getElementById('title-'+net);
+      const tx = document.getElementById('text-'+net);
+      if (t && tx) { articulo = t.innerText + '
+
+' + tx.innerText; break; }
+    }
   }
-  if (!articulo.trim()) {
-    alert('Primero generá contenido en la pestaña Generar, o cargá una URL.');
-    return;
-  }
+  if (!articulo.trim()) { alert('Generá contenido primero en la pestaña Generar, o cargá una URL.'); return; }
+
   const btn = document.getElementById('btnGuion');
   const spin = document.getElementById('spinGuion');
   btn.disabled = true; spin.style.display = 'inline-block';
   try {
     const r = await fetch(`${WORKER}/social/reel/guion`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ articulo })
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({articulo})
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error);
     document.getElementById('reelTitulo').value = d.titulo || '';
     document.getElementById('reelGuion').value  = d.guion  || '';
     document.getElementById('reelGuionChars').textContent = (d.guion||'').length + ' caracteres';
-    // Auto-completar imagen si hay una en el scrape
     if (!document.getElementById('reelImagen').value && window._lastImagenUrl) {
       document.getElementById('reelImagen').value = window._lastImagenUrl;
     }
-  } catch(e) {
-    alert('Error generando guion: ' + e.message);
-  }
+  } catch(e) { alert('Error generando guion: '+e.message); }
   btn.disabled = false; spin.style.display = 'none';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const guionTA = document.getElementById('reelGuion');
-  if (guionTA) {
-    guionTA.addEventListener('input', function() {
-      document.getElementById('reelGuionChars').textContent = this.value.length + ' caracteres';
-    });
-  }
+  const g = document.getElementById('reelGuion');
+  if (g) g.addEventListener('input', function() {
+    document.getElementById('reelGuionChars').textContent = this.value.length + ' caracteres';
+  });
 });
 
 function setProgressStep(step) {
-  // step: 1-4, 0 = reset
   ['ps1','ps2','ps3','ps4'].forEach((id,i) => {
     const el = document.getElementById(id);
+    if (!el) return;
     el.classList.remove('active','done');
-    if (i+1 < step) el.classList.add('done');
+    if (i+1 < step)  el.classList.add('done');
     if (i+1 === step) el.classList.add('active');
   });
 }
@@ -1152,14 +1228,14 @@ async function generarReel() {
   const guion    = document.getElementById('reelGuion').value.trim();
   const titulo   = document.getElementById('reelTitulo').value.trim();
   const imagenUrl= document.getElementById('reelImagen').value.trim();
-  const voiceId  = document.getElementById('reelVoiceId').value.trim() || 'ByVRQtaK1WDOvTmP1PKO';
+  const voiceId  = document.getElementById('reelVoiceSelect').value || 'ByVRQtaK1WDOvTmP1PKO';
 
   if (!guion)  { alert('Escribí o generá el guion primero.'); return; }
-  if (!titulo) { alert('Ingresá un título para el reel.');     return; }
+  if (!titulo) { alert('Ingresá un título para el reel.');    return; }
 
-  const btn  = document.getElementById('btnReel');
-  const spin = document.getElementById('spinReel');
-  const prog = document.getElementById('reelProgress');
+  const btn    = document.getElementById('btnReel');
+  const spin   = document.getElementById('spinReel');
+  const prog   = document.getElementById('reelProgress');
   const result = document.getElementById('reelResult');
   const errEl  = document.getElementById('reelError');
 
@@ -1168,59 +1244,53 @@ async function generarReel() {
   result.classList.remove('show');
   errEl.classList.remove('show');
   reelVideoKey = null;
-
   setProgressStep(1);
-  try {
-    // El worker hace todo: ElevenLabs → R2 → Creatomate → R2
-    // Mostramos los pasos con delays visuales mientras esperamos
-    setTimeout(() => setProgressStep(2), 8000);
-    setTimeout(() => setProgressStep(3), 15000);
-    setTimeout(() => setProgressStep(4), 70000);
 
+  // Avanzar pasos visualmente mientras esperamos
+  const t2 = setTimeout(()=>setProgressStep(2), 10000);
+  const t3 = setTimeout(()=>setProgressStep(3), 20000);
+  const t4 = setTimeout(()=>setProgressStep(4), 75000);
+
+  try {
     const r = await fetch(`${WORKER}/social/reel/generar`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ guion, titulo, imagenUrl, voiceId })
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({guion, titulo, imagenUrl, voiceId})
     });
+    clearTimeout(t2); clearTimeout(t3); clearTimeout(t4);
     const d = await r.json();
     if (!d.ok) throw new Error(d.error);
 
-    setProgressStep(5); // todas done
     ['ps1','ps2','ps3','ps4'].forEach(id => {
       const el = document.getElementById(id);
-      el.classList.remove('active'); el.classList.add('done');
+      if (el) { el.classList.remove('active'); el.classList.add('done'); }
     });
 
     reelVideoKey = d.videoKey || null;
-
-    // Mostrar video
-    const video = document.getElementById('reelVideo');
-    const dl    = document.getElementById('reelDownload');
-    video.src = d.videoUrl;
-    dl.href   = d.videoUrl;
+    document.getElementById('reelVideo').src = d.videoUrl;
+    document.getElementById('reelDownload').href = d.videoUrl;
     result.classList.add('show');
 
   } catch(e) {
+    clearTimeout(t2); clearTimeout(t3); clearTimeout(t4);
     errEl.textContent = 'Error: ' + e.message;
     errEl.classList.add('show');
     prog.classList.remove('show');
   }
-
   btn.disabled = false; spin.style.display = 'none';
 }
 
 async function borrarReel() {
   if (!reelVideoKey) { alert('No hay video en R2 para borrar.'); return; }
-  if (!confirm('¿Borrar el video de R2? No se puede deshacer.')) return;
+  if (!confirm('¿Borrar el video de R2?')) return;
   try {
-    await fetch(`${WORKER}/social/reel/borrar?key=${encodeURIComponent(reelVideoKey)}`, { method: 'DELETE' });
+    await fetch(`${WORKER}/social/reel/borrar?key=${encodeURIComponent(reelVideoKey)}`,{method:'DELETE'});
     document.getElementById('reelResult').classList.remove('show');
     document.getElementById('reelProgress').classList.remove('show');
     reelVideoKey = null;
-    alert('✓ Video borrado de R2.');
-  } catch(e) { alert('Error borrando: ' + e.message); }
+    alert('✓ Video borrado.');
+  } catch(e) { alert('Error: '+e.message); }
 }
-
 </script>
 </body>
 </html>

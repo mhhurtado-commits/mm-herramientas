@@ -1,11 +1,7 @@
 // ============================================================
-// Media Mendoza — Worker v11
-// Cambios respecto a v10:
-//   - POST /social/reel/guion       → genera guion con Gemini
-//   - POST /social/reel/generar     → ElevenLabs + Creatomate + R2
-//   - DELETE /social/reel/borrar    → elimina archivo de R2
-//   - GET/POST /social/reel/config  → prompt y voz editables en KV
-//   - Rotación de keys ElevenLabs y Creatomate (hasta 5 cada una)
+// Media Mendoza — Worker v12
+// Fix v11: ElevenLabs error handling, KV separado por clave,
+//          Creatomate font_size en px, lista de voces en KV
 // ============================================================
 
 const CORS_HEADERS = {
@@ -19,16 +15,17 @@ const GEMINI_URL       = `https://generativelanguage.googleapis.com/v1beta/model
 const EDITORIAL_KV_KEY = "config:editorial";
 const WA_PROMPT_KV_KEY = "config:wa_prompt";
 const WA_LINKS_KV_KEY  = "config:wa_links";
-const REEL_CONFIG_KEY  = "config:reel";
+const REEL_PROMPT_KEY  = "config:reel:prompt";   // prompt separado
+const REEL_VOCES_KEY   = "config:reel:voces";    // lista de voces separada
 const MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024;
 const WHATSAPP_PREFIX  = "whatsapp:programado:";
 const AGENDA_EV_PREFIX = "agenda:evento:";
 const AGENDA_EF_PREFIX = "agenda:efemeride:";
 const ANGULOS_PREFIX   = "agenda:angulos:";
 const ANGULOS_TTL      = 60 * 60 * 24 * 30;
-const R2_BUCKET        = "mm-reels";
 const LOGO_URL         = "https://mediamendoza.pages.dev/assets/logo.png";
-const DEFAULT_VOICE_ID = "ByVRQtaK1WDOvTmP1PKO"; // Agustín
+const DEFAULT_VOICE_ID = "ByVRQtaK1WDOvTmP1PKO";
+const DEFAULT_VOICE_NAME = "Agustín";
 
 const REEL_PROMPT_DEFAULT = `Sos locutor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
 Escribí un guion para un reel de Instagram/Facebook de máximo 30 segundos (unas 60-80 palabras).
@@ -39,25 +36,25 @@ Respondé SOLO con JSON sin backticks:
 {"titulo":"título corto para mostrar en el video, máximo 8 palabras","guion":"texto completo para leer en voz alta"}`;
 
 const BROWSER_HEADERS = {
-  "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
-  "Cache-Control":   "no-cache",
+  "Cache-Control": "no-cache",
 };
 
 // ── Helpers ──
 function esXMLvalido(t){return t.includes("<rss")||t.includes("<feed")||t.includes("<channel")||t.includes("<item")||t.includes("<entry")||(t.trimStart().startsWith("<?xml")&&t.includes("<title"))}
-function decodeHtml(text=""){return text.replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'")}
-function limpiarEspacios(text=""){return decodeHtml(text).replace(/\s+/g," ").trim()}
+function decodeHtml(t=""){return t.replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'")}
+function limpiarEspacios(t=""){return decodeHtml(t).replace(/\s+/g," ").trim()}
 function extractMeta(html,...patterns){for(const p of patterns){const m=html.match(p);const v=limpiarEspacios(m?.[1]||"");if(v)return v}return ""}
-function normalizarTituloSitio(title=""){return title.replace(/\s+[|\-–—]\s+(Media Mendoza|mediamendoza\.com).*$/i,"").replace(/\s+/g," ").trim()}
+function normalizarTituloSitio(t=""){return t.replace(/\s+[|\-–—]\s+(Media Mendoza|mediamendoza\.com).*$/i,"").replace(/\s+/g," ").trim()}
 function inferirCategoriaDesdeUrl(url){try{const u=new URL(url);const f=u.pathname.split("/").filter(Boolean)[0]||"";return limpiarEspacios(f.replace(/[-_]+/g," "))}catch{return""}}
-function generarId(prefix){return `${prefix}${Date.now()}_${Math.random().toString(36).slice(2,8)}`}
+function generarId(p){return `${p}${Date.now()}_${Math.random().toString(36).slice(2,8)}`}
 function acortarUrlNota(url){try{const u=new URL(url);const p=u.pathname.split("/").filter(Boolean);if(p.length>=2){const n=p[1].match(/^(\d+)/);if(n)return `${u.origin}/${p[0]}/${n[1]}`}return `${u.origin}${u.pathname}`}catch{return url}}
 async function listarObjetosKV(env,prefix){const list=await env.KV.list({prefix});const items=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)items.push(v)}return items}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
-function jsonError(message,status=400){return new Response(JSON.stringify({ok:false,error:message}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
+function jsonError(msg,status=400){return new Response(JSON.stringify({ok:false,error:msg}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
 
 function extraerTexto(html){
   html=html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<nav[\s\S]*?<\/nav>/gi,'').replace(/<header[\s\S]*?<\/header>/gi,'').replace(/<footer[\s\S]*?<\/footer>/gi,'').replace(/<aside[\s\S]*?<\/aside>/gi,'');
@@ -67,7 +64,7 @@ function extraerTexto(html){
 }
 async function fetchHtml(url,cacheTtl=300){
   const res=await fetch(url,{headers:BROWSER_HEADERS,redirect:"follow",cf:{cacheTtl,cacheEverything:true}});
-  if(!res.ok) throw new Error(`Error ${res.status} al obtener la URL`);
+  if(!res.ok) throw new Error(`Error ${res.status}`);
   return {res,html:await res.text()};
 }
 function extraerDatosNota(html,url){
@@ -92,321 +89,296 @@ export default {
     }
 
     if(request.method==="GET"){
-      if(path==="/rss")                         return handleRSS(url);
-      if(path==="/verificar")                   return handleVerificar(url);
-      if(path==="/scrape")                      return handleScrape(url);
-      if(path==="/fuentes")                     return handleGetFuentes(env);
-      if(path==="/editorial")                   return handleGetEditorial(env);
-      if(path==="/cubiertas")                   return handleGetCubiertas(env);
-      if(path==="/notas")                       return handleGetNotas(env);
-      if(path==="/whatsapp/programados")        return handleGetWhatsappProgramados(env);
-      if(path==="/whatsapp/config/prompt")      return handleGetWaPrompt(env);
-      if(path==="/whatsapp/config/links")       return handleGetWaLinks(env);
-      if(path==="/social/prompt")               return handleGetSocialPrompt(url,env);
-      if(path==="/social/reel/config")          return handleGetReelConfig(env);
-      if(path==="/agenda/eventos")              return handleGetAgendaEventos(url,env);
-      if(path==="/agenda/efemerides")           return handleGetAgendaEfemerides(env);
-      if(path==="/agenda/angulos/cache")        return handleGetAngulosCache(url,env);
-      if(path==="/redactar")                    return jsonError("Usar POST",405);
+      if(path==="/rss")                        return handleRSS(url);
+      if(path==="/verificar")                  return handleVerificar(url);
+      if(path==="/scrape")                     return handleScrape(url);
+      if(path==="/fuentes")                    return handleGetFuentes(env);
+      if(path==="/editorial")                  return handleGetEditorial(env);
+      if(path==="/cubiertas")                  return handleGetCubiertas(env);
+      if(path==="/notas")                      return handleGetNotas(env);
+      if(path==="/whatsapp/programados")       return handleGetWhatsappProgramados(env);
+      if(path==="/whatsapp/config/prompt")     return handleGetWaPrompt(env);
+      if(path==="/whatsapp/config/links")      return handleGetWaLinks(env);
+      if(path==="/social/prompt")              return handleGetSocialPrompt(url,env);
+      if(path==="/social/reel/config")         return handleGetReelConfig(env);
+      if(path==="/agenda/eventos")             return handleGetAgendaEventos(url,env);
+      if(path==="/agenda/efemerides")          return handleGetAgendaEfemerides(env);
+      if(path==="/agenda/angulos/cache")       return handleGetAngulosCache(url,env);
+      if(path==="/redactar")                   return jsonError("Usar POST",405);
       return jsonError("Ruta no encontrada",404);
     }
 
     if(request.method==="DELETE"){
-      if(path==="/fuentes")                     return handleDeleteFuente(url,env);
-      if(path==="/notas")                       return handleDeleteNota(url,env);
-      if(path==="/whatsapp/programado")         return handleDeleteWhatsappProgramado(url,env);
-      if(path==="/agenda/evento")               return handleDeleteAgendaEvento(url,env);
-      if(path==="/agenda/efemeride")            return handleDeleteAgendaEfemeride(url,env);
-      if(path==="/social/reel/borrar")          return handleDeleteReel(url,env);
+      if(path==="/fuentes")                    return handleDeleteFuente(url,env);
+      if(path==="/notas")                      return handleDeleteNota(url,env);
+      if(path==="/whatsapp/programado")        return handleDeleteWhatsappProgramado(url,env);
+      if(path==="/agenda/evento")              return handleDeleteAgendaEvento(url,env);
+      if(path==="/agenda/efemeride")           return handleDeleteAgendaEfemeride(url,env);
+      if(path==="/social/reel/borrar")         return handleDeleteReel(url,env);
       return jsonError("Ruta no encontrada",404);
     }
 
     if(request.method!=="POST") return jsonError("Metodo no permitido",405);
     let body; try{body=await request.json()}catch{return jsonError("JSON invalido",400)}
 
-    if(path==="/titulares")                     return handleTitulares(body,env);
-    if(path==="/reformular")                    return handleReformular(body,env);
-    if(path==="/fuentes")                       return handlePostFuente(body,env);
-    if(path==="/editorial")                     return handlePostEditorial(body,env);
-    if(path==="/cubiertas")                     return handlePostCubierta(body,env);
-    if(path==="/redactar")                      return handleRedactar(body,env);
-    if(path==="/notas")                         return handlePostNota(body,env);
-    if(path==="/whatsapp/generar")              return handleWhatsappGenerar(body,env);
-    if(path==="/whatsapp/programar")            return handlePostWhatsappProgramar(body,env);
-    if(path==="/whatsapp/marcar-enviado")       return handlePostWhatsappMarcarEnviado(body,env);
-    if(path==="/whatsapp/config/prompt")        return handlePostWaPrompt(body,env);
-    if(path==="/whatsapp/config/links")         return handlePostWaLinks(body,env);
-    if(path==="/social/prompt")                 return handlePostSocialPrompt(body,env);
-    if(path==="/social/generar")                return handleSocialGenerar(body,env);
-    if(path==="/social/reel/guion")             return handleReelGuion(body,env);
-    if(path==="/social/reel/generar")           return handleReelGenerar(body,env);
-    if(path==="/social/reel/config")            return handlePostReelConfig(body,env);
-    if(path==="/agenda/evento")                 return handlePostAgendaEvento(body,env);
-    if(path==="/agenda/efemeride")              return handlePostAgendaEfemeride(body,env);
-    if(path==="/agenda/angulos")                return handleAgendaAngulos(body,env);
+    if(path==="/titulares")                    return handleTitulares(body,env);
+    if(path==="/reformular")                   return handleReformular(body,env);
+    if(path==="/fuentes")                      return handlePostFuente(body,env);
+    if(path==="/editorial")                    return handlePostEditorial(body,env);
+    if(path==="/cubiertas")                    return handlePostCubierta(body,env);
+    if(path==="/redactar")                     return handleRedactar(body,env);
+    if(path==="/notas")                        return handlePostNota(body,env);
+    if(path==="/whatsapp/generar")             return handleWhatsappGenerar(body,env);
+    if(path==="/whatsapp/programar")           return handlePostWhatsappProgramar(body,env);
+    if(path==="/whatsapp/marcar-enviado")      return handlePostWhatsappMarcarEnviado(body,env);
+    if(path==="/whatsapp/config/prompt")       return handlePostWaPrompt(body,env);
+    if(path==="/whatsapp/config/links")        return handlePostWaLinks(body,env);
+    if(path==="/social/prompt")                return handlePostSocialPrompt(body,env);
+    if(path==="/social/generar")               return handleSocialGenerar(body,env);
+    if(path==="/social/reel/guion")            return handleReelGuion(body,env);
+    if(path==="/social/reel/generar")          return handleReelGenerar(body,env);
+    if(path==="/social/reel/config")           return handlePostReelConfig(body,env);
+    if(path==="/agenda/evento")                return handlePostAgendaEvento(body,env);
+    if(path==="/agenda/efemeride")             return handlePostAgendaEfemeride(body,env);
+    if(path==="/agenda/angulos")               return handleAgendaAngulos(body,env);
 
     return jsonError("Ruta no encontrada",404);
   },
 };
 
 // ============================================================
-// REEL — CONFIG (prompt + voz en KV)
+// REEL — CONFIG: prompt y voces en KV separados
 // ============================================================
 async function handleGetReelConfig(env){
   try{
-    const v=await env.KV.get(REEL_CONFIG_KEY,"json");
+    const prompt = await env.KV.get(REEL_PROMPT_KEY,"text");
+    const voces  = await env.KV.get(REEL_VOCES_KEY,"json");
+    // Voces: array de {id, nombre}. Si no hay, devolver la de Agustín por defecto
+    const vocesDefault = [{id: DEFAULT_VOICE_ID, nombre: DEFAULT_VOICE_NAME}];
     return jsonOk({
-      prompt: v?.prompt || REEL_PROMPT_DEFAULT,
-      voiceId: v?.voiceId || DEFAULT_VOICE_ID,
-      voiceName: v?.voiceName || "Agustín"
+      prompt: prompt || REEL_PROMPT_DEFAULT,
+      voces: voces || vocesDefault
     });
   }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
+
 async function handlePostReelConfig(body,env){
   try{
-    const actual = await env.KV.get(REEL_CONFIG_KEY,"json") || {};
-    const config = {
-      prompt:    String(body.prompt    || actual.prompt    || REEL_PROMPT_DEFAULT).trim(),
-      voiceId:   String(body.voiceId   || actual.voiceId   || DEFAULT_VOICE_ID).trim(),
-      voiceName: String(body.voiceName || actual.voiceName || "Agustín").trim()
-    };
-    await env.KV.put(REEL_CONFIG_KEY, JSON.stringify(config));
-    return jsonOk({guardado:true, config});
+    // Guardar prompt si viene
+    if(body.prompt !== undefined){
+      const p = String(body.prompt||"").trim() || REEL_PROMPT_DEFAULT;
+      await env.KV.put(REEL_PROMPT_KEY, p);
+    }
+    // Guardar voces si viene (array completo)
+    if(body.voces !== undefined){
+      if(!Array.isArray(body.voces)) return jsonError("voces debe ser array",400);
+      await env.KV.put(REEL_VOCES_KEY, JSON.stringify(body.voces));
+    }
+    return jsonOk({guardado:true});
   }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
 // ============================================================
-// REEL — GENERAR GUION (Gemini)
+// REEL — GUION (Gemini)
 // ============================================================
 async function handleReelGuion(body,env){
   const articulo = String(body.articulo||"").trim();
   if(!articulo) return jsonError("Falta campo: articulo",400);
-  const config = await env.KV.get(REEL_CONFIG_KEY,"json").catch(()=>null);
-  const prompt = (config?.prompt || REEL_PROMPT_DEFAULT) + `\n\nARTÍCULO:\n${articulo.substring(0,3000)}`;
+  const prompt = (await env.KV.get(REEL_PROMPT_KEY,"text").catch(()=>null) || REEL_PROMPT_DEFAULT)
+    + `\n\nARTÍCULO:\n${articulo.substring(0,3000)}`;
   const r = await callGemini(prompt,env);
   if(r.error) return jsonError(r.error,500);
   return jsonOk({titulo: r.data?.titulo||"", guion: r.data?.guion||""});
 }
 
 // ============================================================
-// REEL — GENERAR VIDEO (ElevenLabs + Creatomate + R2)
+// REEL — GENERAR VIDEO
 // ============================================================
 async function handleReelGenerar(body,env){
-  const guion    = String(body.guion||"").trim();
-  const titulo   = String(body.titulo||"").trim();
-  const imagenUrl= String(body.imagenUrl||"").trim();
-  const voiceId  = String(body.voiceId||DEFAULT_VOICE_ID).trim();
+  const guion     = String(body.guion||"").trim();
+  const titulo    = String(body.titulo||"").trim();
+  const imagenUrl = String(body.imagenUrl||"").trim();
+  const voiceId   = String(body.voiceId||DEFAULT_VOICE_ID).trim();
 
   if(!guion)  return jsonError("Falta campo: guion",400);
   if(!titulo) return jsonError("Falta campo: titulo",400);
 
-  // ── 1. ElevenLabs: generar audio ──
-  const elevenKeys = [
-    env.ELEVENLABS_KEY_1, env.ELEVENLABS_KEY_2, env.ELEVENLABS_KEY_3,
-    env.ELEVENLABS_KEY_4, env.ELEVENLABS_KEY_5
-  ].filter(Boolean);
-  if(!elevenKeys.length) return jsonError("No hay API keys de ElevenLabs",500);
+  // ── 1. ElevenLabs ──
+  const elevenKeys = [env.ELEVENLABS_KEY_1,env.ELEVENLABS_KEY_2,env.ELEVENLABS_KEY_3,env.ELEVENLABS_KEY_4,env.ELEVENLABS_KEY_5].filter(Boolean);
+  if(!elevenKeys.length) return jsonError("No hay API keys de ElevenLabs configuradas",500);
 
   let audioBuffer = null;
+  let elevenError = "";
   for(const key of elevenKeys){
     try{
       const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,{
-        method:"POST",
-        headers:{"xi-api-key":key,"Content-Type":"application/json","Accept":"audio/mpeg"},
-        body:JSON.stringify({
+        method: "POST",
+        headers: {"xi-api-key":key,"Content-Type":"application/json","Accept":"audio/mpeg"},
+        body: JSON.stringify({
           text: guion,
           model_id: "eleven_multilingual_v2",
           voice_settings:{ stability:0.5, similarity_boost:0.75, style:0.3, use_speaker_boost:true }
         })
       });
-      if(res.status===429||res.status===401) continue;
-      if(!res.ok) continue;
-      audioBuffer = await res.arrayBuffer();
-      break;
-    }catch(e){continue}
+      if(res.status===429){ elevenError="Límite de cuota alcanzado"; continue; }
+      if(res.status===401){ elevenError="API key inválida"; continue; }
+      if(!res.ok){
+        // Capturar el error real de ElevenLabs
+        const errBody = await res.text().catch(()=>"");
+        elevenError = `HTTP ${res.status}: ${errBody.substring(0,200)}`;
+        continue;
+      }
+      const buf = await res.arrayBuffer();
+      if(buf.byteLength > 100){ audioBuffer = buf; break; } // audio válido
+      elevenError = "Audio vacío recibido";
+    }catch(e){ elevenError = e.message; continue; }
   }
-  if(!audioBuffer) return jsonError("No se pudo generar el audio. Keys de ElevenLabs agotadas o inválidas.",502);
+  if(!audioBuffer) return jsonError(`ElevenLabs: ${elevenError}`,502);
 
-  // ── 2. R2: guardar audio temporalmente ──
+  // ── 2. R2: guardar audio ──
   const reelId   = generarId("reel_");
   const audioKey = `${reelId}/audio.mp3`;
   const videoKey = `${reelId}/video.mp4`;
 
+  if(!env.R2) return jsonError("Binding R2 no configurado en el Worker",500);
+
   try{
     await env.R2.put(audioKey, audioBuffer, {
       httpMetadata:{ contentType:"audio/mpeg" },
-      customMetadata:{ reelId, expira: String(Date.now() + 86400000) }
+      customMetadata:{ reelId, expira: String(Date.now()+86400000) }
     });
-  }catch(err){return jsonError("Error guardando audio en R2: "+err.message,500)}
+  }catch(err){ return jsonError("Error R2 (audio): "+err.message,500); }
 
-  // URL pública del audio (R2 público o usando worker URL)
-  const audioPublicUrl = `https://pub-${env.R2_PUBLIC_ID||"mm-reels"}.r2.dev/${audioKey}`;
+  const r2PublicId = env.R2_PUBLIC_ID || "";
+  if(!r2PublicId) return jsonError("R2_PUBLIC_ID no configurado en secrets del Worker",500);
+  const audioPublicUrl = `https://pub-${r2PublicId}.r2.dev/${audioKey}`;
 
-  // ── 3. Creatomate: renderizar video ──
-  const creatomateKeys = [
-    env.CREATOMATE_KEY_1, env.CREATOMATE_KEY_2, env.CREATOMATE_KEY_3,
-    env.CREATOMATE_KEY_4, env.CREATOMATE_KEY_5
-  ].filter(Boolean);
+  // ── 3. Creatomate ──
+  const creatomateKeys = [env.CREATOMATE_KEY_1,env.CREATOMATE_KEY_2,env.CREATOMATE_KEY_3,env.CREATOMATE_KEY_4,env.CREATOMATE_KEY_5].filter(Boolean);
   if(!creatomateKeys.length){
     await env.R2.delete(audioKey).catch(()=>{});
-    return jsonError("No hay API keys de Creatomate",500);
+    return jsonError("No hay API keys de Creatomate configuradas",500);
   }
 
-  // Template de Creatomate: formato Reel 9:16
   const template = {
     output_format: "mp4",
     width: 1080,
     height: 1920,
     frame_rate: 30,
-    duration: null, // se ajusta al audio
     elements: [
-      // Fondo: imagen de la nota (cubre toda la pantalla)
       {
-        type: "image",
-        track: 1,
-        time: 0,
-        x: "50%", y: "50%",
-        width: "100%", height: "100%",
+        type: "image", track: 1, time: 0,
+        x: "50%", y: "50%", width: "100%", height: "100%",
         x_anchor: "50%", y_anchor: "50%",
-        source: imagenUrl || LOGO_URL,
-        fit: "cover"
+        source: imagenUrl || LOGO_URL, fit: "cover"
       },
-      // Overlay oscuro para legibilidad
       {
-        type: "shape",
-        track: 2,
-        time: 0,
-        shape: "rectangle",
-        x: "50%", y: "50%",
-        width: "100%", height: "100%",
+        type: "shape", track: 2, time: 0, shape: "rectangle",
+        x: "50%", y: "50%", width: "100%", height: "100%",
         x_anchor: "50%", y_anchor: "50%",
-        fill_color: "rgba(0,0,0,0.52)"
+        fill_color: "rgba(0,0,0,0.5)"
       },
-      // Logo Media Mendoza (arriba centrado)
       {
-        type: "image",
-        track: 3,
-        time: 0,
-        x: "50%", y: "8%",
-        width: "40%",
+        type: "image", track: 3, time: 0,
+        x: "50%", y: "8%", width: "38%",
         x_anchor: "50%", y_anchor: "50%",
-        source: LOGO_URL,
-        fit: "contain"
+        source: LOGO_URL, fit: "contain"
       },
-      // Título (centro superior)
       {
-        type: "text",
-        track: 4,
-        time: 0,
-        x: "50%", y: "45%",
-        width: "88%",
+        type: "text", track: 4, time: 0,
+        x: "50%", y: "44%", width: "86%",
         x_anchor: "50%", y_anchor: "50%",
         text: titulo,
-        font_family: "Montserrat",
-        font_weight: "700",
-        font_size: "62 vmin",
-        fill_color: "#ffffff",
-        text_align: "center",
-        line_height: 1.15,
-        animations: [{ time: "start", duration: 0.6, easing: "ease-out", type: "slide", direction: "up" }]
+        font_family: "Montserrat", font_weight: "700",
+        font_size: 72, fill_color: "#ffffff",
+        text_align: "center", line_height: 1.15,
+        animations: [{ time:"start", duration:0.5, easing:"ease-out", type:"slide", direction:"up" }]
       },
-      // Subtítulos (guion como texto animado, abajo)
       {
-        type: "text",
-        track: 5,
-        time: 0,
-        x: "50%", y: "78%",
-        width: "88%",
+        type: "text", track: 5, time: 0,
+        x: "50%", y: "80%", width: "86%",
         x_anchor: "50%", y_anchor: "50%",
         text: guion,
-        font_family: "Montserrat",
-        font_weight: "500",
-        font_size: "34 vmin",
-        fill_color: "#ffffff",
-        background_color: "rgba(0,0,0,0.55)",
-        background_x_padding: "14%",
-        background_y_padding: "8%",
-        text_align: "center",
-        line_height: 1.4,
-        transcript: true  // subtítulos sincronizados con el audio
+        font_family: "Montserrat", font_weight: "500",
+        font_size: 36, fill_color: "#ffffff",
+        background_color: "rgba(0,0,0,0.6)",
+        background_x_padding: "6%", background_y_padding: "4%",
+        text_align: "center", line_height: 1.5
       },
-      // Audio
       {
-        type: "audio",
-        track: 6,
-        time: 0,
-        source: audioPublicUrl,
-        audio_fade_out: 0.5
+        type: "audio", track: 6, time: 0,
+        source: audioPublicUrl, audio_fade_out: 0.5
       }
     ]
   };
 
-  let renderUrl = null;
-  let renderId  = null;
+  let renderId = null;
+  let creatomateError = "";
   for(const key of creatomateKeys){
     try{
       const res = await fetch("https://api.creatomate.com/v1/renders",{
-        method:"POST",
-        headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json"},
+        method: "POST",
+        headers: {"Authorization":"Bearer "+key,"Content-Type":"application/json"},
         body: JSON.stringify({ source: template })
       });
-      if(res.status===429||res.status===401) continue;
-      if(!res.ok) continue;
+      if(res.status===429){ creatomateError="Límite Creatomate"; continue; }
+      if(res.status===401){ creatomateError="Key Creatomate inválida"; continue; }
+      if(!res.ok){
+        const errBody = await res.text().catch(()=>"");
+        creatomateError = `HTTP ${res.status}: ${errBody.substring(0,300)}`;
+        continue;
+      }
       const data = await res.json();
-      renderId  = data?.[0]?.id || null;
-      renderUrl = data?.[0]?.url || null;
-      break;
-    }catch(e){continue}
+      renderId = data?.[0]?.id || null;
+      if(renderId) break;
+      creatomateError = "No se recibió render ID";
+    }catch(e){ creatomateError = e.message; continue; }
   }
 
   if(!renderId){
     await env.R2.delete(audioKey).catch(()=>{});
-    return jsonError("No se pudo iniciar el render en Creatomate. Keys agotadas.",502);
+    return jsonError(`Creatomate: ${creatomateError}`,502);
   }
 
-  // ── 4. Polling hasta que Creatomate termine (máx 90 seg) ──
+  // ── 4. Polling hasta que Creatomate termine ──
   let videoFinalUrl = null;
   const startTime = Date.now();
-  const pollKey = creatomateKeys[0];
-  while(Date.now()-startTime < 90000){
-    await sleep(4000);
+  while(Date.now()-startTime < 110000){
+    await sleep(5000);
     try{
       const poll = await fetch(`https://api.creatomate.com/v1/renders/${renderId}`,{
-        headers:{"Authorization":"Bearer "+pollKey}
+        headers:{"Authorization":"Bearer "+creatomateKeys[0]}
       });
       const d = await poll.json();
       if(d.status==="succeeded"){ videoFinalUrl = d.url; break; }
-      if(d.status==="failed") break;
-    }catch(e){break}
+      if(d.status==="failed"){
+        await env.R2.delete(audioKey).catch(()=>{});
+        return jsonError(`Render Creatomate falló: ${JSON.stringify(d.error||d)}`,502);
+      }
+    }catch(e){ break; }
   }
 
   if(!videoFinalUrl){
     await env.R2.delete(audioKey).catch(()=>{});
-    return jsonError("El render de Creatomate tardó demasiado o falló. Intentá de nuevo.",502);
+    return jsonError("Timeout: el render tardó más de 110 segundos",504);
   }
 
-  // ── 5. R2: guardar el video final ──
+  // ── 5. Guardar video en R2 ──
   try{
-    const videoRes = await fetch(videoFinalUrl);
-    if(videoRes.ok){
-      const videoBuffer = await videoRes.arrayBuffer();
-      await env.R2.put(videoKey, videoBuffer, {
+    const vRes = await fetch(videoFinalUrl);
+    if(vRes.ok){
+      const vBuf = await vRes.arrayBuffer();
+      await env.R2.put(videoKey, vBuf, {
         httpMetadata:{ contentType:"video/mp4" },
-        customMetadata:{ reelId, expira: String(Date.now() + 86400000) }
+        customMetadata:{ reelId, expira: String(Date.now()+86400000) }
       });
     }
-  }catch(e){ /* no crítico, devolvemos url de creatomate como fallback */ }
+  }catch(e){}
 
-  // ── 6. Limpiar audio de R2 (ya no lo necesitamos) ──
+  // ── 6. Limpiar audio de R2 ──
   await env.R2.delete(audioKey).catch(()=>{});
 
-  return jsonOk({
-    reelId,
-    videoKey,
-    videoUrl: videoFinalUrl, // URL de Creatomate (válida 24hs)
-    titulo,
-    guion
-  });
+  return jsonOk({ reelId, videoKey, videoUrl: videoFinalUrl, titulo, guion });
 }
 
 // ============================================================
@@ -415,10 +387,8 @@ async function handleReelGenerar(body,env){
 async function handleDeleteReel(url,env){
   const key = url.searchParams.get("key");
   if(!key) return jsonError("Falta parámetro key",400);
-  try{
-    await env.R2.delete(key);
-    return jsonOk({eliminado:true});
-  }catch(err){return jsonError("Error R2: "+err.message,500)}
+  try{ await env.R2.delete(key); return jsonOk({eliminado:true}); }
+  catch(err){ return jsonError("Error R2: "+err.message,500); }
 }
 
 // ============================================================
@@ -427,69 +397,69 @@ async function handleDeleteReel(url,env){
 async function handleGetSocialPrompt(url,env){
   const net=url.searchParams.get("net");
   if(!net) return jsonError("Falta parámetro net",400);
-  try{const v=await env.KV.get("social:prompt:"+net,"text");return jsonOk({prompt:v||null})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{ const v=await env.KV.get("social:prompt:"+net,"text"); return jsonOk({prompt:v||null}); }
+  catch(err){ return jsonError("Error KV: "+err.message,500); }
 }
 async function handlePostSocialPrompt(body,env){
   const net=String(body.net||"").trim();
   const prompt=String(body.prompt||"").trim();
   if(!net||!prompt) return jsonError("Faltan campos",400);
-  try{await env.KV.put("social:prompt:"+net,prompt);return jsonOk({guardado:true})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{ await env.KV.put("social:prompt:"+net,prompt); return jsonOk({guardado:true}); }
+  catch(err){ return jsonError("Error KV: "+err.message,500); }
 }
 async function handleSocialGenerar(body,env){
   const systemPrompt=String(body.systemPrompt||"").trim();
   const userMsg=String(body.userMsg||"").trim();
   if(!systemPrompt||!userMsg) return jsonError("Faltan campos",400);
   const prompt=`${systemPrompt}\n\nResponde SOLO con JSON sin backticks ni markdown.\n\n${userMsg}`;
-  const resultado=await callGemini(prompt,env);
-  if(resultado.error) return jsonError(resultado.error,500);
-  return jsonOk({result:resultado.data});
+  const r=await callGemini(prompt,env);
+  if(r.error) return jsonError(r.error,500);
+  return jsonOk({result:r.data});
 }
 
 // ============================================================
 // CONFIG WA
 // ============================================================
 async function handleGetWaPrompt(env){
-  try{const v=await env.KV.get(WA_PROMPT_KV_KEY,"text");return jsonOk({prompt:v||null})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{ const v=await env.KV.get(WA_PROMPT_KV_KEY,"text"); return jsonOk({prompt:v||null}); }
+  catch(err){ return jsonError("Error KV: "+err.message,500); }
 }
 async function handlePostWaPrompt(body,env){
   const prompt=String(body.prompt||"").trim();
   if(!prompt) return jsonError("Falta campo: prompt",400);
-  try{await env.KV.put(WA_PROMPT_KV_KEY,prompt);return jsonOk({guardado:true})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{ await env.KV.put(WA_PROMPT_KV_KEY,prompt); return jsonOk({guardado:true}); }
+  catch(err){ return jsonError("Error KV: "+err.message,500); }
 }
 async function handleGetWaLinks(env){
-  try{const v=await env.KV.get(WA_LINKS_KV_KEY,"json");return jsonOk({links:v||{grupo:"",canal:""}})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{ const v=await env.KV.get(WA_LINKS_KV_KEY,"json"); return jsonOk({links:v||{grupo:"",canal:""}}); }
+  catch(err){ return jsonError("Error KV: "+err.message,500); }
 }
 async function handlePostWaLinks(body,env){
   const links={grupo:String(body.links?.grupo||"").trim(),canal:String(body.links?.canal||"").trim()};
-  try{await env.KV.put(WA_LINKS_KV_KEY,JSON.stringify(links));return jsonOk({guardado:true})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{ await env.KV.put(WA_LINKS_KV_KEY,JSON.stringify(links)); return jsonOk({guardado:true}); }
+  catch(err){ return jsonError("Error KV: "+err.message,500); }
 }
 
 // ============================================================
 // TITULARES / REFORMULAR / REDACTAR
 // ============================================================
 const ESTILOS_DESC={
-  formal:`FORMATO REQUERIDO — Periodístico formal, pirámide invertida:\n- Titular: sustantivo + verbo + dato central, máximo 10 palabras.\n- Párrafo 1: qué, quién, cuándo, dónde, cómo en máximo 2 oraciones.\n- Desarrollo: orden de importancia descendente, 3-4 párrafos.\n- Cierre: dato proyectivo o declaración final.`,
-  directo:`FORMATO REQUERIDO — Nota corta:\n- Titular: el hecho más impactante, máximo 7 palabras.\n- Cuerpo: exactamente 3 párrafos de 2 oraciones cada uno.`,
-  ampliado:`FORMATO REQUERIDO — Nota de profundidad:\n- Párrafo 1: hecho central.\n- Párrafo 2: antecedentes.\n- Párrafo 3: datos y cifras.\n- Párrafo 4: perspectivas.\n- Párrafo 5: cierre.`,
-  breaking:`FORMATO REQUERIDO — Urgente:\n- Titular: verbo en presente, máximo 8 palabras.\n- Párrafo 1: hecho en una oración.\n- Párrafo 2: lo que se sabe.\n- Párrafo 3: lo que falta confirmar.`,
-  cronica:`FORMATO REQUERIDO — Crónica narrativa:\n- Titular evocador.\n- Apertura con escena concreta.\n- Presentación del protagonista.\n- El hecho noticioso.\n- Contexto y cierre.`,
-  deportes:`FORMATO REQUERIDO — Nota deportiva:\n- Titular activo.\n- Resultado, momentos clave, datos, próximo paso.`,
-  espectaculos:`FORMATO REQUERIDO — Espectáculos/cultura:\n- Titular llamativo.\n- Hecho, contexto, dato curioso, qué sigue.`,
-  redes:`FORMATO REQUERIDO — Para redes:\n- Titular gancho.\n- 3 párrafos de 2 oraciones. Datos concretos. Cierre que invite a compartir.`,
-  institucional:`FORMATO REQUERIDO — Comunicado:\n- Titular formal.\n- Hecho → justificación → declaración → datos técnicos. 4 párrafos.`
+  formal:`FORMATO — Periodístico formal:\n- Titular: sujeto+verbo+dato, máx 10 palabras.\n- P1: qué/quién/cuándo/dónde/cómo.\n- P2-4: orden de importancia.\n- Cierre: dato proyectivo.`,
+  directo:`FORMATO — Directo:\n- Titular: máx 7 palabras.\n- 3 párrafos de 2 oraciones.`,
+  ampliado:`FORMATO — Profundidad:\n- P1 hecho, P2 antecedentes, P3 datos, P4 perspectivas, P5 cierre.`,
+  breaking:`FORMATO — Urgente:\n- Titular en presente, máx 8 palabras.\n- P1 hecho, P2 lo que se sabe, P3 lo que falta.`,
+  cronica:`FORMATO — Crónica:\n- Titular evocador, apertura escena, protagonista, hecho, contexto, cierre.`,
+  deportes:`FORMATO — Deportes:\n- Titular activo. Resultado, momentos clave, datos, próximo paso.`,
+  espectaculos:`FORMATO — Espectáculos:\n- Titular llamativo. Hecho, contexto, dato curioso, qué sigue.`,
+  redes:`FORMATO — Redes:\n- Titular gancho. 3 párrafos breves. Cierre que invite a compartir.`,
+  institucional:`FORMATO — Comunicado:\n- Titular formal. Hecho→justificación→declaración→datos. 4 párrafos.`
 };
 
 function comprimirEditorial(texto){
   if(!texto) return null;
   const lineas=texto.split('\n').map(l=>l.trim()).filter(l=>l.length>5)
-    .filter(l=>!l.match(/^(Actuá como|Media Mendoza es|El enfoque|La línea|📰|🧭|✍️|🧱|📍|🚨|🔎|⚙️|🧪|OPCIONAL)/))
-    .filter(l=>l.startsWith('-')||l.startsWith('•')||l.match(/^(No |Usar |Incluir |Evitar |Redactar |Destacar |Pueden )/i))
+    .filter(l=>!l.match(/^(Actuá como|Media Mendoza es|El enfoque|📰|🧭|✍️|🧱|📍|🚨)/))
+    .filter(l=>l.startsWith('-')||l.startsWith('•')||l.match(/^(No |Usar |Incluir |Evitar |Redactar )/i))
     .slice(0,20);
   if(!lineas.length) return texto.split('\n').map(l=>l.trim()).filter(l=>l.length>10).slice(0,15).join('\n');
   return lineas.join('\n');
@@ -497,12 +467,10 @@ function comprimirEditorial(texto){
 
 async function handleTitulares(body,env){
   const{modo,contenido,contexto="",tono="informativo",cantidad=5}=body;
-  if(!modo||!contenido) return jsonError("Faltan campos: modo y contenido",400);
-  const editorial=comprimirEditorial(await getEditorial(env));
-  const instruccion=modo==="nota"?`Analizá este texto y generá exactamente ${cantidad} titulares.\n\nTEXTO:\n"""\n${contenido}\n"""` :`Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
-  const bloqueCtx=contexto?`\nCONTEXTO:\n"""\n${contexto}\n"""\n`:"";
-  const bloqueEd=editorial?`\nREGLAS EDITORIALES:\n${editorial}\n`:"";
-  const prompt=`Sos el editor del diario digital mendocino Media Mendoza.\n${instruccion}\n${bloqueCtx}Tono: ${tono}.\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titulares":["T1","T2"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
+  if(!modo||!contenido) return jsonError("Faltan campos",400);
+  const ed=comprimirEditorial(await getEditorial(env));
+  const instr=modo==="nota"?`Generá exactamente ${cantidad} titulares de este texto:\n"""\n${contenido}\n"""`:`Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
+  const prompt=`Sos editor de Media Mendoza.\n${instr}\n${contexto?`\nCONTEXTO:\n${contexto}\n`:""}\nTono: ${tono}.\n${ed?`REGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titulares":["T1"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
   const r=await callGemini(prompt,env);
   if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
@@ -510,12 +478,9 @@ async function handleTitulares(body,env){
 
 async function handleReformular(body,env){
   const{titulo,contenido,contexto="",estilo="formal"}=body;
-  if(!titulo||!contenido) return jsonError("Faltan campos: titulo y contenido",400);
-  const editorial=comprimirEditorial(await getEditorial(env));
-  const estiloInstr=ESTILOS_DESC[estilo]||ESTILOS_DESC.formal;
-  const bloqueCtx=contexto?`\nINFORMACIÓN ADICIONAL:\n"""\n${contexto}\n"""\n`:"";
-  const bloqueEd=editorial?`REGLAS:\n${editorial}\n`:"";
-  const prompt=`Sos redactor del diario digital mendocino Media Mendoza.\nReformulá completamente la nota.\n\nNOTA ORIGINAL:\nTítulo: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${bloqueCtx}\n${estiloInstr}\n\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n{"titular":"...","cuerpo":"P1...\n\nP2...\n\nP3...","categoria_sugerida":"...","hashtags":["#h1"]}`;
+  if(!titulo||!contenido) return jsonError("Faltan campos",400);
+  const ed=comprimirEditorial(await getEditorial(env));
+  const prompt=`Sos redactor de Media Mendoza.\nReformulá completamente esta nota.\n\nTítulo original: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${contexto?`\nINFO EXTRA:\n${contexto}\n`:""}\n${ESTILOS_DESC[estilo]||ESTILOS_DESC.formal}\n${ed?`\nREGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titular":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[]}`;
   const r=await callGemini(prompt,env);
   if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
@@ -524,11 +489,8 @@ async function handleReformular(body,env){
 async function handleRedactar(body,env){
   const{ideas,buscarWeb=false}=body;
   if(!ideas) return jsonError("Falta campo: ideas",400);
-  const editorial=comprimirEditorial(await getEditorial(env));
-  const bloqueEd=editorial?`REGLAS:\n${editorial}\n`:"Estilo formal periodístico, pirámide invertida.\n";
-  const instrBusq=buscarWeb?"Buscá contexto en la web.":"Redactá solo con la info provista.";
-  const schema='{"titular":"","bajada":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}';
-  const prompt=`Sos redactor del diario digital mendocino Media Mendoza.\nRedactá una nota periodística completa.\n\nCONTENIDO:\n${ideas}\n\n${instrBusq}\n\n${bloqueEd}Respondé SOLO con JSON sin backticks:\n${schema}`;
+  const ed=comprimirEditorial(await getEditorial(env));
+  const prompt=`Sos redactor de Media Mendoza.\nRedactá una nota periodística.\n\nCONTENIDO:\n${ideas}\n\n${buscarWeb?"Buscá contexto en la web.":"Solo usá la info provista."}\n${ed?`\nREGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titular":"","bajada":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}`;
   const fn=buscarWeb?callGeminiConBusqueda:callGemini;
   const r=await fn(prompt,env);
   if(r.error) return jsonError(r.error,500);
@@ -560,22 +522,22 @@ async function handleGetAngulosCache(url,env){
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleAgendaAngulos(body,env){
-  const titulo=String(body.titulo||"").trim();if(!titulo) return jsonError("Falta campo: titulo",400);
+  const titulo=String(body.titulo||"").trim();if(!titulo) return jsonError("Falta titulo",400);
   const kvKey=String(body.kvKey||"").trim();
   if(kvKey){try{const c=await env.KV.get(ANGULOS_PREFIX+kvKey,"json");if(c) return jsonOk({...c,fromCache:true})}catch(e){}}
-  const prompt=`Sos editor de agenda del diario Media Mendoza.\nAnaliza este evento.\n\nEVENTO:\nTitulo: ${titulo}\nDescripcion: ${String(body.descripcion||"").trim()}\nFecha: ${String(body.fecha||"").trim()}\nTipo: ${String(body.tipo||"").trim()}\n\nResponde SOLO con JSON sin backticks:\n{"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"..."}`;
-  const resultado=await callGemini(prompt,env);if(resultado.error) return jsonError(resultado.error,500);
-  const data={angulos:Array.isArray(resultado.data?.angulos)?resultado.data.angulos:[],preguntas:Array.isArray(resultado.data?.preguntas)?resultado.data.preguntas:[],fuentes_sugeridas:Array.isArray(resultado.data?.fuentes_sugeridas)?resultado.data.fuentes_sugeridas:[],consejo:String(resultado.data?.consejo||"").trim()};
+  const prompt=`Sos editor de agenda de Media Mendoza.\nEVENTO:\nTitulo: ${titulo}\nDescripcion: ${String(body.descripcion||"").trim()}\nFecha: ${String(body.fecha||"").trim()}\nTipo: ${String(body.tipo||"").trim()}\n\nResponde SOLO con JSON sin backticks:\n{"angulos":["a1"],"preguntas":["p1"],"fuentes_sugeridas":["f1"],"consejo":""}`;
+  const r=await callGemini(prompt,env);if(r.error) return jsonError(r.error,500);
+  const data={angulos:Array.isArray(r.data?.angulos)?r.data.angulos:[],preguntas:Array.isArray(r.data?.preguntas)?r.data.preguntas:[],fuentes_sugeridas:Array.isArray(r.data?.fuentes_sugeridas)?r.data.fuentes_sugeridas:[],consejo:String(r.data?.consejo||"").trim()};
   if(kvKey){try{await env.KV.put(ANGULOS_PREFIX+kvKey,JSON.stringify(data),{expirationTtl:ANGULOS_TTL})}catch(e){}}
   return jsonOk(data);
 }
 async function handleGetAgendaEventos(url,env){
-  try{const mes=String(url.searchParams.get("mes")||"").trim();let ev=await listarObjetosKV(env,AGENDA_EV_PREFIX);if(mes) ev=ev.filter(e=>String(e.fecha||"").startsWith(mes));ev.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));return jsonOk({eventos:ev})}
+  try{const mes=String(url.searchParams.get("mes")||"").trim();let ev=await listarObjetosKV(env,AGENDA_EV_PREFIX);if(mes)ev=ev.filter(e=>String(e.fecha||"").startsWith(mes));ev.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));return jsonOk({eventos:ev})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostAgendaEvento(body,env){
   const titulo=String(body.titulo||"").trim();const fecha=String(body.fecha||"").trim();
-  if(!titulo||!fecha) return jsonError("Faltan campos: titulo y fecha",400);
+  if(!titulo||!fecha) return jsonError("Faltan campos",400);
   const ev={id:body.id||generarId("ag_"),titulo,fecha,hora:String(body.hora||"").trim(),tipo:String(body.tipo||"evento").trim(),alcance:String(body.alcance||"local").trim(),descripcion:String(body.descripcion||"").trim(),periodista:String(body.periodista||"").trim(),creado:body.creado||Date.now()};
   try{await env.KV.put(`${AGENDA_EV_PREFIX}${ev.id}`,JSON.stringify(ev));return jsonOk({guardado:true,id:ev.id,evento:ev})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
@@ -587,10 +549,10 @@ async function handleDeleteAgendaEvento(url,env){
 }
 
 // ============================================================
-// SCRAPING
+// SCRAPING / PLACAS
 // ============================================================
 async function handleScrape(url){
-  const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("Parametro url requerido",400);
+  const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
   try{new URL(targetUrl)}catch{return jsonError("URL invalida",400)}
   try{
     const{html}=await fetchHtml(targetUrl,300);
@@ -598,62 +560,53 @@ async function handleScrape(url){
     const titleTag=html.match(/<title[^>]*>([^<]{1,200})<\/title>/i);
     const titulo=(ogTitle?.[1]||titleTag?.[1]||'').replace(/\s+/g,' ').trim();
     const ogImg=html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,500})["']/i)||html.match(/<meta[^>]+content=["']([^"']{1,500})["'][^>]+property=["']og:image["']/i);
-    const imagen=ogImg?.[1]||'';
     const texto=extraerTexto(html);
-    if(!texto||texto.length<100) return jsonError("No se pudo extraer contenido de la nota",422);
-    return jsonOk({titulo,texto,imagen,url:targetUrl});
+    if(!texto||texto.length<100) return jsonError("No se pudo extraer contenido",422);
+    return jsonOk({titulo,texto,imagen:ogImg?.[1]||'',url:targetUrl});
   }catch(err){return jsonError(`Error scrapeando: ${err.message}`,502)}
 }
-
-// ============================================================
-// PLACAS
-// ============================================================
 async function handlePlacasUrl(url){
-  const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("Parametro url requerido",400);
+  const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
   try{new URL(targetUrl)}catch{return jsonError("URL invalida",400)}
   try{const{html}=await fetchHtml(targetUrl,300);const data=extraerDatosNota(html,targetUrl);if(!data.title&&!data.body) return jsonError("No se pudo extraer contenido",422);return jsonOk(data)}
   catch(err){return jsonError(`Error: ${err.message}`,502)}
 }
 async function handlePlacasImage(url){
-  const imageUrl=url.searchParams.get("image");if(!imageUrl) return jsonError("Parametro image requerido",400);
+  const imageUrl=url.searchParams.get("image");if(!imageUrl) return jsonError("image requerida",400);
   try{new URL(imageUrl)}catch{return jsonError("URL invalida",400)}
   try{
-    const res=await fetch(imageUrl,{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"image/*,*/*;q=0.8"},redirect:"follow",cf:{cacheTtl:3600,cacheEverything:true}});
+    const res=await fetch(imageUrl,{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"image/*"},redirect:"follow",cf:{cacheTtl:3600,cacheEverything:true}});
     if(!res.ok) return jsonError(`Error ${res.status}`,502);
     const ct=res.headers.get("Content-Type")||"application/octet-stream";
-    if(!ct.startsWith("image/")) return jsonError("La URL no devolvio una imagen",422);
+    if(!ct.startsWith("image/")) return jsonError("No es imagen",422);
     const cl=Number(res.headers.get("Content-Length")||"0");
-    if(cl&&cl>MAX_PROXY_IMAGE_BYTES) return jsonError("La imagen es demasiado pesada",413);
+    if(cl&&cl>MAX_PROXY_IMAGE_BYTES) return jsonError("Imagen muy pesada",413);
     return new Response(res.body,{headers:{...CORS_HEADERS,"Content-Type":ct,"Cache-Control":"public, max-age=3600"}});
-  }catch(err){return jsonError(`Error obteniendo imagen: ${err.message}`,502)}
+  }catch(err){return jsonError(`Error: ${err.message}`,502)}
 }
 async function handlePlacasAI(request,env){
   let body;try{body=await request.json()}catch{return jsonError("JSON invalido",400)}
   const system=String(body.system||"").trim();const user=String(body.user||"").trim();
-  if(!system||!user) return jsonError("Faltan campos: system y user",400);
+  if(!system||!user) return jsonError("Faltan campos",400);
   const prompt=`${system}\n\nResponde SOLO con JSON sin backticks:\n{"grupo":"...","canal":"..."}\n\n${user}`;
-  const resultado=await callGemini(prompt,env);if(resultado.error) return jsonError(resultado.error,500);
-  const grupo=limpiarEspacios(resultado.data?.grupo||"");const canal=limpiarEspacios(resultado.data?.canal||"");
-  if(!grupo&&!canal) return jsonError("La IA no devolvio mensajes validos",502);
+  const r=await callGemini(prompt,env);if(r.error) return jsonError(r.error,500);
+  const grupo=limpiarEspacios(r.data?.grupo||"");const canal=limpiarEspacios(r.data?.canal||"");
+  if(!grupo&&!canal) return jsonError("IA no devolvio mensajes",502);
   return jsonOk({text:JSON.stringify({grupo,canal})});
 }
 
 // ============================================================
-// EDITORIAL
+// EDITORIAL / FUENTES / NOTAS / CUBIERTAS
 // ============================================================
 async function handleGetEditorial(env){
   try{const v=await env.KV.get(EDITORIAL_KV_KEY,"json");return jsonOk({editorial:v||{prompt:"",activo:false}})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostEditorial(body,env){
-  if(typeof body.prompt==="undefined") return jsonError("Falta campo: prompt",400);
+  if(typeof body.prompt==="undefined") return jsonError("Falta prompt",400);
   try{await env.KV.put(EDITORIAL_KV_KEY,JSON.stringify({prompt:body.prompt.trim(),activo:!!body.activo}));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
-
-// ============================================================
-// FUENTES / NOTAS / CUBIERTAS
-// ============================================================
 async function handleGetFuentes(env){
   try{const list=await env.KV.list({prefix:"fuente:"});const fuentes=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)fuentes.push(v)}fuentes.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));return jsonOk({fuentes})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
@@ -664,7 +617,7 @@ async function handlePostFuente(body,env){
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleDeleteFuente(url,env){
-  const id=url.searchParams.get("id");if(!id) return jsonError("Parametro id requerido",400);
+  const id=url.searchParams.get("id");if(!id) return jsonError("id requerido",400);
   try{await env.KV.delete(`fuente:${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -678,7 +631,7 @@ async function handlePostNota(body,env){
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleDeleteNota(url,env){
-  const id=url.searchParams.get("id");if(!id) return jsonError("Falta id",400);
+  const id=url.searchParams.get("id");if(!id) return jsonError("id requerido",400);
   try{await env.KV.delete(`nota:${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -687,8 +640,8 @@ async function handleGetCubiertas(env){
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostCubierta(body,env){
-  const{link,cubierta}=body;if(!link) return jsonError("Falta campo: link",400);
-  try{const key="cubierta:"+link.substring(0,400);if(cubierta) await env.KV.put(key,"1",{expirationTtl:60*60*24*30});else await env.KV.delete(key);return jsonOk({guardado:true})}
+  const{link,cubierta}=body;if(!link) return jsonError("Falta link",400);
+  try{const key="cubierta:"+link.substring(0,400);if(cubierta)await env.KV.put(key,"1",{expirationTtl:60*60*24*30});else await env.KV.delete(key);return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
@@ -696,28 +649,18 @@ async function handlePostCubierta(body,env){
 // WHATSAPP
 // ============================================================
 const WA_PROMPT_DEFECTO=`Sos editor de redes sociales de Media Mendoza, diario digital del sur de Mendoza, Argentina.
-Transformá esta noticia en dos mensajes de WhatsApp. Tono: directo, profesional, con emojis estratégicos. Español rioplatense.
+Transformá esta noticia en dos mensajes de WhatsApp. Español rioplatense. Emojis estratégicos.
 
-FORMATO EXACTO PARA "grupo":
-[emoji] *[LOCALIDAD/CATEGORÍA EN MAYÚSCULAS]:* [titular]
-[2-3 líneas clave con *negritas*] 👇
-🔗 *MÁS DETALLES:* 👉 {URL}
-*¡Sumate!* 📱 {LINK_GRUPO} 📣 {LINK_CANAL}
-*📰 Media Mendoza*
+FORMATO "grupo": [emoji] *[LOCALIDAD/CATEGORÍA]:* [titular]\n[2-3 líneas clave con *negritas*] 👇\n🔗 *DETALLES:* 👉 {URL}\n📱 {LINK_GRUPO} 📣 {LINK_CANAL}\n*📰 Media Mendoza*
 
-FORMATO EXACTO PARA "canal":
-[emoji] *[CATEGORÍA]:* [titular]
-• [punto 1] • [punto 2] • [punto 3]
-🔗 👉 {URL}
-*📰 Media Mendoza*
+FORMATO "canal": [emoji] *[CATEGORÍA]:* [titular]\n• [punto 1]\n• [punto 2]\n• [punto 3]\n🔗 👉 {URL}\n*📰 Media Mendoza*
 
-REGLAS: negritas solo en datos clave, NO **, emojis según categoría: policiales=🚨, deportes=⚽, política=🏛️, accidente=🚗, salud=🏥, general=📢`;
+REGLAS: negritas solo en datos clave, NO **, emojis: policiales=🚨 deportes=⚽ política=🏛️ accidente=🚗 salud=🏥 general=📢`;
 
 async function handleWhatsappGenerar(body,env){
   const notaUrl=String(body.notaUrl||"").trim();
-  const contenido=String(body.contenido||"").trim();
   const contextoExtra=String(body.contextoExtra||"").trim();
-  let nota={titulo:String(body.titulo||"").trim(),categoria:String(body.categoria||"").trim(),descripcion:"",body:contenido,url:notaUrl,urlCorta:notaUrl?acortarUrlNota(notaUrl):"",image:""};
+  let nota={titulo:String(body.titulo||"").trim(),categoria:String(body.categoria||"").trim(),descripcion:"",body:String(body.contenido||"").trim(),url:notaUrl,urlCorta:notaUrl?acortarUrlNota(notaUrl):"",image:""};
   if(notaUrl){
     try{new URL(notaUrl)}catch{return jsonError("URL invalida",400)}
     try{
@@ -727,28 +670,26 @@ async function handleWhatsappGenerar(body,env){
     }catch(err){return jsonError(`No se pudo obtener la nota: ${err.message}`,502)}
   }
   if(!nota.titulo&&!nota.body) return jsonError("Falta notaUrl o contenido",400);
-  let promptTemplate=WA_PROMPT_DEFECTO;
-  try{const p=await env.KV.get(WA_PROMPT_KV_KEY,"text");if(p) promptTemplate=p}catch(e){}
+  let pt=WA_PROMPT_DEFECTO;
+  try{const p=await env.KV.get(WA_PROMPT_KV_KEY,"text");if(p)pt=p}catch(e){}
   let links={grupo:"https://bit.ly/mediamendoza-grupo",canal:"https://bit.ly/mediamendoza-canal"};
   try{const l=await env.KV.get(WA_LINKS_KV_KEY,"json");if(l){if(l.grupo)links.grupo=l.grupo;if(l.canal)links.canal=l.canal}}catch(e){}
   const localidades=["San Rafael","General Alvear","Malargüe","Alvear"];
   const localidad=localidades.find(l=>(nota.titulo+nota.body).includes(l))||"San Rafael";
   const urlFinal=nota.urlCorta||nota.url||"";
-  const promptFinal=promptTemplate.replace(/\{URL\}/g,urlFinal).replace(/\{LINK_GRUPO\}/g,links.grupo).replace(/\{LINK_CANAL\}/g,links.canal).replace(/\{TITULO\}/g,nota.titulo||"Sin titulo").replace(/\{CATEGORIA\}/g,nota.categoria||"General").replace(/\{LOCALIDAD\}/g,localidad).replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
-  const noticiaDatos=promptTemplate.includes("{CONTENIDO}")?"" :`\n\nNOTICIA:\nTítulo: ${nota.titulo||"Sin titulo"}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
-  const contextoBloque=contextoExtra?`\nContexto extra: ${contextoExtra}`:"";
-  const prompt=`${promptFinal}${noticiaDatos}${contextoBloque}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
-  const resultado=await callGemini(prompt,env);
-  if(resultado.error) return jsonError(resultado.error,500);
-  const grupo=(resultado.data?.grupo||"").trim();
-  const canal=(resultado.data?.canal||"").trim();
-  if(!grupo||!canal) return jsonError("La IA no devolvio ambos mensajes",502);
+  const pf=pt.replace(/\{URL\}/g,urlFinal).replace(/\{LINK_GRUPO\}/g,links.grupo).replace(/\{LINK_CANAL\}/g,links.canal).replace(/\{TITULO\}/g,nota.titulo||"Sin titulo").replace(/\{CATEGORIA\}/g,nota.categoria||"General").replace(/\{LOCALIDAD\}/g,localidad).replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
+  const nd=pt.includes("{CONTENIDO}")?"" :`\n\nNOTICIA:\nTítulo: ${nota.titulo}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
+  const prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
+  const r=await callGemini(prompt,env);
+  if(r.error) return jsonError(r.error,500);
+  const grupo=(r.data?.grupo||"").trim();const canal=(r.data?.canal||"").trim();
+  if(!grupo||!canal) return jsonError("IA no devolvio ambos mensajes",502);
   return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal});
 }
 async function handlePostWhatsappProgramar(body,env){
-  if(!body?.fecha) return jsonError("Falta campo: fecha",400);
+  if(!body?.fecha) return jsonError("Falta fecha",400);
   const item={id:body.id||generarId("wp_"),fecha:Number(body.fecha),fechaLegible:body.fechaLegible||"",tituloNota:String(body.tituloNota||"").trim(),urlCorta:String(body.urlCorta||"").trim(),canales:Array.isArray(body.canales)?body.canales.filter(Boolean):[],textoGrupo:String(body.textoGrupo||"").trim(),textoCanal:String(body.textoCanal||"").trim(),categoria:String(body.categoria||"General").trim(),enviado:!!body.enviado,creado:body.creado||Date.now()};
-  if(!item.canales.length) return jsonError("Falta al menos un canal",400);
+  if(!item.canales.length) return jsonError("Falta canal",400);
   try{await env.KV.put(`${WHATSAPP_PREFIX}${item.id}`,JSON.stringify(item));return jsonOk({guardado:true,id:item.id})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -757,7 +698,7 @@ async function handleGetWhatsappProgramados(env){
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostWhatsappMarcarEnviado(body,env){
-  const id=String(body.id||"").trim();if(!id) return jsonError("Falta campo: id",400);
+  const id=String(body.id||"").trim();if(!id) return jsonError("Falta id",400);
   try{
     const key=`${WHATSAPP_PREFIX}${id}`;const actual=await env.KV.get(key,"json");
     if(!actual) return jsonError("Mensaje no encontrado",404);
@@ -766,7 +707,7 @@ async function handlePostWhatsappMarcarEnviado(body,env){
   }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleDeleteWhatsappProgramado(url,env){
-  const id=url.searchParams.get("id");if(!id) return jsonError("Falta id",400);
+  const id=url.searchParams.get("id");if(!id) return jsonError("id requerido",400);
   try{await env.KV.delete(`${WHATSAPP_PREFIX}${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -775,29 +716,29 @@ async function handleDeleteWhatsappProgramado(url,env){
 // RSS / VERIFICAR
 // ============================================================
 async function handleRSS(url){
-  const feedUrl=url.searchParams.get("url");if(!feedUrl) return jsonError("Parametro url requerido",400);
+  const feedUrl=url.searchParams.get("url");if(!feedUrl) return jsonError("url requerida",400);
   try{new URL(feedUrl)}catch{return jsonError("URL invalida",400)}
   try{
     const res=await fetch(feedUrl,{headers:{...BROWSER_HEADERS,'Accept-Encoding':'identity'},redirect:"follow",cf:{cacheTtl:180,cacheEverything:true}});
     if(!res.ok) return jsonError(`Feed error ${res.status}`,502);
     const text=await res.text();
-    if(!esXMLvalido(text)) return jsonError("La URL no es un feed RSS valido",422);
+    if(!esXMLvalido(text)) return jsonError("No es feed RSS válido",422);
     return new Response(text,{headers:{...CORS_HEADERS,"Content-Type":"application/xml; charset=utf-8","Cache-Control":"public, max-age=180"}});
-  }catch(err){return jsonError(`Error obteniendo feed: ${err.message}`,502)}
+  }catch(err){return jsonError(`Error feed: ${err.message}`,502)}
 }
 async function handleVerificar(url){
-  const feedUrl=url.searchParams.get("url");if(!feedUrl) return jsonError("Parametro url requerido",400);
+  const feedUrl=url.searchParams.get("url");if(!feedUrl) return jsonError("url requerida",400);
   try{new URL(feedUrl)}catch{return jsonError("URL invalida",400)}
   try{
     const res=await fetch(feedUrl,{headers:{...BROWSER_HEADERS,'Accept-Encoding':'identity'},redirect:"follow"});
     if(!res.ok) return jsonError(`Feed error ${res.status}`,502);
     const text=await res.text();
-    if(!esXMLvalido(text)) return jsonError("La URL no es un feed RSS valido",422);
+    if(!esXMLvalido(text)) return jsonError("No es feed RSS válido",422);
     const tm=text.match(/<title[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/s);
     const nombre=tm?tm[1].replace(/\s+/g,' ').trim().substring(0,80):'Feed RSS';
     const itemCount=(text.match(/<item[\s>]/g)||[]).length+(text.match(/<entry[\s>]/g)||[]).length;
     return jsonOk({valido:true,nombre,items:itemCount});
-  }catch(err){return jsonError(`No se pudo acceder: ${err.message}`,502)}
+  }catch(err){return jsonError(`Error: ${err.message}`,502)}
 }
 
 // ============================================================
@@ -808,30 +749,27 @@ async function getEditorial(env){
   return null;
 }
 async function callGeminiConBusqueda(prompt,env){
-  const ideasTexto=prompt.substring(0,200);
-  const fuentesReales=await buscarDuckDuckGo(ideasTexto);
-  let contextoWeb="";const fuentesVerificadas=[];
-  for(const fuente of fuentesReales.slice(0,3)){
+  const fuentes=await buscarDuckDuckGo(prompt.substring(0,200));
+  let ctx="";const fv=[];
+  for(const f of fuentes.slice(0,3)){
     try{
-      const res=await fetch(fuente.url,{headers:BROWSER_HEADERS,redirect:"follow",signal:AbortSignal.timeout(5000)});
+      const res=await fetch(f.url,{headers:BROWSER_HEADERS,redirect:"follow",signal:AbortSignal.timeout(5000)});
       if(!res.ok) continue;
       const html=await res.text();const texto=extraerTexto(html).substring(0,800);
       if(texto.length<100) continue;
       const ogImg=html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,500})["']/i);
-      contextoWeb+="\nFUENTE: "+fuente.titulo+" ("+fuente.url+")\n"+texto+"\n---";
-      fuentesVerificadas.push({titulo:fuente.titulo,url:fuente.url,imagen:ogImg?.[1]||''});
+      ctx+="\nFUENTE: "+f.titulo+" ("+f.url+")\n"+texto+"\n---";
+      fv.push({titulo:f.titulo,url:f.url,imagen:ogImg?.[1]||''});
     }catch(e){continue}
   }
-  const promptFinal=prompt+(contextoWeb?"\n\nCONTENIDO WEB:\n"+contextoWeb:"");
-  const resultado=await callGemini(promptFinal,env);
-  if(resultado.error) return resultado;
-  if(fuentesVerificadas.length) resultado.data.fuentes=fuentesVerificadas;
-  return resultado;
+  const r=await callGemini(prompt+(ctx?"\n\nCONTENIDO WEB:\n"+ctx:""),env);
+  if(r.error) return r;
+  if(fv.length) r.data.fuentes=fv;
+  return r;
 }
 async function buscarDuckDuckGo(query){
   try{
-    const url="https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar";
-    const res=await fetch(url,{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"text/html"},redirect:"follow"});
+    const res=await fetch("https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar",{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"text/html"},redirect:"follow"});
     if(!res.ok) return [];
     const html=await res.text();const resultados=[];
     const linkRegex=/class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</g;let match;
@@ -845,7 +783,7 @@ async function buscarDuckDuckGo(query){
 }
 async function callGemini(prompt,env){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
-  if(!keys.length) return {error:"No hay API keys configuradas"};
+  if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
   for(let i=0;i<keys.length;i++){
     for(let intento=1;intento<=2;intento++){
       try{
@@ -861,5 +799,5 @@ async function callGemini(prompt,env){
       }catch(err){if(intento<2) await sleep(3000)}
     }
   }
-  return {error:"Todas las API keys estan agotadas. Intentalo en unos minutos."};
+  return {error:"Todas las API keys de Gemini están agotadas."};
 }
