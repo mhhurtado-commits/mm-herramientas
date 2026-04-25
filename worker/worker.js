@@ -24,8 +24,8 @@ const AGENDA_EF_PREFIX = "agenda:efemeride:";
 const ANGULOS_PREFIX   = "agenda:angulos:";
 const ANGULOS_TTL      = 60 * 60 * 24 * 30;
 const LOGO_URL         = "https://mediamendoza.pages.dev/assets/logo.png";
-const DEFAULT_VOICE_ID = "ByVRQtaK1WDOvTmP1PKO";
-const DEFAULT_VOICE_NAME = "Agustín";
+const DEFAULT_VOICE_ID = "es-AR-ElenaNeural";
+const DEFAULT_VOICE_NAME = "Elena";
 
 const REEL_PROMPT_DEFAULT = `Sos locutor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
 Escribí un guion para un reel de Instagram/Facebook de máximo 30 segundos (unas 60-80 palabras).
@@ -155,8 +155,7 @@ async function handleGetReelConfig(env){
   try{
     const prompt = await env.KV.get(REEL_PROMPT_KEY,"text");
     const voces  = await env.KV.get(REEL_VOCES_KEY,"json");
-    // Voces: array de {id, nombre}. Si no hay, devolver la de Agustín por defecto
-    const vocesDefault = [{id: 'VRYQwkcNAnQtTqWe6SBe', nombre: 'Hombre Mediamendoza', keyAlias: 'ELEVENLABS_KEY_1'}];
+    const vocesDefault = [{id: DEFAULT_VOICE_ID, nombre: DEFAULT_VOICE_NAME}];
     return jsonOk({
       prompt: prompt || REEL_PROMPT_DEFAULT,
       voces: voces || vocesDefault
@@ -201,6 +200,13 @@ async function handleReelGenerar(body,env){
   const titulo    = String(body.titulo||"").trim();
   const imagenUrl = String(body.imagenUrl||"").trim();
   const voiceId   = String(body.voiceId||DEFAULT_VOICE_ID).trim();
+  const textoFinal = `${titulo}. ${guion}`;
+  const partes = guion.split(/(?<=\.)\s+/).map(t=>t.trim()).filter(Boolean);
+  const captions = partes.map((txt, i) => ({
+    text: txt.trim(),
+    start: i * 2.5,
+    duration: 2.5
+  }));
 
   if(!guion)  return jsonError("Falta campo: guion",400);
   if(!titulo) return jsonError("Falta campo: titulo",400);
@@ -208,60 +214,50 @@ async function handleReelGenerar(body,env){
   // ── 1. ElevenLabs ──
   // Cada voz tiene su keyAlias (la cuenta donde fue creada).
   // Si esa key falla por cuota (429), busca otra voz de otra cuenta como fallback.
-  const vocesKV = await env.KV.get(REEL_VOCES_KEY,"json").catch(()=>null)
-    || [{id: 'VRYQwkcNAnQtTqWe6SBe', nombre: 'Hombre Mediamendoza', keyAlias: 'ELEVENLABS_KEY_1'}];
 
-  // Voz seleccionada por el usuario
-  const vozPrincipal = vocesKV.find(v => v.id === voiceId) || vocesKV[0];
 
   // Construir lista de intentos: primero la voz elegida, luego las demás como fallback
-  const intentos = [
-    vozPrincipal,
-    ...vocesKV.filter(v => v.id !== vozPrincipal.id)
-  ];
 
   let audioBuffer = null;
   let azureError = "";
 
   const azureKey = String(env.AZURE_TTS_KEY_1 || "").trim();
   const azureRegion = String(env.AZURE_TTS_REGION_1 || "").trim();
-  if(azureKey && azureRegion){
-    try{
-      const azureVoice = voiceId || "es-AR-ElenaNeural";
-      const azureLocale = inferAzureLocaleFromVoiceName(azureVoice);
-      const ssml = `<speak version="1.0" xml:lang="${azureLocale}"><voice name="${escapeXml(azureVoice)}">${escapeXml(guion)}</voice></speak>`;
-      const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,{
-        method:"POST",
-        headers:{
-          "Ocp-Apim-Subscription-Key": azureKey,
-          "Content-Type":"application/ssml+xml",
-          "X-Microsoft-OutputFormat":"audio-24khz-96kbitrate-mono-mp3",
-          "User-Agent":"mm-worker"
-        },
-        body:ssml
-      });
-      if(!res.ok){
-        const errBody = await res.text().catch(()=>"");
-        azureError = `Azure TTS: HTTP ${res.status} → ${errBody.substring(0,200)}`;
-        console.log("Azure TTS fallback:", azureError);
-      }else{
-        const buf = await res.arrayBuffer();
-        if(buf.byteLength > 100) audioBuffer = buf;
-        else{
-          azureError = "Azure TTS: audio vacío";
-          console.log("Azure TTS fallback:", azureError);
-        }
+  if(!azureKey || !azureRegion) return jsonError("Azure TTS no configurado",500);
+
+  try{
+    const azureVoice = voiceId || DEFAULT_VOICE_ID;
+    const azureLocale = inferAzureLocaleFromVoiceName(azureVoice);
+    const ssml = `<speak version="1.0" xml:lang="${azureLocale}"><voice name="${escapeXml(azureVoice)}">${escapeXml(textoFinal)}</voice></speak>`;
+    const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,{
+      method:"POST",
+      headers:{
+        "Ocp-Apim-Subscription-Key": azureKey,
+        "Content-Type":"application/ssml+xml",
+        "X-Microsoft-OutputFormat":"audio-24khz-96kbitrate-mono-mp3",
+        "User-Agent":"mm-worker"
+      },
+      body:ssml
+    });
+    if(!res.ok){
+      const errBody = await res.text().catch(()=>"");
+      azureError = `Azure TTS: HTTP ${res.status} → ${errBody.substring(0,200)}`;
+    }else{
+      const buf = await res.arrayBuffer();
+      if(buf.byteLength > 100) audioBuffer = buf;
+      else{
+        azureError = "Azure TTS: audio vacío";
       }
-    }catch(e){
-      azureError = `Azure TTS: ${e.message}`;
-      console.log("Azure TTS fallback:", azureError);
     }
+  }catch(e){
+    azureError = `Azure TTS: ${e.message}`;
   }
 
   const elevenErrors = [];
+  const intentos = voiceId ? [{id: voiceId, nombre: "Custom", keyAlias: "ELEVENLABS_KEY_1"}] : [{id: DEFAULT_VOICE_ID, nombre: DEFAULT_VOICE_NAME, keyAlias: "ELEVENLABS_KEY_1"}];
 
   if(!audioBuffer){
-  for(const voz of intentos){
+    for(const voz of intentos){
     const keyName = voz.keyAlias || 'ELEVENLABS_KEY_1';
     const key = env[keyName];
     if(!key){
@@ -357,11 +353,12 @@ async function handleReelGenerar(body,env){
       },
       // Título: aparece los primeros 3 segundos, luego desaparece
       {
+        name: "titulo",
         type: "text", track: 4,
         time: 0, duration: 3,
         x: "50%", y: "45%", width: "86%",
         x_anchor: "50%", y_anchor: "50%",
-        text: titulo,
+        text: "",
         font_family: "Montserrat", font_weight: "700",
         font_size: 68, fill_color: "#ffffff",
         text_align: "center", line_height: 1.15,
@@ -371,12 +368,13 @@ async function handleReelGenerar(body,env){
         ]
       },
       // Subtítulos: empiezan en segundo 3, duran el resto del video
-      {
+      ...captions.map((caption, i) => ({
+        name: `subtitulo_${i + 1}`,
         type: "text", track: 5,
-        time: 3,
+        time: 3 + caption.start, duration: caption.duration,
         x: "50%", y: "80%", width: "88%",
         x_anchor: "50%", y_anchor: "50%",
-        text: guion,
+        text: caption.text,
         font_family: "Montserrat", font_weight: "500",
         font_size: 34, fill_color: "#ffffff",
         background_color: "rgba(0,0,0,0.65)",
@@ -385,7 +383,7 @@ async function handleReelGenerar(body,env){
         animations: [
           { time: "start", duration: 0.4, easing: "ease-out", type: "fade" }
         ]
-      },
+      })),
       // Audio
       {
         type: "audio", track: 6, time: 0,
@@ -394,6 +392,12 @@ async function handleReelGenerar(body,env){
     ]
   };
 
+  const modifications = {
+    "titulo.text": titulo
+  };
+  console.log("Titulo enviado:", titulo);
+  console.log("Modifications:", JSON.stringify(modifications, null, 2));
+
   let renderId = null;
   let creatomateError = "";
   for(const key of creatomateKeys){
@@ -401,7 +405,7 @@ async function handleReelGenerar(body,env){
       const res = await fetch("https://api.creatomate.com/v1/renders",{
         method: "POST",
         headers: {"Authorization":"Bearer "+key,"Content-Type":"application/json"},
-        body: JSON.stringify({ source: template })
+        body: JSON.stringify({ source: template, modifications })
       });
       if(res.status===429){ creatomateError="Límite Creatomate"; continue; }
       if(res.status===401){ creatomateError="Key Creatomate inválida"; continue; }
