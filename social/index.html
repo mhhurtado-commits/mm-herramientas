@@ -672,7 +672,7 @@
       <div class="reel-panel">
         <div class="reel-panel-title">Administrar voces</div>
         <div id="reelVocesList" style="margin-bottom:14px"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:flex-end">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:flex-end">
           <div class="mm-field" style="margin-bottom:0">
             <label class="mm-label">Nombre</label>
             <input type="text" id="nuevaVozNombre" class="mm-input" placeholder="Ej: María">
@@ -681,10 +681,20 @@
             <label class="mm-label">Voice ID</label>
             <input type="text" id="nuevaVozId" class="mm-input voice-id-input" placeholder="ElevenLabs Voice ID">
           </div>
-          <button class="btn-save" onclick="agregarVoz()" style="white-space:nowrap">+ Agregar</button>
+          <div class="mm-field" style="margin-bottom:0">
+            <label class="mm-label">API Key (cuenta)</label>
+            <select id="nuevaVozKey" class="mm-textarea" style="min-height:auto;padding:10px 12px;cursor:pointer">
+              <option value="ELEVENLABS_KEY_1">Key 1</option>
+              <option value="ELEVENLABS_KEY_2">Key 2</option>
+              <option value="ELEVENLABS_KEY_3">Key 3</option>
+              <option value="ELEVENLABS_KEY_4">Key 4</option>
+              <option value="ELEVENLABS_KEY_5">Key 5</option>
+            </select>
+          </div>
+          <button class="btn-save" onclick="agregarVoz()" style="white-space:nowrap;align-self:flex-end">+ Agregar</button>
         </div>
         <div style="font-size:10px;color:var(--dim);margin-top:8px;line-height:1.6">
-          ElevenLabs → My Voices → click en la voz → copiar Voice ID
+          ElevenLabs → My Voices → click en la voz → copiar Voice ID · Elegí la Key de la cuenta donde creaste la voz
         </div>
       </div>
 
@@ -1086,7 +1096,7 @@ async function loadReelConfig() {
     // Cargar prompt
     if (d.prompt) document.getElementById('reelPromptTA').value = d.prompt;
     // Cargar voces
-    reelVoces = d.voces || [{id: 'ByVRQtaK1WDOvTmP1PKO', nombre: 'Agustín'}];
+    reelVoces = d.voces || [{id: 'ByVRQtaK1WDOvTmP1PKO', nombre: 'Agustín', keyAlias: 'ELEVENLABS_KEY_1'}];
     renderVocesList();
     renderVocesSelect();
   } catch(e) { console.error('loadReelConfig:', e); }
@@ -1107,12 +1117,18 @@ function renderVocesList() {
   const lista = document.getElementById('reelVocesList');
   if (!lista) return;
   lista.innerHTML = '';
+  if (!reelVoces.length) {
+    lista.innerHTML = '<div style="font-size:11px;color:var(--dim);padding:8px 0">Sin voces guardadas.</div>';
+    return;
+  }
   reelVoces.forEach((v, i) => {
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)';
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)';
+    const keyLabel = v.keyAlias ? v.keyAlias.replace('ELEVENLABS_','') : '—';
     row.innerHTML = `
-      <span style="font-size:12px;color:var(--muted);flex:1">${v.nombre}</span>
-      <span style="font-size:10px;color:var(--dim);font-family:monospace">${v.id.substring(0,14)}...</span>
+      <span style="font-size:12px;color:var(--muted);flex:1;font-weight:500">${v.nombre}</span>
+      <span style="font-size:10px;color:var(--dim);font-family:monospace">${(v.id||'').substring(0,12)}...</span>
+      <span style="font-size:9px;color:var(--v);letter-spacing:1px;text-transform:uppercase">${keyLabel}</span>
       <button onclick="eliminarVoz(${i})" style="background:none;border:1px solid var(--line2);color:var(--dim);padding:3px 8px;cursor:pointer;font-size:10px;font-family:var(--font-body)">✕</button>
     `;
     lista.appendChild(row);
@@ -1120,10 +1136,11 @@ function renderVocesList() {
 }
 
 async function agregarVoz() {
-  const nombre = document.getElementById('nuevaVozNombre').value.trim();
-  const id     = document.getElementById('nuevaVozId').value.trim();
+  const nombre   = document.getElementById('nuevaVozNombre').value.trim();
+  const id       = document.getElementById('nuevaVozId').value.trim();
+  const keyAlias = document.getElementById('nuevaVozKey').value;
   if (!nombre || !id) { alert('Completá nombre y Voice ID'); return; }
-  reelVoces.push({id, nombre});
+  reelVoces.push({id, nombre, keyAlias});
   await guardarVoces();
   document.getElementById('nuevaVozNombre').value = '';
   document.getElementById('nuevaVozId').value = '';
@@ -1174,16 +1191,14 @@ async function generarGuion() {
   if (urlInput) {
     try { articulo = await fetchArticle(urlInput); } catch {}
   }
-  if (!articulo) {
-    // Usar contenido generado si existe
-    for (const net of ['facebook','instagram','x']) {
-      const t = document.getElementById('title-'+net);
-      const tx = document.getElementById('text-'+net);
-      if (t && tx) { articulo = t.innerText + '
-
-' + tx.innerText; break; }
-    }
+if (!articulo) {
+  // Usar contenido generado si existe
+  for (const net of ['facebook','instagram','x']) {
+    const t = document.getElementById('title-'+net);
+    const tx = document.getElementById('text-'+net);
+    if (t && tx) { articulo = t.innerText + '\n\n' + tx.innerText; break; }
   }
+}
   if (!articulo.trim()) { alert('Generá contenido primero en la pestaña Generar, o cargá una URL.'); return; }
 
   const btn = document.getElementById('btnGuion');

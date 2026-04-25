@@ -154,7 +154,7 @@ async function handleGetReelConfig(env){
     const prompt = await env.KV.get(REEL_PROMPT_KEY,"text");
     const voces  = await env.KV.get(REEL_VOCES_KEY,"json");
     // Voces: array de {id, nombre}. Si no hay, devolver la de Agustín por defecto
-    const vocesDefault = [{id: DEFAULT_VOICE_ID, nombre: DEFAULT_VOICE_NAME}];
+    const vocesDefault = [{id: DEFAULT_VOICE_ID, nombre: DEFAULT_VOICE_NAME, keyAlias: 'ELEVENLABS_KEY_1'}];
     return jsonOk({
       prompt: prompt || REEL_PROMPT_DEFAULT,
       voces: voces || vocesDefault
@@ -204,12 +204,29 @@ async function handleReelGenerar(body,env){
   if(!titulo) return jsonError("Falta campo: titulo",400);
 
   // ── 1. ElevenLabs ──
-  const elevenKeys = [env.ELEVENLABS_KEY_1,env.ELEVENLABS_KEY_2,env.ELEVENLABS_KEY_3,env.ELEVENLABS_KEY_4,env.ELEVENLABS_KEY_5].filter(Boolean);
-  if(!elevenKeys.length) return jsonError("No hay API keys de ElevenLabs configuradas",500);
+  // Buscar la key asociada a esta voz (keyAlias guardado en KV junto a la voz)
+  // Si no tiene keyAlias, rotar todas las keys disponibles
+  const vocesKV = await env.KV.get(REEL_VOCES_KEY,"json").catch(()=>null) || [];
+  const vozData = vocesKV.find(v => v.id === voiceId);
+  const keyAlias = vozData?.keyAlias || null;
+
+  // Armar lista de keys: si hay keyAlias, esa key va primero
+  const allElevenKeys = [
+    env.ELEVENLABS_KEY_1, env.ELEVENLABS_KEY_2, env.ELEVENLABS_KEY_3,
+    env.ELEVENLABS_KEY_4, env.ELEVENLABS_KEY_5
+  ].filter(Boolean);
+  if(!allElevenKeys.length) return jsonError("No hay API keys de ElevenLabs configuradas",500);
+
+  // Si hay keyAlias, poner esa key primero y no rotar las demás
+  // (voz privada pertenece solo a esa cuenta)
+  let keysToTry = allElevenKeys;
+  if(keyAlias && env[keyAlias]){
+    keysToTry = [env[keyAlias]]; // solo la key correcta
+  }
 
   let audioBuffer = null;
-  let elevenError = "";
-  for(const key of elevenKeys){
+  const elevenErrors = [];
+  for(const key of keysToTry){
     try{
       const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,{
         method: "POST",
@@ -220,20 +237,20 @@ async function handleReelGenerar(body,env){
           voice_settings:{ stability:0.5, similarity_boost:0.75, style:0.3, use_speaker_boost:true }
         })
       });
-      if(res.status===429){ elevenError="Límite de cuota alcanzado"; continue; }
-      if(res.status===401){ elevenError="API key inválida"; continue; }
       if(!res.ok){
-        // Capturar el error real de ElevenLabs
         const errBody = await res.text().catch(()=>"");
-        elevenError = `HTTP ${res.status}: ${errBody.substring(0,200)}`;
+        elevenErrors.push(`key ...${key.slice(-4)} → HTTP ${res.status}: ${errBody.substring(0,300)}`);
         continue;
       }
       const buf = await res.arrayBuffer();
-      if(buf.byteLength > 100){ audioBuffer = buf; break; } // audio válido
-      elevenError = "Audio vacío recibido";
-    }catch(e){ elevenError = e.message; continue; }
+      if(buf.byteLength > 100){ audioBuffer = buf; break; }
+      elevenErrors.push(`key ...${key.slice(-4)} → audio vacío (${buf.byteLength} bytes)`);
+    }catch(e){
+      elevenErrors.push(`key ...${key.slice(-4)} → fetch error: ${e.message}`);
+      continue;
+    }
   }
-  if(!audioBuffer) return jsonError(`ElevenLabs: ${elevenError}`,502);
+  if(!audioBuffer) return jsonError(`ElevenLabs falló. Detalle: ${elevenErrors.join(" | ")}`,502);
 
   // ── 2. R2: guardar audio ──
   const reelId   = generarId("reel_");
