@@ -1,7 +1,7 @@
 // ============================================================
-// Media Mendoza — Worker v12
-// Fix v11: ElevenLabs error handling, KV separado por clave,
-//          Creatomate font_size en px, lista de voces en KV
+// Media Mendoza — Worker v13
+// TTS: Azure Cognitive Services (sin ElevenLabs)
+// Voces argentinas por defecto en KV
 // ============================================================
 
 const CORS_HEADERS = {
@@ -15,8 +15,8 @@ const GEMINI_URL       = `https://generativelanguage.googleapis.com/v1beta/model
 const EDITORIAL_KV_KEY = "config:editorial";
 const WA_PROMPT_KV_KEY = "config:wa_prompt";
 const WA_LINKS_KV_KEY  = "config:wa_links";
-const REEL_PROMPT_KEY  = "config:reel:prompt";   // prompt separado
-const REEL_VOCES_KEY   = "config:reel:voces";    // lista de voces separada
+const REEL_PROMPT_KEY  = "config:reel:prompt";
+const REEL_VOCES_KEY   = "config:reel:voces";
 const MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024;
 const WHATSAPP_PREFIX  = "whatsapp:programado:";
 const AGENDA_EV_PREFIX = "agenda:evento:";
@@ -24,8 +24,12 @@ const AGENDA_EF_PREFIX = "agenda:efemeride:";
 const ANGULOS_PREFIX   = "agenda:angulos:";
 const ANGULOS_TTL      = 60 * 60 * 24 * 30;
 const LOGO_URL         = "https://mediamendoza.pages.dev/assets/logo.png";
-const DEFAULT_VOICE_ID = "es-AR-ElenaNeural";
-const DEFAULT_VOICE_NAME = "Elena";
+
+// Voces argentinas disponibles en Azure free tier
+const VOCES_DEFAULT = [
+  { id: "es-AR-TomasNeural",  nombre: "Tomás (Hombre AR)",  keyAlias: "AZURE_TTS_KEY_1", region: "AZURE_TTS_REGION_1" },
+  { id: "es-AR-ElenaNeural",  nombre: "Elena (Mujer AR)",   keyAlias: "AZURE_TTS_KEY_1", region: "AZURE_TTS_REGION_1" }
+];
 
 const REEL_PROMPT_DEFAULT = `Sos locutor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
 Escribí un guion para un reel de Instagram/Facebook de máximo 30 segundos (unas 60-80 palabras).
@@ -55,8 +59,8 @@ async function listarObjetosKV(env,prefix){const list=await env.KV.list({prefix}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
 function jsonError(msg,status=400){return new Response(JSON.stringify({ok:false,error:msg}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
-function escapeXml(str=""){return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;")}
-function inferAzureLocaleFromVoiceName(voiceName=""){const m=String(voiceName).match(/^([a-z]{2,3}-[A-Z]{2})-/);return m?m[1]:"es-AR"}
+function escapeXml(s=""){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;")}
+function localeFromVoice(v=""){const m=String(v).match(/^([a-z]{2,3}-[A-Z]{2})-/);return m?m[1]:"es-AR"}
 
 function extraerTexto(html){
   html=html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<nav[\s\S]*?<\/nav>/gi,'').replace(/<header[\s\S]*?<\/header>/gi,'').replace(/<footer[\s\S]*?<\/footer>/gi,'').replace(/<aside[\s\S]*?<\/aside>/gi,'');
@@ -149,28 +153,23 @@ export default {
 };
 
 // ============================================================
-// REEL — CONFIG: prompt y voces en KV separados
+// REEL — CONFIG
 // ============================================================
 async function handleGetReelConfig(env){
   try{
     const prompt = await env.KV.get(REEL_PROMPT_KEY,"text");
     const voces  = await env.KV.get(REEL_VOCES_KEY,"json");
-    const vocesDefault = [{id: DEFAULT_VOICE_ID, nombre: DEFAULT_VOICE_NAME}];
     return jsonOk({
       prompt: prompt || REEL_PROMPT_DEFAULT,
-      voces: voces || vocesDefault
+      voces:  voces  || VOCES_DEFAULT
     });
   }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
-
 async function handlePostReelConfig(body,env){
   try{
-    // Guardar prompt si viene
     if(body.prompt !== undefined){
-      const p = String(body.prompt||"").trim() || REEL_PROMPT_DEFAULT;
-      await env.KV.put(REEL_PROMPT_KEY, p);
+      await env.KV.put(REEL_PROMPT_KEY, String(body.prompt||"").trim() || REEL_PROMPT_DEFAULT);
     }
-    // Guardar voces si viene (array completo)
     if(body.voces !== undefined){
       if(!Array.isArray(body.voces)) return jsonError("voces debe ser array",400);
       await env.KV.put(REEL_VOCES_KEY, JSON.stringify(body.voces));
@@ -185,227 +184,178 @@ async function handlePostReelConfig(body,env){
 async function handleReelGuion(body,env){
   const articulo = String(body.articulo||"").trim();
   if(!articulo) return jsonError("Falta campo: articulo",400);
-  const prompt = (await env.KV.get(REEL_PROMPT_KEY,"text").catch(()=>null) || REEL_PROMPT_DEFAULT)
-    + `\n\nARTÍCULO:\n${articulo.substring(0,3000)}`;
-  const r = await callGemini(prompt,env);
+  const promptBase = await env.KV.get(REEL_PROMPT_KEY,"text").catch(()=>null) || REEL_PROMPT_DEFAULT;
+  const r = await callGemini(promptBase + `\n\nARTÍCULO:\n${articulo.substring(0,3000)}`, env);
   if(r.error) return jsonError(r.error,500);
   return jsonOk({titulo: r.data?.titulo||"", guion: r.data?.guion||""});
 }
 
 // ============================================================
-// REEL — GENERAR VIDEO
+// REEL — GENERAR VIDEO (Azure TTS + Creatomate + R2)
 // ============================================================
 async function handleReelGenerar(body,env){
   const guion     = String(body.guion||"").trim();
   const titulo    = String(body.titulo||"").trim();
   const imagenUrl = String(body.imagenUrl||"").trim();
-  const voiceId   = String(body.voiceId||DEFAULT_VOICE_ID).trim();
-  const textoFinal = `${titulo}. ${guion}`;
-  const partes = guion.split(/(?<=\.)\s+/).map(t=>t.trim()).filter(Boolean);
-  const captions = partes.map((txt, i) => ({
-    text: txt.trim(),
-    start: i * 2.5,
-    duration: 2.5
-  }));
+  const voiceId   = String(body.voiceId||VOCES_DEFAULT[0].id).trim();
 
   if(!guion)  return jsonError("Falta campo: guion",400);
   if(!titulo) return jsonError("Falta campo: titulo",400);
 
-  // ── 1. ElevenLabs ──
-  // Cada voz tiene su keyAlias (la cuenta donde fue creada).
-  // Si esa key falla por cuota (429), busca otra voz de otra cuenta como fallback.
+  // ── 1. Azure TTS ──
+  // Buscar la voz en KV para obtener su key y region
+  const vocesKV = await env.KV.get(REEL_VOCES_KEY,"json").catch(()=>null) || VOCES_DEFAULT;
+  const vozData = vocesKV.find(v => v.id === voiceId) || vocesKV[0];
 
-
-  // Construir lista de intentos: primero la voz elegida, luego las demás como fallback
+  // Intentar con la voz elegida; si falla por cuota, probar las demás
+  const intentos = [vozData, ...vocesKV.filter(v => v.id !== vozData.id)];
 
   let audioBuffer = null;
-  let azureError = "";
+  const ttsErrors = [];
 
-  const azureKey = String(env.AZURE_TTS_KEY_1 || "").trim();
-  const azureRegion = String(env.AZURE_TTS_REGION_1 || "").trim();
-  if(!azureKey || !azureRegion) return jsonError("Azure TTS no configurado",500);
+  for(const voz of intentos){
+    const keyName    = voz.keyAlias || "AZURE_TTS_KEY_1";
+    const regionName = voz.region   || "AZURE_TTS_REGION_1";
+    const azureKey    = String(env[keyName]    || "").trim();
+    const azureRegion = String(env[regionName] || "").trim();
 
-  try{
-    const azureVoice = voiceId || DEFAULT_VOICE_ID;
-    const azureLocale = inferAzureLocaleFromVoiceName(azureVoice);
-    const ssml = `<speak version="1.0" xml:lang="${azureLocale}"><voice name="${escapeXml(azureVoice)}">${escapeXml(textoFinal)}</voice></speak>`;
-    const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,{
-      method:"POST",
-      headers:{
-        "Ocp-Apim-Subscription-Key": azureKey,
-        "Content-Type":"application/ssml+xml",
-        "X-Microsoft-OutputFormat":"audio-24khz-96kbitrate-mono-mp3",
-        "User-Agent":"mm-worker"
-      },
-      body:ssml
-    });
-    if(!res.ok){
-      const errBody = await res.text().catch(()=>"");
-      azureError = `Azure TTS: HTTP ${res.status} → ${errBody.substring(0,200)}`;
-    }else{
-      const buf = await res.arrayBuffer();
-      if(buf.byteLength > 100) audioBuffer = buf;
-      else{
-        azureError = "Azure TTS: audio vacío";
-      }
-    }
-  }catch(e){
-    azureError = `Azure TTS: ${e.message}`;
-  }
-
-  const elevenErrors = [];
-  const intentos = voiceId ? [{id: voiceId, nombre: "Custom", keyAlias: "ELEVENLABS_KEY_1"}] : [{id: DEFAULT_VOICE_ID, nombre: DEFAULT_VOICE_NAME, keyAlias: "ELEVENLABS_KEY_1"}];
-
-  if(!audioBuffer){
-    for(const voz of intentos){
-    const keyName = voz.keyAlias || 'ELEVENLABS_KEY_1';
-    const key = env[keyName];
-    if(!key){
-      elevenErrors.push(`${voz.nombre}: key "${keyName}" no configurada`);
+    if(!azureKey || !azureRegion){
+      ttsErrors.push(`${voz.nombre}: secrets "${keyName}" o "${regionName}" no configurados`);
       continue;
     }
+
+    const locale = localeFromVoice(voz.id);
+    const ssml = `<speak version="1.0" xml:lang="${locale}"><voice name="${escapeXml(voz.id)}">${escapeXml(guion)}</voice></speak>`;
+
     try{
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voz.id}`,{
+      const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,{
         method: "POST",
-        headers: {"xi-api-key":key,"Content-Type":"application/json","Accept":"audio/mpeg"},
-        body: JSON.stringify({
-          text: guion,
-          model_id: "eleven_multilingual_v2",
-          voice_settings:{ stability:0.5, similarity_boost:0.75, style:0.3, use_speaker_boost:true }
-        })
+        headers:{
+          "Ocp-Apim-Subscription-Key": azureKey,
+          "Content-Type": "application/ssml+xml",
+          "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
+          "User-Agent": "mm-worker"
+        },
+        body: ssml
       });
-      if(res.status===429){
-        elevenErrors.push(`${voz.nombre}: cuota agotada, probando siguiente voz`);
-        continue; // intentar con otra voz/cuenta
+
+      if(res.status === 429){
+        ttsErrors.push(`${voz.nombre}: cuota agotada`);
+        continue;
       }
       if(!res.ok){
         const errBody = await res.text().catch(()=>"");
-        elevenErrors.push(`${voz.nombre}: HTTP ${res.status} → ${errBody.substring(0,200)}`);
+        ttsErrors.push(`${voz.nombre}: HTTP ${res.status} → ${errBody.substring(0,200)}`);
         continue;
       }
+
       const buf = await res.arrayBuffer();
       if(buf.byteLength > 100){ audioBuffer = buf; break; }
-      elevenErrors.push(`${voz.nombre}: audio vacío`);
+      ttsErrors.push(`${voz.nombre}: audio vacío`);
+
     }catch(e){
-      elevenErrors.push(`${voz.nombre}: ${e.message}`);
-      continue;
+      ttsErrors.push(`${voz.nombre}: ${e.message}`);
     }
   }
-  }
-  if(!audioBuffer){
-    const errores = [];
-    if(azureError) errores.push(azureError);
-    if(elevenErrors.length) errores.push(`ElevenLabs: ${elevenErrors.join(" | ")}`);
-    return jsonError(errores.join(" || ") || "No se pudo generar el audio",502);
-  }
+
+  if(!audioBuffer) return jsonError(`Azure TTS falló: ${ttsErrors.join(" | ")}`,502);
 
   // ── 2. R2: guardar audio ──
+  if(!env.R2)        return jsonError("Binding R2 no configurado",500);
+  if(!env.R2_PUBLIC_ID) return jsonError("R2_PUBLIC_ID no configurado",500);
+
   const reelId   = generarId("reel_");
   const audioKey = `${reelId}/audio.mp3`;
   const videoKey = `${reelId}/video.mp4`;
 
-  if(!env.R2) return jsonError("Binding R2 no configurado en el Worker",500);
-
   try{
-    await env.R2.put(audioKey, audioBuffer, {
+    await env.R2.put(audioKey, audioBuffer,{
       httpMetadata:{ contentType:"audio/mpeg" },
       customMetadata:{ reelId, expira: String(Date.now()+86400000) }
     });
   }catch(err){ return jsonError("Error R2 (audio): "+err.message,500); }
 
-  const r2PublicId = env.R2_PUBLIC_ID || "";
-  if(!r2PublicId) return jsonError("R2_PUBLIC_ID no configurado en secrets del Worker",500);
-  const audioPublicUrl = `https://pub-${r2PublicId}.r2.dev/${audioKey}`;
+  const audioPublicUrl = `https://pub-${env.R2_PUBLIC_ID}.r2.dev/${audioKey}`;
 
   // ── 3. Creatomate ──
-  const creatomateKeys = [env.CREATOMATE_KEY_1,env.CREATOMATE_KEY_2,env.CREATOMATE_KEY_3,env.CREATOMATE_KEY_4,env.CREATOMATE_KEY_5].filter(Boolean);
+  const creatomateKeys = [
+    env.CREATOMATE_KEY_1, env.CREATOMATE_KEY_2, env.CREATOMATE_KEY_3,
+    env.CREATOMATE_KEY_4, env.CREATOMATE_KEY_5
+  ].filter(Boolean);
+
   if(!creatomateKeys.length){
     await env.R2.delete(audioKey).catch(()=>{});
-    return jsonError("No hay API keys de Creatomate configuradas",500);
+    return jsonError("No hay API keys de Creatomate",500);
   }
 
   const template = {
     output_format: "mp4",
-    width: 1080,
-    height: 1920,
-    frame_rate: 30,
+    width: 1080, height: 1920, frame_rate: 30,
     elements: [
-      // Fondo: imagen de la nota, cubre toda la pantalla
+      // Imagen de fondo
       {
-        type: "image", track: 1, time: 0,
-        x: "50%", y: "50%", width: "100%", height: "100%",
-        x_anchor: "50%", y_anchor: "50%",
-        source: imagenUrl || LOGO_URL, fit: "cover"
+        type:"image", track:1, time:0,
+        x:"50%", y:"50%", width:"100%", height:"100%",
+        x_anchor:"50%", y_anchor:"50%",
+        source: imagenUrl || LOGO_URL, fit:"cover"
       },
-      // Overlay oscuro permanente
+      // Overlay oscuro
       {
-        type: "shape", track: 2, time: 0, shape: "rectangle",
-        x: "50%", y: "50%", width: "100%", height: "100%",
-        x_anchor: "50%", y_anchor: "50%",
-        fill_color: "rgba(0,0,0,0.45)"
+        type:"shape", track:2, time:0, shape:"rectangle",
+        x:"50%", y:"50%", width:"100%", height:"100%",
+        x_anchor:"50%", y_anchor:"50%",
+        fill_color:"rgba(0,0,0,0.45)"
       },
-      // Logo siempre visible arriba
+      // Logo
       {
-        type: "image", track: 3, time: 0,
-        x: "50%", y: "7%", width: "36%",
-        x_anchor: "50%", y_anchor: "50%",
-        source: LOGO_URL, fit: "contain"
+        type:"image", track:3, time:0,
+        x:"50%", y:"7%", width:"36%",
+        x_anchor:"50%", y_anchor:"50%",
+        source: LOGO_URL, fit:"contain"
       },
-      // Título: aparece los primeros 3 segundos, luego desaparece
+      // Título: aparece 3 segundos y desaparece
       {
-        name: "titulo",
-        type: "text", track: 4,
-        time: 0, duration: 3,
-        x: "50%", y: "45%", width: "86%",
-        x_anchor: "50%", y_anchor: "50%",
-        text: "",
-        font_family: "Montserrat", font_weight: "700",
-        font_size: 68, fill_color: "#ffffff",
-        text_align: "center", line_height: 1.15,
-        animations: [
-          { time: "start", duration: 0.5, easing: "ease-out", type: "slide", direction: "up" },
-          { time: "end",   duration: 0.4, easing: "ease-in",  type: "fade" }
+        type:"text", track:4, time:0, duration:3,
+        x:"50%", y:"45%", width:"86%",
+        x_anchor:"50%", y_anchor:"50%",
+        text: titulo,
+        font_family:"Montserrat", font_weight:"700",
+        font_size:68, fill_color:"#ffffff",
+        text_align:"center", line_height:1.15,
+        animations:[
+          { time:"start", duration:0.5, easing:"ease-out", type:"slide", direction:"up" },
+          { time:"end",   duration:0.4, easing:"ease-in",  type:"fade" }
         ]
       },
-      // Subtítulos: empiezan en segundo 3, duran el resto del video
-      ...captions.map((caption, i) => ({
-        name: `subtitulo_${i + 1}`,
-        type: "text", track: 5,
-        time: 3 + caption.start, duration: caption.duration,
-        x: "50%", y: "80%", width: "88%",
-        x_anchor: "50%", y_anchor: "50%",
-        text: caption.text,
-        font_family: "Montserrat", font_weight: "500",
-        font_size: 34, fill_color: "#ffffff",
-        background_color: "rgba(0,0,0,0.65)",
-        background_x_padding: "5%", background_y_padding: "4%",
-        text_align: "center", line_height: 1.55,
-        animations: [
-          { time: "start", duration: 0.4, easing: "ease-out", type: "fade" }
-        ]
-      })),
+      // Subtítulos: arrancan en segundo 3
+      {
+        type:"text", track:5, time:3,
+        x:"50%", y:"80%", width:"88%",
+        x_anchor:"50%", y_anchor:"50%",
+        text: guion,
+        font_family:"Montserrat", font_weight:"500",
+        font_size:34, fill_color:"#ffffff",
+        background_color:"rgba(0,0,0,0.65)",
+        background_x_padding:"5%", background_y_padding:"4%",
+        text_align:"center", line_height:1.55,
+        animations:[{ time:"start", duration:0.4, easing:"ease-out", type:"fade" }]
+      },
       // Audio
       {
-        type: "audio", track: 6, time: 0,
-        source: audioPublicUrl, audio_fade_out: 0.5
+        type:"audio", track:6, time:0,
+        source: audioPublicUrl, audio_fade_out:0.5
       }
     ]
   };
-
-  const modifications = {
-    "titulo.text": titulo
-  };
-  console.log("Titulo enviado:", titulo);
-  console.log("Modifications:", JSON.stringify(modifications, null, 2));
 
   let renderId = null;
   let creatomateError = "";
   for(const key of creatomateKeys){
     try{
       const res = await fetch("https://api.creatomate.com/v1/renders",{
-        method: "POST",
-        headers: {"Authorization":"Bearer "+key,"Content-Type":"application/json"},
-        body: JSON.stringify({ source: template, modifications })
+        method:"POST",
+        headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json"},
+        body: JSON.stringify({ source: template })
       });
       if(res.status===429){ creatomateError="Límite Creatomate"; continue; }
       if(res.status===401){ creatomateError="Key Creatomate inválida"; continue; }
@@ -426,7 +376,7 @@ async function handleReelGenerar(body,env){
     return jsonError(`Creatomate: ${creatomateError}`,502);
   }
 
-  // ── 4. Polling hasta que Creatomate termine ──
+  // ── 4. Polling ──
   let videoFinalUrl = null;
   const startTime = Date.now();
   while(Date.now()-startTime < 110000){
@@ -439,14 +389,14 @@ async function handleReelGenerar(body,env){
       if(d.status==="succeeded"){ videoFinalUrl = d.url; break; }
       if(d.status==="failed"){
         await env.R2.delete(audioKey).catch(()=>{});
-        return jsonError(`Render Creatomate falló: ${JSON.stringify(d.error||d)}`,502);
+        return jsonError(`Render falló: ${JSON.stringify(d.error||"")}`,502);
       }
     }catch(e){ break; }
   }
 
   if(!videoFinalUrl){
     await env.R2.delete(audioKey).catch(()=>{});
-    return jsonError("Timeout: el render tardó más de 110 segundos",504);
+    return jsonError("Timeout: render tardó más de 110 segundos",504);
   }
 
   // ── 5. Guardar video en R2 ──
@@ -454,7 +404,7 @@ async function handleReelGenerar(body,env){
     const vRes = await fetch(videoFinalUrl);
     if(vRes.ok){
       const vBuf = await vRes.arrayBuffer();
-      await env.R2.put(videoKey, vBuf, {
+      await env.R2.put(videoKey, vBuf,{
         httpMetadata:{ contentType:"video/mp4" },
         customMetadata:{ reelId, expira: String(Date.now()+86400000) }
       });
@@ -497,8 +447,7 @@ async function handleSocialGenerar(body,env){
   const systemPrompt=String(body.systemPrompt||"").trim();
   const userMsg=String(body.userMsg||"").trim();
   if(!systemPrompt||!userMsg) return jsonError("Faltan campos",400);
-  const prompt=`${systemPrompt}\n\nResponde SOLO con JSON sin backticks ni markdown.\n\n${userMsg}`;
-  const r=await callGemini(prompt,env);
+  const r=await callGemini(`${systemPrompt}\n\nResponde SOLO con JSON sin backticks ni markdown.\n\n${userMsg}`,env);
   if(r.error) return jsonError(r.error,500);
   return jsonOk({result:r.data});
 }
@@ -512,7 +461,7 @@ async function handleGetWaPrompt(env){
 }
 async function handlePostWaPrompt(body,env){
   const prompt=String(body.prompt||"").trim();
-  if(!prompt) return jsonError("Falta campo: prompt",400);
+  if(!prompt) return jsonError("Falta prompt",400);
   try{ await env.KV.put(WA_PROMPT_KV_KEY,prompt); return jsonOk({guardado:true}); }
   catch(err){ return jsonError("Error KV: "+err.message,500); }
 }
@@ -561,7 +510,6 @@ async function handleTitulares(body,env){
   if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
 }
-
 async function handleReformular(body,env){
   const{titulo,contenido,contexto="",estilo="formal"}=body;
   if(!titulo||!contenido) return jsonError("Faltan campos",400);
@@ -571,7 +519,6 @@ async function handleReformular(body,env){
   if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
 }
-
 async function handleRedactar(body,env){
   const{ideas,buscarWeb=false}=body;
   if(!ideas) return jsonError("Falta campo: ideas",400);
@@ -674,8 +621,8 @@ async function handlePlacasAI(request,env){
   let body;try{body=await request.json()}catch{return jsonError("JSON invalido",400)}
   const system=String(body.system||"").trim();const user=String(body.user||"").trim();
   if(!system||!user) return jsonError("Faltan campos",400);
-  const prompt=`${system}\n\nResponde SOLO con JSON sin backticks:\n{"grupo":"...","canal":"..."}\n\n${user}`;
-  const r=await callGemini(prompt,env);if(r.error) return jsonError(r.error,500);
+  const r=await callGemini(`${system}\n\nResponde SOLO con JSON sin backticks:\n{"grupo":"...","canal":"..."}\n\n${user}`,env);
+  if(r.error) return jsonError(r.error,500);
   const grupo=limpiarEspacios(r.data?.grupo||"");const canal=limpiarEspacios(r.data?.canal||"");
   if(!grupo&&!canal) return jsonError("IA no devolvio mensajes",502);
   return jsonOk({text:JSON.stringify({grupo,canal})});
