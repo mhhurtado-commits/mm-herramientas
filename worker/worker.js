@@ -111,6 +111,7 @@ export default {
       if(path==="/agenda/efemerides")          return handleGetAgendaEfemerides(env);
       if(path==="/agenda/angulos/cache")       return handleGetAngulosCache(url,env);
       if(path==="/redactar")                   return jsonError("Usar POST",405);
+      if(path==="/social/reel/reset-voces")    return handleResetVoces(env);
       return jsonError("Ruta no encontrada",404);
     }
 
@@ -772,6 +773,16 @@ async function handleVerificar(url){
     const itemCount=(text.match(/<item[\s>]/g)||[]).length+(text.match(/<entry[\s>]/g)||[]).length;
     return jsonOk({valido:true,nombre,items:itemCount});
   }catch(err){return jsonError(`Error: ${err.message}`,502)}
+}
+
+// ============================================================
+// REEL — RESET VOCES (usa para limpiar KV si hay datos corruptos)
+// ============================================================
+async function handleResetVoces(env){
+  try{
+    await env.KV.delete(REEL_VOCES_KEY);
+    return jsonOk({reseteado:true, mensaje:"Voces reseteadas a los valores por defecto. Recargá la página."});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
 // ============================================================
