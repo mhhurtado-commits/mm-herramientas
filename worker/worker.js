@@ -212,6 +212,7 @@ async function handleReelGenerar(body,env){
   const intentos = [vozData, ...vocesKV.filter(v => v.id !== vozData.id)];
 
   let audioBuffer = null;
+  let wordBoundaries = [];
   const ttsErrors = [];
 
   for(const voz of intentos){
@@ -229,29 +230,75 @@ async function handleReelGenerar(body,env){
     const ssml = `<speak version="1.0" xml:lang="${locale}"><voice name="${escapeXml(voz.id)}">${escapeXml(guion)}</voice></speak>`;
 
     try{
-      const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,{
-        method: "POST",
-        headers:{
+      const connectionId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g,"") : generarId("").replace(/[^a-z0-9]/g,"");
+      const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/websocket/v1?X-ConnectionId=${connectionId}`, {
+        headers: {
+          "Upgrade": "websocket",
           "Ocp-Apim-Subscription-Key": azureKey,
-          "Content-Type": "application/ssml+xml",
-          "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
           "User-Agent": "mm-worker"
-        },
-        body: ssml
+        }
       });
 
       if(res.status === 429){
         ttsErrors.push(`${voz.nombre}: cuota agotada`);
         continue;
       }
-      if(!res.ok){
+      if(res.status !== 101){
         const errBody = await res.text().catch(()=>"");
         ttsErrors.push(`${voz.nombre}: HTTP ${res.status} → ${errBody.substring(0,200)}`);
         continue;
       }
 
-      const buf = await res.arrayBuffer();
-      if(buf.byteLength > 100){ audioBuffer = buf; break; }
+      const ws = res.webSocket;
+      if(!ws) { ttsErrors.push(`${voz.nombre}: fallo al obtener websocket`); continue; }
+      ws.accept();
+
+      const result = await new Promise((resolve, reject) => {
+        const chunks = [];
+        const boundaries = [];
+        const timeout = setTimeout(() => reject(new Error("Timeout en websocket")), 30000);
+
+        ws.addEventListener("message", (e) => {
+          if (typeof e.data === "string") {
+            if (e.data.includes("Path: speech.word_boundary")) {
+              try {
+                const body = e.data.split("\r\n\r\n")[1];
+                boundaries.push(JSON.parse(body));
+              } catch (ex) {}
+            } else if (e.data.includes("Path: turn.end")) {
+              clearTimeout(timeout);
+              resolve({ chunks, boundaries });
+            }
+          } else {
+            const view = new DataView(e.data);
+            const headLen = view.getUint16(0);
+            chunks.push(e.data.slice(2 + headLen));
+          }
+        });
+        ws.addEventListener("error", (err) => { clearTimeout(timeout); reject(err); });
+        ws.addEventListener("close", () => { clearTimeout(timeout); resolve({ chunks, boundaries }); });
+
+        const config = JSON.stringify({
+          synthesis: {
+            audio: {
+              metadataOptions: { wordBoundaryEnabled: true },
+              outputFormat: "audio-24khz-48kbitrate-mono-mp3"
+            }
+          }
+        });
+        ws.send(`Path: speech.config\r\nContent-Type: application/json\r\n\r\n${config}`);
+        ws.send(`Path: ssml\r\nContent-Type: application/ssml+xml\r\n\r\n${ssml}`);
+      });
+
+      if(result.chunks.length > 0){
+        const totalLen = result.chunks.reduce((acc, c) => acc + c.byteLength, 0);
+        const joined = new Uint8Array(totalLen);
+        let offset = 0;
+        for(const c of result.chunks){ joined.set(new Uint8Array(c), offset); offset += c.byteLength; }
+        audioBuffer = joined.buffer;
+        wordBoundaries = result.boundaries;
+        break;
+      }
       ttsErrors.push(`${voz.nombre}: audio vacío`);
 
     }catch(e){
@@ -415,7 +462,7 @@ async function handleReelGenerar(body,env){
   // ── 6. Limpiar audio de R2 ──
   await env.R2.delete(audioKey).catch(()=>{});
 
-  return jsonOk({ reelId, videoKey, videoUrl: videoFinalUrl, titulo, guion });
+  return jsonOk({ reelId, videoKey, videoUrl: videoFinalUrl, titulo, guion, wordBoundaries });
 }
 
 // ============================================================
