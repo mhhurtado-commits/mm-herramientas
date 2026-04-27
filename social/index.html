@@ -844,6 +844,7 @@ const NET_META = {
 
 // ── TABS ──
 function switchTab(tab, btn) {
+  window.switchTab = switchTab;
   document.querySelectorAll('.social-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tabGenerar').style.display = tab === 'generar' ? 'block' : 'none';
@@ -937,6 +938,7 @@ ${article}`;
 let allResults = {};
 
 async function generate() {
+  window.generate = generate;
   hideError();
   const url = document.getElementById('urlInput').value.trim();
   const context = document.getElementById('contextInput').value.trim();
