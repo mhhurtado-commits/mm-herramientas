@@ -1209,7 +1209,7 @@ async function generarGuion() {
   if (urlInput) {
     try { articulo = await fetchArticle(urlInput); } catch {}
   }
-if (!articulo) {
+if (!articulo.trim()) {
   // Usar contenido generado si existe
   for (const net of ['facebook','instagram','x']) {
     const t = document.getElementById('title-'+net);
@@ -1348,6 +1348,7 @@ async function borrarReel() {
 
 <script>
 async function crearVideoMediaMendoza(audioUrl, wordBoundaries, titulo, imagenUrl) {
+  if (!wordBoundaries || !Array.isArray(wordBoundaries)) wordBoundaries = [];
   const canvas = document.getElementById('videoCanvas');
   const ctx = canvas.getContext('2d');
   const WIDTH = canvas.width;
@@ -1510,8 +1511,7 @@ async function crearVideoMediaMendoza(audioUrl, wordBoundaries, titulo, imagenUr
         const textBlockY = HEIGHT - HEIGHT * 0.2 - (totalTextHeight / 2); // Positioned ~20% from bottom
 
         // Background for text (semi-transparent black or green as requested)
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Defaulting to semi-transparent black
-        // For green: ctx.fillStyle = '#a6ce39';
+        ctx.fillStyle = '#a6ce39'; // Green background for subtitles
 
         const padding = 25; // Padding around the text block
         const bgWidth = maxWidth + padding * 2; // Background width slightly larger than text max width
