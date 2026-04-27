@@ -908,15 +908,22 @@ async function fetchArticle(url) {
   if (!data.ok) throw new Error(data.error || 'No se pudo obtener la nota');
   // Guardamos la imagen para usarla en el Reel
   if (data.imagen) window._lastImagenUrl = data.imagen;
-  return `TÍTULO: ${data.titulo || ''}\n\n${(data.texto || '').substring(0, 4000)}`;
+  return `TÍTULO: ${data.titulo || ''}
+
+${(data.texto || '').substring(0, 4000)}`;
 }
 
 // ── GENERAR ──
 async function generateForNetwork(net, article, context, customPrompt) {
   const systemPrompt = customPrompt || DEFAULT_PROMPTS[net];
   const userMsg = context
-    ? `ARTÍCULO:\n${article}\n\nCONTEXTO ADICIONAL:\n${context}`
-    : `ARTÍCULO:\n${article}`;
+    ? `ARTÍCULO:
+${article}
+
+CONTEXTO ADICIONAL:
+${context}`
+    : `ARTÍCULO:
+${article}`;
   const res = await fetch(`${WORKER}/social/generar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1011,17 +1018,19 @@ function renderCard(net, result, delay) {
 }
 
 function escapeHtml(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s|'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 function escapeTpl(s) {
-  return s.replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$').replace(/'/g,"\\'");
+  return s.replace(/\/g,'').replace(/`/g,'`').replace(/\$/g,'\$').replace(/'/g,"'").replace(/\//g,'\/');
 }
 function copyCard(btn, net) {
   const titleEl = document.getElementById('title-' + net);
   const textEl  = document.getElementById('text-'  + net);
   const title = titleEl ? titleEl.innerText.trim() : '';
   const text  = textEl  ? textEl.innerText.trim()  : '';
-  const full  = title + (title && text ? '\n\n' : '') + text;
+  const full  = title + (title && text ? '
+
+' : '') + text;
   navigator.clipboard.writeText(full).then(() => {
     btn.textContent = '✓ Copiado'; btn.classList.add('copied');
     setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 1800);
@@ -1033,9 +1042,16 @@ function copyAll() {
     const textEl  = document.getElementById('text-'  + net);
     const title = titleEl ? titleEl.innerText.trim() : allResults[net].titulo;
     const text  = textEl  ? textEl.innerText.trim()  : allResults[net].texto;
-    return `=== ${NET_META[net].name.toUpperCase()} ===\n${title}\n\n${text}`;
+    return `=== ${NET_META[net].name.toUpperCase()} ===
+${title}
+
+${text}`;
   });
-  navigator.clipboard.writeText(parts.join('\n\n---\n\n'));
+  navigator.clipboard.writeText(parts.join('
+
+---
+
+'));
 }
 
 // ── CONFIG PROMPTS ──
@@ -1198,7 +1214,9 @@ if (!articulo) {
   for (const net of ['facebook','instagram','x']) {
     const t = document.getElementById('title-'+net);
     const tx = document.getElementById('text-'+net);
-    if (t && tx) { articulo = t.innerText + '\n\n' + tx.innerText; break; }
+    if (t && tx) { articulo = t.innerText + '
+
+' + tx.innerText; break; }
   }
 }
   if (!articulo.trim()) { alert('Generá contenido primero en la pestaña Generar, o cargá una URL.'); return; }
@@ -1326,7 +1344,9 @@ async function borrarReel() {
     alert('✓ Video borrado.');
   } catch(e) { alert('Error: '+e.message); }
 }
+</script>
 
+<script>
 async function crearVideoMediaMendoza(audioUrl, wordBoundaries, titulo, imagenUrl) {
   const canvas = document.getElementById('videoCanvas');
   const ctx = canvas.getContext('2d');
@@ -1512,3 +1532,20 @@ async function crearVideoMediaMendoza(audioUrl, wordBoundaries, titulo, imagenUr
     }
   });
 }
+</script>
+
+<!-- FOOTER -->
+<footer class="mm-footer">
+  <div class="mm-footer-dot"></div>
+  <span class="mm-footer-txt">Gemini 2.5 Flash Lite · Activo</span>
+  <div class="mm-footer-sep"></div>
+  <div class="mm-footer-meta">
+    <span class="mm-footer-item">Cloudflare Pages</span>
+    <span class="mm-footer-item">mediamendoza.pages.dev/social</span>
+  </div>
+</footer>
+
+  <canvas id="videoCanvas" width="1080" height="1920" style="display:none;"></canvas>
+
+</body>
+</html>
