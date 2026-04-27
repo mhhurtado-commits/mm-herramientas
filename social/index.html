@@ -1011,7 +1011,7 @@ function renderCard(net, result, delay) {
     <div class="card-foot">
       <button class="btn-card" onclick="copyCard(this, '${net}')">Copiar</button>
     </div>`;
-  // Update char count on input
+  
   card.querySelector('.result-text').addEventListener('input', function() {
     const el = document.getElementById('chars-' + net);
     if (el) el.textContent = this.innerText.length + ' car.';
@@ -1020,41 +1020,45 @@ function renderCard(net, result, delay) {
 }
 
 function escapeHtml(s) {
-  return String(s|'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+// CORREGIDO: Línea 1026 arreglada eliminando el conflicto de escape
 function escapeTpl(s) {
-  return s.replace(/\/g,'').replace(/`/g,'`').replace(/\$/g,'\$').replace(/'/g,"'").replace(/\//g,'\/');
+  if (!s) return '';
+  return s.replace(/\\/g,'').replace(/`/g,'\\`').replace(/\$/g,'\\$');
 }
+
 function copyCard(btn, net) {
   const titleEl = document.getElementById('title-' + net);
   const textEl  = document.getElementById('text-'  + net);
   const title = titleEl ? titleEl.innerText.trim() : '';
   const text  = textEl  ? textEl.innerText.trim()  : '';
-  const full  = title + (title && text ? '
-
-' : '') + text;
+  const full  = title + (title && text ? '\n\n' : '') + text;
   navigator.clipboard.writeText(full).then(() => {
     btn.textContent = '✓ Copiado'; btn.classList.add('copied');
     setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 1800);
   });
 }
+
 function copyAll() {
   const parts = Object.keys(allResults).map(net => {
     const titleEl = document.getElementById('title-' + net);
     const textEl  = document.getElementById('text-'  + net);
-    const title = titleEl ? titleEl.innerText.trim() : allResults[net].titulo;
-    const text  = textEl  ? textEl.innerText.trim()  : allResults[net].texto;
-    return `=== ${NET_META[net].name.toUpperCase()} ===
-${title}
-
-${text}`;
+    const title = titleEl ? titleEl.innerText.trim() : (allResults[net]?.titulo || '');
+    const text  = textEl  ? textEl.innerText.trim()  : (allResults[net]?.texto || '');
+    return `=== ${NET_META[net].name.toUpperCase()} ===\n${title}\n\n${text}`;
   });
-  navigator.clipboard.writeText(parts.join('
-
----
-
-'));
+  navigator.clipboard.writeText(parts.join('\n\n---\n\n'));
 }
+
+// EXPOSICIÓN GLOBAL (Para asegurar que los botones funcionen)
+window.switchTab = typeof switchTab !== 'undefined' ? switchTab : null;
+window.generate = typeof generate !== 'undefined' ? generate : null;
+window.toggleNet = typeof toggleNet !== 'undefined' ? toggleNet : null;
+window.copyCard = copyCard;
+window.copyAll = copyAll;
 
 // ── CONFIG PROMPTS ──
 function toggleConfig(net, header) {
@@ -1216,9 +1220,7 @@ if (!articulo.trim()) {
   for (const net of ['facebook','instagram','x']) {
     const t = document.getElementById('title-'+net);
     const tx = document.getElementById('text-'+net);
-    if (t && tx) { articulo = t.innerText + '
-
-' + tx.innerText; break; }
+if (t && tx) { articulo = t.innerText + '\n\n' + tx.innerText; break; }
   }
 }
   if (!articulo.trim()) { alert('Generá contenido primero en la pestaña Generar, o cargá una URL.'); return; }
