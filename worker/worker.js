@@ -27,8 +27,8 @@ const LOGO_URL         = "https://mediamendoza.pages.dev/assets/logo.png";
 
 // Voces argentinas disponibles en Azure free tier
 const VOCES_DEFAULT = [
-  { id: "es-AR-TomasNeural",  nombre: "Tomás (Hombre AR)",  keyAlias: "AZURE_TTS_KEY_1", region: "AZURE_TTS_REGION_1" },
-  { id: "es-AR-ElenaNeural",  nombre: "Elena (Mujer AR)",   keyAlias: "AZURE_TTS_KEY_1", region: "AZURE_TTS_REGION_1" }
+  { id: "es-AR-TomasNeural",  nombre: "Tomás (Hombre AR)",  keyAlias: "AZURE_SPEECH_KEY", region: "AZURE_SPEECH_REGION" },
+  { id: "es-AR-ElenaNeural",  nombre: "Elena (Mujer AR)",   keyAlias: "AZURE_SPEECH_KEY", region: "AZURE_SPEECH_REGION" }
 ];
 
 const REEL_PROMPT_DEFAULT = `Sos locutor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
@@ -227,10 +227,10 @@ async function handleReelGenerar(body,env){
     }
 
     const locale = localeFromVoice(voz.id);
-    const ssml = `<speak version="1.0" xml:lang="${locale}"><voice name="${escapeXml(voz.id)}">${escapeXml(guion)}</voice></speak>`;
+    const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}"><voice name="${voz.id}">${escapeXml(guion)}</voice></speak>`;
 
-    try{
-      const connectionId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g,"") : generarId("").replace(/[^a-z0-9]/g,"");
+    try {
+      const connectionId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, "") : generarId("").replace(/[^a-z0-9]/g, "");
       const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/websocket/v1?X-ConnectionId=${connectionId}`, {
         headers: {
           "Upgrade": "websocket",
@@ -239,18 +239,14 @@ async function handleReelGenerar(body,env){
         }
       });
 
-      if(res.status === 429){
-        ttsErrors.push(`${voz.nombre}: cuota agotada`);
-        continue;
-      }
-      if(res.status !== 101){
-        const errBody = await res.text().catch(()=>"");
-        ttsErrors.push(`${voz.nombre}: HTTP ${res.status} → ${errBody.substring(0,200)}`);
+      if (res.status !== 101) {
+        const errBody = await res.text().catch(() => "");
+        ttsErrors.push(`${voz.nombre}: WebSocket failed HTTP ${res.status} ${res.statusText} → ${errBody.substring(0, 200)}`);
         continue;
       }
 
       const ws = res.webSocket;
-      if(!ws) { ttsErrors.push(`${voz.nombre}: fallo al obtener websocket`); continue; }
+      if (!ws) { ttsErrors.push(`${voz.nombre}: WebSocket no disponible`); continue; }
       ws.accept();
 
       const result = await new Promise((resolve, reject) => {
@@ -290,18 +286,17 @@ async function handleReelGenerar(body,env){
         ws.send(`Path: ssml\r\nContent-Type: application/ssml+xml\r\n\r\n${ssml}`);
       });
 
-      if(result.chunks.length > 0){
+      if (result.chunks.length > 0) {
         const totalLen = result.chunks.reduce((acc, c) => acc + c.byteLength, 0);
         const joined = new Uint8Array(totalLen);
         let offset = 0;
-        for(const c of result.chunks){ joined.set(new Uint8Array(c), offset); offset += c.byteLength; }
+        for (const c of result.chunks) { joined.set(new Uint8Array(c), offset); offset += c.byteLength; }
         audioBuffer = joined.buffer;
         wordBoundaries = result.boundaries;
         break;
       }
       ttsErrors.push(`${voz.nombre}: audio vacío`);
-
-    }catch(e){
+    } catch (e) {
       ttsErrors.push(`${voz.nombre}: ${e.message}`);
     }
   }
