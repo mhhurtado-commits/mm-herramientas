@@ -807,6 +807,22 @@
   <canvas id="videoCanvas" width="1080" height="1920" style="display:none;"></canvas>
 
 <script>
+// Load image helper (Global)
+function loadImage(url) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.src = url;
+    img.onload = () => res(img);
+    img.onerror = (e) => {
+      console.warn(`Failed to load image: ${url}`, e);
+      const placeholder = new Image();
+      placeholder.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+      res(placeholder);
+    };
+  });
+}
+
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 
 const DEFAULT_PROMPTS = {
@@ -1422,24 +1438,7 @@ async function crearVideoMediaMendoza(audioUrl, wordBoundaries, titulo, imagenUr
       reject(e);
     }
 
-    function loadImage(url) {
-      return new Promise((res, rej) => {
-        const img = new Image();
-        img.src = url;
-        img.crossOrigin = 'Anonymous'; // Needed for canvas if images are from different origin
-        img.onload = () => res(img);
-        img.onerror = (e) => {
-          console.warn(`Failed to load image: ${url}`, e);
-          // Return a placeholder or an empty image if loading fails
-          const placeholder = new Image();
-          placeholder.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; // 1x1 transparent PNG
-          res(placeholder);
-        };
-      });
-    }
-
-    function drawFrame() {
-      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    function drawFrame() {      ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
       // Draw background image (object-fit: cover)
       if (bgImage && bgImage.width > 0 && bgImage.height > 0) {

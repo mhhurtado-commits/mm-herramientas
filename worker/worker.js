@@ -27,8 +27,8 @@ const LOGO_URL         = "https://mediamendoza.pages.dev/assets/logo.png";
 
 // Voces argentinas disponibles en Azure free tier
 const VOCES_DEFAULT = [
-  { id: "es-AR-TomasNeural",  nombre: "Tomás (Hombre AR)",  keyAlias: "AZURE_SPEECH_KEY", region: "AZURE_SPEECH_REGION" },
-  { id: "es-AR-ElenaNeural",  nombre: "Elena (Mujer AR)",   keyAlias: "AZURE_SPEECH_KEY", region: "AZURE_SPEECH_REGION" }
+  { id: "es-AR-TomasNeural",  nombre: "Tomás (Hombre AR)" },
+  { id: "es-AR-ElenaNeural",  nombre: "Elena (Mujer AR)" }
 ];
 
 const REEL_PROMPT_DEFAULT = `Sos locutor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
@@ -158,11 +158,21 @@ export default {
 // ============================================================
 async function handleGetReelConfig(env){
   try{
-    const prompt = await env.KV.get(REEL_PROMPT_KEY,"text");
-    const voces  = await env.KV.get(REEL_VOCES_KEY,"json");
+    let prompt = await env.KV.get(REEL_PROMPT_KEY,"text");
+    let voces  = await env.KV.get(REEL_VOCES_KEY,"json");
+
+    if (!voces) { // Auto-healing logic for voices
+      await env.KV.put(REEL_VOCES_KEY, JSON.stringify(VOCES_DEFAULT));
+      voces = VOCES_DEFAULT;
+    }
+    if (!prompt) { // Auto-healing logic for prompt
+        await env.KV.put(REEL_PROMPT_KEY, REEL_PROMPT_DEFAULT);
+        prompt = REEL_PROMPT_DEFAULT;
+    }
+
     return jsonOk({
-      prompt: prompt || REEL_PROMPT_DEFAULT,
-      voces:  voces  || VOCES_DEFAULT
+      prompt: prompt,
+      voces:  voces
     });
   }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -204,11 +214,16 @@ async function handleReelGenerar(body,env){
   if(!titulo) return jsonError("Falta campo: titulo",400);
 
   // ── 1. Azure TTS ──
-  // Buscar la voz en KV para obtener su key y region
+  const azureKey    = String(env.AZURE_TTS_KEY_1 || "").trim();
+  const azureRegion = String(env.AZURE_TTS_REGION_1 || "").trim();
+
+  if(!azureKey || !azureRegion) {
+    throw new Error('Secrets AZURE_TTS_KEY_1 o REGION_1 no definidos en Cloudflare');
+  }
+
   const vocesKV = await env.KV.get(REEL_VOCES_KEY,"json").catch(()=>null) || VOCES_DEFAULT;
   const vozData = vocesKV.find(v => v.id === voiceId) || vocesKV[0];
 
-  // Intentar con la voz elegida; si falla por cuota, probar las demás
   const intentos = [vozData, ...vocesKV.filter(v => v.id !== vozData.id)];
 
   let audioBuffer = null;
@@ -216,92 +231,43 @@ async function handleReelGenerar(body,env){
   const ttsErrors = [];
 
   for(const voz of intentos){
-    const keyName    = voz.keyAlias || "AZURE_TTS_KEY_1";
-    const regionName = voz.region   || "AZURE_TTS_REGION_1";
-    const azureKey    = String(env[keyName]    || "").trim();
-    const azureRegion = String(env[regionName] || "").trim();
-
-    if(!azureKey || !azureRegion){
-      ttsErrors.push(`${voz.nombre}: secrets "${keyName}" o "${regionName}" no configurados`);
-      continue;
-    }
-
     const locale = localeFromVoice(voz.id);
     const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}"><voice name="${voz.id}">${escapeXml(guion)}</voice></speak>`;
 
     try {
-      const connectionId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, "") : generarId("").replace(/[^a-z0-9]/g, "");
-      const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/websocket/v1?X-ConnectionId=${connectionId}`, {
+      const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+        method: 'POST',
         headers: {
-          "Upgrade": "websocket",
           "Ocp-Apim-Subscription-Key": azureKey,
+          "Content-Type": "application/ssml+xml",
+          "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
           "User-Agent": "mm-worker"
-        }
+        },
+        body: ssml
       });
 
-      if (res.status !== 101) {
-        const errBody = await res.text().catch(() => "");
-        ttsErrors.push(`${voz.nombre}: WebSocket failed HTTP ${res.status} ${res.statusText} → ${errBody.substring(0, 200)}`);
-        continue;
+      if (!res.ok) {
+        throw new Error(`Azure REST failed HTTP ${res.status} ${res.statusText} → ${await res.text()}`);
       }
 
-      const ws = res.webSocket;
-      if (!ws) { ttsErrors.push(`${voz.nombre}: WebSocket no disponible`); continue; }
-      ws.accept();
+      audioBuffer = await res.arrayBuffer();
 
-      const result = await new Promise((resolve, reject) => {
-        const chunks = [];
-        const boundaries = [];
-        const timeout = setTimeout(() => reject(new Error("Timeout en websocket")), 30000);
+      // Generar word boundaries mock (proporcionales al texto)
+      const palabras = guion.split(/\s+/).filter(Boolean);
+      const duracionEstimada = (audioBuffer.byteLength / 3000) * 1000; // Aproximación
+      const duracionPorPalabra = duracionEstimada / palabras.length;
 
-        ws.addEventListener("message", (e) => {
-          if (typeof e.data === "string") {
-            if (e.data.includes("Path: speech.word_boundary")) {
-              try {
-                const body = e.data.split("\r\n\r\n")[1];
-                boundaries.push(JSON.parse(body));
-              } catch (ex) {}
-            } else if (e.data.includes("Path: turn.end")) {
-              clearTimeout(timeout);
-              resolve({ chunks, boundaries });
-            }
-          } else {
-            const view = new DataView(e.data);
-            const headLen = view.getUint16(0);
-            chunks.push(e.data.slice(2 + headLen));
-          }
-        });
-        ws.addEventListener("error", (err) => { clearTimeout(timeout); reject(err); });
-        ws.addEventListener("close", () => { clearTimeout(timeout); resolve({ chunks, boundaries }); });
+      wordBoundaries = palabras.map((p, i) => ({
+        Text: p,
+        AudioOffset: i * duracionPorPalabra * 10000, // 100ns units
+        Duration: duracionPorPalabra * 10000
+      }));
 
-        const config = JSON.stringify({
-          synthesis: {
-            audio: {
-              metadataOptions: { wordBoundaryEnabled: true },
-              outputFormat: "audio-24khz-48kbitrate-mono-mp3"
-            }
-          }
-        });
-        ws.send(`Path: speech.config\r\nContent-Type: application/json\r\n\r\n${config}`);
-        ws.send(`Path: ssml\r\nContent-Type: application/ssml+xml\r\n\r\n${ssml}`);
-      });
-
-      if (result.chunks.length > 0) {
-        const totalLen = result.chunks.reduce((acc, c) => acc + c.byteLength, 0);
-        const joined = new Uint8Array(totalLen);
-        let offset = 0;
-        for (const c of result.chunks) { joined.set(new Uint8Array(c), offset); offset += c.byteLength; }
-        audioBuffer = joined.buffer;
-        wordBoundaries = result.boundaries;
-        break;
-      }
-      ttsErrors.push(`${voz.nombre}: audio vacío`);
+      break;
     } catch (e) {
       ttsErrors.push(`${voz.nombre}: ${e.message}`);
     }
   }
-
-  if(!audioBuffer) return jsonError(`Azure TTS falló: ${ttsErrors.join(" | ")}`,502);
 
   // ── 2. R2: guardar audio ──
   if(!env.R2)        return jsonError("Binding R2 no configurado",500);
