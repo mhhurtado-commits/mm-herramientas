@@ -1,7 +1,17 @@
 // ============================================================
-// Media Mendoza — Reel Editor v2.0
-// Canvas editor + FFmpeg.wasm + Subtítulos estilo TikTok
+// Media Mendoza — Reel Editor v2.1
+// Canvas editor + FFmpeg.wasm (single-thread, sin COOP/COEP)
+// + Subtítulos estilo TikTok
 // ============================================================
+
+// ── Fuente BebasNeue incrustada (igual que en placas/style.css) ──
+(function() {
+  if (document.getElementById('reel-bebas-font')) return;
+  const style = document.createElement('style');
+  style.id = 'reel-bebas-font';
+  style.textContent = "@font-face{font-family:'BebasNeue';src:url('/placas/BebasNeue-Regular.ttf') format('truetype');}";
+  document.head.appendChild(style);
+})();
 
 const RE = {
   canvas: null,
@@ -27,109 +37,69 @@ const RE = {
     barraColor: '#a6ce39',
     // Subtítulos
     subsActivos: true,
-    subsPosY: 0.78,        // posición vertical (0-1)
+    subsPosY: 0.78,
     subsColorNormal: '#ffffff',
-    subsColorResaltado: '#f5c518', // amarillo TikTok
-    subsFontSize: 72,      // px en canvas 1080
+    subsColorResaltado: '#f5c518',
+    subsFontSize: 72,
     subsBgOp: 0.55,
   },
-  // Guion para subtítulos (se setea desde el HTML)
   guion: '',
   active: null,
   action: null,
   dragOff: { x: 0, y: 0 },
   resizeStart: null,
   fontLoaded: false,
-  // Preview de subs en el editor
-  subsPreview: { palabraIdx: -1, activo: false },
-  subsPreviewTimer: null,
 };
 
 const HR = 20;
 
 // ══════════════════════════════════════════════════
-// SUBTÍTULOS — lógica de timing
+// SUBTÍTULOS
 // ══════════════════════════════════════════════════
-
-// Cuenta sílabas aproximadas en español
 function contarSilabas(palabra) {
   const p = palabra.toLowerCase().replace(/[^a-záéíóúüñ]/g, '');
   if (!p) return 1;
   const vocales = p.match(/[aeiouáéíóúü]/g);
   let n = vocales ? vocales.length : 1;
-  // Diptongos: reducir count
   const diptongos = (p.match(/[aeiou][iuáéíóúü]|[iuáéíóúü][aeiou]/g) || []).length;
   n = Math.max(1, n - Math.floor(diptongos * 0.5));
   return n;
 }
 
-// Duración estimada en segundos para una palabra (español)
-// Promedio: ~0.18s por sílaba + pausa entre palabras
 function duracionPalabra(palabra) {
   const sil = contarSilabas(palabra);
   const base = sil * 0.18;
-  // Pausas naturales en signos de puntuación
   const pausa = /[.,;:!?]$/.test(palabra) ? 0.22 : 0.06;
   return base + pausa;
 }
 
-// Genera array de palabras con timestamps
-// { texto, inicio, fin, grupIdx } — los grupos son bloques de ~4 palabras
 function generarTimestamps(guion, duracionTotal) {
-  const palabras = guion
-    .trim()
-    .split(/\s+/)
-    .filter(w => w.length > 0);
-
+  const palabras = guion.trim().split(/\s+/).filter(w => w.length > 0);
   if (!palabras.length) return [];
-
-  // Calcular duraciones relativas
   const durs = palabras.map(p => duracionPalabra(p));
   const totalEst = durs.reduce((a, b) => a + b, 0);
-
-  // Escalar para que coincida con la duración real del audio
-  // Dejamos 0.3s de silencio al inicio (tiempo de la intro/título)
   const offset = 0.3;
   const escala = (duracionTotal - offset) / totalEst;
-
   let t = offset;
   const result = [];
-  let grupIdx = 0;
-  let palEnGrupo = 0;
-
+  let grupIdx = 0, palEnGrupo = 0;
   for (let i = 0; i < palabras.length; i++) {
     const dur = durs[i] * escala;
-    result.push({
-      texto: palabras[i],
-      inicio: t,
-      fin: t + dur,
-      grupIdx,
-    });
+    result.push({ texto: palabras[i], inicio: t, fin: t + dur, grupIdx });
     t += dur;
     palEnGrupo++;
-    // Nuevo grupo cada 4 palabras o en puntuación fuerte
-    if (palEnGrupo >= 4 || /[.!?]$/.test(palabras[i])) {
-      grupIdx++;
-      palEnGrupo = 0;
-    }
+    if (palEnGrupo >= 4 || /[.!?]$/.test(palabras[i])) { grupIdx++; palEnGrupo = 0; }
   }
-
   return result;
 }
 
-// Dado un tiempo T, retorna { grupo: [...palabras], activaIdx }
 function getGrupoActivo(timestamps, t) {
   if (!timestamps.length) return null;
-  // Buscar la palabra activa
   let activaIdx = -1;
   for (let i = 0; i < timestamps.length; i++) {
-    if (t >= timestamps[i].inicio && t < timestamps[i].fin) {
-      activaIdx = i;
-      break;
-    }
+    if (t >= timestamps[i].inicio && t < timestamps[i].fin) { activaIdx = i; break; }
   }
   if (activaIdx === -1) {
-    // Antes del primer o después del último — buscar el grupo más cercano
     if (t < timestamps[0].inicio) return null;
     activaIdx = timestamps.length - 1;
   }
@@ -139,48 +109,36 @@ function getGrupoActivo(timestamps, t) {
   return { grupo, idxEnGrupo };
 }
 
-// Dibuja los subtítulos sobre el canvas en tiempo T
 function reelDrawSubs(ctx, W, H, timestamps, t, S) {
   if (!timestamps || !timestamps.length) return;
   const info = getGrupoActivo(timestamps, t);
   if (!info) return;
-
   const { grupo, idxEnGrupo } = info;
-  const fontFamily = "'BebasNeue', Impact, sans-serif";
+  const fontFamily = RE.fontLoaded ? "'BebasNeue', Impact, sans-serif" : "Impact, sans-serif";
   const sz = Math.round((S.subsFontSize || 72) * (W / 1080));
   ctx.font = `900 ${sz}px ${fontFamily}`;
-
-  // Medir el bloque completo para centrarlo
   const PAD_H = Math.round(sz * 0.45);
   const PAD_V = Math.round(sz * 0.25);
   const GAP   = Math.round(sz * 0.18);
-
-  // Calcular ancho total del bloque (todas las palabras en una línea)
   const textos = grupo.map(p => p.texto.toUpperCase());
-  const anchos = textos.map(t => ctx.measureText(t).width);
+  const anchos = textos.map(tx => ctx.measureText(tx).width);
   const anchoTotal = anchos.reduce((a, b) => a + b, 0) + GAP * (textos.length - 1);
   const maxAncho = W * 0.88;
-
-  // Si no cabe en una línea, partir en dos
   let lineas = [grupo];
   if (anchoTotal > maxAncho && grupo.length > 2) {
     const mid = Math.ceil(grupo.length / 2);
     lineas = [grupo.slice(0, mid), grupo.slice(mid)];
   }
-
   const alturaLinea = sz * 1.25;
   const alturaBloque = lineas.length * alturaLinea;
   const cy = Math.round(H * (S.subsPosY || 0.78));
   const yInicio = cy - alturaBloque / 2;
-
   lineas.forEach((linea, li) => {
     const textosL = linea.map(p => p.texto.toUpperCase());
-    const anchosL = textosL.map(txt => ctx.measureText(txt).width);
+    const anchosL = textosL.map(tx => ctx.measureText(tx).width);
     const anchoL  = anchosL.reduce((a, b) => a + b, 0) + GAP * (textosL.length - 1);
     const xInicio = (W - anchoL) / 2;
     const yL = yInicio + li * alturaLinea;
-
-    // Fondo semitransparente para toda la línea
     if (S.subsBgOp > 0) {
       ctx.save();
       ctx.globalAlpha = S.subsBgOp;
@@ -191,22 +149,16 @@ function reelDrawSubs(ctx, W, H, timestamps, t, S) {
       ctx.fill();
       ctx.restore();
     }
-
-    // Dibujar cada palabra
     let x = xInicio;
     linea.forEach((pal, pi) => {
-      const txt  = pal.texto.toUpperCase();
+      const txt   = pal.texto.toUpperCase();
       const ancho = anchosL[pi];
-      // Determinar si esta palabra es la activa
       const esActiva = pal === grupo[idxEnGrupo];
-
       ctx.save();
       if (esActiva) {
-        // Resaltado: texto amarillo con ligero scale up
         ctx.fillStyle = S.subsColorResaltado || '#f5c518';
         ctx.shadowColor = 'rgba(0,0,0,.8)';
         ctx.shadowBlur  = Math.round(sz * 0.15);
-        // Escalar ligeramente la palabra activa
         const sc = 1.08;
         ctx.translate(x + ancho / 2, yL + sz / 2);
         ctx.scale(sc, sc);
@@ -223,7 +175,6 @@ function reelDrawSubs(ctx, W, H, timestamps, t, S) {
   });
 }
 
-// Helper roundRect con ctx explícito (para usar fuera de RE.ctx)
 function reelRoundRectCtx(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -242,12 +193,14 @@ function reelEditorInit() {
   RE.canvas.width  = RE.W;
   RE.canvas.height = RE.H;
 
-  const font = new FontFace('BebasNeue', 'url(/placas/BebasNeue-Regular.ttf)');
-  font.load().then(f => {
-    document.fonts.add(f);
+  // Cargar fuente — misma ruta que usa placas
+  document.fonts.load("900 72px 'BebasNeue'").then(() => {
     RE.fontLoaded = true;
     reelRender();
-  }).catch(() => { RE.fontLoaded = true; reelRender(); });
+  }).catch(() => {
+    RE.fontLoaded = true;
+    reelRender();
+  });
 
   const li = new Image();
   li.onload  = () => { RE.logoImg = li; reelResetEl('logo'); reelRender(); };
@@ -294,10 +247,17 @@ function reelDefaultPos(key) {
   }
 }
 function reelResetEl(key) { RE.els[key] = { ...reelDefaultPos(key) }; }
-function reelEnsurePos(key) { if (RE.els[key].x === null) reelResetEl(key); }
+function reelEnsurePos(key) {
+  const el = RE.els[key];
+  if (el.x === null) {
+    const d = reelDefaultPos(key);
+    el.x = d.x; el.y = d.y; el.w = d.w; el.h = d.h;
+  }
+}
 
 // ══════════════════════════════════════════════════
-// RENDER BASE (sin subs, para editor interactivo)
+// RENDER BASE — fondo + logo + título (sin subs)
+// Usado tanto por el editor como por el export
 // ══════════════════════════════════════════════════
 function reelRenderBase(ctx, W, H, S, bgImg, logoImg, els) {
   ctx.clearRect(0, 0, W, H);
@@ -338,22 +298,30 @@ function reelRenderBase(ctx, W, H, S, bgImg, logoImg, els) {
     ctx.fillRect(0, H - bh, W, bh);
   }
 
-  // Logo
-  if (els.logo.x !== null && logoImg) {
-    const el = els.logo;
+  // Logo — asegurar posición antes de dibujar
+  const elLogo = els.logo;
+  if (elLogo.x === null) {
+    const d = reelDefaultPos('logo');
+    elLogo.x = d.x; elLogo.y = d.y; elLogo.w = d.w; elLogo.h = d.h;
+  }
+  if (logoImg) {
     ctx.save(); ctx.globalAlpha = S.logoOp;
-    ctx.drawImage(logoImg, el.x, el.y, el.w, el.h);
+    ctx.drawImage(logoImg, elLogo.x, elLogo.y, elLogo.w, elLogo.h);
     ctx.restore();
   }
 
-  // Título
-  if (els.titulo.x !== null) {
-    drawTituloCtx(ctx, W, H, S, els.titulo);
+  // Título — asegurar posición antes de dibujar
+  const elTitulo = els.titulo;
+  if (elTitulo.x === null) {
+    const d = reelDefaultPos('titulo');
+    elTitulo.x = d.x; elTitulo.y = d.y; elTitulo.w = d.w; elTitulo.h = d.h;
   }
+  drawTituloCtx(ctx, W, H, S, elTitulo);
 }
 
 function drawTituloCtx(ctx, W, H, S, el) {
   if (!S.titulo) {
+    // Placeholder punteado
     ctx.save();
     ctx.strokeStyle = 'rgba(166,206,57,.4)';
     ctx.lineWidth = 3; ctx.setLineDash([12, 8]);
@@ -365,15 +333,17 @@ function drawTituloCtx(ctx, W, H, S, el) {
     ctx.fillText('Título del reel', el.x + el.w / 2, el.y + el.h / 2);
     ctx.textAlign = 'left'; ctx.restore(); return;
   }
+  // Fondo del recuadro
   if (S.tituloBg !== 'transparent' && S.tituloBgOp > 0) {
     const r = hexRgb(S.tituloBg);
     ctx.save(); ctx.globalAlpha = S.tituloBgOp;
     ctx.fillStyle = `rgb(${r.r},${r.g},${r.b})`;
     reelRoundRectCtx(ctx, el.x, el.y, el.w, el.h, 8); ctx.fill(); ctx.restore();
   }
+  // Texto
   const pad = Math.round(el.w * 0.04);
   const aw  = el.w - pad * 2;
-  const fontFamily = "'BebasNeue', Impact, sans-serif";
+  const fontFamily = RE.fontLoaded ? "'BebasNeue', Impact, sans-serif" : "Impact, sans-serif";
   let sz = Math.max(10, Math.round(el.h * 0.28));
   let lines, lh, bh;
   for (let i = 0; i < 25; i++) {
@@ -393,17 +363,20 @@ function drawTituloCtx(ctx, W, H, S, el) {
   ctx.restore();
 }
 
-// Render del canvas del editor (con UI y preview de subs)
+// ── Render del canvas del editor ──
 function reelRender() {
   const { W, H, ctx, S, bgImg, logoImg, els, active } = RE;
+
+  // IMPORTANTE: inicializar posiciones antes de cualquier dibujo
+  reelEnsurePos('logo');
+  reelEnsurePos('titulo');
+
   reelRenderBase(ctx, W, H, S, bgImg, logoImg, els);
 
-  // Preview de subtítulos en el editor (muestra estado actual)
-  if (S.subsActivos && RE.guion) {
-    const previewT = RE.subsPreview.activo ? RE.subsPreview.t || 1.5 : 1.5;
-    const dur = 30; // duración placeholder para preview
-    const ts  = generarTimestamps(RE.guion, dur);
-    reelDrawSubs(ctx, W, H, ts, previewT, S);
+  // Preview de subtítulos (estático en t=1.5s para vista previa en editor)
+  if (S.subsActivos && RE.guion && RE.guion.trim().length > 0) {
+    const ts = generarTimestamps(RE.guion, 30);
+    reelDrawSubs(ctx, W, H, ts, 1.5, S);
   }
 
   if (active) reelDrawActiveUI();
@@ -432,15 +405,18 @@ function reelDrawActiveUI() {
   const lw = Math.max(2, Math.round(W * .002));
   const hs = Math.max(8, Math.round(HR * (W / 1080)));
   ctx.save();
+  // Cruz de centrado
   ctx.strokeStyle = 'rgba(166,206,57,.55)';
   ctx.lineWidth = lw;
   ctx.setLineDash([Math.round(W * .005), Math.round(W * .003)]);
   ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
   ctx.setLineDash([]);
+  // Borde del elemento
   ctx.strokeStyle = '#a6ce39';
   ctx.lineWidth = lw * 1.5;
   reelRoundRectCtx(ctx, el.x, el.y, el.w, el.h, 4); ctx.stroke();
+  // Handles
   reelGetHandles(active).forEach(h => {
     ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#a6ce39'; ctx.lineWidth = Math.max(2, lw);
     if (h.side === 'v') {
@@ -557,7 +533,7 @@ function reelOnMove(e) {
       else if(corner==='n'){const nh=Math.max(MIN,h-dy);y=rs.rect.y+rs.rect.h-nh;h=nh}
       else if(corner==='s'){h=Math.max(MIN,h+dy)}
     }
-    el.x=x;el.y=y;el.w=w;el.h=h;
+    el.x=x; el.y=y; el.w=w; el.h=h;
   }
   reelRender();
 }
@@ -582,10 +558,9 @@ function reelLoadLogo(file) {
 }
 
 // ══════════════════════════════════════════════════
-// EXPORT MP4 CON SUBTÍTULOS
-// La estrategia: generar frames del canvas a 10fps,
-// cada frame tiene los subs dibujados para ese instante.
-// Luego FFmpeg une frames + audio → MP4.
+// EXPORT MP4
+// Usa @ffmpeg/ffmpeg en modo single-thread (sin SharedArrayBuffer)
+// Compatible con Cloudflare Pages sin necesidad de COOP/COEP
 // ══════════════════════════════════════════════════
 async function reelExportVideo() {
   if (!RE.audioBlob) { reelToast('Primero generá o cargá el audio'); return; }
@@ -597,43 +572,44 @@ async function reelExportVideo() {
   prog.style.display = 'flex';
 
   try {
-    if (typeof SharedArrayBuffer === 'undefined') {
-      throw new Error('Falta configuración de headers COOP/COEP. Verificá que _headers esté desplegado en Cloudflare Pages.');
-    }
-
-    const audioDur = await reelGetAudioDuration(RE.audioBlob);
-    const FPS      = 10;  // 10fps es suficiente para imagen + subs, mucho menos pesado que 30fps
+    const audioDur    = await reelGetAudioDuration(RE.audioBlob);
+    const FPS         = 10;
     const totalFrames = Math.ceil(audioDur * FPS) + 2;
-    const guion    = RE.guion || '';
-    const usaSubs  = RE.S.subsActivos && guion.length > 0;
-    const timestamps = usaSubs ? generarTimestamps(guion, audioDur) : [];
+    const guion       = RE.guion || '';
+    const usaSubs     = RE.S.subsActivos && guion.trim().length > 0;
+    const timestamps  = usaSubs ? generarTimestamps(guion, audioDur) : [];
 
-    progTxt.textContent = 'Cargando FFmpeg.wasm (primera vez ~30MB)...';
+    progTxt.textContent = 'Cargando FFmpeg.wasm (primera vez ~30MB, se cachea)...';
 
-    const { FFmpeg }    = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js');
+    // ── Importar FFmpeg en modo SINGLE THREAD (no necesita SharedArrayBuffer) ──
+    const { FFmpeg }               = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js');
     const { fetchFile, toBlobURL } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js');
 
-    const ffmpeg = new FFmpeg();
-    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
+    const ffmpeg  = new FFmpeg();
+    // Usar core SINGLE THREAD — no requiere COOP/COEP ni SharedArrayBuffer
+    const coreURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.12.6/dist/esm/ffmpeg-core.js';
+    const wasmURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.12.6/dist/esm/ffmpeg-core.wasm';
+
     await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`,   'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      coreURL: await toBlobURL(coreURL, 'text/javascript'),
+      wasmURL: await toBlobURL(wasmURL, 'application/wasm'),
     });
 
-    // Desactivar la UI del editor durante la captura
-    RE.active = null;
+    RE.active = null; // quitar handles durante captura
 
     if (!usaSubs) {
-      // Sin subtítulos: imagen estática (más rápido)
+      // ── Sin subtítulos: imagen estática (rápido) ──
       progTxt.textContent = 'Procesando imagen...';
+      reelEnsurePos('logo');
+      reelEnsurePos('titulo');
       reelRenderBase(RE.ctx, RE.W, RE.H, RE.S, RE.bgImg, RE.logoImg, RE.els);
+
       const imgBlob = await new Promise(res => RE.canvas.toBlob(res, 'image/png'));
       await ffmpeg.writeFile('frame.png', await fetchFile(imgBlob));
 
       const audioExt = getAudioExt(RE.audioBlob);
       await ffmpeg.writeFile('audio.' + audioExt, await fetchFile(RE.audioBlob));
 
-      progTxt.textContent = 'Generando MP4...';
       ffmpeg.on('progress', ({ progress }) => {
         progTxt.textContent = `Generando MP4... ${Math.min(99, Math.round(progress * 100))}%`;
       });
@@ -649,59 +625,44 @@ async function reelExportVideo() {
       ]);
 
     } else {
-      // Con subtítulos: generar frames
-      // Usamos un canvas offscreen para no interferir con el editor
+      // ── Con subtítulos: secuencia de frames ──
       const offCanvas = document.createElement('canvas');
       offCanvas.width  = RE.W;
       offCanvas.height = RE.H;
       const offCtx = offCanvas.getContext('2d');
 
-      // Pre-renderizar el fondo base (sin subs) una sola vez
+      // Renderizar base UNA vez y cachear como ImageData
+      reelEnsurePos('logo');
+      reelEnsurePos('titulo');
       reelRenderBase(offCtx, RE.W, RE.H, RE.S, RE.bgImg, RE.logoImg, RE.els);
-      // Guardar como ImageData para reusar (evita re-renderizar el fondo cada frame)
       const bgImageData = offCtx.getImageData(0, 0, RE.W, RE.H);
-
-      progTxt.textContent = `Generando ${totalFrames} frames con subtítulos...`;
 
       for (let fi = 0; fi < totalFrames; fi++) {
         const t = fi / FPS;
-
-        // Restaurar fondo
         offCtx.putImageData(bgImageData, 0, 0);
-
-        // Dibujar subs para este frame
         reelDrawSubs(offCtx, RE.W, RE.H, timestamps, t, RE.S);
 
-        // Guardar frame como JPEG (más rápido que PNG para muchos frames)
         const frameBlob = await new Promise(res => offCanvas.toBlob(res, 'image/jpeg', 0.88));
-        const frameData = await fetchFile(frameBlob);
-        const frameName = `frame_${String(fi).padStart(5, '0')}.jpg`;
-        await ffmpeg.writeFile(frameName, frameData);
+        await ffmpeg.writeFile(`frame_${String(fi).padStart(5,'0')}.jpg`, await fetchFile(frameBlob));
 
-        if (fi % 5 === 0) {
-          progTxt.textContent = `Preparando frames... ${fi}/${totalFrames}`;
-        }
+        if (fi % 5 === 0) progTxt.textContent = `Preparando frames... ${fi}/${totalFrames}`;
       }
 
       const audioExt = getAudioExt(RE.audioBlob);
       await ffmpeg.writeFile('audio.' + audioExt, await fetchFile(RE.audioBlob));
 
-      progTxt.textContent = 'Codificando video...';
       ffmpeg.on('progress', ({ progress }) => {
         progTxt.textContent = `Codificando MP4... ${Math.min(99, Math.round(progress * 100))}%`;
       });
 
-      // frame_rate = FPS, input = secuencia de jpgs
       await ffmpeg.exec([
         '-framerate', String(FPS),
         '-i', 'frame_%05d.jpg',
         '-i', 'audio.' + audioExt,
         '-c:v', 'libx264',
         '-c:a', 'aac', '-b:a', '192k',
-        '-pix_fmt', 'yuv420p',
-        '-shortest',
-        '-movflags', '+faststart',
-        'output.mp4'
+        '-pix_fmt', 'yuv420p', '-shortest',
+        '-movflags', '+faststart', 'output.mp4'
       ]);
     }
 
@@ -721,8 +682,9 @@ async function reelExportVideo() {
 
   } catch (err) {
     console.error('[reelExport]', err);
-    reelToast('Error: ' + err.message);
-    progTxt.textContent = '✕ Error: ' + err.message;
+    const msg = err.message || String(err);
+    reelToast('Error: ' + msg);
+    progTxt.textContent = '✕ ' + msg;
     reelRender();
   }
 
@@ -760,9 +722,8 @@ function wrapText(ctx, text, maxW) {
   if (cur.trim()) lines.push(cur);
   return lines.length ? lines : [text];
 }
-// Alias para compatibilidad con drawTituloCtx dentro de reelRender
-function reelWrap(text, maxW) { return wrapText(RE.ctx, text, maxW); }
 
+function reelWrap(text, maxW) { return wrapText(RE.ctx, text, maxW); }
 function reelRoundRect(x, y, w, h, r) { reelRoundRectCtx(RE.ctx, x, y, w, h, r); }
 
 function hexRgb(hex) {
@@ -790,16 +751,48 @@ function reelAlign(key, dir) {
 }
 
 // ══════════════════════════════════════════════════
-// EXPORTS
+// PREVIEW DE SUBTÍTULOS (animado en el editor)
 // ══════════════════════════════════════════════════
-window.RE               = RE;
-window.reelEditorInit   = reelEditorInit;
-window.reelResizeCanvas = reelResizeCanvas;
-window.reelRender       = reelRender;
-window.reelResetEl      = reelResetEl;
-window.reelLoadBg       = reelLoadBg;
-window.reelLoadLogo     = reelLoadLogo;
-window.reelExportVideo  = reelExportVideo;
-window.reelAlign        = reelAlign;
+let _subsPreviewRAF = null;
+let _subsPreviewStart = null;
+
+function reelPreviewSubs() {
+  if (!RE.guion || !RE.guion.trim()) { reelToast('Escribí el guion primero'); return; }
+  reelStopPreview();
+  const DUR = 30;
+  const ts  = generarTimestamps(RE.guion, DUR);
+  _subsPreviewStart = performance.now();
+  function step(now) {
+    const t = (now - _subsPreviewStart) / 1000;
+    if (t > DUR + 1) { reelStopPreview(); return; }
+    RE.active = null;
+    reelRenderBase(RE.ctx, RE.W, RE.H, RE.S, RE.bgImg, RE.logoImg, RE.els);
+    reelDrawSubs(RE.ctx, RE.W, RE.H, ts, t, RE.S);
+    _subsPreviewRAF = requestAnimationFrame(step);
+  }
+  _subsPreviewRAF = requestAnimationFrame(step);
+}
+
+function reelStopPreview() {
+  if (_subsPreviewRAF) { cancelAnimationFrame(_subsPreviewRAF); _subsPreviewRAF = null; }
+  _subsPreviewStart = null;
+  reelRender();
+}
+
+// ══════════════════════════════════════════════════
+// EXPORTS GLOBALES
+// ══════════════════════════════════════════════════
+window.RE                = RE;
+window.reelEditorInit    = reelEditorInit;
+window.reelResizeCanvas  = reelResizeCanvas;
+window.reelRender        = reelRender;
+window.reelResetEl       = reelResetEl;
+window.reelLoadBg        = reelLoadBg;
+window.reelLoadLogo      = reelLoadLogo;
+window.reelExportVideo   = reelExportVideo;
+window.reelAlign         = reelAlign;
+window.reelPreviewSubs   = reelPreviewSubs;
+window.reelStopPreview   = reelStopPreview;
 window.generarTimestamps = generarTimestamps;
-window.reelDrawSubs     = reelDrawSubs;
+window.reelDrawSubs      = reelDrawSubs;
+window.reelRenderBase    = reelRenderBase;
