@@ -473,7 +473,7 @@ async function handlePlacasImage(url){
     if(!ct.startsWith("image/")) return jsonError("No es imagen",422);
     const cl=Number(res.headers.get("Content-Length")||"0");
     if(cl&&cl>MAX_PROXY_IMAGE_BYTES) return jsonError("Imagen muy pesada",413);
-    return new Response(res.body,{headers:{...CORS_HEADERS,"Content-Type":ct,"Cache-Control":"public, max-age=3600"}});
+    return new Response(res.body,{headers:{...CORS_HEADERS,"Content-Type":ct,"Cache-Control":"public, max-age=3600","Cross-Origin-Resource-Policy":"cross-origin"}});
   }catch(err){return jsonError(`Error: ${err.message}`,502)}
 }
 async function handlePlacasAI(request,env,body){
@@ -691,4 +691,5 @@ async function callGemini(prompt,env){
     }
   }
   return {error:"Todas las API keys de Gemini están agotadas."};
+}ror:"Todas las API keys de Gemini están agotadas."};
 }

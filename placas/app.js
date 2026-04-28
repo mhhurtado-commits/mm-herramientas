@@ -1140,7 +1140,8 @@ async function loadRemoteImg(imgUrl){
     });
   }catch{
     return new Promise(r=>{
-      const img=new Image();img.crossOrigin='anonymous';
+      const img=new Image();
+      img.crossOrigin='anonymous';
       img.onload=()=>{S.bgImg=img;resetImgSliders();resizeCanvas(true);render();drawPreviews();snapShot();setTimeout(()=>{resizeCanvas(true);render();},300);r();};
       img.onerror=()=>{showToast('Subí la imagen manualmente.');r();};
       img.src=imgUrl;
@@ -1658,3 +1659,4 @@ window.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}
 });
 window.addEventListener('load',init);
+',init);
