@@ -1469,8 +1469,7 @@ async function guardarPromptReel() {
   try {
     const r = await fetch(`${WORKER}/social/reel/config`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ prompt }),
-      mode: 'cors',
+      body: JSON.stringify({ prompt })
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error);

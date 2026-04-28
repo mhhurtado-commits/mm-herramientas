@@ -4,13 +4,7 @@
 /social/*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
-  Access-Control-Allow-Origin: *
 
 /social/reel-editor.js
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
-
-# Reglas para fuentes .ttf
-*.ttf
-  Content-Type: font/ttf
-  Access-Control-Allow-Origin: *
