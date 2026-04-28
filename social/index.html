@@ -1034,34 +1034,7 @@ function confirmarLimpiar() {
 //   RE.guion = guion;
 //   reelRender();
  
-// ── Preview animado de subtítulos en el editor ──
-let _subsPreviewRAF = null;
-let _subsPreviewStart = null;
- 
-function reelPreviewSubs() {
-  if (!RE.guion) { reelToast('Escribí el guion primero'); return; }
-  reelStopPreview();
-  const DUR = 30; // duración placeholder para preview
-  const ts  = generarTimestamps(RE.guion, DUR);
-  _subsPreviewStart = performance.now();
- 
-  function step(now) {
-    const t = (now - _subsPreviewStart) / 1000;
-    if (t > DUR + 1) { reelStopPreview(); return; }
-    RE.active = null;
-    const { W, H, ctx, S, bgImg, logoImg, els } = RE;
-    reelRenderBase(ctx, W, H, S, bgImg, logoImg, els);
-    reelDrawSubs(ctx, W, H, ts, t, S);
-    _subsPreviewRAF = requestAnimationFrame(step);
-  }
-  _subsPreviewRAF = requestAnimationFrame(step);
-}
- 
-function reelStopPreview() {
-  if (_subsPreviewRAF) { cancelAnimationFrame(_subsPreviewRAF); _subsPreviewRAF = null; }
-  _subsPreviewStart = null;
-  reelRender();
-}
+
 
 // ── SCRAPING ──
 async function fetchArticle(url) {
