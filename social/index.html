@@ -101,7 +101,7 @@
 .net-chip.active[data-net="instagram"] { border-color: #e1306c; color: #e1306c; background: rgba(225,48,108,.06); }
 .net-chip.active[data-net="x"] { border-color: var(--muted); color: var(--muted); background: rgba(255,255,255,.04); }
 
-/* BOTONES ACCIÓN */
+/* BOTONES */
 .action-row { display: flex; gap: 10px; }
 .btn-generar {
   flex: 1; padding: 14px;
@@ -123,23 +123,17 @@
 }
 .btn-limpiar:hover { border-color: var(--v); color: var(--v); }
 
-/* STATUS */
+/* STATUS / ERROR */
 .status-bar {
   display: none; align-items: center; gap: 10px;
   padding: 12px 16px;
-  border: 1px solid var(--line2);
-  background: var(--surface);
-  margin: 16px 0;
-  font-size: 11px; color: var(--dim);
-  letter-spacing: .5px;
+  border: 1px solid var(--line2); background: var(--surface);
+  margin: 16px 0; font-size: 11px; color: var(--dim); letter-spacing: .5px;
 }
 .status-bar.show { display: flex; }
-
-/* ERROR */
 .error-bar {
   display: none;
-  border: 1px solid rgba(230,57,70,.4);
-  background: rgba(230,57,70,.06);
+  border: 1px solid rgba(230,57,70,.4); background: rgba(230,57,70,.06);
   color: #ff6b6b; padding: 12px 16px;
   font-size: 12px; margin: 14px 0;
 }
@@ -149,323 +143,281 @@
 .results { display: none; }
 .results.show { display: block; }
 .results-header {
-  display: flex; align-items: center;
-  justify-content: space-between;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 14px; border-bottom: 1px solid var(--line); margin-bottom: 20px;
 }
-.results-title {
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 2.5px; text-transform: uppercase;
-  color: var(--dim);
-}
+.results-title { font-size: 9px; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: var(--dim); }
 .btn-copy-all {
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 1.5px; text-transform: uppercase;
-  padding: 6px 14px;
-  border: 1px solid var(--line2); background: none;
-  color: var(--dim); cursor: pointer;
-  font-family: var(--font-body); transition: all .2s;
+  font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 6px 14px; border: 1px solid var(--line2); background: none;
+  color: var(--dim); cursor: pointer; font-family: var(--font-body); transition: all .2s;
 }
 .btn-copy-all:hover { border-color: var(--v); color: var(--v); }
-
-/* RESULT CARD */
 .result-card {
-  background: var(--surface);
-  border: 1px solid var(--line2);
-  margin-bottom: 10px;
-  animation: mm-fadeUp .3s ease both;
+  background: var(--surface); border: 1px solid var(--line2);
+  margin-bottom: 10px; animation: mm-fadeUp .3s ease both;
 }
 .card-top {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
+  padding: 12px 16px; border-bottom: 1px solid var(--line);
 }
 .net-emoji { font-size: 14px; }
-.net-label {
-  font-family: var(--font-display);
-  font-size: 1.1rem; letter-spacing: .5px;
-}
-.char-badge {
-  margin-left: auto;
-  font-size: 9px; color: var(--dim);
-  letter-spacing: 1px;
-}
+.net-label { font-family: var(--font-display); font-size: 1.1rem; letter-spacing: .5px; }
+.char-badge { margin-left: auto; font-size: 9px; color: var(--dim); letter-spacing: 1px; }
 .card-body { padding: 16px; }
-.result-title {
-  font-size: 12px; font-weight: 600;
-  color: var(--v); margin-bottom: 10px;
-  line-height: 1.5; letter-spacing: .2px;
-}
-.result-text {
-  font-size: 12px; line-height: 1.8;
-  color: var(--muted); white-space: pre-wrap;
-  word-break: break-word; font-weight: 300;
-}
+.result-title { font-size: 12px; font-weight: 600; color: var(--v); margin-bottom: 10px; line-height: 1.5; }
+.result-text { font-size: 12px; line-height: 1.8; color: var(--muted); white-space: pre-wrap; word-break: break-word; font-weight: 300; }
 .result-title[contenteditable="true"],
 .result-text[contenteditable="true"] {
-  outline: none;
-  border: 1px solid transparent;
-  padding: 4px 6px; margin: -4px -6px;
-  border-radius: 2px; transition: border-color .15s;
-  cursor: text;
+  outline: none; border: 1px solid transparent;
+  padding: 4px 6px; margin: -4px -6px; border-radius: 2px; transition: border-color .15s; cursor: text;
 }
-.result-title[contenteditable="true"]:hover,
-.result-text[contenteditable="true"]:hover { border-color: var(--line2); }
 .result-title[contenteditable="true"]:focus,
 .result-text[contenteditable="true"]:focus { border-color: var(--v); background: rgba(166,206,57,.03); }
-.edit-hint {
-  font-size: 9px; color: var(--dim); letter-spacing: 1px;
-  margin-left: auto; text-transform: uppercase;
-}
-.card-foot {
-  padding: 10px 16px;
-  border-top: 1px solid var(--line);
-  display: flex; justify-content: flex-end; gap: 6px;
-}
+.edit-hint { font-size: 9px; color: var(--dim); letter-spacing: 1px; margin-left: auto; text-transform: uppercase; }
+.card-foot { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 6px; }
 .btn-card {
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 1.5px; text-transform: uppercase;
-  padding: 6px 12px;
-  border: 1px solid var(--line2); background: none;
-  color: var(--dim); cursor: pointer;
-  font-family: var(--font-body); transition: all .15s;
+  font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 6px 12px; border: 1px solid var(--line2); background: none;
+  color: var(--dim); cursor: pointer; font-family: var(--font-body); transition: all .15s;
 }
 .btn-card:hover { border-color: var(--v); color: var(--v); }
 .btn-card.copied { border-color: var(--v); color: var(--v); }
-
-/* Net colors */
 .result-card[data-net="facebook"] .net-label { color: #1877f2; }
 .result-card[data-net="instagram"] .net-label { color: #e1306c; }
 .result-card[data-net="x"] .net-label { color: var(--muted); }
-
-/* REGEN */
 .regen-row { display: none; margin-top: 8px; }
 .regen-row.show { display: flex; gap: 8px; }
 .btn-regen {
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 1.5px; text-transform: uppercase;
-  padding: 10px 18px;
-  border: 1px solid var(--line2); background: none;
-  color: var(--dim); cursor: pointer;
-  font-family: var(--font-body); transition: all .2s;
+  font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 10px 18px; border: 1px solid var(--line2); background: none;
+  color: var(--dim); cursor: pointer; font-family: var(--font-body); transition: all .2s;
 }
 .btn-regen:hover { border-color: var(--v); color: var(--v); }
 
-/* CONFIG TAB */
+/* CONFIG */
 #tabConfig { display: none; }
 .config-info {
   background: var(--surface); border: 1px solid var(--line2);
   padding: 14px 16px; font-size: 11px; color: var(--dim);
-  line-height: 1.7; margin-bottom: 24px;
-  font-weight: 300; letter-spacing: .2px;
+  line-height: 1.7; margin-bottom: 24px; font-weight: 300;
 }
-.config-info strong { color: var(--muted); font-weight: 500; }
-.net-config-card {
-  background: var(--surface);
-  border: 1px solid var(--line2);
-  margin-bottom: 8px;
-}
+.net-config-card { background: var(--surface); border: 1px solid var(--line2); margin-bottom: 8px; }
 .net-config-header {
   display: flex; align-items: center; gap: 10px;
-  padding: 14px 16px;
-  border-bottom: 1px solid transparent;
+  padding: 14px 16px; border-bottom: 1px solid transparent;
   cursor: pointer; user-select: none; transition: background .15s;
 }
 .net-config-header:hover { background: rgba(255,255,255,.02); }
-.net-config-header .net-label {
-  font-family: var(--font-display); font-size: 1.1rem;
-}
-.net-config-header .chevron {
-  margin-left: auto; color: var(--dim);
-  font-size: 10px; transition: transform .2s;
-}
+.net-config-header .net-label { font-family: var(--font-display); font-size: 1.1rem; }
+.net-config-header .chevron { margin-left: auto; color: var(--dim); font-size: 10px; transition: transform .2s; }
 .net-config-header.open { border-bottom-color: var(--line); }
 .net-config-header.open .chevron { transform: rotate(180deg); }
 .net-config-body { display: none; padding: 16px; }
 .net-config-body.open { display: block; }
-.net-config-body .mm-textarea {
-  min-height: 160px; font-size: 11px; line-height: 1.7;
-  margin-bottom: 12px; font-weight: 300;
-}
+.net-config-body .mm-textarea { min-height: 160px; font-size: 11px; line-height: 1.7; margin-bottom: 12px; font-weight: 300; }
 .config-actions { display: flex; align-items: center; gap: 10px; }
 .btn-save {
-  background: var(--v); color: var(--bg);
-  border: none; padding: 9px 20px;
-  font-family: var(--font-body);
-  font-size: 9px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  cursor: pointer; transition: opacity .2s;
-  display: flex; align-items: center; gap: 6px;
+  background: var(--v); color: var(--bg); border: none; padding: 9px 20px;
+  font-family: var(--font-body); font-size: 9px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: opacity .2s;
 }
 .btn-save:hover { opacity: .85; }
 .btn-save:disabled { opacity: .35; cursor: not-allowed; }
 .btn-restore {
-  background: none; border: 1px solid var(--line2);
-  color: var(--dim); padding: 8px 14px;
-  font-family: var(--font-body);
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 1.5px; text-transform: uppercase;
-  cursor: pointer; transition: all .2s;
+  background: none; border: 1px solid var(--line2); color: var(--dim); padding: 8px 14px;
+  font-family: var(--font-body); font-size: 9px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; transition: all .2s;
 }
 .btn-restore:hover { border-color: var(--muted); color: var(--muted); }
-.saved-badge {
-  font-size: 9px; color: var(--v);
-  letter-spacing: 1px; opacity: 0;
-  transition: opacity .3s; font-weight: 600;
-}
+.saved-badge { font-size: 9px; color: var(--v); letter-spacing: 1px; opacity: 0; transition: opacity .3s; font-weight: 600; }
 .saved-badge.show { opacity: 1; }
 
-/* MODAL CONFIRM */
+/* MODAL */
 .modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.6); z-index: 500;
+  position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 500;
   display: none; align-items: center; justify-content: center;
 }
 .modal-overlay.open { display: flex; }
-.modal-box {
-  background: var(--surface);
-  border: 1px solid var(--line2);
-  padding: 32px; max-width: 380px; width: 90%;
-  text-align: center;
-}
-.modal-title {
-  font-family: var(--font-display);
-  font-size: 1.6rem; color: var(--white);
-  margin-bottom: 10px; letter-spacing: .5px;
-}
-.modal-desc {
-  font-size: 12px; color: var(--muted);
-  margin-bottom: 24px; line-height: 1.7; font-weight: 300;
-}
+.modal-box { background: var(--surface); border: 1px solid var(--line2); padding: 32px; max-width: 380px; width: 90%; text-align: center; }
+.modal-title { font-family: var(--font-display); font-size: 1.6rem; color: var(--white); margin-bottom: 10px; }
+.modal-desc { font-size: 12px; color: var(--muted); margin-bottom: 24px; line-height: 1.7; font-weight: 300; }
 .modal-btns { display: flex; gap: 8px; justify-content: center; }
-.btn-confirm {
-  padding: 10px 22px; background: var(--v); color: var(--bg);
-  border: none; font-family: var(--font-body);
-  font-size: 9px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  cursor: pointer; transition: opacity .2s;
-}
-.btn-confirm:hover { opacity: .85; }
-.btn-cancel {
-  padding: 10px 22px; background: none;
-  border: 1px solid var(--line2); color: var(--dim);
-  font-family: var(--font-body);
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 2px; text-transform: uppercase;
-  cursor: pointer; transition: all .2s;
-}
-.btn-cancel:hover { border-color: var(--muted); color: var(--muted); }
+.btn-confirm { padding: 10px 22px; background: var(--v); color: var(--bg); border: none; font-family: var(--font-body); font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; }
+.btn-cancel { padding: 10px 22px; background: none; border: 1px solid var(--line2); color: var(--dim); font-family: var(--font-body); font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; }
 
-/* STATUSBAR */
-.mm-statusbar-url { font-size: 11px; color: var(--dim); margin-left: auto; }
-
-/* ── REEL TAB ── */
+/* ══════════════════════════════════════
+   REEL EDITOR
+══════════════════════════════════════ */
 #tabReel { display: none; }
-.reel-grid {
+
+.reel-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 320px 1fr;
   gap: 16px;
   align-items: start;
 }
-@media(max-width:700px){ .reel-grid{ grid-template-columns:1fr; } }
+@media(max-width:900px){ .reel-layout{ grid-template-columns:1fr; } }
 
-.reel-panel {
+/* Sidebar del editor */
+.reel-sidebar {
   background: var(--surface);
   border: 1px solid var(--line2);
-  padding: 22px;
 }
-.reel-panel-title {
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 2.5px; text-transform: uppercase;
-  color: var(--dim); padding-bottom: 14px;
-  border-bottom: 1px solid var(--line); margin-bottom: 18px;
+.re-section {
+  border-bottom: 1px solid var(--line2);
 }
-.voice-row {
-  display: flex; gap: 8px; align-items: flex-end;
+.re-section:last-child { border-bottom: none; }
+.re-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 15px; cursor: pointer;
+  font-size: 8px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted);
 }
-.voice-row .mm-input { flex: 1; }
-.voice-id-input {
-  font-size: 11px; color: var(--dim);
-  font-family: monospace; letter-spacing: .5px;
+.re-section-head:hover { background: rgba(255,255,255,.02); }
+.re-section-head .re-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--v); flex-shrink: 0; }
+.re-section-head .re-arrow { font-size: 9px; color: var(--dim); transition: transform .2s; }
+.re-section-head.open .re-arrow { transform: rotate(180deg); }
+.re-section-body { display: none; padding: 4px 15px 14px; }
+.re-section-body.open { display: block; }
+
+.re-label {
+  font-size: 8px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--dim);
+  display: block; margin: 10px 0 4px;
 }
-.reel-step {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 10px; color: var(--dim);
-  letter-spacing: 1px; text-transform: uppercase;
-  margin-bottom: 12px; font-weight: 600;
+.re-label:first-child { margin-top: 4px; }
+.re-input, .re-textarea, .re-select {
+  width: 100%; background: var(--bg);
+  border: 1px solid var(--line2); color: var(--muted);
+  font-family: var(--font-body); font-size: 11px;
+  padding: 7px 9px; outline: none; transition: border .15s;
+  appearance: none;
+  -webkit-appearance: none;
 }
-.reel-step-num {
-  width: 22px; height: 22px; border-radius: 50%;
+.re-textarea { resize: vertical; min-height: 60px; line-height: 1.4; }
+.re-input:focus, .re-textarea:focus, .re-select:focus { border-color: var(--v); }
+.re-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 9px center; padding-right: 26px; cursor: pointer; }
+.re-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.re-rrow { display: flex; align-items: center; gap: 7px; }
+.re-rrow input[type=range] { flex: 1; accent-color: var(--v); height: 3px; cursor: pointer; }
+.re-rval { font-size: 9px; color: var(--v); font-weight: 700; min-width: 34px; text-align: right; font-family: var(--font-body); }
+.re-swatches { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+.re-sw { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all .12s; flex-shrink: 0; }
+.re-sw:hover,.re-sw.on { border-color: var(--muted); transform: scale(1.18); }
+.re-uplbl {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px dashed var(--line2); padding: 8px 10px;
+  text-align: center; font-size: 10px; color: var(--dim);
+  cursor: pointer; transition: all .15s; margin-top: 6px;
+}
+.re-uplbl:hover { border-color: var(--v); color: var(--v); }
+input[type=file].re-hidden { display: none; }
+
+/* AUDIO PANEL */
+.audio-status {
+  padding: 10px 12px; background: var(--bg);
+  border: 1px solid var(--line2); font-size: 11px; color: var(--dim);
+  margin-top: 8px; display: flex; align-items: center; gap: 8px;
+}
+.audio-status.ready { border-color: rgba(166,206,57,.4); color: var(--v); }
+.audio-wave { font-size: 14px; }
+
+/* VOCES */
+.re-voice-row { display: grid; grid-template-columns:1fr auto; gap:6px; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); }
+.re-voice-row:last-child{border-bottom:none}
+.re-voice-name { font-size:11px; color:var(--muted); }
+.re-voice-badge { font-size:8px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; }
+.re-voice-del { background:none;border:1px solid var(--line2);color:var(--dim);padding:2px 7px;cursor:pointer;font-size:10px; font-family:var(--font-body); }
+.re-voice-del:hover{border-color:#f44;color:#f44}
+
+/* CANVAS AREA */
+.reel-canvas-area {
+  background: #0a0a08;
   border: 1px solid var(--line2);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; color: var(--v); flex-shrink: 0;
-  font-family: var(--font-display); font-size: .9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  gap: 12px;
 }
-.btn-generar-guion {
-  width: 100%; padding: 12px;
-  background: none; border: 1px solid var(--v);
-  color: var(--v); font-family: var(--font-body);
-  font-size: 9px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
+#reelCanvasWrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+#reelCanvas {
+  display: block;
+  box-shadow: 0 4px 32px rgba(0,0,0,.6);
+  cursor: default;
+  max-height: 70vh;
+}
+.reel-canvas-toolbar {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%;
+}
+.re-tbtn {
+  padding: 8px 14px;
+  border: 1px solid var(--line2); background: none;
+  color: var(--dim); font-family: var(--font-body);
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase;
   cursor: pointer; transition: all .15s;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  margin-bottom: 14px;
 }
-.btn-generar-guion:hover { background: rgba(166,206,57,.08); }
-.btn-generar-guion:disabled { opacity: .35; cursor: not-allowed; }
+.re-tbtn:hover { border-color: var(--v); color: var(--v); }
 
-.btn-generar-reel {
-  width: 100%; padding: 14px;
-  background: var(--v); color: var(--bg);
-  border: none; font-family: var(--font-body);
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  cursor: pointer; transition: all .15s;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-}
-.btn-generar-reel:hover { background: var(--vo); }
-.btn-generar-reel:disabled { opacity: .3; cursor: not-allowed; }
-
-.reel-progress {
+/* EXPORT PROGRESS */
+.reel-export-progress {
   display: none;
-  flex-direction: column; gap: 10px;
-  padding: 16px; background: var(--bg2);
-  border: 1px solid var(--line2); margin-top: 14px;
+  align-items: center; gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid rgba(166,206,57,.3);
+  background: rgba(166,206,57,.04);
+  font-size: 11px; color: var(--v); width: 100%;
+  box-sizing: border-box;
 }
-.reel-progress.show { display: flex; }
-.progress-step {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 11px; color: var(--dim); letter-spacing: .3px;
+/* RESULT */
+.reel-video-result {
+  display: none; width: 100%; box-sizing: border-box;
+  padding-top: 12px;
 }
-.progress-step.active { color: var(--v); }
-.progress-step.done { color: var(--muted); }
-.progress-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--line2); flex-shrink: 0; transition: background .3s;
+.reel-video-result video {
+  width: 100%; max-height: 320px;
+  background: #000; display: block; margin-bottom: 10px;
 }
-.progress-step.active .progress-dot { background: var(--v); animation: pulse-dot 1s infinite; }
-.progress-step.done .progress-dot { background: var(--muted); }
-@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+.reel-video-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-.reel-result {
-  display: none; margin-top: 14px;
-  background: var(--bg2); border: 1px solid var(--line2); padding: 18px;
+/* ALIGN BAR */
+.re-align-bar { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0 4px; }
+.re-align-bar button {
+  flex: 1; min-width: 26px; padding: 4px 2px; font-size: .75rem;
+  background: var(--bg); border: 1px solid var(--line2);
+  border-radius: 3px; cursor: pointer; color: var(--muted);
+  transition: all .12s;
 }
-.reel-result.show { display: block; }
-.reel-result video {
-  width: 100%; border-radius: 2px;
-  margin-bottom: 12px; background: #000;
-  max-height: 400px;
-}
-.reel-result-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.reel-warning {
-  font-size: 10px; color: var(--dim);
-  letter-spacing: .5px; margin-top: 8px;
-  line-height: 1.6;
-}
+.re-align-bar button:hover { border-color: var(--v); color: var(--v); }
 
+/* GUION TAB en sidebar */
+.guion-generate-bar { display: flex; gap: 8px; margin-top: 6px; }
+.guion-generate-bar button {
+  flex: 1; padding: 9px 6px;
+  background: var(--bg); border: 1px solid var(--v);
+  color: var(--v); font-family: var(--font-body);
+  font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.guion-generate-bar button:hover { background: rgba(166,206,57,.08); }
+.guion-generate-bar button:disabled { opacity: .35; cursor: not-allowed; }
+
+/* Formato pills reel */
+.reel-fmt-pills { display: flex; gap: 5px; flex-wrap: wrap; margin: 6px 0 4px; }
+.rfpill {
+  font-size: 9px; font-weight: 600; letter-spacing: .5px;
+  padding: 4px 10px; border-radius: 20px; cursor: pointer;
+  border: 1.5px solid var(--line2); background: var(--bg);
+  color: var(--dim); transition: all .12s; white-space: nowrap;
+}
+.rfpill:hover { border-color: var(--v); color: var(--v); }
+.rfpill.on { background: var(--v); border-color: var(--v); color: #111; }
 </style>
 </head>
 <body>
@@ -476,9 +428,7 @@
     <img src="../assets/logo.png" alt="MM" class="mm-header-logo" onerror="this.style.display='none'">
     <span class="mm-header-name">Media Mendoza</span>
   </a>
-  <div class="mm-header-section">
-    <span class="mm-header-label">Redes Sociales</span>
-  </div>
+  <div class="mm-header-section"><span class="mm-header-label">Redes Sociales</span></div>
   <a href="/" class="mm-header-back">← Hub</a>
   <div class="mm-header-status">
     <div class="mm-status-dot"></div>
@@ -503,7 +453,6 @@
 
   <!-- ═══ TAB GENERAR ═══ -->
   <div id="tabGenerar">
-
     <div class="input-panel mm-animate mm-animate-1">
       <div class="mm-field">
         <label class="mm-label">Link de la nota</label>
@@ -516,7 +465,7 @@
         <div class="mm-field" style="margin-top:12px">
           <label class="mm-label">Contexto</label>
           <textarea id="contextInput" class="mm-textarea" rows="3"
-            placeholder="Ej: tono urgente, enfocarse en impacto local, es nota de último momento..."></textarea>
+            placeholder="Ej: tono urgente, enfocarse en impacto local..."></textarea>
         </div>
       </div>
     </div>
@@ -534,11 +483,9 @@
           <span class="dot" style="background:#9b9d8a"></span> X / Twitter
         </div>
       </div>
-
       <div class="action-row">
         <button class="btn-generar" id="genBtn" onclick="generate()">
-          <span class="mm-spinner" id="spinGen"></span>
-          ⚡ Generar contenido
+          <span class="mm-spinner" id="spinGen"></span> ⚡ Generar contenido
         </button>
         <button class="btn-limpiar" onclick="pedirLimpiar()">✕ Limpiar</button>
       </div>
@@ -560,165 +507,258 @@
         <button class="btn-regen" onclick="generate()">↻ Regenerar todo</button>
       </div>
     </div>
-
   </div>
-
 
   <!-- ═══ TAB REEL ═══ -->
   <div id="tabReel">
+    <div class="reel-layout">
 
-    <div class="reel-grid">
+      <!-- ── SIDEBAR ── -->
+      <div class="reel-sidebar">
 
-      <!-- Panel izquierdo: inputs -->
-      <div>
-        <div class="reel-panel">
-          <div class="reel-panel-title">Configuración del Reel</div>
-
-          <div class="reel-step">
-            <span class="reel-step-num">1</span> Voz
+        <!-- GUION -->
+        <div class="re-section">
+          <div class="re-section-head open" onclick="reSectionToggle(this)">
+            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Guion</span>
+            <span class="re-arrow">▼</span>
           </div>
-          <div class="mm-field">
-            <label class="mm-label">Seleccioná la voz</label>
-            <select id="reelVoiceSelect" class="mm-textarea" style="min-height:auto;padding:10px 12px;cursor:pointer">
-              <option value="ByVRQtaK1WDOvTmP1PKO">Agustín</option>
+          <div class="re-section-body open">
+            <span class="re-label">Título (se muestra en el video)</span>
+            <input type="text" id="re-tituloInput" class="re-input"
+              placeholder="Título del reel..."
+              oninput="RE.S.titulo=this.value;reelRender()">
+            <span class="re-label">Guion (para el audio)</span>
+            <textarea id="re-guionTA" class="re-textarea" rows="5"
+              placeholder="Guion que se leerá en voz alta..."></textarea>
+            <span id="re-guionChars" style="font-size:9px;color:var(--dim);text-align:right;display:block;margin-top:2px">0 car.</span>
+            <div class="guion-generate-bar">
+              <button id="btnGuionReel" onclick="reelGenerarGuion()">
+                <span class="mm-spinner" id="spinGuionReel"></span>
+                ✦ Generar con IA
+              </button>
+            </div>
+            <span class="re-label" style="margin-top:10px">URL de la nota (para imagen)</span>
+            <input type="url" id="re-notaUrl" class="re-input" placeholder="https://...">
+          </div>
+        </div>
+
+        <!-- AUDIO -->
+        <div class="re-section">
+          <div class="re-section-head" onclick="reSectionToggle(this)">
+            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Audio</span>
+            <span class="re-arrow">▼</span>
+          </div>
+          <div class="re-section-body">
+            <span class="re-label">Voz (Azure TTS)</span>
+            <select id="re-voiceSelect" class="re-select"></select>
+            <button class="btn-generar" id="btnGenAudio" onclick="reelGenerarAudio()"
+              style="font-size:10px;padding:10px;margin-top:8px;flex:none;width:100%">
+              <span class="mm-spinner" id="spinAudio"></span>
+              🎙 Generar audio
+            </button>
+            <div class="audio-status" id="audioStatus">
+              <span class="audio-wave">🎵</span>
+              <span id="audioStatusTxt">Sin audio — generá o cargá uno</span>
+            </div>
+            <audio id="audioPreview" controls style="width:100%;margin-top:8px;display:none"></audio>
+            <label class="re-uplbl" for="re-audioUp">📁 Cargar audio propio (MP3/WAV)</label>
+            <input type="file" id="re-audioUp" accept="audio/*" class="re-hidden" onchange="reelLoadAudio(event)">
+            <div class="error-bar" id="audioError" style="margin-top:8px"></div>
+          </div>
+        </div>
+
+        <!-- IMAGEN DE FONDO -->
+        <div class="re-section">
+          <div class="re-section-head" onclick="reSectionToggle(this)">
+            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Imagen de fondo</span>
+            <span class="re-arrow">▼</span>
+          </div>
+          <div class="re-section-body">
+            <label class="re-uplbl" for="re-bgUp">📁 Subir imagen</label>
+            <input type="file" id="re-bgUp" accept="image/*" class="re-hidden"
+              onchange="reelLoadBg(event.target.files[0])">
+            <button class="re-tbtn" onclick="RE.bgImg=null;reelRender()" style="width:100%;margin-top:4px">✕ Quitar imagen</button>
+            <span class="re-label">Oscurecer <span class="re-rval" id="re-bgDarkV">35%</span></span>
+            <div class="re-rrow"><input type="range" id="re-bgDark" min="0" max="90" value="35"
+              oninput="RE.S.bgDark=this.value/100;document.getElementById('re-bgDarkV').textContent=this.value+'%';reelRender()"></div>
+            <span class="re-label">Blur <span class="re-rval" id="re-bgBlurV">0px</span></span>
+            <div class="re-rrow"><input type="range" id="re-bgBlur" min="0" max="18" value="0"
+              oninput="RE.S.bgBlur=+this.value;document.getElementById('re-bgBlurV').textContent=this.value+'px';reelRender()"></div>
+          </div>
+        </div>
+
+        <!-- TÍTULO (estilo) -->
+        <div class="re-section">
+          <div class="re-section-head" onclick="reSectionToggle(this)">
+            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Estilo del título</span>
+            <span class="re-arrow">▼</span>
+          </div>
+          <div class="re-section-body">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+              <span style="font-size:8px;color:var(--dim)">Posición</span>
+              <button class="re-tbtn" onclick="reelResetEl('titulo');reelRender()" style="padding:3px 8px;font-size:8px">↺ Reset</button>
+            </div>
+            <div class="re-align-bar">
+              <button onclick="reelAlign('titulo','l')" title="Izquierda">⇤</button>
+              <button onclick="reelAlign('titulo','ch')" title="Centro H">↔</button>
+              <button onclick="reelAlign('titulo','r')" title="Derecha">⇥</button>
+              <button onclick="reelAlign('titulo','t')" title="Arriba">⇡</button>
+              <button onclick="reelAlign('titulo','cv')" title="Centro V">↕</button>
+              <button onclick="reelAlign('titulo','b')" title="Abajo">⇣</button>
+            </div>
+            <span class="re-label">Color del texto</span>
+            <div class="re-swatches">
+              <input type="color" id="re-tituloColor" value="#ffffff"
+                oninput="RE.S.tituloColor=this.value;reelRender()">
+              <div class="re-sw on" style="background:#fff;border-color:#444" onclick="reSw('tituloColor','#ffffff',this)"></div>
+              <div class="re-sw" style="background:#111" onclick="reSw('tituloColor','#111111',this)"></div>
+              <div class="re-sw" style="background:#a6ce39" onclick="reSw('tituloColor','#a6ce39',this)"></div>
+              <div class="re-sw" style="background:#f5c518" onclick="reSw('tituloColor','#f5c518',this)"></div>
+            </div>
+            <span class="re-label">Fondo del título</span>
+            <div class="re-swatches">
+              <input type="color" id="re-tituloBg" value="#000000"
+                oninput="RE.S.tituloBg=this.value;reelRender()">
+              <div class="re-sw on" style="background:#000" onclick="reSw('tituloBg','#000000',this)"></div>
+              <div class="re-sw" style="background:#a6ce39" onclick="reSw('tituloBg','#a6ce39',this)"></div>
+              <div class="re-sw" style="background:transparent;border:1.5px solid #555" onclick="reSw('tituloBg','transparent',this)" title="Sin fondo"></div>
+            </div>
+            <span class="re-label">Opacidad del fondo <span class="re-rval" id="re-tituloBgOpV">75%</span></span>
+            <div class="re-rrow"><input type="range" id="re-tituloBgOp" min="0" max="100" value="75"
+              oninput="RE.S.tituloBgOp=this.value/100;document.getElementById('re-tituloBgOpV').textContent=this.value+'%';reelRender()"></div>
+          </div>
+        </div>
+
+        <!-- LOGO -->
+        <div class="re-section">
+          <div class="re-section-head" onclick="reSectionToggle(this)">
+            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Logo</span>
+            <span class="re-arrow">▼</span>
+          </div>
+          <div class="re-section-body">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+              <span style="font-size:8px;color:var(--dim)">Posición</span>
+              <button class="re-tbtn" onclick="reelResetEl('logo');reelRender()" style="padding:3px 8px;font-size:8px">↺ Reset</button>
+            </div>
+            <div class="re-align-bar">
+              <button onclick="reelAlign('logo','l')">⇤</button>
+              <button onclick="reelAlign('logo','ch')">↔</button>
+              <button onclick="reelAlign('logo','r')">⇥</button>
+              <button onclick="reelAlign('logo','t')">⇡</button>
+              <button onclick="reelAlign('logo','cv')">↕</button>
+              <button onclick="reelAlign('logo','b')">⇣</button>
+            </div>
+            <label class="re-uplbl" for="re-logoUp">📁 Cambiar logo</label>
+            <input type="file" id="re-logoUp" accept="image/*" class="re-hidden"
+              onchange="reelLoadLogo(event.target.files[0])">
+            <span class="re-label">Opacidad <span class="re-rval" id="re-logoOpV">100%</span></span>
+            <div class="re-rrow"><input type="range" id="re-logoOp" min="10" max="100" value="100"
+              oninput="RE.S.logoOp=this.value/100;document.getElementById('re-logoOpV').textContent=this.value+'%';reelRender()"></div>
+          </div>
+        </div>
+
+        <!-- VOCES (config) -->
+        <div class="re-section">
+          <div class="re-section-head" onclick="reSectionToggle(this)">
+            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Voces</span>
+            <span class="re-arrow">▼</span>
+          </div>
+          <div class="re-section-body">
+            <div id="reelVocesList" style="margin-bottom:10px"></div>
+            <span class="re-label">Agregar voz</span>
+            <input type="text" id="re-vozNombre" class="re-input" placeholder="Nombre (ej: Elena)" style="margin-bottom:5px">
+            <input type="text" id="re-vozId"     class="re-input" placeholder="ID (ej: es-AR-ElenaNeural)" style="margin-bottom:5px">
+            <select id="re-vozKey" class="re-select" style="margin-bottom:8px">
+              <option value="AZURE_TTS_KEY_1">Azure Key 1</option>
+              <option value="AZURE_TTS_KEY_2">Azure Key 2</option>
+              <option value="AZURE_TTS_KEY_3">Azure Key 3</option>
             </select>
-          </div>
-
-          <div class="reel-step" style="margin-top:18px">
-            <span class="reel-step-num">2</span> Guion
-          </div>
-          <div class="mm-field">
-            <label class="mm-label">Título del Reel</label>
-            <input type="text" id="reelTitulo" class="mm-input"
-              placeholder="Se genera automáticamente o escribí uno...">
-          </div>
-          <div class="mm-field">
-            <label class="mm-label">Guion (editable)</label>
-            <textarea id="reelGuion" class="mm-textarea" rows="6"
-              placeholder="Se genera con IA o escribí el guion directamente..."></textarea>
-            <span id="reelGuionChars" style="font-size:10px;color:var(--dim);text-align:right;margin-top:3px;display:block">0 caracteres</span>
-          </div>
-          <button class="btn-generar-guion" id="btnGuion" onclick="generarGuion()">
-            <span class="mm-spinner" id="spinGuion"></span>
-            ✦ Generar guion con IA
-          </button>
-
-          <div class="reel-step">
-            <span class="reel-step-num">3</span> Imagen
-          </div>
-          <div class="mm-field">
-            <label class="mm-label">URL de la imagen de la nota</label>
-            <input type="url" id="reelImagen" class="mm-input"
-              placeholder="Se toma de la nota scrapeada o pegá una URL...">
-          </div>
-          <div style="font-size:10px;color:var(--dim);margin-bottom:16px;line-height:1.6">
-            Si generaste contenido en la pestaña Generar, la imagen se carga automáticamente.
-          </div>
-
-          <button class="btn-generar-reel" id="btnReel" onclick="generarReel()">
-            <span class="mm-spinner" id="spinReel" style="border-top-color:#0a0a0a"></span>
-            🎬 Generar Reel
-          </button>
-        </div>
-      </div>
-
-      <!-- Panel derecho: progreso + resultado -->
-      <div>
-        <div class="reel-panel">
-          <div class="reel-panel-title">Estado</div>
-
-          <div style="font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:16px;font-weight:300">
-            El proceso tarda entre <strong style="color:var(--muted)">60 y 90 segundos</strong>.
-            Una vez descargado el video, se borra de R2 automáticamente.
-          </div>
-
-          <div class="reel-progress" id="reelProgress">
-            <div class="progress-step" id="ps1">
-              <div class="progress-dot"></div> Generando audio con ElevenLabs...
-            </div>
-            <div class="progress-step" id="ps2">
-              <div class="progress-dot"></div> Subiendo audio a R2...
-            </div>
-            <div class="progress-step" id="ps3">
-              <div class="progress-dot"></div> Renderizando video en Creatomate...
-            </div>
-            <div class="progress-step" id="ps4">
-              <div class="progress-dot"></div> Guardando video final...
-            </div>
-          </div>
-
-          <div class="reel-result" id="reelResult">
-            <video id="reelVideo" controls playsinline></video>
-            <div class="reel-result-actions">
-              <a id="reelDownload" class="btn-generar" download="reel-media-mendoza.mp4"
-                style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:12px 20px;font-size:9px">
-                ⬇ Descargar MP4
-              </a>
-              <button class="btn-card" onclick="borrarReel()">🗑 Borrar de R2</button>
-            </div>
-            <div class="reel-warning">
-              ⚠ El video se borra automáticamente de R2 a las 24hs. Descargalo antes.
-            </div>
-          </div>
-
-          <div id="reelError" class="error-bar"></div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Panel config reel: voces + prompt -->
-    <div style="margin-top:16px">
-      <div class="reel-panel">
-        <div class="reel-panel-title">Administrar voces</div>
-        <div id="reelVocesList" style="margin-bottom:14px"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:flex-end">
-          <div class="mm-field" style="margin-bottom:0">
-            <label class="mm-label">Nombre</label>
-            <input type="text" id="nuevaVozNombre" class="mm-input" placeholder="Ej: María">
-          </div>
-          <div class="mm-field" style="margin-bottom:0">
-            <label class="mm-label">Voice</label>
-            <input type="text" id="nuevaVozId" class="mm-input voice-id-input" placeholder="Azure voice name o Voice ID existente">
-          </div>
-          <div class="mm-field" style="margin-bottom:0">
-            <label class="mm-label">API Key (cuenta)</label>
-            <select id="nuevaVozKey" class="mm-textarea" style="min-height:auto;padding:10px 12px;cursor:pointer">
-              <option value="ELEVENLABS_KEY_1">Key 1</option>
-              <option value="ELEVENLABS_KEY_2">Key 2</option>
-              <option value="ELEVENLABS_KEY_3">Key 3</option>
-              <option value="ELEVENLABS_KEY_4">Key 4</option>
-              <option value="ELEVENLABS_KEY_5">Key 5</option>
+            <select id="re-vozRegion" class="re-select" style="margin-bottom:8px">
+              <option value="AZURE_TTS_REGION_1">Azure Region 1</option>
+              <option value="AZURE_TTS_REGION_2">Azure Region 2</option>
+              <option value="AZURE_TTS_REGION_3">Azure Region 3</option>
             </select>
+            <button class="btn-save" onclick="reelAgregarVoz()" style="width:100%">+ Agregar voz</button>
+            <div style="font-size:9px;color:var(--dim);margin-top:6px;line-height:1.5">
+              Usá IDs de Azure Cognitive Services (ej: es-AR-TomasNeural, es-AR-ElenaNeural).
+            </div>
           </div>
-          <button class="btn-save" onclick="agregarVoz()" style="white-space:nowrap;align-self:flex-end">+ Agregar</button>
         </div>
-        <div style="font-size:10px;color:var(--dim);margin-top:8px;line-height:1.6">
-          Azure: usá el nombre de voz (ej: es-AR-ElenaNeural). Si seguís usando ElevenLabs, podés pegar el Voice ID existente y mantener la Key de la cuenta correspondiente.
-        </div>
-      </div>
 
-      <div class="reel-panel" style="margin-top:10px">
-        <div class="reel-panel-title">Prompt del guion</div>
-        <textarea id="reelPromptTA" class="mm-textarea" rows="8" placeholder="Cargando..."></textarea>
-        <div class="config-actions" style="margin-top:10px">
-          <button class="btn-save" id="btnGuardarPromptReel" onclick="guardarPromptReel()">Guardar</button>
-          <span class="saved-badge" id="savedPromptReel">✓ Guardado</span>
+        <!-- PROMPT DEL GUION -->
+        <div class="re-section">
+          <div class="re-section-head" onclick="reSectionToggle(this)">
+            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Prompt del guion</span>
+            <span class="re-arrow">▼</span>
+          </div>
+          <div class="re-section-body">
+            <textarea id="reelPromptTA" class="re-textarea" rows="7" placeholder="Cargando..."></textarea>
+            <div class="config-actions" style="margin-top:8px">
+              <button class="btn-save" onclick="guardarPromptReel()">Guardar</button>
+              <span class="saved-badge" id="savedPromptReel">✓ Guardado</span>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
 
+      </div><!-- /sidebar -->
+
+      <!-- ── CANVAS AREA ── -->
+      <div class="reel-canvas-area">
+
+        <!-- Formato pills -->
+        <div class="reel-fmt-pills" style="width:100%;justify-content:flex-start">
+          <div class="rfpill on" onclick="reelSetFmt('9x16',this)">9:16 Reel</div>
+          <div class="rfpill" onclick="reelSetFmt('1x1',this)">1:1 Square</div>
+          <div class="rfpill" onclick="reelSetFmt('4x5',this)">4:5 Portrait</div>
+        </div>
+
+        <div id="reelCanvasWrap">
+          <canvas id="reelCanvas"></canvas>
+        </div>
+
+        <div class="reel-canvas-toolbar">
+          <button class="re-tbtn" onclick="RE.active=null;reelRender()">✕ Deseleccionar</button>
+          <button class="re-tbtn" onclick="RE.active='titulo';reelRender()">Selec. Título</button>
+          <button class="re-tbtn" onclick="RE.active='logo';reelRender()">Selec. Logo</button>
+        </div>
+
+        <!-- BOTÓN EXPORTAR -->
+        <button class="btn-generar" id="btnExportVideo" onclick="reelExportVideo()"
+          style="width:100%;max-width:360px;font-size:11px">
+          🎬 Generar MP4
+        </button>
+        <div style="font-size:9px;color:var(--dim);text-align:center;line-height:1.5">
+          FFmpeg.wasm corre en tu navegador — sin servidores externos.<br>
+          La primera vez descarga ~30MB (se cachea).
+        </div>
+
+        <!-- PROGRESS -->
+        <div class="reel-export-progress" id="reelExportProgress">
+          <div class="mm-spinner" style="border-top-color:var(--v)"></div>
+          <span id="reelExportProgressTxt">Preparando...</span>
+        </div>
+
+        <!-- VIDEO RESULT -->
+        <div class="reel-video-result" id="reelVideoResult">
+          <video id="reelVideoPreview" controls playsinline></video>
+          <div class="reel-video-actions">
+            <a id="reelVideoDownload" class="btn-generar"
+              style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:12px 18px;font-size:10px">
+              ⬇ Descargar MP4
+            </a>
+            <button class="btn-card" onclick="document.getElementById('reelVideoResult').style.display='none'">✕ Cerrar</button>
+          </div>
+        </div>
+
+      </div><!-- /canvas-area -->
+    </div><!-- /reel-layout -->
+  </div><!-- /tabReel -->
 
   <!-- ═══ TAB CONFIG ═══ -->
   <div id="tabConfig">
-
     <div class="config-info">
-      <strong>Prompts editables por red.</strong> Cada red tiene su propia instrucción para la IA.
-      Los cambios se guardan en KV y se aplican en la próxima generación.
-      Si restaurás el original, recordá guardar para confirmar.
+      <strong>Prompts editables por red.</strong> Los cambios se guardan en KV y se aplican en la próxima generación.
     </div>
-
     <div class="net-config-card">
       <div class="net-config-header" onclick="toggleConfig('facebook', this)">
         <span class="net-emoji">📘</span>
@@ -729,15 +769,12 @@
         <label class="mm-label">Prompt de generación</label>
         <textarea id="prompt-facebook" class="mm-textarea" placeholder="Cargando..."></textarea>
         <div class="config-actions">
-          <button class="btn-save" onclick="savePrompt('facebook')">
-            <span class="mm-spinner" id="spin-facebook"></span>Guardar
-          </button>
+          <button class="btn-save" onclick="savePrompt('facebook')"><span class="mm-spinner" id="spin-facebook"></span>Guardar</button>
           <button class="btn-restore" onclick="restorePrompt('facebook')">↺ Restaurar</button>
           <span class="saved-badge" id="saved-facebook">✓ Guardado</span>
         </div>
       </div>
     </div>
-
     <div class="net-config-card">
       <div class="net-config-header" onclick="toggleConfig('instagram', this)">
         <span class="net-emoji">📸</span>
@@ -748,15 +785,12 @@
         <label class="mm-label">Prompt de generación</label>
         <textarea id="prompt-instagram" class="mm-textarea" placeholder="Cargando..."></textarea>
         <div class="config-actions">
-          <button class="btn-save" onclick="savePrompt('instagram')">
-            <span class="mm-spinner" id="spin-instagram"></span>Guardar
-          </button>
+          <button class="btn-save" onclick="savePrompt('instagram')"><span class="mm-spinner" id="spin-instagram"></span>Guardar</button>
           <button class="btn-restore" onclick="restorePrompt('instagram')">↺ Restaurar</button>
           <span class="saved-badge" id="saved-instagram">✓ Guardado</span>
         </div>
       </div>
     </div>
-
     <div class="net-config-card">
       <div class="net-config-header" onclick="toggleConfig('x', this)">
         <span class="net-emoji">✖️</span>
@@ -767,25 +801,22 @@
         <label class="mm-label">Prompt de generación</label>
         <textarea id="prompt-x" class="mm-textarea" placeholder="Cargando..."></textarea>
         <div class="config-actions">
-          <button class="btn-save" onclick="savePrompt('x')">
-            <span class="mm-spinner" id="spin-x"></span>Guardar
-          </button>
+          <button class="btn-save" onclick="savePrompt('x')"><span class="mm-spinner" id="spin-x"></span>Guardar</button>
           <button class="btn-restore" onclick="restorePrompt('x')">↺ Restaurar</button>
           <span class="saved-badge" id="saved-x">✓ Guardado</span>
         </div>
       </div>
     </div>
-
   </div>
 
 </div>
 </div>
 
-<!-- MODAL CONFIRMAR LIMPIAR -->
+<!-- MODAL LIMPIAR -->
 <div class="modal-overlay" id="modalLimpiar" onclick="if(event.target===this)cerrarModal()">
   <div class="modal-box">
     <div class="modal-title">¿Limpiar todo?</div>
-    <p class="modal-desc">Se va a borrar el link, el contexto y el contenido generado. Esta acción no se puede deshacer.</p>
+    <p class="modal-desc">Se va a borrar el link, el contexto y el contenido generado.</p>
     <div class="modal-btns">
       <button class="btn-confirm" onclick="confirmarLimpiar()">Sí, limpiar</button>
       <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
@@ -793,7 +824,6 @@
   </div>
 </div>
 
-<!-- FOOTER -->
 <footer class="mm-footer">
   <div class="mm-footer-dot"></div>
   <span class="mm-footer-txt">Gemini 2.5 Flash Lite · Activo</span>
@@ -804,6 +834,8 @@
   </div>
 </footer>
 
+<!-- ════════════════════════ SCRIPTS ════════════════════════ -->
+<script src="reel-editor.js"></script>
 <script>
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 
@@ -822,7 +854,7 @@ Tono: visual, dinámico, directo. Español rioplatense.
 Formato de respuesta (JSON puro, sin markdown):
 {
   "titulo": "frase gancho de 1 línea, impactante",
-  "texto": "caption completo. Máximo 2200 caracteres. Párrafos cortos. Emojis para dar ritmo. 5-8 hashtags relevantes al final."
+  "texto": "caption completo. Máximo 2200 caracteres. Párrafos cortos. Emojis para dar ritmo. 5-8 hashtags al final."
 }`,
   x: `Sos community manager de Media Mendoza, diario del sur de Mendoza, Argentina.
 Generá contenido para X (Twitter) a partir del artículo.
@@ -835,7 +867,7 @@ Formato de respuesta (JSON puro, sin markdown):
 };
 
 const NET_META = {
-  facebook: { icon: '📘', name: 'Facebook' },
+  facebook:  { icon: '📘', name: 'Facebook' },
   instagram: { icon: '📸', name: 'Instagram' },
   x:         { icon: '✖️',  name: 'X / Twitter' }
 };
@@ -848,7 +880,7 @@ function switchTab(tab, btn) {
   document.getElementById('tabReel').style.display    = tab === 'reel'    ? 'block' : 'none';
   document.getElementById('tabConfig').style.display  = tab === 'config'  ? 'block' : 'none';
   if (tab === 'config') loadAllPrompts();
-  if (tab === 'reel') loadReelConfig();
+  if (tab === 'reel') { reelResizeCanvas(); reelRender(); }
 }
 
 // ── CONTEXTO ──
@@ -878,25 +910,20 @@ function showError(msg) {
 function hideError() { document.getElementById('errorBar').classList.remove('show'); }
 
 // ── LIMPIAR ──
-function pedirLimpiar() {
-  document.getElementById('modalLimpiar').classList.add('open');
-}
-function cerrarModal() {
-  document.getElementById('modalLimpiar').classList.remove('open');
-}
+let allResults = {};
+function pedirLimpiar() { document.getElementById('modalLimpiar').classList.add('open'); }
+function cerrarModal()  { document.getElementById('modalLimpiar').classList.remove('open'); }
 function confirmarLimpiar() {
   cerrarModal();
   document.getElementById('urlInput').value = '';
   document.getElementById('contextInput').value = '';
-  const area = document.getElementById('contextArea');
-  area.classList.remove('open');
+  document.getElementById('contextArea').classList.remove('open');
   document.getElementById('ctxArrow').textContent = '▸';
   document.querySelectorAll('.net-chip').forEach(el => el.classList.add('active'));
   document.getElementById('results').classList.remove('show');
   document.getElementById('regenRow').classList.remove('show');
   document.getElementById('cardsContainer').innerHTML = '';
-  hideError(); hideStatus();
-  allResults = {};
+  hideError(); hideStatus(); allResults = {};
 }
 
 // ── SCRAPING ──
@@ -904,17 +931,14 @@ async function fetchArticle(url) {
   const res = await fetch(`${WORKER}/scrape?url=${encodeURIComponent(url)}`);
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'No se pudo obtener la nota');
-  // Guardamos la imagen para usarla en el Reel
   if (data.imagen) window._lastImagenUrl = data.imagen;
   return `TÍTULO: ${data.titulo || ''}\n\n${(data.texto || '').substring(0, 4000)}`;
 }
 
-// ── GENERAR ──
+// ── GENERAR SOCIAL ──
 async function generateForNetwork(net, article, context, customPrompt) {
   const systemPrompt = customPrompt || DEFAULT_PROMPTS[net];
-  const userMsg = context
-    ? `ARTÍCULO:\n${article}\n\nCONTEXTO ADICIONAL:\n${context}`
-    : `ARTÍCULO:\n${article}`;
+  const userMsg = context ? `ARTÍCULO:\n${article}\n\nCONTEXTO:\n${context}` : `ARTÍCULO:\n${article}`;
   const res = await fetch(`${WORKER}/social/generar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -925,21 +949,18 @@ async function generateForNetwork(net, article, context, customPrompt) {
   return data.result;
 }
 
-let allResults = {};
-
 async function generate() {
   hideError();
   const url = document.getElementById('urlInput').value.trim();
   const context = document.getElementById('contextInput').value.trim();
   const nets = getActiveNets();
   if (!url) { showError('Por favor ingresá el link de la nota.'); return; }
-  if (!url.startsWith('http')) { showError('El link debe comenzar con http:// o https://'); return; }
+  if (!url.startsWith('http')) { showError('El link debe comenzar con http://'); return; }
   if (!nets.length) { showError('Seleccioná al menos una red social.'); return; }
 
   const btn = document.getElementById('genBtn');
   const spin = document.getElementById('spinGen');
-  btn.disabled = true;
-  spin.style.display = 'inline-block';
+  btn.disabled = true; spin.style.display = 'inline-block';
   document.getElementById('results').classList.remove('show');
   document.getElementById('cardsContainer').innerHTML = '';
   allResults = {};
@@ -947,8 +968,7 @@ async function generate() {
   try {
     setStatus('Descargando la nota...');
     const article = await fetchArticle(url);
-
-    setStatus(`Generando para ${nets.length} ${nets.length === 1 ? 'red' : 'redes'}...`);
+    setStatus(`Generando para ${nets.length} red${nets.length > 1 ? 'es' : ''}...`);
     const customPrompts = {};
     await Promise.all(nets.map(async net => {
       try {
@@ -957,10 +977,7 @@ async function generate() {
         if (d.ok && d.prompt) customPrompts[net] = d.prompt;
       } catch {}
     }));
-
-    const promises = nets.map(net => generateForNetwork(net, article, context, customPrompts[net] || null));
-    const results = await Promise.all(promises);
-
+    const results = await Promise.all(nets.map(net => generateForNetwork(net, article, context, customPrompts[net] || null)));
     hideStatus();
     const container = document.getElementById('cardsContainer');
     nets.forEach((net, i) => {
@@ -970,21 +987,23 @@ async function generate() {
     document.getElementById('results').classList.add('show');
     document.getElementById('regenRow').classList.add('show');
     container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
+    // auto-poblar guion si se generó content
+    const ig = allResults['instagram'] || allResults['facebook'];
+    if (ig && !document.getElementById('re-guionTA').value) {
+      document.getElementById('re-guionTA').value = ig.titulo || '';
+      document.getElementById('re-guionChars').textContent = (ig.titulo||'').length + ' car.';
+    }
   } catch (err) {
     hideStatus();
-    showError('Error al procesar la nota. Verificá el link e intentá nuevamente. (' + err.message + ')');
+    showError('Error: ' + err.message);
   }
-  btn.disabled = false;
-  spin.style.display = 'none';
+  btn.disabled = false; spin.style.display = 'none';
 }
 
-// ── RENDER CARD ──
 function renderCard(net, result, delay) {
   const m = NET_META[net];
   const card = document.createElement('div');
-  card.className = 'result-card';
-  card.dataset.net = net;
+  card.className = 'result-card'; card.dataset.net = net;
   card.style.animationDelay = delay + 'ms';
   card.innerHTML = `
     <div class="card-top">
@@ -998,9 +1017,8 @@ function renderCard(net, result, delay) {
       <div class="result-text" id="text-${net}" contenteditable="true">${escapeHtml(result.texto)}</div>
     </div>
     <div class="card-foot">
-      <button class="btn-card" onclick="copyCard(this, '${net}')">Copiar</button>
+      <button class="btn-card" onclick="copyCard(this,'${net}')">Copiar</button>
     </div>`;
-  // Update char count on input
   card.querySelector('.result-text').addEventListener('input', function() {
     const el = document.getElementById('chars-' + net);
     if (el) el.textContent = this.innerText.length + ' car.';
@@ -1011,26 +1029,18 @@ function renderCard(net, result, delay) {
 function escapeHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-function escapeTpl(s) {
-  return s.replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$').replace(/'/g,"\\'");
-}
 function copyCard(btn, net) {
-  const titleEl = document.getElementById('title-' + net);
-  const textEl  = document.getElementById('text-'  + net);
-  const title = titleEl ? titleEl.innerText.trim() : '';
-  const text  = textEl  ? textEl.innerText.trim()  : '';
-  const full  = title + (title && text ? '\n\n' : '') + text;
-  navigator.clipboard.writeText(full).then(() => {
+  const title = (document.getElementById('title-'+net)||{}).innerText||'';
+  const text  = (document.getElementById('text-'+net)||{}).innerText||'';
+  navigator.clipboard.writeText(title + (title&&text?'\n\n':'') + text).then(() => {
     btn.textContent = '✓ Copiado'; btn.classList.add('copied');
     setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 1800);
   });
 }
 function copyAll() {
   const parts = Object.keys(allResults).map(net => {
-    const titleEl = document.getElementById('title-' + net);
-    const textEl  = document.getElementById('text-'  + net);
-    const title = titleEl ? titleEl.innerText.trim() : allResults[net].titulo;
-    const text  = textEl  ? textEl.innerText.trim()  : allResults[net].texto;
+    const title = (document.getElementById('title-'+net)||{}).innerText || allResults[net].titulo;
+    const text  = (document.getElementById('text-'+net)||{}).innerText  || allResults[net].texto;
     return `=== ${NET_META[net].name.toUpperCase()} ===\n${title}\n\n${text}`;
   });
   navigator.clipboard.writeText(parts.join('\n\n---\n\n'));
@@ -1039,273 +1049,305 @@ function copyAll() {
 // ── CONFIG PROMPTS ──
 function toggleConfig(net, header) {
   const body = document.getElementById('config-' + net);
-  header.classList.toggle('open');
-  body.classList.toggle('open');
+  header.classList.toggle('open'); body.classList.toggle('open');
 }
 async function loadAllPrompts() {
   for (const net of ['facebook','instagram','x']) {
-    const ta = document.getElementById('prompt-' + net);
-    if (!ta) continue;
+    const ta = document.getElementById('prompt-' + net); if (!ta) continue;
     try {
       const r = await fetch(`${WORKER}/social/prompt?net=${net}`);
       const d = await r.json();
       ta.value = (d.ok && d.prompt) ? d.prompt : DEFAULT_PROMPTS[net];
-    } catch {
-      ta.value = DEFAULT_PROMPTS[net];
-    }
+    } catch { ta.value = DEFAULT_PROMPTS[net]; }
   }
 }
 async function savePrompt(net) {
-  const ta    = document.getElementById('prompt-' + net);
-  const spin  = document.getElementById('spin-' + net);
-  const badge = document.getElementById('saved-' + net);
-  const btn   = ta.closest('.net-config-body').querySelector('.btn-save');
-  btn.disabled = true;
-  spin.style.display = 'inline-block';
-  const prompt = ta.value.trim() || DEFAULT_PROMPTS[net];
+  const ta   = document.getElementById('prompt-' + net);
+  const spin = document.getElementById('spin-' + net);
+  const badge= document.getElementById('saved-' + net);
+  const btn  = ta.closest('.net-config-body').querySelector('.btn-save');
+  btn.disabled = true; spin.style.display = 'inline-block';
   try {
     const r = await fetch(`${WORKER}/social/prompt`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ net, prompt })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ net, prompt: ta.value.trim() || DEFAULT_PROMPTS[net] })
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error);
     badge.classList.add('show');
     setTimeout(() => badge.classList.remove('show'), 2500);
-  } catch (err) {
-    alert('Error guardando: ' + err.message);
-  }
-  spin.style.display = 'none';
-  btn.disabled = false;
+  } catch (err) { alert('Error: ' + err.message); }
+  spin.style.display = 'none'; btn.disabled = false;
 }
 function restorePrompt(net) {
   if (!confirm('¿Restaurar el prompt por defecto?')) return;
   document.getElementById('prompt-' + net).value = DEFAULT_PROMPTS[net];
 }
 
-// ═══ REEL ═══
-let reelVideoKey = null;
-let reelVoces    = [];  // [{id, nombre}]
+// ════════════════════════════════════════
+// REEL EDITOR
+// ════════════════════════════════════════
 
+// ── SECCIONES ACCORDION ──
+function reSectionToggle(head) {
+  const body = head.nextElementSibling;
+  const isOpen = head.classList.contains('open');
+  head.classList.toggle('open', !isOpen);
+  body.classList.toggle('open', !isOpen);
+}
+
+// ── FORMATOS ──
+const REEL_FMTS = {
+  '9x16': { w: 1080, h: 1920 },
+  '1x1':  { w: 1080, h: 1080 },
+  '4x5':  { w: 1080, h: 1350 },
+};
+function reelSetFmt(key, el) {
+  document.querySelectorAll('.rfpill').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+  const fmt = REEL_FMTS[key];
+  RE.W = fmt.w; RE.H = fmt.h;
+  RE.canvas.width = RE.W; RE.canvas.height = RE.H;
+  // resetear posiciones al cambiar formato
+  RE.els.logo   = { x: null, y: null, w: null, h: null };
+  RE.els.titulo = { x: null, y: null, w: null, h: null };
+  reelResizeCanvas(); reelRender();
+}
+
+// ── ALINEAR ──
+function reelAlign(key, dir) {
+  const el = RE.els[key]; if (!el || el.x === null) return;
+  const W = RE.W, H = RE.H;
+  if (dir==='l')  el.x = Math.round(W*.04);
+  if (dir==='r')  el.x = Math.round(W*.96 - el.w);
+  if (dir==='ch') el.x = Math.round((W - el.w) / 2);
+  if (dir==='t')  el.y = Math.round(H*.04);
+  if (dir==='b')  el.y = Math.round(H*.96 - el.h);
+  if (dir==='cv') el.y = Math.round((H - el.h) / 2);
+  reelRender();
+}
+
+// ── SWATCHES ──
+function reSw(key, val, el) {
+  RE.S[key] = val;
+  el.closest('.re-swatches').querySelectorAll('.re-sw').forEach(s => s.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('re-' + key) && (document.getElementById('re-' + key).value = val === 'transparent' ? '#000000' : val);
+  reelRender();
+}
+
+// ── GUION CON IA ──
+async function reelGenerarGuion() {
+  const urlNota = document.getElementById('re-notaUrl').value.trim() ||
+                  document.getElementById('urlInput').value.trim();
+  let articulo = '';
+  if (urlNota) {
+    try {
+      const res = await fetch(`${WORKER}/scrape?url=${encodeURIComponent(urlNota)}`);
+      const d   = await res.json();
+      if (d.ok) {
+        articulo = `TÍTULO: ${d.titulo}\n\n${d.texto}`;
+        if (d.imagen && !document.getElementById('re-notaUrl').value) {
+          document.getElementById('re-notaUrl').value = urlNota;
+        }
+        // intentar cargar imagen de fondo automáticamente
+        if (d.imagen) reelLoadBgFromUrl(d.imagen);
+      }
+    } catch {}
+  }
+  // Usar contenido generado si existe
+  if (!articulo) {
+    for (const net of ['facebook','instagram','x']) {
+      const t = document.getElementById('title-'+net);
+      const tx = document.getElementById('text-'+net);
+      if (t && tx) { articulo = t.innerText + '\n\n' + tx.innerText; break; }
+    }
+  }
+  if (!articulo.trim()) { reelToast('Generá contenido primero, o cargá una URL de la nota.'); return; }
+
+  const btn  = document.getElementById('btnGuionReel');
+  const spin = document.getElementById('spinGuionReel');
+  btn.disabled = true; spin.style.display = 'inline-block';
+
+  try {
+    const r = await fetch(`${WORKER}/social/reel/guion`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ articulo })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    const titulo = d.titulo || '';
+    const guion  = d.guion  || '';
+    document.getElementById('re-tituloInput').value = titulo;
+    document.getElementById('re-guionTA').value     = guion;
+    document.getElementById('re-guionChars').textContent = guion.length + ' car.';
+    RE.S.titulo = titulo;
+    reelRender();
+    reelToast('✅ Guion generado');
+  } catch(e) { reelToast('Error: ' + e.message); }
+
+  btn.disabled = false; spin.style.display = 'none';
+}
+
+function reelLoadBgFromUrl(imgUrl) {
+  // Intenta cargar la imagen vía proxy
+  const proxyUrl = `${WORKER}?image=${encodeURIComponent(imgUrl)}`;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => { RE.bgImg = img; reelRender(); };
+  img.onerror = () => {}; // silencioso
+  img.src = proxyUrl;
+}
+
+// ── GENERAR AUDIO (Azure TTS via worker) ──
+async function reelGenerarAudio() {
+  const guion   = document.getElementById('re-guionTA').value.trim();
+  const voiceId = document.getElementById('re-voiceSelect').value;
+  if (!guion) { reelToast('Escribí o generá el guion primero.'); return; }
+
+  const btn  = document.getElementById('btnGenAudio');
+  const spin = document.getElementById('spinAudio');
+  const errEl= document.getElementById('audioError');
+  btn.disabled = true; spin.style.display = 'inline-block';
+  errEl.classList.remove('show');
+
+  try {
+    const r = await fetch(`${WORKER}/social/reel/audio`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ guion, voiceId })
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ error: 'Error ' + r.status }));
+      throw new Error(err.error || 'Error generando audio');
+    }
+    // El worker devuelve el audio directamente como blob (audio/mpeg)
+    const blob = await r.blob();
+    if (blob.size < 100) throw new Error('Audio vacío recibido');
+    reelSetAudio(blob, 'Audio generado con Azure TTS');
+    reelToast('✅ Audio generado correctamente');
+  } catch(e) {
+    errEl.textContent = e.message; errEl.classList.add('show');
+    reelToast('Error de audio: ' + e.message);
+  }
+
+  btn.disabled = false; spin.style.display = 'none';
+}
+
+function reelSetAudio(blob, label) {
+  RE.audioBlob = blob;
+  const url = URL.createObjectURL(blob);
+  const preview = document.getElementById('audioPreview');
+  preview.src = url; preview.style.display = 'block';
+  const st = document.getElementById('audioStatus');
+  st.className = 'audio-status ready';
+  document.getElementById('audioStatusTxt').textContent = label || 'Audio listo';
+}
+
+function reelLoadAudio(e) {
+  const f = e.target.files[0]; if (!f) return;
+  reelSetAudio(f, `${f.name} (${(f.size/1024).toFixed(0)} KB)`);
+}
+
+// ── VOCES ──
+let reelVoces = [];
 async function loadReelConfig() {
   try {
     const r = await fetch(`${WORKER}/social/reel/config`);
     const d = await r.json();
     if (!d.ok) return;
-    // Cargar prompt
     if (d.prompt) document.getElementById('reelPromptTA').value = d.prompt;
-    // Cargar voces
-    reelVoces = d.voces || [{id: 'ByVRQtaK1WDOvTmP1PKO', nombre: 'Agustín', keyAlias: 'ELEVENLABS_KEY_1'}];
-    renderVocesList();
+    reelVoces = d.voces || [];
     renderVocesSelect();
-  } catch(e) { console.error('loadReelConfig:', e); }
+    renderVocesList();
+  } catch(e) { console.error(e); }
 }
-
 function renderVocesSelect() {
-  const sel = document.getElementById('reelVoiceSelect');
+  const sel = document.getElementById('re-voiceSelect');
   sel.innerHTML = '';
-  reelVoces.forEach((v,i) => {
+  reelVoces.forEach(v => {
     const opt = document.createElement('option');
-    opt.value = v.id;
-    opt.textContent = v.nombre;
+    opt.value = v.id; opt.textContent = v.nombre;
     sel.appendChild(opt);
   });
+  if (!reelVoces.length) {
+    const opt = document.createElement('option');
+    opt.value = 'es-AR-TomasNeural'; opt.textContent = 'Tomás (por defecto)';
+    sel.appendChild(opt);
+  }
 }
-
 function renderVocesList() {
-  const lista = document.getElementById('reelVocesList');
-  if (!lista) return;
+  const lista = document.getElementById('reelVocesList'); if (!lista) return;
   lista.innerHTML = '';
   if (!reelVoces.length) {
-    lista.innerHTML = '<div style="font-size:11px;color:var(--dim);padding:8px 0">Sin voces guardadas.</div>';
-    return;
+    lista.innerHTML = '<div style="font-size:10px;color:var(--dim);padding:4px 0">Sin voces guardadas.</div>'; return;
   }
   reelVoces.forEach((v, i) => {
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)';
-    const keyLabel = v.keyAlias ? v.keyAlias.replace('ELEVENLABS_','') : '—';
-    row.innerHTML = `
-      <span style="font-size:12px;color:var(--muted);flex:1;font-weight:500">${v.nombre}</span>
-      <span style="font-size:10px;color:var(--dim);font-family:monospace">${(v.id||'').substring(0,12)}...</span>
-      <span style="font-size:9px;color:var(--v);letter-spacing:1px;text-transform:uppercase">${keyLabel}</span>
-      <button onclick="eliminarVoz(${i})" style="background:none;border:1px solid var(--line2);color:var(--dim);padding:3px 8px;cursor:pointer;font-size:10px;font-family:var(--font-body)">✕</button>
-    `;
+    row.className = 're-voice-row';
+    row.innerHTML = `<span class="re-voice-name">${v.nombre}</span>
+      <span class="re-voice-badge">${(v.id||'').substring(0,18)}</span>
+      <button class="re-voice-del" onclick="reelEliminarVoz(${i})">✕</button>`;
     lista.appendChild(row);
   });
 }
-
-async function agregarVoz() {
-  const nombre   = document.getElementById('nuevaVozNombre').value.trim();
-  const id       = document.getElementById('nuevaVozId').value.trim();
-  const keyAlias = document.getElementById('nuevaVozKey').value;
-  if (!nombre || !id) { alert('Completá nombre y Voice ID'); return; }
-  reelVoces.push({id, nombre, keyAlias});
+async function reelAgregarVoz() {
+  const nombre   = document.getElementById('re-vozNombre').value.trim();
+  const id       = document.getElementById('re-vozId').value.trim();
+  const keyAlias = document.getElementById('re-vozKey').value;
+  const region   = document.getElementById('re-vozRegion').value;
+  if (!nombre || !id) { reelToast('Completá nombre e ID de voz'); return; }
+  reelVoces.push({ id, nombre, keyAlias, region });
   await guardarVoces();
-  document.getElementById('nuevaVozNombre').value = '';
-  document.getElementById('nuevaVozId').value = '';
-  renderVocesList();
-  renderVocesSelect();
+  document.getElementById('re-vozNombre').value = '';
+  document.getElementById('re-vozId').value = '';
+  renderVocesSelect(); renderVocesList();
 }
-
-async function eliminarVoz(i) {
-  if (reelVoces.length <= 1) { alert('Dejá al menos una voz'); return; }
+async function reelEliminarVoz(i) {
+  if (reelVoces.length <= 1) { reelToast('Dejá al menos una voz'); return; }
   reelVoces.splice(i, 1);
   await guardarVoces();
-  renderVocesList();
-  renderVocesSelect();
+  renderVocesSelect(); renderVocesList();
 }
-
 async function guardarVoces() {
   try {
     await fetch(`${WORKER}/social/reel/config`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({voces: reelVoces})
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ voces: reelVoces })
     });
-  } catch(e) { alert('Error guardando voces: '+e.message); }
+  } catch(e) { reelToast('Error guardando voces: '+e.message); }
 }
-
 async function guardarPromptReel() {
   const prompt = document.getElementById('reelPromptTA').value.trim();
-  const btn = document.getElementById('btnGuardarPromptReel');
-  const badge = document.getElementById('savedPromptReel');
-  btn.disabled = true;
+  const btn = document.getElementById('btnGuardarPromptReel') || {};
   try {
     const r = await fetch(`${WORKER}/social/reel/config`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({prompt})
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt })
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error);
+    const badge = document.getElementById('savedPromptReel');
     badge.classList.add('show');
     setTimeout(() => badge.classList.remove('show'), 2500);
-  } catch(e) { alert('Error: '+e.message); }
-  btn.disabled = false;
+  } catch(e) { reelToast('Error: '+e.message); }
 }
 
-async function generarGuion() {
-  const urlInput = document.getElementById('urlInput').value.trim();
-  let articulo = '';
-  if (urlInput) {
-    try { articulo = await fetchArticle(urlInput); } catch {}
-  }
-if (!articulo) {
-  // Usar contenido generado si existe
-  for (const net of ['facebook','instagram','x']) {
-    const t = document.getElementById('title-'+net);
-    const tx = document.getElementById('text-'+net);
-    if (t && tx) { articulo = t.innerText + '\n\n' + tx.innerText; break; }
-  }
-}
-  if (!articulo.trim()) { alert('Generá contenido primero en la pestaña Generar, o cargá una URL.'); return; }
-
-  const btn = document.getElementById('btnGuion');
-  const spin = document.getElementById('spinGuion');
-  btn.disabled = true; spin.style.display = 'inline-block';
-  try {
-    const r = await fetch(`${WORKER}/social/reel/guion`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({articulo})
-    });
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.error);
-    document.getElementById('reelTitulo').value = d.titulo || '';
-    document.getElementById('reelGuion').value  = d.guion  || '';
-    document.getElementById('reelGuionChars').textContent = (d.guion||'').length + ' caracteres';
-    if (!document.getElementById('reelImagen').value && window._lastImagenUrl) {
-      document.getElementById('reelImagen').value = window._lastImagenUrl;
-    }
-  } catch(e) { alert('Error generando guion: '+e.message); }
-  btn.disabled = false; spin.style.display = 'none';
-}
-
+// ── GUION TEXTAREA char count ──
 document.addEventListener('DOMContentLoaded', () => {
-  const g = document.getElementById('reelGuion');
+  const g = document.getElementById('re-guionTA');
   if (g) g.addEventListener('input', function() {
-    document.getElementById('reelGuionChars').textContent = this.value.length + ' caracteres';
+    document.getElementById('re-guionChars').textContent = this.value.length + ' car.';
   });
+  // Sincronizar título input con RE.S
+  const ti = document.getElementById('re-tituloInput');
+  if (ti) ti.addEventListener('input', function() {
+    RE.S.titulo = this.value; reelRender();
+  });
+
+  reelEditorInit();
+  loadReelConfig();
 });
-
-function setProgressStep(step) {
-  ['ps1','ps2','ps3','ps4'].forEach((id,i) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.remove('active','done');
-    if (i+1 < step)  el.classList.add('done');
-    if (i+1 === step) el.classList.add('active');
-  });
-}
-
-async function generarReel() {
-  const guion    = document.getElementById('reelGuion').value.trim();
-  const titulo   = document.getElementById('reelTitulo').value.trim();
-  const imagenUrl= document.getElementById('reelImagen').value.trim();
-  const voiceId  = document.getElementById('reelVoiceSelect').value || 'ByVRQtaK1WDOvTmP1PKO';
-
-  if (!guion)  { alert('Escribí o generá el guion primero.'); return; }
-  if (!titulo) { alert('Ingresá un título para el reel.');    return; }
-
-  const btn    = document.getElementById('btnReel');
-  const spin   = document.getElementById('spinReel');
-  const prog   = document.getElementById('reelProgress');
-  const result = document.getElementById('reelResult');
-  const errEl  = document.getElementById('reelError');
-
-  btn.disabled = true; spin.style.display = 'inline-block';
-  prog.classList.add('show');
-  result.classList.remove('show');
-  errEl.classList.remove('show');
-  reelVideoKey = null;
-  setProgressStep(1);
-
-  // Avanzar pasos visualmente mientras esperamos
-  const t2 = setTimeout(()=>setProgressStep(2), 10000);
-  const t3 = setTimeout(()=>setProgressStep(3), 20000);
-  const t4 = setTimeout(()=>setProgressStep(4), 75000);
-
-  try {
-    const r = await fetch(`${WORKER}/social/reel/generar`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({guion, titulo, imagenUrl, voiceId})
-    });
-    clearTimeout(t2); clearTimeout(t3); clearTimeout(t4);
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.error);
-
-    ['ps1','ps2','ps3','ps4'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.classList.remove('active'); el.classList.add('done'); }
-    });
-
-    reelVideoKey = d.videoKey || null;
-    document.getElementById('reelVideo').src = d.videoUrl;
-    document.getElementById('reelDownload').href = d.videoUrl;
-    result.classList.add('show');
-
-  } catch(e) {
-    clearTimeout(t2); clearTimeout(t3); clearTimeout(t4);
-    errEl.textContent = 'Error: ' + e.message;
-    errEl.classList.add('show');
-    prog.classList.remove('show');
-  }
-  btn.disabled = false; spin.style.display = 'none';
-}
-
-async function borrarReel() {
-  if (!reelVideoKey) { alert('No hay video en R2 para borrar.'); return; }
-  if (!confirm('¿Borrar el video de R2?')) return;
-  try {
-    await fetch(`${WORKER}/social/reel/borrar?key=${encodeURIComponent(reelVideoKey)}`,{method:'DELETE'});
-    document.getElementById('reelResult').classList.remove('show');
-    document.getElementById('reelProgress').classList.remove('show');
-    reelVideoKey = null;
-    alert('✓ Video borrado.');
-  } catch(e) { alert('Error: '+e.message); }
-}
 </script>
 </body>
 </html>

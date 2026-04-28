@@ -1,7 +1,7 @@
 // ============================================================
-// Media Mendoza — Worker v13
-// TTS: Azure Cognitive Services (sin ElevenLabs)
-// Voces argentinas por defecto en KV
+// Media Mendoza — Worker v14
+// TTS: Azure Cognitive Services (devuelve audio directo)
+// Sin Creatomate — video se genera en el cliente con FFmpeg.wasm
 // ============================================================
 
 const CORS_HEADERS = {
@@ -23,12 +23,10 @@ const AGENDA_EV_PREFIX = "agenda:evento:";
 const AGENDA_EF_PREFIX = "agenda:efemeride:";
 const ANGULOS_PREFIX   = "agenda:angulos:";
 const ANGULOS_TTL      = 60 * 60 * 24 * 30;
-const LOGO_URL         = "https://mediamendoza.pages.dev/assets/logo.png";
 
-// Voces argentinas disponibles en Azure free tier
 const VOCES_DEFAULT = [
-  { id: "es-AR-TomasNeural",  nombre: "Tomás (Hombre AR)",  keyAlias: "AZURE_TTS_KEY_1", region: "AZURE_TTS_REGION_1" },
-  { id: "es-AR-ElenaNeural",  nombre: "Elena (Mujer AR)",   keyAlias: "AZURE_TTS_KEY_1", region: "AZURE_TTS_REGION_1" }
+  { id: "es-AR-TomasNeural", nombre: "Tomás (Hombre AR)", keyAlias: "AZURE_TTS_KEY_1", region: "AZURE_TTS_REGION_1" },
+  { id: "es-AR-ElenaNeural", nombre: "Elena (Mujer AR)",  keyAlias: "AZURE_TTS_KEY_1", region: "AZURE_TTS_REGION_1" }
 ];
 
 const REEL_PROMPT_DEFAULT = `Sos locutor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
@@ -88,66 +86,64 @@ export default {
     const url=new URL(request.url);
     const path=url.pathname;
 
-    if(path==="/"){
-      if(request.method==="GET"&&url.searchParams.has("url"))   return handlePlacasUrl(url);
-      if(request.method==="GET"&&url.searchParams.has("image")) return handlePlacasImage(url);
-      if(request.method==="POST"&&url.searchParams.get("ai")==="1") return handlePlacasAI(request,env);
-    }
-
+    // ── GET ──
     if(request.method==="GET"){
-      if(path==="/rss")                        return handleRSS(url);
-      if(path==="/verificar")                  return handleVerificar(url);
-      if(path==="/scrape")                     return handleScrape(url);
-      if(path==="/fuentes")                    return handleGetFuentes(env);
-      if(path==="/editorial")                  return handleGetEditorial(env);
-      if(path==="/cubiertas")                  return handleGetCubiertas(env);
-      if(path==="/notas")                      return handleGetNotas(env);
-      if(path==="/whatsapp/programados")       return handleGetWhatsappProgramados(env);
-      if(path==="/whatsapp/config/prompt")     return handleGetWaPrompt(env);
-      if(path==="/whatsapp/config/links")      return handleGetWaLinks(env);
-      if(path==="/social/prompt")              return handleGetSocialPrompt(url,env);
-      if(path==="/social/reel/config")         return handleGetReelConfig(env);
-      if(path==="/agenda/eventos")             return handleGetAgendaEventos(url,env);
-      if(path==="/agenda/efemerides")          return handleGetAgendaEfemerides(env);
-      if(path==="/agenda/angulos/cache")       return handleGetAngulosCache(url,env);
-      if(path==="/redactar")                   return jsonError("Usar POST",405);
-      if(path==="/social/reel/reset-voces")    return handleResetVoces(env);
+      if(path==="/"&&url.searchParams.has("url"))    return handlePlacasUrl(url);
+      if(path==="/"&&url.searchParams.has("image"))  return handlePlacasImage(url);
+      if(path==="/rss")                              return handleRSS(url);
+      if(path==="/verificar")                        return handleVerificar(url);
+      if(path==="/scrape")                           return handleScrape(url);
+      if(path==="/fuentes")                          return handleGetFuentes(env);
+      if(path==="/editorial")                        return handleGetEditorial(env);
+      if(path==="/cubiertas")                        return handleGetCubiertas(env);
+      if(path==="/notas")                            return handleGetNotas(env);
+      if(path==="/whatsapp/programados")             return handleGetWhatsappProgramados(env);
+      if(path==="/whatsapp/config/prompt")           return handleGetWaPrompt(env);
+      if(path==="/whatsapp/config/links")            return handleGetWaLinks(env);
+      if(path==="/social/prompt")                    return handleGetSocialPrompt(url,env);
+      if(path==="/social/reel/config")               return handleGetReelConfig(env);
+      if(path==="/social/reel/reset-voces")          return handleResetVoces(env);
+      if(path==="/agenda/eventos")                   return handleGetAgendaEventos(url,env);
+      if(path==="/agenda/efemerides")                return handleGetAgendaEfemerides(env);
+      if(path==="/agenda/angulos/cache")             return handleGetAngulosCache(url,env);
       return jsonError("Ruta no encontrada",404);
     }
 
+    // ── DELETE ──
     if(request.method==="DELETE"){
-      if(path==="/fuentes")                    return handleDeleteFuente(url,env);
-      if(path==="/notas")                      return handleDeleteNota(url,env);
-      if(path==="/whatsapp/programado")        return handleDeleteWhatsappProgramado(url,env);
-      if(path==="/agenda/evento")              return handleDeleteAgendaEvento(url,env);
-      if(path==="/agenda/efemeride")           return handleDeleteAgendaEfemeride(url,env);
-      if(path==="/social/reel/borrar")         return handleDeleteReel(url,env);
+      if(path==="/fuentes")                          return handleDeleteFuente(url,env);
+      if(path==="/notas")                            return handleDeleteNota(url,env);
+      if(path==="/whatsapp/programado")              return handleDeleteWhatsappProgramado(url,env);
+      if(path==="/agenda/evento")                    return handleDeleteAgendaEvento(url,env);
+      if(path==="/agenda/efemeride")                 return handleDeleteAgendaEfemeride(url,env);
       return jsonError("Ruta no encontrada",404);
     }
 
-    if(request.method!=="POST") return jsonError("Metodo no permitido",405);
-    let body; try{body=await request.json()}catch{return jsonError("JSON invalido",400)}
+    if(request.method!=="POST") return jsonError("Método no permitido",405);
+    let body; try{body=await request.json()}catch{return jsonError("JSON inválido",400)}
 
-    if(path==="/titulares")                    return handleTitulares(body,env);
-    if(path==="/reformular")                   return handleReformular(body,env);
-    if(path==="/fuentes")                      return handlePostFuente(body,env);
-    if(path==="/editorial")                    return handlePostEditorial(body,env);
-    if(path==="/cubiertas")                    return handlePostCubierta(body,env);
-    if(path==="/redactar")                     return handleRedactar(body,env);
-    if(path==="/notas")                        return handlePostNota(body,env);
-    if(path==="/whatsapp/generar")             return handleWhatsappGenerar(body,env);
-    if(path==="/whatsapp/programar")           return handlePostWhatsappProgramar(body,env);
-    if(path==="/whatsapp/marcar-enviado")      return handlePostWhatsappMarcarEnviado(body,env);
-    if(path==="/whatsapp/config/prompt")       return handlePostWaPrompt(body,env);
-    if(path==="/whatsapp/config/links")        return handlePostWaLinks(body,env);
-    if(path==="/social/prompt")                return handlePostSocialPrompt(body,env);
-    if(path==="/social/generar")               return handleSocialGenerar(body,env);
-    if(path==="/social/reel/guion")            return handleReelGuion(body,env);
-    if(path==="/social/reel/generar")          return handleReelGenerar(body,env);
-    if(path==="/social/reel/config")           return handlePostReelConfig(body,env);
-    if(path==="/agenda/evento")                return handlePostAgendaEvento(body,env);
-    if(path==="/agenda/efemeride")             return handlePostAgendaEfemeride(body,env);
-    if(path==="/agenda/angulos")               return handleAgendaAngulos(body,env);
+    // ── POST ──
+    if(path==="/"&&url.searchParams.get("ai")==="1") return handlePlacasAI(request,env,body);
+    if(path==="/titulares")                          return handleTitulares(body,env);
+    if(path==="/reformular")                         return handleReformular(body,env);
+    if(path==="/fuentes")                            return handlePostFuente(body,env);
+    if(path==="/editorial")                          return handlePostEditorial(body,env);
+    if(path==="/cubiertas")                          return handlePostCubierta(body,env);
+    if(path==="/redactar")                           return handleRedactar(body,env);
+    if(path==="/notas")                              return handlePostNota(body,env);
+    if(path==="/whatsapp/generar")                   return handleWhatsappGenerar(body,env);
+    if(path==="/whatsapp/programar")                 return handlePostWhatsappProgramar(body,env);
+    if(path==="/whatsapp/marcar-enviado")            return handlePostWhatsappMarcarEnviado(body,env);
+    if(path==="/whatsapp/config/prompt")             return handlePostWaPrompt(body,env);
+    if(path==="/whatsapp/config/links")              return handlePostWaLinks(body,env);
+    if(path==="/social/prompt")                      return handlePostSocialPrompt(body,env);
+    if(path==="/social/generar")                     return handleSocialGenerar(body,env);
+    if(path==="/social/reel/guion")                  return handleReelGuion(body,env);
+    if(path==="/social/reel/audio")                  return handleReelAudio(body,env);
+    if(path==="/social/reel/config")                 return handlePostReelConfig(body,env);
+    if(path==="/agenda/evento")                      return handlePostAgendaEvento(body,env);
+    if(path==="/agenda/efemeride")                   return handlePostAgendaEfemeride(body,env);
+    if(path==="/agenda/angulos")                     return handleAgendaAngulos(body,env);
 
     return jsonError("Ruta no encontrada",404);
   },
@@ -178,6 +174,12 @@ async function handlePostReelConfig(body,env){
     return jsonOk({guardado:true});
   }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
+async function handleResetVoces(env){
+  try{
+    await env.KV.delete(REEL_VOCES_KEY);
+    return jsonOk({reseteado:true});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
+}
 
 // ============================================================
 // REEL — GUION (Gemini)
@@ -192,27 +194,21 @@ async function handleReelGuion(body,env){
 }
 
 // ============================================================
-// REEL — GENERAR VIDEO (Azure TTS + Creatomate + R2)
+// REEL — AUDIO (Azure TTS → devuelve MP3 directamente)
+// El cliente recibe el blob y lo usa con FFmpeg.wasm local
 // ============================================================
-async function handleReelGenerar(body,env){
-  const guion     = String(body.guion||"").trim();
-  const titulo    = String(body.titulo||"").trim();
-  const imagenUrl = String(body.imagenUrl||"").trim();
-  const voiceId   = String(body.voiceId||VOCES_DEFAULT[0].id).trim();
+async function handleReelAudio(body,env){
+  const guion   = String(body.guion||"").trim();
+  const voiceId = String(body.voiceId||"es-AR-TomasNeural").trim();
+  if(!guion) return jsonError("Falta campo: guion",400);
 
-  if(!guion)  return jsonError("Falta campo: guion",400);
-  if(!titulo) return jsonError("Falta campo: titulo",400);
-
-  // ── 1. Azure TTS ──
-  // Buscar la voz en KV para obtener su key y region
+  // Buscar la voz en KV para obtener key/region
   const vocesKV = await env.KV.get(REEL_VOCES_KEY,"json").catch(()=>null) || VOCES_DEFAULT;
-  const vozData = vocesKV.find(v => v.id === voiceId) || vocesKV[0];
+  const vozData = vocesKV.find(v => v.id === voiceId) || vocesKV[0] || VOCES_DEFAULT[0];
 
-  // Intentar con la voz elegida; si falla por cuota, probar las demás
+  // Intentar todas las voces disponibles ante error de cuota
   const intentos = [vozData, ...vocesKV.filter(v => v.id !== vozData.id)];
-
-  let audioBuffer = null;
-  const ttsErrors = [];
+  const errores  = [];
 
   for(const voz of intentos){
     const keyName    = voz.keyAlias || "AZURE_TTS_KEY_1";
@@ -221,211 +217,54 @@ async function handleReelGenerar(body,env){
     const azureRegion = String(env[regionName] || "").trim();
 
     if(!azureKey || !azureRegion){
-      ttsErrors.push(`${voz.nombre}: secrets "${keyName}" o "${regionName}" no configurados`);
+      errores.push(`${voz.nombre||voz.id}: secrets "${keyName}"/"${regionName}" no configurados`);
       continue;
     }
 
     const locale = localeFromVoice(voz.id);
-    const ssml = `<speak version="1.0" xml:lang="${locale}"><voice name="${escapeXml(voz.id)}">${escapeXml(guion)}</voice></speak>`;
+    const ssml   = `<speak version="1.0" xml:lang="${locale}"><voice name="${escapeXml(voz.id)}">${escapeXml(guion)}</voice></speak>`;
 
     try{
-      const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,{
-        method: "POST",
-        headers:{
-          "Ocp-Apim-Subscription-Key": azureKey,
-          "Content-Type": "application/ssml+xml",
-          "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
-          "User-Agent": "mm-worker"
-        },
-        body: ssml
-      });
+      const res = await fetch(
+        `https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,
+        {
+          method: "POST",
+          headers:{
+            "Ocp-Apim-Subscription-Key": azureKey,
+            "Content-Type": "application/ssml+xml",
+            "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
+            "User-Agent": "mm-worker"
+          },
+          body: ssml
+        }
+      );
 
-      if(res.status === 429){
-        ttsErrors.push(`${voz.nombre}: cuota agotada`);
-        continue;
-      }
+      if(res.status === 429){ errores.push(`${voz.nombre||voz.id}: cuota agotada`); continue; }
       if(!res.ok){
         const errBody = await res.text().catch(()=>"");
-        ttsErrors.push(`${voz.nombre}: HTTP ${res.status} → ${errBody.substring(0,200)}`);
+        errores.push(`${voz.nombre||voz.id}: HTTP ${res.status} → ${errBody.substring(0,200)}`);
         continue;
       }
 
       const buf = await res.arrayBuffer();
-      if(buf.byteLength > 100){ audioBuffer = buf; break; }
-      ttsErrors.push(`${voz.nombre}: audio vacío`);
+      if(buf.byteLength < 100){ errores.push(`${voz.nombre||voz.id}: audio vacío`); continue; }
+
+      // Devolver el MP3 directamente al cliente
+      return new Response(buf, {
+        headers:{
+          ...CORS_HEADERS,
+          "Content-Type": "audio/mpeg",
+          "Content-Length": String(buf.byteLength),
+          "Cache-Control": "no-store",
+        }
+      });
 
     }catch(e){
-      ttsErrors.push(`${voz.nombre}: ${e.message}`);
+      errores.push(`${voz.nombre||voz.id}: ${e.message}`);
     }
   }
 
-  if(!audioBuffer) return jsonError(`Azure TTS falló: ${ttsErrors.join(" | ")}`,502);
-
-  // ── 2. R2: guardar audio ──
-  if(!env.R2)        return jsonError("Binding R2 no configurado",500);
-  if(!env.R2_PUBLIC_ID) return jsonError("R2_PUBLIC_ID no configurado",500);
-
-  const reelId   = generarId("reel_");
-  const audioKey = `${reelId}/audio.mp3`;
-  const videoKey = `${reelId}/video.mp4`;
-
-  try{
-    await env.R2.put(audioKey, audioBuffer,{
-      httpMetadata:{ contentType:"audio/mpeg" },
-      customMetadata:{ reelId, expira: String(Date.now()+86400000) }
-    });
-  }catch(err){ return jsonError("Error R2 (audio): "+err.message,500); }
-
-  const audioPublicUrl = `https://pub-${env.R2_PUBLIC_ID}.r2.dev/${audioKey}`;
-
-  // ── 3. Creatomate ──
-  const creatomateKeys = [
-    env.CREATOMATE_KEY_1, env.CREATOMATE_KEY_2, env.CREATOMATE_KEY_3,
-    env.CREATOMATE_KEY_4, env.CREATOMATE_KEY_5
-  ].filter(Boolean);
-
-  if(!creatomateKeys.length){
-    await env.R2.delete(audioKey).catch(()=>{});
-    return jsonError("No hay API keys de Creatomate",500);
-  }
-
-  const template = {
-    output_format: "mp4",
-    width: 1080, height: 1920, frame_rate: 30,
-    elements: [
-      // Imagen de fondo
-      {
-        type:"image", track:1, time:0,
-        x:"50%", y:"50%", width:"100%", height:"100%",
-        x_anchor:"50%", y_anchor:"50%",
-        source: imagenUrl || LOGO_URL, fit:"cover"
-      },
-      // Overlay oscuro
-      {
-        type:"shape", track:2, time:0, shape:"rectangle",
-        x:"50%", y:"50%", width:"100%", height:"100%",
-        x_anchor:"50%", y_anchor:"50%",
-        fill_color:"rgba(0,0,0,0.45)"
-      },
-      // Logo
-      {
-        type:"image", track:3, time:0,
-        x:"50%", y:"7%", width:"36%",
-        x_anchor:"50%", y_anchor:"50%",
-        source: LOGO_URL, fit:"contain"
-      },
-      // Título: aparece 3 segundos y desaparece
-      {
-        type:"text", track:4, time:0, duration:3,
-        x:"50%", y:"45%", width:"86%",
-        x_anchor:"50%", y_anchor:"50%",
-        text: titulo,
-        font_family:"Montserrat", font_weight:"700",
-        font_size:68, fill_color:"#ffffff",
-        text_align:"center", line_height:1.15,
-        animations:[
-          { time:"start", duration:0.5, easing:"ease-out", type:"slide", direction:"up" },
-          { time:"end",   duration:0.4, easing:"ease-in",  type:"fade" }
-        ]
-      },
-      // Subtítulos: arrancan en segundo 3
-      {
-        type:"text", track:5, time:3,
-        x:"50%", y:"80%", width:"88%",
-        x_anchor:"50%", y_anchor:"50%",
-        text: guion,
-        font_family:"Montserrat", font_weight:"500",
-        font_size:34, fill_color:"#ffffff",
-        background_color:"rgba(0,0,0,0.65)",
-        background_x_padding:"5%", background_y_padding:"4%",
-        text_align:"center", line_height:1.55,
-        animations:[{ time:"start", duration:0.4, easing:"ease-out", type:"fade" }]
-      },
-      // Audio
-      {
-        type:"audio", track:6, time:0,
-        source: audioPublicUrl, audio_fade_out:0.5
-      }
-    ]
-  };
-
-  let renderId = null;
-  let creatomateError = "";
-  for(const key of creatomateKeys){
-    try{
-      const res = await fetch("https://api.creatomate.com/v1/renders",{
-        method:"POST",
-        headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json"},
-        body: JSON.stringify({ source: template })
-      });
-      if(res.status===429){ creatomateError="Límite Creatomate"; continue; }
-      if(res.status===401){ creatomateError="Key Creatomate inválida"; continue; }
-      if(!res.ok){
-        const errBody = await res.text().catch(()=>"");
-        creatomateError = `HTTP ${res.status}: ${errBody.substring(0,300)}`;
-        continue;
-      }
-      const data = await res.json();
-      renderId = data?.[0]?.id || null;
-      if(renderId) break;
-      creatomateError = "No se recibió render ID";
-    }catch(e){ creatomateError = e.message; continue; }
-  }
-
-  if(!renderId){
-    await env.R2.delete(audioKey).catch(()=>{});
-    return jsonError(`Creatomate: ${creatomateError}`,502);
-  }
-
-  // ── 4. Polling ──
-  let videoFinalUrl = null;
-  const startTime = Date.now();
-  while(Date.now()-startTime < 110000){
-    await sleep(5000);
-    try{
-      const poll = await fetch(`https://api.creatomate.com/v1/renders/${renderId}`,{
-        headers:{"Authorization":"Bearer "+creatomateKeys[0]}
-      });
-      const d = await poll.json();
-      if(d.status==="succeeded"){ videoFinalUrl = d.url; break; }
-      if(d.status==="failed"){
-        await env.R2.delete(audioKey).catch(()=>{});
-        return jsonError(`Render falló: ${JSON.stringify(d.error||"")}`,502);
-      }
-    }catch(e){ break; }
-  }
-
-  if(!videoFinalUrl){
-    await env.R2.delete(audioKey).catch(()=>{});
-    return jsonError("Timeout: render tardó más de 110 segundos",504);
-  }
-
-  // ── 5. Guardar video en R2 ──
-  try{
-    const vRes = await fetch(videoFinalUrl);
-    if(vRes.ok){
-      const vBuf = await vRes.arrayBuffer();
-      await env.R2.put(videoKey, vBuf,{
-        httpMetadata:{ contentType:"video/mp4" },
-        customMetadata:{ reelId, expira: String(Date.now()+86400000) }
-      });
-    }
-  }catch(e){}
-
-  // ── 6. Limpiar audio de R2 ──
-  await env.R2.delete(audioKey).catch(()=>{});
-
-  return jsonOk({ reelId, videoKey, videoUrl: videoFinalUrl, titulo, guion });
-}
-
-// ============================================================
-// REEL — BORRAR de R2
-// ============================================================
-async function handleDeleteReel(url,env){
-  const key = url.searchParams.get("key");
-  if(!key) return jsonError("Falta parámetro key",400);
-  try{ await env.R2.delete(key); return jsonOk({eliminado:true}); }
-  catch(err){ return jsonError("Error R2: "+err.message,500); }
+  return jsonError(`Azure TTS falló en todas las voces: ${errores.join(" | ")}`, 502);
 }
 
 // ============================================================
@@ -587,7 +426,7 @@ async function handleDeleteAgendaEvento(url,env){
 // ============================================================
 async function handleScrape(url){
   const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
-  try{new URL(targetUrl)}catch{return jsonError("URL invalida",400)}
+  try{new URL(targetUrl)}catch{return jsonError("URL inválida",400)}
   try{
     const{html}=await fetchHtml(targetUrl,300);
     const ogTitle=html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,200})["']/i);
@@ -601,13 +440,13 @@ async function handleScrape(url){
 }
 async function handlePlacasUrl(url){
   const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
-  try{new URL(targetUrl)}catch{return jsonError("URL invalida",400)}
+  try{new URL(targetUrl)}catch{return jsonError("URL inválida",400)}
   try{const{html}=await fetchHtml(targetUrl,300);const data=extraerDatosNota(html,targetUrl);if(!data.title&&!data.body) return jsonError("No se pudo extraer contenido",422);return jsonOk(data)}
   catch(err){return jsonError(`Error: ${err.message}`,502)}
 }
 async function handlePlacasImage(url){
   const imageUrl=url.searchParams.get("image");if(!imageUrl) return jsonError("image requerida",400);
-  try{new URL(imageUrl)}catch{return jsonError("URL invalida",400)}
+  try{new URL(imageUrl)}catch{return jsonError("URL inválida",400)}
   try{
     const res=await fetch(imageUrl,{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"image/*"},redirect:"follow",cf:{cacheTtl:3600,cacheEverything:true}});
     if(!res.ok) return jsonError(`Error ${res.status}`,502);
@@ -618,14 +457,13 @@ async function handlePlacasImage(url){
     return new Response(res.body,{headers:{...CORS_HEADERS,"Content-Type":ct,"Cache-Control":"public, max-age=3600"}});
   }catch(err){return jsonError(`Error: ${err.message}`,502)}
 }
-async function handlePlacasAI(request,env){
-  let body;try{body=await request.json()}catch{return jsonError("JSON invalido",400)}
+async function handlePlacasAI(request,env,body){
   const system=String(body.system||"").trim();const user=String(body.user||"").trim();
   if(!system||!user) return jsonError("Faltan campos",400);
   const r=await callGemini(`${system}\n\nResponde SOLO con JSON sin backticks:\n{"grupo":"...","canal":"..."}\n\n${user}`,env);
   if(r.error) return jsonError(r.error,500);
   const grupo=limpiarEspacios(r.data?.grupo||"");const canal=limpiarEspacios(r.data?.canal||"");
-  if(!grupo&&!canal) return jsonError("IA no devolvio mensajes",502);
+  if(!grupo&&!canal) return jsonError("IA no devolvió mensajes",502);
   return jsonOk({text:JSON.stringify({grupo,canal})});
 }
 
@@ -696,7 +534,7 @@ async function handleWhatsappGenerar(body,env){
   const contextoExtra=String(body.contextoExtra||"").trim();
   let nota={titulo:String(body.titulo||"").trim(),categoria:String(body.categoria||"").trim(),descripcion:"",body:String(body.contenido||"").trim(),url:notaUrl,urlCorta:notaUrl?acortarUrlNota(notaUrl):"",image:""};
   if(notaUrl){
-    try{new URL(notaUrl)}catch{return jsonError("URL invalida",400)}
+    try{new URL(notaUrl)}catch{return jsonError("URL inválida",400)}
     try{
       const{html}=await fetchHtml(notaUrl,300);
       const s=extraerDatosNota(html,notaUrl);
@@ -717,7 +555,7 @@ async function handleWhatsappGenerar(body,env){
   const r=await callGemini(prompt,env);
   if(r.error) return jsonError(r.error,500);
   const grupo=(r.data?.grupo||"").trim();const canal=(r.data?.canal||"").trim();
-  if(!grupo||!canal) return jsonError("IA no devolvio ambos mensajes",502);
+  if(!grupo||!canal) return jsonError("IA no devolvió ambos mensajes",502);
   return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal});
 }
 async function handlePostWhatsappProgramar(body,env){
@@ -751,7 +589,7 @@ async function handleDeleteWhatsappProgramado(url,env){
 // ============================================================
 async function handleRSS(url){
   const feedUrl=url.searchParams.get("url");if(!feedUrl) return jsonError("url requerida",400);
-  try{new URL(feedUrl)}catch{return jsonError("URL invalida",400)}
+  try{new URL(feedUrl)}catch{return jsonError("URL inválida",400)}
   try{
     const res=await fetch(feedUrl,{headers:{...BROWSER_HEADERS,'Accept-Encoding':'identity'},redirect:"follow",cf:{cacheTtl:180,cacheEverything:true}});
     if(!res.ok) return jsonError(`Feed error ${res.status}`,502);
@@ -762,7 +600,7 @@ async function handleRSS(url){
 }
 async function handleVerificar(url){
   const feedUrl=url.searchParams.get("url");if(!feedUrl) return jsonError("url requerida",400);
-  try{new URL(feedUrl)}catch{return jsonError("URL invalida",400)}
+  try{new URL(feedUrl)}catch{return jsonError("URL inválida",400)}
   try{
     const res=await fetch(feedUrl,{headers:{...BROWSER_HEADERS,'Accept-Encoding':'identity'},redirect:"follow"});
     if(!res.ok) return jsonError(`Feed error ${res.status}`,502);
@@ -773,16 +611,6 @@ async function handleVerificar(url){
     const itemCount=(text.match(/<item[\s>]/g)||[]).length+(text.match(/<entry[\s>]/g)||[]).length;
     return jsonOk({valido:true,nombre,items:itemCount});
   }catch(err){return jsonError(`Error: ${err.message}`,502)}
-}
-
-// ============================================================
-// REEL — RESET VOCES (usa para limpiar KV si hay datos corruptos)
-// ============================================================
-async function handleResetVoces(env){
-  try{
-    await env.KV.delete(REEL_VOCES_KEY);
-    return jsonOk({reseteado:true, mensaje:"Voces reseteadas a los valores por defecto. Recargá la página."});
-  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
 // ============================================================
