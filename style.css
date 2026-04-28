@@ -5,7 +5,8 @@
    ============================================================ */
 
 @font-face {
-
+  font-family: 'BebasNeue';
+  src: url('placas/BebasNeue-Regular.ttf') format('truetype');
 }
 
 /* ── Tokens ── */

@@ -1,6 +1,6 @@
 /* ── Media Mendoza — Design Tokens compartidos ── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap');
-
+@font-face{font-family:'BebasNeue';src:url('https://editor-placas-mediamendoza.pages.dev/BebasNeue-Regular.ttf') format('truetype');}
 
 :root{
   /* Paleta */
