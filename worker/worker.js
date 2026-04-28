@@ -194,77 +194,96 @@ async function handleReelGuion(body,env){
 }
 
 // ============================================================
-// REEL — AUDIO (Azure TTS → devuelve MP3 directamente)
-// El cliente recibe el blob y lo usa con FFmpeg.wasm local
+// REEMPLAZAR en worker.js la función handleReelAudio
+// Fix: incluye el título antes del guion en el SSML
 // ============================================================
-async function handleReelAudio(body,env){
-  const guion   = String(body.guion||"").trim();
-  const voiceId = String(body.voiceId||"es-AR-TomasNeural").trim();
-  if(!guion) return jsonError("Falta campo: guion",400);
 
-  // Buscar la voz en KV para obtener key/region
-  const vocesKV = await env.KV.get(REEL_VOCES_KEY,"json").catch(()=>null) || VOCES_DEFAULT;
+async function handleReelAudio(body, env) {
+  const titulo  = String(body.titulo  || '').trim();
+  const guion   = String(body.guion   || '').trim();
+  const voiceId = String(body.voiceId || 'es-AR-TomasNeural').trim();
+
+  if (!guion) return jsonError('Falta campo: guion', 400);
+
+  // Armar el texto completo: título + pausa + guion
+  // La pausa entre título y guion da ritmo natural al locutor
+  const textoCompleto = titulo
+    ? `${titulo}. ${guion}`
+    : guion;
+
+  const vocesKV = await env.KV.get(REEL_VOCES_KEY, 'json').catch(() => null) || VOCES_DEFAULT;
   const vozData = vocesKV.find(v => v.id === voiceId) || vocesKV[0] || VOCES_DEFAULT[0];
-
-  // Intentar todas las voces disponibles ante error de cuota
   const intentos = [vozData, ...vocesKV.filter(v => v.id !== vozData.id)];
   const errores  = [];
 
-  for(const voz of intentos){
-    const keyName    = voz.keyAlias || "AZURE_TTS_KEY_1";
-    const regionName = voz.region   || "AZURE_TTS_REGION_1";
-    const azureKey    = String(env[keyName]    || "").trim();
-    const azureRegion = String(env[regionName] || "").trim();
+  for (const voz of intentos) {
+    const keyName    = voz.keyAlias || 'AZURE_TTS_KEY_1';
+    const regionName = voz.region   || 'AZURE_TTS_REGION_1';
+    const azureKey    = String(env[keyName]    || '').trim();
+    const azureRegion = String(env[regionName] || '').trim();
 
-    if(!azureKey || !azureRegion){
-      errores.push(`${voz.nombre||voz.id}: secrets "${keyName}"/"${regionName}" no configurados`);
+    if (!azureKey || !azureRegion) {
+      errores.push(`${voz.nombre || voz.id}: secrets "${keyName}"/"${regionName}" no configurados`);
       continue;
     }
 
     const locale = localeFromVoice(voz.id);
-    const ssml   = `<speak version="1.0" xml:lang="${locale}"><voice name="${escapeXml(voz.id)}">${escapeXml(guion)}</voice></speak>`;
 
-    try{
+    // SSML con título + pausa + guion
+    const ssml = titulo
+      ? `<speak version="1.0" xml:lang="${locale}">
+           <voice name="${escapeXml(voz.id)}">
+             <prosody rate="medium">
+               ${escapeXml(titulo)}
+               <break time="600ms"/>
+               ${escapeXml(guion)}
+             </prosody>
+           </voice>
+         </speak>`
+      : `<speak version="1.0" xml:lang="${locale}">
+           <voice name="${escapeXml(voz.id)}">${escapeXml(guion)}</voice>
+         </speak>`;
+
+    try {
       const res = await fetch(
         `https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,
         {
-          method: "POST",
-          headers:{
-            "Ocp-Apim-Subscription-Key": azureKey,
-            "Content-Type": "application/ssml+xml",
-            "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
-            "User-Agent": "mm-worker"
+          method: 'POST',
+          headers: {
+            'Ocp-Apim-Subscription-Key': azureKey,
+            'Content-Type': 'application/ssml+xml',
+            'X-Microsoft-OutputFormat': 'audio-24khz-96kbitrate-mono-mp3',
+            'User-Agent': 'mm-worker',
           },
-          body: ssml
+          body: ssml,
         }
       );
 
-      if(res.status === 429){ errores.push(`${voz.nombre||voz.id}: cuota agotada`); continue; }
-      if(!res.ok){
-        const errBody = await res.text().catch(()=>"");
-        errores.push(`${voz.nombre||voz.id}: HTTP ${res.status} → ${errBody.substring(0,200)}`);
+      if (res.status === 429) { errores.push(`${voz.nombre || voz.id}: cuota agotada`); continue; }
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        errores.push(`${voz.nombre || voz.id}: HTTP ${res.status} → ${errBody.substring(0, 200)}`);
         continue;
       }
 
       const buf = await res.arrayBuffer();
-      if(buf.byteLength < 100){ errores.push(`${voz.nombre||voz.id}: audio vacío`); continue; }
+      if (buf.byteLength < 100) { errores.push(`${voz.nombre || voz.id}: audio vacío`); continue; }
 
-      // Devolver el MP3 directamente al cliente
       return new Response(buf, {
-        headers:{
+        headers: {
           ...CORS_HEADERS,
-          "Content-Type": "audio/mpeg",
-          "Content-Length": String(buf.byteLength),
-          "Cache-Control": "no-store",
-        }
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': String(buf.byteLength),
+          'Cache-Control': 'no-store',
+        },
       });
 
-    }catch(e){
-      errores.push(`${voz.nombre||voz.id}: ${e.message}`);
+    } catch (e) {
+      errores.push(`${voz.nombre || voz.id}: ${e.message}`);
     }
   }
 
-  return jsonError(`Azure TTS falló en todas las voces: ${errores.join(" | ")}`, 502);
+  return jsonError(`Azure TTS falló: ${errores.join(' | ')}`, 502);
 }
 
 // ============================================================

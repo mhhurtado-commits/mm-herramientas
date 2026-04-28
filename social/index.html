@@ -1199,34 +1199,42 @@ function reelLoadBgFromUrl(imgUrl) {
   img.src = proxyUrl;
 }
 
-// ── GENERAR AUDIO (Azure TTS via worker) ──
+// ============================================================
+// REEMPLAZAR en social/index.html la función reelGenerarAudio
+// Fix: envía body.titulo junto con body.guion al worker
+// ============================================================
+
 async function reelGenerarAudio() {
+  const titulo  = document.getElementById('re-tituloInput').value.trim();
   const guion   = document.getElementById('re-guionTA').value.trim();
   const voiceId = document.getElementById('re-voiceSelect').value;
+
   if (!guion) { reelToast('Escribí o generá el guion primero.'); return; }
 
-  const btn  = document.getElementById('btnGenAudio');
-  const spin = document.getElementById('spinAudio');
-  const errEl= document.getElementById('audioError');
+  const btn   = document.getElementById('btnGenAudio');
+  const spin  = document.getElementById('spinAudio');
+  const errEl = document.getElementById('audioError');
   btn.disabled = true; spin.style.display = 'inline-block';
   errEl.classList.remove('show');
 
   try {
     const r = await fetch(`${WORKER}/social/reel/audio`, {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ guion, voiceId })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titulo, guion, voiceId }),  // ← título incluido
     });
+
     if (!r.ok) {
       const err = await r.json().catch(() => ({ error: 'Error ' + r.status }));
       throw new Error(err.error || 'Error generando audio');
     }
-    // El worker devuelve el audio directamente como blob (audio/mpeg)
+
     const blob = await r.blob();
     if (blob.size < 100) throw new Error('Audio vacío recibido');
-    reelSetAudio(blob, 'Audio generado con Azure TTS');
+    reelSetAudio(blob, titulo ? `"${titulo.substring(0,30)}..." — Azure TTS` : 'Audio generado con Azure TTS');
     reelToast('✅ Audio generado correctamente');
-  } catch(e) {
+
+  } catch (e) {
     errEl.textContent = e.message; errEl.classList.add('show');
     reelToast('Error de audio: ' + e.message);
   }

@@ -1,0 +1,10 @@
+# Cloudflare Pages — _headers
+# Necesario para FFmpeg.wasm (SharedArrayBuffer)
+
+/social/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
+/social/reel-editor.js
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

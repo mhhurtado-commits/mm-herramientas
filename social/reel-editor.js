@@ -1,28 +1,20 @@
 // ============================================================
-// Media Mendoza — Reel Editor v1.0
+// Media Mendoza — Reel Editor v1.1
 // Canvas editor + FFmpeg.wasm export
 // ============================================================
 
 const RE = {
-  // Canvas
   canvas: null,
   ctx: null,
   scale: 1,
   W: 1080, H: 1920,
-
-  // Estado
   bgImg: null,
   logoImg: null,
   audioBlob: null,
-  audioDuration: 0,
-
-  // Elementos arrastrables
   els: {
-    logo:  { x: null, y: null, w: null, h: null },
-    titulo:{ x: null, y: null, w: null, h: null },
+    logo:   { x: null, y: null, w: null, h: null },
+    titulo: { x: null, y: null, w: null, h: null },
   },
-
-  // Estilos
   S: {
     titulo: '',
     tituloColor: '#ffffff',
@@ -31,42 +23,41 @@ const RE = {
     logoOp: 1,
     bgDark: 0.35,
     bgBlur: 0,
-    imgX: 0,
-    imgY: 0,
-    // Barra inferior estilo MM
     barraActiva: true,
     barraColor: '#a6ce39',
   },
-
-  // Interacción
   active: null,
   action: null,
   dragOff: { x: 0, y: 0 },
   resizeStart: null,
-
-  // FFmpeg
-  ffmpegLoaded: false,
-  ffmpegLoading: false,
+  fontLoaded: false,
 };
 
-const HR = 18; // radio handle
+const HR = 20; // radio handle en coords canvas
 
 // ── INIT ──
 function reelEditorInit() {
   RE.canvas = document.getElementById('reelCanvas');
-  RE.ctx = RE.canvas.getContext('2d');
+  RE.ctx    = RE.canvas.getContext('2d');
   RE.canvas.width  = RE.W;
   RE.canvas.height = RE.H;
 
-  // Cargar logo MM por defecto
-  const li = new Image();
-  li.onload = () => {
-    RE.logoImg = li;
-    reelResetEl('logo');
+  // Cargar fuente BebasNeue desde el proyecto
+  const font = new FontFace('BebasNeue', 'url(/placas/BebasNeue-Regular.ttf)');
+  font.load().then(f => {
+    document.fonts.add(f);
+    RE.fontLoaded = true;
     reelRender();
-  };
-  li.src = '../assets/logo.png';
+  }).catch(() => {
+    RE.fontLoaded = true; // continuar igual con fallback
+    reelRender();
+  });
+
+  // Logo MM por defecto
+  const li = new Image();
+  li.onload = () => { RE.logoImg = li; reelResetEl('logo'); reelRender(); };
   li.onerror = () => { reelRender(); };
+  li.src = '../assets/logo.png';
 
   reelResizeCanvas();
   reelBindEvents();
@@ -79,7 +70,7 @@ function reelResizeCanvas() {
   const wrap = document.getElementById('reelCanvasWrap');
   if (!wrap) return;
   const avW = wrap.clientWidth - 8;
-  const avH = window.innerHeight * 0.70;
+  const avH = window.innerHeight * 0.72;
   const ratio = RE.W / RE.H;
   let dw = avW, dh = dw / ratio;
   if (dh > avH) { dh = avH; dw = dh * ratio; }
@@ -92,11 +83,9 @@ function reelResizeCanvas() {
 // ── DEFAULT POSITIONS ──
 function reelDefaultPos(key) {
   const { W, H } = RE;
-  const pad = Math.round(W * 0.05);
   if (key === 'logo') {
     const lw = Math.round(W * 0.42);
-    let lh = Math.round(lw * 0.34);
-    if (RE.logoImg) lh = Math.round(lw * (RE.logoImg.height / RE.logoImg.width));
+    const lh = RE.logoImg ? Math.round(lw * RE.logoImg.height / RE.logoImg.width) : Math.round(lw * 0.34);
     return { x: Math.round((W - lw) / 2), y: Math.round(H * 0.06), w: lw, h: lh };
   }
   if (key === 'titulo') {
@@ -105,13 +94,8 @@ function reelDefaultPos(key) {
     return { x: Math.round((W - tw) / 2), y: Math.round(H * 0.38), w: tw, h: th };
   }
 }
-function reelResetEl(key) {
-  const d = reelDefaultPos(key);
-  RE.els[key] = { ...d };
-}
-function reelEnsurePos(key) {
-  if (RE.els[key].x === null) reelResetEl(key);
-}
+function reelResetEl(key) { RE.els[key] = { ...reelDefaultPos(key) }; }
+function reelEnsurePos(key) { if (RE.els[key].x === null) reelResetEl(key); }
 
 // ── RENDER ──
 function reelRender() {
@@ -126,10 +110,7 @@ function reelRender() {
     const ir = img.width / img.height, cr = W / H;
     let sx, sy, sw, sh;
     if (ir > cr) { sh = img.height; sw = sh * cr; sx = (img.width - sw) / 2; sy = 0; }
-    else { sw = img.width; sh = sw / cr; sx = 0; sy = (img.height - sh) / 2; }
-    const ex = img.width - sw, ey = img.height - sh;
-    sx = Math.max(0, Math.min(ex, sx + ex * S.imgX));
-    sy = Math.max(0, Math.min(ey, sy + ey * S.imgY));
+    else         { sw = img.width;  sh = sw / cr; sx = 0; sy = (img.height - sh) / 2; }
     const p = S.bgBlur * 4;
     ctx.drawImage(img, sx, sy, sw, sh, -p, -p, W + p * 2, H + p * 2);
     ctx.filter = 'none';
@@ -140,24 +121,22 @@ function reelRender() {
       ctx.restore();
     }
   } else {
-    // Fondo placeholder degradado
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, '#1a1a18'); g.addColorStop(1, '#0e0e0c');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = 'rgba(166,206,57,.08)';
-    ctx.font = `${Math.round(W * 0.035)}px Montserrat,sans-serif`;
+    ctx.font = `${Math.round(W * 0.033)}px Inter,sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('Cargá una imagen de fondo', W / 2, H / 2);
     ctx.textAlign = 'left';
   }
 
-  // Barra inferior verde MM
+  // Barras MM
   if (S.barraActiva) {
     const bh = Math.round(H * 0.006);
     ctx.fillStyle = S.barraColor;
-    ctx.fillRect(0, H - bh, W, bh);
-    // también arriba
     ctx.fillRect(0, 0, W, bh);
+    ctx.fillRect(0, H - bh, W, bh);
   }
 
   // Logo
@@ -173,7 +152,7 @@ function reelRender() {
   reelEnsurePos('titulo');
   reelDrawTitulo();
 
-  // UI activo
+  // UI de selección (encima de todo)
   if (RE.active) reelDrawActiveUI();
 }
 
@@ -187,27 +166,26 @@ function reelDrawTitulo() {
     ctx.strokeRect(el.x, el.y, el.w, el.h);
     ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(166,206,57,.35)';
-    ctx.font = `${Math.round(el.h * 0.28)}px Montserrat,sans-serif`;
+    ctx.font = `${Math.round(el.h * 0.28)}px Inter,sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('Título del reel', el.x + el.w / 2, el.y + el.h / 2);
-    ctx.textAlign = 'left';
-    ctx.restore(); return;
+    ctx.textAlign = 'left'; ctx.restore(); return;
   }
   // Fondo
   if (S.tituloBg !== 'transparent' && S.tituloBgOp > 0) {
     const r = hexRgb(S.tituloBg);
     ctx.save(); ctx.globalAlpha = S.tituloBgOp;
     ctx.fillStyle = `rgb(${r.r},${r.g},${r.b})`;
-    reelRoundRect(el.x, el.y, el.w, el.h, 8);
-    ctx.fill(); ctx.restore();
+    reelRoundRect(el.x, el.y, el.w, el.h, 8); ctx.fill(); ctx.restore();
   }
-  // Texto
+  // Texto ajustado al cuadro
   const pad = Math.round(el.w * 0.04);
   const aw = el.w - pad * 2;
+  const fontFamily = RE.fontLoaded ? "'BebasNeue',Impact,sans-serif" : "Impact,sans-serif";
   let sz = Math.max(10, Math.round(el.h * 0.28));
   let lines, lh, bh;
-  for (let i = 0; i < 20; i++) {
-    ctx.font = `700 ${sz}px 'BebasNeue',Montserrat,sans-serif`;
+  for (let i = 0; i < 25; i++) {
+    ctx.font = `700 ${sz}px ${fontFamily}`;
     lines = reelWrap(S.titulo, aw);
     lh = sz * 1.18; bh = lines.length * lh;
     if (bh <= el.h * 0.9 || sz <= 10) break;
@@ -216,57 +194,77 @@ function reelDrawTitulo() {
   ctx.save();
   ctx.fillStyle = S.tituloColor;
   ctx.textBaseline = 'top'; ctx.textAlign = 'center';
-  ctx.font = `700 ${sz}px 'BebasNeue',Montserrat,sans-serif`;
-  ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = Math.round(sz * .2);
+  ctx.font = `700 ${sz}px ${fontFamily}`;
+  ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = Math.round(sz * .22);
   const ty = el.y + (el.h - bh) / 2;
   lines.forEach((l, i) => ctx.fillText(l, el.x + el.w / 2, ty + i * lh));
   ctx.restore();
 }
 
-// ── HANDLES ──
+// ── HANDLES — definición correcta ──
+// Esquinas: círculo. Lados: rectángulo alargado.
+// La dirección del cursor sigue la posición real del handle.
 function reelGetHandles(key) {
   const el = RE.els[key];
   if (!el || el.x === null) return [];
+  const { x, y, w, h } = el;
   return [
-    { x: el.x,       y: el.y,       id: 'nw' },
-    { x: el.x+el.w,  y: el.y,       id: 'ne' },
-    { x: el.x,       y: el.y+el.h,  id: 'sw' },
-    { x: el.x+el.w,  y: el.y+el.h,  id: 'se' },
-    { x: el.x,       y: el.y+el.h/2,id: 'w',  side: true },
-    { x: el.x+el.w,  y: el.y+el.h/2,id: 'e',  side: true },
+    { x: x,     y: y,     id: 'nw', cursor: 'nw-resize' },
+    { x: x+w,   y: y,     id: 'ne', cursor: 'ne-resize' },
+    { x: x,     y: y+h,   id: 'sw', cursor: 'sw-resize' },
+    { x: x+w,   y: y+h,   id: 'se', cursor: 'se-resize' },
+    { x: x+w/2, y: y,     id: 'n',  cursor: 'n-resize',  side: 'h' },
+    { x: x+w/2, y: y+h,   id: 's',  cursor: 's-resize',  side: 'h' },
+    { x: x,     y: y+h/2, id: 'w',  cursor: 'w-resize',  side: 'v' },
+    { x: x+w,   y: y+h/2, id: 'e',  cursor: 'e-resize',  side: 'v' },
   ];
 }
 
 function reelDrawActiveUI() {
   const { ctx, W, H, active } = RE;
   const el = RE.els[active]; if (!el || el.x === null) return;
-  const lw = Math.max(2, Math.round(W * .002));
-  const hs = Math.round(HR * (W / 1080));
+  const lw  = Math.max(2, Math.round(W * .002));
+  const hs  = Math.max(8, Math.round(HR * (W / 1080))); // tamaño handle en canvas px
+
   ctx.save();
-  // Guías
-  ctx.strokeStyle = 'rgba(166,206,57,.7)'; ctx.lineWidth = lw;
-  ctx.setLineDash([Math.round(W*.006), Math.round(W*.003)]);
-  ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+  // Cruz de centrado — líneas punteadas
+  ctx.strokeStyle = 'rgba(166,206,57,.55)';
+  ctx.lineWidth = lw;
+  ctx.setLineDash([Math.round(W * .005), Math.round(W * .003)]);
+  ctx.beginPath(); ctx.moveTo(W / 2, 0);     ctx.lineTo(W / 2, H);     ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, H / 2);     ctx.lineTo(W, H / 2);     ctx.stroke();
   ctx.setLineDash([]);
-  // Borde elemento
-  ctx.strokeStyle = 'rgba(166,206,57,.9)'; ctx.lineWidth = lw * 1.5;
+
+  // Borde del elemento
+  ctx.strokeStyle = '#a6ce39';
+  ctx.lineWidth = lw * 1.5;
   reelRoundRect(el.x, el.y, el.w, el.h, 4); ctx.stroke();
+
   // Handles
   reelGetHandles(active).forEach(h => {
-    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#a6ce39'; ctx.lineWidth = Math.max(2, lw);
-    if (h.side) {
-      const hw = hs * .6, hh = hs * 1.2;
-      reelRoundRect(h.x - hw/2, h.y - hh/2, hw, hh, hw/2);
+    ctx.fillStyle   = '#ffffff';
+    ctx.strokeStyle = '#a6ce39';
+    ctx.lineWidth   = Math.max(2, lw);
+    if (h.side === 'v') {
+      // Handle lateral: rectángulo vertical
+      const hw = hs * .55, hh = hs * 1.3;
+      reelRoundRect(h.x - hw / 2, h.y - hh / 2, hw, hh, hw / 2);
+    } else if (h.side === 'h') {
+      // Handle superior/inferior: rectángulo horizontal
+      const hw = hs * 1.3, hh = hs * .55;
+      reelRoundRect(h.x - hw / 2, h.y - hh / 2, hw, hh, hh / 2);
     } else {
-      ctx.beginPath(); ctx.arc(h.x, h.y, hs * .55, 0, Math.PI*2);
+      // Esquinas: círculo
+      ctx.beginPath(); ctx.arc(h.x, h.y, hs * .6, 0, Math.PI * 2);
     }
     ctx.fill(); ctx.stroke();
   });
+
   ctx.restore();
 }
 
-// ── EVENTS ──
+// ── EVENTOS ──
 function reelBindEvents() {
   const c = RE.canvas;
   c.addEventListener('mousedown',  reelOnDown);
@@ -275,25 +273,34 @@ function reelBindEvents() {
   c.addEventListener('touchmove',  reelOnMove, { passive: false });
   c.addEventListener('mouseup',    reelOnUp);
   c.addEventListener('touchend',   reelOnUp);
+  document.addEventListener('mouseup', reelOnUp);
 }
 
 function reelGetPos(e) {
   const rect = RE.canvas.getBoundingClientRect();
   const t = e.touches ? e.touches[0] : e;
-  return { x: (t.clientX - rect.left) * RE.scale, y: (t.clientY - rect.top) * RE.scale };
+  return {
+    x: (t.clientX - rect.left)  * RE.scale,
+    y: (t.clientY - rect.top)   * RE.scale,
+  };
 }
 
+// Retorna el handle bajo el cursor, o null
 function reelHandleHit(pos, key) {
-  const base = Math.round(HR * (RE.W / 1080));
+  const hs = Math.max(8, Math.round(HR * (RE.W / 1080)));
   for (const h of reelGetHandles(key)) {
-    const hs = h.side ? base * 2 : base * 2.5;
-    if (Math.abs(pos.x - h.x) < hs && Math.abs(pos.y - h.y) < hs) return h.id;
+    const hw = h.side === 'h' ? hs * 1.6 : hs * 0.9;
+    const hh = h.side === 'v' ? hs * 1.6 : hs * 0.9;
+    if (Math.abs(pos.x - h.x) <= hw && Math.abs(pos.y - h.y) <= hh) return h;
   }
   return null;
 }
 
+// Retorna el elemento bajo el cursor (activo primero)
 function reelHitEl(pos) {
-  const order = RE.active ? [RE.active, ...Object.keys(RE.els).filter(k => k !== RE.active)] : Object.keys(RE.els);
+  const order = RE.active
+    ? [RE.active, ...Object.keys(RE.els).filter(k => k !== RE.active)]
+    : Object.keys(RE.els);
   for (const k of order) {
     const el = RE.els[k];
     if (!el || el.x === null) continue;
@@ -305,18 +312,30 @@ function reelHitEl(pos) {
 function reelOnDown(e) {
   if (e.touches) e.preventDefault();
   const pos = reelGetPos(e);
+
+  // Intentar handle del elemento activo primero
   if (RE.active) {
-    const hid = reelHandleHit(pos, RE.active);
-    if (hid) {
-      RE.action = 'resize-' + hid;
-      RE.resizeStart = { pos: { ...pos }, rect: { ...RE.els[RE.active] },
-        logoAR: RE.active === 'logo' && RE.logoImg ? RE.logoImg.width / RE.logoImg.height : null };
+    const h = reelHandleHit(pos, RE.active);
+    if (h) {
+      RE.action = 'resize-' + h.id;
+      RE.resizeStart = {
+        pos: { ...pos },
+        rect: { ...RE.els[RE.active] },
+        logoAR: (RE.active === 'logo' && RE.logoImg) ? RE.logoImg.width / RE.logoImg.height : null,
+      };
       return;
     }
   }
+
   const k = reelHitEl(pos);
-  if (k) { RE.active = k; RE.action = 'drag'; RE.dragOff = { x: pos.x - RE.els[k].x, y: pos.y - RE.els[k].y }; }
-  else    { RE.active = null; RE.action = null; }
+  if (k) {
+    RE.active = k;
+    RE.action = 'drag';
+    RE.dragOff = { x: pos.x - RE.els[k].x, y: pos.y - RE.els[k].y };
+  } else {
+    RE.active = null;
+    RE.action = null;
+  }
   reelRender();
 }
 
@@ -325,44 +344,70 @@ function reelOnMove(e) {
   const pos = reelGetPos(e);
   const { W, H } = RE;
   const SNAP = W * .012;
+
   if (!RE.action) {
-    if (RE.active && reelHandleHit(pos, RE.active)) { RE.canvas.style.cursor = 'nwse-resize'; return; }
-    RE.canvas.style.cursor = reelHitEl(pos) ? 'grab' : 'default'; return;
+    // Actualizar cursor
+    if (RE.active) {
+      const h = reelHandleHit(pos, RE.active);
+      if (h) { RE.canvas.style.cursor = h.cursor; return; }
+    }
+    RE.canvas.style.cursor = reelHitEl(pos) ? 'grab' : 'default';
+    return;
   }
+
   const el = RE.els[RE.active];
+
   if (RE.action === 'drag') {
-    let nx = pos.x - RE.dragOff.x, ny = pos.y - RE.dragOff.y;
-    if (Math.abs(nx + el.w/2 - W/2) < SNAP) nx = W/2 - el.w/2;
-    if (Math.abs(ny + el.h/2 - H/2) < SNAP) ny = H/2 - el.h/2;
+    let nx = pos.x - RE.dragOff.x;
+    let ny = pos.y - RE.dragOff.y;
+    // Snap al centro
+    if (Math.abs(nx + el.w / 2 - W / 2) < SNAP) nx = W / 2 - el.w / 2;
+    if (Math.abs(ny + el.h / 2 - H / 2) < SNAP) ny = H / 2 - el.h / 2;
     el.x = nx; el.y = ny;
+    RE.canvas.style.cursor = 'grabbing';
   }
+
   if (RE.action.startsWith('resize-')) {
-    const corner = RE.action.slice(7), rs = RE.resizeStart;
-    const dx = pos.x - rs.pos.x, dy = pos.y - rs.pos.y;
+    const corner = RE.action.slice(7);
+    const rs = RE.resizeStart;
+    const dx = pos.x - rs.pos.x;
+    const dy = pos.y - rs.pos.y;
     const MIN = W * .04;
     let { x, y, w, h } = rs.rect;
+
     if (rs.logoAR) {
+      // Logo: mantener proporción
       const AR = rs.logoAR;
-      if (corner==='se') { w=Math.max(MIN,w+dx); h=w/AR; }
-      else if(corner==='sw') { const nw=Math.max(MIN,w-dx); x=rs.rect.x+rs.rect.w-nw; w=nw; h=w/AR; }
-      else if(corner==='ne') { w=Math.max(MIN,w+dx); const nh=w/AR; y=rs.rect.y+rs.rect.h-nh; h=nh; }
-      else if(corner==='nw') { const nw=Math.max(MIN,w-dx); x=rs.rect.x+rs.rect.w-nw; w=nw; const nh=w/AR; y=rs.rect.y+rs.rect.h-nh; h=nh; }
+      if (corner === 'se') { w = Math.max(MIN, w + dx); h = w / AR; }
+      else if (corner === 'sw') { const nw = Math.max(MIN, w - dx); x = rs.rect.x + rs.rect.w - nw; w = nw; h = w / AR; }
+      else if (corner === 'ne') { w = Math.max(MIN, w + dx); const nh = w / AR; y = rs.rect.y + rs.rect.h - nh; h = nh; }
+      else if (corner === 'nw') { const nw = Math.max(MIN, w - dx); x = rs.rect.x + rs.rect.w - nw; w = nw; const nh = w / AR; y = rs.rect.y + rs.rect.h - nh; h = nh; }
+      else if (corner === 'e')  { w = Math.max(MIN, w + dx); h = w / AR; }
+      else if (corner === 'w')  { const nw = Math.max(MIN, w - dx); x = rs.rect.x + rs.rect.w - nw; w = nw; h = w / AR; }
     } else {
-      if(corner==='se') { w=Math.max(MIN,w+dx); h=Math.max(MIN,h+dy); }
-      else if(corner==='sw') { const nw=Math.max(MIN,w-dx); x=rs.rect.x+rs.rect.w-nw; w=nw; h=Math.max(MIN,h+dy); }
-      else if(corner==='ne') { w=Math.max(MIN,w+dx); const nh=Math.max(MIN,h-dy); y=rs.rect.y+rs.rect.h-nh; h=nh; }
-      else if(corner==='nw') { const nw=Math.max(MIN,w-dx); x=rs.rect.x+rs.rect.w-nw; w=nw; const nh=Math.max(MIN,h-dy); y=rs.rect.y+rs.rect.h-nh; h=nh; }
-      else if(corner==='e') { w=Math.max(MIN,w+dx); }
-      else if(corner==='w') { const nw=Math.max(MIN,w-dx); x=rs.rect.x+rs.rect.w-nw; w=nw; }
+      if (corner === 'se') { w = Math.max(MIN, w + dx); h = Math.max(MIN, h + dy); }
+      else if (corner === 'sw') { const nw = Math.max(MIN, w - dx); x = rs.rect.x + rs.rect.w - nw; w = nw; h = Math.max(MIN, h + dy); }
+      else if (corner === 'ne') { w = Math.max(MIN, w + dx); const nh = Math.max(MIN, h - dy); y = rs.rect.y + rs.rect.h - nh; h = nh; }
+      else if (corner === 'nw') { const nw = Math.max(MIN, w - dx); x = rs.rect.x + rs.rect.w - nw; w = nw; const nh = Math.max(MIN, h - dy); y = rs.rect.y + rs.rect.h - nh; h = nh; }
+      else if (corner === 'e')  { w = Math.max(MIN, w + dx); }
+      else if (corner === 'w')  { const nw = Math.max(MIN, w - dx); x = rs.rect.x + rs.rect.w - nw; w = nw; }
+      else if (corner === 'n')  { const nh = Math.max(MIN, h - dy); y = rs.rect.y + rs.rect.h - nh; h = nh; }
+      else if (corner === 's')  { h = Math.max(MIN, h + dy); }
     }
-    el.x=x; el.y=y; el.w=w; el.h=h;
+    el.x = x; el.y = y; el.w = w; el.h = h;
   }
+
   reelRender();
 }
-function reelOnUp() { RE.action = null; RE.canvas.style.cursor = RE.active ? 'grab' : 'default'; }
 
-// ── LOAD BG ──
+function reelOnUp() {
+  RE.action = null;
+  RE.canvas.style.cursor = RE.active ? 'grab' : 'default';
+}
+
+// ── LOAD BG / LOGO ──
 function reelLoadBg(file) {
+  if (!file) return;
   const rd = new FileReader();
   rd.onload = e => {
     const img = new Image();
@@ -371,9 +416,8 @@ function reelLoadBg(file) {
   };
   rd.readAsDataURL(file);
 }
-
-// ── LOAD LOGO ──
 function reelLoadLogo(file) {
+  if (!file) return;
   const rd = new FileReader();
   rd.onload = e => {
     const img = new Image();
@@ -386,50 +430,55 @@ function reelLoadLogo(file) {
 // ── EXPORT VIDEO con FFmpeg.wasm ──
 async function reelExportVideo() {
   if (!RE.audioBlob) { reelToast('Primero generá o cargá el audio'); return; }
-  const btn = document.getElementById('btnExportVideo');
-  const prog = document.getElementById('reelExportProgress');
+
+  const btn     = document.getElementById('btnExportVideo');
+  const prog    = document.getElementById('reelExportProgress');
   const progTxt = document.getElementById('reelExportProgressTxt');
   btn.disabled = true;
   prog.style.display = 'flex';
 
   try {
-    progTxt.textContent = 'Preparando canvas...';
-    // 1. Capturar frame del canvas (sin UI)
+    // Verificar soporte SharedArrayBuffer (necesario para FFmpeg.wasm)
+    if (typeof SharedArrayBuffer === 'undefined') {
+      throw new Error('SharedArrayBuffer no disponible. Verificá que el archivo _headers esté desplegado en Cloudflare Pages (COOP/COEP).');
+    }
+
+    progTxt.textContent = 'Preparando imagen...';
     RE.active = null;
     reelRender();
+    await new Promise(r => setTimeout(r, 80)); // esperar que canvas termine
 
-    // Obtener duración del audio
     const audioDur = await reelGetAudioDuration(RE.audioBlob);
 
-    progTxt.textContent = 'Cargando FFmpeg.wasm...';
-    const { FFmpeg } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js');
+    progTxt.textContent = 'Cargando FFmpeg.wasm (primera vez ~30MB)...';
+
+    // Importar FFmpeg desde CDN con crossorigin
+    const { FFmpeg }    = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js');
     const { fetchFile, toBlobURL } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js');
 
     const ffmpeg = new FFmpeg();
     ffmpeg.on('progress', ({ progress }) => {
-      progTxt.textContent = `Renderizando video... ${Math.round(progress * 100)}%`;
+      const pct = Math.min(99, Math.round(progress * 100));
+      progTxt.textContent = `Renderizando... ${pct}%`;
     });
-    ffmpeg.on('log', ({ message }) => console.log('[ffmpeg]', message));
 
     const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
     await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`,   'text/javascript'),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
     });
 
     progTxt.textContent = 'Procesando imagen...';
-    // 2. Canvas → PNG blob
     const imgBlob = await new Promise(res => RE.canvas.toBlob(res, 'image/png'));
     await ffmpeg.writeFile('frame.png', await fetchFile(imgBlob));
 
-    // 3. Audio → archivo
-    const audioExt = RE.audioBlob.type.includes('webm') ? 'webm' :
-                     RE.audioBlob.type.includes('ogg')  ? 'ogg'  : 'mp3';
+    const audioExt = RE.audioBlob.type.includes('webm') ? 'webm'
+                   : RE.audioBlob.type.includes('ogg')  ? 'ogg'
+                   : RE.audioBlob.type.includes('wav')  ? 'wav' : 'mp3';
     await ffmpeg.writeFile('audio.' + audioExt, await fetchFile(RE.audioBlob));
 
     progTxt.textContent = 'Generando MP4...';
-    // 4. FFmpeg: imagen estática + audio → MP4
-    // -loop 1: imagen en bucle, -t: duración del audio
+    const dur = String(Math.ceil(audioDur + 0.5));
     await ffmpeg.exec([
       '-loop', '1',
       '-i', 'frame.png',
@@ -440,7 +489,7 @@ async function reelExportVideo() {
       '-b:a', '192k',
       '-pix_fmt', 'yuv420p',
       '-shortest',
-      '-t', String(Math.ceil(audioDur + 0.5)),
+      '-t', dur,
       '-movflags', '+faststart',
       'output.mp4'
     ]);
@@ -450,7 +499,6 @@ async function reelExportVideo() {
     const blob = new Blob([data.buffer], { type: 'video/mp4' });
     const url  = URL.createObjectURL(blob);
 
-    // Preview
     const video = document.getElementById('reelVideoPreview');
     const dl    = document.getElementById('reelVideoDownload');
     video.src = url;
@@ -458,11 +506,12 @@ async function reelExportVideo() {
     dl.download = `reel-mediamendoza-${Date.now()}.mp4`;
     document.getElementById('reelVideoResult').style.display = 'block';
     video.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    reelToast('✅ Video generado correctamente');
+    reelToast('✅ MP4 generado correctamente');
 
   } catch (err) {
-    console.error(err);
+    console.error('[reelExport]', err);
     reelToast('Error: ' + err.message);
+    document.getElementById('reelExportProgressTxt').textContent = 'Error: ' + err.message;
   }
 
   btn.disabled = false;
@@ -471,8 +520,8 @@ async function reelExportVideo() {
 
 function reelGetAudioDuration(blob) {
   return new Promise(resolve => {
-    const au = new Audio();
-    au.onloadedmetadata = () => resolve(isFinite(au.duration) ? au.duration : 30);
+    const au  = new Audio();
+    au.onloadedmetadata = () => resolve(isFinite(au.duration) && au.duration > 0 ? au.duration : 30);
     au.onerror = () => resolve(30);
     au.src = URL.createObjectURL(blob);
   });
@@ -489,51 +538,47 @@ function reelWrap(text, maxW) {
     else cur = test;
   }
   if (cur.trim()) lines.push(cur);
-  return lines;
+  return lines.length ? lines : [text];
 }
 function reelRoundRect(x, y, w, h, r) {
-  r = Math.min(r, w/2, h/2);
+  r = Math.min(r, w / 2, h / 2);
   RE.ctx.beginPath();
-  RE.ctx.moveTo(x+r,y); RE.ctx.lineTo(x+w-r,y); RE.ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-  RE.ctx.lineTo(x+w,y+h-r); RE.ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-  RE.ctx.lineTo(x+r,y+h); RE.ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-  RE.ctx.lineTo(x,y+r); RE.ctx.quadraticCurveTo(x,y,x+r,y); RE.ctx.closePath();
+  RE.ctx.moveTo(x + r, y); RE.ctx.lineTo(x + w - r, y); RE.ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  RE.ctx.lineTo(x + w, y + h - r); RE.ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  RE.ctx.lineTo(x + r, y + h); RE.ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  RE.ctx.lineTo(x, y + r); RE.ctx.quadraticCurveTo(x, y, x + r, y); RE.ctx.closePath();
 }
 function hexRgb(hex) {
-  if (!hex || hex === 'transparent') return { r:0,g:0,b:0 };
-  return { r:parseInt(hex.slice(1,3),16), g:parseInt(hex.slice(3,5),16), b:parseInt(hex.slice(5,7),16) };
+  if (!hex || hex === 'transparent') return { r: 0, g: 0, b: 0 };
+  return { r: parseInt(hex.slice(1,3),16), g: parseInt(hex.slice(3,5),16), b: parseInt(hex.slice(5,7),16) };
 }
 function reelToast(msg) {
   const t = document.getElementById('toast');
-  if (!t) { alert(msg); return; }
+  if (!t) { console.warn(msg); return; }
   t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3200);
+  setTimeout(() => t.classList.remove('show'), 3500);
 }
 
-// ── SINCRONIZAR controles ──
-function reelSyncControls() {
-  const s = RE.S;
-  const id = (i, v) => { const el=document.getElementById(i); if(el) el.value=v; };
-  const txt = (i, v) => { const el=document.getElementById(i); if(el) el.textContent=v; };
-  id('re-tituloInput',   s.titulo);
-  id('re-tituloColor',   s.tituloColor);
-  id('re-tituloBg',      s.tituloBg);
-  id('re-tituloBgOp',    Math.round(s.tituloBgOp*100));
-  txt('re-tituloBgOpV',  Math.round(s.tituloBgOp*100)+'%');
-  id('re-bgDark',        Math.round(s.bgDark*100));
-  txt('re-bgDarkV',      Math.round(s.bgDark*100)+'%');
-  id('re-bgBlur',        s.bgBlur);
-  txt('re-bgBlurV',      s.bgBlur+'px');
-  id('re-logoOp',        Math.round(s.logoOp*100));
-  txt('re-logoOpV',      Math.round(s.logoOp*100)+'%');
+// ── ALINEAR ──
+function reelAlign(key, dir) {
+  const el = RE.els[key]; if (!el || el.x === null) return;
+  const W = RE.W, H = RE.H;
+  const pad = Math.round(W * .04);
+  if (dir === 'l')  el.x = pad;
+  if (dir === 'r')  el.x = W - el.w - pad;
+  if (dir === 'ch') el.x = Math.round((W - el.w) / 2);
+  if (dir === 't')  el.y = pad;
+  if (dir === 'b')  el.y = H - el.h - pad;
+  if (dir === 'cv') el.y = Math.round((H - el.h) / 2);
+  reelRender();
 }
 
-window.RE = RE;
-window.reelEditorInit     = reelEditorInit;
-window.reelLoadBg         = reelLoadBg;
-window.reelLoadLogo       = reelLoadLogo;
-window.reelExportVideo    = reelExportVideo;
-window.reelResizeCanvas   = reelResizeCanvas;
-window.reelRender         = reelRender;
-window.reelResetEl        = reelResetEl;
-window.reelSyncControls   = reelSyncControls;
+window.RE              = RE;
+window.reelEditorInit  = reelEditorInit;
+window.reelResizeCanvas= reelResizeCanvas;
+window.reelRender      = reelRender;
+window.reelResetEl     = reelResetEl;
+window.reelLoadBg      = reelLoadBg;
+window.reelLoadLogo    = reelLoadLogo;
+window.reelExportVideo = reelExportVideo;
+window.reelAlign       = reelAlign;
