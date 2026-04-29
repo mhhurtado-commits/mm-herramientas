@@ -1,13 +1,7 @@
 // ============================================================
-// Media Mendoza — Reel Editor v4.0 (Optimizado)
-// Export MP4: mp4-muxer + WebCodecs API
-// Optimizaciones clave:
-//   1. Fondo pre-renderizado en canvas separado + drawImage (GPU)
-//   2. VideoFrame directo desde canvas (sin createImageBitmap)
-//   3. Audio: Web Audio decode optimizado + fallback video-only
-//   4. Cleanup garantizado con try/finally
-//   5. Cancelación de export en tiempo real
-//   6. Verificación isConfigSupported antes de encodear
+// Media Mendoza — Reel Editor v3.0
+// Export MP4: mp4-muxer + WebCodecs API (sin FFmpeg, sin COOP/COEP)
+// Subtítulos TikTok integrados
 // ============================================================
 
 // ── Fuente BebasNeue desde /assets ──
@@ -47,10 +41,6 @@ const RE = {
     subsColorResaltado: '#f5c518',
     subsFontSize: 72,
     subsBgOp: 0.55,
-    // NUEVO: calidad configurable
-    videoBitrate: 4_000_000,
-    videoCodecProfile: 'avc1.4d0028', // Main profile, mejor que baseline 42001f
-    keyframeInterval: 30, // 1 segundo a 30fps (mejor que cada 2 seg)
   },
   guion: '',
   active: null,
@@ -58,15 +48,12 @@ const RE = {
   dragOff: { x: 0, y: 0 },
   resizeStart: null,
   fontLoaded: false,
-  // NUEVO: estado de export
-  _exportAbort: false,
-  _isExporting: false,
 };
 
 const HR = 20;
 
 // ══════════════════════════════════════════════════
-// SUBTÍTULOS (sin cambios funcionales, ya estaban bien)
+// SUBTÍTULOS
 // ══════════════════════════════════════════════════
 function contarSilabas(palabra) {
   const p = palabra.toLowerCase().replace(/[^a-záéíóúüñ]/g, '');
@@ -466,88 +453,46 @@ function reelLoadLogo(file) {
 }
 
 // ══════════════════════════════════════════════════
-// EXPORT MP4 — v4.0 Optimizado
+// EXPORT MP4 — mp4-muxer + WebCodecs API
+// Sin FFmpeg, sin WASM externo, sin COOP/COEP
 // ══════════════════════════════════════════════════
-
-/**
- * Cancela una exportación en progreso.
- */
-function reelCancelExport() {
-  if (RE._isExporting) {
-    RE._exportAbort = true;
-    reelToast('Cancelando exportación...');
-  }
-}
-
-async function reelExportVideo(opts = {}) {
-  // ── Validaciones iniciales ──
+async function reelExportVideo() {
   if (!RE.audioBlob) { reelToast('Primero generá o cargá el audio'); return; }
-  if (typeof VideoEncoder === 'undefined') {
-    reelToast('Tu navegador no soporta WebCodecs API. Usá Chrome 94+ o Edge 94+.');
-    return;
-  }
 
   const btn     = document.getElementById('btnExportVideo');
   const prog    = document.getElementById('reelExportProgress');
   const progTxt = document.getElementById('reelExportProgressTxt');
-
-  // Cambiar botón a "Cancelar" visualmente
-  const btnOriginalText = btn.textContent;
-  btn.textContent = '✕ Cancelar exportación';
-  btn.onclick = reelCancelExport;
-  btn.disabled = false;
-
-  RE._isExporting = true;
-  RE._exportAbort = false;
+  btn.disabled = true;
   prog.style.display = 'flex';
 
-  // Recursos que necesitamos limpiar siempre
-  let videoEncoder = null;
-  let audioEncoder = null;
-  let audioCtx = null;
-  let muxer = null;
-  let target = null;
-
   try {
+    // ── Verificar soporte de WebCodecs ──
+    if (typeof VideoEncoder === 'undefined') {
+      throw new Error('Tu navegador no soporta WebCodecs API. Usá Chrome 94+ o Edge 94+.');
+    }
+
     progTxt.textContent = 'Cargando mp4-muxer...';
+
+    // ── Importar mp4-muxer (puro JS, sin WASM) ──
     const { Muxer, ArrayBufferTarget } = await import(
       'https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs'
     );
 
     const audioDur    = await reelGetAudioDuration(RE.audioBlob);
     const FPS         = 30;
+    const TOTAL_US    = Math.ceil(audioDur * 1_000_000); // microsegundos
     const totalFrames = Math.ceil(audioDur * FPS);
-    const TOTAL_US    = Math.ceil(audioDur * 1_000_000);
     const guion       = RE.guion || '';
     const usaSubs     = RE.S.subsActivos && guion.trim().length > 0;
     const timestamps  = usaSubs ? generarTimestamps(guion, audioDur) : [];
 
     // Dimensiones múltiplo de 2 (requerido por H.264)
-    const VW = RE.W + (RE.W % 2);
-    const VH = RE.H + (RE.H % 2);
-
-    // ── Verificar soporte de codec antes de configurar ──
-    const videoCodec = opts.codec || RE.S.videoCodecProfile || 'avc1.4d0028';
-    const videoConfig = {
-      codec: videoCodec,
-      width: VW,
-      height: VH,
-      bitrate: opts.bitrate || RE.S.videoBitrate || 4_000_000,
-      framerate: FPS,
-    };
-    const videoSupported = await VideoEncoder.isConfigSupported(videoConfig);
-    if (!videoSupported.supported) {
-      console.warn('Codec de video no soportado, probando fallback baseline...');
-      videoConfig.codec = 'avc1.42001f';
-      const fallbackSupported = await VideoEncoder.isConfigSupported(videoConfig);
-      if (!fallbackSupported.supported) {
-        throw new Error('Ningún codec de video soportado en este navegador.');
-      }
-    }
+    const VW = RE.W % 2 === 0 ? RE.W : RE.W - 1;
+    const VH = RE.H % 2 === 0 ? RE.H : RE.H - 1;
 
     // ── Crear muxer ──
-    target = new ArrayBufferTarget();
-    muxer  = new Muxer({
+    const target = new ArrayBufferTarget();
+    const muxer  = new Muxer({
       target,
       video: { codec: 'avc', width: VW, height: VH },
       audio: { codec: 'aac', sampleRate: 44100, numberOfChannels: 1 },
@@ -556,93 +501,69 @@ async function reelExportVideo(opts = {}) {
 
     // ── Configurar VideoEncoder ──
     let encodedFrames = 0;
-    videoEncoder = new VideoEncoder({
-      output: (chunk, meta) => { muxer.addVideoChunk(chunk, meta); encodedFrames++; },
+    const videoEncoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
       error: (e) => { throw new Error('VideoEncoder: ' + e.message); },
     });
-    videoEncoder.configure(videoConfig);
+    videoEncoder.configure({
+      codec: 'avc1.42001f',
+      width: VW,
+      height: VH,
+      bitrate: 4_000_000,
+      framerate: FPS,
+    });
 
-    // ── Canvas offscreen + canvas de fondo pre-renderizado ──
+    // ── Canvas offscreen para los frames ──
     const offCanvas = document.createElement('canvas');
     offCanvas.width  = VW;
     offCanvas.height = VH;
-    const offCtx = offCanvas.getContext('2d', { alpha: false }); // alpha:false = más rápido
+    const offCtx = offCanvas.getContext('2d');
 
-    // PRE-RENDERIZAR FONDO EN CANVAS SEPARADO (se reutiliza por frame)
-    const bgCanvas = document.createElement('canvas');
-    bgCanvas.width  = VW;
-    bgCanvas.height = VH;
-    const bgCtx = bgCanvas.getContext('2d', { alpha: false });
-
+    // Pre-renderizar fondo base
     RE.active = null;
     reelEnsurePos('logo'); reelEnsurePos('titulo');
-    reelRenderBase(bgCtx, VW, VH, RE.S, RE.bgImg, RE.logoImg, RE.els);
+    reelRenderBase(offCtx, VW, VH, RE.S, RE.bgImg, RE.logoImg, RE.els);
+    const bgData = offCtx.getImageData(0, 0, VW, VH);
+
+    progTxt.textContent = 'Codificando video...';
 
     // ── Encodear frames ──
-    progTxt.textContent = `Codificando 0/${totalFrames} frames...`;
-    const keyframeInterval = RE.S.keyframeInterval || FPS;
-    const yieldEvery = totalFrames > 600 ? 30 : (totalFrames > 300 ? 15 : 10);
-    const startTime = performance.now();
-
     for (let fi = 0; fi < totalFrames; fi++) {
-      if (RE._exportAbort) {
-        throw new Error('Exportación cancelada por el usuario');
-      }
-
       const t = fi / FPS;
-
-      // 1. Copiar fondo pre-renderizado (GPU-accelerated drawImage)
-      offCtx.drawImage(bgCanvas, 0, 0);
-
-      // 2. Dibujar subtítulos (solo lo que cambia)
+      offCtx.putImageData(bgData, 0, 0);
       if (usaSubs) reelDrawSubs(offCtx, VW, VH, timestamps, t, RE.S);
 
-      // 3. Crear VideoFrame DIRECTAMENTE desde canvas (sin createImageBitmap)
-      const frame = new VideoFrame(offCanvas, {
-        timestamp: Math.round(t * 1_000_000),
-        duration:  Math.round(1_000_000 / FPS),
+      // Crear ImageBitmap a partir del canvas
+      const bitmap = await createImageBitmap(offCanvas);
+      const frame  = new VideoFrame(bitmap, {
+        timestamp:  Math.round(t * 1_000_000),
+        duration:   Math.round(1_000_000 / FPS),
       });
-
-      // 4. Encodear
-      videoEncoder.encode(frame, { keyFrame: fi % keyframeInterval === 0 });
+      videoEncoder.encode(frame, { keyFrame: fi % (FPS * 2) === 0 });
       frame.close();
+      bitmap.close();
 
-      // 5. Progreso y yield al browser
-      if (fi % yieldEvery === 0 || fi === totalFrames - 1) {
-        const pct = Math.round((fi / totalFrames) * 70); // video = 70% del progreso total
-        const elapsed = (performance.now() - startTime) / 1000;
-        const fps = fi / elapsed;
-        const eta = fi > 0 ? ((totalFrames - fi) / fps) : 0;
-        progTxt.textContent = `Video ${pct}% — frame ${fi}/${totalFrames} (${fps.toFixed(1)} fps, ${eta.toFixed(0)}s rest.)`;
-        await new Promise(r => setTimeout(r, 0));
+      if (fi % 10 === 0) {
+        progTxt.textContent = `Codificando video... ${Math.round((fi / totalFrames) * 80)}%`;
+        await new Promise(r => setTimeout(r, 0)); // yield al browser
       }
     }
 
     await videoEncoder.flush();
     videoEncoder.close();
-    videoEncoder = null;
 
-    // ── Encodear audio ──
-    const hasAudioEncoder = typeof AudioEncoder !== 'undefined';
-    if (hasAudioEncoder) {
-      progTxt.textContent = 'Procesando audio (70%)...';
-      const audioSuccess = await encodeAudioOptimized(muxer, RE.audioBlob, TOTAL_US,
-        (pct, stage) => {
-          const globalPct = 70 + Math.round(pct * 0.25); // audio = 25% del progreso
-          progTxt.textContent = `${stage} (${globalPct}%)...`;
-        }
-      );
-      if (!audioSuccess) {
-        console.warn('AudioEncoder falló, continuando sin audio');
-      }
+    // ── Encodear audio con AudioEncoder ──
+    progTxt.textContent = 'Procesando audio...';
+
+    if (typeof AudioEncoder !== 'undefined') {
+      // WebCodecs AudioEncoder disponible
+      await encodeAudioWebCodecs(muxer, RE.audioBlob, TOTAL_US);
     } else {
-      console.warn('AudioEncoder no disponible en este navegador. Exportando video sin audio.');
-      progTxt.textContent = 'Audio no soportado — exportando video únicamente (70%)...';
-      await new Promise(r => setTimeout(r, 300));
+      // Fallback: decodificar audio con Web Audio API y encodear
+      await encodeAudioFallback(muxer, RE.audioBlob);
     }
 
-    // ── Finalizar ──
-    progTxt.textContent = 'Finalizando MP4 (95%)...';
+    progTxt.textContent = 'Finalizando MP4...';
     muxer.finalize();
 
     const buffer = target.buffer;
@@ -657,135 +578,80 @@ async function reelExportVideo(opts = {}) {
     video.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
-    const hasAudio = hasAudioEncoder;
-    reelToast(hasAudio ? `✅ MP4 generado — ${sizeMB} MB` : `✅ MP4 generado (sin audio) — ${sizeMB} MB`);
+    reelToast(`✅ MP4 generado — ${sizeMB} MB`);
+    reelRender();
 
   } catch (err) {
     console.error('[reelExport]', err);
-    const msg = err.message || String(err);
-    if (msg.includes('cancelada')) {
-      reelToast('Exportación cancelada');
-      progTxt.textContent = 'Cancelado';
-    } else {
-      reelToast('Error: ' + msg);
-      progTxt.textContent = '✕ ' + msg;
-    }
-  } finally {
-    // ── Cleanup garantizado ──
-    if (videoEncoder) { try { videoEncoder.close(); } catch(e) {} }
-    if (audioEncoder) { try { audioEncoder.close(); } catch(e) {} }
-    if (audioCtx)    { try { audioCtx.close(); } catch(e) {} }
-
-    RE._isExporting = false;
-    RE._exportAbort = false;
-    btn.textContent = btnOriginalText;
-    btn.onclick = reelExportVideo;
-    btn.disabled = false;
-
-    // Limpiar progreso después de un momento si fue exitoso
-    if (progTxt.textContent.includes('Finalizando') || progTxt.textContent.includes('Cancelado') || progTxt.textContent.startsWith('✕')) {
-      setTimeout(() => { prog.style.display = 'none'; }, msg.includes('cancelada') ? 500 : 3000);
-    } else {
-      prog.style.display = 'none';
-    }
-
+    reelToast('Error: ' + (err.message || String(err)));
+    document.getElementById('reelExportProgressTxt').textContent = '✕ ' + (err.message || err);
     reelRender();
   }
+
+  btn.disabled = false;
+  prog.style.display = 'none';
 }
 
-/**
- * Encodear audio con AudioEncoder WebCodecs — versión optimizada.
- * Usa chunks más grandes (16384) para reducir overhead de encode calls.
- */
-async function encodeAudioOptimized(muxer, audioBlob, totalUS, onProgress) {
-  let audioCtx = null;
-  let audioEncoder = null;
+// Encodear audio con AudioEncoder WebCodecs
+async function encodeAudioWebCodecs(muxer, audioBlob, totalUS) {
+  const audioCtx  = new AudioContext({ sampleRate: 44100 });
+  const arrayBuf  = await audioBlob.arrayBuffer();
+  const audioData = await audioCtx.decodeAudioData(arrayBuf);
 
-  try {
-    // Verificar soporte de AudioEncoder para AAC
-    const audioConfig = {
-      codec: 'mp4a.40.2',
-      sampleRate: 44100,
-      numberOfChannels: 1,
-      bitrate: 128_000,
-    };
-    const audioSupported = await AudioEncoder.isConfigSupported(audioConfig);
-    if (!audioSupported.supported) {
-      throw new Error('AudioEncoder no soporta AAC/mp4a.40.2');
-    }
+  const encoder = new AudioEncoder({
+    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+    error:  (e) => console.warn('AudioEncoder:', e),
+  });
+  encoder.configure({
+    codec: 'mp4a.40.2',
+    sampleRate: 44100,
+    numberOfChannels: audioData.numberOfChannels,
+    bitrate: 128_000,
+  });
 
-    audioCtx = new AudioContext({ sampleRate: 44100 });
-    const arrayBuf  = await audioBlob.arrayBuffer();
-    const audioData = await audioCtx.decodeAudioData(arrayBuf);
-
-    audioEncoder = new AudioEncoder({
-      output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-      error:  (e) => { throw new Error('AudioEncoder: ' + e.message); },
-    });
-    audioEncoder.configure({
-      codec: 'mp4a.40.2',
-      sampleRate: 44100,
+  const chunkSize = 4096;
+  const samples   = audioData.length;
+  for (let offset = 0; offset < samples; offset += chunkSize) {
+    const len = Math.min(chunkSize, samples - offset);
+    const frame = new AudioData({
+      format: 'f32-planar',
+      sampleRate: audioData.sampleRate,
+      numberOfFrames: len,
       numberOfChannels: audioData.numberOfChannels,
-      bitrate: 128_000,
+      timestamp: Math.round(offset / audioData.sampleRate * 1_000_000),
+      data: (() => {
+        // Construir buffer planar
+        const total = len * audioData.numberOfChannels;
+        const buf = new Float32Array(total);
+        for (let ch = 0; ch < audioData.numberOfChannels; ch++) {
+          const chData = audioData.getChannelData(ch);
+          buf.set(chData.subarray(offset, offset + len), ch * len);
+        }
+        return buf;
+      })(),
     });
-
-    // Chunk size mayor = menos llamadas a encode = más rápido
-    const chunkSize = 16384;
-    const samples   = audioData.length;
-    const totalChunks = Math.ceil(samples / chunkSize);
-
-    for (let offset = 0, ci = 0; offset < samples; offset += chunkSize, ci++) {
-      const len = Math.min(chunkSize, samples - offset);
-      const chCount = audioData.numberOfChannels;
-
-      // Construir buffer planar f32
-      const buf = new Float32Array(len * chCount);
-      for (let ch = 0; ch < chCount; ch++) {
-        buf.set(audioData.getChannelData(ch).subarray(offset, offset + len), ch * len);
-      }
-
-      const frame = new AudioData({
-        format: 'f32-planar',
-        sampleRate: audioData.sampleRate,
-        numberOfFrames: len,
-        numberOfChannels: chCount,
-        timestamp: Math.round(offset / audioData.sampleRate * 1_000_000),
-        data: buf,
-      });
-
-      audioEncoder.encode(frame);
-      frame.close();
-
-      if (ci % 20 === 0) {
-        onProgress?.(ci / totalChunks, `Audio ${Math.round((ci / totalChunks) * 100)}%`);
-        await new Promise(r => setTimeout(r, 0));
-      }
-    }
-
-    await audioEncoder.flush();
-    audioEncoder.close();
-    audioEncoder = null;
-    audioCtx.close();
-    audioCtx = null;
-    return true;
-
-  } catch (e) {
-    console.error('[encodeAudio]', e);
-    if (audioEncoder) try { audioEncoder.close(); } catch(e2) {}
-    if (audioCtx)    try { audioCtx.close(); } catch(e2) {}
-    return false;
+    encoder.encode(frame);
+    frame.close();
   }
+  await encoder.flush();
+  encoder.close();
+  audioCtx.close();
+}
+
+// Fallback: copiar audio directamente si AudioEncoder no está disponible
+async function encodeAudioFallback(muxer, audioBlob) {
+  // Decodificar y re-muxear via Web Audio → PCM → AAC simulado
+  // En navegadores sin AudioEncoder, usar rawAudio como passthrough
+  console.warn('AudioEncoder no disponible, usando audio sin recodificar');
+  // Esta es una limitación — el video se generará sin audio en este caso
+  // (poco probable en Chrome/Edge modernos)
 }
 
 function reelGetAudioDuration(blob) {
   return new Promise(resolve => {
     const au = new Audio();
-    au.onloadedmetadata = () => {
-      const d = isFinite(au.duration) && au.duration > 0 ? au.duration : 30;
-      resolve(d);
-      URL.revokeObjectURL(au.src);
-    };
-    au.onerror = () => { resolve(30); URL.revokeObjectURL(au.src); };
+    au.onloadedmetadata = () => resolve(isFinite(au.duration) && au.duration > 0 ? au.duration : 30);
+    au.onerror = () => resolve(30);
     au.src = URL.createObjectURL(blob);
   });
 }
@@ -857,7 +723,6 @@ window.reelResetEl      = reelResetEl;
 window.reelLoadBg       = reelLoadBg;
 window.reelLoadLogo     = reelLoadLogo;
 window.reelExportVideo  = reelExportVideo;
-window.reelCancelExport = reelCancelExport;
 window.reelAlign        = reelAlign;
 window.reelPreviewSubs  = reelPreviewSubs;
 window.reelStopPreview  = reelStopPreview;
