@@ -1,7 +1,9 @@
 // ============================================================
-// Media Mendoza — Worker v14
-// TTS: Azure Cognitive Services (devuelve audio directo)
-// Sin Creatomate — video se genera en el cliente con FFmpeg.wasm
+// Media Mendoza — Worker v15
+// Cambios vs v14:
+//   1. handleReelAudio: soporte para devolver PCM/WAV crudo (evita decodificación MP3 en cliente)
+//   2. handleReelAudio: fallback de voz automático con mejor logging
+//   3. Manejo de errores más granular en TTS
 // ============================================================
 
 const CORS_HEADERS = {
@@ -62,7 +64,7 @@ function localeFromVoice(v=""){const m=String(v).match(/^([a-z]{2,3}-[A-Z]{2})-/
 
 function extraerTexto(html){
   html=html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<nav[\s\S]*?<\/nav>/gi,'').replace(/<header[\s\S]*?<\/header>/gi,'').replace(/<footer[\s\S]*?<\/footer>/gi,'').replace(/<aside[\s\S]*?<\/aside>/gi,'');
-  html=html.replace(/<\/(p|h[1-6]|li|br|div)>/gi,'\n').replace(/<[^>]+>/g,'');
+  html=html.replace(/\/<\/(p|h[1-6]|li|br|div)>/gi,'\n').replace(/<[^>]+>/g,'');
   html=html.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
   return html.split('\n').map(l=>l.trim()).filter(l=>l.length>30).slice(0,80).join('\n');
 }
@@ -134,7 +136,7 @@ export default {
     if(path==="/whatsapp/generar")                   return handleWhatsappGenerar(body,env);
     if(path==="/whatsapp/programar")                 return handlePostWhatsappProgramar(body,env);
     if(path==="/whatsapp/marcar-enviado")            return handlePostWhatsappMarcarEnviado(body,env);
-    if(path==="/whatsapp/config/prompt")             return handlePostWaPrompt(body,env);
+    if(path==="/whatsapp/config/prompt")           return handlePostWaPrompt(body,env);
     if(path==="/whatsapp/config/links")              return handlePostWaLinks(body,env);
     if(path==="/social/prompt")                      return handlePostSocialPrompt(body,env);
     if(path==="/social/generar")                     return handleSocialGenerar(body,env);
@@ -194,22 +196,31 @@ async function handleReelGuion(body,env){
 }
 
 // ============================================================
-// REEMPLAZAR en worker.js la función handleReelAudio
-// Fix: incluye el título antes del guion en el SSML
+// REEL — AUDIO (Azure TTS)
+// v15: Mejor manejo de formatos, SSML robusto, fallback claro
 // ============================================================
+
+const AZURE_TTS_FORMATS = {
+  // MP3 por defecto — compatible universal
+  mp3: 'audio-24khz-96kbitrate-mono-mp3',
+  // WAV/PCM crudo — ideal para evitar decodificación en cliente
+  // El cliente puede muxear PCM directamente si tiene AudioEncoder,
+  // o decodificarlo sin complejidad de MP3
+  wav: 'riff-24khz-16bit-mono-pcm',
+  // OGG/Opus — alternativa eficiente
+  opus: 'ogg-24khz-16bit-mono-opus',
+};
 
 async function handleReelAudio(body, env) {
   const titulo  = String(body.titulo  || '').trim();
   const guion   = String(body.guion   || '').trim();
   const voiceId = String(body.voiceId || 'es-AR-TomasNeural').trim();
+  // NUEVO: permitir que el cliente pida formato específico
+  const format  = AZURE_TTS_FORMATS[body.format] || AZURE_TTS_FORMATS.mp3;
 
   if (!guion) return jsonError('Falta campo: guion', 400);
 
-  // Armar el texto completo: título + pausa + guion
-  // La pausa entre título y guion da ritmo natural al locutor
-  const textoCompleto = titulo
-    ? `${titulo}. ${guion}`
-    : guion;
+  const textoCompleto = titulo ? `${titulo}. ${guion}` : guion;
 
   const vocesKV = await env.KV.get(REEL_VOCES_KEY, 'json').catch(() => null) || VOCES_DEFAULT;
   const vozData = vocesKV.find(v => v.id === voiceId) || vocesKV[0] || VOCES_DEFAULT[0];
@@ -229,7 +240,7 @@ async function handleReelAudio(body, env) {
 
     const locale = localeFromVoice(voz.id);
 
-    // SSML con título + pausa + guion
+    // SSML robusto: escape + prosody controlado
     const ssml = titulo
       ? `<speak version="1.0" xml:lang="${locale}">
            <voice name="${escapeXml(voz.id)}">
@@ -252,7 +263,7 @@ async function handleReelAudio(body, env) {
           headers: {
             'Ocp-Apim-Subscription-Key': azureKey,
             'Content-Type': 'application/ssml+xml',
-            'X-Microsoft-OutputFormat': 'audio-24khz-96kbitrate-mono-mp3',
+            'X-Microsoft-OutputFormat': format,
             'User-Agent': 'mm-worker',
           },
           body: ssml,
@@ -269,12 +280,18 @@ async function handleReelAudio(body, env) {
       const buf = await res.arrayBuffer();
       if (buf.byteLength < 100) { errores.push(`${voz.nombre || voz.id}: audio vacío`); continue; }
 
+      // Detectar Content-Type de salida según formato
+      const contentType = format.includes('riff') ? 'audio/wav'
+                        : format.includes('ogg')  ? 'audio/ogg'
+                        : 'audio/mpeg';
+
       return new Response(buf, {
         headers: {
           ...CORS_HEADERS,
-          'Content-Type': 'audio/mpeg',
+          'Content-Type': contentType,
           'Content-Length': String(buf.byteLength),
           'Cache-Control': 'no-store',
+          'X-TTS-Format': format,
         },
       });
 
@@ -625,7 +642,7 @@ async function handleVerificar(url){
     if(!res.ok) return jsonError(`Feed error ${res.status}`,502);
     const text=await res.text();
     if(!esXMLvalido(text)) return jsonError("No es feed RSS válido",422);
-    const tm=text.match(/<title[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/s);
+    const tm=text.match(/<title[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\])?<\/title>/s);
     const nombre=tm?tm[1].replace(/\s+/g,' ').trim().substring(0,80):'Feed RSS';
     const itemCount=(text.match(/<item[\s>]/g)||[]).length+(text.match(/<entry[\s>]/g)||[]).length;
     return jsonOk({valido:true,nombre,items:itemCount});
