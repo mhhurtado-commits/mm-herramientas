@@ -9,7 +9,7 @@
   if (document.getElementById('reel-bebas-font')) return;
   const style = document.createElement('style');
   style.id = 'reel-bebas-font';
-  style.textContent = "@font-face{font-family:'BebasNeue';src:url('/placas/BebasNeue-Regular.ttf') format('truetype');}";
+  style.textContent = "@font-face{font-family:'BebasNeue';src:url('/assets/BebasNeue-Regular.ttf') format('truetype');}";
   document.head.appendChild(style);
 })();
 
