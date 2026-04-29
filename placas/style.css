@@ -191,7 +191,7 @@ input[type=range]{
 .rrow{display:flex;align-items:center;gap:8px;}
 .rrow input[type=range]{flex:1;}
 .rval{font-size:.72rem;color:var(--v);font-weight:700;min-width:36px;text-align:right;font-family:'Montserrat',sans-serif;}
-input[type=color]{width:32px;height:28px;border:1.5px solid var(--g20);border-radius:var(--rt);padding:2px;cursor:pointer;background:none;-webkit-appearance:none;}
+input[type=color]{width:32px;height:28px;border:1.5px solid var(--g20);border-radius:var(--rt);padding:2px;cursor:pointer;background:none;-webkit-appearance:none;appearance:none;}
 
 /* Color swatches */
 .swatches{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:4px;}
