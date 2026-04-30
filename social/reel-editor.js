@@ -479,11 +479,11 @@ async function reelExportVideo() {
     );
 
     const audioDur    = await reelGetAudioDuration(RE.audioBlob);
-    const FPS         = usaSubs ? 15 : 30;
-    const TOTAL_US    = Math.ceil(audioDur * 1_000_000); // microsegundos
-    const totalFrames = Math.ceil(audioDur * FPS);
     const guion       = RE.guion || '';
     const usaSubs     = RE.S.subsActivos && guion.trim().length > 0;
+    const FPS         = usaSubs ? 15 : 30;
+    const TOTAL_US    = Math.ceil(audioDur * 1_000_000);
+    const totalFrames = Math.ceil(audioDur * FPS);
     const timestamps  = usaSubs ? generarTimestamps(guion, audioDur) : [];
 
     // Dimensiones para export — escalar a max 720px ancho manteniendo aspecto
