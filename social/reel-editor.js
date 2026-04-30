@@ -1,8 +1,10 @@
 // ============================================================
-// Media Mendoza — Reel Editor v3.2 (CORREGIDO)
-// Solo cambios: audio corregido + centrado forzado en cambio de formato
+// Media Mendoza — Reel Editor v3.0
+// Export MP4: mp4-muxer + WebCodecs API (sin FFmpeg, sin COOP/COEP)
+// Subtítulos TikTok integrados
 // ============================================================
 
+// ── Fuente BebasNeue desde /assets ──
 (function () {
   if (document.getElementById('reel-bebas-font')) return;
   const s = document.createElement('style');
@@ -19,7 +21,6 @@ const RE = {
   bgImg: null,
   logoImg: null,
   audioBlob: null,
-  audioUrl: null,
   els: {
     logo:   { x: null, y: null, w: null, h: null },
     titulo: { x: null, y: null, w: null, h: null },
@@ -52,7 +53,7 @@ const RE = {
 const HR = 20;
 
 // ══════════════════════════════════════════════════
-// SUBTÍTULOS (completo, sin cambios)
+// SUBTÍTULOS
 // ══════════════════════════════════════════════════
 function contarSilabas(palabra) {
   const p = palabra.toLowerCase().replace(/[^a-záéíóúüñ]/g, '');
@@ -73,7 +74,7 @@ function generarTimestamps(guion, durTotal) {
   const durs = palabras.map(duracionPalabra);
   const totalEst = durs.reduce((a, b) => a + b, 0);
   const offset = 0.3;
-  const escala = Math.max(0.5, Math.min(2, (durTotal - offset) / totalEst));
+  const escala = (durTotal - offset) / totalEst;
   let t = offset, grupIdx = 0, palEnGrupo = 0;
   return palabras.map((texto, i) => {
     const dur = durs[i] * escala;
@@ -108,9 +109,11 @@ function reelDrawSubs(ctx, W, H, timestamps, t, S) {
   const GAP = Math.round(sz * 0.18);
   const PAD_H = Math.round(sz * 0.45), PAD_V = Math.round(sz * 0.25);
 
+  const textos = grupo.map(p => p.texto.toUpperCase());
+  const anchos = textos.map(tx => ctx.measureText(tx).width);
+  const anchoTotal = anchos.reduce((a, b) => a + b, 0) + GAP * (textos.length - 1);
+
   let lineas = [grupo];
-  const anchos = grupo.map(p => ctx.measureText(p.texto.toUpperCase()).width);
-  const anchoTotal = anchos.reduce((a, b) => a + b, 0) + GAP * (grupo.length - 1);
   if (anchoTotal > W * 0.88 && grupo.length > 2) {
     const mid = Math.ceil(grupo.length / 2);
     lineas = [grupo.slice(0, mid), grupo.slice(mid)];
@@ -450,197 +453,238 @@ function reelLoadLogo(file) {
 }
 
 // ══════════════════════════════════════════════════
-// FORMATOS Y CENTRADO (CORREGIDO)
+// EXPORT MP4 — mp4-muxer + WebCodecs API
+// Sin FFmpeg, sin WASM externo, sin COOP/COEP
 // ══════════════════════════════════════════════════
-const REEL_FMTS = {
-  '9x16': { w: 1080, h: 1920 },
-  '1x1':  { w: 1080, h: 1080 },
-  '4x5':  { w: 1080, h: 1350 },
-};
-function reelSetFmt(key, el) {
-  document.querySelectorAll('.rfpill').forEach(p => p.classList.remove('on'));
-  el.classList.add('on');
-  const fmt = REEL_FMTS[key];
-  RE.W = fmt.w; RE.H = fmt.h;
-  RE.canvas.width = RE.W; RE.canvas.height = RE.H;
-  // 🔁 FORZAR RECÁLCULO DE POSICIONES (esto soluciona el centrado)
-  reelResetEl('logo');
-  reelResetEl('titulo');
-  reelResizeCanvas();
-  reelRender();
-}
-
-function reelAlign(key, dir) {
-  const el = RE.els[key]; if (!el || el.x === null) return;
-  const W = RE.W, H = RE.H, pad = Math.round(W * .04);
-  if (dir==='l') el.x=pad;
-  if (dir==='r') el.x=W-el.w-pad;
-  if (dir==='ch') el.x=Math.round((W-el.w)/2);
-  if (dir==='t') el.y=pad;
-  if (dir==='b') el.y=H-el.h-pad;
-  if (dir==='cv') el.y=Math.round((H-el.h)/2);
-  reelRender();
-}
-
-// ══════════════════════════════════════════════════
-// EXPORT MP4 — VERSIÓN CORREGIDA (audio sin distorsión)
-// ══════════════════════════════════════════════════
-
-async function addAudioToMuxer(muxer, audioBlob) {
-  try {
-    const audioContext = new AudioContext();
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    let audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    
-    let channelData = [];
-    if (audioBuffer.numberOfChannels >= 2) {
-      channelData = [audioBuffer.getChannelData(0), audioBuffer.getChannelData(1)];
-    } else {
-      const mono = audioBuffer.getChannelData(0);
-      channelData = [mono, mono];
-    }
-    
-    const sampleRate = audioBuffer.sampleRate;
-    const length = audioBuffer.length;
-    const targetSampleRate = 44100;
-    let left = channelData[0];
-    let right = channelData[1];
-    
-    // Resample solo si es necesario, usando interpolación lineal suave
-    if (sampleRate !== targetSampleRate) {
-      const ratio = targetSampleRate / sampleRate;
-      const newLen = Math.floor(length * ratio);
-      left = resampleLinear(left, ratio, newLen);
-      right = resampleLinear(right, ratio, newLen);
-    }
-    
-    const audioEncoder = new AudioEncoder({
-      output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-      error: (e) => console.warn('AudioEncoder error:', e)
-    });
-    audioEncoder.configure({
-      codec: 'mp4a.40.2',
-      sampleRate: targetSampleRate,
-      numberOfChannels: 2,
-      bitrate: 128000
-    });
-    
-    const chunkSize = 4096;
-    for (let offset = 0; offset < left.length; offset += chunkSize) {
-      const frames = Math.min(chunkSize, left.length - offset);
-      const planar = new Float32Array(frames * 2);
-      for (let i = 0; i < frames; i++) {
-        planar[i] = left[offset + i];
-        planar[i + frames] = right[offset + i];
-      }
-      const audioData = new AudioData({
-        format: 'f32-planar',
-        sampleRate: targetSampleRate,
-        numberOfFrames: frames,
-        numberOfChannels: 2,
-        timestamp: Math.round(offset / targetSampleRate * 1_000_000),
-        data: planar
-      });
-      audioEncoder.encode(audioData);
-      audioData.close();
-    }
-    await audioEncoder.flush();
-    audioEncoder.close();
-    await audioContext.close();
-  } catch (err) {
-    console.warn('Error agregando audio (seguirá sin audio):', err);
-  }
-}
-
-function resampleLinear(source, ratio, newLength) {
-  const result = new Float32Array(newLength);
-  for (let i = 0; i < newLength; i++) {
-    const srcIdx = i / ratio;
-    const srcFloor = Math.floor(srcIdx);
-    const srcFrac = srcIdx - srcFloor;
-    const s0 = source[Math.min(srcFloor, source.length - 1)];
-    const s1 = source[Math.min(srcFloor + 1, source.length - 1)];
-    result[i] = s0 * (1 - srcFrac) + s1 * srcFrac;
-  }
-  return result;
-}
-
 async function reelExportVideo() {
   if (!RE.audioBlob) { reelToast('Primero generá o cargá el audio'); return; }
-  const btn = document.getElementById('btnExportVideo');
-  const prog = document.getElementById('reelExportProgress');
+
+  const btn     = document.getElementById('btnExportVideo');
+  const prog    = document.getElementById('reelExportProgress');
   const progTxt = document.getElementById('reelExportProgressTxt');
-  btn.disabled = true; prog.style.display = 'flex';
+  btn.disabled = true;
+  prog.style.display = 'flex';
+
   try {
-    if (typeof VideoEncoder === 'undefined') throw new Error('WebCodecs no soportado. Usá Chrome/Edge.');
-    progTxt.textContent = 'Cargando librerías...';
-    const { Muxer, ArrayBufferTarget } = await import('https://unpkg.com/mp4-muxer@5.2.2/build/mp4-muxer.mjs');
-    const audioDur = await reelGetAudioDuration(RE.audioBlob);
-    const guion = RE.guion || '';
-    const usaSubs = RE.S.subsActivos && guion.trim().length > 0;
-    const FPS = 30;
+    // ── Verificar soporte de WebCodecs ──
+    if (typeof VideoEncoder === 'undefined') {
+      throw new Error('Tu navegador no soporta WebCodecs API. Usá Chrome 94+ o Edge 94+.');
+    }
+
+    progTxt.textContent = 'Cargando mp4-muxer...';
+
+    // ── Importar mp4-muxer (puro JS, sin WASM) ──
+    const { Muxer, ArrayBufferTarget } = await import(
+      'https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs'
+    );
+
+    const audioDur    = await reelGetAudioDuration(RE.audioBlob);
+    const guion       = RE.guion || '';
+    const usaSubs     = RE.S.subsActivos && guion.trim().length > 0;
+    const FPS         = usaSubs ? 15 : 30;
+    const TOTAL_US    = Math.ceil(audioDur * 1_000_000);
     const totalFrames = Math.ceil(audioDur * FPS);
-    const timestamps = usaSubs ? generarTimestamps(guion, audioDur) : [];
+    const timestamps  = usaSubs ? generarTimestamps(guion, audioDur) : [];
+
+    // Dimensiones para export — escalar a max 720px ancho manteniendo aspecto
+    // Esto garantiza compatibilidad con todos los niveles AVC y es suficiente para redes sociales
     const MAX_DIM = 720;
     const scaleFactor = RE.W > MAX_DIM ? MAX_DIM / RE.W : 1;
-    const VW = Math.floor(RE.W * scaleFactor / 2) * 2;
-    const VH = Math.floor(RE.H * scaleFactor / 2) * 2;
+    const VW = Math.floor(RE.W * scaleFactor / 2) * 2;  // múltiplo de 2
+    const VH = Math.floor(RE.H * scaleFactor / 2) * 2;  // múltiplo de 2
+
+    // ── Crear muxer ──
     const target = new ArrayBufferTarget();
-    const muxer = new Muxer({ target, video: { codec: 'avc', width: VW, height: VH, expectedFramerate: FPS }, audio: { codec: 'aac', sampleRate: 44100, numberOfChannels: 2 }, fastStart: 'in-memory' });
-    const videoEncoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { throw new Error('VideoEncoder: ' + e.message); } });
-    videoEncoder.configure({ codec: 'avc1.420029', width: VW, height: VH, bitrate: 2_500_000, framerate: FPS });
-    const offCanvas = document.createElement('canvas'); offCanvas.width = VW; offCanvas.height = VH;
+    const muxer  = new Muxer({
+      target,
+      video: { codec: 'avc', width: VW, height: VH },
+      audio: { codec: 'aac', sampleRate: 44100, numberOfChannels: 1 },
+      fastStart: 'in-memory',
+    });
+
+    // ── Configurar VideoEncoder ──
+    let encodedFrames = 0;
+    // Verificar soporte del codec
+    const codecSupport = await VideoEncoder.isConfigSupported({
+      codec: 'avc1.640029', width: VW, height: VH,
+    });
+    if (!codecSupport.supported) {
+      throw new Error(`Resolución ${VW}x${VH} no soportada por este navegador para H.264.`);
+    }
+
+    const videoEncoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: (e) => { throw new Error('VideoEncoder: ' + e.message); },
+    });
+    videoEncoder.configure({
+      codec: 'avc1.640029',
+      width: VW,
+      height: VH,
+      bitrate: VW <= 720 ? 2_000_000 : 4_000_000,
+      framerate: typeof FPS === 'number' ? FPS : 15,
+    });
+
+    // ── Canvas offscreen para los frames ──
+    // Renderizar SIEMPRE en resolución nativa (RE.W x RE.H) para que
+    // logo/título/subs mantengan las mismas coordenadas que en el preview.
+    // Luego escalar al canvas de salida (VW x VH) antes de encodear.
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width  = RE.W;
+    offCanvas.height = RE.H;
     const offCtx = offCanvas.getContext('2d');
+
+    // Canvas de salida escalado a VW x VH
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width  = VW;
+    outCanvas.height = VH;
+    const outCtx = outCanvas.getContext('2d');
+
+    // Pre-renderizar fondo base en resolución nativa
     RE.active = null;
     reelEnsurePos('logo'); reelEnsurePos('titulo');
-    reelRenderBase(offCtx, VW, VH, RE.S, RE.bgImg, RE.logoImg, RE.els);
-    const bgData = offCtx.getImageData(0, 0, VW, VH);
+    reelRenderBase(offCtx, RE.W, RE.H, RE.S, RE.bgImg, RE.logoImg, RE.els);
+    const bgData = offCtx.getImageData(0, 0, RE.W, RE.H);
+
     progTxt.textContent = 'Codificando video...';
+
+    // ── Encodear frames ──
     for (let fi = 0; fi < totalFrames; fi++) {
       const t = fi / FPS;
+      // 1. Dibujar en resolución nativa
       offCtx.putImageData(bgData, 0, 0);
-      if (usaSubs && timestamps.length) reelDrawSubs(offCtx, VW, VH, timestamps, t, RE.S);
-      const bitmap = await createImageBitmap(offCanvas);
-      const frame = new VideoFrame(bitmap, { timestamp: Math.round(t * 1_000_000), duration: Math.round(1_000_000 / FPS) });
+      if (usaSubs) reelDrawSubs(offCtx, RE.W, RE.H, timestamps, t, RE.S);
+      // 2. Escalar al canvas de salida
+      outCtx.clearRect(0, 0, VW, VH);
+      outCtx.drawImage(offCanvas, 0, 0, VW, VH);
+
+      // Crear ImageBitmap a partir del canvas ESCALADO
+      const bitmap = await createImageBitmap(outCanvas);
+      const frame  = new VideoFrame(bitmap, {
+        timestamp:  Math.round(t * 1_000_000),
+        duration:   Math.round(1_000_000 / FPS),
+      });
       videoEncoder.encode(frame, { keyFrame: fi % (FPS * 2) === 0 });
-      frame.close(); bitmap.close();
-      if (fi % 15 === 0) { progTxt.textContent = `Codificando video... ${Math.round((fi / totalFrames) * 70)}%`; await new Promise(r => setTimeout(r, 0)); }
+      frame.close();
+      bitmap.close();
+
+      // Yield al browser cada frame para no congelar la UI
+      if (fi % 5 === 0) {
+        progTxt.textContent = `Codificando video... ${Math.round((fi / totalFrames) * 80)}%`;
+        await new Promise(r => setTimeout(r, 0));
+      }
     }
-    await videoEncoder.flush(); videoEncoder.close();
-    progTxt.textContent = 'Agregando audio... 80%';
-    await addAudioToMuxer(muxer, RE.audioBlob);
-    progTxt.textContent = 'Finalizando MP4... 95%';
+
+    await videoEncoder.flush();
+    videoEncoder.close();
+
+    // ── Encodear audio con AudioEncoder ──
+    progTxt.textContent = 'Procesando audio...';
+
+    if (typeof AudioEncoder !== 'undefined') {
+      try {
+        await encodeAudioWebCodecs(muxer, RE.audioBlob, TOTAL_US);
+      } catch(audioErr) {
+        console.warn('Audio encoding falló:', audioErr.message);
+        reelToast('⚠️ Video sin audio (limitación del navegador)');
+      }
+    } else {
+      console.warn('AudioEncoder no disponible en este navegador');
+      reelToast('⚠️ Video sin audio — usá Chrome o Edge para incluir audio');
+    }
+
+    progTxt.textContent = 'Finalizando MP4...';
     muxer.finalize();
-    const blob = new Blob([target.buffer], { type: 'video/mp4' });
-    const url = URL.createObjectURL(blob);
+
+    const buffer = target.buffer;
+    const blob   = new Blob([buffer], { type: 'video/mp4' });
+    const url    = URL.createObjectURL(blob);
+
     const video = document.getElementById('reelVideoPreview');
-    const dl = document.getElementById('reelVideoDownload');
+    const dl    = document.getElementById('reelVideoDownload');
     video.src = url; dl.href = url;
-    dl.download = `reel-${Date.now()}.mp4`;
+    dl.download = `reel-mediamendoza-${Date.now()}.mp4`;
     document.getElementById('reelVideoResult').style.display = 'block';
-    reelToast(`✅ MP4 generado — ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
+    video.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
+    reelToast(`✅ MP4 generado — ${sizeMB} MB`);
+    reelRender();
+
   } catch (err) {
-    console.error(err);
-    reelToast('Error: ' + (err.message || 'Error desconocido'));
-    progTxt.textContent = '✕ ' + err.message;
-  } finally {
-    btn.disabled = false;
-    setTimeout(() => { prog.style.display = 'none'; }, 2000);
+    console.error('[reelExport]', err);
+    reelToast('Error: ' + (err.message || String(err)));
+    document.getElementById('reelExportProgressTxt').textContent = '✕ ' + (err.message || err);
+    reelRender();
   }
+
+  btn.disabled = false;
+  prog.style.display = 'none';
+}
+
+// Encodear audio con AudioEncoder WebCodecs
+async function encodeAudioWebCodecs(muxer, audioBlob, totalUS) {
+  const audioCtx  = new AudioContext({ sampleRate: 44100 });
+  const arrayBuf  = await audioBlob.arrayBuffer();
+  const audioData = await audioCtx.decodeAudioData(arrayBuf);
+
+  const encoder = new AudioEncoder({
+    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+    error:  (e) => console.warn('AudioEncoder:', e),
+  });
+  encoder.configure({
+    codec: 'mp4a.40.2',
+    sampleRate: 44100,
+    numberOfChannels: audioData.numberOfChannels,
+    bitrate: 128_000,
+  });
+
+  const chunkSize = 4096;
+  const samples   = audioData.length;
+  for (let offset = 0; offset < samples; offset += chunkSize) {
+    const len = Math.min(chunkSize, samples - offset);
+    const frame = new AudioData({
+      format: 'f32-planar',
+      sampleRate: audioData.sampleRate,
+      numberOfFrames: len,
+      numberOfChannels: audioData.numberOfChannels,
+      timestamp: Math.round(offset / audioData.sampleRate * 1_000_000),
+      data: (() => {
+        // Construir buffer planar
+        const total = len * audioData.numberOfChannels;
+        const buf = new Float32Array(total);
+        for (let ch = 0; ch < audioData.numberOfChannels; ch++) {
+          const chData = audioData.getChannelData(ch);
+          buf.set(chData.subarray(offset, offset + len), ch * len);
+        }
+        return buf;
+      })(),
+    });
+    encoder.encode(frame);
+    frame.close();
+  }
+  await encoder.flush();
+  encoder.close();
+  audioCtx.close();
+}
+
+// Fallback: copiar audio directamente si AudioEncoder no está disponible
+async function encodeAudioFallback(muxer, audioBlob) {
+  // Fallback para Firefox que aún no soporta AudioEncoder
+  // Decodificar con Web Audio y encodear manualmente como PCM plano
+  console.warn('AudioEncoder no disponible — el video puede no tener audio en este navegador');
+  // No hay nada más que hacer en este camino sin AudioEncoder
 }
 
 function reelGetAudioDuration(blob) {
   return new Promise(resolve => {
-    const audio = new Audio();
-    audio.onloadedmetadata = () => resolve(isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30);
-    audio.onerror = () => resolve(30);
-    audio.src = URL.createObjectURL(blob);
+    const au = new Audio();
+    au.onloadedmetadata = () => resolve(isFinite(au.duration) && au.duration > 0 ? au.duration : 30);
+    au.onerror = () => resolve(30);
+    au.src = URL.createObjectURL(blob);
   });
 }
 
-// ══════════════════════════════════════════════════
-// PREVIEW SUBTÍTULOS
-// ══════════════════════════════════════════════════
+// ── PREVIEW SUBTÍTULOS ──
 let _subsRAF = null, _subsStart = null;
 
 function reelPreviewSubs() {
@@ -663,9 +707,7 @@ function reelStopPreview() {
   _subsStart = null; reelRender();
 }
 
-// ══════════════════════════════════════════════════
-// HELPERS
-// ══════════════════════════════════════════════════
+// ── HELPERS ──
 function wrapText(ctx, text, maxW) {
   if (!text || maxW <= 0) return [text || ''];
   const words = text.split(' ').filter(w => w.length > 0);
@@ -685,129 +727,33 @@ function hexRgb(hex) {
   return { r: parseInt(hex.slice(1,3),16), g: parseInt(hex.slice(3,5),16), b: parseInt(hex.slice(5,7),16) };
 }
 function reelToast(msg) {
-  let toast = document.getElementById('reelToast');
-  if (!toast) {
-    toast = document.createElement('div'); toast.id = 'reelToast';
-    toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a18;border:1px solid #a6ce39;color:#a6ce39;padding:10px 20px;border-radius:4px;font-family:Inter,sans-serif;font-size:11px;font-weight:600;letter-spacing:1.5px;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none';
-    document.body.appendChild(toast);
-  }
-  toast.textContent = msg; toast.style.opacity = '1';
-  setTimeout(() => toast.style.opacity = '0', 3000);
+  const t = document.getElementById('toast');
+  if (!t) { console.warn(msg); return; }
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+function reelAlign(key, dir) {
+  const el = RE.els[key]; if (!el || el.x === null) return;
+  const W = RE.W, H = RE.H, pad = Math.round(W * .04);
+  if (dir==='l') el.x=pad; if (dir==='r') el.x=W-el.w-pad;
+  if (dir==='ch') el.x=Math.round((W-el.w)/2);
+  if (dir==='t') el.y=pad; if (dir==='b') el.y=H-el.h-pad;
+  if (dir==='cv') el.y=Math.round((H-el.h)/2);
+  reelRender();
 }
 
-// ══════════════════════════════════════════════════
-// VOCES Y CONFIGURACIÓN (AGREGADAS - faltaban)
-// ══════════════════════════════════════════════════
-let reelVoces = [];
-
-function renderVocesSelect() {
-  const sel = document.getElementById('re-voiceSelect');
-  if (!sel) return;
-  sel.innerHTML = '';
-  reelVoces.forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v.id; opt.textContent = v.nombre;
-    sel.appendChild(opt);
-  });
-  if (!reelVoces.length) {
-    const opt = document.createElement('option');
-    opt.value = 'es-AR-TomasNeural'; opt.textContent = 'Tomás (por defecto)';
-    sel.appendChild(opt);
-  }
-}
-
-function renderVocesList() {
-  const lista = document.getElementById('reelVocesList'); if (!lista) return;
-  lista.innerHTML = '';
-  if (!reelVoces.length) {
-    lista.innerHTML = '<div style="font-size:10px;color:var(--dim);padding:4px 0">Sin voces guardadas.</div>'; return;
-  }
-  reelVoces.forEach((v, i) => {
-    const row = document.createElement('div');
-    row.className = 're-voice-row';
-    row.innerHTML = `<span class="re-voice-name">${v.nombre}</span>
-      <span class="re-voice-badge">${(v.id||'').substring(0,18)}</span>
-      <button class="re-voice-del" onclick="reelEliminarVoz(${i})">✕</button>`;
-    lista.appendChild(row);
-  });
-}
-
-async function reelAgregarVoz() {
-  const nombre   = document.getElementById('re-vozNombre')?.value.trim() || '';
-  const id       = document.getElementById('re-vozId')?.value.trim() || '';
-  const keyAlias = document.getElementById('re-vozKey')?.value || 'AZURE_TTS_KEY_1';
-  const region   = document.getElementById('re-vozRegion')?.value || 'AZURE_TTS_REGION_1';
-  if (!nombre || !id) { reelToast('Completá nombre e ID de voz'); return; }
-  reelVoces.push({ id, nombre, keyAlias, region });
-  await guardarVoces();
-  if (document.getElementById('re-vozNombre')) document.getElementById('re-vozNombre').value = '';
-  if (document.getElementById('re-vozId')) document.getElementById('re-vozId').value = '';
-  renderVocesSelect(); renderVocesList();
-}
-
-async function reelEliminarVoz(i) {
-  if (reelVoces.length <= 1) { reelToast('Dejá al menos una voz'); return; }
-  reelVoces.splice(i, 1);
-  await guardarVoces();
-  renderVocesSelect(); renderVocesList();
-}
-
-async function guardarVoces() {
-  try {
-    await fetch(`${WORKER || 'https://mm-herramientas-worker.mhhurtado.workers.dev'}/social/reel/config`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ voces: reelVoces })
-    });
-  } catch(e) { reelToast('Error guardando voces: '+e.message); }
-}
-
-async function loadReelConfig() {
-  try {
-    const r = await fetch(`${WORKER || 'https://mm-herramientas-worker.mhhurtado.workers.dev'}/social/reel/config`);
-    const d = await r.json();
-    if (!d.ok) return;
-    if (d.prompt && document.getElementById('reelPromptTA')) document.getElementById('reelPromptTA').value = d.prompt;
-    reelVoces = d.voces || [];
-    renderVocesSelect();
-    renderVocesList();
-  } catch(e) { console.error(e); }
-}
-
-async function guardarPromptReel() {
-  const prompt = document.getElementById('reelPromptTA')?.value.trim() || '';
-  try {
-    const r = await fetch(`${WORKER || 'https://mm-herramientas-worker.mhhurtado.workers.dev'}/social/reel/config`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ prompt })
-    });
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.error);
-    const badge = document.getElementById('savedPromptReel');
-    if (badge) { badge.classList.add('show'); setTimeout(() => badge.classList.remove('show'), 2500); }
-  } catch(e) { reelToast('Error: '+e.message); }
-}
-
-// ══════════════════════════════════════════════════
-// EXPOSICIÓN GLOBAL
-// ══════════════════════════════════════════════════
-window.RE = RE;
-window.reelEditorInit = reelEditorInit;
+// ── EXPORTS GLOBALES ──
+window.RE               = RE;
+window.reelEditorInit   = reelEditorInit;
 window.reelResizeCanvas = reelResizeCanvas;
-window.reelRender = reelRender;
-window.reelResetEl = reelResetEl;
-window.reelLoadBg = reelLoadBg;
-window.reelLoadLogo = reelLoadLogo;
-window.reelExportVideo = reelExportVideo;
-window.reelAlign = reelAlign;
-window.reelPreviewSubs = reelPreviewSubs;
-window.reelStopPreview = reelStopPreview;
+window.reelRender       = reelRender;
+window.reelResetEl      = reelResetEl;
+window.reelLoadBg       = reelLoadBg;
+window.reelLoadLogo     = reelLoadLogo;
+window.reelExportVideo  = reelExportVideo;
+window.reelAlign        = reelAlign;
+window.reelPreviewSubs  = reelPreviewSubs;
+window.reelStopPreview  = reelStopPreview;
 window.generarTimestamps = generarTimestamps;
-window.reelDrawSubs = reelDrawSubs;
-window.reelRenderBase = reelRenderBase;
-window.reelSetFmt = reelSetFmt;
-window.reelAgregarVoz = reelAgregarVoz;
-window.reelEliminarVoz = reelEliminarVoz;
-window.loadReelConfig = loadReelConfig;
-window.guardarPromptReel = guardarPromptReel;
-window.renderVocesSelect = renderVocesSelect;
-window.renderVocesList = renderVocesList;
+window.reelDrawSubs     = reelDrawSubs;
+window.reelRenderBase   = reelRenderBase;
