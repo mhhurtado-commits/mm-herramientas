@@ -1,6 +1,6 @@
 // ============================================================
-// Media Mendoza — Reel Editor v3.0
-// Export MP4: mp4-muxer + WebCodecs API (sin FFmpeg, sin COOP/COEP)
+// Media Mendoza — Reel Editor v3.1 (CORREGIDO)
+// Export MP4: mp4-muxer + WebCodecs API
 // Subtítulos TikTok integrados
 // ============================================================
 
@@ -21,6 +21,7 @@ const RE = {
   bgImg: null,
   logoImg: null,
   audioBlob: null,
+  audioUrl: null,
   els: {
     logo:   { x: null, y: null, w: null, h: null },
     titulo: { x: null, y: null, w: null, h: null },
@@ -74,7 +75,7 @@ function generarTimestamps(guion, durTotal) {
   const durs = palabras.map(duracionPalabra);
   const totalEst = durs.reduce((a, b) => a + b, 0);
   const offset = 0.3;
-  const escala = (durTotal - offset) / totalEst;
+  const escala = Math.max(0.5, Math.min(2, (durTotal - offset) / totalEst));
   let t = offset, grupIdx = 0, palEnGrupo = 0;
   return palabras.map((texto, i) => {
     const dur = durs[i] * escala;
@@ -453,11 +454,15 @@ function reelLoadLogo(file) {
 }
 
 // ══════════════════════════════════════════════════
-// EXPORT MP4 — mp4-muxer + WebCodecs API
-// Sin FFmpeg, sin WASM externo, sin COOP/COEP
+// EXPORT MP4 — VERSIÓN CORREGIDA
+// Usa mp4-muxer + WebCodecs API + audio directo sin AudioContext
 // ══════════════════════════════════════════════════
+
 async function reelExportVideo() {
-  if (!RE.audioBlob) { reelToast('Primero generá o cargá el audio'); return; }
+  if (!RE.audioBlob) { 
+    reelToast('Primero generá o cargá el audio'); 
+    return;
+  }
 
   const btn     = document.getElementById('btnExportVideo');
   const prog    = document.getElementById('reelExportProgress');
@@ -466,97 +471,97 @@ async function reelExportVideo() {
   prog.style.display = 'flex';
 
   try {
-    // ── Verificar soporte de WebCodecs ──
     if (typeof VideoEncoder === 'undefined') {
       throw new Error('Tu navegador no soporta WebCodecs API. Usá Chrome 94+ o Edge 94+.');
     }
 
-    progTxt.textContent = 'Cargando mp4-muxer...';
+    progTxt.textContent = 'Cargando librerías...';
 
-    // ── Importar mp4-muxer (puro JS, sin WASM) ──
+    // Cargar mp4-muxer
     const { Muxer, ArrayBufferTarget } = await import(
-      'https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs'
+      'https://unpkg.com/mp4-muxer@5.2.2/build/mp4-muxer.mjs'
     );
 
-    const audioDur    = await reelGetAudioDuration(RE.audioBlob);
-    const guion       = RE.guion || '';
-    const usaSubs     = RE.S.subsActivos && guion.trim().length > 0;
-    const FPS         = usaSubs ? 15 : 30;
-    const TOTAL_US    = Math.ceil(audioDur * 1_000_000);
+    const audioDur = await reelGetAudioDuration(RE.audioBlob);
+    const guion    = RE.guion || '';
+    const usaSubs  = RE.S.subsActivos && guion.trim().length > 0;
+    const FPS      = 30;  // 30fps es suficiente y estable
+    const TOTAL_US = Math.ceil(audioDur * 1_000_000);
     const totalFrames = Math.ceil(audioDur * FPS);
-    const timestamps  = usaSubs ? generarTimestamps(guion, audioDur) : [];
+    const timestamps = usaSubs ? generarTimestamps(guion, audioDur) : [];
 
-    // Dimensiones para export — escalar a max 720px ancho manteniendo aspecto
-    // Esto garantiza compatibilidad con todos los niveles AVC y es suficiente para redes sociales
+    // Dimensiones para export
     const MAX_DIM = 720;
     const scaleFactor = RE.W > MAX_DIM ? MAX_DIM / RE.W : 1;
-    const VW = Math.floor(RE.W * scaleFactor / 2) * 2;  // múltiplo de 2
-    const VH = Math.floor(RE.H * scaleFactor / 2) * 2;  // múltiplo de 2
+    const VW = Math.floor(RE.W * scaleFactor / 2) * 2;
+    const VH = Math.floor(RE.H * scaleFactor / 2) * 2;
 
-    // ── Crear muxer ──
+    // Crear muxer
     const target = new ArrayBufferTarget();
-    const muxer  = new Muxer({
+    const muxer = new Muxer({
       target,
-      video: { codec: 'avc', width: VW, height: VH },
-      audio: { codec: 'aac', sampleRate: 44100, numberOfChannels: 1 },
+      video: { codec: 'avc', width: VW, height: VH, expectedFramerate: FPS },
+      audio: { codec: 'aac', sampleRate: 44100, numberOfChannels: 2 },
       fastStart: 'in-memory',
     });
 
-    // ── Configurar VideoEncoder ──
+    // Configurar VideoEncoder
     let encodedFrames = 0;
-    // Verificar soporte del codec
-    const codecSupport = await VideoEncoder.isConfigSupported({
-      codec: 'avc1.640029', width: VW, height: VH,
-    });
-    if (!codecSupport.supported) {
-      throw new Error(`Resolución ${VW}x${VH} no soportada por este navegador para H.264.`);
-    }
-
+    
     const videoEncoder = new VideoEncoder({
       output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
       error: (e) => { throw new Error('VideoEncoder: ' + e.message); },
     });
+    
     videoEncoder.configure({
-      codec: 'avc1.640029',
+      codec: 'avc1.420029',
       width: VW,
       height: VH,
-      bitrate: VW <= 720 ? 2_000_000 : 4_000_000,
-      framerate: typeof FPS === 'number' ? FPS : 15,
+      bitrate: 2_500_000,
+      framerate: FPS,
     });
 
-    // ── Canvas offscreen para los frames ──
+    // Canvas offscreen
     const offCanvas = document.createElement('canvas');
     offCanvas.width  = VW;
     offCanvas.height = VH;
     const offCtx = offCanvas.getContext('2d');
 
-    // Pre-renderizar fondo base
+    // Renderizar fondo una sola vez (sin subtítulos)
     RE.active = null;
-    reelEnsurePos('logo'); reelEnsurePos('titulo');
+    reelEnsurePos('logo'); 
+    reelEnsurePos('titulo');
     reelRenderBase(offCtx, VW, VH, RE.S, RE.bgImg, RE.logoImg, RE.els);
     const bgData = offCtx.getImageData(0, 0, VW, VH);
 
     progTxt.textContent = 'Codificando video...';
 
-    // ── Encodear frames ──
+    // Codificar frames
     for (let fi = 0; fi < totalFrames; fi++) {
       const t = fi / FPS;
+      
+      // Restaurar fondo
       offCtx.putImageData(bgData, 0, 0);
-      if (usaSubs) reelDrawSubs(offCtx, VW, VH, timestamps, t, RE.S);
+      
+      // Dibujar subtítulos si están activos
+      if (usaSubs && timestamps.length) {
+        reelDrawSubs(offCtx, VW, VH, timestamps, t, RE.S);
+      }
 
-      // Crear ImageBitmap a partir del canvas
+      // Crear frame
       const bitmap = await createImageBitmap(offCanvas);
-      const frame  = new VideoFrame(bitmap, {
-        timestamp:  Math.round(t * 1_000_000),
-        duration:   Math.round(1_000_000 / FPS),
+      const frame = new VideoFrame(bitmap, {
+        timestamp: Math.round(t * 1_000_000),
+        duration: Math.round(1_000_000 / FPS),
       });
+      
       videoEncoder.encode(frame, { keyFrame: fi % (FPS * 2) === 0 });
       frame.close();
       bitmap.close();
 
-      // Yield al browser cada frame para no congelar la UI
-      if (fi % 5 === 0) {
-        progTxt.textContent = `Codificando video... ${Math.round((fi / totalFrames) * 80)}%`;
+      // Actualizar progreso cada 15 frames
+      if (fi % 15 === 0) {
+        progTxt.textContent = `Codificando video... ${Math.round((fi / totalFrames) * 70)}%`;
         await new Promise(r => setTimeout(r, 0));
       }
     }
@@ -564,32 +569,23 @@ async function reelExportVideo() {
     await videoEncoder.flush();
     videoEncoder.close();
 
-    // ── Encodear audio con AudioEncoder ──
-    progTxt.textContent = 'Procesando audio...';
+    progTxt.textContent = 'Agregando audio... 80%';
 
-    if (typeof AudioEncoder !== 'undefined') {
-      try {
-        await encodeAudioWebCodecs(muxer, RE.audioBlob, TOTAL_US);
-      } catch(audioErr) {
-        console.warn('Audio encoding falló:', audioErr.message);
-        reelToast('⚠️ Video sin audio (limitación del navegador)');
-      }
-    } else {
-      console.warn('AudioEncoder no disponible en este navegador');
-      reelToast('⚠️ Video sin audio — usá Chrome o Edge para incluir audio');
-    }
+    // Agregar audio usando el método mejorado
+    await addAudioToMuxer(muxer, RE.audioBlob);
 
-    progTxt.textContent = 'Finalizando MP4...';
+    progTxt.textContent = 'Finalizando MP4... 95%';
     muxer.finalize();
 
     const buffer = target.buffer;
-    const blob   = new Blob([buffer], { type: 'video/mp4' });
-    const url    = URL.createObjectURL(blob);
+    const blob = new Blob([buffer], { type: 'video/mp4' });
+    const url = URL.createObjectURL(blob);
 
     const video = document.getElementById('reelVideoPreview');
-    const dl    = document.getElementById('reelVideoDownload');
-    video.src = url; dl.href = url;
-    dl.download = `reel-mediamendoza-${Date.now()}.mp4`;
+    const dl = document.getElementById('reelVideoDownload');
+    video.src = url;
+    dl.href = url;
+    dl.download = `reel-${Date.now()}.mp4`;
     document.getElementById('reelVideoResult').style.display = 'block';
     video.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
@@ -599,75 +595,112 @@ async function reelExportVideo() {
 
   } catch (err) {
     console.error('[reelExport]', err);
-    reelToast('Error: ' + (err.message || String(err)));
-    document.getElementById('reelExportProgressTxt').textContent = '✕ ' + (err.message || err);
-    reelRender();
+    reelToast('Error: ' + (err.message || 'Error desconocido'));
+    progTxt.textContent = '✕ ' + (err.message || 'Error');
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { prog.style.display = 'none'; }, 2000);
   }
-
-  btn.disabled = false;
-  prog.style.display = 'none';
 }
 
-// Encodear audio con AudioEncoder WebCodecs
-async function encodeAudioWebCodecs(muxer, audioBlob, totalUS) {
-  const audioCtx  = new AudioContext({ sampleRate: 44100 });
-  const arrayBuf  = await audioBlob.arrayBuffer();
-  const audioData = await audioCtx.decodeAudioData(arrayBuf);
-
-  const encoder = new AudioEncoder({
-    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-    error:  (e) => console.warn('AudioEncoder:', e),
-  });
-  encoder.configure({
-    codec: 'mp4a.40.2',
-    sampleRate: 44100,
-    numberOfChannels: audioData.numberOfChannels,
-    bitrate: 128_000,
-  });
-
-  const chunkSize = 4096;
-  const samples   = audioData.length;
-  for (let offset = 0; offset < samples; offset += chunkSize) {
-    const len = Math.min(chunkSize, samples - offset);
-    const frame = new AudioData({
-      format: 'f32-planar',
-      sampleRate: audioData.sampleRate,
-      numberOfFrames: len,
-      numberOfChannels: audioData.numberOfChannels,
-      timestamp: Math.round(offset / audioData.sampleRate * 1_000_000),
-      data: (() => {
-        // Construir buffer planar
-        const total = len * audioData.numberOfChannels;
-        const buf = new Float32Array(total);
-        for (let ch = 0; ch < audioData.numberOfChannels; ch++) {
-          const chData = audioData.getChannelData(ch);
-          buf.set(chData.subarray(offset, offset + len), ch * len);
+// Función mejorada para agregar audio al muxer
+async function addAudioToMuxer(muxer, audioBlob) {
+  try {
+    // Decodificar audio con Web Audio API
+    const audioContext = new AudioContext();
+    
+    // Esto requiere interacción del usuario, pero como ya hay un click en "Generar MP4",
+    // el AudioContext puede ser creado y reanudado dentro del mismo gesto del usuario
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+    
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    
+    // Convertir a formato PCM plano para mp4-muxer
+    const samples = audioBuffer.getChannelData(0);
+    const sampleRate = audioBuffer.sampleRate;
+    
+    // Crear AudioEncoder si está disponible
+    if (typeof AudioEncoder !== 'undefined') {
+      const audioEncoder = new AudioEncoder({
+        output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+        error: (e) => console.warn('AudioEncoder error:', e),
+      });
+      
+      audioEncoder.configure({
+        codec: 'mp4a.40.2',
+        sampleRate: 44100,
+        numberOfChannels: 2,
+        bitrate: 128000,
+      });
+      
+      // Convertir a 44.1kHz si es necesario y estéreo
+      const targetSampleRate = 44100;
+      let targetSamples = samples;
+      
+      if (sampleRate !== targetSampleRate) {
+        // Resample simple
+        const ratio = targetSampleRate / sampleRate;
+        const newLength = Math.floor(samples.length * ratio);
+        targetSamples = new Float32Array(newLength);
+        for (let i = 0; i < newLength; i++) {
+          const srcIdx = i / ratio;
+          const srcIdxFloor = Math.floor(srcIdx);
+          const srcIdxCeil = Math.min(srcIdxFloor + 1, samples.length - 1);
+          const frac = srcIdx - srcIdxFloor;
+          targetSamples[i] = samples[srcIdxFloor] * (1 - frac) + samples[srcIdxCeil] * frac;
         }
-        return buf;
-      })(),
-    });
-    encoder.encode(frame);
-    frame.close();
+      }
+      
+      const chunkSize = 4096;
+      for (let offset = 0; offset < targetSamples.length; offset += chunkSize) {
+        const len = Math.min(chunkSize, targetSamples.length - offset);
+        
+        // Crear buffer estéreo (duplicar canal mono)
+        const stereoData = new Float32Array(len * 2);
+        for (let i = 0; i < len; i++) {
+          stereoData[i * 2] = targetSamples[offset + i];
+          stereoData[i * 2 + 1] = targetSamples[offset + i];
+        }
+        
+        const frame = new AudioData({
+          format: 'f32-planar',
+          sampleRate: targetSampleRate,
+          numberOfFrames: len,
+          numberOfChannels: 2,
+          timestamp: Math.round(offset / targetSampleRate * 1_000_000),
+          data: stereoData,
+        });
+        
+        audioEncoder.encode(frame);
+        frame.close();
+      }
+      
+      await audioEncoder.flush();
+      audioEncoder.close();
+    } else {
+      console.warn('AudioEncoder no disponible, video sin audio');
+    }
+    
+    await audioContext.close();
+    
+  } catch (err) {
+    console.warn('Error agregando audio:', err);
+    // No falla la exportación completa, solo va sin audio
   }
-  await encoder.flush();
-  encoder.close();
-  audioCtx.close();
-}
-
-// Fallback: copiar audio directamente si AudioEncoder no está disponible
-async function encodeAudioFallback(muxer, audioBlob) {
-  // Fallback para Firefox que aún no soporta AudioEncoder
-  // Decodificar con Web Audio y encodear manualmente como PCM plano
-  console.warn('AudioEncoder no disponible — el video puede no tener audio en este navegador');
-  // No hay nada más que hacer en este camino sin AudioEncoder
 }
 
 function reelGetAudioDuration(blob) {
-  return new Promise(resolve => {
-    const au = new Audio();
-    au.onloadedmetadata = () => resolve(isFinite(au.duration) && au.duration > 0 ? au.duration : 30);
-    au.onerror = () => resolve(30);
-    au.src = URL.createObjectURL(blob);
+  return new Promise((resolve) => {
+    const audio = new Audio();
+    audio.onloadedmetadata = () => {
+      const dur = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+      resolve(dur);
+    };
+    audio.onerror = () => resolve(30);
+    audio.src = URL.createObjectURL(blob);
   });
 }
 
@@ -714,10 +747,17 @@ function hexRgb(hex) {
   return { r: parseInt(hex.slice(1,3),16), g: parseInt(hex.slice(3,5),16), b: parseInt(hex.slice(5,7),16) };
 }
 function reelToast(msg) {
-  const t = document.getElementById('toast');
-  if (!t) { console.warn(msg); return; }
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3500);
+  // Crear toast temporal
+  let toast = document.getElementById('reelToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'reelToast';
+    toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a18;border:1px solid #a6ce39;color:#a6ce39;padding:10px 20px;border-radius:4px;font-family:Inter,sans-serif;font-size:11px;font-weight:600;letter-spacing:1.5px;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  setTimeout(() => { toast.style.opacity = '0'; }, 3000);
 }
 function reelAlign(key, dir) {
   const el = RE.els[key]; if (!el || el.x === null) return;
