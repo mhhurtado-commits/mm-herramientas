@@ -479,16 +479,19 @@ async function reelExportVideo() {
     );
 
     const audioDur    = await reelGetAudioDuration(RE.audioBlob);
-    const FPS         = 30;
+    const FPS         = usaSubs ? 15 : 30;
     const TOTAL_US    = Math.ceil(audioDur * 1_000_000); // microsegundos
     const totalFrames = Math.ceil(audioDur * FPS);
     const guion       = RE.guion || '';
     const usaSubs     = RE.S.subsActivos && guion.trim().length > 0;
     const timestamps  = usaSubs ? generarTimestamps(guion, audioDur) : [];
 
-    // Dimensiones múltiplo de 2 (requerido por H.264)
-    const VW = RE.W % 2 === 0 ? RE.W : RE.W - 1;
-    const VH = RE.H % 2 === 0 ? RE.H : RE.H - 1;
+    // Dimensiones para export — escalar a max 720px ancho manteniendo aspecto
+    // Esto garantiza compatibilidad con todos los niveles AVC y es suficiente para redes sociales
+    const MAX_DIM = 720;
+    const scaleFactor = RE.W > MAX_DIM ? MAX_DIM / RE.W : 1;
+    const VW = Math.floor(RE.W * scaleFactor / 2) * 2;  // múltiplo de 2
+    const VH = Math.floor(RE.H * scaleFactor / 2) * 2;  // múltiplo de 2
 
     // ── Crear muxer ──
     const target = new ArrayBufferTarget();
@@ -501,16 +504,24 @@ async function reelExportVideo() {
 
     // ── Configurar VideoEncoder ──
     let encodedFrames = 0;
+    // Verificar soporte del codec
+    const codecSupport = await VideoEncoder.isConfigSupported({
+      codec: 'avc1.640029', width: VW, height: VH,
+    });
+    if (!codecSupport.supported) {
+      throw new Error(`Resolución ${VW}x${VH} no soportada por este navegador para H.264.`);
+    }
+
     const videoEncoder = new VideoEncoder({
       output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
       error: (e) => { throw new Error('VideoEncoder: ' + e.message); },
     });
     videoEncoder.configure({
-      codec: 'avc1.42001f',
+      codec: 'avc1.640029',
       width: VW,
       height: VH,
-      bitrate: 4_000_000,
-      framerate: FPS,
+      bitrate: VW <= 720 ? 2_000_000 : 4_000_000,
+      framerate: typeof FPS === 'number' ? FPS : 15,
     });
 
     // ── Canvas offscreen para los frames ──
@@ -543,9 +554,10 @@ async function reelExportVideo() {
       frame.close();
       bitmap.close();
 
-      if (fi % 10 === 0) {
+      // Yield al browser cada frame para no congelar la UI
+      if (fi % 5 === 0) {
         progTxt.textContent = `Codificando video... ${Math.round((fi / totalFrames) * 80)}%`;
-        await new Promise(r => setTimeout(r, 0)); // yield al browser
+        await new Promise(r => setTimeout(r, 0));
       }
     }
 
@@ -556,11 +568,15 @@ async function reelExportVideo() {
     progTxt.textContent = 'Procesando audio...';
 
     if (typeof AudioEncoder !== 'undefined') {
-      // WebCodecs AudioEncoder disponible
-      await encodeAudioWebCodecs(muxer, RE.audioBlob, TOTAL_US);
+      try {
+        await encodeAudioWebCodecs(muxer, RE.audioBlob, TOTAL_US);
+      } catch(audioErr) {
+        console.warn('Audio encoding falló:', audioErr.message);
+        reelToast('⚠️ Video sin audio (limitación del navegador)');
+      }
     } else {
-      // Fallback: decodificar audio con Web Audio API y encodear
-      await encodeAudioFallback(muxer, RE.audioBlob);
+      console.warn('AudioEncoder no disponible en este navegador');
+      reelToast('⚠️ Video sin audio — usá Chrome o Edge para incluir audio');
     }
 
     progTxt.textContent = 'Finalizando MP4...';
@@ -640,11 +656,10 @@ async function encodeAudioWebCodecs(muxer, audioBlob, totalUS) {
 
 // Fallback: copiar audio directamente si AudioEncoder no está disponible
 async function encodeAudioFallback(muxer, audioBlob) {
-  // Decodificar y re-muxear via Web Audio → PCM → AAC simulado
-  // En navegadores sin AudioEncoder, usar rawAudio como passthrough
-  console.warn('AudioEncoder no disponible, usando audio sin recodificar');
-  // Esta es una limitación — el video se generará sin audio en este caso
-  // (poco probable en Chrome/Edge modernos)
+  // Fallback para Firefox que aún no soporta AudioEncoder
+  // Decodificar con Web Audio y encodear manualmente como PCM plano
+  console.warn('AudioEncoder no disponible — el video puede no tener audio en este navegador');
+  // No hay nada más que hacer en este camino sin AudioEncoder
 }
 
 function reelGetAudioDuration(blob) {
