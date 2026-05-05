@@ -1,8 +1,9 @@
 // ============================================================
-// Media Mendoza — Worker v14
+// Media Mendoza — Worker v15
 // TTS: Azure Cognitive Services (devuelve audio directo)
-// Sin Creatomate — video se genera en el cliente con FFmpeg.wasm
+// + Biblioteca de música Freesound
 // ============================================================
+// @ts-nocheck
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -78,6 +79,131 @@ function extraerDatosNota(html,url){
   const category=extractMeta(html,/<meta[^>]+property=["']article:section["'][^>]+content=["']([^"']{1,120})["']/i,/<meta[^>]+name=["']section["'][^>]+content=["']([^"']{1,120})["']/i)||inferirCategoriaDesdeUrl(url);
   return {title,category,description,body:extraerTexto(html),image,url};
 }
+// ============================================================
+// RESUMEN DIARIO
+// ============================================================
+
+const RESUMEN_PREFIX = "resumen:";
+
+function getTTLHastaManana5AM() {
+  const ahora = new Date();
+  const manana5AM = new Date(ahora);
+  manana5AM.setDate(ahora.getDate() + 1);
+  manana5AM.setHours(5, 0, 0, 0);
+  const diferenciaMs = manana5AM - ahora;
+  const ttlSegundos = Math.floor(diferenciaMs / 1000);
+  return Math.max(ttlSegundos, 3600);
+}
+
+async function handleResumenAgregar(body, env) {
+  const { id, fecha, titulo, url, urlCorta, categoria, imagen, timestamp } = body;
+  
+  if (!id || !fecha || !titulo) {
+    return jsonError('Faltan campos requeridos (id, fecha, titulo)', 400);
+  }
+  
+  const key = `${RESUMEN_PREFIX}${fecha}:${id}`;
+  const ttl = getTTLHastaManana5AM();
+  
+  const item = {
+    id,
+    fecha,
+    titulo,
+    url: url || '',
+    urlCorta: urlCorta || '',
+    categoria: categoria || 'General',
+    imagen: imagen || '',
+    timestamp: timestamp || Date.now()
+  };
+  
+  try {
+    await env.KV.put(key, JSON.stringify(item), { expirationTtl: ttl });
+    return jsonOk({ guardado: true, id, expiraEn: ttl });
+  } catch (err) {
+    console.error('Error guardando resumen:', err);
+    return jsonError('Error guardando en KV: ' + err.message, 500);
+  }
+}
+
+async function handleResumenObtener(url, env) {
+  const fecha = url.searchParams.get('fecha');
+  if (!fecha) {
+    return jsonError('Falta parámetro fecha (YYYY-MM-DD)', 400);
+  }
+  
+  const prefix = `${RESUMEN_PREFIX}${fecha}:`;
+  
+  try {
+    const list = await env.KV.list({ prefix });
+    const notas = [];
+    
+    for (const key of list.keys) {
+      const nota = await env.KV.get(key.name, 'json');
+      if (nota) notas.push(nota);
+    }
+    
+    notas.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    
+    return jsonOk({ fecha, notas, total: notas.length });
+  } catch (err) {
+    console.error('Error obteniendo resumen:', err);
+    return jsonError('Error obteniendo resumen: ' + err.message, 500);
+  }
+}
+
+async function handleResumenGenerar(body, env) {
+  const { fecha, notas } = body;
+  
+  if (!notas || !notas.length) {
+    return jsonError('No hay notas para generar resumen', 400);
+  }
+  
+  const editorial = await getEditorial(env);
+  const editorialText = editorial ? `\n\nLÍNEA EDITORIAL:\n${editorial.substring(0, 500)}` : '';
+  
+  let notasTexto = '';
+  for (let i = 0; i < notas.length; i++) {
+    const n = notas[i];
+    notasTexto += `${i + 1}. ${n.titulo}\n   🔗 ${n.urlCorta || n.url}\n`;
+  }
+  
+  const prompt = `Sos editor de Media Mendoza, diario del sur de Mendoza, Argentina.
+Generá un resumen diario de noticias para WhatsApp y para redes sociales.
+
+NOTAS DEL DÍA (${fecha || 'hoy'}):
+${notasTexto}
+
+INSTRUCCIONES:
+1. Para WHATSAPP (grupo o canal):
+   - Tono directo, con emojis estratégicos
+   - Encabezado llamativo: "📰 RESUMEN DEL DÍA · ${fecha || 'HOY'}"
+   - Cada noticia: un emoji según categoría + titular + link corto
+   - Al final: "📱 *Media Mendoza* — Noticias confiables del sur mendocino"
+   - Máximo 1500 caracteres
+
+2. Para INSTAGRAM/FACEBOOK (post):
+   - Tono visual, dinámico, con emojis
+   - Frase gancho al inicio
+   - Lista de noticias con mini-resumen de 1 línea cada una
+   - 5-8 hashtags al final (#Mendoza #Noticias #Resumen)
+   - Máximo 2000 caracteres
+
+Respondé SOLO con JSON sin markdown ni backticks:
+{
+  "whatsapp": "mensaje completo para WhatsApp",
+  "redes": "texto completo para Instagram/Facebook",
+  "sugerencia_hashtags": ["#hashtag1", "#hashtag2"]
+}`;
+
+  const r = await callGemini(prompt + editorialText, env);
+  if (r.error) return jsonError(r.error, 500);
+  
+  return jsonOk({
+    whatsapp: r.data?.whatsapp || '',
+    redes: r.data?.redes || '',
+    hashtags: r.data?.sugerencia_hashtags || []
+  });
+}
 
 // ── Router ──
 export default {
@@ -106,6 +232,10 @@ export default {
       if(path==="/agenda/eventos")                   return handleGetAgendaEventos(url,env);
       if(path==="/agenda/efemerides")                return handleGetAgendaEfemerides(env);
       if(path==="/agenda/angulos/cache")             return handleGetAngulosCache(url,env);
+      if(path==="/resumen/obtener")                  return handleResumenObtener(url, env);
+      // ── NUEVAS RUTAS DE MÚSICA ──
+      if(path==="/music/search")                     return handleMusicSearch(url, env);
+      if(path==="/music/preview")                    return handleMusicPreview(url, env);
       return jsonError("Ruta no encontrada",404);
     }
 
@@ -144,7 +274,8 @@ export default {
     if(path==="/agenda/evento")                      return handlePostAgendaEvento(body,env);
     if(path==="/agenda/efemeride")                   return handlePostAgendaEfemeride(body,env);
     if(path==="/agenda/angulos")                     return handleAgendaAngulos(body,env);
-
+    if(path==="/resumen/generar")                    return handleResumenGenerar(body, env);
+    if(path==="/resumen/agregar")                    return handleResumenAgregar(body, env);
     return jsonError("Ruta no encontrada",404);
   },
 };
@@ -194,10 +325,8 @@ async function handleReelGuion(body,env){
 }
 
 // ============================================================
-// REEMPLAZAR en worker.js la función handleReelAudio
-// Fix: incluye el título antes del guion en el SSML
+// REEL — AUDIO (Azure TTS)
 // ============================================================
-
 async function handleReelAudio(body, env) {
   const titulo  = String(body.titulo  || '').trim();
   const guion   = String(body.guion   || '').trim();
@@ -205,11 +334,7 @@ async function handleReelAudio(body, env) {
 
   if (!guion) return jsonError('Falta campo: guion', 400);
 
-  // Armar el texto completo: título + pausa + guion
-  // La pausa entre título y guion da ritmo natural al locutor
-  const textoCompleto = titulo
-    ? `${titulo}. ${guion}`
-    : guion;
+  const textoCompleto = titulo ? `${titulo}. ${guion}` : guion;
 
   const vocesKV = await env.KV.get(REEL_VOCES_KEY, 'json').catch(() => null) || VOCES_DEFAULT;
   const vozData = vocesKV.find(v => v.id === voiceId) || vocesKV[0] || VOCES_DEFAULT[0];
@@ -229,7 +354,6 @@ async function handleReelAudio(body, env) {
 
     const locale = localeFromVoice(voz.id);
 
-    // SSML con título + pausa + guion
     const ssml = titulo
       ? `<speak version="1.0" xml:lang="${locale}">
            <voice name="${escapeXml(voz.id)}">
@@ -691,4 +815,92 @@ async function callGemini(prompt,env){
     }
   }
   return {error:"Todas las API keys de Gemini están agotadas."};
+}
+
+// ============================================================
+// MÚSICA DE FONDO - FREESOUND API
+// ============================================================
+
+async function handleMusicSearch(url, env) {
+  const query = url.searchParams.get('q') || '';
+  const page = parseInt(url.searchParams.get('page')) || 1;
+  const perPage = parseInt(url.searchParams.get('per_page')) || 12;
+  const apiKey = env.FREESOUND_API_KEY;
+
+  if (!apiKey) {
+    return jsonError('API key de Freesound no configurada', 500);
+  }
+
+  const apiUrl = `https://freesound.org/apiv2/search/text/?query=${encodeURIComponent(query)}&page=${page}&page_size=${perPage}&fields=id,name,username,previews,duration&token=${apiKey}`;
+
+  try {
+    const res = await fetch(apiUrl);
+    const data = await res.json();
+
+    if (!data.results) {
+      return jsonError('Error en búsqueda de Freesound', 500);
+    }
+
+    const tracks = data.results.map(track => {
+      // Usar las claves CORRECTAS: "preview-hq-mp3" (con guiones)
+      const previewUrl = track.previews?.["preview-hq-mp3"] || 
+                         track.previews?.["preview-lq-mp3"];
+      
+      if (!previewUrl) {
+        return null;
+      }
+      
+      return {
+        id: track.id,
+        title: track.name || 'Sin título',
+        duration: track.duration || 30,
+        artist: track.username || 'Artista Freesound',
+        preview_url: previewUrl,
+        audio_url: previewUrl,
+        attribution: `🎵 Sonido: "${track.name || 'Sin título'}" por ${track.username || 'Artista Freesound'} (Freesound.org)`
+      };
+    }).filter(t => t !== null);
+
+    return jsonOk({ tracks, total: data.count || 0 });
+  } catch (err) {
+    console.error('Error en handleMusicSearch:', err);
+    return jsonError(`Error: ${err.message}`, 500);
+  }
+}
+
+async function handleMusicPreview(url, env) {
+  const audioUrl = url.searchParams.get('url');
+  if (!audioUrl) {
+    return jsonError('Falta parámetro url', 400);
+  }
+
+  try {
+    console.log('Proxy audio request:', audioUrl);
+    
+    const res = await fetch(audioUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': '*/*',
+        'Referer': 'https://freesound.org/',
+        'Origin': 'https://freesound.org'
+      }
+    });
+    
+    if (!res.ok) {
+      return jsonError(`Error en proxy: ${res.status}`, 502);
+    }
+    
+    const buffer = await res.arrayBuffer();
+    return new Response(buffer, {
+      headers: {
+        ...CORS_HEADERS,
+        'Content-Type': 'audio/mpeg',
+        'Cache-Control': 'public, max-age=3600',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  } catch (err) {
+    console.error('Error en handleMusicPreview:', err);
+    return jsonError(`Error: ${err.message}`, 500);
+  }
 }

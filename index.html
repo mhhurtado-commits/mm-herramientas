@@ -9,194 +9,313 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
-/* ── Estilos específicos del Hub ── */
+/* ============================================================
+   Estilos específicos del Hub (grid compacto)
+   ============================================================ */
+.hub-main {
+  padding-top: var(--header-h);
+  padding-bottom: var(--footer-h);
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* Masthead compacto */
 .masthead {
-  padding: 80px 0 0;
+  padding: 32px 0 0;
   border-bottom: 1px solid var(--line);
   display: grid;
   grid-template-columns: 1fr 1fr;
+  margin-bottom: 16px;
 }
+@media (max-width: 960px) {
+  .masthead { grid-template-columns: 1fr; }
+}
+
 .masthead-left {
-  padding: 0 80px 64px 80px;
+  padding: 0 60px 32px 60px;
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
 }
+@media (max-width: 960px) {
+  .masthead-left {
+    padding: 0 28px 28px;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
 .logo-hero {
-  margin-bottom: 44px;
+  margin-bottom: 28px;
 }
 .logo-hero img {
-  height: 72px;
+  height: 48px;
   width: auto;
   display: block;
-  filter: brightness(0) invert(1);
-  opacity: .92;
 }
+body.dark-theme .logo-hero img {
+  filter: brightness(0) invert(1);
+  opacity: 0.92;
+}
+
 .masthead-eyebrow {
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 4px; text-transform: uppercase;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
   color: var(--dim);
-  margin-bottom: 20px;
-  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .masthead-eyebrow::before {
-  content: ''; display: block;
-  width: 28px; height: 1px; background: var(--v);
+  content: '';
+  display: block;
+  width: 28px;
+  height: 1px;
+  background: var(--v);
 }
+
 .masthead-h1 {
   font-family: var(--font-display);
-  font-size: clamp(4.5rem,8.5vw,8rem);
-  line-height: .88;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 0.9;
   letter-spacing: -1px;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
   flex: 1;
 }
-.masthead-h1 .l1 { color: var(--white); display: block; }
-.masthead-h1 .l2 { color: transparent; -webkit-text-stroke: 1px rgba(255,255,255,.16); display: block; }
+.masthead-h1 .l1 { color: var(--text); display: block; }
+.masthead-h1 .l2 { 
+  color: transparent; 
+  -webkit-text-stroke: 1px var(--line2);
+  display: block; 
+}
 .masthead-h1 .l3 { color: var(--v); display: block; }
+
 .masthead-desc {
-  font-size: 13px; font-weight: 300;
+  font-size: 12px;
+  font-weight: 300;
   color: var(--muted);
   max-width: 380px;
-  line-height: 1.85;
-  letter-spacing: .2px;
+  line-height: 1.7;
+  letter-spacing: 0.2px;
 }
+
 .masthead-right {
   display: flex;
   flex-direction: column;
+  justify-content: center;
 }
 .masthead-logo-sq {
-  padding: 52px 60px 40px;
+  padding: 24px 60px;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .masthead-logo-sq img {
-  width: 120px; height: 120px;
+  width: 80px;
+  height: 80px;
   object-fit: contain;
-  opacity: .18;
-  filter: brightness(0) invert(1);
+  opacity: 0.15;
 }
+body.dark-theme .masthead-logo-sq img {
+  filter: brightness(0) invert(1);
+  opacity: 0.25;
+}
+
 .masthead-meta {
-  padding: 24px 60px;
+  padding: 16px 60px;
   display: flex;
-  gap: 32px;
+  gap: 28px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 .meta-item {
-  display: flex; flex-direction: column; gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  text-align: center;
 }
 .meta-item-val {
   font-family: var(--font-display);
-  font-size: 1.6rem;
-  letter-spacing: .5px;
-  color: var(--white);
+  font-size: 1.3rem;
+  letter-spacing: 0.5px;
+  color: var(--text);
   line-height: 1;
 }
 .meta-item-key {
-  font-size: 8px; font-weight: 600;
-  letter-spacing: 2px; text-transform: uppercase;
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
   color: var(--dim);
 }
 
-/* ── Tools ── */
-.tools { padding: 0 0 100px; }
+/* Tools grid (más compacto) */
+.tools {
+  padding: 0 0 40px;
+}
 .tools-header {
   display: grid;
-  grid-template-columns: 80px 180px 1fr 160px 56px;
-  padding: 13px 80px;
+  grid-template-columns: 50px 160px 1fr 140px 40px;
+  padding: 8px 60px;
   border-bottom: 1px solid var(--line2);
-  background: var(--bg2);
+  background: var(--surface2);
+}
+@media (max-width: 960px) {
+  .tools-header { display: none; }
 }
 .tools-col-label {
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 2.5px; text-transform: uppercase;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
   color: var(--dim);
 }
+
 .tool-row {
   display: grid;
-  grid-template-columns: 80px 180px 1fr 160px 56px;
-  padding: 0 80px;
+  grid-template-columns: 50px 160px 1fr 140px 40px;
+  padding: 0 60px;
   border-bottom: 1px solid var(--line);
-  text-decoration: none; color: inherit;
+  text-decoration: none;
+  color: inherit;
   align-items: stretch;
   position: relative;
-  transition: background .15s;
+  transition: background 0.15s;
   overflow: hidden;
 }
-.tool-row::before {
-  content: ''; position: absolute;
-  left: 0; top: 0; bottom: 0; width: 2px;
-  background: var(--v);
-  transform: scaleY(0); transform-origin: bottom;
-  transition: transform .3s ease;
+@media (max-width: 960px) {
+  .tool-row {
+    grid-template-columns: 45px 1fr 32px;
+    padding: 0 28px;
+  }
+  .tool-cell.desc-cell,
+  .tool-cell.pills-cell { display: none; }
 }
-.tool-row:hover { background: rgba(166,206,57,.028); }
-.tool-row:hover::before { transform: scaleY(1); }
-.tool-row:hover .tool-num { color: var(--v); }
-.tool-row:hover .tool-name { color: var(--v); }
-.tool-row:hover .tool-arrow { transform: translateX(5px); opacity: 1; }
-.tool-row:hover .tool-pill::before { background: var(--v); }
+
+.tool-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--v);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.2s ease;
+}
+.tool-row:hover::before {
+  transform: scaleY(1);
+}
+.tool-row:hover {
+  background: var(--v-dim);
+}
+.tool-row:hover .tool-num,
+.tool-row:hover .tool-name {
+  color: var(--v);
+}
+.tool-row:hover .tool-arrow {
+  transform: translateX(4px);
+  opacity: 1;
+}
 
 .tool-cell {
-  padding: 34px 20px 34px 0;
-  display: flex; flex-direction: column; justify-content: center;
+  padding: 18px 16px 18px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .tool-cell:first-child { padding-left: 0; }
+
 .tool-num {
   font-family: var(--font-display);
-  font-size: 2.4rem; letter-spacing: -1px;
-  color: var(--dim); line-height: 1;
-  transition: color .2s;
+  font-size: 1.5rem;
+  letter-spacing: -1px;
+  color: var(--dim);
+  line-height: 1;
+  transition: color 0.2s;
 }
 .tool-name {
   font-family: var(--font-display);
-  font-size: 2.4rem; letter-spacing: -.5px;
-  color: var(--white); line-height: 1;
-  transition: color .2s;
+  font-size: 1.3rem;
+  letter-spacing: -0.5px;
+  color: var(--text);
+  line-height: 1;
+  transition: color 0.2s;
 }
+@media (max-width: 960px) {
+  .tool-num, .tool-name { font-size: 1.2rem; }
+}
+
 .tool-name-tag {
-  margin-top: 7px;
+  margin-top: 4px;
 }
+.mm-tag {
+  display: inline-block;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border: 1px solid var(--v);
+  color: var(--v);
+  background: var(--v-dim);
+  border-radius: 20px;
+}
+
 .tool-desc {
-  font-size: 12px; font-weight: 300;
-  color: var(--muted); line-height: 1.75;
-  max-width: 360px; letter-spacing: .1px;
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 320px;
+  letter-spacing: 0.1px;
 }
+
 .tool-pills {
-  display: flex; flex-direction: column; gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   justify-content: center;
 }
 .tool-pill {
-  font-size: 9px; font-weight: 500;
-  letter-spacing: 1.5px; text-transform: uppercase;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
   color: var(--dim);
-  padding: 4px 0;
+  padding: 3px 0;
   border-bottom: 1px solid var(--line);
-  display: flex; align-items: center; gap: 7px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .tool-pill::before {
-  content: ''; width: 4px; height: 4px;
-  border-radius: 50%; background: var(--dim); flex-shrink: 0;
-}
-.tool-arrow {
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.1rem; color: var(--v);
-  opacity: .35; transition: transform .2s ease, opacity .2s;
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--v);
+  flex-shrink: 0;
 }
 
-@media(max-width:960px){
-  .masthead { grid-template-columns: 1fr; }
-  .masthead-left { padding: 0 28px 48px; border-right: none; border-bottom: 1px solid var(--line); }
-  .masthead-right { display: none; }
-  .tools-header { display: none; }
-  .tool-row { grid-template-columns: 52px 1fr 40px; padding: 0 28px; }
-  .tool-cell.desc-cell, .tool-cell.pills-cell { display: none; }
-  .tool-name, .tool-num { font-size: 2rem; }
-  .mm-footer { padding: 0 28px; }
-  .masthead-h1 { font-size: 4.5rem; }
-  .logo-hero img { height: 52px; }
+.tool-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: var(--v);
+  opacity: 0.35;
+  transition: transform 0.2s ease, opacity 0.2s;
+}
+
+.mm-footer {
+  margin-top: 0;
 }
 </style>
 </head>
@@ -216,9 +335,9 @@
   </div>
 </header>
 
-<div style="padding-top:var(--header-h)">
+<div class="hub-main">
 
-  <div class="masthead mm-animate">
+  <div class="masthead">
     <div class="masthead-left">
       <div class="logo-hero">
         <img src="assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'">
@@ -229,7 +348,7 @@
         <span class="l2">Periodística</span>
         <span class="l3">con IA</span>
       </h1>
-      <p class="masthead-desc">Todas las herramientas del equipo de redacción en un solo lugar. Desde el monitoreo de fuentes hasta la difusión en redes sociales.</p>
+      <p class="masthead-desc">Desde el monitoreo de fuentes hasta la difusión en redes sociales.</p>
     </div>
     <div class="masthead-right">
       <div class="masthead-logo-sq">
@@ -237,20 +356,20 @@
       </div>
       <div class="masthead-meta">
         <div class="meta-item">
-          <div class="meta-item-val">05</div>
+          <div class="meta-item-val">06</div>
           <div class="meta-item-key">Herramientas</div>
         </div>
         <div class="meta-item">
-          <div class="meta-item-val">16</div>
+          <div class="meta-item-val">16+</div>
           <div class="meta-item-key">Plantillas</div>
         </div>
         <div class="meta-item">
           <div class="meta-item-val">IA</div>
-          <div class="meta-item-key">Gemini 2.5 Flash</div>
+          <div class="meta-item-key">Gemini 2.5</div>
         </div>
         <div class="meta-item">
           <div class="meta-item-val">v2</div>
-          <div class="meta-item-key">Versión 2026</div>
+          <div class="meta-item-key">2026</div>
         </div>
       </div>
     </div>
@@ -265,54 +384,15 @@
       <div class="tools-col-label"></div>
     </div>
 
-    <a href="/redaccion/" class="tool-row mm-animate mm-animate-1">
+    <!-- 01. WhatsApp (el más usado) -->
+    <a href="/whatsapp/" class="tool-row mm-animate mm-animate-1">
       <div class="tool-cell"><div class="tool-num">01</div></div>
       <div class="tool-cell">
-        <div class="tool-name">Redacción</div>
-        <div class="tool-name-tag"><span class="mm-tag">4 herramientas</span></div>
-      </div>
-      <div class="tool-cell desc-cell">
-        <p class="tool-desc">Monitor RSS, reformulación de notas de otros medios, agente de redacción con búsqueda web y configuración de línea editorial.</p>
-      </div>
-      <div class="tool-cell pills-cell">
-        <div class="tool-pills">
-          <span class="tool-pill">Monitor RSS</span>
-          <span class="tool-pill">Reformular</span>
-          <span class="tool-pill">Redactar</span>
-          <span class="tool-pill">Config editorial</span>
-        </div>
-      </div>
-      <div class="tool-cell tool-arrow">→</div>
-    </a>
-
-    <a href="/placas/" class="tool-row mm-animate mm-animate-2">
-      <div class="tool-cell"><div class="tool-num">02</div></div>
-      <div class="tool-cell">
-        <div class="tool-name">Placas</div>
-        <div class="tool-name-tag"><span class="mm-tag">Editor visual</span></div>
-      </div>
-      <div class="tool-cell desc-cell">
-        <p class="tool-desc">Editor canvas para Instagram, historias, Facebook y X. 16 plantillas, modo collage, foto circular y texto con cita.</p>
-      </div>
-      <div class="tool-cell pills-cell">
-        <div class="tool-pills">
-          <span class="tool-pill">16 plantillas</span>
-          <span class="tool-pill">Collage</span>
-          <span class="tool-pill">Modo foto</span>
-          <span class="tool-pill">Modo textual</span>
-        </div>
-      </div>
-      <div class="tool-cell tool-arrow">→</div>
-    </a>
-
-    <a href="/whatsapp/" class="tool-row mm-animate mm-animate-3">
-      <div class="tool-cell"><div class="tool-num">03</div></div>
-      <div class="tool-cell">
         <div class="tool-name">WhatsApp</div>
-        <div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div>
+        <div class="tool-name-tag"><span class="mm-tag mm-tag-green">Principal</span></div>
       </div>
       <div class="tool-cell desc-cell">
-        <p class="tool-desc">Generá mensajes para grupo y canal desde la URL de cualquier nota. Programá envíos con recordatorios automáticos.</p>
+        <p class="tool-desc">Generá mensajes para grupo y canal. Programá envíos con recordatorios automáticos.</p>
       </div>
       <div class="tool-cell pills-cell">
         <div class="tool-pills">
@@ -324,40 +404,101 @@
       <div class="tool-cell tool-arrow">→</div>
     </a>
 
-    <a href="/agenda/" class="tool-row mm-animate mm-animate-4">
+    <!-- 02. Social + Reel Editor -->
+    <a href="/social/" class="tool-row mm-animate mm-animate-2">
+      <div class="tool-cell"><div class="tool-num">02</div></div>
+      <div class="tool-cell">
+        <div class="tool-name">Social</div>
+        <div class="tool-name-tag"><span class="mm-tag mm-tag-green">+ Reel</span></div>
+      </div>
+      <div class="tool-cell desc-cell">
+        <p class="tool-desc">Contenido para Facebook, Instagram y X. Editor de Reels con subtítulos y música.</p>
+      </div>
+      <div class="tool-cell pills-cell">
+        <div class="tool-pills">
+          <span class="tool-pill">Facebook</span>
+          <span class="tool-pill">Instagram</span>
+          <span class="tool-pill">Reel Editor</span>
+        </div>
+      </div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <!-- 03. Redacción + Monitor -->
+    <a href="/redaccion/" class="tool-row mm-animate mm-animate-3">
+      <div class="tool-cell"><div class="tool-num">03</div></div>
+      <div class="tool-cell">
+        <div class="tool-name">Redacción</div>
+        <div class="tool-name-tag"><span class="mm-tag">Monitor</span></div>
+      </div>
+      <div class="tool-cell desc-cell">
+        <p class="tool-desc">Monitor RSS, reformulación de notas, redacción con IA y línea editorial.</p>
+      </div>
+      <div class="tool-cell pills-cell">
+        <div class="tool-pills">
+          <span class="tool-pill">Monitor RSS</span>
+          <span class="tool-pill">Reformular</span>
+          <span class="tool-pill">Redactar</span>
+        </div>
+      </div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <!-- 04. Placas -->
+    <a href="/placas/" class="tool-row mm-animate mm-animate-4">
       <div class="tool-cell"><div class="tool-num">04</div></div>
       <div class="tool-cell">
-        <div class="tool-name">Agenda</div>
+        <div class="tool-name">Placas</div>
+        <div class="tool-name-tag"><span class="mm-tag">Editor</span></div>
+      </div>
+      <div class="tool-cell desc-cell">
+        <p class="tool-desc">Editor visual para redes sociales. 16 plantillas, collage, foto circular y modo textual.</p>
+      </div>
+      <div class="tool-cell pills-cell">
+        <div class="tool-pills">
+          <span class="tool-pill">16 plantillas</span>
+          <span class="tool-pill">Collage</span>
+          <span class="tool-pill">Modo texto</span>
+        </div>
+      </div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <!-- 05. Resumen Diario -->
+    <a href="/resumen/" class="tool-row mm-animate mm-animate-5">
+      <div class="tool-cell"><div class="tool-num">05</div></div>
+      <div class="tool-cell">
+        <div class="tool-name">Resumen</div>
         <div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div>
       </div>
       <div class="tool-cell desc-cell">
-        <p class="tool-desc">Calendario de cobertura con efemérides nacionales y mendocinas. Agregá eventos y recibí ángulos periodísticos con IA.</p>
+        <p class="tool-desc">Resumen diario de noticias para WhatsApp y redes sociales. Seleccioná notas y generá contenido.</p>
+      </div>
+      <div class="tool-cell pills-cell">
+        <div class="tool-pills">
+          <span class="tool-pill">WhatsApp</span>
+          <span class="tool-pill">Instagram</span>
+          <span class="tool-pill">Facebook</span>
+        </div>
+      </div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <!-- 06. Agenda -->
+    <a href="/agenda/" class="tool-row mm-animate mm-animate-6">
+      <div class="tool-cell"><div class="tool-num">06</div></div>
+      <div class="tool-cell">
+        <div class="tool-name">Agenda</div>
+        <div class="tool-name-tag"><span class="mm-tag">Calendario</span></div>
+      </div>
+      <div class="tool-cell desc-cell">
+        <p class="tool-desc">Calendario de cobertura con efemérides. Agregá eventos y ángulos periodísticos con IA.</p>
       </div>
       <div class="tool-cell pills-cell">
         <div class="tool-pills">
           <span class="tool-pill">Calendario</span>
           <span class="tool-pill">Efemérides</span>
           <span class="tool-pill">Ángulos IA</span>
-        </div>
-      </div>
-      <div class="tool-cell tool-arrow">→</div>
-    </a>
-
-    <a href="/social/" class="tool-row mm-animate mm-animate-4">
-      <div class="tool-cell"><div class="tool-num">05</div></div>
-      <div class="tool-cell">
-        <div class="tool-name">Social</div>
-        <div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div>
-      </div>
-      <div class="tool-cell desc-cell">
-        <p class="tool-desc">Generá contenido optimizado para Facebook, Instagram y X desde la URL de cualquier nota. Prompts editables por red.</p>
-      </div>
-      <div class="tool-cell pills-cell">
-        <div class="tool-pills">
-          <span class="tool-pill">Facebook</span>
-          <span class="tool-pill">Instagram</span>
-          <span class="tool-pill">X / Twitter</span>
-          <span class="tool-pill">Prompts editables</span>
         </div>
       </div>
       <div class="tool-cell tool-arrow">→</div>
@@ -377,6 +518,42 @@
     <span class="mm-footer-item">v2.0 — 2026</span>
   </div>
 </footer>
+
+<!-- TOGGLE CLARO/OSCURO -->
+<div class="theme-toggle" id="themeToggle">
+  <span class="icon" id="themeIcon">🌙</span>
+  <span id="themeLabel">Modo oscuro</span>
+</div>
+
+<script>
+  function setTheme(theme) {
+    const body = document.body;
+    if (theme === 'dark') {
+      body.classList.add('dark-theme');
+      document.getElementById('themeIcon').textContent = '☀️';
+      document.getElementById('themeLabel').textContent = 'Modo claro';
+    } else {
+      body.classList.remove('dark-theme');
+      document.getElementById('themeIcon').textContent = '🌙';
+      document.getElementById('themeLabel').textContent = 'Modo oscuro';
+    }
+    localStorage.setItem('mm-theme', theme);
+  }
+
+  function toggleTheme() {
+    const isDark = document.body.classList.contains('dark-theme');
+    setTheme(isDark ? 'light' : 'dark');
+  }
+  
+  const savedTheme = localStorage.getItem('mm-theme');
+  if (savedTheme === 'dark') {
+    setTheme('dark');
+  } else {
+    setTheme('light');
+  }
+  
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+</script>
 
 </body>
 </html>

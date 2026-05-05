@@ -1,262 +1,737 @@
 /* ============================================================
-   Media Mendoza — Design System compartido
-   Importar en cada herramienta: <link rel="stylesheet" href="../style.css">
-   En el index raíz: <link rel="stylesheet" href="style.css">
+   Media Mendoza — Design System Unificado v2.1
+   Tema claro por defecto + toggle a oscuro
    ============================================================ */
 
 @font-face {
   font-family: 'BebasNeue';
-  src: url('placas/BebasNeue-Regular.ttf') format('truetype');
+  src: url('assets/BebasNeue-Regular.ttf') format('truetype');
+  font-display: swap;
 }
 
-/* ── Tokens ── */
+@font-face {
+  font-family: 'Economica';
+  src: url('assets/Economica-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* ── Tema claro (por defecto) ── */
 :root {
+  /* Paleta corporativa */
   --v:       #a6ce39;
   --vo:      #8fb82d;
   --vl:      #eaf3de;
-  --bg:      #0a0b08;
-  --bg2:     #111309;
-  --surface: #161810;
-  --line:    rgba(255,255,255,.07);
-  --line2:   rgba(255,255,255,.12);
-  --white:   #f5f5f0;
-  --dim:     #6b6d5e;
-  --muted:   #9b9d8a;
+  --v-dark:  #7a9e1f;
+  --v-dim:   rgba(166,206,57,0.12);
+  --v-badge: #c8e87a;
 
+  /* Colores de estado */
+  --red:     #e63946;
+  --red-bg:  rgba(230,57,70,0.08);
+  --red-dim: #fdecea;
+  --wa:      #25d366;
+  --wa-dark: #1ebe5d;
+
+  /* Fondos y superficies (tema claro) */
+  --bg:      #f4f4f2;
+  --bg2:     #fafaf8;
+  --surface: #ffffff;
+  --surface2:#fafafa;
+
+  /* Líneas y bordes */
+  --line:    rgba(0,0,0,0.08);
+  --line2:   rgba(0,0,0,0.12);
+  --line3:   rgba(0,0,0,0.04);
+
+  /* Texto */
+  --white:   #1a1a1a;
+  --dim:     #888680;
+  --muted:   #666666;
+  --text:    #1a1a1a;
+
+  /* Tipografía */
   --font-display: 'BebasNeue', sans-serif;
   --font-serif:   'DM Serif Display', serif;
   --font-body:    'Inter', sans-serif;
 
+  /* Layout */
   --header-h: 56px;
   --footer-h: 46px;
 
-  --radius-sm: 2px;
-  --radius:    4px;
+  /* Radios */
+  --radius-sm: 4px;
+  --radius:    8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  --shadow: 0 4px 24px rgba(0,0,0,.4);
+  /* Sombras */
+  --shadow:     0 2px 8px rgba(0,0,0,0.08);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.1);
 }
 
-/* ── Reset base ── */
+/* ── Tema oscuro (se activa con clase .dark-theme en <body>) ── */
+body.dark-theme {
+  --bg:      #0a0b08;
+  --bg2:     #111309;
+  --surface: #161810;
+  --surface2:#1e2016;
+  --line:    rgba(255,255,255,0.07);
+  --line2:   rgba(255,255,255,0.12);
+  --line3:   rgba(255,255,255,0.04);
+  --white:   #f5f5f0;
+  --dim:     #6b6d5e;
+  --muted:   #9b9d8a;
+  --text:    #e8e8e0;
+  --shadow:  0 4px 20px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.25);
+  --red-bg:  rgba(230,57,70,0.12);
+}
+
+/* ============================================================
+   RESET BASE
+   ============================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   height: 100%;
   background: var(--bg);
-  color: var(--white);
+  color: var(--text);
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.5;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* ── Header compartido ── */
+/* ============================================================
+   HEADER COMPARTIDO
+   ============================================================ */
 .mm-header {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: stretch;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: stretch;
   height: var(--header-h);
   border-bottom: 1px solid var(--line2);
-  background: rgba(10,11,8,.93);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: var(--surface);
+  transition: background 0.2s ease;
 }
+
 .mm-header-brand {
-  display: flex; align-items: center;
+  display: flex;
+  align-items: center;
   padding: 0 28px;
   border-right: 1px solid var(--line);
   gap: 10px;
   flex-shrink: 0;
   text-decoration: none;
 }
+
 .mm-header-logo {
-  height: 24px; width: auto; display: block;
-  filter: brightness(0) invert(1);
-  opacity: .85;
+  height: 24px;
+  width: auto;
+  display: block;
+  filter: brightness(1);
 }
+
+body.dark-theme .mm-header-logo {
+  filter: brightness(0) invert(1);
+  opacity: 0.85;
+}
+
 .mm-header-name {
   font-family: var(--font-display);
   font-size: 1.1rem;
   letter-spacing: 2px;
   color: var(--white);
-  opacity: .65;
+  opacity: 0.65;
 }
+
 .mm-header-section {
-  flex: 1; display: flex; align-items: center;
+  flex: 1;
+  display: flex;
+  align-items: center;
   padding: 0 28px;
 }
+
 .mm-header-label {
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 3px; text-transform: uppercase;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
   color: var(--dim);
 }
-.mm-header-back {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 2px; text-transform: uppercase;
-  color: var(--dim);
-  text-decoration: none;
-  border: 1px solid var(--line2);
-  padding: 6px 14px;
-  transition: all .15s;
-  flex-shrink: 0;
-}
-.mm-header-back:hover { border-color: var(--v); color: var(--v); }
+
 .mm-header-status {
-  display: flex; align-items: center;
+  display: flex;
+  align-items: center;
   padding: 0 24px;
   border-left: 1px solid var(--line);
   gap: 8px;
   flex-shrink: 0;
 }
+
 .mm-status-dot {
-  width: 6px; height: 6px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--v);
+  animation: mm-blink 2.5s ease infinite;
 }
+
+@keyframes mm-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
 .mm-status-txt {
-  font-size: 9px; font-weight: 500;
-  letter-spacing: 1.5px; text-transform: uppercase;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
   color: var(--v);
 }
 
-/* ── Footer compartido ── */
+/* ============================================================
+   FOOTER COMPARTIDO
+   ============================================================ */
 .mm-footer {
   border-top: 1px solid var(--line);
   padding: 0 80px;
   height: var(--footer-h);
-  display: flex; align-items: center; gap: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
   background: var(--bg2);
-}
-.mm-footer-dot {
-  width: 5px; height: 5px;
-  border-radius: 50%; background: var(--v);
   flex-shrink: 0;
-  animation: mm-blink 2.5s ease infinite;
 }
-@keyframes mm-blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+@media (max-width: 960px) {
+  .mm-footer { padding: 0 28px; }
+  .mm-footer-meta { gap: 12px; }
+  .mm-footer-item { font-size: 8px; }
+  .mm-header-brand { padding: 0 16px; }
+  .mm-header-section { padding: 0 16px; }
+}
+
+.mm-footer-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--v);
+  flex-shrink: 0;
+}
+
 .mm-footer-txt {
-  font-size: 9px; font-weight: 500;
-  letter-spacing: 2px; text-transform: uppercase;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
   color: var(--dim);
 }
-.mm-footer-sep { flex: 1; height: 1px; background: var(--line); }
+
+.mm-footer-sep {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 .mm-footer-meta {
-  display: flex; gap: 24px;
+  display: flex;
+  gap: 24px;
 }
+
 .mm-footer-item {
-  font-size: 9px; letter-spacing: 1.5px;
-  color: var(--dim); opacity: .5;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+  opacity: 0.5;
 }
 
-/* ── Toast ── */
-.mm-toast {
-  position: fixed; bottom: 56px; left: 50%;
-  transform: translateX(-50%) translateY(8px);
-  background: var(--surface); color: var(--white);
-  font-size: 11px; font-weight: 500; letter-spacing: .3px;
-  padding: 10px 20px;
-  border: 1px solid var(--line2);
-  border-left: 2px solid var(--v);
-  opacity: 0; transition: all .22s;
-  pointer-events: none; white-space: nowrap; z-index: 999;
-}
-.mm-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-/* ── Botones ── */
+/* ============================================================
+   BOTONES
+   ============================================================ */
 .mm-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   font-family: var(--font-body);
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 1.5px; text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
   padding: 10px 20px;
   border: 1px solid var(--line2);
-  background: transparent; color: var(--muted);
-  cursor: pointer; transition: all .15s;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
   text-decoration: none;
+  border-radius: var(--radius);
 }
-.mm-btn:hover { border-color: var(--v); color: var(--v); }
-.mm-btn-primary {
-  background: var(--v); color: #0a0b08;
+
+.mm-btn:hover {
   border-color: var(--v);
+  color: var(--v);
 }
-.mm-btn-primary:hover { background: var(--vo); border-color: var(--vo); color: #0a0b08; }
 
-/* ── Spinner ── */
-.mm-spinner {
-  width: 12px; height: 12px;
-  border: 1.5px solid rgba(255,255,255,.15);
-  border-top-color: currentColor;
-  border-radius: 50%;
-  animation: mm-spin .7s linear infinite;
-  display: none;
+.mm-btn-primary {
+  background: var(--v);
+  color: var(--bg);
+  border-color: var(--v);
+  box-shadow: 0 2px 6px rgba(166,206,57,0.25);
 }
-@keyframes mm-spin { to { transform: rotate(360deg); } }
 
-/* ── Inputs ── */
-.mm-input, .mm-textarea, .mm-select {
+.mm-btn-primary:hover {
+  background: var(--vo);
+  border-color: var(--vo);
+  color: var(--bg);
+}
+
+.mm-btn-danger {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.mm-btn-danger:hover {
+  background: var(--red);
+  color: var(--white);
+  border-color: var(--red);
+}
+
+.mm-btn-sm {
+  padding: 6px 14px;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+}
+
+.mm-btn-block {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ============================================================
+   FORMULARIOS
+   ============================================================ */
+.mm-input,
+.mm-textarea,
+.mm-select {
   width: 100%;
   background: var(--surface);
   border: 1px solid var(--line2);
-  color: var(--white);
+  color: var(--text);
   font-family: var(--font-body);
-  font-size: 12px;
-  padding: 9px 12px;
+  font-size: 13px;
+  padding: 10px 12px;
   outline: none;
-  transition: border-color .15s;
-  -webkit-appearance: none; appearance: none;
-  resize: none;
-}
-.mm-input:focus, .mm-textarea:focus, .mm-select:focus {
-  border-color: var(--v);
-}
-.mm-input::placeholder, .mm-textarea::placeholder { color: var(--dim); }
-.mm-label {
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 2px; text-transform: uppercase;
-  color: var(--dim);
-  display: block; margin-bottom: 6px;
+  transition: border-color 0.15s;
+  border-radius: var(--radius);
 }
 
-/* ── Panel / Card ── */
+.mm-input:focus,
+.mm-textarea:focus,
+.mm-select:focus {
+  border-color: var(--v);
+}
+
+.mm-input::placeholder,
+.mm-textarea::placeholder {
+  color: var(--dim);
+}
+
+.mm-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.mm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 16px;
+}
+
+.mm-field:last-child { margin-bottom: 0; }
+
+.mm-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+body.dark-theme .mm-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239b9d8a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.mm-range {
+  width: 100%;
+  accent-color: var(--v);
+  cursor: pointer;
+  height: 4px;
+  border-radius: 2px;
+  margin: 6px 0;
+}
+
+.mm-range-label {
+  font-size: 11px;
+  color: var(--v);
+  font-weight: 600;
+  text-align: right;
+  min-width: 45px;
+}
+
+.mm-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.mm-row3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .mm-row2, .mm-row3 { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   TABS
+   ============================================================ */
+.mm-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.mm-tab {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 10px 16px;
+  color: var(--dim);
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.mm-tab:hover {
+  color: var(--text);
+}
+
+.mm-tab.active {
+  color: var(--v);
+  border-bottom-color: var(--v);
+}
+
+/* ============================================================
+   PANELES Y TARJETAS
+   ============================================================ */
 .mm-panel {
   background: var(--surface);
   border: 1px solid var(--line2);
-  padding: 24px;
-}
-.mm-panel-title {
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 2.5px; text-transform: uppercase;
-  color: var(--dim);
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 18px;
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  margin-bottom: 16px;
 }
 
-/* ── Badge / Tag ── */
-.mm-tag {
+.mm-panel-header {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+
+.mm-card {
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  transition: all 0.15s;
+}
+
+.mm-card:hover {
+  border-color: var(--line2);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================
+   MODALES
+   ============================================================ */
+.mm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.mm-modal-overlay.open {
+  display: flex;
+}
+
+.mm-modal {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+}
+
+.mm-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mm-modal-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.mm-modal-close {
+  font-size: 18px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--dim);
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  transition: all 0.15s;
+}
+
+.mm-modal-close:hover {
+  color: var(--red);
+}
+
+.mm-modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.mm-modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.mm-toast {
+  position: fixed;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 20px;
+  border: 1px solid var(--line2);
+  border-left: 2px solid var(--v);
+  border-radius: var(--radius);
+  opacity: 0;
+  transition: all 0.22s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 600;
+}
+
+.mm-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================================
+   SPINNER
+   ============================================================ */
+.mm-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  border-top-color: var(--v);
+  border-radius: 50%;
+  animation: mm-spin 0.7s linear infinite;
   display: inline-block;
-  font-size: 8px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  padding: 3px 8px;
+  flex-shrink: 0;
+}
+
+body.dark-theme .mm-spinner {
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--v);
+}
+
+@keyframes mm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   BADGES Y TAGS
+   ============================================================ */
+.mm-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--surface2);
   border: 1px solid var(--line2);
   color: var(--dim);
 }
-.mm-tag-green {
-  border-color: rgba(166,206,57,.3);
+
+.mm-badge-green {
+  background: var(--v-dim);
+  border-color: rgba(166,206,57,0.3);
   color: var(--v);
-  background: rgba(166,206,57,.06);
 }
 
-/* ── Animación de entrada estándar ── */
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+.mt-1 { margin-top: 8px; }
+.mt-2 { margin-top: 16px; }
+.mb-1 { margin-bottom: 8px; }
+.mb-2 { margin-bottom: 16px; }
+.ml-auto { margin-left: auto; }
+.text-center { text-align: center; }
+.text-muted { color: var(--muted); }
+.text-dim { color: var(--dim); }
+
+/* ============================================================
+   ANIMACIONES
+   ============================================================ */
 @keyframes mm-fadeUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-.mm-animate { animation: mm-fadeUp .5s ease both; }
-.mm-animate-1 { animation-delay: .08s; }
-.mm-animate-2 { animation-delay: .16s; }
-.mm-animate-3 { animation-delay: .24s; }
-.mm-animate-4 { animation-delay: .32s; }
 
-/* ── Utilities ── */
-.mm-divider { height: 1px; background: var(--line); }
+.mm-animate {
+  animation: mm-fadeUp 0.5s ease both;
+}
+
+.mm-animate-1 { animation-delay: 0.08s; }
+.mm-animate-2 { animation-delay: 0.16s; }
+.mm-animate-3 { animation-delay: 0.24s; }
+.mm-animate-4 { animation-delay: 0.32s; }
+
+/* ============================================================
+   TOGGLE CLARO/OSCURO
+   ============================================================ */
+.theme-toggle {
+  position: fixed;
+  bottom: calc(var(--footer-h) + 12px);
+  right: 20px;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 30px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle:hover {
+  border-color: var(--v);
+  color: var(--v);
+}
+
+.theme-toggle .icon {
+  font-size: 12px;
+}
+
+/* ============================================================
+   COMPATIBILIDAD (inputs color, etc)
+   ============================================================ */
+input[type="color"] {
+  width: 32px;
+  height: 28px;
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  padding: 2px;
+  cursor: pointer;
+  background: var(--surface);
+}
+/* Asegurar que todos los spinners comiencen ocultos */
+.mm-spinner,
+.spinner,
+[id*="spin"] {
+  display: none !important;
+}
+
+/* Solo se muestran cuando tienen clase explícita o estilo inline */
+.mm-spinner[style*="display: inline-block"],
+.spinner[style*="display: inline-block"],
+[id*="spin"][style*="display: inline-block"] {
+  display: inline-block !important;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 700px) {
+  .theme-toggle {
+    bottom: calc(var(--footer-h) + 60px);
+    padding: 4px 10px;
+    font-size: 9px;
+  }
+  .theme-toggle .icon {
+    font-size: 10px;
+  }
+}
