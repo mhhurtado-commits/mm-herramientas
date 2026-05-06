@@ -247,12 +247,29 @@
   margin-bottom: 8px;
   display: block;
 }
+.logo-editor-container {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
 .logo-preview-canvas {
   background: #1a1a18;
   border-radius: var(--radius);
-  margin: 8px 0;
-  cursor: move;
-  display: block;
+  cursor: crosshair;
+  box-shadow: var(--shadow);
+}
+.logo-controls {
+  flex: 1;
+  min-width: 180px;
+}
+.logo-controls .re-label {
+  font-size: 9px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+.logo-controls .re-rrow {
+  margin-bottom: 4px;
 }
 .guion-editor {
   background: var(--surface2);
@@ -332,7 +349,7 @@
     <button class="resumen-tab" onclick="switchTab('reel', this)">🎬 Reel del Resumen</button>
   </div>
 
-  <!-- TAB RESUMEN -->
+  <!-- TAB RESUMEN (mismo código que antes) -->
   <div id="tabResumen">
     <div class="resumen-grid">
       <div class="resumen-panel accent">
@@ -392,17 +409,23 @@
       
       <div class="reel-controls-global">
         
-        <!-- Editor de logo con preview arrastrable -->
+        <!-- Editor de logo estilo Placas -->
         <div class="reel-logo-editor">
-          <div class="re-label">⭐ Logo (arrastra sobre la imagen)</div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
-            <span id="logoStatus" style="font-size:9px; color:var(--v);">Logo por defecto</span>
-            <label class="re-uplbl" for="re-logo-multi">📁 Cambiar logo</label>
-            <input type="file" id="re-logo-multi" accept="image/*" class="re-hidden">
-            <button class="re-tbtn" onclick="resetLogoMulti()">↺ Restaurar original</button>
+          <div class="re-label">⭐ Logo (arrastrá y redimensioná en el canvas)</div>
+          <div class="logo-editor-container">
+            <canvas id="logoCanvas" width="270" height="480" style="width:270px;height:480px;background:#1a1a18;border-radius:8px;cursor:crosshair" class="logo-preview-canvas"></canvas>
+            <div class="logo-controls">
+              <div class="re-label">Tamaño</div>
+              <div class="re-rrow">
+                <input type="range" id="logoSizeSlider" min="5" max="25" value="12" step="1" oninput="actualizarTamanioLogo(this.value)">
+                <span id="logoSizeVal" class="re-rval">12%</span>
+              </div>
+              <button class="re-tbtn" onclick="resetearPosicionLogo()" style="margin-top:8px;width:100%">↺ Restablecer posición</button>
+              <label class="re-uplbl" for="re-logo-multi" style="margin-top:8px;display:block">📁 Cambiar logo</label>
+              <input type="file" id="re-logo-multi" accept="image/*" class="re-hidden">
+              <div id="logoStatus" style="font-size:9px; color:var(--dim); margin-top:8px; text-align:center"></div>
+            </div>
           </div>
-          <canvas id="logoPreviewCanvas" width="540" height="960" style="width:270px;height:480px;margin-top:8px;background:#1a1a18;border-radius:8px;cursor:move" class="logo-preview-canvas"></canvas>
-          <div style="font-size:9px; color:var(--dim); margin-top:4px">💡 Arrastrá el logo sobre la imagen para posicionarlo. La posición se guarda y se replica en todas las páginas.</div>
         </div>
         
         <div class="reel-music">
@@ -474,9 +497,8 @@ let audioBlob = null;
 let musicBlob = null;
 let musicVolume = 0.25;
 let logoImg = null;
-let logoPos = { x: 0.85, y: 0.08, w: 0.1, h: null }; // h se calcula automáticamente según proporción
-let dragActive = false;
-let dragOffsetX = 0, dragOffsetY = 0;
+let logoX = 0.85, logoY = 0.08, logoSize = 12; // posición y tamaño en porcentaje
+let dragActive = false, resizeActive = false, dragOffsetX = 0, dragOffsetY = 0, resizeHandle = null;
 
 // ============================================================
 // UTILIDADES
@@ -496,9 +518,9 @@ function switchTab(tab, btn) {
 }
 
 // ============================================================
-// NOTAS Y RESUMEN
+// NOTAS Y RESUMEN (código estándar)
 // ============================================================
-async function cargarNotas() { /* ... mismo código que antes ... */ 
+async function cargarNotas() {
   let fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
   document.getElementById('fechaSelector').value = fecha;
   const container = document.getElementById('notasContainer');
@@ -512,7 +534,7 @@ async function cargarNotas() { /* ... mismo código que antes ... */
   } catch(err) { container.innerHTML = `<div class="empty-state">Error: ${err.message}</div>`; }
 }
 
-function renderListaNotas() { /* ... mismo código que antes ... */
+function renderListaNotas() {
   const container = document.getElementById('notasContainer');
   if (!notasActuales.length) {
     container.innerHTML = '<div class="empty-state">No hay notas. Agregá desde WhatsApp o manualmente.</div>';
@@ -538,7 +560,7 @@ function renderListaNotas() { /* ... mismo código que antes ... */
   document.getElementById('btnGenerarResumen').disabled = false;
 }
 
-function moverNota(idx, dir) { /* ... mismo código ... */
+function moverNota(idx, dir) {
   if (dir === 'up' && idx === 0) return;
   if (dir === 'down' && idx === notasActuales.length-1) return;
   const newIdx = dir === 'up' ? idx-1 : idx+1;
@@ -546,7 +568,7 @@ function moverNota(idx, dir) { /* ... mismo código ... */
   renderListaNotas();
 }
 
-async function eliminarNota(idx) { /* ... mismo código ... */
+async function eliminarNota(idx) {
   const nota = notasActuales[idx];
   try {
     await fetch(`${WORKER}/resumen/eliminar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: nota.id, fecha: nota.fecha }) });
@@ -556,7 +578,7 @@ async function eliminarNota(idx) { /* ... mismo código ... */
   } catch(e) { toast('Error al eliminar'); }
 }
 
-async function agregarNotaManual() { /* ... mismo código ... */
+async function agregarNotaManual() {
   const url = document.getElementById('manualUrl').value.trim();
   if (!url) { toast('Ingresá la URL'); return; }
   const tituloManual = document.getElementById('manualTitulo').value.trim();
@@ -585,7 +607,7 @@ async function agregarNotaManual() { /* ... mismo código ... */
   } catch(e) { toast('Error: ' + e.message); }
 }
 
-async function generarResumen() { /* ... mismo código ... */
+async function generarResumen() {
   if (!notasActuales.length) { toast('No hay notas'); return; }
   const fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
   const btn = document.getElementById('btnGenerarResumen');
@@ -612,7 +634,7 @@ async function generarResumen() { /* ... mismo código ... */
 }
 
 // ============================================================
-// EDITOR MULTIPÁGINA Y LOGO ARRASTRABLE
+// EDITOR MULTIPÁGINA
 // ============================================================
 function renderPages() {
   const container = document.getElementById('reelPages');
@@ -642,12 +664,10 @@ function renderPages() {
     </div>`;
   });
   container.innerHTML = html;
-  // Cargar el logo por defecto si no hay ninguno cargado
   if (!logoImg) {
     cargarLogoDefault();
   } else {
     resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
-    dibujarLogoPreview();
   }
 }
 
@@ -655,38 +675,51 @@ function cargarLogoDefault() {
   const img = new Image();
   img.onload = () => {
     logoImg = img;
-    // Calcular altura automática basada en ancho fijo y proporción del logo
-    logoPos.h = logoPos.w / (img.width / img.height);
-    document.getElementById('logoStatus').innerHTML = '✓ Logo por defecto';
-    resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+    document.getElementById('logoStatus').innerHTML = '✓ Logo cargado';
     dibujarLogoPreview();
-  };
-  img.onerror = () => {
-    console.log('No se pudo cargar el logo por defecto');
     resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
   };
+  img.onerror = () => { document.getElementById('logoStatus').innerHTML = '⚠ Logo no encontrado'; };
   img.src = '../assets/logo.png';
 }
 
 function dibujarLogoPreview() {
-  const canvas = document.getElementById('logoPreviewCanvas');
-  if (!canvas) return;
+  const canvas = document.getElementById('logoCanvas');
+  if (!canvas || !logoImg) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(0, 0, W, H);
-  // Fondo de ejemplo (gris)
+  // Fondo de ejemplo
   ctx.fillStyle = '#2a2a28';
-  ctx.fillRect(W*0.1, H*0.1, W*0.8, H*0.8);
+  ctx.fillRect(W*0.05, H*0.05, W*0.9, H*0.9);
   ctx.fillStyle = '#9b9d8a';
-  ctx.font = 'bold 20px Inter';
+  ctx.font = 'bold 16px Inter';
   ctx.textAlign = 'center';
-  ctx.fillText('Ejemplo de posición', W/2, H/2);
-  if (logoImg) {
-    const lw = W * logoPos.w, lh = H * logoPos.h;
-    const lx = W * logoPos.x - lw, ly = H * logoPos.y;
-    ctx.drawImage(logoImg, lx, ly, lw, lh);
-  }
+  ctx.fillText('Logo position preview', W/2, H/2);
+  ctx.fillStyle = '#666';
+  ctx.font = '12px Inter';
+  ctx.fillText('arrastrá / esquinas para ajustar', W/2, H/2+30);
+  // Líneas de centrado
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(166,206,57,0.3)';
+  ctx.setLineDash([5, 5]);
+  ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+  ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+  ctx.setLineDash([]);
+  // Dibujar logo
+  const logoW = W * (logoSize / 100);
+  const logoH = logoW / (logoImg.width / logoImg.height);
+  const logoXpx = W * logoX - logoW;
+  const logoYpx = H * logoY;
+  ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
+  // Dibujar handles
+  ctx.fillStyle = '#a6ce39';
+  const handleSize = 8;
+  ctx.fillRect(logoXpx - handleSize/2, logoYpx - handleSize/2, handleSize, handleSize);
+  ctx.fillRect(logoXpx + logoW - handleSize/2, logoYpx - handleSize/2, handleSize, handleSize);
+  ctx.fillRect(logoXpx - handleSize/2, logoYpx + logoH - handleSize/2, handleSize, handleSize);
+  ctx.fillRect(logoXpx + logoW - handleSize/2, logoYpx + logoH - handleSize/2, handleSize, handleSize);
 }
 
 function dibujarPaginaMiniatura(idx) {
@@ -695,7 +728,6 @@ function dibujarPaginaMiniatura(idx) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const nota = resumenNotas[idx];
-  
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(0, 0, W, H);
   
@@ -706,14 +738,14 @@ function dibujarPaginaMiniatura(idx) {
     const drawX = (W - drawW) / 2, drawY = (H - drawH) / 2;
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
     
-    // Dibujar logo con proporción correcta
     if (logoImg) {
-      const lw = W * logoPos.w, lh = W * logoPos.w / (logoImg.width / logoImg.height);
-      const lx = W * logoPos.x - lw, ly = H * logoPos.y;
-      ctx.drawImage(logoImg, lx, ly, lw, lh);
+      const logoW = W * (logoSize / 100);
+      const logoH = logoW / (logoImg.width / logoImg.height);
+      const logoXpx = W * logoX - logoW;
+      const logoYpx = H * logoY;
+      ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
     }
     
-    // Sombra para el texto
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(0, H-50, W, 50);
     ctx.fillStyle = '#ffffff';
@@ -771,69 +803,126 @@ function moverPagina(idx, dir) {
 }
 
 // ============================================================
-// LOGO ARRASTRABLE
+// LOGO - INTERACCIÓN (arrastrar y redimensionar)
 // ============================================================
-function initLogoDragEvents() {
-  const canvas = document.getElementById('logoPreviewCanvas');
+function initLogoEvents() {
+  const canvas = document.getElementById('logoCanvas');
   if (!canvas) return;
   
-  canvas.addEventListener('mousedown', (e) => {
+  function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    const mouseX = (e.clientX - rect.left) * scaleX;
-    const mouseY = (e.clientY - rect.top) * scaleY;
-    
-    const lw = canvas.width * logoPos.w;
-    const lh = canvas.width * logoPos.w / (logoImg ? (logoImg.width / logoImg.height) : 1);
-    const lx = canvas.width * logoPos.x - lw;
-    const ly = canvas.height * logoPos.y;
-    
-    if (mouseX >= lx && mouseX <= lx + lw && mouseY >= ly && mouseY <= ly + lh) {
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  }
+  
+  function isOverHandle(mx, my) {
+    if (!logoImg) return null;
+    const W = canvas.width, H = canvas.height;
+    const logoW = W * (logoSize / 100);
+    const logoH = logoW / (logoImg.width / logoImg.height);
+    const logoXpx = W * logoX - logoW;
+    const logoYpx = H * logoY;
+    const handleSize = 12;
+    if (Math.abs(mx - logoXpx) < handleSize && Math.abs(my - logoYpx) < handleSize) return 'nw';
+    if (Math.abs(mx - (logoXpx + logoW)) < handleSize && Math.abs(my - logoYpx) < handleSize) return 'ne';
+    if (Math.abs(mx - logoXpx) < handleSize && Math.abs(my - (logoYpx + logoH)) < handleSize) return 'sw';
+    if (Math.abs(mx - (logoXpx + logoW)) < handleSize && Math.abs(my - (logoYpx + logoH)) < handleSize) return 'se';
+    if (mx >= logoXpx && mx <= logoXpx + logoW && my >= logoYpx && my <= logoYpx + logoH) return 'drag';
+    return null;
+  }
+  
+  function onMouseDown(e) {
+    e.preventDefault();
+    const pos = getMousePos(e);
+    const handle = isOverHandle(pos.x, pos.y);
+    if (handle === 'drag') {
       dragActive = true;
-      dragOffsetX = mouseX - lx;
-      dragOffsetY = mouseY - ly;
-      canvas.style.cursor = 'grabbing';
-      e.preventDefault();
+      dragOffsetX = pos.x - (canvas.width * logoX - canvas.width * (logoSize / 100));
+      dragOffsetY = pos.y - (canvas.height * logoY);
+    } else if (handle === 'nw' || handle === 'ne' || handle === 'sw' || handle === 'se') {
+      resizeActive = true;
+      resizeHandle = handle;
     }
-  });
+  }
   
-  window.addEventListener('mousemove', (e) => {
-    if (!dragActive || !logoImg) return;
-    const canvas = document.getElementById('logoPreviewCanvas');
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    let mouseX = (e.clientX - rect.left) * scaleX;
-    let mouseY = (e.clientY - rect.top) * scaleY;
+  function onMouseMove(e) {
+    if (!dragActive && !resizeActive) return;
+    e.preventDefault();
+    const pos = getMousePos(e);
+    const W = canvas.width, H = canvas.height;
     
-    const lw = canvas.width * logoPos.w;
-    const lh = canvas.width * logoPos.w / (logoImg.width / logoImg.height);
-    
-    let newLx = mouseX - dragOffsetX;
-    let newLy = mouseY - dragOffsetY;
-    
-    // Limitar dentro del canvas
-    newLx = Math.max(0, Math.min(newLx, canvas.width - lw));
-    newLy = Math.max(0, Math.min(newLy, canvas.height - lh));
-    
-    logoPos.x = (newLx + lw) / canvas.width;
-    logoPos.y = newLy / canvas.height;
-    
-    dibujarLogoPreview();
-    resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
-  });
-  
-  window.addEventListener('mouseup', () => {
     if (dragActive) {
-      dragActive = false;
-      const canvas = document.getElementById('logoPreviewCanvas');
-      if (canvas) canvas.style.cursor = 'move';
+      let newLogoXpx = pos.x - dragOffsetX;
+      let newLogoYpx = pos.y - dragOffsetY;
+      const logoW = W * (logoSize / 100);
+      const logoH = logoW / (logoImg.width / logoImg.height);
+      newLogoXpx = Math.max(0, Math.min(newLogoXpx, W - logoW));
+      newLogoYpx = Math.max(0, Math.min(newLogoYpx, H - logoH));
+      logoX = (newLogoXpx + logoW) / W;
+      logoY = newLogoYpx / H;
+      dibujarLogoPreview();
+      resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
     }
-  });
+    
+    if (resizeActive) {
+      let newSize = logoSize;
+      const logoW = W * (logoSize / 100);
+      const originalLogoW = logoW;
+      let delta = 0;
+      if (resizeHandle === 'se') delta = (pos.x - (W * logoX)) / W * 100;
+      if (resizeHandle === 'nw') delta = ((W * logoX - logoW) - pos.x) / W * 100;
+      if (resizeHandle === 'ne') delta = (pos.x - (W * logoX)) / W * 100;
+      if (resizeHandle === 'sw') delta = ((W * logoX - logoW) - pos.x) / W * 100;
+      newSize = Math.max(5, Math.min(25, logoSize + delta));
+      if (newSize !== logoSize) {
+        logoSize = newSize;
+        document.getElementById('logoSizeSlider').value = logoSize;
+        document.getElementById('logoSizeVal').textContent = logoSize + '%';
+        dibujarLogoPreview();
+        resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+      }
+    }
+  }
+  
+  function onMouseUp() {
+    dragActive = false;
+    resizeActive = false;
+    resizeHandle = null;
+  }
+  
+  canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('mouseup', onMouseUp);
+  canvas.addEventListener('touchstart', onMouseDown, { passive: false });
+  canvas.addEventListener('touchmove', onMouseMove, { passive: false });
+  canvas.addEventListener('touchend', onMouseUp);
 }
 
-async function generarGuionDesdeResumen() { /* ... mismo código ... */
+function actualizarTamanioLogo(val) {
+  logoSize = parseInt(val);
+  document.getElementById('logoSizeVal').textContent = logoSize + '%';
+  dibujarLogoPreview();
+  resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+}
+
+function resetearPosicionLogo() {
+  logoX = 0.85;
+  logoY = 0.08;
+  logoSize = 12;
+  document.getElementById('logoSizeSlider').value = 12;
+  document.getElementById('logoSizeVal').textContent = '12%';
+  dibujarLogoPreview();
+  resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+  toast('Logo restablecido');
+}
+
+// ============================================================
+// OTRAS FUNCIONES
+// ============================================================
+async function generarGuionDesdeResumen() {
   const texto = resultadoWhatsapp || resultadoRedes;
   if (!texto) { toast('Primero generá el resumen'); return; }
   const btn = event.target;
@@ -849,7 +938,7 @@ async function generarGuionDesdeResumen() { /* ... mismo código ... */
   btn.disabled = false; btn.textContent = '✨ Generar desde resumen';
 }
 
-function regenerarGuionLimpio() { /* ... mismo código ... */
+function regenerarGuionLimpio() {
   let texto = document.getElementById('guionReel').value;
   texto = texto.replace(/[#*_`]/g, '').replace(/https?:\/\/[^\s]+/g, '').replace(/[🔗📱📣🎧✅⚠️✗✓★✦▶️⏸️🎬📋🗑✏️🕐📍📅📰💬⚡🔍🎵🎙️]/g, '');
   document.getElementById('guionReel').value = texto;
@@ -858,21 +947,85 @@ function regenerarGuionLimpio() { /* ... mismo código ... */
 }
 
 // ============================================================
-// MÚSICA (igual que antes)
+// MÚSICA
 // ============================================================
-async function buscarMusicaMulti() { /* ... */ }
-async function seleccionarMusicaMulti(url, title, artist) { /* ... */ }
-function removerMusicaMulti() { /* ... */ }
-function actualizarVolumenMulti() { /* ... */ }
+async function buscarMusicaMulti() {
+  const query = document.getElementById('musicSearchInput').value.trim();
+  if (!query) { toast('Ingresá una búsqueda'); return; }
+  const container = document.getElementById('musicResults');
+  container.innerHTML = '<div class="loading-spinner">Buscando...</div>';
+  try {
+    const res = await fetch(`${WORKER}/music/search?q=${encodeURIComponent(query)}&per_page=6`);
+    const data = await res.json();
+    if (!data.ok || !data.tracks?.length) { container.innerHTML = '<div class="empty-state">No se encontraron resultados</div>'; return; }
+    container.innerHTML = '';
+    data.tracks.forEach(track => {
+      const div = document.createElement('div');
+      div.className = 'music-item';
+      div.innerHTML = `<div><strong>${track.title}</strong><br><small>${track.artist}</small></div><button class="re-tbtn" onclick="seleccionarMusicaMulti('${track.audio_url}','${track.title}','${track.artist}')">Usar</button>`;
+      container.appendChild(div);
+    });
+  } catch(e) { container.innerHTML = '<div class="empty-state">Error al buscar</div>'; }
+}
+
+async function seleccionarMusicaMulti(url, title, artist) {
+  try {
+    const res = await fetch(`${WORKER}/music/preview?url=${encodeURIComponent(url)}`);
+    musicBlob = await res.blob();
+    document.getElementById('selectedMusicInfo').style.display = 'block';
+    document.getElementById('selectedMusicTitle').textContent = title;
+    document.getElementById('selectedMusicArtist').textContent = artist;
+    toast('Música seleccionada');
+  } catch(e) { toast('Error al cargar música'); }
+}
+
+function removerMusicaMulti() {
+  musicBlob = null;
+  document.getElementById('selectedMusicInfo').style.display = 'none';
+  toast('Música removida');
+}
+
+function actualizarVolumenMulti() {
+  musicVolume = document.getElementById('musicVolume').value / 100;
+  document.getElementById('musicVolumeVal').textContent = Math.round(musicVolume*100) + '%';
+}
 
 // ============================================================
 // AUDIO
 // ============================================================
-async function generarAudioMulti() { /* ... */ }
-function subirAudioPropio(input) { /* ... */ }
+async function generarAudioMulti() {
+  const guion = document.getElementById('guionReel').value.trim();
+  if (!guion) { toast('Escribí o generá el guion primero'); return; }
+  const voiceId = document.getElementById('voiceSelect').value;
+  const btn = document.getElementById('btnGenerarAudio');
+  const spin = document.getElementById('spinAudio');
+  btn.disabled = true; spin.style.display = 'inline-block';
+  try {
+    const res = await fetch(`${WORKER}/social/reel/audio`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo: 'Resumen del día', guion, voiceId }) });
+    if (!res.ok) throw new Error('Error generando audio');
+    audioBlob = await res.blob();
+    const url = URL.createObjectURL(audioBlob);
+    const audioPreview = document.getElementById('audioPreview');
+    audioPreview.src = url;
+    audioPreview.style.display = 'block';
+    toast('Audio generado');
+  } catch(e) { toast('Error: ' + e.message); }
+  btn.disabled = false; spin.style.display = 'none';
+}
+
+function subirAudioPropio(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  audioBlob = file;
+  const audioPreview = document.getElementById('audioPreview');
+  audioPreview.src = url;
+  audioPreview.style.display = 'block';
+  toast('Audio cargado');
+}
 
 // ============================================================
-// LOGO
+// LOGO - EVENTOS DE CARGA
 // ============================================================
 document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -882,20 +1035,14 @@ document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
     const img = new Image();
     img.onload = () => {
       logoImg = img;
-      // Calcular altura automática basada en ancho fijo y proporción
-      logoPos.h = logoPos.w / (img.width / img.height);
       document.getElementById('logoStatus').innerHTML = '✓ Logo personalizado';
-      resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
       dibujarLogoPreview();
+      resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
     };
     img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 });
-
-function resetLogoMulti() {
-  cargarLogoDefault();
-}
 
 // ============================================================
 // EXPORTAR VIDEO (placeholder)
@@ -924,7 +1071,7 @@ document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
 document.addEventListener('DOMContentLoaded', () => { 
   cargarNotas();
   cargarLogoDefault();
-  initLogoDragEvents();
+  initLogoEvents();
 });
 </script>
 </body>
