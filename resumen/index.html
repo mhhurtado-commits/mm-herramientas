@@ -7,9 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <style>
-/* ============================================================
-   Estilos del Resumen con Editor Multipágina
-   ============================================================ */
 .resumen-main {
   padding-top: var(--header-h);
   padding-bottom: var(--footer-h);
@@ -170,7 +167,6 @@
 }
 .hashtag:hover { background: var(--v); color: var(--bg); }
 
-/* Editor Multipágina */
 .reel-multi-editor {
   background: var(--surface);
   border: 1px solid var(--line2);
@@ -324,6 +320,29 @@
 }
 .re-hidden { display: none; }
 .mm-spinner.small { width: 12px; height: 12px; }
+
+/* Barra de previsualización */
+.preview-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--v-dim);
+  border-radius: var(--radius-lg);
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.preview-video-container {
+  margin-top: 16px;
+  display: none;
+}
+.preview-video-container video {
+  width: 100%;
+  max-height: 360px;
+  background: #000;
+  border-radius: var(--radius);
+}
 </style>
 </head>
 <body>
@@ -450,7 +469,7 @@
             <option value="es-US-Neural2-A">Americano neutro</option>
           </select>
           <div style="display:flex; gap:8px; margin-bottom:8px">
-            <button class="mm-btn mm-btn-primary" id="btnGenerarAudio" onclick="generarAudioMulti()" style="flex:1"><span class="mm-spinner small" id="spinAudio"></span>🎙 Generar audio</button>
+            <button class="mm-btn mm-btn-primary" id="btnGenerarAudio" onclick="generarAudioMulti()" style="flex:1"><span class="mm-spinner" id="spinAudio"></span>🎙 Generar audio</button>
             <label class="re-uplbl" style="margin:0; padding:8px; background:var(--v-dim)">📁 Subir audio propio
               <input type="file" id="uploadAudio" accept="audio/*" class="re-hidden" onchange="subirAudioPropio(this)">
             </label>
@@ -467,8 +486,26 @@
           </div>
         </div>
         
-        <button class="mm-btn mm-btn-primary" id="btnExportVideo" onclick="exportarVideoMulti()" style="width:100%; margin-top:8px">🎬 Generar video multipágina</button>
-        <div id="exportProgress" style="display:none; margin-top:8px; padding:8px; background:var(--v-dim); border-radius:var(--radius)"><div class="mm-spinner small"></div> <span id="exportProgressText">Procesando...</span></div>
+        <!-- Botones de previsualización y exportación -->
+        <div class="preview-bar">
+          <button class="mm-btn mm-btn-primary" id="btnPreviewVideo" onclick="previsualizarVideoMulti()" style="background:var(--v-dim); border-color:var(--v); color:var(--v); flex:1">
+            🎬 Previsualizar
+          </button>
+          <button class="mm-btn mm-btn-primary" id="btnExportVideo" onclick="exportarVideoMulti()" style="flex:1">
+            ⬇ Exportar MP4
+          </button>
+        </div>
+        
+        <div class="preview-video-container" id="previewVideoContainer">
+          <video id="previewVideo" controls autoplay muted style="width:100%; border-radius:var(--radius)"></video>
+          <div style="font-size:10px; color:var(--dim); text-align:center; margin-top:6px">Previsualización (sin audio)</div>
+        </div>
+        
+        <div id="exportProgress" style="display:none; margin-top:8px; padding:8px; background:var(--v-dim); border-radius:var(--radius)">
+          <div class="mm-spinner small"></div> 
+          <span id="exportProgressText">Procesando...</span>
+        </div>
+        
         <div id="videoResult" style="display:none; margin-top:12px">
           <video id="videoPreview" controls style="width:100%; border-radius:var(--radius)"></video>
           <a id="videoDownload" class="mm-btn mm-btn-primary" style="display:inline-block; margin-top:8px; text-align:center">⬇ Descargar video</a>
@@ -526,7 +563,7 @@ function switchTab(tab, btn) {
 }
 
 // ============================================================
-// NOTAS Y RESUMEN (mismo código que antes)
+// NOTAS Y RESUMEN
 // ============================================================
 async function cargarNotas() {
   let fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
@@ -636,9 +673,44 @@ async function generarResumen() {
     htContainer.innerHTML = hashtagsActuales.length ? hashtagsActuales.map(ht => `<span class="hashtag" onclick="copiarTexto('${esc(ht)}')">${esc(ht)}</span>`).join('') : '';
     document.getElementById('resultadosPanel').style.display = 'block';
     toast('Resumen generado');
+    
+    // Convertir todas las imágenes a dataURLs para evitar problemas de CORS
+    await convertirTodasImagenesALocal();
     renderPages();
   } catch(err) { toast('Error: ' + err.message); }
   btn.disabled = false; btn.textContent = '✦ Generar resumen con IA';
+}
+
+// FUNCIÓN CLAVE: Convertir imágenes externas a dataURLs
+async function convertirTodasImagenesALocal() {
+  for (let i = 0; i < resumenNotas.length; i++) {
+    if (resumenNotas[i].imagen && !resumenNotas[i].imagen.startsWith('data:')) {
+      try {
+        const dataUrl = await convertirImagenALocal(resumenNotas[i].imagen);
+        if (dataUrl) resumenNotas[i].imagen = dataUrl;
+      } catch(e) { console.warn(`Error convirtiendo imagen ${i}:`, e); }
+    }
+  }
+}
+
+async function convertirImagenALocal(imgUrl) {
+  if (!imgUrl) return null;
+  if (imgUrl.startsWith('data:')) return imgUrl;
+  try {
+    const proxyUrl = `${WORKER}?image=${encodeURIComponent(imgUrl)}`;
+    const res = await fetch(proxyUrl);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) {
+    console.error('Error convirtiendo imagen:', e);
+    return null;
+  }
 }
 
 // ============================================================
@@ -702,20 +774,17 @@ function dibujarLogoPreview() {
   ctx.font = 'bold 16px Inter';
   ctx.textAlign = 'center';
   ctx.fillText('Logo position preview', W/2, H/2);
-  // Líneas de centrado
   ctx.beginPath();
   ctx.strokeStyle = 'rgba(166,206,57,0.5)';
   ctx.setLineDash([5, 5]);
   ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
   ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
   ctx.setLineDash([]);
-  // Dibujar logo
   const logoW = W * (logoSize / 100);
   const logoH = logoW / (logoImg.width / logoImg.height);
   const logoXpx = W * logoX - logoW;
   const logoYpx = H * logoY;
   ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
-  // Handles
   ctx.fillStyle = '#a6ce39';
   const hs = 8;
   ctx.fillRect(logoXpx - hs/2, logoYpx - hs/2, hs, hs);
@@ -732,7 +801,7 @@ function dibujarPaginaMiniatura(idx) {
   const nota = resumenNotas[idx];
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(0, 0, W, H);
-  if (nota.imagen) {
+  if (nota.imagen && nota.imagen.startsWith('data:')) {
     const img = new Image();
     img.onload = () => {
       const imgW = img.width, imgH = img.height;
@@ -1030,71 +1099,90 @@ function setFormatoVideo(fmt) {
 }
 
 // ============================================================
-// EXPORTACIÓN DE VIDEO MULTIPÁGINA
+// PREVISUALIZACIÓN SIN AUDIO
 // ============================================================
-async function exportarVideoMulti() {
+async function previsualizarVideoMulti() {
+  if (!resumenNotas.length) { toast('No hay páginas para previsualizar'); return; }
   if (!audioBlob) { toast('Primero generá o cargá el audio'); return; }
-  if (!resumenNotas.length) { toast('No hay páginas para exportar'); return; }
   
-  const btn = document.getElementById('btnExportVideo');
-  const progress = document.getElementById('exportProgress');
-  const progressText = document.getElementById('exportProgressText');
-  const resultDiv = document.getElementById('videoResult');
+  const previewContainer = document.getElementById('previewVideoContainer');
+  const previewVideo = document.getElementById('previewVideo');
+  const btnPreview = document.getElementById('btnPreviewVideo');
   
-  btn.disabled = true;
-  progress.style.display = 'flex';
-  progressText.textContent = 'Preparando video...';
+  btnPreview.disabled = true;
+  btnPreview.textContent = 'Generando preview...';
+  previewContainer.style.display = 'block';
   
   try {
-    // Obtener duración del audio
-    const audioContext = new AudioContext();
-    const audioBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
-    const audioDuration = audioBuffer.duration;
-    await audioContext.close();
-    
+    const audioDur = await getAudioDuration(audioBlob);
     const numPages = resumenNotas.length;
-    const secsPerPage = audioDuration / numPages;
+    const secsPerPage = audioDur / numPages;
     const FPS = 15;
-    const totalFrames = Math.ceil(audioDuration * FPS);
+    const totalFrames = Math.ceil(Math.min(audioDur, 15) * FPS); // máximo 15 segundos para preview
     
-    // Canvas para renderizar a tamaño real
-    const renderCanvas = document.createElement('canvas');
-    renderCanvas.width = formatoVideo.w;
-    renderCanvas.height = formatoVideo.h;
-    const ctx = renderCanvas.getContext('2d');
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = formatoVideo.w;
+    offCanvas.height = formatoVideo.h;
+    const ctx = offCanvas.getContext('2d');
     
-    // Pre-cargar todas las imágenes
-    progressText.textContent = 'Cargando imágenes...';
-    const pageImages = await Promise.all(resumenNotas.map(nota => cargarImagen(nota.imagen)));
+    // Cargar imágenes locales
+    const pageImages = await Promise.all(resumenNotas.map(async (nota) => {
+      if (nota.imagen && nota.imagen.startsWith('data:')) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = nota.imagen;
+        });
+      }
+      return null;
+    }));
     
-    progressText.textContent = 'Codificando video...';
+    const stream = offCanvas.captureStream(FPS);
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const chunks = [];
     
-    // Verificar soporte de WebCodecs
-    if (typeof VideoEncoder !== 'undefined') {
-      await exportarConWebCodecs(renderCanvas, ctx, pageImages, audioBlob, audioDuration, secsPerPage, FPS, totalFrames, progressText);
-    } else {
-      await exportarConMediaRecorder(renderCanvas, ctx, pageImages, audioBlob, audioDuration, secsPerPage);
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      previewVideo.src = url;
+      previewVideo.muted = false;
+      previewVideo.volume = 0.5;
+      previewVideo.play();
+      btnPreview.disabled = false;
+      btnPreview.textContent = '🎬 Previsualizar';
+      toast('Preview listo');
+    };
+    
+    recorder.start();
+    
+    for (let frame = 0; frame < totalFrames; frame++) {
+      const t = frame / FPS;
+      const pageIdx = Math.min(Math.floor(t / secsPerPage), numPages - 1);
+      dibujarPaginaEnCanvas(ctx, offCanvas.width, offCanvas.height, pageImages[pageIdx], resumenNotas[pageIdx]?.titulo || '');
+      await new Promise(r => setTimeout(r, 1000 / FPS));
     }
     
-    resultDiv.style.display = 'block';
-    toast('✅ Video generado correctamente');
+    setTimeout(() => recorder.stop(), 500);
     
   } catch (err) {
-    console.error('Export error:', err);
-    toast('Error generando video: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    progress.style.display = 'none';
+    console.error('Preview error:', err);
+    toast('Error en preview: ' + err.message);
+    btnPreview.disabled = false;
+    btnPreview.textContent = '🎬 Previsualizar';
   }
 }
 
-function cargarImagen(url) {
-  return new Promise((resolve) => {
-    if (!url) { resolve(null); return; }
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = url;
+// ============================================================
+// DURACIÓN DE AUDIO
+// ============================================================
+function getAudioDuration(blob) {
+  return new Promise(resolve => {
+    const audio = new Audio();
+    audio.onloadedmetadata = () => resolve(isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30);
+    audio.onerror = () => resolve(30);
+    audio.src = URL.createObjectURL(blob);
   });
 }
 
@@ -1130,29 +1218,150 @@ function dibujarPaginaEnCanvas(ctx, W, H, img, titulo) {
   ctx.fillText(texto, W/2, H-25);
 }
 
-async function exportarConWebCodecs(renderCanvas, ctx, pageImages, audioBlob, audioDuration, secsPerPage, FPS, totalFrames, progressText) {
+// ============================================================
+// EXPORTACIÓN CON FALLBACK (CORREGIDA)
+// ============================================================
+async function exportarVideoMulti() {
+  if (!audioBlob) { toast('Primero generá o cargá el audio'); return; }
+  if (!resumenNotas.length) { toast('No hay páginas para exportar'); return; }
+  
+  const btn = document.getElementById('btnExportVideo');
+  const progress = document.getElementById('exportProgress');
+  const progressText = document.getElementById('exportProgressText');
+  const resultDiv = document.getElementById('videoResult');
+  
+  btn.disabled = true;
+  progress.style.display = 'flex';
+  progressText.textContent = 'Preparando video...';
+  
+  try {
+    const audioDur = await getAudioDuration(audioBlob);
+    const numPages = resumenNotas.length;
+    const secsPerPage = audioDur / numPages;
+    const FPS = 15;
+    
+    // Cargar todas las imágenes localmente
+    progressText.textContent = 'Cargando imágenes...';
+    const pageImages = await Promise.all(resumenNotas.map(async (nota) => {
+      if (nota.imagen && nota.imagen.startsWith('data:')) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = nota.imagen;
+        });
+      }
+      return null;
+    }));
+    
+    // Verificar soporte de WebCodecs
+    if (typeof VideoEncoder !== 'undefined' && typeof AudioEncoder !== 'undefined') {
+      await exportarConWebCodecsCorregido(pageImages, audioBlob, audioDur, secsPerPage, FPS, progressText);
+    } else {
+      await exportarConMediaRecorder(pageImages, audioBlob, audioDur, secsPerPage);
+    }
+    
+    resultDiv.style.display = 'block';
+    toast('✅ Video generado correctamente');
+    
+  } catch (err) {
+    console.error('Export error:', err);
+    toast('Error generando video: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    progress.style.display = 'none';
+  }
+}
+
+async function exportarConWebCodecsCorregido(pageImages, audioBlob, audioDuration, secsPerPage, FPS, progressText) {
+  const IS_MOBILE = /Android|iPhone/i.test(navigator.userAgent);
+  const MAX_DIM = IS_MOBILE ? 540 : 720;
+  const scale = Math.min(1, MAX_DIM / formatoVideo.w);
+  const VW = Math.floor(formatoVideo.w * scale / 2) * 2;
+  const VH = Math.floor(formatoVideo.h * scale / 2) * 2;
+  
+  const totalFrames = Math.ceil(audioDuration * FPS);
+  
+  progressText.textContent = 'Cargando mp4-muxer...';
   const { Muxer, ArrayBufferTarget } = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs');
   
-  const VW = renderCanvas.width, VH = renderCanvas.height;
   const target = new ArrayBufferTarget();
-  const muxer = new Muxer({ target, video: { codec: 'avc', width: VW, height: VH }, audio: { codec: 'aac', sampleRate: 44100, numberOfChannels: 1 }, fastStart: 'in-memory' });
+  const muxer = new Muxer({
+    target,
+    video: { codec: 'avc', width: VW, height: VH },
+    audio: { codec: 'aac', sampleRate: 44100, numberOfChannels: 1 },
+    fastStart: 'in-memory'
+  });
   
   const videoEncoder = new VideoEncoder({
     output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-    error: (e) => { throw e; }
+    error: (e) => { throw new Error('VideoEncoder: ' + e.message); }
   });
   videoEncoder.configure({ codec: 'avc1.640029', width: VW, height: VH, bitrate: 2_000_000, framerate: FPS });
   
-  for (let frame = 0; frame < totalFrames; frame++) {
-    const t = frame / FPS;
+  const offCanvasTamanioCompleto = document.createElement('canvas');
+  offCanvasTamanioCompleto.width = formatoVideo.w;
+  offCanvasTamanioCompleto.height = formatoVideo.h;
+  const ctxCompleto = offCanvasTamanioCompleto.getContext('2d');
+  
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = VW;
+  outCanvas.height = VH;
+  const outCtx = outCanvas.getContext('2d');
+  
+  progressText.textContent = 'Codificando video...';
+  
+  for (let fi = 0; fi < totalFrames; fi++) {
+    const t = fi / FPS;
     const pageIdx = Math.min(Math.floor(t / secsPerPage), pageImages.length - 1);
-    dibujarPaginaEnCanvas(ctx, VW, VH, pageImages[pageIdx], resumenNotas[pageIdx]?.titulo || '');
-    const bitmap = await createImageBitmap(renderCanvas);
-    const videoFrame = new VideoFrame(bitmap, { timestamp: Math.round(t * 1_000_000), duration: Math.round(1_000_000 / FPS) });
-    videoEncoder.encode(videoFrame, { keyFrame: frame % (FPS * 2) === 0 });
-    videoFrame.close();
+    
+    ctxCompleto.fillStyle = '#1a1a18';
+    ctxCompleto.fillRect(0, 0, formatoVideo.w, formatoVideo.h);
+    
+    if (pageImages[pageIdx]) {
+      const img = pageImages[pageIdx];
+      const imgW = img.width, imgH = img.height;
+      const scaleImg = Math.max(formatoVideo.w / imgW, formatoVideo.h / imgH);
+      const drawW = imgW * scaleImg, drawH = imgH * scaleImg;
+      const drawX = (formatoVideo.w - drawW) / 2, drawY = (formatoVideo.h - drawH) / 2;
+      ctxCompleto.drawImage(img, drawX, drawY, drawW, drawH);
+    } else {
+      ctxCompleto.fillStyle = '#2a2a28';
+      ctxCompleto.fillRect(0, 0, formatoVideo.w, formatoVideo.h);
+    }
+    
+    if (logoImg) {
+      const logoW = formatoVideo.w * (logoSize / 100);
+      const logoH = logoW / (logoImg.width / logoImg.height);
+      const logoXpx = formatoVideo.w * logoX - logoW;
+      const logoYpx = formatoVideo.h * logoY;
+      ctxCompleto.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
+    }
+    
+    ctxCompleto.fillStyle = 'rgba(0,0,0,0.55)';
+    ctxCompleto.fillRect(0, formatoVideo.h-60, formatoVideo.w, 60);
+    ctxCompleto.fillStyle = '#ffffff';
+    ctxCompleto.font = `bold ${Math.round(formatoVideo.h * 0.04)}px Inter`;
+    ctxCompleto.textAlign = 'center';
+    let texto = resumenNotas[pageIdx]?.titulo || '';
+    texto = texto.length > 50 ? texto.substring(0,47)+'...' : texto;
+    ctxCompleto.fillText(texto, formatoVideo.w/2, formatoVideo.h-25);
+    
+    outCtx.clearRect(0, 0, VW, VH);
+    outCtx.drawImage(offCanvasTamanioCompleto, 0, 0, VW, VH);
+    
+    const bitmap = await createImageBitmap(outCanvas);
+    const frame = new VideoFrame(bitmap, {
+      timestamp: Math.round(t * 1_000_000),
+      duration: Math.round(1_000_000 / FPS)
+    });
+    videoEncoder.encode(frame, { keyFrame: fi % (FPS * 2) === 0 });
+    frame.close();
     bitmap.close();
-    if (frame % 30 === 0) progressText.textContent = `Codificando video... ${Math.round(frame / totalFrames * 100)}%`;
+    
+    if (fi % 30 === 0) {
+      progressText.textContent = `Codificando video... ${Math.round(fi / totalFrames * 80)}%`;
+    }
     await new Promise(r => setTimeout(r, 0));
   }
   
@@ -1160,13 +1369,14 @@ async function exportarConWebCodecs(renderCanvas, ctx, pageImages, audioBlob, au
   videoEncoder.close();
   
   progressText.textContent = 'Procesando audio...';
-  await encodeAudioToMuxer(muxer, audioBlob);
+  try {
+    await encodeAudioToMuxer(muxer, audioBlob);
+  } catch (e) {
+    console.warn('Audio encoding falló:', e);
+  }
   
-  progressText.textContent = 'Finalizando...';
   muxer.finalize();
-  
-  const buffer = target.buffer;
-  const blob = new Blob([buffer], { type: 'video/mp4' });
+  const blob = new Blob([target.buffer], { type: 'video/mp4' });
   const url = URL.createObjectURL(blob);
   const video = document.getElementById('videoPreview');
   const download = document.getElementById('videoDownload');
@@ -1212,19 +1422,21 @@ async function encodeAudioToMuxer(muxer, audioBlob) {
   audioCtx.close();
 }
 
-async function exportarConMediaRecorder(renderCanvas, ctx, pageImages, audioBlob, audioDuration, secsPerPage) {
-  // Fallback para Firefox
+async function exportarConMediaRecorder(pageImages, audioBlob, audioDuration, secsPerPage) {
   return new Promise(async (resolve) => {
-    const stream = renderCanvas.captureStream(30);
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = formatoVideo.w;
+    offCanvas.height = formatoVideo.h;
+    const ctx = offCanvas.getContext('2d');
+    
+    const stream = offCanvas.captureStream(30);
     const audioCtx = new AudioContext();
     const audioBuffer = await audioCtx.decodeAudioData(await audioBlob.arrayBuffer());
     const audioSource = audioCtx.createBufferSource();
     audioSource.buffer = audioBuffer;
     const dest = audioCtx.createMediaStreamDestination();
     audioSource.connect(dest);
-    const tracks = stream.getVideoTracks();
-    const audioTracks = dest.stream.getAudioTracks();
-    const combinedStream = new MediaStream([...tracks, ...audioTracks]);
+    const combinedStream = new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
     const recorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
     const chunks = [];
     recorder.ondataavailable = (e) => chunks.push(e.data);
@@ -1245,7 +1457,36 @@ async function exportarConMediaRecorder(renderCanvas, ctx, pageImages, audioBlob
     function animateFrame() {
       const elapsed = (performance.now() - startTime) / 1000;
       const pageIdx = Math.min(Math.floor(elapsed / secsPerPage), pageImages.length - 1);
-      dibujarPaginaEnCanvas(ctx, renderCanvas.width, renderCanvas.height, pageImages[pageIdx], resumenNotas[pageIdx]?.titulo || '');
+      
+      ctx.fillStyle = '#1a1a18';
+      ctx.fillRect(0, 0, formatoVideo.w, formatoVideo.h);
+      if (pageImages[pageIdx]) {
+        const img = pageImages[pageIdx];
+        const imgW = img.width, imgH = img.height;
+        const scale = Math.max(formatoVideo.w / imgW, formatoVideo.h / imgH);
+        const drawW = imgW * scale, drawH = imgH * scale;
+        const drawX = (formatoVideo.w - drawW) / 2, drawY = (formatoVideo.h - drawH) / 2;
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      } else {
+        ctx.fillStyle = '#2a2a28';
+        ctx.fillRect(0, 0, formatoVideo.w, formatoVideo.h);
+      }
+      if (logoImg) {
+        const logoW = formatoVideo.w * (logoSize / 100);
+        const logoH = logoW / (logoImg.width / logoImg.height);
+        const logoXpx = formatoVideo.w * logoX - logoW;
+        const logoYpx = formatoVideo.h * logoY;
+        ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, formatoVideo.h-60, formatoVideo.w, 60);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.round(formatoVideo.h * 0.04)}px Inter`;
+      ctx.textAlign = 'center';
+      let texto = resumenNotas[pageIdx]?.titulo || '';
+      texto = texto.length > 50 ? texto.substring(0,47)+'...' : texto;
+      ctx.fillText(texto, formatoVideo.w/2, formatoVideo.h-25);
+      
       if (elapsed < audioDuration) {
         requestAnimationFrame(animateFrame);
       } else {
