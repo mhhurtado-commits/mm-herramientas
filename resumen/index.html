@@ -150,7 +150,6 @@
   max-height: 250px;
   overflow-y: auto;
 }
-.resultado-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .hashtags-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .hashtag {
   font-size: 10px;
@@ -169,7 +168,7 @@
   color: var(--dim);
 }
 
-/* Reel Editor completo dentro del resumen */
+/* Reel Editor dentro del resumen */
 .reel-layout {
   display: grid;
   grid-template-columns: 320px 1fr;
@@ -532,7 +531,7 @@
       <!-- SIDEBAR -->
       <div class="reel-sidebar">
         
-        <!-- GUION (precargado con el resumen) -->
+        <!-- GUION -->
         <div class="re-section">
           <div class="re-section-head open" onclick="reSectionToggle(this)">
             <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Guion</span><span class="re-arrow">▼</span>
@@ -540,7 +539,7 @@
           <div class="re-section-body open">
             <span class="re-label">Título</span>
             <input type="text" id="re-tituloInput" class="re-input" placeholder="Título del reel..." oninput="RE.S.titulo=this.value;reelRender()">
-            <span class="re-label">Guion (para el audio)</span>
+            <span class="re-label">Guion</span>
             <textarea id="re-guionTA" class="re-textarea" rows="5" placeholder="Guion que se leerá en voz alta..." oninput="RE.guion=this.value; reelRender(); document.getElementById('re-guionChars').textContent=this.value.length+' car.'"></textarea>
             <span id="re-guionChars" style="font-size:9px;color:var(--dim);text-align:right;display:block;margin-top:2px">0 car.</span>
             <button class="mm-btn mm-btn-primary" id="btnCargarResumenAGuion" onclick="cargarResumenAGuion()" style="font-size:10px;padding:8px;margin-top:6px;background:var(--v);color:var(--bg)">📋 Cargar resumen como guion</button>
@@ -556,7 +555,6 @@
             <span class="re-label">Voz</span>
             <select id="re-voiceSelect" class="re-select"></select>
             <button class="mm-btn mm-btn-primary" id="btnGenAudio" onclick="reelGenerarAudio()" style="font-size:10px;padding:10px;margin-top:8px;width:100%"><span class="mm-spinner" id="spinAudio"></span>🎙 Generar audio</button>
-            <div style="margin-top:10px; padding:8px; background:var(--v-dim); border-radius:var(--radius); font-size:10px; color:var(--v); text-align:center">🎧 Para mejor calidad, usá ElevenLabs y subí el audio</div>
             <div class="audio-status" id="audioStatus"><span class="audio-wave">🎵</span><span id="audioStatusTxt">Sin audio — generá o cargá uno</span></div>
             <audio id="audioPreview" controls style="width:100%;margin-top:8px;display:none"></audio>
             <label class="re-uplbl" for="re-audioUp">📁 Cargar audio propio</label>
@@ -695,7 +693,6 @@ let resultadoWhatsapp = '';
 let resultadoRedes = '';
 let hashtagsActuales = [];
 
-// ── Funciones de Resumen ──
 function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2800); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function copiarTexto(texto) { navigator.clipboard.writeText(texto).then(() => toast('✓ Copiado')).catch(() => { const ta = document.createElement('textarea'); ta.value = texto; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('✓ Copiado'); }); }
@@ -709,14 +706,20 @@ function switchTab(tab, btn) {
   if (tab === 'reel' && typeof reelEditorInit === 'function') reelEditorInit();
 }
 
+function getFechaArgentina() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Mendoza' });
+}
+
 function setFechaHoy() {
-  const hoy = new Date();
-  document.getElementById('fechaSelector').value = hoy.toISOString().slice(0,10);
+  document.getElementById('fechaSelector').value = getFechaArgentina();
 }
 
 async function cargarNotas() {
-  const fecha = document.getElementById('fechaSelector').value;
-  if (!fecha) { toast('⚠ Seleccioná una fecha'); return; }
+  let fecha = document.getElementById('fechaSelector').value;
+  if (!fecha) {
+    fecha = getFechaArgentina();
+    document.getElementById('fechaSelector').value = fecha;
+  }
   const container = document.getElementById('notasContainer');
   const btnGenerar = document.getElementById('btnGenerarResumen');
   container.innerHTML = '<div class="empty-state"><div class="mm-spinner"></div><p>Cargando notas...</p></div>';
@@ -732,27 +735,48 @@ async function cargarNotas() {
     }
     let html = '';
     notasActuales.forEach((nota, idx) => {
-      html += `<div class="nota-resumen-item">`+
-        `<div class="nota-resumen-num">${idx+1}</div>`+
-        `<div class="nota-resumen-info"><div class="nota-resumen-titulo">${esc(nota.titulo)}</div><div class="nota-resumen-categoria">${esc(nota.categoria)}</div></div>`+
-        `<button class="nota-resumen-eliminar" onclick="eliminarNota(${idx})">✕</button></div>`;
+      html += `<div class="nota-resumen-item" data-idx="${idx}">
+        <div class="nota-resumen-num">${idx + 1}</div>
+        <div class="nota-resumen-info">
+          <div class="nota-resumen-titulo">${esc(nota.titulo)}</div>
+          <div class="nota-resumen-categoria">${esc(nota.categoria)}</div>
+        </div>
+        <button class="nota-resumen-eliminar" onclick="eliminarNota(${idx})" title="Eliminar">✕</button>
+      </div>`;
     });
     container.innerHTML = html;
     btnGenerar.disabled = false;
-  } catch (err) { container.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`; btnGenerar.disabled = true; }
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`;
+    btnGenerar.disabled = true;
+  }
 }
 
 function eliminarNota(idx) { notasActuales.splice(idx, 1); cargarNotas(); document.getElementById('resultadosPanel').style.display = 'none'; }
 
 async function generarResumen() {
-  if (!notasActuales.length) { toast('⚠ No hay notas para generar resumen'); return; }
-  const fecha = document.getElementById('fechaSelector').value;
+  let fecha = document.getElementById('fechaSelector').value;
+  if (!fecha) {
+    fecha = getFechaArgentina();
+    document.getElementById('fechaSelector').value = fecha;
+  }
+  if (!notasActuales.length) { 
+    await cargarNotas();
+    if (!notasActuales.length) {
+      toast('⚠ No hay notas para generar resumen');
+      return;
+    }
+  }
   const btn = document.getElementById('btnGenerarResumen');
   const spin = document.getElementById('spinGenerar');
   const panel = document.getElementById('resultadosPanel');
   btn.disabled = true; if (spin) spin.style.display = 'inline-block'; btn.textContent = 'Generando...';
   try {
-    const res = await fetch(`${WORKER}/resumen/generar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fecha, notas: notasActuales }) });
+    const res = await fetch(`${WORKER}/resumen/generar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fecha, notas: notasActuales })
+    });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     resultadoWhatsapp = data.whatsapp || '';
@@ -766,7 +790,7 @@ async function generarResumen() {
       hashtagsActuales.forEach(ht => { htHtml += `<span class="hashtag" onclick="copiarTexto('${esc(ht)}')">${esc(ht)}</span>`; });
       hashtagContainer.innerHTML = htHtml;
     } else { hashtagContainer.innerHTML = ''; }
-    panel.style.display = 'block';
+    panel.style.display = 'block'; panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     toast('✅ Resumen generado correctamente');
   } catch (err) { toast('✗ Error: ' + err.message); }
   btn.disabled = false; if (spin) spin.style.display = 'none'; btn.textContent = '✦ Generar resumen con IA';
@@ -822,7 +846,7 @@ async function seleccionarMusica(track) {
 function actualizarVolumenMusica(val) { backgroundMusicVolume = val / 100; document.getElementById('musicVolumeVal').textContent = val + '%'; if (typeof window !== 'undefined') window.backgroundMusicVolume = backgroundMusicVolume; }
 function removerMusica() { backgroundMusicBlob = null; document.getElementById('selectedMusicInfo').style.display = 'none'; if (typeof window !== 'undefined') window.backgroundMusicBlob = null; toast('🎵 Música removida'); }
 
-// ── Toggle claro/oscuro ──
+// Toggle claro/oscuro
 function setTheme(theme) {
   const body = document.body;
   if (theme === 'dark') { body.classList.add('dark-theme'); document.getElementById('themeIcon').textContent = '☀️'; document.getElementById('themeLabel').textContent = 'Modo claro'; }

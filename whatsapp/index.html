@@ -723,6 +723,11 @@ async function generarMensajes() {
   setLoading('btnGenerar', 'spinGenerar', 'btnGenerarText', false, 'Generar mensajes');
 }
 
+// ── OBTENER FECHA EN ZONA ARGENTINA ──
+function getFechaArgentina() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Mendoza' });
+}
+
 // ── AGREGAR AL RESUMEN DIARIO ──
 async function agregarAlResumenDiario() {
   const nota = S.mensajes?.nota;
@@ -731,7 +736,7 @@ async function agregarAlResumenDiario() {
     return;
   }
   
-  const fecha = new Date().toISOString().slice(0, 10);
+  const fecha = getFechaArgentina();
   const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   
   const item = {
