@@ -41,16 +41,13 @@
 .resumen-tab:hover { color: var(--white); }
 .resumen-tab.active { color: var(--v); border-bottom-color: var(--v); }
 
-/* Grid principal */
 .resumen-grid {
   display: grid;
   grid-template-columns: 380px 1fr;
   gap: 16px;
   align-items: start;
 }
-@media (max-width: 900px) {
-  .resumen-grid { grid-template-columns: 1fr; }
-}
+@media (max-width: 900px) { .resumen-grid { grid-template-columns: 1fr; } }
 .resumen-panel {
   background: var(--surface);
   border: 1px solid var(--line2);
@@ -61,17 +58,9 @@
   gap: 14px;
 }
 .resumen-panel.accent { border-top: 3px solid var(--v); }
-
-/* Fecha selector */
-.fecha-selector {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
+.fecha-selector { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .fecha-selector input { flex: 1; }
 
-/* Agregar nota manual */
 .add-nota-manual {
   background: var(--surface2);
   border: 1px solid var(--line);
@@ -92,7 +81,6 @@
 }
 .btn-add-manual:hover { background: var(--v); color: var(--bg); }
 
-/* Lista de notas */
 .notas-lista {
   max-height: 420px;
   overflow-y: auto;
@@ -122,15 +110,8 @@
   color: var(--white);
   word-break: break-word;
 }
-.nota-resumen-categoria {
-  font-size: 8px;
-  color: var(--dim);
-  text-transform: uppercase;
-}
-.nota-resumen-actions {
-  display: flex;
-  gap: 4px;
-}
+.nota-resumen-categoria { font-size: 8px; color: var(--dim); text-transform: uppercase; }
+.nota-resumen-actions { display: flex; gap: 4px; }
 .nota-resumen-actions button {
   background: none;
   border: none;
@@ -144,7 +125,6 @@
 .nota-resumen-actions .btn-up:hover,
 .nota-resumen-actions .btn-down:hover { color: var(--v); }
 
-/* Resultados editables */
 .resultado-box {
   background: var(--surface2);
   border: 1px solid var(--line);
@@ -176,10 +156,7 @@
   overflow-y: auto;
   cursor: text;
 }
-.resultado-texto:focus {
-  outline: none;
-  border-color: var(--v);
-}
+.resultado-texto:focus { outline: none; border-color: var(--v); }
 .hashtags-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .hashtag {
   font-size: 10px;
@@ -241,18 +218,11 @@
   box-shadow: var(--shadow);
   width: 180px;
   height: 320px;
-  object-fit: cover;
 }
-.reel-page-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  justify-content: center;
-}
+.reel-page-controls { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
 .reel-page-title { margin-top: 8px; }
 .reel-page-title input { margin-top: 4px; }
 
-/* Controles globales */
 .reel-controls-global {
   border-top: 1px solid var(--line);
   padding-top: 20px;
@@ -296,27 +266,19 @@
   justify-content: space-between;
   align-items: center;
 }
-.music-results {
-  max-height: 150px;
-  overflow-y: auto;
-  margin-top: 8px;
-}
+.music-results { max-height: 150px; overflow-y: auto; margin-top: 8px; }
 .music-item {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 6px 10px;
   margin-bottom: 4px;
-  cursor: pointer;
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
 .music-item:hover { border-color: var(--v); }
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--dim);
-}
+.empty-state { text-align: center; padding: 40px 20px; color: var(--dim); }
 .loading-spinner { text-align: center; padding: 20px; }
 
 .re-tbtn {
@@ -386,14 +348,14 @@
           <div class="resumen-panel">
             <div class="mm-panel-header">📱 WhatsApp</div>
             <div class="resultado-box">
-              <div class="resultado-titulo"><span>Mensaje para grupo/canal (editable)</span><div><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoWhatsapp)">📋 Copiar</button><button class="mm-btn mm-btn-sm wa" onclick="abrirWA(resultadoWhatsapp)">📱 Abrir WA</button></div></div>
+              <div class="resultado-titulo"><span>Mensaje (editable)</span><div><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoWhatsapp)">📋 Copiar</button><button class="mm-btn mm-btn-sm wa" onclick="abrirWA(resultadoWhatsapp)">📱 Abrir WA</button></div></div>
               <div class="resultado-texto" id="resultadoWhatsapp" contenteditable="true"></div>
             </div>
           </div>
           <div class="resumen-panel">
             <div class="mm-panel-header">📱 Instagram / Facebook</div>
             <div class="resultado-box">
-              <div class="resultado-titulo"><span>Post para redes (editable)</span><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoRedes)">📋 Copiar</button></div>
+              <div class="resultado-titulo"><span>Post (editable)</span><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoRedes)">📋 Copiar</button></div>
               <div class="resultado-texto" id="resultadoRedes" contenteditable="true"></div>
               <div id="hashtagsContainer" class="hashtags-row"></div>
             </div>
@@ -407,7 +369,6 @@
   <div id="tabReel" style="display:none">
     <div class="reel-multi-editor">
       
-      <!-- Editor de guion -->
       <div class="guion-editor">
         <div class="re-label">
           <span>📝 Guion para el reel (editable)</span>
@@ -422,18 +383,17 @@
         </div>
       </div>
       
-      <!-- Páginas (notas) -->
       <div id="reelPages" class="reel-pages"></div>
       
-      <!-- Controles globales -->
       <div class="reel-controls-global">
         
         <div class="reel-logo-editor">
           <div class="re-label">⭐ Logo (misma posición en todas las páginas)</div>
-          <label class="re-uplbl" for="re-logo-multi">📁 Cambiar logo</label>
-          <input type="file" id="re-logo-multi" accept="image/*" class="re-hidden">
-          <button class="re-tbtn" onclick="resetLogoMulti()" style="margin-left:8px">↺ Restablecer posición</button>
-          <div id="logoStatus" style="font-size:9px; color:var(--dim); margin-top:4px"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <label class="re-uplbl" for="re-logo-multi">📁 Cambiar logo</label>
+            <button class="re-tbtn" onclick="resetLogoMulti()">↺ Quitar logo</button>
+          </div>
+          <div id="logoStatus" style="font-size:9px; color:var(--v); margin-top:6px; display:none">✓ Logo cargado</div>
         </div>
         
         <div class="reel-music">
@@ -679,28 +639,31 @@ function dibujarPaginaMiniatura(idx) {
   const nota = resumenNotas[idx];
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(0, 0, W, H);
+  
+  function drawWithImage(img) {
+    const imgW = img.width, imgH = img.height;
+    const scale = Math.max(W / imgW, H / imgH);
+    const drawW = imgW * scale, drawH = imgH * scale;
+    const drawX = (W - drawW) / 2, drawY = (H - drawH) / 2;
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    // Dibujar logo (escala correcta)
+    if (logoImg) {
+      const lw = W * logoPos.w, lh = H * logoPos.h;
+      const lx = W * logoPos.x - lw, ly = H * logoPos.y;
+      ctx.drawImage(logoImg, lx, ly, lw, lh);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, H-50, W, 50);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 14px Inter';
+    ctx.textAlign = 'center';
+    let texto = nota.titulo.length > 35 ? nota.titulo.substring(0,32)+'...' : nota.titulo;
+    ctx.fillText(texto, W/2, H-20);
+  }
+  
   if (nota.imagen) {
     const img = new Image();
-    img.onload = () => {
-      const imgW = img.width, imgH = img.height;
-      const scale = Math.max(W / imgW, H / imgH);
-      const drawW = imgW * scale, drawH = imgH * scale;
-      const drawX = (W - drawW) / 2, drawY = (H - drawH) / 2;
-      ctx.drawImage(img, drawX, drawY, drawW, drawH);
-      // Logo
-      if (logoImg) {
-        const lw = W * logoPos.w, lh = H * logoPos.h;
-        const lx = W * logoPos.x - lw, ly = H * logoPos.y;
-        ctx.drawImage(logoImg, lx, ly, lw, lh);
-      }
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(0, H-50, W, 50);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px Inter';
-      ctx.textAlign = 'center';
-      let texto = nota.titulo.length > 35 ? nota.titulo.substring(0,32)+'...' : nota.titulo;
-      ctx.fillText(texto, W/2, H-20);
-    };
+    img.onload = () => drawWithImage(img);
     img.src = nota.imagen;
   } else {
     ctx.fillStyle = '#2a2a28';
@@ -770,7 +733,7 @@ function regenerarGuionLimpio() {
 }
 
 // ============================================================
-// MÚSICA
+// MÚSICA (igual que antes)
 // ============================================================
 async function buscarMusicaMulti() {
   const query = document.getElementById('musicSearchInput').value.trim();
@@ -812,8 +775,6 @@ function actualizarVolumenMulti() {
   musicVolume = document.getElementById('musicVolume').value / 100;
   document.getElementById('musicVolumeVal').textContent = Math.round(musicVolume*100) + '%';
 }
-
-document.getElementById('musicVolume')?.addEventListener('input', actualizarVolumenMulti);
 
 // ============================================================
 // AUDIO
@@ -858,15 +819,25 @@ document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = (ev) => {
     const img = new Image();
-    img.onload = () => { logoImg = img; document.getElementById('logoStatus').textContent = 'Logo cargado'; renderPages(); };
+    img.onload = () => {
+      logoImg = img;
+      document.getElementById('logoStatus').style.display = 'block';
+      renderPages();  // Redibujar todas las páginas con el nuevo logo
+    };
     img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 });
-function resetLogoMulti() { logoImg = null; logoPos = { x: 0.85, y: 0.08, w: 0.12, h: 0.06 }; document.getElementById('logoStatus').textContent = 'Logo removido'; renderPages(); }
+
+function resetLogoMulti() {
+  logoImg = null;
+  logoPos = { x: 0.85, y: 0.08, w: 0.12, h: 0.06 };
+  document.getElementById('logoStatus').style.display = 'none';
+  renderPages();  // Redibujar todas las páginas sin logo
+}
 
 // ============================================================
-// EXPORTAR VIDEO (placeholder)
+// EXPORTAR VIDEO (placeholder - pendiente implementar)
 // ============================================================
 async function exportarVideoMulti() {
   if (!audioBlob) { toast('Primero generá o cargá el audio'); return; }
