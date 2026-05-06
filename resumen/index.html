@@ -7,10 +7,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <style>
+/* ============================================================
+   Estilos del Resumen con Editor Multipágina
+   ============================================================ */
 .resumen-main {
   padding-top: var(--header-h);
   padding-bottom: var(--footer-h);
-  max-width: 1280px;
+  max-width: 1400px;
   margin: 0 auto;
   padding-left: 20px;
   padding-right: 20px;
@@ -31,7 +34,6 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
   cursor: pointer;
   font-family: var(--font-body);
   transition: all 0.15s;
@@ -39,6 +41,7 @@
 .resumen-tab:hover { color: var(--white); }
 .resumen-tab.active { color: var(--v); border-bottom-color: var(--v); }
 
+/* Grid principal */
 .resumen-grid {
   display: grid;
   grid-template-columns: 380px 1fr;
@@ -58,6 +61,8 @@
   gap: 14px;
 }
 .resumen-panel.accent { border-top: 3px solid var(--v); }
+
+/* Fecha selector */
 .fecha-selector {
   display: flex;
   gap: 10px;
@@ -72,7 +77,6 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 12px;
-  margin-bottom: 12px;
 }
 .add-nota-manual .mm-row2 { margin-bottom: 8px; }
 .btn-add-manual {
@@ -85,12 +89,12 @@
   font-weight: 600;
   cursor: pointer;
   width: 100%;
-  transition: all 0.15s;
 }
 .btn-add-manual:hover { background: var(--v); color: var(--bg); }
 
+/* Lista de notas */
 .notas-lista {
-  max-height: 450px;
+  max-height: 420px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -111,9 +115,7 @@
   color: var(--v);
   min-width: 28px;
   cursor: grab;
-  user-select: none;
 }
-.nota-resumen-num:active { cursor: grabbing; }
 .nota-resumen-info { flex: 1; min-width: 0; }
 .nota-resumen-titulo {
   font-size: 12px;
@@ -125,12 +127,10 @@
   font-size: 8px;
   color: var(--dim);
   text-transform: uppercase;
-  letter-spacing: 1px;
 }
 .nota-resumen-actions {
   display: flex;
   gap: 4px;
-  flex-shrink: 0;
 }
 .nota-resumen-actions button {
   background: none;
@@ -140,13 +140,12 @@
   font-size: 14px;
   padding: 4px;
   border-radius: 4px;
-  transition: all 0.15s;
 }
-.nota-resumen-actions button:hover { background: var(--surface); }
 .nota-resumen-actions .btn-delete:hover { color: var(--red); }
 .nota-resumen-actions .btn-up:hover,
 .nota-resumen-actions .btn-down:hover { color: var(--v); }
 
+/* Resultados */
 .resultado-box {
   background: var(--surface2);
   border: 1px solid var(--line);
@@ -157,12 +156,10 @@
 .resultado-titulo {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--v);
   margin-bottom: 8px;
   display: flex;
-  align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
@@ -176,9 +173,7 @@
   border: 1px solid var(--line2);
   border-radius: var(--radius);
   padding: 12px;
-  font-family: var(--font-body);
-  margin-bottom: 10px;
-  max-height: 250px;
+  max-height: 200px;
   overflow-y: auto;
 }
 .hashtags-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
@@ -193,6 +188,129 @@
   cursor: pointer;
 }
 .hashtag:hover { background: var(--v); color: var(--bg); }
+
+/* Editor Multipágina */
+.reel-multi-editor {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+}
+.reel-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 24px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+.reel-page {
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+.reel-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.reel-page-num {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--v);
+}
+.reel-page-actions { display: flex; gap: 6px; }
+.reel-page-canvas {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.reel-page-canvas canvas {
+  background: var(--bg2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: 180px;
+  height: 320px;
+  object-fit: cover;
+}
+.reel-page-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+}
+.reel-page-title {
+  margin-top: 8px;
+}
+.reel-page-title input {
+  margin-top: 4px;
+}
+
+/* Controles globales */
+.reel-controls-global {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.reel-logo-editor,
+.reel-music,
+.reel-audio {
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+}
+.reel-logo-editor .re-label,
+.reel-music .re-label,
+.reel-audio .re-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--v);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: block;
+}
+.guion-editor {
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.guion-editor .re-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--v);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+.music-results {
+  max-height: 150px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.music-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+.music-item:hover { border-color: var(--v); }
 .empty-state {
   text-align: center;
   padding: 40px 20px;
@@ -200,64 +318,6 @@
 }
 .loading-spinner { text-align: center; padding: 20px; }
 
-/* Reel Editor - estilos reducidos (mismos que antes) */
-.reel-layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 16px;
-  align-items: start;
-}
-@media (max-width: 900px) { .reel-layout { grid-template-columns: 1fr; } }
-.reel-sidebar {
-  background: var(--surface);
-  border: 1px solid var(--line2);
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-}
-.re-section { border-bottom: 1px solid var(--line); }
-.re-section:last-child { border-bottom: none; }
-.re-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 15px;
-  cursor: pointer;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--muted);
-  background: var(--surface);
-}
-.re-section-head:hover { background: var(--surface2); }
-.re-section-head .re-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--v); }
-.re-section-head .re-arrow { font-size: 9px; color: var(--dim); transition: transform 0.2s; }
-.re-section-head.open .re-arrow { transform: rotate(180deg); }
-.re-section-body { display: none; padding: 4px 15px 14px; background: var(--surface2); }
-.re-section-body.open { display: block; }
-.re-label {
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--dim);
-  display: block;
-  margin: 10px 0 4px;
-}
-.re-input, .re-textarea, .re-select {
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--line2);
-  color: var(--white);
-  font-family: var(--font-body);
-  font-size: 11px;
-  padding: 7px 9px;
-  border-radius: var(--radius);
-}
-.re-textarea { resize: vertical; min-height: 60px; }
-.re-rrow { display: flex; align-items: center; gap: 7px; }
-.re-rrow input[type=range] { flex: 1; accent-color: var(--v); }
-.re-rval { font-size: 9px; color: var(--v); font-weight: 700; min-width: 34px; }
 .re-tbtn {
   padding: 6px 12px;
   border: 1px solid var(--line2);
@@ -269,46 +329,16 @@
   cursor: pointer;
 }
 .re-tbtn:hover { border-color: var(--v); color: var(--v); }
-.reel-canvas-area {
-  background: var(--bg2);
-  border: 1px solid var(--line2);
-  border-radius: var(--radius-xl);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px;
-  gap: 16px;
-}
-#reelCanvas {
-  display: block;
-  box-shadow: var(--shadow);
-  max-height: 70vh;
+.re-uplbl {
+  display: inline-block;
+  border: 1px dashed var(--line2);
+  padding: 6px 12px;
   border-radius: var(--radius);
-  max-width: 100%;
-  height: auto;
-}
-.reel-fmt-pills { display: flex; gap: 5px; flex-wrap: wrap; }
-.rfpill {
   font-size: 9px;
-  padding: 4px 10px;
-  border-radius: 20px;
   cursor: pointer;
-  border: 1.5px solid var(--line2);
-  background: var(--surface);
-  color: var(--dim);
 }
-.rfpill:hover { border-color: var(--v); color: var(--v); }
-.rfpill.on { background: var(--v); border-color: var(--v); color: var(--bg); }
-.reel-export-progress {
-  display: none;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: var(--v-dim);
-  border-radius: var(--radius);
-}
-.reel-video-result { display: none; width: 100%; padding-top: 12px; }
-.reel-video-result video { width: 100%; max-height: 320px; background: #000; border-radius: var(--radius); }
+.re-hidden { display: none; }
+.mm-spinner.small { width: 12px; height: 12px; }
 </style>
 </head>
 <body>
@@ -338,97 +368,101 @@
   <div id="tabResumen">
     <div class="resumen-grid">
       <div class="resumen-panel accent">
-        <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">📰 Notas del resumen</div>
-        
+        <div class="mm-panel-header">📰 Notas del resumen</div>
         <div class="fecha-selector">
           <input type="date" id="fechaSelector" class="mm-input">
-          <button class="mm-btn mm-btn-sm" id="btnCargarNotas" onclick="cargarNotas()"><span class="mm-spinner spinner-small" id="spinCargar"></span>Cargar</button>
+          <button class="mm-btn mm-btn-sm" onclick="cargarNotas()"><span class="mm-spinner small" id="spinCargar"></span>Cargar</button>
         </div>
-        
-        <!-- AGREGAR NOTA MANUAL -->
         <div class="add-nota-manual">
-          <div class="mm-row2" style="margin-bottom: 8px;">
-            <input type="url" id="manualUrlInput" class="mm-input" placeholder="URL de la nota...">
-            <input type="text" id="manualTituloInput" class="mm-input" placeholder="Título (opcional)">
-          </div>
+          <div class="mm-row2"><input type="url" id="manualUrl" class="mm-input" placeholder="URL..."><input type="text" id="manualTitulo" class="mm-input" placeholder="Título (opcional)"></div>
           <button class="btn-add-manual" onclick="agregarNotaManual()">+ Agregar nota manualmente</button>
         </div>
-        
-        <div class="notas-lista" id="notasContainer">
-          <div class="empty-state"><span style="font-size:2rem">📭</span><p>No hay notas para esta fecha.<br>Agregá notas desde WhatsApp o manualmente.</p></div>
-        </div>
-        
-        <button class="mm-btn mm-btn-primary btn-generar" id="btnGenerarResumen" onclick="generarResumen()" disabled>
-          <span class="mm-spinner" id="spinGenerar"></span>✦ Generar resumen con IA
-        </button>
+        <div id="notasContainer" class="notas-lista"><div class="empty-state">Cargando...</div></div>
+        <button class="mm-btn mm-btn-primary" id="btnGenerarResumen" onclick="generarResumen()" disabled>✦ Generar resumen con IA</button>
       </div>
-      
       <div>
-        <div class="resumen-panel" id="resultadosPanel" style="display:none">
-          <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">📱 Resumen para WhatsApp</div>
-          <div class="resultado-box">
-            <div class="resultado-titulo"><span>WhatsApp</span><div><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoWhatsapp)">📋 Copiar</button><button class="mm-btn mm-btn-sm wa" onclick="abrirWA(resultadoWhatsapp)">📱 Abrir WA</button></div></div>
-            <div class="resultado-texto" id="resultadoWhatsapp"></div>
+        <div id="resultadosPanel" style="display:none">
+          <div class="resumen-panel">
+            <div class="mm-panel-header">📱 WhatsApp</div>
+            <div class="resultado-box">
+              <div class="resultado-titulo"><span>Mensaje para grupo/canal</span><div><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoWhatsapp)">📋 Copiar</button><button class="mm-btn mm-btn-sm wa" onclick="abrirWA(resultadoWhatsapp)">📱 Abrir WA</button></div></div>
+              <div class="resultado-texto" id="resultadoWhatsapp"></div>
+            </div>
           </div>
-          <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">📱 Resumen para Redes Sociales</div>
-          <div class="resultado-box">
-            <div class="resultado-titulo"><span>Instagram / Facebook</span><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoRedes)">📋 Copiar</button></div>
-            <div class="resultado-texto" id="resultadoRedes"></div>
-            <div id="hashtagsContainer" class="hashtags-row"></div>
+          <div class="resumen-panel">
+            <div class="mm-panel-header">📱 Instagram / Facebook</div>
+            <div class="resultado-box">
+              <div class="resultado-titulo"><span>Post para redes</span><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoRedes)">📋 Copiar</button></div>
+              <div class="resultado-texto" id="resultadoRedes"></div>
+              <div id="hashtagsContainer" class="hashtags-row"></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- TAB REEL (simplificado pero funcional) -->
+  <!-- TAB REEL - EDITOR MULTIPÁGINA -->
   <div id="tabReel" style="display:none">
-    <div class="reel-layout">
-      <div class="reel-sidebar">
-        <div class="re-section">
-          <div class="re-section-head open" onclick="reSectionToggle(this)">
-            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Guion</span><span class="re-arrow">▼</span>
-          </div>
-          <div class="re-section-body open">
-            <span class="re-label">Título</span>
-            <input type="text" id="re-tituloInput" class="re-input" placeholder="Título del reel..." oninput="RE.S.titulo=this.value;reelRender()">
-            <span class="re-label">Guion</span>
-            <textarea id="re-guionTA" class="re-textarea" rows="4" placeholder="Guion que se leerá en voz alta..." oninput="RE.guion=this.value; reelRender(); document.getElementById('re-guionChars').textContent=this.value.length+' car.'"></textarea>
-            <span id="re-guionChars" style="font-size:9px;color:var(--dim);text-align:right;display:block">0 car.</span>
-            <button class="mm-btn mm-btn-primary" onclick="cargarResumenAGuion()" style="font-size:10px;padding:6px;margin-top:6px;background:var(--v);color:var(--bg);width:100%">📋 Cargar resumen como guion</button>
-          </div>
-        </div>
-        <div class="re-section">
-          <div class="re-section-head" onclick="reSectionToggle(this)">
-            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Audio</span><span class="re-arrow">▼</span>
-          </div>
-          <div class="re-section-body">
-            <span class="re-label">Voz</span>
-            <select id="re-voiceSelect" class="re-select"></select>
-            <button class="mm-btn mm-btn-primary" onclick="reelGenerarAudio()" style="font-size:10px;padding:8px;margin-top:6px;width:100%"><span class="mm-spinner" id="spinAudio"></span>🎙 Generar audio</button>
-            <div class="audio-status" id="audioStatus" style="margin-top:8px;padding:6px;background:var(--surface);border-radius:var(--radius);font-size:10px"><span id="audioStatusTxt">Sin audio</span></div>
-            <audio id="audioPreview" controls style="width:100%;margin-top:6px;display:none"></audio>
-            <label class="re-uplbl" for="re-audioUp" style="margin-top:6px">📁 Cargar audio propio</label>
-            <input type="file" id="re-audioUp" accept="audio/*" class="re-hidden" onchange="reelLoadAudio(event)">
-          </div>
-        </div>
-        <div class="re-section">
-          <div class="re-section-head" onclick="reSectionToggle(this)">
-            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Imagen de fondo</span><span class="re-arrow">▼</span>
-          </div>
-          <div class="re-section-body">
-            <label class="re-uplbl" for="re-bgUp">📁 Subir imagen</label>
-            <input type="file" id="re-bgUp" accept="image/*" class="re-hidden" onchange="reelLoadBg(event.target.files[0])">
-            <button class="re-tbtn" onclick="RE.bgImg=null;reelRender()" style="width:100%;margin-top:4px">✕ Quitar</button>
-          </div>
+    <div class="reel-multi-editor">
+      
+      <!-- Editor de guion -->
+      <div class="guion-editor">
+        <div class="re-label">📝 Guion para el reel (editable)</div>
+        <textarea id="guionReel" class="mm-textarea" rows="5" placeholder="El guion para narración aparecerá aquí..."></textarea>
+        <div style="display:flex; gap:8px; margin-top:8px">
+          <button class="mm-btn mm-btn-sm" onclick="generarGuionDesdeResumen()" style="background:var(--v);color:var(--bg)">✨ Generar desde resumen</button>
+          <button class="mm-btn mm-btn-sm" onclick="regenerarGuionLimpio()">🔄 Limpiar formato</button>
         </div>
       </div>
-      <div class="reel-canvas-area">
-        <div class="reel-fmt-pills"><div class="rfpill on" onclick="reelSetFmt('9x16',this)">9:16</div><div class="rfpill" onclick="reelSetFmt('1x1',this)">1:1</div><div class="rfpill" onclick="reelSetFmt('4x5',this)">4:5</div></div>
-        <div id="reelCanvasWrap"><canvas id="reelCanvas"></canvas></div>
-        <button class="mm-btn mm-btn-primary" onclick="reelExportVideo()" style="width:100%;max-width:300px">🎬 Generar MP4</button>
-        <div class="reel-export-progress" id="reelExportProgress"><div class="mm-spinner"></div><span>Procesando...</span></div>
-        <div class="reel-video-result" id="reelVideoResult"><video id="reelVideoPreview" controls></video><div><a id="reelVideoDownload" class="mm-btn mm-btn-primary" style="text-decoration:none;display:inline-block">⬇ Descargar</a><button class="re-tbtn" onclick="document.getElementById('reelVideoResult').style.display='none'">Cerrar</button></div></div>
+      
+      <!-- Páginas (notas) -->
+      <div id="reelPages" class="reel-pages"></div>
+      
+      <!-- Controles globales -->
+      <div class="reel-controls-global">
+        
+        <div class="reel-logo-editor">
+          <div class="re-label">⭐ Logo (misma posición en todas las páginas)</div>
+          <label class="re-uplbl" for="re-logo-multi">📁 Cambiar logo</label>
+          <input type="file" id="re-logo-multi" accept="image/*" class="re-hidden">
+          <button class="re-tbtn" onclick="resetLogoMulti()" style="margin-left:8px">↺ Restablecer posición</button>
+          <div id="logoStatus" style="font-size:9px; color:var(--dim); margin-top:4px"></div>
+        </div>
+        
+        <div class="reel-music">
+          <div class="re-label">🎵 Música de fondo</div>
+          <div class="re-rrow">
+            <input type="text" id="musicSearchInput" class="mm-input" placeholder="Buscar música...">
+            <button class="re-tbtn" onclick="buscarMusicaMulti()">🔍</button>
+          </div>
+          <div id="musicResults" class="music-results"></div>
+          <div id="selectedMusicInfo" style="display:none; margin-top:8px; padding:8px; background:var(--v-dim); border-radius:var(--radius)">
+            <span id="selectedMusicTitle"></span> - <span id="selectedMusicArtist"></span>
+            <button class="re-tbtn" onclick="removerMusicaMulti()" style="float:right">✕</button>
+            <div class="re-rrow" style="margin-top:6px"><span>Volumen:</span><input type="range" id="musicVolume" min="0" max="100" value="25"><span id="musicVolumeVal">25%</span></div>
+          </div>
+        </div>
+        
+        <div class="reel-audio">
+          <div class="re-label">🎙 Audio narrado</div>
+          <select id="voiceSelect" class="mm-select" style="margin-bottom:8px">
+            <option value="es-AR-TomasNeural">Tomás (Argentino)</option>
+            <option value="es-AR-ElenaNeural">Elena (Argentina)</option>
+            <option value="es-ES-AlvaroNeural">Álvaro (España)</option>
+            <option value="es-US-Neural2-A">Americano neutro</option>
+          </select>
+          <button class="mm-btn mm-btn-primary" id="btnGenerarAudio" onclick="generarAudioMulti()" style="width:100%"><span class="mm-spinner small" id="spinAudio"></span>🎙 Generar audio</button>
+          <audio id="audioPreview" controls style="width:100%; margin-top:8px; display:none"></audio>
+        </div>
+        
+        <button class="mm-btn mm-btn-primary" id="btnExportVideo" onclick="exportarVideoMulti()" style="width:100%; margin-top:8px">🎬 Generar video multipágina</button>
+        <div id="exportProgress" style="display:none; margin-top:8px; padding:8px; background:var(--v-dim); border-radius:var(--radius)"><div class="mm-spinner small"></div> Procesando...</div>
+        <div id="videoResult" style="display:none; margin-top:12px">
+          <video id="videoPreview" controls style="width:100%; border-radius:var(--radius)"></video>
+          <a id="videoDownload" class="mm-btn mm-btn-primary" style="display:inline-block; margin-top:8px; text-align:center">⬇ Descargar video</a>
+        </div>
+        
       </div>
     </div>
   </div>
@@ -448,115 +482,74 @@
 <div class="mm-toast" id="toast"></div>
 <div class="theme-toggle" id="themeToggle"><span class="icon" id="themeIcon">🌙</span><span id="themeLabel">Modo oscuro</span></div>
 
-<script src="reel-editor.js"></script>
 <script>
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 let notasActuales = [];
 let resultadoWhatsapp = '';
 let resultadoRedes = '';
 let hashtagsActuales = [];
-let dragStartIndex = null;
+let resumenNotas = [];  // notas con resumen e imagen
+let guionActual = '';
+let audioBlob = null;
+let musicBlob = null;
+let musicVolume = 0.25;
+let logoImg = null;
+let logoPos = { x: 0.85, y: 0.08, w: 0.12, h: 0.05 };
 
+// ============================================================
+// UTILIDADES
+// ============================================================
 function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2800); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function copiarTexto(texto) { navigator.clipboard.writeText(texto).then(() => toast('✓ Copiado')).catch(() => { const ta = document.createElement('textarea'); ta.value = texto; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('✓ Copiado'); }); }
+function copiarTexto(texto) { navigator.clipboard.writeText(texto).then(() => toast('✓ Copiado')).catch(() => toast('Error al copiar')); }
 function abrirWA(texto) { window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank'); }
-
+function getFechaArgentina() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Mendoza' }); }
 function switchTab(tab, btn) {
   document.querySelectorAll('.resumen-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tabResumen').style.display = tab === 'resumen' ? 'block' : 'none';
   document.getElementById('tabReel').style.display = tab === 'reel' ? 'block' : 'none';
-  if (tab === 'reel' && typeof reelEditorInit === 'function') reelEditorInit();
+  if (tab === 'reel' && !document.getElementById('reelPages').children.length && resumenNotas.length) {
+    renderPages();
+  }
 }
 
-function getFechaArgentina() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Mendoza' }); }
-function setFechaHoy() { document.getElementById('fechaSelector').value = getFechaArgentina(); }
-
-// ── AGREGAR NOTA MANUAL ──
-async function agregarNotaManual() {
-  const url = document.getElementById('manualUrlInput').value.trim();
-  if (!url) { toast('⚠ Ingresá la URL de la nota'); return; }
-  
-  const tituloManual = document.getElementById('manualTituloInput').value.trim();
-  const fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
-  const id = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-  
-  // Intentar obtener datos de la URL
-  let titulo = tituloManual;
-  let imagen = '';
-  let categoria = 'General';
-  
+// ============================================================
+// NOTAS Y RESUMEN
+// ============================================================
+async function cargarNotas() {
+  let fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
+  document.getElementById('fechaSelector').value = fecha;
+  const container = document.getElementById('notasContainer');
+  container.innerHTML = '<div class="loading-spinner"><div class="mm-spinner"></div></div>';
   try {
-    const res = await fetch(`${WORKER}/scrape?url=${encodeURIComponent(url)}`);
-    const data = await res.json();
-    if (data.ok) {
-      if (!tituloManual && data.titulo) titulo = data.titulo;
-      if (data.imagen) imagen = data.imagen;
-      // Intentar inferir categoría de la URL
-      const urlParts = url.split('/');
-      const possibleCat = urlParts.find(p => ['policiales', 'deportes', 'politica', 'economia', 'salud', 'cultura', 'espectaculos'].includes(p));
-      if (possibleCat) categoria = possibleCat.charAt(0).toUpperCase() + possibleCat.slice(1);
-    }
-  } catch(e) { console.log('Error scraping manual:', e); }
-  
-  if (!titulo) titulo = 'Nota sin título';
-  
-  const item = { id, fecha, titulo, url, urlCorta: url, categoria, imagen, timestamp: Date.now() };
-  
-  try {
-    const res = await fetch(`${WORKER}/resumen/agregar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) });
+    const res = await fetch(`${WORKER}/resumen/obtener?fecha=${fecha}`);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
-    document.getElementById('manualUrlInput').value = '';
-    document.getElementById('manualTituloInput').value = '';
-    toast('✅ Nota agregada manualmente');
-    cargarNotas();
-  } catch(err) { toast('✗ Error: ' + err.message); }
-}
-
-// ── ELIMINAR NOTA ──
-async function eliminarNota(idx) {
-  const nota = notasActuales[idx];
-  if (!nota) return;
-  try {
-    await fetch(`${WORKER}/resumen/eliminar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: nota.id, fecha: nota.fecha }) });
-    notasActuales.splice(idx, 1);
+    notasActuales = data.notas || [];
     renderListaNotas();
-    toast('🗑 Nota eliminada');
-    document.getElementById('resultadosPanel').style.display = 'none';
-  } catch(err) { toast('✗ Error al eliminar'); }
+  } catch(err) { container.innerHTML = `<div class="empty-state">Error: ${err.message}</div>`; }
 }
 
-// ── MOVER NOTA (reordenar) ──
-function moverNota(idx, direccion) {
-  if (direccion === 'up' && idx === 0) return;
-  if (direccion === 'down' && idx === notasActuales.length - 1) return;
-  const newIdx = direccion === 'up' ? idx - 1 : idx + 1;
-  [notasActuales[idx], notasActuales[newIdx]] = [notasActuales[newIdx], notasActuales[idx]];
-  renderListaNotas();
-}
-
-// ── RENDER LISTA DE NOTAS (con reordenamiento) ──
 function renderListaNotas() {
   const container = document.getElementById('notasContainer');
   if (!notasActuales.length) {
-    container.innerHTML = '<div class="empty-state"><span style="font-size:2rem">📭</span><p>No hay notas para esta fecha.<br>Agregá notas desde WhatsApp o manualmente.</p></div>';
+    container.innerHTML = '<div class="empty-state">No hay notas. Agregá desde WhatsApp o manualmente.</div>';
     document.getElementById('btnGenerarResumen').disabled = true;
     return;
   }
   let html = '';
   notasActuales.forEach((nota, idx) => {
-    html += `<div class="nota-resumen-item" draggable="false">
-      <div class="nota-resumen-num" draggable="false">${idx + 1}</div>
+    html += `<div class="nota-resumen-item">
+      <div class="nota-resumen-num" draggable="false">${idx+1}</div>
       <div class="nota-resumen-info">
         <div class="nota-resumen-titulo">${esc(nota.titulo)}</div>
-        <div class="nota-resumen-categoria">${esc(nota.categoria)} · ${esc(nota.urlCorta || nota.url || '')}</div>
+        <div class="nota-resumen-categoria">${esc(nota.categoria)}</div>
       </div>
       <div class="nota-resumen-actions">
-        <button class="btn-up" onclick="moverNota(${idx}, 'up')" title="Mover arriba">▲</button>
-        <button class="btn-down" onclick="moverNota(${idx}, 'down')" title="Mover abajo">▼</button>
-        <button class="btn-delete" onclick="eliminarNota(${idx})" title="Eliminar">✕</button>
+        <button class="btn-up" onclick="moverNota(${idx},'up')">▲</button>
+        <button class="btn-down" onclick="moverNota(${idx},'down')">▼</button>
+        <button class="btn-delete" onclick="eliminarNota(${idx})">✕</button>
       </div>
     </div>`;
   });
@@ -564,33 +557,59 @@ function renderListaNotas() {
   document.getElementById('btnGenerarResumen').disabled = false;
 }
 
-// ── CARGAR NOTAS DESDE KV ──
-async function cargarNotas() {
-  let fecha = document.getElementById('fechaSelector').value;
-  if (!fecha) { fecha = getFechaArgentina(); document.getElementById('fechaSelector').value = fecha; }
-  const container = document.getElementById('notasContainer');
-  container.innerHTML = '<div class="loading-spinner"><div class="mm-spinner"></div><p>Cargando notas...</p></div>';
-  try {
-    const res = await fetch(`${WORKER}/resumen/obtener?fecha=${fecha}`);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-    notasActuales = data.notas || [];
-    renderListaNotas();
-  } catch (err) { container.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`; }
+function moverNota(idx, dir) {
+  if (dir === 'up' && idx === 0) return;
+  if (dir === 'down' && idx === notasActuales.length-1) return;
+  const newIdx = dir === 'up' ? idx-1 : idx+1;
+  [notasActuales[idx], notasActuales[newIdx]] = [notasActuales[newIdx], notasActuales[idx]];
+  renderListaNotas();
 }
 
-// ── ELIMINAR (necesario agregar endpoint en worker) ──
-// También agregamos la función aunque el endpoint no exista todavía (fallback visual)
-// Por ahora eliminamos solo de la interfaz, después sincronizamos con KV
+async function eliminarNota(idx) {
+  const nota = notasActuales[idx];
+  try {
+    await fetch(`${WORKER}/resumen/eliminar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: nota.id, fecha: nota.fecha }) });
+    notasActuales.splice(idx, 1);
+    renderListaNotas();
+    toast('Nota eliminada');
+  } catch(e) { toast('Error al eliminar'); }
+}
 
-// ── GENERAR RESUMEN ──
+async function agregarNotaManual() {
+  const url = document.getElementById('manualUrl').value.trim();
+  if (!url) { toast('Ingresá la URL'); return; }
+  const tituloManual = document.getElementById('manualTitulo').value.trim();
+  const fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
+  const id = `manual_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+  let titulo = tituloManual, imagen = '', categoria = 'General';
+  try {
+    const res = await fetch(`${WORKER}/scrape?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+    if (data.ok) {
+      if (!tituloManual && data.titulo) titulo = data.titulo;
+      if (data.imagen) imagen = data.imagen;
+      const urlParts = url.split('/');
+      const possibleCat = urlParts.find(p => ['policiales','deportes','politica','economia','salud','cultura'].includes(p));
+      if (possibleCat) categoria = possibleCat.charAt(0).toUpperCase() + possibleCat.slice(1);
+    }
+  } catch(e) {}
+  if (!titulo) titulo = 'Nota sin título';
+  const item = { id, fecha, titulo, url, urlCorta: url, categoria, imagen, timestamp: Date.now() };
+  try {
+    await fetch(`${WORKER}/resumen/agregar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) });
+    document.getElementById('manualUrl').value = '';
+    document.getElementById('manualTitulo').value = '';
+    toast('Nota agregada');
+    cargarNotas();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
 async function generarResumen() {
-  if (!notasActuales.length) { toast('⚠ No hay notas para generar resumen'); return; }
+  if (!notasActuales.length) { toast('No hay notas'); return; }
   const fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
   const btn = document.getElementById('btnGenerarResumen');
   const spin = document.getElementById('spinGenerar');
-  const panel = document.getElementById('resultadosPanel');
-  btn.disabled = true; if (spin) spin.style.display = 'inline-block'; btn.textContent = 'Generando...';
+  btn.disabled = true; if(spin) spin.style.display = 'inline-block'; btn.textContent = 'Generando...';
   try {
     const res = await fetch(`${WORKER}/resumen/generar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fecha, notas: notasActuales }) });
     const data = await res.json();
@@ -598,49 +617,259 @@ async function generarResumen() {
     resultadoWhatsapp = data.whatsapp || '';
     resultadoRedes = data.redes || '';
     hashtagsActuales = data.hashtags || [];
+    guionActual = data.guion_reel || '';
+    resumenNotas = data.notas || notasActuales.map((n, i) => ({ titulo: n.titulo, resumen: '', url: n.url, categoria: n.categoria, imagen: n.imagen }));
     document.getElementById('resultadoWhatsapp').innerHTML = esc(resultadoWhatsapp);
     document.getElementById('resultadoRedes').innerHTML = esc(resultadoRedes);
-    const hashtagContainer = document.getElementById('hashtagsContainer');
+    document.getElementById('guionReel').value = guionActual;
+    const htContainer = document.getElementById('hashtagsContainer');
     if (hashtagsActuales.length) {
-      let htHtml = '';
-      hashtagsActuales.forEach(ht => { htHtml += `<span class="hashtag" onclick="copiarTexto('${esc(ht)}')">${esc(ht)}</span>`; });
-      hashtagContainer.innerHTML = htHtml;
-    } else { hashtagContainer.innerHTML = ''; }
-    panel.style.display = 'block'; panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    toast('✅ Resumen generado correctamente');
-  } catch (err) { toast('✗ Error: ' + err.message); }
-  btn.disabled = false; if (spin) spin.style.display = 'none'; btn.textContent = '✦ Generar resumen con IA';
+      htContainer.innerHTML = hashtagsActuales.map(ht => `<span class="hashtag" onclick="copiarTexto('${esc(ht)}')">${esc(ht)}</span>`).join('');
+    } else htContainer.innerHTML = '';
+    document.getElementById('resultadosPanel').style.display = 'block';
+    toast('Resumen generado');
+    if (resumenNotas.length) renderPages();
+  } catch(err) { toast('Error: ' + err.message); }
+  btn.disabled = false; if(spin) spin.style.display = 'none'; btn.textContent = '✦ Generar resumen con IA';
 }
 
-function cargarResumenAGuion() {
-  const texto = document.getElementById('resultadoWhatsapp')?.innerText || resultadoWhatsapp;
-  if (!texto) { toast('⚠ Primero generá el resumen'); return; }
-  document.getElementById('re-guionTA').value = texto;
-  if (typeof RE !== 'undefined') RE.guion = texto;
-  document.getElementById('re-guionChars').textContent = texto.length + ' car.';
-  if (typeof reelRender === 'function') reelRender();
-  toast('✓ Resumen cargado');
+// ============================================================
+// EDITOR MULTIPÁGINA
+// ============================================================
+function renderPages() {
+  const container = document.getElementById('reelPages');
+  if (!resumenNotas.length) { container.innerHTML = '<div class="empty-state">Primero generá el resumen</div>'; return; }
+  let html = '';
+  resumenNotas.forEach((nota, idx) => {
+    html += `<div class="reel-page" data-page="${idx}">
+      <div class="reel-page-header">
+        <span class="reel-page-num">Nota ${idx+1}: ${esc(nota.titulo.substring(0,50))}</span>
+        <div class="reel-page-actions">
+          <button class="re-tbtn" onclick="moverPagina(${idx},'up')">▲</button>
+          <button class="re-tbtn" onclick="moverPagina(${idx},'down')">▼</button>
+        </div>
+      </div>
+      <div class="reel-page-canvas">
+        <canvas id="pageCanvas_${idx}" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas>
+        <div class="reel-page-controls">
+          <label class="re-tbtn" style="cursor:pointer">📁 Imagen de fondo
+            <input type="file" accept="image/*" class="re-hidden" onchange="cambiarImagenPagina(${idx}, this)">
+          </label>
+          <button class="re-tbtn" onclick="resetImagenPagina(${idx})">↺ Restaurar</button>
+        </div>
+      </div>
+      <div class="reel-page-title">
+        <input type="text" class="mm-input" value="${esc(nota.titulo)}" onchange="actualizarTituloPagina(${idx}, this.value)" style="font-size:11px">
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+  resumenNotas.forEach((_, idx) => {
+    dibujarPaginaMiniatura(idx);
+  });
 }
 
-function reSectionToggle(head) { const body = head.nextElementSibling; const isOpen = head.classList.contains('open'); head.classList.toggle('open', !isOpen); if (body) body.classList.toggle('open', !isOpen); }
-function reelSetFmt(key, el) { document.querySelectorAll('.rfpill').forEach(p => p.classList.remove('on')); el.classList.add('on'); if (typeof window.reelSetFmt === 'function') window.reelSetFmt(key); else { const fmts = {'9x16':{w:1080,h:1920},'1x1':{w:1080,h:1080},'4x5':{w:1080,h:1350}}; if (typeof RE !== 'undefined') { RE.W = fmts[key].w; RE.H = fmts[key].h; RE.canvas.width = RE.W; RE.canvas.height = RE.H; if (typeof reelRender === 'function') reelRender(); } } }
-function reelAlign(key, dir) { if (typeof window.reelAlign === 'function') window.reelAlign(key, dir); }
-function reSw(key, val, el) { if (typeof window.reSw === 'function') window.reSw(key, val, el); }
-function reelPreviewSubs() { if (typeof window.reelPreviewSubs === 'function') window.reelPreviewSubs(); }
-function reelStopPreview() { if (typeof window.reelStopPreview === 'function') window.reelStopPreview(); }
-function reelLoadBg(file) { if (typeof window.reelLoadBg === 'function') window.reelLoadBg(file); }
-function reelLoadLogo(file) { if (typeof window.reelLoadLogo === 'function') window.reelLoadLogo(file); }
-function reelGenerarAudio() { if (typeof window.reelGenerarAudio === 'function') window.reelGenerarAudio(); else toast('Función no disponible'); }
-function reelLoadAudio(e) { if (typeof window.reelLoadAudio === 'function') window.reelLoadAudio(e); }
-function reelExportVideo() { if (typeof window.reelExportVideo === 'function') window.reelExportVideo(); else toast('Exportación no disponible'); }
+function dibujarPaginaMiniatura(idx) {
+  const canvas = document.getElementById(`pageCanvas_${idx}`);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const nota = resumenNotas[idx];
+  ctx.fillStyle = '#1a1a18';
+  ctx.fillRect(0, 0, W, H);
+  if (nota.imagen) {
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, W, H);
+      dibujarTextoMiniatura(ctx, W, H, nota.titulo);
+    };
+    img.src = nota.imagen;
+  } else {
+    ctx.fillStyle = '#2a2a28';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#9b9d8a';
+    ctx.font = 'bold 14px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sin imagen', W/2, H/2);
+    ctx.fillStyle = '#a6ce39';
+    ctx.font = 'bold 12px Inter';
+    ctx.fillText(nota.titulo.substring(0,30), W/2, H-30);
+  }
+}
 
-// Toggle claro/oscuro
-function setTheme(theme) { const body = document.body; if (theme === 'dark') { body.classList.add('dark-theme'); document.getElementById('themeIcon').textContent = '☀️'; document.getElementById('themeLabel').textContent = 'Modo claro'; } else { body.classList.remove('dark-theme'); document.getElementById('themeIcon').textContent = '🌙'; document.getElementById('themeLabel').textContent = 'Modo oscuro'; } localStorage.setItem('mm-theme', theme); }
+function dibujarTextoMiniatura(ctx, W, H, titulo) {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, H-50, W, 50);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 12px Inter';
+  ctx.textAlign = 'center';
+  let texto = titulo.length > 35 ? titulo.substring(0,32)+'...' : titulo;
+  ctx.fillText(texto, W/2, H-20);
+}
+
+function cambiarImagenPagina(idx, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    resumenNotas[idx].imagen = e.target.result;
+    dibujarPaginaMiniatura(idx);
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetImagenPagina(idx) {
+  const notaOriginal = notasActuales.find(n => n.titulo === resumenNotas[idx].titulo);
+  resumenNotas[idx].imagen = notaOriginal?.imagen || '';
+  dibujarPaginaMiniatura(idx);
+}
+
+function actualizarTituloPagina(idx, nuevoTitulo) {
+  resumenNotas[idx].titulo = nuevoTitulo;
+  dibujarPaginaMiniatura(idx);
+}
+
+function moverPagina(idx, dir) {
+  if (dir === 'up' && idx === 0) return;
+  if (dir === 'down' && idx === resumenNotas.length-1) return;
+  const newIdx = dir === 'up' ? idx-1 : idx+1;
+  [resumenNotas[idx], resumenNotas[newIdx]] = [resumenNotas[newIdx], resumenNotas[idx]];
+  renderPages();
+}
+
+async function generarGuionDesdeResumen() {
+  const texto = resultadoWhatsapp || resultadoRedes;
+  if (!texto) { toast('Primero generá el resumen'); return; }
+  const btn = document.querySelector('#tabReel .guion-editor button:first-child');
+  btn.disabled = true; btn.textContent = 'Generando...';
+  try {
+    const res = await fetch(`${WORKER}/resumen/generar-guion-reel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    guionActual = data.guion;
+    document.getElementById('guionReel').value = guionActual;
+    toast('Guion generado');
+  } catch(e) { toast('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = '✨ Generar desde resumen';
+}
+
+function regenerarGuionLimpio() {
+  let texto = document.getElementById('guionReel').value;
+  texto = texto.replace(/[#*_`]/g, '').replace(/https?:\/\/[^\s]+/g, '').replace(/[🔗📱📣🎧✅⚠️✗✓★✦▶️⏸️🎬📋🗑✏️🕐📍📅📰💬⚡🔍🎵🎙️]/g, '');
+  document.getElementById('guionReel').value = texto;
+  guionActual = texto;
+  toast('Formato limpiado');
+}
+
+// ============================================================
+// MÚSICA
+// ============================================================
+let musicSearchResults = [];
+async function buscarMusicaMulti() {
+  const query = document.getElementById('musicSearchInput').value.trim();
+  if (!query) { toast('Ingresá una búsqueda'); return; }
+  const container = document.getElementById('musicResults');
+  container.innerHTML = '<div class="loading-spinner">Buscando...</div>';
+  try {
+    const res = await fetch(`${WORKER}/music/search?q=${encodeURIComponent(query)}&per_page=6`);
+    const data = await res.json();
+    if (!data.ok || !data.tracks?.length) { container.innerHTML = '<div class="empty-state">No se encontraron resultados</div>'; return; }
+    container.innerHTML = '';
+    data.tracks.forEach(track => {
+      const div = document.createElement('div');
+      div.className = 'music-item';
+      div.innerHTML = `<div><strong>${track.title}</strong><br><small>${track.artist}</small></div><button class="re-tbtn" onclick="seleccionarMusicaMulti('${track.audio_url}','${track.title}','${track.artist}')">Usar</button>`;
+      container.appendChild(div);
+    });
+  } catch(e) { container.innerHTML = '<div class="empty-state">Error al buscar</div>'; }
+}
+
+async function seleccionarMusicaMulti(url, title, artist) {
+  try {
+    const res = await fetch(`${WORKER}/music/preview?url=${encodeURIComponent(url)}`);
+    musicBlob = await res.blob();
+    document.getElementById('selectedMusicInfo').style.display = 'block';
+    document.getElementById('selectedMusicTitle').textContent = title;
+    document.getElementById('selectedMusicArtist').textContent = artist;
+    toast('Música seleccionada');
+  } catch(e) { toast('Error al cargar música'); }
+}
+
+function removerMusicaMulti() {
+  musicBlob = null;
+  document.getElementById('selectedMusicInfo').style.display = 'none';
+  toast('Música removida');
+}
+
+function actualizarVolumenMulti() {
+  musicVolume = document.getElementById('musicVolume').value / 100;
+  document.getElementById('musicVolumeVal').textContent = Math.round(musicVolume*100) + '%';
+}
+
+document.getElementById('musicVolume')?.addEventListener('input', actualizarVolumenMulti);
+
+// ============================================================
+// AUDIO
+// ============================================================
+async function generarAudioMulti() {
+  const guion = document.getElementById('guionReel').value.trim();
+  if (!guion) { toast('Escribí o generá el guion primero'); return; }
+  const voiceId = document.getElementById('voiceSelect').value;
+  const btn = document.getElementById('btnGenerarAudio');
+  const spin = document.getElementById('spinAudio');
+  btn.disabled = true; spin.style.display = 'inline-block';
+  try {
+    const res = await fetch(`${WORKER}/social/reel/audio`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo: 'Resumen del día', guion, voiceId }) });
+    if (!res.ok) throw new Error('Error generando audio');
+    audioBlob = await res.blob();
+    const url = URL.createObjectURL(audioBlob);
+    const audioPreview = document.getElementById('audioPreview');
+    audioPreview.src = url;
+    audioPreview.style.display = 'block';
+    toast('Audio generado');
+  } catch(e) { toast('Error: ' + e.message); }
+  btn.disabled = false; spin.style.display = 'none';
+}
+
+// ============================================================
+// EXPORTAR VIDEO (placeholder - requiere implementación completa)
+// ============================================================
+async function exportarVideoMulti() {
+  if (!audioBlob) { toast('Primero generá el audio'); return; }
+  toast('🎬 Función en desarrollo - Exportación multipágina');
+  // Aquí irá la lógica de exportación combinando todas las páginas
+}
+
+// ============================================================
+// LOGO MULTIPÁGINA
+// ============================================================
+document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => { logoImg = img; document.getElementById('logoStatus').textContent = 'Logo cargado'; };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+function resetLogoMulti() { logoImg = null; logoPos = { x: 0.85, y: 0.08, w: 0.12, h: 0.05 }; document.getElementById('logoStatus').textContent = 'Logo removido'; }
+
+// ============================================================
+// TEMA CLARO/OSCURO
+// ============================================================
+function setTheme(t) {
+  const body = document.body;
+  if (t === 'dark') { body.classList.add('dark-theme'); document.getElementById('themeIcon').textContent = '☀️'; document.getElementById('themeLabel').textContent = 'Modo claro'; }
+  else { body.classList.remove('dark-theme'); document.getElementById('themeIcon').textContent = '🌙'; document.getElementById('themeLabel').textContent = 'Modo oscuro'; }
+  localStorage.setItem('mm-theme', t);
+}
 function toggleTheme() { setTheme(document.body.classList.contains('dark-theme') ? 'light' : 'dark'); }
 const savedTheme = localStorage.getItem('mm-theme'); savedTheme === 'dark' ? setTheme('dark') : setTheme('light');
-document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
 
-document.addEventListener('DOMContentLoaded', () => { setFechaHoy(); cargarNotas(); });
+document.addEventListener('DOMContentLoaded', () => { cargarNotas(); });
 </script>
 </body>
 </html>

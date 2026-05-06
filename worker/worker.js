@@ -161,10 +161,19 @@ async function handleResumenGenerar(body, env) {
   const editorial = await getEditorial(env);
   const editorialText = editorial ? `\n\nLÍNEA EDITORIAL:\n${editorial.substring(0, 500)}` : '';
   
+  // Construir texto con títulos y URLs para el resumen
   let notasTexto = '';
+  let notasInfo = [];
   for (let i = 0; i < notas.length; i++) {
     const n = notas[i];
     notasTexto += `${i + 1}. ${n.titulo}\n   🔗 ${n.urlCorta || n.url}\n`;
+    notasInfo.push({
+      titulo: n.titulo,
+      url: n.url,
+      urlCorta: n.urlCorta || n.url,
+      categoria: n.categoria || 'General',
+      imagen: n.imagen || ''
+    });
   }
   
   const prompt = `Sos editor de Media Mendoza, diario del sur de Mendoza, Argentina.
@@ -188,22 +197,73 @@ INSTRUCCIONES:
    - 5-8 hashtags al final (#Mendoza #Noticias #Resumen)
    - Máximo 2000 caracteres
 
-Respondé SOLO con JSON sin markdown ni backticks:
+3. Para GUIDON DE REEL (texto plano para narración):
+   - Sin emojis, sin hashtags, sin links, sin negritas
+   - Texto fluido, natural, para leer en voz alta
+   - Incluir el título de cada nota seguido de un breve resumen
+   - Máximo 250 palabras
+
+Respondé SOLO con JSON sin markdown:
 {
-  "whatsapp": "mensaje completo para WhatsApp",
-  "redes": "texto completo para Instagram/Facebook",
-  "sugerencia_hashtags": ["#hashtag1", "#hashtag2"]
+  "whatsapp": "mensaje completo para WhatsApp con emojis",
+  "redes": "texto completo para Instagram/Facebook con emojis",
+  "guion_reel": "texto plano para narración del video",
+  "sugerencia_hashtags": ["#hashtag1", "#hashtag2"],
+  "notas": [
+    {
+      "titulo": "título de la nota",
+      "resumen": "resumen corto de 20-30 palabras para el video",
+      "url": "url de la nota",
+      "categoria": "categoría"
+    }
+  ]
 }`;
 
   const r = await callGemini(prompt + editorialText, env);
   if (r.error) return jsonError(r.error, 500);
   
+  // Combinar imágenes existentes con las notas generadas
+  const notasConImagen = (r.data?.notas || []).map((nota, idx) => ({
+    ...nota,
+    imagen: notas[idx]?.imagen || '',
+    urlCorta: notas[idx]?.urlCorta || nota.url
+  }));
+  
   return jsonOk({
     whatsapp: r.data?.whatsapp || '',
     redes: r.data?.redes || '',
-    hashtags: r.data?.sugerencia_hashtags || []
+    guion_reel: r.data?.guion_reel || '',
+    hashtags: r.data?.sugerencia_hashtags || [],
+    notas: notasConImagen
   });
 }
+
+async function handleGenerarGuionReel(body, env) {
+  const { texto } = body;
+  if (!texto) return jsonError('Falta texto', 400);
+  
+  const prompt = `Convertí este texto en un guion fluido para narración de video.
+REGLAS:
+- Eliminá emojis, hashtags, links, negritas, asteriscos, guiones
+- Texto natural, en español rioplatense, como si lo leyera un locutor
+- Fluido para leer en voz alta
+- Mantené la información principal
+
+TEXTO ORIGINAL:
+${texto.substring(0, 2000)}
+
+Respondé SOLO con JSON: { "guion": "texto del guion limpio" }`;
+
+  const r = await callGemini(prompt, env);
+  if (r.error) return jsonError(r.error, 500);
+  
+  let guion = r.data?.guion || texto;
+  // Limpieza adicional por si la IA falla
+  guion = guion.replace(/[#*_`]/g, '').replace(/https?:\/\/[^\s]+/g, '').replace(/[🔗📱📣🎧✅⚠️✗✓★✦▶️⏸️🎬📋🗑✏️🕐📍📅📰💬⚡🔍🎵🎙️🎬]/g, '');
+  
+  return jsonOk({ guion });
+}
+
 // ── ELIMINAR NOTA DEL RESUMEN ──
 async function handleResumenEliminar(body, env) {
   const { id, fecha } = body;
@@ -291,6 +351,7 @@ export default {
     if(path==="/resumen/generar")                    return handleResumenGenerar(body, env);
     if(path==="/resumen/agregar")                    return handleResumenAgregar(body, env);
     if(path==="/resumen/eliminar")                   return handleResumenEliminar(body, env);
+    if(path==="/resumen/generar-guion-reel")         return handleGenerarGuionReel(body, env);
     return jsonError("Ruta no encontrada",404);
   },
 };
