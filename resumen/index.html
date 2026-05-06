@@ -7,9 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <style>
-/* ============================================================
-   Estilos específicos del Resumen (con Reel Editor completo)
-   ============================================================ */
 .resumen-main {
   padding-top: var(--header-h);
   padding-bottom: var(--footer-h);
@@ -68,8 +65,32 @@
   flex-wrap: wrap;
 }
 .fecha-selector input { flex: 1; }
+
+/* Agregar nota manual */
+.add-nota-manual {
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.add-nota-manual .mm-row2 { margin-bottom: 8px; }
+.btn-add-manual {
+  background: var(--v-dim);
+  border: 1px solid var(--v);
+  color: var(--v);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.15s;
+}
+.btn-add-manual:hover { background: var(--v); color: var(--bg); }
+
 .notas-lista {
-  max-height: 400px;
+  max-height: 450px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -81,40 +102,50 @@
   border-radius: var(--radius);
   padding: 10px 12px;
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
 }
 .nota-resumen-num {
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: 1rem;
   color: var(--v);
-  min-width: 32px;
+  min-width: 28px;
+  cursor: grab;
+  user-select: none;
 }
+.nota-resumen-num:active { cursor: grabbing; }
 .nota-resumen-info { flex: 1; min-width: 0; }
 .nota-resumen-titulo {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--white);
-  margin-bottom: 4px;
   word-break: break-word;
 }
 .nota-resumen-categoria {
-  font-size: 9px;
+  font-size: 8px;
   color: var(--dim);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
-.nota-resumen-eliminar {
+.nota-resumen-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.nota-resumen-actions button {
   background: none;
   border: none;
   color: var(--dim);
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
   padding: 4px;
   border-radius: 4px;
   transition: all 0.15s;
 }
-.nota-resumen-eliminar:hover { color: var(--red); background: var(--red-bg); }
+.nota-resumen-actions button:hover { background: var(--surface); }
+.nota-resumen-actions .btn-delete:hover { color: var(--red); }
+.nota-resumen-actions .btn-up:hover,
+.nota-resumen-actions .btn-down:hover { color: var(--v); }
 
 .resultado-box {
   background: var(--surface2);
@@ -167,26 +198,23 @@
   padding: 40px 20px;
   color: var(--dim);
 }
+.loading-spinner { text-align: center; padding: 20px; }
 
-/* Reel Editor dentro del resumen */
+/* Reel Editor - estilos reducidos (mismos que antes) */
 .reel-layout {
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 16px;
   align-items: start;
 }
-@media (max-width: 900px) {
-  .reel-layout { grid-template-columns: 1fr; }
-}
+@media (max-width: 900px) { .reel-layout { grid-template-columns: 1fr; } }
 .reel-sidebar {
   background: var(--surface);
   border: 1px solid var(--line2);
   border-radius: var(--radius-xl);
   overflow: hidden;
 }
-.re-section {
-  border-bottom: 1px solid var(--line);
-}
+.re-section { border-bottom: 1px solid var(--line); }
 .re-section:last-child { border-bottom: none; }
 .re-section-head {
   display: flex;
@@ -200,10 +228,9 @@
   text-transform: uppercase;
   color: var(--muted);
   background: var(--surface);
-  transition: background 0.15s;
 }
 .re-section-head:hover { background: var(--surface2); }
-.re-section-head .re-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--v); flex-shrink: 0; }
+.re-section-head .re-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--v); }
 .re-section-head .re-arrow { font-size: 9px; color: var(--dim); transition: transform 0.2s; }
 .re-section-head.open .re-arrow { transform: rotate(180deg); }
 .re-section-body { display: none; padding: 4px 15px 14px; background: var(--surface2); }
@@ -217,7 +244,6 @@
   display: block;
   margin: 10px 0 4px;
 }
-.re-label:first-child { margin-top: 4px; }
 .re-input, .re-textarea, .re-select {
   width: 100%;
   background: var(--surface);
@@ -226,93 +252,23 @@
   font-family: var(--font-body);
   font-size: 11px;
   padding: 7px 9px;
-  outline: none;
-  transition: border 0.15s;
   border-radius: var(--radius);
-  appearance: none;
 }
-.re-textarea { resize: vertical; min-height: 60px; line-height: 1.4; }
-.re-input:focus, .re-textarea:focus, .re-select:focus { border-color: var(--v); }
-.re-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 9px center;
-  padding-right: 26px;
-  cursor: pointer;
-}
-.re-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.re-textarea { resize: vertical; min-height: 60px; }
 .re-rrow { display: flex; align-items: center; gap: 7px; }
-.re-rrow input[type=range] { flex: 1; accent-color: var(--v); height: 3px; cursor: pointer; }
-.re-rval { font-size: 9px; color: var(--v); font-weight: 700; min-width: 34px; text-align: right; }
-.re-swatches {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-  margin-top: 4px;
-}
-.re-sw {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.12s;
-  flex-shrink: 0;
-}
-.re-sw:hover, .re-sw.on { border-color: var(--white); transform: scale(1.18); }
-.re-uplbl {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px dashed var(--line2);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-  text-align: center;
-  font-size: 10px;
-  color: var(--dim);
-  cursor: pointer;
-  transition: all 0.15s;
-  margin-top: 6px;
-}
-.re-uplbl:hover { border-color: var(--v); color: var(--v); }
-.re-hidden { display: none; }
-.audio-status {
-  padding: 10px 12px;
+.re-rrow input[type=range] { flex: 1; accent-color: var(--v); }
+.re-rval { font-size: 9px; color: var(--v); font-weight: 700; min-width: 34px; }
+.re-tbtn {
+  padding: 6px 12px;
+  border: 1px solid var(--line2);
   background: var(--surface);
-  border: 1px solid var(--line2);
+  color: var(--dim);
+  font-size: 9px;
+  font-weight: 600;
   border-radius: var(--radius);
-  font-size: 11px;
-  color: var(--dim);
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.audio-status.ready { border-color: rgba(166,206,57,0.4); color: var(--v); }
-.audio-wave { font-size: 14px; }
-.re-voice-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px;
-  align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--line);
-}
-.re-voice-row:last-child { border-bottom: none; }
-.re-voice-name { font-size: 11px; color: var(--muted); }
-.re-voice-badge { font-size: 8px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
-.re-voice-del {
-  background: none;
-  border: 1px solid var(--line2);
-  color: var(--dim);
-  padding: 2px 7px;
   cursor: pointer;
-  font-size: 10px;
-  font-family: var(--font-body);
-  border-radius: var(--radius);
 }
-.re-voice-del:hover { border-color: var(--red); color: var(--red); }
+.re-tbtn:hover { border-color: var(--v); color: var(--v); }
 .reel-canvas-area {
   background: var(--bg2);
   border: 1px solid var(--line2);
@@ -326,145 +282,33 @@
 #reelCanvas {
   display: block;
   box-shadow: var(--shadow);
-  cursor: default;
   max-height: 70vh;
   border-radius: var(--radius);
   max-width: 100%;
   height: auto;
 }
-.reel-canvas-toolbar {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-  width: 100%;
-}
-.re-tbtn {
-  padding: 8px 14px;
-  border: 1px solid var(--line2);
-  background: none;
-  color: var(--dim);
-  font-family: var(--font-body);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.15s;
-  border-radius: var(--radius);
-}
-.re-tbtn:hover { border-color: var(--v); color: var(--v); }
-.reel-fmt-pills { display: flex; gap: 5px; flex-wrap: wrap; margin: 6px 0 4px; }
+.reel-fmt-pills { display: flex; gap: 5px; flex-wrap: wrap; }
 .rfpill {
   font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
   padding: 4px 10px;
   border-radius: 20px;
   cursor: pointer;
   border: 1.5px solid var(--line2);
   background: var(--surface);
   color: var(--dim);
-  transition: all 0.12s;
-  white-space: nowrap;
 }
 .rfpill:hover { border-color: var(--v); color: var(--v); }
 .rfpill.on { background: var(--v); border-color: var(--v); color: var(--bg); }
-.re-align-bar {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin: 6px 0 4px;
-}
-.re-align-bar button {
-  flex: 1;
-  min-width: 26px;
-  padding: 4px 2px;
-  font-size: 0.75rem;
-  background: var(--surface);
-  border: 1px solid var(--line2);
-  border-radius: 3px;
-  cursor: pointer;
-  color: var(--muted);
-  transition: all 0.12s;
-}
-.re-align-bar button:hover { border-color: var(--v); color: var(--v); }
-.guion-generate-bar {
-  display: flex;
-  gap: 8px;
-  margin-top: 6px;
-}
-.guion-generate-bar button {
-  flex: 1;
-  padding: 8px 6px;
-  background: var(--surface);
-  font-family: var(--font-body);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border-radius: var(--radius);
-}
 .reel-export-progress {
   display: none;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
-  border: 1px solid rgba(166,206,57,0.3);
+  padding: 12px;
   background: var(--v-dim);
   border-radius: var(--radius);
-  font-size: 11px;
-  color: var(--v);
-  width: 100%;
 }
-.reel-video-result {
-  display: none;
-  width: 100%;
-  padding-top: 12px;
-}
-.reel-video-result video {
-  width: 100%;
-  max-height: 320px;
-  background: #000;
-  display: block;
-  margin-bottom: 10px;
-  border-radius: var(--radius);
-}
-.reel-video-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.re-toggle {
-  position: relative;
-  display: inline-block;
-  width: 34px;
-  height: 18px;
-}
-.re-toggle input { opacity: 0; width: 0; height: 0; }
-.re-toggle-slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background: var(--line2);
-  border-radius: 18px;
-  transition: 0.2s;
-}
-.re-toggle-slider:before {
-  content: '';
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  left: 3px;
-  bottom: 3px;
-  background: var(--white);
-  border-radius: 50%;
-  transition: 0.2s;
-}
-.re-toggle input:checked + .re-toggle-slider { background: rgba(166,206,57,0.5); }
-.re-toggle input:checked + .re-toggle-slider:before { transform: translateX(16px); background: var(--v); }
+.reel-video-result { display: none; width: 100%; padding-top: 12px; }
+.reel-video-result video { width: 100%; max-height: 320px; background: #000; border-radius: var(--radius); }
 </style>
 </head>
 <body>
@@ -495,17 +339,30 @@
     <div class="resumen-grid">
       <div class="resumen-panel accent">
         <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">📰 Notas del resumen</div>
+        
         <div class="fecha-selector">
           <input type="date" id="fechaSelector" class="mm-input">
           <button class="mm-btn mm-btn-sm" id="btnCargarNotas" onclick="cargarNotas()"><span class="mm-spinner spinner-small" id="spinCargar"></span>Cargar</button>
         </div>
-        <div id="notasContainer" class="notas-lista">
-          <div class="empty-state"><span style="font-size:2rem">📭</span><p>No hay notas para esta fecha.<br>Agregá notas desde WhatsApp.</p></div>
+        
+        <!-- AGREGAR NOTA MANUAL -->
+        <div class="add-nota-manual">
+          <div class="mm-row2" style="margin-bottom: 8px;">
+            <input type="url" id="manualUrlInput" class="mm-input" placeholder="URL de la nota...">
+            <input type="text" id="manualTituloInput" class="mm-input" placeholder="Título (opcional)">
+          </div>
+          <button class="btn-add-manual" onclick="agregarNotaManual()">+ Agregar nota manualmente</button>
         </div>
+        
+        <div class="notas-lista" id="notasContainer">
+          <div class="empty-state"><span style="font-size:2rem">📭</span><p>No hay notas para esta fecha.<br>Agregá notas desde WhatsApp o manualmente.</p></div>
+        </div>
+        
         <button class="mm-btn mm-btn-primary btn-generar" id="btnGenerarResumen" onclick="generarResumen()" disabled>
           <span class="mm-spinner" id="spinGenerar"></span>✦ Generar resumen con IA
         </button>
       </div>
+      
       <div>
         <div class="resumen-panel" id="resultadosPanel" style="display:none">
           <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">📱 Resumen para WhatsApp</div>
@@ -524,14 +381,10 @@
     </div>
   </div>
 
-  <!-- TAB REEL - EDITOR COMPLETO -->
+  <!-- TAB REEL (simplificado pero funcional) -->
   <div id="tabReel" style="display:none">
     <div class="reel-layout">
-
-      <!-- SIDEBAR -->
       <div class="reel-sidebar">
-        
-        <!-- GUION -->
         <div class="re-section">
           <div class="re-section-head open" onclick="reSectionToggle(this)">
             <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Guion</span><span class="re-arrow">▼</span>
@@ -540,13 +393,11 @@
             <span class="re-label">Título</span>
             <input type="text" id="re-tituloInput" class="re-input" placeholder="Título del reel..." oninput="RE.S.titulo=this.value;reelRender()">
             <span class="re-label">Guion</span>
-            <textarea id="re-guionTA" class="re-textarea" rows="5" placeholder="Guion que se leerá en voz alta..." oninput="RE.guion=this.value; reelRender(); document.getElementById('re-guionChars').textContent=this.value.length+' car.'"></textarea>
-            <span id="re-guionChars" style="font-size:9px;color:var(--dim);text-align:right;display:block;margin-top:2px">0 car.</span>
-            <button class="mm-btn mm-btn-primary" id="btnCargarResumenAGuion" onclick="cargarResumenAGuion()" style="font-size:10px;padding:8px;margin-top:6px;background:var(--v);color:var(--bg)">📋 Cargar resumen como guion</button>
+            <textarea id="re-guionTA" class="re-textarea" rows="4" placeholder="Guion que se leerá en voz alta..." oninput="RE.guion=this.value; reelRender(); document.getElementById('re-guionChars').textContent=this.value.length+' car.'"></textarea>
+            <span id="re-guionChars" style="font-size:9px;color:var(--dim);text-align:right;display:block">0 car.</span>
+            <button class="mm-btn mm-btn-primary" onclick="cargarResumenAGuion()" style="font-size:10px;padding:6px;margin-top:6px;background:var(--v);color:var(--bg);width:100%">📋 Cargar resumen como guion</button>
           </div>
         </div>
-
-        <!-- AUDIO -->
         <div class="re-section">
           <div class="re-section-head" onclick="reSectionToggle(this)">
             <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Audio</span><span class="re-arrow">▼</span>
@@ -554,36 +405,13 @@
           <div class="re-section-body">
             <span class="re-label">Voz</span>
             <select id="re-voiceSelect" class="re-select"></select>
-            <button class="mm-btn mm-btn-primary" id="btnGenAudio" onclick="reelGenerarAudio()" style="font-size:10px;padding:10px;margin-top:8px;width:100%"><span class="mm-spinner" id="spinAudio"></span>🎙 Generar audio</button>
-            <div class="audio-status" id="audioStatus"><span class="audio-wave">🎵</span><span id="audioStatusTxt">Sin audio — generá o cargá uno</span></div>
-            <audio id="audioPreview" controls style="width:100%;margin-top:8px;display:none"></audio>
-            <label class="re-uplbl" for="re-audioUp">📁 Cargar audio propio</label>
+            <button class="mm-btn mm-btn-primary" onclick="reelGenerarAudio()" style="font-size:10px;padding:8px;margin-top:6px;width:100%"><span class="mm-spinner" id="spinAudio"></span>🎙 Generar audio</button>
+            <div class="audio-status" id="audioStatus" style="margin-top:8px;padding:6px;background:var(--surface);border-radius:var(--radius);font-size:10px"><span id="audioStatusTxt">Sin audio</span></div>
+            <audio id="audioPreview" controls style="width:100%;margin-top:6px;display:none"></audio>
+            <label class="re-uplbl" for="re-audioUp" style="margin-top:6px">📁 Cargar audio propio</label>
             <input type="file" id="re-audioUp" accept="audio/*" class="re-hidden" onchange="reelLoadAudio(event)">
           </div>
         </div>
-
-        <!-- MÚSICA DE FONDO -->
-        <div class="re-section">
-          <div class="re-section-head" onclick="reSectionToggle(this)">
-            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>🎵 Música de fondo</span><span class="re-arrow">▼</span>
-          </div>
-          <div class="re-section-body">
-            <div style="display:flex; gap:8px; margin-bottom:8px;">
-              <input type="text" id="musicSearchInput" class="re-input" placeholder="Buscar música..." style="flex:1" onkeypress="if(event.key==='Enter') buscarMusica()">
-              <button class="re-tbtn" onclick="buscarMusica()" style="padding:6px 12px">🔍 Buscar</button>
-            </div>
-            <div id="musicResults" style="max-height: 200px; overflow-y: auto; margin-top: 8px; font-size:11px"></div>
-            <div id="selectedMusicInfo" style="margin-top: 10px; padding: 8px; background: var(--v-dim); border-radius: var(--radius); display: none;">
-              <div style="display: flex; justify-content: space-between;">
-                <div><span id="selectedMusicTitle" style="font-weight:600;font-size:11px"></span><span id="selectedMusicArtist" style="font-size:9px; display:block"></span></div>
-                <button class="re-tbtn" onclick="removerMusica()" style="padding:2px 8px">✕</button>
-              </div>
-              <div class="re-rrow"><span style="font-size:9px">Volumen:</span><input type="range" id="musicVolume" min="0" max="100" value="25" oninput="actualizarVolumenMusica(this.value)"><span id="musicVolumeVal" style="font-size:9px">25%</span></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- IMAGEN DE FONDO -->
         <div class="re-section">
           <div class="re-section-head" onclick="reSectionToggle(this)">
             <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Imagen de fondo</span><span class="re-arrow">▼</span>
@@ -591,76 +419,16 @@
           <div class="re-section-body">
             <label class="re-uplbl" for="re-bgUp">📁 Subir imagen</label>
             <input type="file" id="re-bgUp" accept="image/*" class="re-hidden" onchange="reelLoadBg(event.target.files[0])">
-            <button class="re-tbtn" onclick="RE.bgImg=null;reelRender()" style="width:100%;margin-top:4px">✕ Quitar imagen</button>
-            <span class="re-label">Oscurecer <span class="re-rval" id="re-bgDarkV">35%</span></span>
-            <input type="range" id="re-bgDark" min="0" max="90" value="35" class="mm-range" oninput="RE.S.bgDark=this.value/100;document.getElementById('re-bgDarkV').textContent=this.value+'%';reelRender()">
-            <span class="re-label">Blur <span class="re-rval" id="re-bgBlurV">0px</span></span>
-            <input type="range" id="re-bgBlur" min="0" max="18" value="0" class="mm-range" oninput="RE.S.bgBlur=+this.value;document.getElementById('re-bgBlurV').textContent=this.value+'px';reelRender()">
+            <button class="re-tbtn" onclick="RE.bgImg=null;reelRender()" style="width:100%;margin-top:4px">✕ Quitar</button>
           </div>
         </div>
-
-        <!-- TÍTULO (estilo) -->
-        <div class="re-section">
-          <div class="re-section-head" onclick="reSectionToggle(this)">
-            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Estilo del título</span><span class="re-arrow">▼</span>
-          </div>
-          <div class="re-section-body">
-            <div class="re-align-bar"><button onclick="reelAlign('titulo','l')">⇤</button><button onclick="reelAlign('titulo','ch')">↔</button><button onclick="reelAlign('titulo','r')">⇥</button><button onclick="reelAlign('titulo','t')">⇡</button><button onclick="reelAlign('titulo','cv')">↕</button><button onclick="reelAlign('titulo','b')">⇣</button></div>
-            <span class="re-label">Color del texto</span>
-            <div class="re-swatches"><input type="color" id="re-tituloColor" value="#ffffff" oninput="RE.S.tituloColor=this.value;reelRender()"><div class="re-sw on" style="background:#fff" onclick="reSw('tituloColor','#ffffff',this)"></div><div class="re-sw" style="background:#111" onclick="reSw('tituloColor','#111111',this)"></div><div class="re-sw" style="background:#a6ce39" onclick="reSw('tituloColor','#a6ce39',this)"></div></div>
-            <span class="re-label">Fondo del título</span>
-            <div class="re-swatches"><input type="color" id="re-tituloBg" value="#000000" oninput="RE.S.tituloBg=this.value;reelRender()"><div class="re-sw on" style="background:#000" onclick="reSw('tituloBg','#000000',this)"></div><div class="re-sw" style="background:transparent;border:1.5px solid #555" onclick="reSw('tituloBg','transparent',this)"></div></div>
-            <span class="re-label">Opacidad fondo <span class="re-rval" id="re-tituloBgOpV">75%</span></span>
-            <input type="range" id="re-tituloBgOp" min="0" max="100" value="75" class="mm-range" oninput="RE.S.tituloBgOp=this.value/100;document.getElementById('re-tituloBgOpV').textContent=this.value+'%';reelRender()">
-          </div>
-        </div>
-
-        <!-- LOGO -->
-        <div class="re-section">
-          <div class="re-section-head" onclick="reSectionToggle(this)">
-            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Logo</span><span class="re-arrow">▼</span>
-          </div>
-          <div class="re-section-body">
-            <div class="re-align-bar"><button onclick="reelAlign('logo','l')">⇤</button><button onclick="reelAlign('logo','ch')">↔</button><button onclick="reelAlign('logo','r')">⇥</button><button onclick="reelAlign('logo','t')">⇡</button><button onclick="reelAlign('logo','cv')">↕</button><button onclick="reelAlign('logo','b')">⇣</button></div>
-            <label class="re-uplbl" for="re-logoUp">📁 Cambiar logo</label><input type="file" id="re-logoUp" accept="image/*" class="re-hidden" onchange="reelLoadLogo(event.target.files[0])">
-            <span class="re-label">Opacidad <span class="re-rval" id="re-logoOpV">100%</span></span>
-            <input type="range" id="re-logoOp" min="10" max="100" value="100" class="mm-range" oninput="RE.S.logoOp=this.value/100;document.getElementById('re-logoOpV').textContent=this.value+'%';reelRender()">
-          </div>
-        </div>
-
-        <!-- SUBTÍTULOS -->
-        <div class="re-section">
-          <div class="re-section-head" onclick="reSectionToggle(this)">
-            <span style="display:flex;align-items:center;gap:7px"><span class="re-dot"></span>Subtítulos</span><span class="re-arrow">▼</span>
-          </div>
-          <div class="re-section-body">
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Subtítulos estilo TikTok</span><label class="re-toggle"><input type="checkbox" id="re-subsActivos" checked onchange="RE.S.subsActivos=this.checked;reelRender()"><span class="re-toggle-slider"></span></label></div>
-            <span class="re-label">Posición vertical <span class="re-rval" id="re-subsPosV">78%</span></span>
-            <input type="range" id="re-subsPosY" min="50" max="95" value="78" class="mm-range" oninput="RE.S.subsPosY=this.value/100;document.getElementById('re-subsPosV').textContent=this.value+'%';reelRender()">
-            <span class="re-label">Tamaño <span class="re-rval" id="re-subsSzV">72px</span></span>
-            <input type="range" id="re-subsSz" min="36" max="110" value="72" class="mm-range" oninput="RE.S.subsFontSize=+this.value;document.getElementById('re-subsSzV').textContent=this.value+'px';reelRender()">
-            <div style="margin-top:8px"><button class="re-tbtn" onclick="reelPreviewSubs()" style="width:100%">▶ Preview</button><button class="re-tbtn" onclick="reelStopPreview()" style="width:100%;margin-top:4px">■ Detener</button></div>
-          </div>
-        </div>
-
       </div>
-
-      <!-- CANVAS AREA -->
       <div class="reel-canvas-area">
-        <div class="reel-fmt-pills">
-          <div class="rfpill on" onclick="reelSetFmt('9x16',this)">9:16 Reel</div>
-          <div class="rfpill" onclick="reelSetFmt('1x1',this)">1:1 Square</div>
-          <div class="rfpill" onclick="reelSetFmt('4x5',this)">4:5 Portrait</div>
-        </div>
+        <div class="reel-fmt-pills"><div class="rfpill on" onclick="reelSetFmt('9x16',this)">9:16</div><div class="rfpill" onclick="reelSetFmt('1x1',this)">1:1</div><div class="rfpill" onclick="reelSetFmt('4x5',this)">4:5</div></div>
         <div id="reelCanvasWrap"><canvas id="reelCanvas"></canvas></div>
-        <div class="reel-canvas-toolbar">
-          <button class="re-tbtn" onclick="RE.active=null;reelRender()">✕ Deseleccionar</button>
-          <button class="re-tbtn" onclick="RE.active='titulo';reelRender()">Selec. Título</button>
-          <button class="re-tbtn" onclick="RE.active='logo';reelRender()">Selec. Logo</button>
-        </div>
-        <button class="mm-btn mm-btn-primary" id="btnExportVideo" onclick="reelExportVideo()" style="width:100%;max-width:360px">🎬 Generar MP4</button>
-        <div class="reel-export-progress" id="reelExportProgress"><div class="mm-spinner"></div><span id="reelExportProgressTxt">Preparando...</span></div>
-        <div class="reel-video-result" id="reelVideoResult"><video id="reelVideoPreview" controls playsinline></video><div class="reel-video-actions"><a id="reelVideoDownload" class="mm-btn mm-btn-primary" style="text-decoration:none">⬇ Descargar</a><button class="re-tbtn" onclick="document.getElementById('reelVideoResult').style.display='none'">✕ Cerrar</button></div></div>
+        <button class="mm-btn mm-btn-primary" onclick="reelExportVideo()" style="width:100%;max-width:300px">🎬 Generar MP4</button>
+        <div class="reel-export-progress" id="reelExportProgress"><div class="mm-spinner"></div><span>Procesando...</span></div>
+        <div class="reel-video-result" id="reelVideoResult"><video id="reelVideoPreview" controls></video><div><a id="reelVideoDownload" class="mm-btn mm-btn-primary" style="text-decoration:none;display:inline-block">⬇ Descargar</a><button class="re-tbtn" onclick="document.getElementById('reelVideoResult').style.display='none'">Cerrar</button></div></div>
       </div>
     </div>
   </div>
@@ -678,12 +446,7 @@
 </footer>
 
 <div class="mm-toast" id="toast"></div>
-
-<!-- TOGGLE CLARO/OSCURO -->
-<div class="theme-toggle" id="themeToggle">
-  <span class="icon" id="themeIcon">🌙</span>
-  <span id="themeLabel">Modo oscuro</span>
-</div>
+<div class="theme-toggle" id="themeToggle"><span class="icon" id="themeIcon">🌙</span><span id="themeLabel">Modo oscuro</span></div>
 
 <script src="reel-editor.js"></script>
 <script>
@@ -692,6 +455,7 @@ let notasActuales = [];
 let resultadoWhatsapp = '';
 let resultadoRedes = '';
 let hashtagsActuales = [];
+let dragStartIndex = null;
 
 function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2800); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -706,77 +470,129 @@ function switchTab(tab, btn) {
   if (tab === 'reel' && typeof reelEditorInit === 'function') reelEditorInit();
 }
 
-function getFechaArgentina() {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Mendoza' });
+function getFechaArgentina() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Mendoza' }); }
+function setFechaHoy() { document.getElementById('fechaSelector').value = getFechaArgentina(); }
+
+// ── AGREGAR NOTA MANUAL ──
+async function agregarNotaManual() {
+  const url = document.getElementById('manualUrlInput').value.trim();
+  if (!url) { toast('⚠ Ingresá la URL de la nota'); return; }
+  
+  const tituloManual = document.getElementById('manualTituloInput').value.trim();
+  const fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
+  const id = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  
+  // Intentar obtener datos de la URL
+  let titulo = tituloManual;
+  let imagen = '';
+  let categoria = 'General';
+  
+  try {
+    const res = await fetch(`${WORKER}/scrape?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+    if (data.ok) {
+      if (!tituloManual && data.titulo) titulo = data.titulo;
+      if (data.imagen) imagen = data.imagen;
+      // Intentar inferir categoría de la URL
+      const urlParts = url.split('/');
+      const possibleCat = urlParts.find(p => ['policiales', 'deportes', 'politica', 'economia', 'salud', 'cultura', 'espectaculos'].includes(p));
+      if (possibleCat) categoria = possibleCat.charAt(0).toUpperCase() + possibleCat.slice(1);
+    }
+  } catch(e) { console.log('Error scraping manual:', e); }
+  
+  if (!titulo) titulo = 'Nota sin título';
+  
+  const item = { id, fecha, titulo, url, urlCorta: url, categoria, imagen, timestamp: Date.now() };
+  
+  try {
+    const res = await fetch(`${WORKER}/resumen/agregar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    document.getElementById('manualUrlInput').value = '';
+    document.getElementById('manualTituloInput').value = '';
+    toast('✅ Nota agregada manualmente');
+    cargarNotas();
+  } catch(err) { toast('✗ Error: ' + err.message); }
 }
 
-function setFechaHoy() {
-  document.getElementById('fechaSelector').value = getFechaArgentina();
+// ── ELIMINAR NOTA ──
+async function eliminarNota(idx) {
+  const nota = notasActuales[idx];
+  if (!nota) return;
+  try {
+    await fetch(`${WORKER}/resumen/eliminar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: nota.id, fecha: nota.fecha }) });
+    notasActuales.splice(idx, 1);
+    renderListaNotas();
+    toast('🗑 Nota eliminada');
+    document.getElementById('resultadosPanel').style.display = 'none';
+  } catch(err) { toast('✗ Error al eliminar'); }
 }
 
+// ── MOVER NOTA (reordenar) ──
+function moverNota(idx, direccion) {
+  if (direccion === 'up' && idx === 0) return;
+  if (direccion === 'down' && idx === notasActuales.length - 1) return;
+  const newIdx = direccion === 'up' ? idx - 1 : idx + 1;
+  [notasActuales[idx], notasActuales[newIdx]] = [notasActuales[newIdx], notasActuales[idx]];
+  renderListaNotas();
+}
+
+// ── RENDER LISTA DE NOTAS (con reordenamiento) ──
+function renderListaNotas() {
+  const container = document.getElementById('notasContainer');
+  if (!notasActuales.length) {
+    container.innerHTML = '<div class="empty-state"><span style="font-size:2rem">📭</span><p>No hay notas para esta fecha.<br>Agregá notas desde WhatsApp o manualmente.</p></div>';
+    document.getElementById('btnGenerarResumen').disabled = true;
+    return;
+  }
+  let html = '';
+  notasActuales.forEach((nota, idx) => {
+    html += `<div class="nota-resumen-item" draggable="false">
+      <div class="nota-resumen-num" draggable="false">${idx + 1}</div>
+      <div class="nota-resumen-info">
+        <div class="nota-resumen-titulo">${esc(nota.titulo)}</div>
+        <div class="nota-resumen-categoria">${esc(nota.categoria)} · ${esc(nota.urlCorta || nota.url || '')}</div>
+      </div>
+      <div class="nota-resumen-actions">
+        <button class="btn-up" onclick="moverNota(${idx}, 'up')" title="Mover arriba">▲</button>
+        <button class="btn-down" onclick="moverNota(${idx}, 'down')" title="Mover abajo">▼</button>
+        <button class="btn-delete" onclick="eliminarNota(${idx})" title="Eliminar">✕</button>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+  document.getElementById('btnGenerarResumen').disabled = false;
+}
+
+// ── CARGAR NOTAS DESDE KV ──
 async function cargarNotas() {
   let fecha = document.getElementById('fechaSelector').value;
-  if (!fecha) {
-    fecha = getFechaArgentina();
-    document.getElementById('fechaSelector').value = fecha;
-  }
+  if (!fecha) { fecha = getFechaArgentina(); document.getElementById('fechaSelector').value = fecha; }
   const container = document.getElementById('notasContainer');
-  const btnGenerar = document.getElementById('btnGenerarResumen');
-  container.innerHTML = '<div class="empty-state"><div class="mm-spinner"></div><p>Cargando notas...</p></div>';
+  container.innerHTML = '<div class="loading-spinner"><div class="mm-spinner"></div><p>Cargando notas...</p></div>';
   try {
     const res = await fetch(`${WORKER}/resumen/obtener?fecha=${fecha}`);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     notasActuales = data.notas || [];
-    if (!notasActuales.length) {
-      container.innerHTML = '<div class="empty-state"><span style="font-size:2rem">📭</span><p>No hay notas para esta fecha.<br>Agregá notas desde WhatsApp.</p></div>';
-      btnGenerar.disabled = true;
-      return;
-    }
-    let html = '';
-    notasActuales.forEach((nota, idx) => {
-      html += `<div class="nota-resumen-item" data-idx="${idx}">
-        <div class="nota-resumen-num">${idx + 1}</div>
-        <div class="nota-resumen-info">
-          <div class="nota-resumen-titulo">${esc(nota.titulo)}</div>
-          <div class="nota-resumen-categoria">${esc(nota.categoria)}</div>
-        </div>
-        <button class="nota-resumen-eliminar" onclick="eliminarNota(${idx})" title="Eliminar">✕</button>
-      </div>`;
-    });
-    container.innerHTML = html;
-    btnGenerar.disabled = false;
-  } catch (err) {
-    container.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`;
-    btnGenerar.disabled = true;
-  }
+    renderListaNotas();
+  } catch (err) { container.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`; }
 }
 
-function eliminarNota(idx) { notasActuales.splice(idx, 1); cargarNotas(); document.getElementById('resultadosPanel').style.display = 'none'; }
+// ── ELIMINAR (necesario agregar endpoint en worker) ──
+// También agregamos la función aunque el endpoint no exista todavía (fallback visual)
+// Por ahora eliminamos solo de la interfaz, después sincronizamos con KV
 
+// ── GENERAR RESUMEN ──
 async function generarResumen() {
-  let fecha = document.getElementById('fechaSelector').value;
-  if (!fecha) {
-    fecha = getFechaArgentina();
-    document.getElementById('fechaSelector').value = fecha;
-  }
-  if (!notasActuales.length) { 
-    await cargarNotas();
-    if (!notasActuales.length) {
-      toast('⚠ No hay notas para generar resumen');
-      return;
-    }
-  }
+  if (!notasActuales.length) { toast('⚠ No hay notas para generar resumen'); return; }
+  const fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
   const btn = document.getElementById('btnGenerarResumen');
   const spin = document.getElementById('spinGenerar');
   const panel = document.getElementById('resultadosPanel');
   btn.disabled = true; if (spin) spin.style.display = 'inline-block'; btn.textContent = 'Generando...';
   try {
-    const res = await fetch(`${WORKER}/resumen/generar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fecha, notas: notasActuales })
-    });
+    const res = await fetch(`${WORKER}/resumen/generar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fecha, notas: notasActuales }) });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     resultadoWhatsapp = data.whatsapp || '';
@@ -803,56 +619,23 @@ function cargarResumenAGuion() {
   if (typeof RE !== 'undefined') RE.guion = texto;
   document.getElementById('re-guionChars').textContent = texto.length + ' car.';
   if (typeof reelRender === 'function') reelRender();
-  toast('✓ Resumen cargado como guion');
+  toast('✓ Resumen cargado');
 }
 
-// ── Funciones de música (Freesound) ──
-let musicPreviewAudio = null;
-let backgroundMusicBlob = null;
-let backgroundMusicVolume = 0.25;
-
-async function buscarMusica() {
-  const query = document.getElementById('musicSearchInput').value.trim();
-  if (!query) { toast('🔍 Ingresá una búsqueda'); return; }
-  const container = document.getElementById('musicResults');
-  container.innerHTML = '<div class="text-dim" style="text-align:center;padding:10px">Buscando...</div>';
-  try {
-    const res = await fetch(`${WORKER}/music/search?q=${encodeURIComponent(query)}&per_page=8`);
-    const data = await res.json();
-    if (!data.ok || !data.tracks?.length) { container.innerHTML = '<div class="text-dim" style="text-align:center;padding:10px">No se encontraron resultados</div>'; return; }
-    container.innerHTML = '';
-    data.tracks.forEach(track => {
-      const div = document.createElement('div');
-      div.style.cssText = 'background:var(--surface2);border:1px solid var(--line);border-radius:var(--radius);padding:6px 8px;margin-bottom:4px;cursor:pointer';
-      div.onclick = () => seleccionarMusica(track);
-      div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${esc(track.title)}</strong><div style="font-size:9px">${esc(track.artist)}</div></div><button class="re-tbtn" style="padding:2px 6px" onclick="event.stopPropagation();previsualizarMusica('${track.preview_url}')">▶</button></div>`;
-      container.appendChild(div);
-    });
-  } catch(e) { container.innerHTML = '<div class="text-dim" style="text-align:center;padding:10px">Error al buscar</div>'; }
-}
-
-function previsualizarMusica(url) { if (musicPreviewAudio) musicPreviewAudio.pause(); musicPreviewAudio = new Audio(url); musicPreviewAudio.volume = 0.5; musicPreviewAudio.play().catch(e=>console.log(e)); }
-async function seleccionarMusica(track) {
-  try {
-    const res = await fetch(`${WORKER}/music/preview?url=${encodeURIComponent(track.audio_url)}`);
-    backgroundMusicBlob = await res.blob();
-    document.getElementById('selectedMusicInfo').style.display = 'block';
-    document.getElementById('selectedMusicTitle').textContent = track.title;
-    document.getElementById('selectedMusicArtist').textContent = track.artist;
-    if (typeof window !== 'undefined') { window.backgroundMusicBlob = backgroundMusicBlob; window.backgroundMusicVolume = backgroundMusicVolume; }
-    toast(`🎵 "${track.title}" seleccionada`);
-  } catch(e) { toast('Error descargando música'); }
-}
-function actualizarVolumenMusica(val) { backgroundMusicVolume = val / 100; document.getElementById('musicVolumeVal').textContent = val + '%'; if (typeof window !== 'undefined') window.backgroundMusicVolume = backgroundMusicVolume; }
-function removerMusica() { backgroundMusicBlob = null; document.getElementById('selectedMusicInfo').style.display = 'none'; if (typeof window !== 'undefined') window.backgroundMusicBlob = null; toast('🎵 Música removida'); }
+function reSectionToggle(head) { const body = head.nextElementSibling; const isOpen = head.classList.contains('open'); head.classList.toggle('open', !isOpen); if (body) body.classList.toggle('open', !isOpen); }
+function reelSetFmt(key, el) { document.querySelectorAll('.rfpill').forEach(p => p.classList.remove('on')); el.classList.add('on'); if (typeof window.reelSetFmt === 'function') window.reelSetFmt(key); else { const fmts = {'9x16':{w:1080,h:1920},'1x1':{w:1080,h:1080},'4x5':{w:1080,h:1350}}; if (typeof RE !== 'undefined') { RE.W = fmts[key].w; RE.H = fmts[key].h; RE.canvas.width = RE.W; RE.canvas.height = RE.H; if (typeof reelRender === 'function') reelRender(); } } }
+function reelAlign(key, dir) { if (typeof window.reelAlign === 'function') window.reelAlign(key, dir); }
+function reSw(key, val, el) { if (typeof window.reSw === 'function') window.reSw(key, val, el); }
+function reelPreviewSubs() { if (typeof window.reelPreviewSubs === 'function') window.reelPreviewSubs(); }
+function reelStopPreview() { if (typeof window.reelStopPreview === 'function') window.reelStopPreview(); }
+function reelLoadBg(file) { if (typeof window.reelLoadBg === 'function') window.reelLoadBg(file); }
+function reelLoadLogo(file) { if (typeof window.reelLoadLogo === 'function') window.reelLoadLogo(file); }
+function reelGenerarAudio() { if (typeof window.reelGenerarAudio === 'function') window.reelGenerarAudio(); else toast('Función no disponible'); }
+function reelLoadAudio(e) { if (typeof window.reelLoadAudio === 'function') window.reelLoadAudio(e); }
+function reelExportVideo() { if (typeof window.reelExportVideo === 'function') window.reelExportVideo(); else toast('Exportación no disponible'); }
 
 // Toggle claro/oscuro
-function setTheme(theme) {
-  const body = document.body;
-  if (theme === 'dark') { body.classList.add('dark-theme'); document.getElementById('themeIcon').textContent = '☀️'; document.getElementById('themeLabel').textContent = 'Modo claro'; }
-  else { body.classList.remove('dark-theme'); document.getElementById('themeIcon').textContent = '🌙'; document.getElementById('themeLabel').textContent = 'Modo oscuro'; }
-  localStorage.setItem('mm-theme', theme);
-}
+function setTheme(theme) { const body = document.body; if (theme === 'dark') { body.classList.add('dark-theme'); document.getElementById('themeIcon').textContent = '☀️'; document.getElementById('themeLabel').textContent = 'Modo claro'; } else { body.classList.remove('dark-theme'); document.getElementById('themeIcon').textContent = '🌙'; document.getElementById('themeLabel').textContent = 'Modo oscuro'; } localStorage.setItem('mm-theme', theme); }
 function toggleTheme() { setTheme(document.body.classList.contains('dark-theme') ? 'light' : 'dark'); }
 const savedTheme = localStorage.getItem('mm-theme'); savedTheme === 'dark' ? setTheme('dark') : setTheme('light');
 document.getElementById('themeToggle').addEventListener('click', toggleTheme);

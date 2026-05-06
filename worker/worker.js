@@ -204,6 +204,20 @@ Respondé SOLO con JSON sin markdown ni backticks:
     hashtags: r.data?.sugerencia_hashtags || []
   });
 }
+// ── ELIMINAR NOTA DEL RESUMEN ──
+async function handleResumenEliminar(body, env) {
+  const { id, fecha } = body;
+  if (!id || !fecha) {
+    return jsonError('Faltan id o fecha', 400);
+  }
+  const key = `${RESUMEN_PREFIX}${fecha}:${id}`;
+  try {
+    await env.KV.delete(key);
+    return jsonOk({ eliminado: true, id });
+  } catch (err) {
+    return jsonError('Error eliminando: ' + err.message, 500);
+  }
+}
 
 // ── Router ──
 export default {
@@ -276,6 +290,7 @@ export default {
     if(path==="/agenda/angulos")                     return handleAgendaAngulos(body,env);
     if(path==="/resumen/generar")                    return handleResumenGenerar(body, env);
     if(path==="/resumen/agregar")                    return handleResumenAgregar(body, env);
+    if(path==="/resumen/eliminar")                   return handleResumenEliminar(body, env);
     return jsonError("Ruta no encontrada",404);
   },
 };
