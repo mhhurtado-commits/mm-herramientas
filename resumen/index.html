@@ -388,12 +388,13 @@
       <div class="reel-controls-global">
         
         <div class="reel-logo-editor">
-          <div class="re-label">⭐ Logo (misma posición en todas las páginas)</div>
+          <div class="re-label">⭐ Logo</div>
           <div style="display:flex; gap:8px; flex-wrap:wrap">
-            <label class="re-uplbl" for="re-logo-multi">📁 Cambiar logo</label>
-            <button class="re-tbtn" onclick="resetLogoMulti()">↺ Quitar logo</button>
+            <span id="logoStatus" style="font-size:9px; color:var(--v);">Logo por defecto cargado</span>
+            <label class="re-uplbl" for="re-logo-multi" style="margin-left:auto">📁 Cambiar logo (opcional)</label>
+            <input type="file" id="re-logo-multi" accept="image/*" class="re-hidden">
+            <button class="re-tbtn" onclick="resetLogoMulti()">↺ Restaurar logo original</button>
           </div>
-          <div id="logoStatus" style="font-size:9px; color:var(--v); margin-top:6px; display:none">✓ Logo cargado</div>
         </div>
         
         <div class="reel-music">
@@ -464,7 +465,7 @@ let guionActual = '';
 let audioBlob = null;
 let musicBlob = null;
 let musicVolume = 0.25;
-let logoImg = null;
+let logoImg = null;        // Logo cargado (por defecto o personalizado)
 let logoPos = { x: 0.85, y: 0.08, w: 0.12, h: 0.06 };
 
 function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2800); }
@@ -628,7 +629,26 @@ function renderPages() {
     </div>`;
   });
   container.innerHTML = html;
-  resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+  // Cargar el logo por defecto si no hay ninguno cargado
+  if (!logoImg) {
+    cargarLogoDefault();
+  } else {
+    resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+  }
+}
+
+function cargarLogoDefault() {
+  const img = new Image();
+  img.onload = () => {
+    logoImg = img;
+    document.getElementById('logoStatus').innerHTML = '✓ Logo por defecto';
+    resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+  };
+  img.onerror = () => {
+    console.log('No se pudo cargar el logo por defecto');
+    resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+  };
+  img.src = '../assets/logo.png';
 }
 
 function dibujarPaginaMiniatura(idx) {
@@ -637,6 +657,7 @@ function dibujarPaginaMiniatura(idx) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const nota = resumenNotas[idx];
+  
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(0, 0, W, H);
   
@@ -646,13 +667,16 @@ function dibujarPaginaMiniatura(idx) {
     const drawW = imgW * scale, drawH = imgH * scale;
     const drawX = (W - drawW) / 2, drawY = (H - drawH) / 2;
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    // Dibujar logo (escala correcta)
+    
+    // Dibujar logo si existe
     if (logoImg) {
       const lw = W * logoPos.w, lh = H * logoPos.h;
       const lx = W * logoPos.x - lw, ly = H * logoPos.y;
       ctx.drawImage(logoImg, lx, ly, lw, lh);
     }
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    
+    // Sombra para el texto
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(0, H-50, W, 50);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 14px Inter';
@@ -733,7 +757,7 @@ function regenerarGuionLimpio() {
 }
 
 // ============================================================
-// MÚSICA (igual que antes)
+// MÚSICA
 // ============================================================
 async function buscarMusicaMulti() {
   const query = document.getElementById('musicSearchInput').value.trim();
@@ -821,8 +845,8 @@ document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
     const img = new Image();
     img.onload = () => {
       logoImg = img;
-      document.getElementById('logoStatus').style.display = 'block';
-      renderPages();  // Redibujar todas las páginas con el nuevo logo
+      document.getElementById('logoStatus').innerHTML = '✓ Logo personalizado';
+      renderPages();
     };
     img.src = ev.target.result;
   };
@@ -830,10 +854,7 @@ document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
 });
 
 function resetLogoMulti() {
-  logoImg = null;
-  logoPos = { x: 0.85, y: 0.08, w: 0.12, h: 0.06 };
-  document.getElementById('logoStatus').style.display = 'none';
-  renderPages();  // Redibujar todas las páginas sin logo
+  cargarLogoDefault();
 }
 
 // ============================================================
@@ -857,7 +878,11 @@ function toggleTheme() { setTheme(document.body.classList.contains('dark-theme')
 const savedTheme = localStorage.getItem('mm-theme'); savedTheme === 'dark' ? setTheme('dark') : setTheme('light');
 document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
 
-document.addEventListener('DOMContentLoaded', () => { cargarNotas(); });
+// Inicializar
+document.addEventListener('DOMContentLoaded', () => { 
+  cargarNotas();
+  cargarLogoDefault();
+});
 </script>
 </body>
 </html>
