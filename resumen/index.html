@@ -349,7 +349,7 @@
     <button class="resumen-tab" onclick="switchTab('reel', this)">🎬 Reel del Resumen</button>
   </div>
 
-  <!-- TAB RESUMEN (mismo código que antes) -->
+  <!-- TAB RESUMEN -->
   <div id="tabResumen">
     <div class="resumen-grid">
       <div class="resumen-panel accent">
@@ -409,9 +409,8 @@
       
       <div class="reel-controls-global">
         
-        <!-- Editor de logo estilo Placas -->
         <div class="reel-logo-editor">
-          <div class="re-label">⭐ Logo (arrastrá y redimensioná en el canvas)</div>
+          <div class="re-label">⭐ Logo (arrastrá y redimensioná)</div>
           <div class="logo-editor-container">
             <canvas id="logoCanvas" width="270" height="480" style="width:270px;height:480px;background:#1a1a18;border-radius:8px;cursor:crosshair" class="logo-preview-canvas"></canvas>
             <div class="logo-controls">
@@ -420,7 +419,7 @@
                 <input type="range" id="logoSizeSlider" min="5" max="25" value="12" step="1" oninput="actualizarTamanioLogo(this.value)">
                 <span id="logoSizeVal" class="re-rval">12%</span>
               </div>
-              <button class="re-tbtn" onclick="resetearPosicionLogo()" style="margin-top:8px;width:100%">↺ Restablecer posición</button>
+              <button class="re-tbtn" onclick="resetearPosicionLogo()" style="margin-top:8px;width:100%">↺ Restablecer</button>
               <label class="re-uplbl" for="re-logo-multi" style="margin-top:8px;display:block">📁 Cambiar logo</label>
               <input type="file" id="re-logo-multi" accept="image/*" class="re-hidden">
               <div id="logoStatus" style="font-size:9px; color:var(--dim); margin-top:8px; text-align:center"></div>
@@ -459,8 +458,17 @@
           <audio id="audioPreview" controls style="width:100%; margin-top:8px; display:none"></audio>
         </div>
         
+        <div class="reel-format">
+          <div class="re-label">📐 Formato del video</div>
+          <div class="reel-fmt-pills" style="display:flex; gap:8px; margin-top:4px">
+            <button class="re-tbtn" id="fmt9x16" onclick="setFormatoVideo('9x16')" style="background:var(--v);color:var(--bg)">9:16 (Reel)</button>
+            <button class="re-tbtn" id="fmt1x1" onclick="setFormatoVideo('1x1')">1:1 (Cuadrado)</button>
+            <button class="re-tbtn" id="fmt4x5" onclick="setFormatoVideo('4x5')">4:5 (Portrait)</button>
+          </div>
+        </div>
+        
         <button class="mm-btn mm-btn-primary" id="btnExportVideo" onclick="exportarVideoMulti()" style="width:100%; margin-top:8px">🎬 Generar video multipágina</button>
-        <div id="exportProgress" style="display:none; margin-top:8px; padding:8px; background:var(--v-dim); border-radius:var(--radius)"><div class="mm-spinner small"></div> Procesando...</div>
+        <div id="exportProgress" style="display:none; margin-top:8px; padding:8px; background:var(--v-dim); border-radius:var(--radius)"><div class="mm-spinner small"></div> <span id="exportProgressText">Procesando...</span></div>
         <div id="videoResult" style="display:none; margin-top:12px">
           <video id="videoPreview" controls style="width:100%; border-radius:var(--radius)"></video>
           <a id="videoDownload" class="mm-btn mm-btn-primary" style="display:inline-block; margin-top:8px; text-align:center">⬇ Descargar video</a>
@@ -497,8 +505,9 @@ let audioBlob = null;
 let musicBlob = null;
 let musicVolume = 0.25;
 let logoImg = null;
-let logoX = 0.85, logoY = 0.08, logoSize = 12; // posición y tamaño en porcentaje
+let logoX = 0.85, logoY = 0.08, logoSize = 12;
 let dragActive = false, resizeActive = false, dragOffsetX = 0, dragOffsetY = 0, resizeHandle = null;
+let formatoVideo = { w: 1080, h: 1920 }; // 9x16 por defecto
 
 // ============================================================
 // UTILIDADES
@@ -514,11 +523,10 @@ function switchTab(tab, btn) {
   btn.classList.add('active');
   document.getElementById('tabResumen').style.display = tab === 'resumen' ? 'block' : 'none';
   document.getElementById('tabReel').style.display = tab === 'reel' ? 'block' : 'none';
-  if (tab === 'reel' && resumenNotas.length && !document.getElementById('reelPages').children.length) renderPages();
 }
 
 // ============================================================
-// NOTAS Y RESUMEN (código estándar)
+// NOTAS Y RESUMEN (mismo código que antes)
 // ============================================================
 async function cargarNotas() {
   let fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
@@ -628,13 +636,13 @@ async function generarResumen() {
     htContainer.innerHTML = hashtagsActuales.length ? hashtagsActuales.map(ht => `<span class="hashtag" onclick="copiarTexto('${esc(ht)}')">${esc(ht)}</span>`).join('') : '';
     document.getElementById('resultadosPanel').style.display = 'block';
     toast('Resumen generado');
-    if (resumenNotas.length) renderPages();
+    renderPages();
   } catch(err) { toast('Error: ' + err.message); }
   btn.disabled = false; btn.textContent = '✦ Generar resumen con IA';
 }
 
 // ============================================================
-// EDITOR MULTIPÁGINA
+// RENDER PÁGINAS
 // ============================================================
 function renderPages() {
   const container = document.getElementById('reelPages');
@@ -664,9 +672,7 @@ function renderPages() {
     </div>`;
   });
   container.innerHTML = html;
-  if (!logoImg) {
-    cargarLogoDefault();
-  } else {
+  if (!logoImg) { cargarLogoDefault(); } else {
     resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
   }
 }
@@ -690,19 +696,15 @@ function dibujarLogoPreview() {
   const W = canvas.width, H = canvas.height;
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(0, 0, W, H);
-  // Fondo de ejemplo
   ctx.fillStyle = '#2a2a28';
   ctx.fillRect(W*0.05, H*0.05, W*0.9, H*0.9);
   ctx.fillStyle = '#9b9d8a';
   ctx.font = 'bold 16px Inter';
   ctx.textAlign = 'center';
   ctx.fillText('Logo position preview', W/2, H/2);
-  ctx.fillStyle = '#666';
-  ctx.font = '12px Inter';
-  ctx.fillText('arrastrá / esquinas para ajustar', W/2, H/2+30);
   // Líneas de centrado
   ctx.beginPath();
-  ctx.strokeStyle = 'rgba(166,206,57,0.3)';
+  ctx.strokeStyle = 'rgba(166,206,57,0.5)';
   ctx.setLineDash([5, 5]);
   ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
   ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
@@ -713,13 +715,13 @@ function dibujarLogoPreview() {
   const logoXpx = W * logoX - logoW;
   const logoYpx = H * logoY;
   ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
-  // Dibujar handles
+  // Handles
   ctx.fillStyle = '#a6ce39';
-  const handleSize = 8;
-  ctx.fillRect(logoXpx - handleSize/2, logoYpx - handleSize/2, handleSize, handleSize);
-  ctx.fillRect(logoXpx + logoW - handleSize/2, logoYpx - handleSize/2, handleSize, handleSize);
-  ctx.fillRect(logoXpx - handleSize/2, logoYpx + logoH - handleSize/2, handleSize, handleSize);
-  ctx.fillRect(logoXpx + logoW - handleSize/2, logoYpx + logoH - handleSize/2, handleSize, handleSize);
+  const hs = 8;
+  ctx.fillRect(logoXpx - hs/2, logoYpx - hs/2, hs, hs);
+  ctx.fillRect(logoXpx + logoW - hs/2, logoYpx - hs/2, hs, hs);
+  ctx.fillRect(logoXpx - hs/2, logoYpx + logoH - hs/2, hs, hs);
+  ctx.fillRect(logoXpx + logoW - hs/2, logoYpx + logoH - hs/2, hs, hs);
 }
 
 function dibujarPaginaMiniatura(idx) {
@@ -730,34 +732,29 @@ function dibujarPaginaMiniatura(idx) {
   const nota = resumenNotas[idx];
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(0, 0, W, H);
-  
-  function drawWithImage(img) {
-    const imgW = img.width, imgH = img.height;
-    const scale = Math.max(W / imgW, H / imgH);
-    const drawW = imgW * scale, drawH = imgH * scale;
-    const drawX = (W - drawW) / 2, drawY = (H - drawH) / 2;
-    ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    
-    if (logoImg) {
-      const logoW = W * (logoSize / 100);
-      const logoH = logoW / (logoImg.width / logoImg.height);
-      const logoXpx = W * logoX - logoW;
-      const logoYpx = H * logoY;
-      ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
-    }
-    
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, H-50, W, 50);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px Inter';
-    ctx.textAlign = 'center';
-    let texto = nota.titulo.length > 35 ? nota.titulo.substring(0,32)+'...' : nota.titulo;
-    ctx.fillText(texto, W/2, H-20);
-  }
-  
   if (nota.imagen) {
     const img = new Image();
-    img.onload = () => drawWithImage(img);
+    img.onload = () => {
+      const imgW = img.width, imgH = img.height;
+      const scale = Math.max(W / imgW, H / imgH);
+      const drawW = imgW * scale, drawH = imgH * scale;
+      const drawX = (W - drawW) / 2, drawY = (H - drawH) / 2;
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      if (logoImg) {
+        const logoW = W * (logoSize / 100);
+        const logoH = logoW / (logoImg.width / logoImg.height);
+        const logoXpx = W * logoX - logoW;
+        const logoYpx = H * logoY;
+        ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, H-50, W, 50);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px Inter';
+      ctx.textAlign = 'center';
+      let texto = nota.titulo.length > 35 ? nota.titulo.substring(0,32)+'...' : nota.titulo;
+      ctx.fillText(texto, W/2, H-20);
+    };
     img.src = nota.imagen;
   } else {
     ctx.fillStyle = '#2a2a28';
@@ -803,7 +800,7 @@ function moverPagina(idx, dir) {
 }
 
 // ============================================================
-// LOGO - INTERACCIÓN (arrastrar y redimensionar)
+// LOGO - INTERACCIÓN
 // ============================================================
 function initLogoEvents() {
   const canvas = document.getElementById('logoCanvas');
@@ -825,11 +822,11 @@ function initLogoEvents() {
     const logoH = logoW / (logoImg.width / logoImg.height);
     const logoXpx = W * logoX - logoW;
     const logoYpx = H * logoY;
-    const handleSize = 12;
-    if (Math.abs(mx - logoXpx) < handleSize && Math.abs(my - logoYpx) < handleSize) return 'nw';
-    if (Math.abs(mx - (logoXpx + logoW)) < handleSize && Math.abs(my - logoYpx) < handleSize) return 'ne';
-    if (Math.abs(mx - logoXpx) < handleSize && Math.abs(my - (logoYpx + logoH)) < handleSize) return 'sw';
-    if (Math.abs(mx - (logoXpx + logoW)) < handleSize && Math.abs(my - (logoYpx + logoH)) < handleSize) return 'se';
+    const hs = 12;
+    if (Math.abs(mx - logoXpx) < hs && Math.abs(my - logoYpx) < hs) return 'nw';
+    if (Math.abs(mx - (logoXpx + logoW)) < hs && Math.abs(my - logoYpx) < hs) return 'ne';
+    if (Math.abs(mx - logoXpx) < hs && Math.abs(my - (logoYpx + logoH)) < hs) return 'sw';
+    if (Math.abs(mx - (logoXpx + logoW)) < hs && Math.abs(my - (logoYpx + logoH)) < hs) return 'se';
     if (mx >= logoXpx && mx <= logoXpx + logoW && my >= logoYpx && my <= logoYpx + logoH) return 'drag';
     return null;
   }
@@ -840,7 +837,8 @@ function initLogoEvents() {
     const handle = isOverHandle(pos.x, pos.y);
     if (handle === 'drag') {
       dragActive = true;
-      dragOffsetX = pos.x - (canvas.width * logoX - canvas.width * (logoSize / 100));
+      const logoW = canvas.width * (logoSize / 100);
+      dragOffsetX = pos.x - (canvas.width * logoX - logoW);
       dragOffsetY = pos.y - (canvas.height * logoY);
     } else if (handle === 'nw' || handle === 'ne' || handle === 'sw' || handle === 'se') {
       resizeActive = true;
@@ -868,15 +866,14 @@ function initLogoEvents() {
     }
     
     if (resizeActive) {
-      let newSize = logoSize;
       const logoW = W * (logoSize / 100);
-      const originalLogoW = logoW;
+      const logoXpx = W * logoX - logoW;
       let delta = 0;
-      if (resizeHandle === 'se') delta = (pos.x - (W * logoX)) / W * 100;
-      if (resizeHandle === 'nw') delta = ((W * logoX - logoW) - pos.x) / W * 100;
-      if (resizeHandle === 'ne') delta = (pos.x - (W * logoX)) / W * 100;
-      if (resizeHandle === 'sw') delta = ((W * logoX - logoW) - pos.x) / W * 100;
-      newSize = Math.max(5, Math.min(25, logoSize + delta));
+      if (resizeHandle === 'se') delta = (pos.x - (logoXpx + logoW)) / W * 100;
+      if (resizeHandle === 'ne') delta = (pos.x - (logoXpx + logoW)) / W * 100;
+      if (resizeHandle === 'sw') delta = (logoXpx - pos.x) / W * 100;
+      if (resizeHandle === 'nw') delta = (logoXpx - pos.x) / W * 100;
+      let newSize = Math.max(5, Math.min(25, logoSize + delta));
       if (newSize !== logoSize) {
         logoSize = newSize;
         document.getElementById('logoSizeSlider').value = logoSize;
@@ -887,11 +884,7 @@ function initLogoEvents() {
     }
   }
   
-  function onMouseUp() {
-    dragActive = false;
-    resizeActive = false;
-    resizeHandle = null;
-  }
+  function onMouseUp() { dragActive = false; resizeActive = false; resizeHandle = null; }
   
   canvas.addEventListener('mousedown', onMouseDown);
   canvas.addEventListener('mousemove', onMouseMove);
@@ -920,7 +913,7 @@ function resetearPosicionLogo() {
 }
 
 // ============================================================
-// OTRAS FUNCIONES
+// GUION Y MÚSICA
 // ============================================================
 async function generarGuionDesdeResumen() {
   const texto = resultadoWhatsapp || resultadoRedes;
@@ -946,9 +939,6 @@ function regenerarGuionLimpio() {
   toast('Formato limpiado');
 }
 
-// ============================================================
-// MÚSICA
-// ============================================================
 async function buscarMusicaMulti() {
   const query = document.getElementById('musicSearchInput').value.trim();
   if (!query) { toast('Ingresá una búsqueda'); return; }
@@ -1025,6 +1015,248 @@ function subirAudioPropio(input) {
 }
 
 // ============================================================
+// FORMATO DEL VIDEO
+// ============================================================
+function setFormatoVideo(fmt) {
+  const fmts = { '9x16': { w: 1080, h: 1920 }, '1x1': { w: 1080, h: 1080 }, '4x5': { w: 1080, h: 1350 } };
+  formatoVideo = fmts[fmt];
+  document.getElementById('fmt9x16').style.background = fmt === '9x16' ? 'var(--v)' : 'var(--surface)';
+  document.getElementById('fmt9x16').style.color = fmt === '9x16' ? 'var(--bg)' : 'var(--dim)';
+  document.getElementById('fmt1x1').style.background = fmt === '1x1' ? 'var(--v)' : 'var(--surface)';
+  document.getElementById('fmt1x1').style.color = fmt === '1x1' ? 'var(--bg)' : 'var(--dim)';
+  document.getElementById('fmt4x5').style.background = fmt === '4x5' ? 'var(--v)' : 'var(--surface)';
+  document.getElementById('fmt4x5').style.color = fmt === '4x5' ? 'var(--bg)' : 'var(--dim)';
+  toast(`Formato cambiado a ${fmt}`);
+}
+
+// ============================================================
+// EXPORTACIÓN DE VIDEO MULTIPÁGINA
+// ============================================================
+async function exportarVideoMulti() {
+  if (!audioBlob) { toast('Primero generá o cargá el audio'); return; }
+  if (!resumenNotas.length) { toast('No hay páginas para exportar'); return; }
+  
+  const btn = document.getElementById('btnExportVideo');
+  const progress = document.getElementById('exportProgress');
+  const progressText = document.getElementById('exportProgressText');
+  const resultDiv = document.getElementById('videoResult');
+  
+  btn.disabled = true;
+  progress.style.display = 'flex';
+  progressText.textContent = 'Preparando video...';
+  
+  try {
+    // Obtener duración del audio
+    const audioContext = new AudioContext();
+    const audioBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
+    const audioDuration = audioBuffer.duration;
+    await audioContext.close();
+    
+    const numPages = resumenNotas.length;
+    const secsPerPage = audioDuration / numPages;
+    const FPS = 15;
+    const totalFrames = Math.ceil(audioDuration * FPS);
+    
+    // Canvas para renderizar a tamaño real
+    const renderCanvas = document.createElement('canvas');
+    renderCanvas.width = formatoVideo.w;
+    renderCanvas.height = formatoVideo.h;
+    const ctx = renderCanvas.getContext('2d');
+    
+    // Pre-cargar todas las imágenes
+    progressText.textContent = 'Cargando imágenes...';
+    const pageImages = await Promise.all(resumenNotas.map(nota => cargarImagen(nota.imagen)));
+    
+    progressText.textContent = 'Codificando video...';
+    
+    // Verificar soporte de WebCodecs
+    if (typeof VideoEncoder !== 'undefined') {
+      await exportarConWebCodecs(renderCanvas, ctx, pageImages, audioBlob, audioDuration, secsPerPage, FPS, totalFrames, progressText);
+    } else {
+      await exportarConMediaRecorder(renderCanvas, ctx, pageImages, audioBlob, audioDuration, secsPerPage);
+    }
+    
+    resultDiv.style.display = 'block';
+    toast('✅ Video generado correctamente');
+    
+  } catch (err) {
+    console.error('Export error:', err);
+    toast('Error generando video: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    progress.style.display = 'none';
+  }
+}
+
+function cargarImagen(url) {
+  return new Promise((resolve) => {
+    if (!url) { resolve(null); return; }
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+function dibujarPaginaEnCanvas(ctx, W, H, img, titulo) {
+  ctx.fillStyle = '#1a1a18';
+  ctx.fillRect(0, 0, W, H);
+  
+  if (img) {
+    const imgW = img.width, imgH = img.height;
+    const scale = Math.max(W / imgW, H / imgH);
+    const drawW = imgW * scale, drawH = imgH * scale;
+    const drawX = (W - drawW) / 2, drawY = (H - drawH) / 2;
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+  } else {
+    ctx.fillStyle = '#2a2a28';
+    ctx.fillRect(0, 0, W, H);
+  }
+  
+  if (logoImg) {
+    const logoW = W * (logoSize / 100);
+    const logoH = logoW / (logoImg.width / logoImg.height);
+    const logoXpx = W * logoX - logoW;
+    const logoYpx = H * logoY;
+    ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
+  }
+  
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, H-60, W, 60);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${Math.round(H * 0.04)}px Inter`;
+  ctx.textAlign = 'center';
+  let texto = titulo.length > 50 ? titulo.substring(0,47)+'...' : titulo;
+  ctx.fillText(texto, W/2, H-25);
+}
+
+async function exportarConWebCodecs(renderCanvas, ctx, pageImages, audioBlob, audioDuration, secsPerPage, FPS, totalFrames, progressText) {
+  const { Muxer, ArrayBufferTarget } = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs');
+  
+  const VW = renderCanvas.width, VH = renderCanvas.height;
+  const target = new ArrayBufferTarget();
+  const muxer = new Muxer({ target, video: { codec: 'avc', width: VW, height: VH }, audio: { codec: 'aac', sampleRate: 44100, numberOfChannels: 1 }, fastStart: 'in-memory' });
+  
+  const videoEncoder = new VideoEncoder({
+    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+    error: (e) => { throw e; }
+  });
+  videoEncoder.configure({ codec: 'avc1.640029', width: VW, height: VH, bitrate: 2_000_000, framerate: FPS });
+  
+  for (let frame = 0; frame < totalFrames; frame++) {
+    const t = frame / FPS;
+    const pageIdx = Math.min(Math.floor(t / secsPerPage), pageImages.length - 1);
+    dibujarPaginaEnCanvas(ctx, VW, VH, pageImages[pageIdx], resumenNotas[pageIdx]?.titulo || '');
+    const bitmap = await createImageBitmap(renderCanvas);
+    const videoFrame = new VideoFrame(bitmap, { timestamp: Math.round(t * 1_000_000), duration: Math.round(1_000_000 / FPS) });
+    videoEncoder.encode(videoFrame, { keyFrame: frame % (FPS * 2) === 0 });
+    videoFrame.close();
+    bitmap.close();
+    if (frame % 30 === 0) progressText.textContent = `Codificando video... ${Math.round(frame / totalFrames * 100)}%`;
+    await new Promise(r => setTimeout(r, 0));
+  }
+  
+  await videoEncoder.flush();
+  videoEncoder.close();
+  
+  progressText.textContent = 'Procesando audio...';
+  await encodeAudioToMuxer(muxer, audioBlob);
+  
+  progressText.textContent = 'Finalizando...';
+  muxer.finalize();
+  
+  const buffer = target.buffer;
+  const blob = new Blob([buffer], { type: 'video/mp4' });
+  const url = URL.createObjectURL(blob);
+  const video = document.getElementById('videoPreview');
+  const download = document.getElementById('videoDownload');
+  video.src = url;
+  download.href = url;
+  download.download = `resumen-${new Date().toISOString().slice(0,19)}.mp4`;
+}
+
+async function encodeAudioToMuxer(muxer, audioBlob) {
+  const audioCtx = new AudioContext({ sampleRate: 44100 });
+  const audioBuffer = await audioCtx.decodeAudioData(await audioBlob.arrayBuffer());
+  const encoder = new AudioEncoder({
+    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+    error: (e) => console.warn(e)
+  });
+  encoder.configure({ codec: 'mp4a.40.2', sampleRate: 44100, numberOfChannels: audioBuffer.numberOfChannels, bitrate: 128_000 });
+  
+  const chunkSize = 4096;
+  const samples = audioBuffer.length;
+  for (let offset = 0; offset < samples; offset += chunkSize) {
+    const len = Math.min(chunkSize, samples - offset);
+    const frame = new AudioData({
+      format: 'f32-planar',
+      sampleRate: audioBuffer.sampleRate,
+      numberOfFrames: len,
+      numberOfChannels: audioBuffer.numberOfChannels,
+      timestamp: Math.round(offset / audioBuffer.sampleRate * 1_000_000),
+      data: (() => {
+        const total = len * audioBuffer.numberOfChannels;
+        const buf = new Float32Array(total);
+        for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+          const chData = audioBuffer.getChannelData(ch);
+          buf.set(chData.subarray(offset, offset + len), ch * len);
+        }
+        return buf;
+      })()
+    });
+    encoder.encode(frame);
+    frame.close();
+  }
+  await encoder.flush();
+  encoder.close();
+  audioCtx.close();
+}
+
+async function exportarConMediaRecorder(renderCanvas, ctx, pageImages, audioBlob, audioDuration, secsPerPage) {
+  // Fallback para Firefox
+  return new Promise(async (resolve) => {
+    const stream = renderCanvas.captureStream(30);
+    const audioCtx = new AudioContext();
+    const audioBuffer = await audioCtx.decodeAudioData(await audioBlob.arrayBuffer());
+    const audioSource = audioCtx.createBufferSource();
+    audioSource.buffer = audioBuffer;
+    const dest = audioCtx.createMediaStreamDestination();
+    audioSource.connect(dest);
+    const tracks = stream.getVideoTracks();
+    const audioTracks = dest.stream.getAudioTracks();
+    const combinedStream = new MediaStream([...tracks, ...audioTracks]);
+    const recorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+    const chunks = [];
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const video = document.getElementById('videoPreview');
+      const download = document.getElementById('videoDownload');
+      video.src = url;
+      download.href = url;
+      download.download = `resumen-${new Date().toISOString().slice(0,19)}.webm`;
+      resolve();
+    };
+    recorder.start();
+    audioSource.start();
+    
+    const startTime = performance.now();
+    function animateFrame() {
+      const elapsed = (performance.now() - startTime) / 1000;
+      const pageIdx = Math.min(Math.floor(elapsed / secsPerPage), pageImages.length - 1);
+      dibujarPaginaEnCanvas(ctx, renderCanvas.width, renderCanvas.height, pageImages[pageIdx], resumenNotas[pageIdx]?.titulo || '');
+      if (elapsed < audioDuration) {
+        requestAnimationFrame(animateFrame);
+      } else {
+        setTimeout(() => { recorder.stop(); audioSource.stop(); audioCtx.close(); }, 100);
+      }
+    }
+    animateFrame();
+  });
+}
+
+// ============================================================
 // LOGO - EVENTOS DE CARGA
 // ============================================================
 document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
@@ -1043,14 +1275,6 @@ document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
   };
   reader.readAsDataURL(file);
 });
-
-// ============================================================
-// EXPORTAR VIDEO (placeholder)
-// ============================================================
-async function exportarVideoMulti() {
-  if (!audioBlob) { toast('Primero generá o cargá el audio'); return; }
-  toast('🎬 Función en desarrollo - Exportación multipágina');
-}
 
 // ============================================================
 // TEMA CLARO/OSCURO
