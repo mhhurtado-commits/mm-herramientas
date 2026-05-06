@@ -238,28 +238,29 @@ Respondé SOLO con JSON sin markdown:
   });
 }
 
+// ── GENERAR GUION LIMPIO PARA REEL ──
 async function handleGenerarGuionReel(body, env) {
   const { texto } = body;
   if (!texto) return jsonError('Falta texto', 400);
   
   const prompt = `Convertí este texto en un guion fluido para narración de video.
-REGLAS:
-- Eliminá emojis, hashtags, links, negritas, asteriscos, guiones
-- Texto natural, en español rioplatense, como si lo leyera un locutor
-- Fluido para leer en voz alta
-- Mantené la información principal
+  REGLAS:
+  - Eliminá emojis, hashtags, links, negritas, asteriscos, guiones
+  - Texto natural, en español rioplatense, como si lo leyera un locutor
+  - Fluido para leer en voz alta
+  - Mantené la información principal
 
-TEXTO ORIGINAL:
-${texto.substring(0, 2000)}
+  TEXTO ORIGINAL:
+  ${texto.substring(0, 2000)}
 
-Respondé SOLO con JSON: { "guion": "texto del guion limpio" }`;
+  Respondé SOLO con JSON: { "guion": "texto del guion limpio" }`;
 
   const r = await callGemini(prompt, env);
   if (r.error) return jsonError(r.error, 500);
   
   let guion = r.data?.guion || texto;
   // Limpieza adicional por si la IA falla
-  guion = guion.replace(/[#*_`]/g, '').replace(/https?:\/\/[^\s]+/g, '').replace(/[🔗📱📣🎧✅⚠️✗✓★✦▶️⏸️🎬📋🗑✏️🕐📍📅📰💬⚡🔍🎵🎙️🎬]/g, '');
+  guion = guion.replace(/[#*_`]/g, '').replace(/https?:\/\/[^\s]+/g, '').replace(/[🔗📱📣🎧✅⚠️✗✓★✦▶️⏸️🎬📋🗑✏️🕐📍📅📰💬⚡🔍🎵🎙️]/g, '');
   
   return jsonOk({ guion });
 }

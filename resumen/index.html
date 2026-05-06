@@ -114,7 +114,6 @@
   font-size: 1rem;
   color: var(--v);
   min-width: 28px;
-  cursor: grab;
 }
 .nota-resumen-info { flex: 1; min-width: 0; }
 .nota-resumen-titulo {
@@ -145,7 +144,7 @@
 .nota-resumen-actions .btn-up:hover,
 .nota-resumen-actions .btn-down:hover { color: var(--v); }
 
-/* Resultados */
+/* Resultados editables */
 .resultado-box {
   background: var(--surface2);
   border: 1px solid var(--line);
@@ -173,8 +172,13 @@
   border: 1px solid var(--line2);
   border-radius: var(--radius);
   padding: 12px;
-  max-height: 200px;
+  max-height: 250px;
   overflow-y: auto;
+  cursor: text;
+}
+.resultado-texto:focus {
+  outline: none;
+  border-color: var(--v);
 }
 .hashtags-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .hashtag {
@@ -232,7 +236,7 @@
   margin-bottom: 12px;
 }
 .reel-page-canvas canvas {
-  background: var(--bg2);
+  background: #000;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   width: 180px;
@@ -245,12 +249,8 @@
   gap: 8px;
   justify-content: center;
 }
-.reel-page-title {
-  margin-top: 8px;
-}
-.reel-page-title input {
-  margin-top: 4px;
-}
+.reel-page-title { margin-top: 8px; }
+.reel-page-title input { margin-top: 4px; }
 
 /* Controles globales */
 .reel-controls-global {
@@ -294,6 +294,7 @@
   margin-bottom: 8px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
 .music-results {
   max-height: 150px;
@@ -385,15 +386,15 @@
           <div class="resumen-panel">
             <div class="mm-panel-header">📱 WhatsApp</div>
             <div class="resultado-box">
-              <div class="resultado-titulo"><span>Mensaje para grupo/canal</span><div><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoWhatsapp)">📋 Copiar</button><button class="mm-btn mm-btn-sm wa" onclick="abrirWA(resultadoWhatsapp)">📱 Abrir WA</button></div></div>
-              <div class="resultado-texto" id="resultadoWhatsapp"></div>
+              <div class="resultado-titulo"><span>Mensaje para grupo/canal (editable)</span><div><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoWhatsapp)">📋 Copiar</button><button class="mm-btn mm-btn-sm wa" onclick="abrirWA(resultadoWhatsapp)">📱 Abrir WA</button></div></div>
+              <div class="resultado-texto" id="resultadoWhatsapp" contenteditable="true"></div>
             </div>
           </div>
           <div class="resumen-panel">
             <div class="mm-panel-header">📱 Instagram / Facebook</div>
             <div class="resultado-box">
-              <div class="resultado-titulo"><span>Post para redes</span><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoRedes)">📋 Copiar</button></div>
-              <div class="resultado-texto" id="resultadoRedes"></div>
+              <div class="resultado-titulo"><span>Post para redes (editable)</span><button class="mm-btn mm-btn-sm" onclick="copiarTexto(resultadoRedes)">📋 Copiar</button></div>
+              <div class="resultado-texto" id="resultadoRedes" contenteditable="true"></div>
               <div id="hashtagsContainer" class="hashtags-row"></div>
             </div>
           </div>
@@ -408,8 +409,13 @@
       
       <!-- Editor de guion -->
       <div class="guion-editor">
-        <div class="re-label">📝 Guion para el reel (editable)</div>
-        <textarea id="guionReel" class="mm-textarea" rows="5" placeholder="El guion para narración aparecerá aquí..."></textarea>
+        <div class="re-label">
+          <span>📝 Guion para el reel (editable)</span>
+          <div style="display:flex; gap:6px">
+            <button class="re-tbtn" onclick="copiarTexto(document.getElementById('guionReel').value)" style="padding:2px 8px">📋 Copiar para ElevenLabs</button>
+          </div>
+        </div>
+        <textarea id="guionReel" class="mm-textarea" rows="4" placeholder="El guion para narración aparecerá aquí..."></textarea>
         <div style="display:flex; gap:8px; margin-top:8px">
           <button class="mm-btn mm-btn-sm" onclick="generarGuionDesdeResumen()" style="background:var(--v);color:var(--bg)">✨ Generar desde resumen</button>
           <button class="mm-btn mm-btn-sm" onclick="regenerarGuionLimpio()">🔄 Limpiar formato</button>
@@ -440,7 +446,7 @@
           <div id="selectedMusicInfo" style="display:none; margin-top:8px; padding:8px; background:var(--v-dim); border-radius:var(--radius)">
             <span id="selectedMusicTitle"></span> - <span id="selectedMusicArtist"></span>
             <button class="re-tbtn" onclick="removerMusicaMulti()" style="float:right">✕</button>
-            <div class="re-rrow" style="margin-top:6px"><span>Volumen:</span><input type="range" id="musicVolume" min="0" max="100" value="25"><span id="musicVolumeVal">25%</span></div>
+            <div class="re-rrow" style="margin-top:6px"><span>Volumen:</span><input type="range" id="musicVolume" min="0" max="100" value="25" oninput="actualizarVolumenMulti()"><span id="musicVolumeVal">25%</span></div>
           </div>
         </div>
         
@@ -452,7 +458,12 @@
             <option value="es-ES-AlvaroNeural">Álvaro (España)</option>
             <option value="es-US-Neural2-A">Americano neutro</option>
           </select>
-          <button class="mm-btn mm-btn-primary" id="btnGenerarAudio" onclick="generarAudioMulti()" style="width:100%"><span class="mm-spinner small" id="spinAudio"></span>🎙 Generar audio</button>
+          <div style="display:flex; gap:8px; margin-bottom:8px">
+            <button class="mm-btn mm-btn-primary" id="btnGenerarAudio" onclick="generarAudioMulti()" style="flex:1"><span class="mm-spinner small" id="spinAudio"></span>🎙 Generar audio</button>
+            <label class="re-uplbl" style="margin:0; padding:8px; background:var(--v-dim)">📁 Subir audio propio
+              <input type="file" id="uploadAudio" accept="audio/*" class="re-hidden" onchange="subirAudioPropio(this)">
+            </label>
+          </div>
           <audio id="audioPreview" controls style="width:100%; margin-top:8px; display:none"></audio>
         </div>
         
@@ -488,30 +499,26 @@ let notasActuales = [];
 let resultadoWhatsapp = '';
 let resultadoRedes = '';
 let hashtagsActuales = [];
-let resumenNotas = [];  // notas con resumen e imagen
+let resumenNotas = [];
 let guionActual = '';
 let audioBlob = null;
 let musicBlob = null;
 let musicVolume = 0.25;
 let logoImg = null;
-let logoPos = { x: 0.85, y: 0.08, w: 0.12, h: 0.05 };
+let logoPos = { x: 0.85, y: 0.08, w: 0.12, h: 0.06 };
 
-// ============================================================
-// UTILIDADES
-// ============================================================
 function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2800); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function copiarTexto(texto) { navigator.clipboard.writeText(texto).then(() => toast('✓ Copiado')).catch(() => toast('Error al copiar')); }
 function abrirWA(texto) { window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank'); }
 function getFechaArgentina() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Mendoza' }); }
+
 function switchTab(tab, btn) {
   document.querySelectorAll('.resumen-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tabResumen').style.display = tab === 'resumen' ? 'block' : 'none';
   document.getElementById('tabReel').style.display = tab === 'reel' ? 'block' : 'none';
-  if (tab === 'reel' && !document.getElementById('reelPages').children.length && resumenNotas.length) {
-    renderPages();
-  }
+  if (tab === 'reel' && resumenNotas.length && !document.getElementById('reelPages').children.length) renderPages();
 }
 
 // ============================================================
@@ -541,7 +548,7 @@ function renderListaNotas() {
   let html = '';
   notasActuales.forEach((nota, idx) => {
     html += `<div class="nota-resumen-item">
-      <div class="nota-resumen-num" draggable="false">${idx+1}</div>
+      <div class="nota-resumen-num">${idx+1}</div>
       <div class="nota-resumen-info">
         <div class="nota-resumen-titulo">${esc(nota.titulo)}</div>
         <div class="nota-resumen-categoria">${esc(nota.categoria)}</div>
@@ -608,8 +615,7 @@ async function generarResumen() {
   if (!notasActuales.length) { toast('No hay notas'); return; }
   const fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
   const btn = document.getElementById('btnGenerarResumen');
-  const spin = document.getElementById('spinGenerar');
-  btn.disabled = true; if(spin) spin.style.display = 'inline-block'; btn.textContent = 'Generando...';
+  btn.disabled = true; btn.textContent = 'Generando...';
   try {
     const res = await fetch(`${WORKER}/resumen/generar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fecha, notas: notasActuales }) });
     const data = await res.json();
@@ -623,14 +629,12 @@ async function generarResumen() {
     document.getElementById('resultadoRedes').innerHTML = esc(resultadoRedes);
     document.getElementById('guionReel').value = guionActual;
     const htContainer = document.getElementById('hashtagsContainer');
-    if (hashtagsActuales.length) {
-      htContainer.innerHTML = hashtagsActuales.map(ht => `<span class="hashtag" onclick="copiarTexto('${esc(ht)}')">${esc(ht)}</span>`).join('');
-    } else htContainer.innerHTML = '';
+    htContainer.innerHTML = hashtagsActuales.length ? hashtagsActuales.map(ht => `<span class="hashtag" onclick="copiarTexto('${esc(ht)}')">${esc(ht)}</span>`).join('') : '';
     document.getElementById('resultadosPanel').style.display = 'block';
     toast('Resumen generado');
     if (resumenNotas.length) renderPages();
   } catch(err) { toast('Error: ' + err.message); }
-  btn.disabled = false; if(spin) spin.style.display = 'none'; btn.textContent = '✦ Generar resumen con IA';
+  btn.disabled = false; btn.textContent = '✦ Generar resumen con IA';
 }
 
 // ============================================================
@@ -652,7 +656,7 @@ function renderPages() {
       <div class="reel-page-canvas">
         <canvas id="pageCanvas_${idx}" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas>
         <div class="reel-page-controls">
-          <label class="re-tbtn" style="cursor:pointer">📁 Imagen de fondo
+          <label class="re-tbtn" style="cursor:pointer">📁 Imagen
             <input type="file" accept="image/*" class="re-hidden" onchange="cambiarImagenPagina(${idx}, this)">
           </label>
           <button class="re-tbtn" onclick="resetImagenPagina(${idx})">↺ Restaurar</button>
@@ -664,9 +668,7 @@ function renderPages() {
     </div>`;
   });
   container.innerHTML = html;
-  resumenNotas.forEach((_, idx) => {
-    dibujarPaginaMiniatura(idx);
-  });
+  resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
 }
 
 function dibujarPaginaMiniatura(idx) {
@@ -680,8 +682,24 @@ function dibujarPaginaMiniatura(idx) {
   if (nota.imagen) {
     const img = new Image();
     img.onload = () => {
-      ctx.drawImage(img, 0, 0, W, H);
-      dibujarTextoMiniatura(ctx, W, H, nota.titulo);
+      const imgW = img.width, imgH = img.height;
+      const scale = Math.max(W / imgW, H / imgH);
+      const drawW = imgW * scale, drawH = imgH * scale;
+      const drawX = (W - drawW) / 2, drawY = (H - drawH) / 2;
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      // Logo
+      if (logoImg) {
+        const lw = W * logoPos.w, lh = H * logoPos.h;
+        const lx = W * logoPos.x - lw, ly = H * logoPos.y;
+        ctx.drawImage(logoImg, lx, ly, lw, lh);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(0, H-50, W, 50);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px Inter';
+      ctx.textAlign = 'center';
+      let texto = nota.titulo.length > 35 ? nota.titulo.substring(0,32)+'...' : nota.titulo;
+      ctx.fillText(texto, W/2, H-20);
     };
     img.src = nota.imagen;
   } else {
@@ -695,16 +713,6 @@ function dibujarPaginaMiniatura(idx) {
     ctx.font = 'bold 12px Inter';
     ctx.fillText(nota.titulo.substring(0,30), W/2, H-30);
   }
-}
-
-function dibujarTextoMiniatura(ctx, W, H, titulo) {
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(0, H-50, W, 50);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 12px Inter';
-  ctx.textAlign = 'center';
-  let texto = titulo.length > 35 ? titulo.substring(0,32)+'...' : titulo;
-  ctx.fillText(texto, W/2, H-20);
 }
 
 function cambiarImagenPagina(idx, input) {
@@ -740,7 +748,7 @@ function moverPagina(idx, dir) {
 async function generarGuionDesdeResumen() {
   const texto = resultadoWhatsapp || resultadoRedes;
   if (!texto) { toast('Primero generá el resumen'); return; }
-  const btn = document.querySelector('#tabReel .guion-editor button:first-child');
+  const btn = event.target;
   btn.disabled = true; btn.textContent = 'Generando...';
   try {
     const res = await fetch(`${WORKER}/resumen/generar-guion-reel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto }) });
@@ -764,7 +772,6 @@ function regenerarGuionLimpio() {
 // ============================================================
 // MÚSICA
 // ============================================================
-let musicSearchResults = [];
 async function buscarMusicaMulti() {
   const query = document.getElementById('musicSearchInput').value.trim();
   if (!query) { toast('Ingresá una búsqueda'); return; }
@@ -831,17 +838,19 @@ async function generarAudioMulti() {
   btn.disabled = false; spin.style.display = 'none';
 }
 
-// ============================================================
-// EXPORTAR VIDEO (placeholder - requiere implementación completa)
-// ============================================================
-async function exportarVideoMulti() {
-  if (!audioBlob) { toast('Primero generá el audio'); return; }
-  toast('🎬 Función en desarrollo - Exportación multipágina');
-  // Aquí irá la lógica de exportación combinando todas las páginas
+function subirAudioPropio(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  audioBlob = file;
+  const audioPreview = document.getElementById('audioPreview');
+  audioPreview.src = url;
+  audioPreview.style.display = 'block';
+  toast('Audio cargado');
 }
 
 // ============================================================
-// LOGO MULTIPÁGINA
+// LOGO
 // ============================================================
 document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -849,12 +858,20 @@ document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = (ev) => {
     const img = new Image();
-    img.onload = () => { logoImg = img; document.getElementById('logoStatus').textContent = 'Logo cargado'; };
+    img.onload = () => { logoImg = img; document.getElementById('logoStatus').textContent = 'Logo cargado'; renderPages(); };
     img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 });
-function resetLogoMulti() { logoImg = null; logoPos = { x: 0.85, y: 0.08, w: 0.12, h: 0.05 }; document.getElementById('logoStatus').textContent = 'Logo removido'; }
+function resetLogoMulti() { logoImg = null; logoPos = { x: 0.85, y: 0.08, w: 0.12, h: 0.06 }; document.getElementById('logoStatus').textContent = 'Logo removido'; renderPages(); }
+
+// ============================================================
+// EXPORTAR VIDEO (placeholder)
+// ============================================================
+async function exportarVideoMulti() {
+  if (!audioBlob) { toast('Primero generá o cargá el audio'); return; }
+  toast('🎬 Función en desarrollo - Exportación multipágina');
+}
 
 // ============================================================
 // TEMA CLARO/OSCURO
