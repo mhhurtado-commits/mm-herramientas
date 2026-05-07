@@ -321,7 +321,6 @@
 .re-hidden { display: none; }
 .mm-spinner.small { width: 12px; height: 12px; }
 
-/* Barra de previsualización */
 .preview-bar {
   display: flex;
   gap: 8px;
@@ -486,13 +485,12 @@
           </div>
         </div>
         
-        <!-- Botones de previsualización y exportación -->
         <div class="preview-bar">
           <button class="mm-btn mm-btn-primary" id="btnPreviewVideo" onclick="previsualizarVideoMulti()" style="background:var(--v-dim); border-color:var(--v); color:var(--v); flex:1">
             🎬 Previsualizar
           </button>
           <button class="mm-btn mm-btn-primary" id="btnExportVideo" onclick="exportarVideoMulti()" style="flex:1">
-            ⬇ Exportar MP4
+            ⬇ Exportar WebM
           </button>
         </div>
         
@@ -507,8 +505,9 @@
         </div>
         
         <div id="videoResult" style="display:none; margin-top:12px">
-          <video id="videoPreview" controls style="width:100%; border-radius:var(--radius)"></video>
-          <a id="videoDownload" class="mm-btn mm-btn-primary" style="display:inline-block; margin-top:8px; text-align:center">⬇ Descargar video</a>
+          <video id="videoPreviewAll" controls style="width:100%; border-radius:var(--radius)"></video>
+          <a id="videoDownload" class="mm-btn mm-btn-primary" style="display:inline-block; margin-top:8px; text-align:center">⬇ Descargar WebM</a>
+          <button class="mm-btn mm-btn-sm" onclick="document.getElementById('videoResult').style.display='none'" style="margin-top:8px">✕ Cerrar</button>
         </div>
         
       </div>
@@ -544,7 +543,8 @@ let musicVolume = 0.25;
 let logoImg = null;
 let logoX = 0.85, logoY = 0.08, logoSize = 12;
 let dragActive = false, resizeActive = false, dragOffsetX = 0, dragOffsetY = 0, resizeHandle = null;
-let formatoVideo = { w: 1080, h: 1920 }; // 9x16 por defecto
+let formatoVideo = { w: 1080, h: 1920 };
+let pageImagesCache = [];
 
 // ============================================================
 // UTILIDADES
@@ -674,23 +674,11 @@ async function generarResumen() {
     document.getElementById('resultadosPanel').style.display = 'block';
     toast('Resumen generado');
     
-    // Convertir todas las imágenes a dataURLs para evitar problemas de CORS
+    // Convertir imágenes a dataURLs
     await convertirTodasImagenesALocal();
     renderPages();
   } catch(err) { toast('Error: ' + err.message); }
   btn.disabled = false; btn.textContent = '✦ Generar resumen con IA';
-}
-
-// FUNCIÓN CLAVE: Convertir imágenes externas a dataURLs
-async function convertirTodasImagenesALocal() {
-  for (let i = 0; i < resumenNotas.length; i++) {
-    if (resumenNotas[i].imagen && !resumenNotas[i].imagen.startsWith('data:')) {
-      try {
-        const dataUrl = await convertirImagenALocal(resumenNotas[i].imagen);
-        if (dataUrl) resumenNotas[i].imagen = dataUrl;
-      } catch(e) { console.warn(`Error convirtiendo imagen ${i}:`, e); }
-    }
-  }
 }
 
 async function convertirImagenALocal(imgUrl) {
@@ -707,9 +695,15 @@ async function convertirImagenALocal(imgUrl) {
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
-  } catch(e) {
-    console.error('Error convirtiendo imagen:', e);
-    return null;
+  } catch(e) { return null; }
+}
+
+async function convertirTodasImagenesALocal() {
+  for (let i = 0; i < resumenNotas.length; i++) {
+    if (resumenNotas[i].imagen && !resumenNotas[i].imagen.startsWith('data:')) {
+      const dataUrl = await convertirImagenALocal(resumenNotas[i].imagen);
+      if (dataUrl) resumenNotas[i].imagen = dataUrl;
+    }
   }
 }
 
@@ -1099,97 +1093,31 @@ function setFormatoVideo(fmt) {
 }
 
 // ============================================================
-// PREVISUALIZACIÓN SIN AUDIO
+// CARGA DE IMÁGENES PARA LA PÁGINA COMPLETA
 // ============================================================
-async function previsualizarVideoMulti() {
-  if (!resumenNotas.length) { toast('No hay páginas para previsualizar'); return; }
-  if (!audioBlob) { toast('Primero generá o cargá el audio'); return; }
-  
-  const previewContainer = document.getElementById('previewVideoContainer');
-  const previewVideo = document.getElementById('previewVideo');
-  const btnPreview = document.getElementById('btnPreviewVideo');
-  
-  btnPreview.disabled = true;
-  btnPreview.textContent = 'Generando preview...';
-  previewContainer.style.display = 'block';
-  
-  try {
-    const audioDur = await getAudioDuration(audioBlob);
-    const numPages = resumenNotas.length;
-    const secsPerPage = audioDur / numPages;
-    const FPS = 15;
-    const totalFrames = Math.ceil(Math.min(audioDur, 15) * FPS); // máximo 15 segundos para preview
-    
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = formatoVideo.w;
-    offCanvas.height = formatoVideo.h;
-    const ctx = offCanvas.getContext('2d');
-    
-    // Cargar imágenes locales
-    const pageImages = await Promise.all(resumenNotas.map(async (nota) => {
-      if (nota.imagen && nota.imagen.startsWith('data:')) {
-        return new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = nota.imagen;
-        });
-      }
-      return null;
-    }));
-    
-    const stream = offCanvas.captureStream(FPS);
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-    const chunks = [];
-    
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      previewVideo.src = url;
-      previewVideo.muted = false;
-      previewVideo.volume = 0.5;
-      previewVideo.play();
-      btnPreview.disabled = false;
-      btnPreview.textContent = '🎬 Previsualizar';
-      toast('Preview listo');
-    };
-    
-    recorder.start();
-    
-    for (let frame = 0; frame < totalFrames; frame++) {
-      const t = frame / FPS;
-      const pageIdx = Math.min(Math.floor(t / secsPerPage), numPages - 1);
-      dibujarPaginaEnCanvas(ctx, offCanvas.width, offCanvas.height, pageImages[pageIdx], resumenNotas[pageIdx]?.titulo || '');
-      await new Promise(r => setTimeout(r, 1000 / FPS));
+async function cargarImagenesPagina() {
+  pageImagesCache = [];
+  for (let i = 0; i < resumenNotas.length; i++) {
+    const nota = resumenNotas[i];
+    if (nota.imagen && nota.imagen.startsWith('data:')) {
+      const img = await new Promise((resolve) => {
+        const imgObj = new Image();
+        imgObj.onload = () => resolve(imgObj);
+        imgObj.onerror = () => resolve(null);
+        imgObj.src = nota.imagen;
+      });
+      pageImagesCache.push(img);
+    } else {
+      pageImagesCache.push(null);
     }
-    
-    setTimeout(() => recorder.stop(), 500);
-    
-  } catch (err) {
-    console.error('Preview error:', err);
-    toast('Error en preview: ' + err.message);
-    btnPreview.disabled = false;
-    btnPreview.textContent = '🎬 Previsualizar';
   }
 }
 
-// ============================================================
-// DURACIÓN DE AUDIO
-// ============================================================
-function getAudioDuration(blob) {
-  return new Promise(resolve => {
-    const audio = new Audio();
-    audio.onloadedmetadata = () => resolve(isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30);
-    audio.onerror = () => resolve(30);
-    audio.src = URL.createObjectURL(blob);
-  });
-}
-
-function dibujarPaginaEnCanvas(ctx, W, H, img, titulo) {
+function dibujarPaginaCompleta(ctx, W, H, pageIdx) {
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(0, 0, W, H);
   
+  const img = pageImagesCache[pageIdx];
   if (img) {
     const imgW = img.width, imgH = img.height;
     const scale = Math.max(W / imgW, H / imgH);
@@ -1214,12 +1142,77 @@ function dibujarPaginaEnCanvas(ctx, W, H, img, titulo) {
   ctx.fillStyle = '#ffffff';
   ctx.font = `bold ${Math.round(H * 0.04)}px Inter`;
   ctx.textAlign = 'center';
-  let texto = titulo.length > 50 ? titulo.substring(0,47)+'...' : titulo;
+  let texto = resumenNotas[pageIdx]?.titulo || '';
+  texto = texto.length > 50 ? texto.substring(0,47)+'...' : texto;
   ctx.fillText(texto, W/2, H-25);
 }
 
 // ============================================================
-// EXPORTACIÓN CON FALLBACK (CORREGIDA)
+// PREVISUALIZACIÓN SIN AUDIO
+// ============================================================
+async function previsualizarVideoMulti() {
+  if (!resumenNotas.length) { toast('No hay páginas para previsualizar'); return; }
+  
+  const previewContainer = document.getElementById('previewVideoContainer');
+  const previewVideo = document.getElementById('previewVideo');
+  const btnPreview = document.getElementById('btnPreviewVideo');
+  
+  btnPreview.disabled = true;
+  btnPreview.textContent = 'Generando preview...';
+  previewContainer.style.display = 'block';
+  
+  try {
+    await cargarImagenesPagina();
+    
+    const W = formatoVideo.w;
+    const H = formatoVideo.h;
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = W;
+    offCanvas.height = H;
+    const ctx = offCanvas.getContext('2d');
+    const numPages = resumenNotas.length;
+    const durationPerPage = 3;
+    const totalDuration = numPages * durationPerPage;
+    const FPS = 15;
+    const totalFrames = totalDuration * FPS;
+    
+    const stream = offCanvas.captureStream(FPS);
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const chunks = [];
+    
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      previewVideo.src = url;
+      previewVideo.muted = true;
+      previewVideo.play();
+      btnPreview.disabled = false;
+      btnPreview.textContent = '🎬 Previsualizar';
+      toast('Preview listo');
+    };
+    
+    recorder.start();
+    
+    for (let frame = 0; frame < totalFrames; frame++) {
+      const t = frame / FPS;
+      const pageIdx = Math.min(Math.floor(t / durationPerPage), numPages - 1);
+      dibujarPaginaCompleta(ctx, W, H, pageIdx);
+      await new Promise(r => setTimeout(r, 1000 / FPS));
+    }
+    
+    setTimeout(() => recorder.stop(), 500);
+    
+  } catch (err) {
+    console.error('Preview error:', err);
+    toast('Error en preview: ' + err.message);
+    btnPreview.disabled = false;
+    btnPreview.textContent = '🎬 Previsualizar';
+  }
+}
+
+// ============================================================
+// EXPORTACIÓN CON AUDIO (MediaRecorder principal)
 // ============================================================
 async function exportarVideoMulti() {
   if (!audioBlob) { toast('Primero generá o cargá el audio'); return; }
@@ -1235,266 +1228,138 @@ async function exportarVideoMulti() {
   progressText.textContent = 'Preparando video...';
   
   try {
-    const audioDur = await getAudioDuration(audioBlob);
+    await cargarImagenesPagina();
+    
+    const W = formatoVideo.w;
+    const H = formatoVideo.h;
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = W;
+    offCanvas.height = H;
+    const ctx = offCanvas.getContext('2d');
+    
     const numPages = resumenNotas.length;
-    const secsPerPage = audioDur / numPages;
-    const FPS = 15;
+    const audioContext = new AudioContext();
+    let audioBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
     
-    // Cargar todas las imágenes localmente
-    progressText.textContent = 'Cargando imágenes...';
-    const pageImages = await Promise.all(resumenNotas.map(async (nota) => {
-      if (nota.imagen && nota.imagen.startsWith('data:')) {
-        return new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = nota.imagen;
-        });
-      }
-      return null;
-    }));
-    
-    // Verificar soporte de WebCodecs
-    if (typeof VideoEncoder !== 'undefined' && typeof AudioEncoder !== 'undefined') {
-      await exportarConWebCodecsCorregido(pageImages, audioBlob, audioDur, secsPerPage, FPS, progressText);
-    } else {
-      await exportarConMediaRecorder(pageImages, audioBlob, audioDur, secsPerPage);
+    // Mezclar con música si existe
+    if (musicBlob) {
+      progressText.textContent = '🎵 Mezclando música de fondo...';
+      const musicBuffer = await audioContext.decodeAudioData(await musicBlob.arrayBuffer());
+      audioBuffer = await mezclarAudios(audioBuffer, musicBuffer, musicVolume, audioContext);
     }
     
-    resultDiv.style.display = 'block';
-    toast('✅ Video generado correctamente');
+    const audioDuration = audioBuffer.duration;
+    const secsPerPage = audioDuration / numPages;
+    const FPS = 30;
+    
+    progressText.textContent = `Grabando video (${Math.round(audioDuration)} segundos)...`;
+    
+    // Crear stream del canvas
+    const stream = offCanvas.captureStream(FPS);
+    
+    // Crear fuente de audio
+    const audioSource = audioContext.createBufferSource();
+    audioSource.buffer = audioBuffer;
+    const dest = audioContext.createMediaStreamDestination();
+    audioSource.connect(dest);
+    
+    // Combinar video y audio
+    const combinedStream = new MediaStream([
+      ...stream.getVideoTracks(),
+      ...dest.stream.getAudioTracks()
+    ]);
+    
+    const recorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+    const chunks = [];
+    
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const video = document.getElementById('videoPreviewAll');
+      const download = document.getElementById('videoDownload');
+      video.src = url;
+      download.href = url;
+      download.download = `resumen-${new Date().toISOString().slice(0,19)}.webm`;
+      resultDiv.style.display = 'block';
+      audioContext.close();
+      toast('✅ Video generado correctamente');
+      btn.disabled = false;
+      progress.style.display = 'none';
+    };
+    
+    recorder.start();
+    audioSource.start();
+    
+    const startTime = Date.now();
+    
+    function animateFrame() {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const pageIdx = Math.min(Math.floor(elapsed / secsPerPage), numPages - 1);
+      dibujarPaginaCompleta(ctx, W, H, pageIdx);
+      
+      if (elapsed < audioDuration) {
+        requestAnimationFrame(animateFrame);
+        const percent = Math.round((elapsed / audioDuration) * 100);
+        if (percent % 10 === 0) progressText.textContent = `Grabando video... ${percent}%`;
+      } else {
+        setTimeout(() => {
+          recorder.stop();
+          audioSource.stop();
+        }, 500);
+      }
+    }
+    
+    animateFrame();
     
   } catch (err) {
     console.error('Export error:', err);
     toast('Error generando video: ' + err.message);
-  } finally {
     btn.disabled = false;
     progress.style.display = 'none';
   }
 }
 
-async function exportarConWebCodecsCorregido(pageImages, audioBlob, audioDuration, secsPerPage, FPS, progressText) {
-  const IS_MOBILE = /Android|iPhone/i.test(navigator.userAgent);
-  const MAX_DIM = IS_MOBILE ? 540 : 720;
-  const scale = Math.min(1, MAX_DIM / formatoVideo.w);
-  const VW = Math.floor(formatoVideo.w * scale / 2) * 2;
-  const VH = Math.floor(formatoVideo.h * scale / 2) * 2;
+async function mezclarAudios(principal, musica, volumen, audioContext) {
+  const duracion = principal.duration;
+  const sampleRate = principal.sampleRate;
+  const channels = principal.numberOfChannels;
   
-  const totalFrames = Math.ceil(audioDuration * FPS);
-  
-  progressText.textContent = 'Cargando mp4-muxer...';
-  const { Muxer, ArrayBufferTarget } = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs');
-  
-  const target = new ArrayBufferTarget();
-  const muxer = new Muxer({
-    target,
-    video: { codec: 'avc', width: VW, height: VH },
-    audio: { codec: 'aac', sampleRate: 44100, numberOfChannels: 1 },
-    fastStart: 'in-memory'
-  });
-  
-  const videoEncoder = new VideoEncoder({
-    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-    error: (e) => { throw new Error('VideoEncoder: ' + e.message); }
-  });
-  videoEncoder.configure({ codec: 'avc1.640029', width: VW, height: VH, bitrate: 2_000_000, framerate: FPS });
-  
-  const offCanvasTamanioCompleto = document.createElement('canvas');
-  offCanvasTamanioCompleto.width = formatoVideo.w;
-  offCanvasTamanioCompleto.height = formatoVideo.h;
-  const ctxCompleto = offCanvasTamanioCompleto.getContext('2d');
-  
-  const outCanvas = document.createElement('canvas');
-  outCanvas.width = VW;
-  outCanvas.height = VH;
-  const outCtx = outCanvas.getContext('2d');
-  
-  progressText.textContent = 'Codificando video...';
-  
-  for (let fi = 0; fi < totalFrames; fi++) {
-    const t = fi / FPS;
-    const pageIdx = Math.min(Math.floor(t / secsPerPage), pageImages.length - 1);
-    
-    ctxCompleto.fillStyle = '#1a1a18';
-    ctxCompleto.fillRect(0, 0, formatoVideo.w, formatoVideo.h);
-    
-    if (pageImages[pageIdx]) {
-      const img = pageImages[pageIdx];
-      const imgW = img.width, imgH = img.height;
-      const scaleImg = Math.max(formatoVideo.w / imgW, formatoVideo.h / imgH);
-      const drawW = imgW * scaleImg, drawH = imgH * scaleImg;
-      const drawX = (formatoVideo.w - drawW) / 2, drawY = (formatoVideo.h - drawH) / 2;
-      ctxCompleto.drawImage(img, drawX, drawY, drawW, drawH);
-    } else {
-      ctxCompleto.fillStyle = '#2a2a28';
-      ctxCompleto.fillRect(0, 0, formatoVideo.w, formatoVideo.h);
-    }
-    
-    if (logoImg) {
-      const logoW = formatoVideo.w * (logoSize / 100);
-      const logoH = logoW / (logoImg.width / logoImg.height);
-      const logoXpx = formatoVideo.w * logoX - logoW;
-      const logoYpx = formatoVideo.h * logoY;
-      ctxCompleto.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
-    }
-    
-    ctxCompleto.fillStyle = 'rgba(0,0,0,0.55)';
-    ctxCompleto.fillRect(0, formatoVideo.h-60, formatoVideo.w, 60);
-    ctxCompleto.fillStyle = '#ffffff';
-    ctxCompleto.font = `bold ${Math.round(formatoVideo.h * 0.04)}px Inter`;
-    ctxCompleto.textAlign = 'center';
-    let texto = resumenNotas[pageIdx]?.titulo || '';
-    texto = texto.length > 50 ? texto.substring(0,47)+'...' : texto;
-    ctxCompleto.fillText(texto, formatoVideo.w/2, formatoVideo.h-25);
-    
-    outCtx.clearRect(0, 0, VW, VH);
-    outCtx.drawImage(offCanvasTamanioCompleto, 0, 0, VW, VH);
-    
-    const bitmap = await createImageBitmap(outCanvas);
-    const frame = new VideoFrame(bitmap, {
-      timestamp: Math.round(t * 1_000_000),
-      duration: Math.round(1_000_000 / FPS)
-    });
-    videoEncoder.encode(frame, { keyFrame: fi % (FPS * 2) === 0 });
-    frame.close();
-    bitmap.close();
-    
-    if (fi % 30 === 0) {
-      progressText.textContent = `Codificando video... ${Math.round(fi / totalFrames * 80)}%`;
-    }
-    await new Promise(r => setTimeout(r, 0));
-  }
-  
-  await videoEncoder.flush();
-  videoEncoder.close();
-  
-  progressText.textContent = 'Procesando audio...';
-  try {
-    await encodeAudioToMuxer(muxer, audioBlob);
-  } catch (e) {
-    console.warn('Audio encoding falló:', e);
-  }
-  
-  muxer.finalize();
-  const blob = new Blob([target.buffer], { type: 'video/mp4' });
-  const url = URL.createObjectURL(blob);
-  const video = document.getElementById('videoPreview');
-  const download = document.getElementById('videoDownload');
-  video.src = url;
-  download.href = url;
-  download.download = `resumen-${new Date().toISOString().slice(0,19)}.mp4`;
-}
-
-async function encodeAudioToMuxer(muxer, audioBlob) {
-  const audioCtx = new AudioContext({ sampleRate: 44100 });
-  const audioBuffer = await audioCtx.decodeAudioData(await audioBlob.arrayBuffer());
-  const encoder = new AudioEncoder({
-    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-    error: (e) => console.warn(e)
-  });
-  encoder.configure({ codec: 'mp4a.40.2', sampleRate: 44100, numberOfChannels: audioBuffer.numberOfChannels, bitrate: 128_000 });
-  
-  const chunkSize = 4096;
-  const samples = audioBuffer.length;
-  for (let offset = 0; offset < samples; offset += chunkSize) {
-    const len = Math.min(chunkSize, samples - offset);
-    const frame = new AudioData({
-      format: 'f32-planar',
-      sampleRate: audioBuffer.sampleRate,
-      numberOfFrames: len,
-      numberOfChannels: audioBuffer.numberOfChannels,
-      timestamp: Math.round(offset / audioBuffer.sampleRate * 1_000_000),
-      data: (() => {
-        const total = len * audioBuffer.numberOfChannels;
-        const buf = new Float32Array(total);
-        for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
-          const chData = audioBuffer.getChannelData(ch);
-          buf.set(chData.subarray(offset, offset + len), ch * len);
-        }
-        return buf;
-      })()
-    });
-    encoder.encode(frame);
-    frame.close();
-  }
-  await encoder.flush();
-  encoder.close();
-  audioCtx.close();
-}
-
-async function exportarConMediaRecorder(pageImages, audioBlob, audioDuration, secsPerPage) {
-  return new Promise(async (resolve) => {
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = formatoVideo.w;
-    offCanvas.height = formatoVideo.h;
-    const ctx = offCanvas.getContext('2d');
-    
-    const stream = offCanvas.captureStream(30);
-    const audioCtx = new AudioContext();
-    const audioBuffer = await audioCtx.decodeAudioData(await audioBlob.arrayBuffer());
-    const audioSource = audioCtx.createBufferSource();
-    audioSource.buffer = audioBuffer;
-    const dest = audioCtx.createMediaStreamDestination();
-    audioSource.connect(dest);
-    const combinedStream = new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
-    const recorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
-    const chunks = [];
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const video = document.getElementById('videoPreview');
-      const download = document.getElementById('videoDownload');
-      video.src = url;
-      download.href = url;
-      download.download = `resumen-${new Date().toISOString().slice(0,19)}.webm`;
-      resolve();
-    };
-    recorder.start();
-    audioSource.start();
-    
-    const startTime = performance.now();
-    function animateFrame() {
-      const elapsed = (performance.now() - startTime) / 1000;
-      const pageIdx = Math.min(Math.floor(elapsed / secsPerPage), pageImages.length - 1);
-      
-      ctx.fillStyle = '#1a1a18';
-      ctx.fillRect(0, 0, formatoVideo.w, formatoVideo.h);
-      if (pageImages[pageIdx]) {
-        const img = pageImages[pageIdx];
-        const imgW = img.width, imgH = img.height;
-        const scale = Math.max(formatoVideo.w / imgW, formatoVideo.h / imgH);
-        const drawW = imgW * scale, drawH = imgH * scale;
-        const drawX = (formatoVideo.w - drawW) / 2, drawY = (formatoVideo.h - drawH) / 2;
-        ctx.drawImage(img, drawX, drawY, drawW, drawH);
-      } else {
-        ctx.fillStyle = '#2a2a28';
-        ctx.fillRect(0, 0, formatoVideo.w, formatoVideo.h);
-      }
-      if (logoImg) {
-        const logoW = formatoVideo.w * (logoSize / 100);
-        const logoH = logoW / (logoImg.width / logoImg.height);
-        const logoXpx = formatoVideo.w * logoX - logoW;
-        const logoYpx = formatoVideo.h * logoY;
-        ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
-      }
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(0, formatoVideo.h-60, formatoVideo.w, 60);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${Math.round(formatoVideo.h * 0.04)}px Inter`;
-      ctx.textAlign = 'center';
-      let texto = resumenNotas[pageIdx]?.titulo || '';
-      texto = texto.length > 50 ? texto.substring(0,47)+'...' : texto;
-      ctx.fillText(texto, formatoVideo.w/2, formatoVideo.h-25);
-      
-      if (elapsed < audioDuration) {
-        requestAnimationFrame(animateFrame);
-      } else {
-        setTimeout(() => { recorder.stop(); audioSource.stop(); audioCtx.close(); }, 100);
+  let musicaAjustada = musica;
+  if (musica.duration < duracion) {
+    const loopCount = Math.ceil(duracion / musica.duration);
+    const newLength = Math.ceil(duracion * sampleRate);
+    const newBuffer = audioContext.createBuffer(channels, newLength, sampleRate);
+    for (let ch = 0; ch < channels; ch++) {
+      const channelData = newBuffer.getChannelData(ch);
+      let offset = 0;
+      for (let i = 0; i < loopCount && offset < newLength; i++) {
+        const srcData = musica.getChannelData(ch);
+        const copyLength = Math.min(srcData.length, newLength - offset);
+        channelData.set(srcData.subarray(0, copyLength), offset);
+        offset += copyLength;
       }
     }
-    animateFrame();
-  });
+    musicaAjustada = newBuffer;
+  }
+  
+  const mixedBuffer = audioContext.createBuffer(channels, principal.length, sampleRate);
+  const volumenPrincipal = Math.max(0.3, 1 - volumen * 0.6);
+  
+  for (let ch = 0; ch < channels; ch++) {
+    const principalData = principal.getChannelData(ch);
+    const musicaData = musicaAjustada.getChannelData(ch);
+    const mixedData = mixedBuffer.getChannelData(ch);
+    
+    for (let i = 0; i < principal.length; i++) {
+      let mixed = (principalData[i] * volumenPrincipal) + (musicaData[i] * volumen);
+      if (mixed > 1) mixed = 1;
+      if (mixed < -1) mixed = -1;
+      mixedData[i] = mixed;
+    }
+  }
+  
+  return mixedBuffer;
 }
 
 // ============================================================
