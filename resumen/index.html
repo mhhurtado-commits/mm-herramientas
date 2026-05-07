@@ -434,8 +434,8 @@
             <div class="logo-controls">
               <div class="re-label">Tamaño</div>
               <div class="re-rrow">
-                <input type="range" id="logoSizeSlider" min="5" max="25" value="12" step="1" oninput="actualizarTamanioLogo(this.value)">
-                <span id="logoSizeVal" class="re-rval">12%</span>
+                <input type="range" id="logoSizeSlider" min="5" max="45" value="20" step="1" oninput="actualizarTamanioLogo(this.value)">
+                <span id="logoSizeVal" class="re-rval">20%</span>
               </div>
               <button class="re-tbtn" onclick="resetearPosicionLogo()" style="margin-top:8px;width:100%">↺ Restablecer</button>
               <label class="re-uplbl" for="re-logo-multi" style="margin-top:8px;display:block">📁 Cambiar logo</label>
@@ -541,7 +541,7 @@ let audioBlob = null;
 let musicBlob = null;
 let musicVolume = 0.25;
 let logoImg = null;
-let logoX = 0.85, logoY = 0.08, logoSize = 12;
+let logoX = 0.85, logoY = 0.08, logoSize = 20;
 let dragActive = false, resizeActive = false, dragOffsetX = 0, dragOffsetY = 0, resizeHandle = null;
 let formatoVideo = { w: 1080, h: 1920 };
 let pageImagesCache = [];
@@ -674,7 +674,6 @@ async function generarResumen() {
     document.getElementById('resultadosPanel').style.display = 'block';
     toast('Resumen generado');
     
-    // Convertir imágenes a dataURLs
     await convertirTodasImagenesALocal();
     renderPages();
   } catch(err) { toast('Error: ' + err.message); }
@@ -810,13 +809,17 @@ function dibujarPaginaMiniatura(idx) {
         const logoYpx = H * logoY;
         ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
       }
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(0, H-50, W, 50);
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(0, H-60, W, 60);
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px Inter';
+      ctx.font = 'bold 13px Inter';
       ctx.textAlign = 'center';
       let texto = nota.titulo.length > 35 ? nota.titulo.substring(0,32)+'...' : nota.titulo;
-      ctx.fillText(texto, W/2, H-20);
+      // Dividir texto si es muy largo
+      if (ctx.measureText(texto).width > W * 0.9) {
+        ctx.font = 'bold 11px Inter';
+      }
+      ctx.fillText(texto, W/2, H-25);
     };
     img.src = nota.imagen;
   } else {
@@ -936,7 +939,7 @@ function initLogoEvents() {
       if (resizeHandle === 'ne') delta = (pos.x - (logoXpx + logoW)) / W * 100;
       if (resizeHandle === 'sw') delta = (logoXpx - pos.x) / W * 100;
       if (resizeHandle === 'nw') delta = (logoXpx - pos.x) / W * 100;
-      let newSize = Math.max(5, Math.min(25, logoSize + delta));
+      let newSize = Math.max(5, Math.min(45, logoSize + delta));
       if (newSize !== logoSize) {
         logoSize = newSize;
         document.getElementById('logoSizeSlider').value = logoSize;
@@ -967,9 +970,9 @@ function actualizarTamanioLogo(val) {
 function resetearPosicionLogo() {
   logoX = 0.85;
   logoY = 0.08;
-  logoSize = 12;
-  document.getElementById('logoSizeSlider').value = 12;
-  document.getElementById('logoSizeVal').textContent = '12%';
+  logoSize = 20;
+  document.getElementById('logoSizeSlider').value = 20;
+  document.getElementById('logoSizeVal').textContent = '20%';
   dibujarLogoPreview();
   resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
   toast('Logo restablecido');
@@ -1137,14 +1140,38 @@ function dibujarPaginaCompleta(ctx, W, H, pageIdx) {
     ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
   }
   
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(0, H-60, W, 60);
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(0, H-80, W, 80);
   ctx.fillStyle = '#ffffff';
-  ctx.font = `bold ${Math.round(H * 0.04)}px Inter`;
+  
+  // Manejar títulos largos con wrapping
+  let titulo = resumenNotas[pageIdx]?.titulo || '';
+  ctx.font = `bold ${Math.round(H * 0.045)}px Inter`;
   ctx.textAlign = 'center';
-  let texto = resumenNotas[pageIdx]?.titulo || '';
-  texto = texto.length > 50 ? texto.substring(0,47)+'...' : texto;
-  ctx.fillText(texto, W/2, H-25);
+  
+  const maxWidth = W - 60;
+  const words = titulo.split(' ');
+  let lines = [];
+  let currentLine = '';
+  
+  for (let i = 0; i < words.length; i++) {
+    const testLine = currentLine + (currentLine ? ' ' : '') + words[i];
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && currentLine.length > 0) {
+      lines.push(currentLine);
+      currentLine = words[i];
+    } else {
+      currentLine = testLine;
+    }
+  }
+  lines.push(currentLine);
+  
+  const lineHeight = Math.round(H * 0.055);
+  const startY = H - 45 - (lines.length - 1) * lineHeight;
+  
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], W/2, startY + i * lineHeight);
+  }
 }
 
 // ============================================================
@@ -1173,7 +1200,7 @@ async function previsualizarVideoMulti() {
     const numPages = resumenNotas.length;
     const durationPerPage = 3;
     const totalDuration = numPages * durationPerPage;
-    const FPS = 15;
+    const FPS = 30;
     const totalFrames = totalDuration * FPS;
     
     const stream = offCanvas.captureStream(FPS);
@@ -1241,7 +1268,6 @@ async function exportarVideoMulti() {
     const audioContext = new AudioContext();
     let audioBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
     
-    // Mezclar con música si existe
     if (musicBlob) {
       progressText.textContent = '🎵 Mezclando música de fondo...';
       const musicBuffer = await audioContext.decodeAudioData(await musicBlob.arrayBuffer());
@@ -1254,16 +1280,12 @@ async function exportarVideoMulti() {
     
     progressText.textContent = `Grabando video (${Math.round(audioDuration)} segundos)...`;
     
-    // Crear stream del canvas
     const stream = offCanvas.captureStream(FPS);
-    
-    // Crear fuente de audio
     const audioSource = audioContext.createBufferSource();
     audioSource.buffer = audioBuffer;
     const dest = audioContext.createMediaStreamDestination();
     audioSource.connect(dest);
     
-    // Combinar video y audio
     const combinedStream = new MediaStream([
       ...stream.getVideoTracks(),
       ...dest.stream.getAudioTracks()
@@ -1292,21 +1314,33 @@ async function exportarVideoMulti() {
     audioSource.start();
     
     const startTime = Date.now();
+    let lastPageIdx = -1;
+    let frameCount = 0;
     
     function animateFrame() {
       const elapsed = (Date.now() - startTime) / 1000;
       const pageIdx = Math.min(Math.floor(elapsed / secsPerPage), numPages - 1);
+      
+      if (pageIdx !== lastPageIdx) {
+        lastPageIdx = pageIdx;
+        console.log(`Cambiando a página ${pageIdx + 1} en ${elapsed.toFixed(2)}s`);
+      }
+      
       dibujarPaginaCompleta(ctx, W, H, pageIdx);
+      frameCount++;
+      
+      if (frameCount % 30 === 0) {
+        const percent = Math.round((elapsed / audioDuration) * 100);
+        progressText.textContent = `Grabando video... ${percent}%`;
+      }
       
       if (elapsed < audioDuration) {
         requestAnimationFrame(animateFrame);
-        const percent = Math.round((elapsed / audioDuration) * 100);
-        if (percent % 10 === 0) progressText.textContent = `Grabando video... ${percent}%`;
       } else {
         setTimeout(() => {
           recorder.stop();
           audioSource.stop();
-        }, 500);
+        }, 200);
       }
     }
     
