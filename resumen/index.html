@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <style>
+/* (mantener todos los estilos igual que antes) */
 .resumen-main {
   padding-top: var(--header-h);
   padding-bottom: var(--footer-h);
@@ -536,6 +537,7 @@ let resultadoWhatsapp = '';
 let resultadoRedes = '';
 let hashtagsActuales = [];
 let resumenNotas = [];
+let fechaActual = '';
 let guionActual = '';
 let audioBlob = null;
 let musicBlob = null;
@@ -545,6 +547,9 @@ let logoX = 0.85, logoY = 0.08, logoSize = 20;
 let dragActive = false, resizeActive = false, dragOffsetX = 0, dragOffsetY = 0, resizeHandle = null;
 let formatoVideo = { w: 1080, h: 1920 };
 let pageImagesCache = [];
+
+// Array de páginas para el video (incluye portada)
+let paginasVideo = []; // { tipo: 'portada' o 'nota', titulo, imagen, notaIndex }
 
 // ============================================================
 // UTILIDADES
@@ -568,6 +573,7 @@ function switchTab(tab, btn) {
 async function cargarNotas() {
   let fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
   document.getElementById('fechaSelector').value = fecha;
+  fechaActual = fecha;
   const container = document.getElementById('notasContainer');
   container.innerHTML = '<div class="loading-spinner"><div class="mm-spinner"></div></div>';
   try {
@@ -655,6 +661,7 @@ async function agregarNotaManual() {
 async function generarResumen() {
   if (!notasActuales.length) { toast('No hay notas'); return; }
   const fecha = document.getElementById('fechaSelector').value || getFechaArgentina();
+  fechaActual = fecha;
   const btn = document.getElementById('btnGenerarResumen');
   btn.disabled = true; btn.textContent = 'Generando...';
   try {
@@ -675,6 +682,7 @@ async function generarResumen() {
     toast('Resumen generado');
     
     await convertirTodasImagenesALocal();
+    construirPaginasVideo();
     renderPages();
   } catch(err) { toast('Error: ' + err.message); }
   btn.disabled = false; btn.textContent = '✦ Generar resumen con IA';
@@ -707,12 +715,54 @@ async function convertirTodasImagenesALocal() {
 }
 
 // ============================================================
+// CONSTRUIR PÁGINAS DEL VIDEO (incluye portada)
+// ============================================================
+function construirPaginasVideo() {
+  paginasVideo = [];
+  
+  // Agregar portada al inicio
+  const fechaFormateada = fechaActual ? new Date(fechaActual).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'HOY';
+  paginasVideo.push({
+    tipo: 'portada',
+    titulo: `📰 RESUMEN DEL DÍA\n${fechaFormateada}`,
+    subtitulo: 'Media Mendoza · Noticias del sur mendocino',
+    imagen: null
+  });
+  
+  // Agregar cada nota
+  resumenNotas.forEach((nota, idx) => {
+    paginasVideo.push({
+      tipo: 'nota',
+      titulo: nota.titulo,
+      subtitulo: nota.categoria || 'Noticia',
+      imagen: nota.imagen,
+      notaIndex: idx
+    });
+  });
+}
+
+// ============================================================
 // RENDER PÁGINAS
 // ============================================================
 function renderPages() {
   const container = document.getElementById('reelPages');
   if (!resumenNotas.length) { container.innerHTML = '<div class="empty-state">Primero generá el resumen</div>'; return; }
   let html = '';
+  
+  // Mostrar portada en el editor también
+  html += `<div class="reel-page" data-page="portada">
+    <div class="reel-page-header">
+      <span class="reel-page-num">🎬 PORTADA</span>
+      <div class="reel-page-actions"></div>
+    </div>
+    <div class="reel-page-canvas">
+      <canvas id="pageCanvas_portada" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas>
+    </div>
+    <div class="reel-page-title">
+      <div style="font-size:11px; color:var(--v); margin-top:4px">Portada del resumen</div>
+    </div>
+  </div>`;
+  
   resumenNotas.forEach((nota, idx) => {
     html += `<div class="reel-page" data-page="${idx}">
       <div class="reel-page-header">
@@ -738,8 +788,48 @@ function renderPages() {
   });
   container.innerHTML = html;
   if (!logoImg) { cargarLogoDefault(); } else {
+    dibujarPaginaMiniaturaPortada();
     resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
   }
+}
+
+function dibujarPaginaMiniaturaPortada() {
+  const canvas = document.getElementById(`pageCanvas_portada`);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  
+  ctx.fillStyle = '#1a1a18';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Degradado de fondo
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a3a1a');
+  grad.addColorStop(1, '#1a1a18');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  
+  if (logoImg) {
+    const logoW = W * 0.35;
+    const logoH = logoW / (logoImg.width / logoImg.height);
+    const logoX = (W - logoW) / 2;
+    const logoY = H * 0.25;
+    ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+  }
+  
+  ctx.fillStyle = '#a6ce39';
+  ctx.font = 'bold 14px Inter';
+  ctx.textAlign = 'center';
+  ctx.fillText('RESUMEN DEL DÍA', W/2, H * 0.55);
+  
+  const fecha = fechaActual ? new Date(fechaActual).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'HOY';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 16px Inter';
+  ctx.fillText(fecha.toUpperCase(), W/2, H * 0.65);
+  
+  ctx.fillStyle = '#9b9d8a';
+  ctx.font = '10px Inter';
+  ctx.fillText('Media Mendoza · Noticias del sur mendocino', W/2, H * 0.85);
 }
 
 function cargarLogoDefault() {
@@ -748,6 +838,7 @@ function cargarLogoDefault() {
     logoImg = img;
     document.getElementById('logoStatus').innerHTML = '✓ Logo cargado';
     dibujarLogoPreview();
+    dibujarPaginaMiniaturaPortada();
     resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
   };
   img.onerror = () => { document.getElementById('logoStatus').innerHTML = '⚠ Logo no encontrado'; };
@@ -815,7 +906,6 @@ function dibujarPaginaMiniatura(idx) {
       ctx.font = 'bold 13px Inter';
       ctx.textAlign = 'center';
       let texto = nota.titulo.length > 35 ? nota.titulo.substring(0,32)+'...' : nota.titulo;
-      // Dividir texto si es muy largo
       if (ctx.measureText(texto).width > W * 0.9) {
         ctx.font = 'bold 11px Inter';
       }
@@ -841,6 +931,7 @@ function cambiarImagenPagina(idx, input) {
   const reader = new FileReader();
   reader.onload = e => {
     resumenNotas[idx].imagen = e.target.result;
+    construirPaginasVideo(); // Reconstruir páginas con nueva imagen
     dibujarPaginaMiniatura(idx);
   };
   reader.readAsDataURL(file);
@@ -849,11 +940,13 @@ function cambiarImagenPagina(idx, input) {
 function resetImagenPagina(idx) {
   const notaOriginal = notasActuales.find(n => n.titulo === resumenNotas[idx].titulo);
   resumenNotas[idx].imagen = notaOriginal?.imagen || '';
+  construirPaginasVideo();
   dibujarPaginaMiniatura(idx);
 }
 
 function actualizarTituloPagina(idx, nuevoTitulo) {
   resumenNotas[idx].titulo = nuevoTitulo;
+  construirPaginasVideo();
   dibujarPaginaMiniatura(idx);
 }
 
@@ -862,6 +955,7 @@ function moverPagina(idx, dir) {
   if (dir === 'down' && idx === resumenNotas.length-1) return;
   const newIdx = dir === 'up' ? idx-1 : idx+1;
   [resumenNotas[idx], resumenNotas[newIdx]] = [resumenNotas[newIdx], resumenNotas[idx]];
+  construirPaginasVideo();
   renderPages();
 }
 
@@ -928,6 +1022,7 @@ function initLogoEvents() {
       logoX = (newLogoXpx + logoW) / W;
       logoY = newLogoYpx / H;
       dibujarLogoPreview();
+      dibujarPaginaMiniaturaPortada();
       resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
     }
     
@@ -945,6 +1040,7 @@ function initLogoEvents() {
         document.getElementById('logoSizeSlider').value = logoSize;
         document.getElementById('logoSizeVal').textContent = logoSize + '%';
         dibujarLogoPreview();
+        dibujarPaginaMiniaturaPortada();
         resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
       }
     }
@@ -964,6 +1060,7 @@ function actualizarTamanioLogo(val) {
   logoSize = parseInt(val);
   document.getElementById('logoSizeVal').textContent = logoSize + '%';
   dibujarLogoPreview();
+  dibujarPaginaMiniaturaPortada();
   resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
 }
 
@@ -974,6 +1071,7 @@ function resetearPosicionLogo() {
   document.getElementById('logoSizeSlider').value = 20;
   document.getElementById('logoSizeVal').textContent = '20%';
   dibujarLogoPreview();
+  dibujarPaginaMiniaturaPortada();
   resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
   toast('Logo restablecido');
 }
@@ -1096,18 +1194,20 @@ function setFormatoVideo(fmt) {
 }
 
 // ============================================================
-// CARGA DE IMÁGENES PARA LA PÁGINA COMPLETA
+// CARGA DE IMÁGENES PARA LAS PÁGINAS DEL VIDEO
 // ============================================================
-async function cargarImagenesPagina() {
+async function cargarImagenesVideo() {
   pageImagesCache = [];
-  for (let i = 0; i < resumenNotas.length; i++) {
-    const nota = resumenNotas[i];
-    if (nota.imagen && nota.imagen.startsWith('data:')) {
+  for (let i = 0; i < paginasVideo.length; i++) {
+    const pagina = paginasVideo[i];
+    if (pagina.tipo === 'portada') {
+      pageImagesCache.push(null);
+    } else if (pagina.imagen && pagina.imagen.startsWith('data:')) {
       const img = await new Promise((resolve) => {
         const imgObj = new Image();
         imgObj.onload = () => resolve(imgObj);
         imgObj.onerror = () => resolve(null);
-        imgObj.src = nota.imagen;
+        imgObj.src = pagina.imagen;
       });
       pageImagesCache.push(img);
     } else {
@@ -1116,61 +1216,94 @@ async function cargarImagenesPagina() {
   }
 }
 
-function dibujarPaginaCompleta(ctx, W, H, pageIdx) {
+function dibujarPaginaVideo(ctx, W, H, pageIdx) {
+  const pagina = paginasVideo[pageIdx];
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(0, 0, W, H);
   
-  const img = pageImagesCache[pageIdx];
-  if (img) {
-    const imgW = img.width, imgH = img.height;
-    const scale = Math.max(W / imgW, H / imgH);
-    const drawW = imgW * scale, drawH = imgH * scale;
-    const drawX = (W - drawW) / 2, drawY = (H - drawH) / 2;
-    ctx.drawImage(img, drawX, drawY, drawW, drawH);
-  } else {
-    ctx.fillStyle = '#2a2a28';
+  if (pagina.tipo === 'portada') {
+    // Diseño de portada
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1a3a1a');
+    grad.addColorStop(1, '#1a1a18');
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
-  }
-  
-  if (logoImg) {
-    const logoW = W * (logoSize / 100);
-    const logoH = logoW / (logoImg.width / logoImg.height);
-    const logoXpx = W * logoX - logoW;
-    const logoYpx = H * logoY;
-    ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
-  }
-  
-  ctx.fillStyle = 'rgba(0,0,0,0.65)';
-  ctx.fillRect(0, H-80, W, 80);
-  ctx.fillStyle = '#ffffff';
-  
-  // Manejar títulos largos con wrapping
-  let titulo = resumenNotas[pageIdx]?.titulo || '';
-  ctx.font = `bold ${Math.round(H * 0.045)}px Inter`;
-  ctx.textAlign = 'center';
-  
-  const maxWidth = W - 60;
-  const words = titulo.split(' ');
-  let lines = [];
-  let currentLine = '';
-  
-  for (let i = 0; i < words.length; i++) {
-    const testLine = currentLine + (currentLine ? ' ' : '') + words[i];
-    const metrics = ctx.measureText(testLine);
-    if (metrics.width > maxWidth && currentLine.length > 0) {
-      lines.push(currentLine);
-      currentLine = words[i];
-    } else {
-      currentLine = testLine;
+    
+    if (logoImg) {
+      const logoW = W * 0.45;
+      const logoH = logoW / (logoImg.width / logoImg.height);
+      const logoX = (W - logoW) / 2;
+      const logoY = H * 0.2;
+      ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
     }
-  }
-  lines.push(currentLine);
-  
-  const lineHeight = Math.round(H * 0.055);
-  const startY = H - 45 - (lines.length - 1) * lineHeight;
-  
-  for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], W/2, startY + i * lineHeight);
+    
+    ctx.fillStyle = '#a6ce39';
+    ctx.font = `bold ${Math.round(H * 0.05)}px Inter`;
+    ctx.textAlign = 'center';
+    ctx.fillText('RESUMEN DEL DÍA', W/2, H * 0.55);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.round(H * 0.045)}px Inter`;
+    ctx.fillText(pagina.titulo.split('\n')[1] || pagina.titulo, W/2, H * 0.68);
+    
+    ctx.fillStyle = '#9b9d8a';
+    ctx.font = `${Math.round(H * 0.025)}px Inter`;
+    ctx.fillText('Media Mendoza · Noticias del sur mendocino', W/2, H * 0.88);
+    
+  } else {
+    // Página de nota
+    const img = pageImagesCache[pageIdx];
+    if (img) {
+      const imgW = img.width, imgH = img.height;
+      const scale = Math.max(W / imgW, H / imgH);
+      const drawW = imgW * scale, drawH = imgH * scale;
+      const drawX = (W - drawW) / 2, drawY = (H - drawH) / 2;
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    } else {
+      ctx.fillStyle = '#2a2a28';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#9b9d8a';
+      ctx.font = `${Math.round(H * 0.033)}px Inter`;
+      ctx.textAlign = 'center';
+      ctx.fillText('📰', W/2, H/2);
+    }
+    
+    if (logoImg) {
+      const logoW = W * (logoSize / 100);
+      const logoH = logoW / (logoImg.width / logoImg.height);
+      const logoXpx = W * logoX - logoW;
+      const logoYpx = H * logoY;
+      ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
+    }
+    
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, H-90, W, 90);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.round(H * 0.045)}px Inter`;
+    ctx.textAlign = 'center';
+    
+    const titulo = pagina.titulo;
+    const maxWidth = W - 60;
+    const words = titulo.split(' ');
+    let lines = [];
+    let currentLine = '';
+    for (let i = 0; i < words.length; i++) {
+      const testLine = currentLine + (currentLine ? ' ' : '') + words[i];
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && currentLine.length > 0) {
+        lines.push(currentLine);
+        currentLine = words[i];
+      } else {
+        currentLine = testLine;
+      }
+    }
+    lines.push(currentLine);
+    
+    const lineHeight = Math.round(H * 0.055);
+    const startY = H - 55 - (lines.length - 1) * lineHeight;
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], W/2, startY + i * lineHeight);
+    }
   }
 }
 
@@ -1178,7 +1311,7 @@ function dibujarPaginaCompleta(ctx, W, H, pageIdx) {
 // PREVISUALIZACIÓN SIN AUDIO
 // ============================================================
 async function previsualizarVideoMulti() {
-  if (!resumenNotas.length) { toast('No hay páginas para previsualizar'); return; }
+  if (!paginasVideo.length) { toast('No hay páginas para previsualizar'); return; }
   
   const previewContainer = document.getElementById('previewVideoContainer');
   const previewVideo = document.getElementById('previewVideo');
@@ -1189,7 +1322,7 @@ async function previsualizarVideoMulti() {
   previewContainer.style.display = 'block';
   
   try {
-    await cargarImagenesPagina();
+    await cargarImagenesVideo();
     
     const W = formatoVideo.w;
     const H = formatoVideo.h;
@@ -1197,7 +1330,7 @@ async function previsualizarVideoMulti() {
     offCanvas.width = W;
     offCanvas.height = H;
     const ctx = offCanvas.getContext('2d');
-    const numPages = resumenNotas.length;
+    const numPages = paginasVideo.length;
     const durationPerPage = 3;
     const totalDuration = numPages * durationPerPage;
     const FPS = 30;
@@ -1224,7 +1357,7 @@ async function previsualizarVideoMulti() {
     for (let frame = 0; frame < totalFrames; frame++) {
       const t = frame / FPS;
       const pageIdx = Math.min(Math.floor(t / durationPerPage), numPages - 1);
-      dibujarPaginaCompleta(ctx, W, H, pageIdx);
+      dibujarPaginaVideo(ctx, W, H, pageIdx);
       await new Promise(r => setTimeout(r, 1000 / FPS));
     }
     
@@ -1243,7 +1376,7 @@ async function previsualizarVideoMulti() {
 // ============================================================
 async function exportarVideoMulti() {
   if (!audioBlob) { toast('Primero generá o cargá el audio'); return; }
-  if (!resumenNotas.length) { toast('No hay páginas para exportar'); return; }
+  if (!paginasVideo.length) { toast('No hay páginas para exportar'); return; }
   
   const btn = document.getElementById('btnExportVideo');
   const progress = document.getElementById('exportProgress');
@@ -1255,7 +1388,7 @@ async function exportarVideoMulti() {
   progressText.textContent = 'Preparando video...';
   
   try {
-    await cargarImagenesPagina();
+    await cargarImagenesVideo();
     
     const W = formatoVideo.w;
     const H = formatoVideo.h;
@@ -1264,7 +1397,7 @@ async function exportarVideoMulti() {
     offCanvas.height = H;
     const ctx = offCanvas.getContext('2d');
     
-    const numPages = resumenNotas.length;
+    const numPages = paginasVideo.length;
     const audioContext = new AudioContext();
     let audioBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
     
@@ -1323,10 +1456,10 @@ async function exportarVideoMulti() {
       
       if (pageIdx !== lastPageIdx) {
         lastPageIdx = pageIdx;
-        console.log(`Cambiando a página ${pageIdx + 1} en ${elapsed.toFixed(2)}s`);
+        console.log(`Página ${pageIdx + 1}/${numPages} en ${elapsed.toFixed(2)}s`);
       }
       
-      dibujarPaginaCompleta(ctx, W, H, pageIdx);
+      dibujarPaginaVideo(ctx, W, H, pageIdx);
       frameCount++;
       
       if (frameCount % 30 === 0) {
@@ -1409,6 +1542,7 @@ document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
       logoImg = img;
       document.getElementById('logoStatus').innerHTML = '✓ Logo personalizado';
       dibujarLogoPreview();
+      dibujarPaginaMiniaturaPortada();
       resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
     };
     img.src = ev.target.result;
