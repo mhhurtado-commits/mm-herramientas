@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <style>
-/* (mantener todos los estilos igual que antes) */
 .resumen-main {
   padding-top: var(--header-h);
   padding-bottom: var(--footer-h);
@@ -549,7 +548,32 @@ let formatoVideo = { w: 1080, h: 1920 };
 let pageImagesCache = [];
 
 // Array de páginas para el video (incluye portada)
-let paginasVideo = []; // { tipo: 'portada' o 'nota', titulo, imagen, notaIndex }
+let paginasVideo = []; // { tipo: 'portada' o 'nota', titulo, subtitulo, imagen, notaIndex }
+
+// ============================================================
+// FUNCIONES DE FECHA CORREGIDAS (GMT-3 Argentina)
+// ============================================================
+function getFechaArgentina() {
+  const ahora = new Date();
+  const year = ahora.getFullYear();
+  const month = String(ahora.getMonth() + 1).padStart(2, '0');
+  const day = String(ahora.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatearFechaArgentina(fechaIso) {
+  if (!fechaIso) return getFechaArgentina();
+  // fechaIso viene como "YYYY-MM-DD"
+  const [year, month, day] = fechaIso.split('-').map(Number);
+  const fecha = new Date(year, month - 1, day);
+  const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const diaSemana = diasSemana[fecha.getDay()];
+  const diaNumero = fecha.getDate();
+  const mes = meses[fecha.getMonth()];
+  const anio = fecha.getFullYear();
+  return `${diaSemana} ${diaNumero} de ${mes} de ${anio}`;
+}
 
 // ============================================================
 // UTILIDADES
@@ -558,7 +582,6 @@ function toast(m) { const t = document.getElementById('toast'); t.textContent = 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function copiarTexto(texto) { navigator.clipboard.writeText(texto).then(() => toast('✓ Copiado')).catch(() => toast('Error al copiar')); }
 function abrirWA(texto) { window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank'); }
-function getFechaArgentina() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Mendoza' }); }
 
 function switchTab(tab, btn) {
   document.querySelectorAll('.resumen-tab').forEach(b => b.classList.remove('active'));
@@ -720,12 +743,13 @@ async function convertirTodasImagenesALocal() {
 function construirPaginasVideo() {
   paginasVideo = [];
   
-  // Agregar portada al inicio
-  const fechaFormateada = fechaActual ? new Date(fechaActual).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'HOY';
+  // Agregar portada al inicio con fecha formateada correctamente
+  const fechaFormateada = formatearFechaArgentina(fechaActual);
   paginasVideo.push({
     tipo: 'portada',
-    titulo: `📰 RESUMEN DEL DÍA\n${fechaFormateada}`,
-    subtitulo: 'Media Mendoza · Noticias del sur mendocino',
+    titulo: `📰 RESUMEN DEL DÍA`,
+    subtitulo: fechaFormateada,
+    info: 'Media Mendoza · Noticias del sur mendocino',
     imagen: null
   });
   
@@ -750,6 +774,7 @@ function renderPages() {
   let html = '';
   
   // Mostrar portada en el editor también
+  const fechaFormateada = formatearFechaArgentina(fechaActual);
   html += `<div class="reel-page" data-page="portada">
     <div class="reel-page-header">
       <span class="reel-page-num">🎬 PORTADA</span>
@@ -759,7 +784,7 @@ function renderPages() {
       <canvas id="pageCanvas_portada" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas>
     </div>
     <div class="reel-page-title">
-      <div style="font-size:11px; color:var(--v); margin-top:4px">Portada del resumen</div>
+      <div style="font-size:11px; color:var(--v); margin-top:4px">Resumen del día · ${fechaFormateada}</div>
     </div>
   </div>`;
   
@@ -802,7 +827,6 @@ function dibujarPaginaMiniaturaPortada() {
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(0, 0, W, H);
   
-  // Degradado de fondo
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, '#1a3a1a');
   grad.addColorStop(1, '#1a1a18');
@@ -822,13 +846,15 @@ function dibujarPaginaMiniaturaPortada() {
   ctx.textAlign = 'center';
   ctx.fillText('RESUMEN DEL DÍA', W/2, H * 0.55);
   
-  const fecha = fechaActual ? new Date(fechaActual).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'HOY';
+  const fechaFormateada = formatearFechaArgentina(fechaActual);
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 16px Inter';
-  ctx.fillText(fecha.toUpperCase(), W/2, H * 0.65);
+  ctx.font = 'bold 13px Inter';
+  // Mostrar solo la parte de la fecha sin "día de semana" para la miniatura
+  const fechaCorta = fechaFormateada.split(' ').slice(1).join(' ');
+  ctx.fillText(fechaCorta.toUpperCase(), W/2, H * 0.67);
   
   ctx.fillStyle = '#9b9d8a';
-  ctx.font = '10px Inter';
+  ctx.font = '9px Inter';
   ctx.fillText('Media Mendoza · Noticias del sur mendocino', W/2, H * 0.85);
 }
 
@@ -931,7 +957,7 @@ function cambiarImagenPagina(idx, input) {
   const reader = new FileReader();
   reader.onload = e => {
     resumenNotas[idx].imagen = e.target.result;
-    construirPaginasVideo(); // Reconstruir páginas con nueva imagen
+    construirPaginasVideo();
     dibujarPaginaMiniatura(idx);
   };
   reader.readAsDataURL(file);
@@ -1240,15 +1266,16 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
     ctx.fillStyle = '#a6ce39';
     ctx.font = `bold ${Math.round(H * 0.05)}px Inter`;
     ctx.textAlign = 'center';
-    ctx.fillText('RESUMEN DEL DÍA', W/2, H * 0.55);
+    ctx.fillText(pagina.titulo, W/2, H * 0.55);
     
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.round(H * 0.045)}px Inter`;
-    ctx.fillText(pagina.titulo.split('\n')[1] || pagina.titulo, W/2, H * 0.68);
+    ctx.font = `bold ${Math.round(H * 0.038)}px Inter`;
+    // Mostrar fecha formateada (ej: "martes 13 de mayo de 2025")
+    ctx.fillText(pagina.subtitulo, W/2, H * 0.68);
     
     ctx.fillStyle = '#9b9d8a';
     ctx.font = `${Math.round(H * 0.025)}px Inter`;
-    ctx.fillText('Media Mendoza · Noticias del sur mendocino', W/2, H * 0.88);
+    ctx.fillText(pagina.info, W/2, H * 0.88);
     
   } else {
     // Página de nota
