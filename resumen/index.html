@@ -462,14 +462,13 @@
         <div class="reel-audio">
           <div class="re-label">🎙 Audio narrado</div>
           <select id="voiceSelect" class="mm-select" style="margin-bottom:8px">
-            <option value="es-AR-TomasNeural">Tomás (Argentino)</option>
-            <option value="es-AR-ElenaNeural">Elena (Argentina)</option>
-            <option value="es-ES-AlvaroNeural">Álvaro (España)</option>
-            <option value="es-US-Neural2-A">Americano neutro</option>
+            <option value="azure:es-AR-TomasNeural">Tomás (Argentino) - Azure</option>
+            <option value="azure:es-AR-ElenaNeural">Elena (Argentina) - Azure</option>
+            <option value="azure:es-ES-AlvaroNeural">Álvaro (España) - Azure</option>
           </select>
           <div style="display:flex; gap:8px; margin-bottom:8px">
             <button class="mm-btn mm-btn-primary" id="btnGenerarAudio" onclick="generarAudioMulti()" style="flex:1"><span class="mm-spinner" id="spinAudio"></span>🎙 Generar audio</button>
-            <label class="re-uplbl" style="margin:0; padding:8px; background:var(--v-dim)">📁 Subir audio propio
+            <label class="re-uplbl" style="margin:0; padding:8px; background:var(--v-dim)">📁 Subir audio propio (ElevenLabs/MiniMax)
               <input type="file" id="uploadAudio" accept="audio/*" class="re-hidden" onchange="subirAudioPropio(this)">
             </label>
           </div>
@@ -547,8 +546,10 @@ let dragActive = false, resizeActive = false, dragOffsetX = 0, dragOffsetY = 0, 
 let formatoVideo = { w: 1080, h: 1920 };
 let pageImagesCache = [];
 
-// Array de páginas para el video (incluye portada)
-let paginasVideo = []; // { tipo: 'portada' o 'nota', titulo, subtitulo, imagen, notaIndex }
+// Array de páginas para el video (incluye portada, notas, despedida)
+let paginasVideo = [];
+let duracionesPaginas = [];
+let iniciosPaginas = [];
 
 // ============================================================
 // FUNCIONES DE FECHA CORREGIDAS (GMT-3 Argentina)
@@ -563,7 +564,6 @@ function getFechaArgentina() {
 
 function formatearFechaArgentina(fechaIso) {
   if (!fechaIso) return getFechaArgentina();
-  // fechaIso viene como "YYYY-MM-DD"
   const [year, month, day] = fechaIso.split('-').map(Number);
   const fecha = new Date(year, month - 1, day);
   const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -573,6 +573,81 @@ function formatearFechaArgentina(fechaIso) {
   const mes = meses[fecha.getMonth()];
   const anio = fecha.getFullYear();
   return `${diaSemana} ${diaNumero} de ${mes} de ${anio}`;
+}
+
+// ============================================================
+// DIVIDIR GUIÓN POR PARTES Y CALCULAR DURACIONES
+// ============================================================
+function dividirGuionEnPartes(guionCompleto, numNotas) {
+  let guion = guionCompleto.trim();
+  
+  // Eliminar títulos repetidos al inicio
+  guion = guion.replace(/^Resumen del día\.?\s*/i, '');
+  guion = guion.replace(/^[📰]*\s*Resumen\s*del\s*día\.?\s*/i, '');
+  
+  // Detectar introducción (primeras 20-30 palabras)
+  const palabras = guion.split(' ');
+  let introLength = Math.min(30, Math.floor(palabras.length * 0.15));
+  let intro = palabras.slice(0, introLength).join(' ');
+  let resto = palabras.slice(introLength).join(' ');
+  
+  // Detectar despedida (últimas 15-25 palabras)
+  let palabrasResto = resto.split(' ');
+  let despedidaLength = Math.min(25, Math.floor(palabrasResto.length * 0.12));
+  let despedida = '';
+  let cuerpo = resto;
+  
+  if (palabrasResto.length > despedidaLength) {
+    despedida = palabrasResto.slice(-despedidaLength).join(' ');
+    cuerpo = palabrasResto.slice(0, -despedidaLength).join(' ');
+  }
+  
+  // Dividir el cuerpo en partes iguales para cada nota
+  let partesNotas = [];
+  if (numNotas > 0 && cuerpo.length > 0) {
+    const palabrasCuerpo = cuerpo.split(' ');
+    const palabrasPorNota = Math.ceil(palabrasCuerpo.length / numNotas);
+    for (let i = 0; i < numNotas; i++) {
+      const inicio = i * palabrasPorNota;
+      const fin = Math.min(inicio + palabrasPorNota, palabrasCuerpo.length);
+      partesNotas.push(palabrasCuerpo.slice(inicio, fin).join(' '));
+    }
+  }
+  
+  return { introduccion: intro.trim(), notas: partesNotas, despedida: despedida.trim() };
+}
+
+function estimarDuracionTexto(texto, velocidadPalabrasPorSegundo = 2.8) {
+  if (!texto) return 0.8;
+  const palabras = texto.split(' ').length;
+  return Math.max(0.8, palabras / velocidadPalabrasPorSegundo);
+}
+
+function calcularDuracionesPorPagina(guion, numNotas, duracionTotalAudio) {
+  const partes = dividirGuionEnPartes(guion, numNotas);
+  
+  const duracionIntro = estimarDuracionTexto(partes.introduccion);
+  const duracionesNotas = partes.notas.map(texto => estimarDuracionTexto(texto));
+  const duracionDespedida = estimarDuracionTexto(partes.despedida);
+  
+  const duracionTotalEstimada = duracionIntro + duracionesNotas.reduce((a,b) => a+b, 0) + duracionDespedida;
+  const escala = duracionTotalAudio / duracionTotalEstimada;
+  
+  const duraciones = [
+    Math.max(1.0, duracionIntro * escala),
+    ...duracionesNotas.map(d => Math.max(1.0, d * escala)),
+    Math.max(0.8, duracionDespedida * escala)
+  ];
+  
+  const inicios = [0];
+  for (let i = 0; i < duraciones.length - 1; i++) {
+    inicios.push(inicios[i] + duraciones[i]);
+  }
+  
+  console.log('📊 Duración por página:', duraciones.map((d,i) => 
+    `${i === 0 ? 'Portada' : i === duraciones.length-1 ? 'Despedida' : `Nota ${i}`}: ${d.toFixed(2)}s`).join(', '));
+  
+  return { duraciones, inicios, partes };
 }
 
 // ============================================================
@@ -738,12 +813,11 @@ async function convertirTodasImagenesALocal() {
 }
 
 // ============================================================
-// CONSTRUIR PÁGINAS DEL VIDEO (incluye portada)
+// CONSTRUIR PÁGINAS DEL VIDEO (portada + notas + despedida)
 // ============================================================
 function construirPaginasVideo() {
   paginasVideo = [];
   
-  // Agregar portada al inicio con fecha formateada correctamente
   const fechaFormateada = formatearFechaArgentina(fechaActual);
   paginasVideo.push({
     tipo: 'portada',
@@ -753,7 +827,6 @@ function construirPaginasVideo() {
     imagen: null
   });
   
-  // Agregar cada nota
   resumenNotas.forEach((nota, idx) => {
     paginasVideo.push({
       tipo: 'nota',
@@ -762,6 +835,14 @@ function construirPaginasVideo() {
       imagen: nota.imagen,
       notaIndex: idx
     });
+  });
+  
+  paginasVideo.push({
+    tipo: 'despedida',
+    titulo: `¡Gracias por acompañarnos!`,
+    subtitulo: 'Seguinos para más noticias',
+    info: 'Media Mendoza',
+    imagen: null
   });
 }
 
@@ -773,7 +854,6 @@ function renderPages() {
   if (!resumenNotas.length) { container.innerHTML = '<div class="empty-state">Primero generá el resumen</div>'; return; }
   let html = '';
   
-  // Mostrar portada en el editor también
   const fechaFormateada = formatearFechaArgentina(fechaActual);
   html += `<div class="reel-page" data-page="portada">
     <div class="reel-page-header">
@@ -811,10 +891,25 @@ function renderPages() {
       </div>
     </div>`;
   });
+  
+  html += `<div class="reel-page" data-page="despedida">
+    <div class="reel-page-header">
+      <span class="reel-page-num">🎬 CIERRE</span>
+      <div class="reel-page-actions"></div>
+    </div>
+    <div class="reel-page-canvas">
+      <canvas id="pageCanvas_despedida" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas>
+    </div>
+    <div class="reel-page-title">
+      <div style="font-size:11px; color:var(--v); margin-top:4px">Gracias por acompañarnos</div>
+    </div>
+  </div>`;
+  
   container.innerHTML = html;
   if (!logoImg) { cargarLogoDefault(); } else {
     dibujarPaginaMiniaturaPortada();
     resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+    dibujarPaginaMiniaturaDespedida();
   }
 }
 
@@ -847,15 +942,48 @@ function dibujarPaginaMiniaturaPortada() {
   ctx.fillText('RESUMEN DEL DÍA', W/2, H * 0.55);
   
   const fechaFormateada = formatearFechaArgentina(fechaActual);
+  const fechaCorta = fechaFormateada.split(' ').slice(1).join(' ');
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 13px Inter';
-  // Mostrar solo la parte de la fecha sin "día de semana" para la miniatura
-  const fechaCorta = fechaFormateada.split(' ').slice(1).join(' ');
   ctx.fillText(fechaCorta.toUpperCase(), W/2, H * 0.67);
   
   ctx.fillStyle = '#9b9d8a';
   ctx.font = '9px Inter';
   ctx.fillText('Media Mendoza · Noticias del sur mendocino', W/2, H * 0.85);
+}
+
+function dibujarPaginaMiniaturaDespedida() {
+  const canvas = document.getElementById(`pageCanvas_despedida`);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a1a18');
+  grad.addColorStop(1, '#1a3a1a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  
+  if (logoImg) {
+    const logoW = W * 0.35;
+    const logoH = logoW / (logoImg.width / logoImg.height);
+    const logoX = (W - logoW) / 2;
+    const logoY = H * 0.25;
+    ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+  }
+  
+  ctx.fillStyle = '#a6ce39';
+  ctx.font = 'bold 14px Inter';
+  ctx.textAlign = 'center';
+  ctx.fillText('¡GRACIAS!', W/2, H * 0.55);
+  
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 12px Inter';
+  ctx.fillText('Seguinos para más noticias', W/2, H * 0.68);
+  
+  ctx.fillStyle = '#9b9d8a';
+  ctx.font = '9px Inter';
+  ctx.fillText('Media Mendoza', W/2, H * 0.85);
 }
 
 function cargarLogoDefault() {
@@ -866,6 +994,7 @@ function cargarLogoDefault() {
     dibujarLogoPreview();
     dibujarPaginaMiniaturaPortada();
     resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+    dibujarPaginaMiniaturaDespedida();
   };
   img.onerror = () => { document.getElementById('logoStatus').innerHTML = '⚠ Logo no encontrado'; };
   img.src = '../assets/logo.png';
@@ -1050,6 +1179,7 @@ function initLogoEvents() {
       dibujarLogoPreview();
       dibujarPaginaMiniaturaPortada();
       resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+      dibujarPaginaMiniaturaDespedida();
     }
     
     if (resizeActive) {
@@ -1068,6 +1198,7 @@ function initLogoEvents() {
         dibujarLogoPreview();
         dibujarPaginaMiniaturaPortada();
         resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+        dibujarPaginaMiniaturaDespedida();
       }
     }
   }
@@ -1088,6 +1219,7 @@ function actualizarTamanioLogo(val) {
   dibujarLogoPreview();
   dibujarPaginaMiniaturaPortada();
   resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+  dibujarPaginaMiniaturaDespedida();
 }
 
 function resetearPosicionLogo() {
@@ -1099,6 +1231,7 @@ function resetearPosicionLogo() {
   dibujarLogoPreview();
   dibujarPaginaMiniaturaPortada();
   resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+  dibujarPaginaMiniaturaDespedida();
   toast('Logo restablecido');
 }
 
@@ -1176,21 +1309,45 @@ function actualizarVolumenMulti() {
 async function generarAudioMulti() {
   const guion = document.getElementById('guionReel').value.trim();
   if (!guion) { toast('Escribí o generá el guion primero'); return; }
-  const voiceId = document.getElementById('voiceSelect').value;
+  const voiceFull = document.getElementById('voiceSelect').value;
   const btn = document.getElementById('btnGenerarAudio');
   const spin = document.getElementById('spinAudio');
-  btn.disabled = true; spin.style.display = 'inline-block';
+  
+  btn.disabled = true;
+  spin.style.display = 'inline-block';
+  
   try {
-    const res = await fetch(`${WORKER}/social/reel/audio`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo: 'Resumen del día', guion, voiceId }) });
-    if (!res.ok) throw new Error('Error generando audio');
-    audioBlob = await res.blob();
+    let audioBlobResult;
+    
+    if (voiceFull.startsWith('azure:')) {
+      const voiceId = voiceFull.replace('azure:', '');
+      const res = await fetch(`${WORKER}/social/reel/audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titulo: 'Resumen del día', guion, voiceId })
+      });
+      if (!res.ok) throw new Error('Error generando audio con Azure');
+      audioBlobResult = await res.blob();
+      toast('🎙️ Audio generado con Azure TTS');
+    } else {
+      toast('Seleccioná una voz Azure o subí audio propio');
+      btn.disabled = false;
+      spin.style.display = 'none';
+      return;
+    }
+    
+    audioBlob = audioBlobResult;
     const url = URL.createObjectURL(audioBlob);
     const audioPreview = document.getElementById('audioPreview');
     audioPreview.src = url;
     audioPreview.style.display = 'block';
-    toast('Audio generado');
-  } catch(e) { toast('Error: ' + e.message); }
-  btn.disabled = false; spin.style.display = 'none';
+    
+  } catch(e) { 
+    toast('Error: ' + e.message); 
+  }
+  
+  btn.disabled = false;
+  spin.style.display = 'none';
 }
 
 function subirAudioPropio(input) {
@@ -1226,7 +1383,7 @@ async function cargarImagenesVideo() {
   pageImagesCache = [];
   for (let i = 0; i < paginasVideo.length; i++) {
     const pagina = paginasVideo[i];
-    if (pagina.tipo === 'portada') {
+    if (pagina.tipo === 'portada' || pagina.tipo === 'despedida') {
       pageImagesCache.push(null);
     } else if (pagina.imagen && pagina.imagen.startsWith('data:')) {
       const img = await new Promise((resolve) => {
@@ -1248,7 +1405,6 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
   ctx.fillRect(0, 0, W, H);
   
   if (pagina.tipo === 'portada') {
-    // Diseño de portada
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#1a3a1a');
     grad.addColorStop(1, '#1a1a18');
@@ -1270,7 +1426,34 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
     
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold ${Math.round(H * 0.038)}px Inter`;
-    // Mostrar fecha formateada (ej: "martes 13 de mayo de 2025")
+    ctx.fillText(pagina.subtitulo, W/2, H * 0.68);
+    
+    ctx.fillStyle = '#9b9d8a';
+    ctx.font = `${Math.round(H * 0.025)}px Inter`;
+    ctx.fillText(pagina.info, W/2, H * 0.88);
+    
+  } else if (pagina.tipo === 'despedida') {
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1a1a18');
+    grad.addColorStop(1, '#1a3a1a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    
+    if (logoImg) {
+      const logoW = W * 0.40;
+      const logoH = logoW / (logoImg.width / logoImg.height);
+      const logoX = (W - logoW) / 2;
+      const logoY = H * 0.2;
+      ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+    }
+    
+    ctx.fillStyle = '#a6ce39';
+    ctx.font = `bold ${Math.round(H * 0.05)}px Inter`;
+    ctx.textAlign = 'center';
+    ctx.fillText(pagina.titulo, W/2, H * 0.55);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.round(H * 0.032)}px Inter`;
     ctx.fillText(pagina.subtitulo, W/2, H * 0.68);
     
     ctx.fillStyle = '#9b9d8a';
@@ -1278,7 +1461,6 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
     ctx.fillText(pagina.info, W/2, H * 0.88);
     
   } else {
-    // Página de nota
     const img = pageImagesCache[pageIdx];
     if (img) {
       const imgW = img.width, imgH = img.height;
@@ -1435,7 +1617,12 @@ async function exportarVideoMulti() {
     }
     
     const audioDuration = audioBuffer.duration;
-    const secsPerPage = audioDuration / numPages;
+    
+    // Calcular duraciones por página basadas en el guion
+    const { duraciones, inicios } = calcularDuracionesPorPagina(guionActual, resumenNotas.length, audioDuration);
+    duracionesPaginas = duraciones;
+    iniciosPaginas = inicios;
+    
     const FPS = 30;
     
     progressText.textContent = `Grabando video (${Math.round(audioDuration)} segundos)...`;
@@ -1479,17 +1666,29 @@ async function exportarVideoMulti() {
     
     function animateFrame() {
       const elapsed = (Date.now() - startTime) / 1000;
-      const pageIdx = Math.min(Math.floor(elapsed / secsPerPage), numPages - 1);
       
-      if (pageIdx !== lastPageIdx) {
+      // Encontrar qué página corresponde según los tiempos acumulados
+      let pageIdx = 0;
+      for (let i = 0; i < iniciosPaginas.length; i++) {
+        if (elapsed >= iniciosPaginas[i]) {
+          pageIdx = i;
+        } else {
+          break;
+        }
+      }
+      pageIdx = Math.min(pageIdx, duracionesPaginas.length - 1);
+      
+      if (pageIdx !== lastPageIdx && pageIdx < paginasVideo.length) {
         lastPageIdx = pageIdx;
-        console.log(`Página ${pageIdx + 1}/${numPages} en ${elapsed.toFixed(2)}s`);
+        console.log(`📄 Página ${pageIdx + 1}/${paginasVideo.length} (${paginasVideo[pageIdx].tipo}) en ${elapsed.toFixed(2)}s`);
       }
       
-      dibujarPaginaVideo(ctx, W, H, pageIdx);
+      if (pageIdx < paginasVideo.length) {
+        dibujarPaginaVideo(ctx, W, H, pageIdx);
+      }
       frameCount++;
       
-      if (frameCount % 30 === 0) {
+      if (frameCount % 30 === 0 && elapsed < audioDuration) {
         const percent = Math.round((elapsed / audioDuration) * 100);
         progressText.textContent = `Grabando video... ${percent}%`;
       }
@@ -1571,6 +1770,7 @@ document.getElementById('re-logo-multi')?.addEventListener('change', (e) => {
       dibujarLogoPreview();
       dibujarPaginaMiniaturaPortada();
       resumenNotas.forEach((_, idx) => dibujarPaginaMiniatura(idx));
+      dibujarPaginaMiniaturaDespedida();
     };
     img.src = ev.target.result;
   };
