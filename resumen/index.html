@@ -351,7 +351,6 @@
   border-radius: var(--radius);
 }
 
-/* Estilos para grabación manual */
 .manual-recording-bar {
   background: var(--v-dim);
   border: 2px solid var(--v);
@@ -545,7 +544,6 @@
           </div>
         </div>
         
-        <!-- BARRA DE GRABACIÓN MANUAL -->
         <div class="manual-recording-bar" id="recordingBar" style="display:none;">
           <div class="recording-stats">
             <div class="recording-page-badge" id="recordingPage">1/1</div>
@@ -645,6 +643,7 @@ let manualStartTime = null;
 let manualAnimationFrame = null;
 let offCanvasManual = null;
 let ctxManual = null;
+let gainNodeManual = null;
 
 // ============================================================
 // FUNCIONES DE FECHA
@@ -1515,7 +1514,7 @@ async function previsualizarVideoMulti() {
 }
 
 // ============================================================
-// MODO MANUAL - Sincronización perfecta
+// MODO MANUAL - Sincronización perfecta CON AUDIO AUDIBLE
 // ============================================================
 function activarModoManual() {
   if (!paginasVideo.length) { toast('Primero generá el resumen'); return; }
@@ -1565,25 +1564,44 @@ async function iniciarGrabacionManual() {
     offCanvasManual.height = H;
     ctxManual = offCanvasManual.getContext('2d');
     
-    const audioContext = new AudioContext();
-    let audioBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
+    // Crear contexto de audio
+    audioContextManual = new (window.AudioContext || window.webkitAudioContext)();
     
+    // Decodificar audio principal
+    let audioBuffer = await audioContextManual.decodeAudioData(await audioBlob.arrayBuffer());
+    
+    // Mezclar con música si existe
     if (musicBlob) {
-      const musicBuffer = await audioContext.decodeAudioData(await musicBlob.arrayBuffer());
-      audioBuffer = await mezclarAudiosManual(audioBuffer, musicBuffer, musicVolumeLocal, audioContext);
+      const musicBuffer = await audioContextManual.decodeAudioData(await musicBlob.arrayBuffer());
+      audioBuffer = await mezclarAudiosManual(audioBuffer, musicBuffer, musicVolumeLocal, audioContextManual);
     }
     
-    const stream = offCanvasManual.captureStream(30);
-    const audioSource = audioContext.createBufferSource();
-    audioSource.buffer = audioBuffer;
-    const dest = audioContext.createMediaStreamDestination();
-    audioSource.connect(dest);
+    // Crear fuente de audio
+    audioSourceManual = audioContextManual.createBufferSource();
+    audioSourceManual.buffer = audioBuffer;
     
+    // Crear nodo de ganancia para controlar el volumen (opcional)
+    gainNodeManual = audioContextManual.createGain();
+    gainNodeManual.gain.value = 1.0;
+    
+    // Conectar: fuente -> ganancia -> destino (altavoces)
+    audioSourceManual.connect(gainNodeManual);
+    gainNodeManual.connect(audioContextManual.destination);
+    
+    // Crear stream para grabación (sin el destino de altavoces para evitar eco)
+    const destForRecording = audioContextManual.createMediaStreamDestination();
+    audioSourceManual.connect(destForRecording);
+    
+    // Crear stream del canvas
+    const canvasStream = offCanvasManual.captureStream(30);
+    
+    // Combinar streams: video + audio (solo para grabación)
     const combinedStream = new MediaStream([
-      ...stream.getVideoTracks(),
-      ...dest.stream.getAudioTracks()
+      ...canvasStream.getVideoTracks(),
+      ...destForRecording.stream.getAudioTracks()
     ]);
     
+    // Iniciar grabación
     mediaRecorderManual = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
     const chunks = [];
     
@@ -1599,17 +1617,18 @@ async function iniciarGrabacionManual() {
       document.getElementById('videoResult').style.display = 'block';
       toast('✅ Video exportado correctamente');
       
-      audioContext.close();
-      stream.getTracks().forEach(t => t.stop());
+      // Limpiar recursos
+      if (audioContextManual) audioContextManual.close();
+      canvasStream.getTracks().forEach(t => t.stop());
       
       finalizarModoManual();
     };
     
     mediaRecorderManual.start();
-    audioSource.start();
+    
+    // Reproducir audio (se escuchará por los altavoces)
+    audioSourceManual.start();
     streamManual = combinedStream;
-    audioContextManual = audioContext;
-    audioSourceManual = audioSource;
     
     grabandoManual = true;
     marcasTiempo = [];
@@ -1617,14 +1636,16 @@ async function iniciarGrabacionManual() {
     manualStartTime = Date.now();
     
     const statusDiv = document.getElementById('recordingStatus');
-    statusDiv.textContent = 'Grabando...';
+    statusDiv.textContent = '🎙️ Grabando... (escuchá el audio)';
     statusDiv.className = 'recording-status recording';
     document.getElementById('recordingPage').textContent = `1/${paginasVideo.length}`;
     btnNext.disabled = false;
     btnStop.disabled = false;
     
+    // Registrar inicio
     marcasTiempo.push(0);
     
+    // Animación del canvas
     function animateManual() {
       if (!grabandoManual) return;
       const elapsed = (Date.now() - manualStartTime) / 1000;
@@ -1654,7 +1675,7 @@ function siguientePaginaManual() {
     finalizarGrabacionManual();
   } else {
     document.getElementById('recordingPage').textContent = `${paginaActualManual + 1}/${paginasVideo.length}`;
-    toast(`➡ Avanzando a página ${paginaActualManual + 1}`);
+    toast(`➡ Avanzando a página ${paginaActualManual + 1} (${elapsed.toFixed(1)}s)`);
   }
 }
 
@@ -1671,6 +1692,8 @@ async function finalizarGrabacionManual() {
   
   const statusDiv = document.getElementById('recordingStatus');
   statusDiv.textContent = 'Finalizando...';
+  
+  console.log('📊 Marcas de tiempo registradas:', marcasTiempo);
   
   setTimeout(() => {
     if (mediaRecorderManual && mediaRecorderManual.state === 'recording') {
@@ -1739,7 +1762,7 @@ async function mezclarAudiosManual(principal, musica, volumen, audioContext) {
 }
 
 // ============================================================
-// EXPORTACIÓN AUTOMÁTICA ANTIGUA (MANTENIDA)
+// EXPORTACIÓN AUTOMÁTICA ANTIGUA (MANTENIDA PERO DESACONSEJADA)
 // ============================================================
 async function exportarVideoMulti() {
   toast('⚠️ Usá el modo manual para sincronización perfecta. Esta función automática puede desfasarse.');
