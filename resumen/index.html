@@ -7,6 +7,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <style>
+/* Cargar fuente BebasNeue desde assets */
+@font-face {
+  font-family: 'BebasNeue';
+  src: url('../assets/BebasNeue-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 .resumen-main {
   padding-top: var(--header-h);
   padding-bottom: var(--footer-h);
@@ -546,6 +555,10 @@ let dragActive = false, resizeActive = false, dragOffsetX = 0, dragOffsetY = 0, 
 let formatoVideo = { w: 1080, h: 1920 };
 let pageImagesCache = [];
 
+// Imágenes de portada y final
+let portadaImg = null;
+let finalImg = null;
+
 // Array de páginas para el video (incluye portada, notas, despedida)
 let paginasVideo = [];
 let duracionesPaginas = [];
@@ -566,13 +579,53 @@ function formatearFechaArgentina(fechaIso) {
   if (!fechaIso) return getFechaArgentina();
   const [year, month, day] = fechaIso.split('-').map(Number);
   const fecha = new Date(year, month - 1, day);
-  const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
   const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-  const diaSemana = diasSemana[fecha.getDay()];
   const diaNumero = fecha.getDate();
   const mes = meses[fecha.getMonth()];
   const anio = fecha.getFullYear();
-  return `${diaSemana} ${diaNumero} de ${mes} de ${anio}`;
+  return `${diaNumero} de ${mes} de ${anio}`;
+}
+
+// ============================================================
+// CARGAR IMÁGENES DE PORTADA Y FINAL
+// ============================================================
+function cargarImagenesExtras() {
+  // Cargar imagen de portada
+  const imgPortada = new Image();
+  imgPortada.onload = () => {
+    portadaImg = imgPortada;
+    console.log('✅ Portada cargada:', portadaImg.width, 'x', portadaImg.height);
+    actualizarMiniaturas();
+  };
+  imgPortada.onerror = () => {
+    console.warn('⚠️ No se pudo cargar portada-reel.png, usando fallback');
+    portadaImg = null;
+    actualizarMiniaturas();
+  };
+  imgPortada.src = '../assets/portada-reel.png';
+  
+  // Cargar imagen de final
+  const imgFinal = new Image();
+  imgFinal.onload = () => {
+    finalImg = imgFinal;
+    console.log('✅ Imagen final cargada:', finalImg.width, 'x', finalImg.height);
+    actualizarMiniaturas();
+  };
+  imgFinal.onerror = () => {
+    console.warn('⚠️ No se pudo cargar final-reel.png, usando fallback');
+    finalImg = null;
+    actualizarMiniaturas();
+  };
+  imgFinal.src = '../assets/final-reel.png';
+}
+
+function actualizarMiniaturas() {
+  if (document.getElementById('pageCanvas_portada')) {
+    dibujarPaginaMiniaturaPortada();
+  }
+  if (document.getElementById('pageCanvas_despedida')) {
+    dibujarPaginaMiniaturaDespedida();
+  }
 }
 
 // ============================================================
@@ -581,17 +634,14 @@ function formatearFechaArgentina(fechaIso) {
 function dividirGuionEnPartes(guionCompleto, numNotas) {
   let guion = guionCompleto.trim();
   
-  // Eliminar títulos repetidos al inicio
   guion = guion.replace(/^Resumen del día\.?\s*/i, '');
   guion = guion.replace(/^[📰]*\s*Resumen\s*del\s*día\.?\s*/i, '');
   
-  // Detectar introducción (primeras 20-30 palabras)
   const palabras = guion.split(' ');
   let introLength = Math.min(30, Math.floor(palabras.length * 0.15));
   let intro = palabras.slice(0, introLength).join(' ');
   let resto = palabras.slice(introLength).join(' ');
   
-  // Detectar despedida (últimas 15-25 palabras)
   let palabrasResto = resto.split(' ');
   let despedidaLength = Math.min(25, Math.floor(palabrasResto.length * 0.12));
   let despedida = '';
@@ -602,7 +652,6 @@ function dividirGuionEnPartes(guionCompleto, numNotas) {
     cuerpo = palabrasResto.slice(0, -despedidaLength).join(' ');
   }
   
-  // Dividir el cuerpo en partes iguales para cada nota
   let partesNotas = [];
   if (numNotas > 0 && cuerpo.length > 0) {
     const palabrasCuerpo = cuerpo.split(' ');
@@ -821,10 +870,11 @@ function construirPaginasVideo() {
   const fechaFormateada = formatearFechaArgentina(fechaActual);
   paginasVideo.push({
     tipo: 'portada',
-    titulo: `📰 RESUMEN DEL DÍA`,
+    titulo: `RESUMEN DEL DÍA`,
     subtitulo: fechaFormateada,
     info: 'Media Mendoza · Noticias del sur mendocino',
-    imagen: null
+    imagen: null,
+    usarImagenPersonalizada: true
   });
   
   resumenNotas.forEach((nota, idx) => {
@@ -833,16 +883,18 @@ function construirPaginasVideo() {
       titulo: nota.titulo,
       subtitulo: nota.categoria || 'Noticia',
       imagen: nota.imagen,
-      notaIndex: idx
+      notaIndex: idx,
+      usarImagenPersonalizada: false
     });
   });
   
   paginasVideo.push({
     tipo: 'despedida',
-    titulo: `¡Gracias por acompañarnos!`,
+    titulo: `GRACIAS POR ACOMPAÑARNOS`,
     subtitulo: 'Seguinos para más noticias',
     info: 'Media Mendoza',
-    imagen: null
+    imagen: null,
+    usarImagenPersonalizada: true
   });
 }
 
@@ -919,37 +971,21 @@ function dibujarPaginaMiniaturaPortada() {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   
-  ctx.fillStyle = '#1a1a18';
-  ctx.fillRect(0, 0, W, H);
-  
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#1a3a1a');
-  grad.addColorStop(1, '#1a1a18');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-  
-  if (logoImg) {
-    const logoW = W * 0.35;
-    const logoH = logoW / (logoImg.width / logoImg.height);
-    const logoX = (W - logoW) / 2;
-    const logoY = H * 0.25;
-    ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+  if (portadaImg) {
+    ctx.drawImage(portadaImg, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#1a1a18';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#a6ce39';
+    ctx.font = 'bold 14px BebasNeue, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('RESUMEN DEL DÍA', W/2, H/2);
   }
   
-  ctx.fillStyle = '#a6ce39';
-  ctx.font = 'bold 14px Inter';
-  ctx.textAlign = 'center';
-  ctx.fillText('RESUMEN DEL DÍA', W/2, H * 0.55);
-  
   const fechaFormateada = formatearFechaArgentina(fechaActual);
-  const fechaCorta = fechaFormateada.split(' ').slice(1).join(' ');
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 13px Inter';
-  ctx.fillText(fechaCorta.toUpperCase(), W/2, H * 0.67);
-  
-  ctx.fillStyle = '#9b9d8a';
-  ctx.font = '9px Inter';
-  ctx.fillText('Media Mendoza · Noticias del sur mendocino', W/2, H * 0.85);
+  ctx.font = 'bold 12px Inter';
+  ctx.fillText(fechaFormateada.toUpperCase(), W/2, H - 30);
 }
 
 function dibujarPaginaMiniaturaDespedida() {
@@ -958,32 +994,19 @@ function dibujarPaginaMiniaturaDespedida() {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#1a1a18');
-  grad.addColorStop(1, '#1a3a1a');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-  
-  if (logoImg) {
-    const logoW = W * 0.35;
-    const logoH = logoW / (logoImg.width / logoImg.height);
-    const logoX = (W - logoW) / 2;
-    const logoY = H * 0.25;
-    ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+  if (finalImg) {
+    ctx.drawImage(finalImg, 0, 0, W, H);
+  } else {
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1a1a18');
+    grad.addColorStop(1, '#1a3a1a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#a6ce39';
+    ctx.font = 'bold 14px BebasNeue, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('¡GRACIAS!', W/2, H/2);
   }
-  
-  ctx.fillStyle = '#a6ce39';
-  ctx.font = 'bold 14px Inter';
-  ctx.textAlign = 'center';
-  ctx.fillText('¡GRACIAS!', W/2, H * 0.55);
-  
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 12px Inter';
-  ctx.fillText('Seguinos para más noticias', W/2, H * 0.68);
-  
-  ctx.fillStyle = '#9b9d8a';
-  ctx.font = '9px Inter';
-  ctx.fillText('Media Mendoza', W/2, H * 0.85);
 }
 
 function cargarLogoDefault() {
@@ -1058,12 +1081,9 @@ function dibujarPaginaMiniatura(idx) {
       ctx.fillStyle = 'rgba(0,0,0,0.65)';
       ctx.fillRect(0, H-60, W, 60);
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 13px Inter';
+      ctx.font = 'bold 13px BebasNeue, sans-serif';
       ctx.textAlign = 'center';
       let texto = nota.titulo.length > 35 ? nota.titulo.substring(0,32)+'...' : nota.titulo;
-      if (ctx.measureText(texto).width > W * 0.9) {
-        ctx.font = 'bold 11px Inter';
-      }
       ctx.fillText(texto, W/2, H-25);
     };
     img.src = nota.imagen;
@@ -1075,7 +1095,7 @@ function dibujarPaginaMiniatura(idx) {
     ctx.textAlign = 'center';
     ctx.fillText('Sin imagen', W/2, H/2);
     ctx.fillStyle = '#a6ce39';
-    ctx.font = 'bold 12px Inter';
+    ctx.font = 'bold 12px BebasNeue, sans-serif';
     ctx.fillText(nota.titulo.substring(0,30), W/2, H-30);
   }
 }
@@ -1401,64 +1421,70 @@ async function cargarImagenesVideo() {
 
 function dibujarPaginaVideo(ctx, W, H, pageIdx) {
   const pagina = paginasVideo[pageIdx];
-  ctx.fillStyle = '#1a1a18';
-  ctx.fillRect(0, 0, W, H);
   
   if (pagina.tipo === 'portada') {
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, '#1a3a1a');
-    grad.addColorStop(1, '#1a1a18');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-    
-    if (logoImg) {
-      const logoW = W * 0.45;
-      const logoH = logoW / (logoImg.width / logoImg.height);
-      const logoX = (W - logoW) / 2;
-      const logoY = H * 0.2;
-      ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+    if (portadaImg) {
+      ctx.drawImage(portadaImg, 0, 0, W, H);
+    } else {
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#1a3a1a');
+      grad.addColorStop(1, '#1a1a18');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      
+      if (logoImg) {
+        const logoW = W * 0.45;
+        const logoH = logoW / (logoImg.width / logoImg.height);
+        const logoX = (W - logoW) / 2;
+        const logoY = H * 0.2;
+        ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+      }
+      
+      ctx.fillStyle = '#a6ce39';
+      ctx.font = `bold ${Math.round(H * 0.05)}px BebasNeue, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(pagina.titulo, W/2, H * 0.55);
+      
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.round(H * 0.038)}px BebasNeue, sans-serif`;
+      ctx.fillText(pagina.subtitulo, W/2, H * 0.68);
+      
+      ctx.fillStyle = '#9b9d8a';
+      ctx.font = `${Math.round(H * 0.025)}px Inter`;
+      ctx.fillText(pagina.info, W/2, H * 0.88);
     }
-    
-    ctx.fillStyle = '#a6ce39';
-    ctx.font = `bold ${Math.round(H * 0.05)}px Inter`;
-    ctx.textAlign = 'center';
-    ctx.fillText(pagina.titulo, W/2, H * 0.55);
-    
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.round(H * 0.038)}px Inter`;
-    ctx.fillText(pagina.subtitulo, W/2, H * 0.68);
-    
-    ctx.fillStyle = '#9b9d8a';
-    ctx.font = `${Math.round(H * 0.025)}px Inter`;
-    ctx.fillText(pagina.info, W/2, H * 0.88);
     
   } else if (pagina.tipo === 'despedida') {
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, '#1a1a18');
-    grad.addColorStop(1, '#1a3a1a');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-    
-    if (logoImg) {
-      const logoW = W * 0.40;
-      const logoH = logoW / (logoImg.width / logoImg.height);
-      const logoX = (W - logoW) / 2;
-      const logoY = H * 0.2;
-      ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+    if (finalImg) {
+      ctx.drawImage(finalImg, 0, 0, W, H);
+    } else {
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#1a1a18');
+      grad.addColorStop(1, '#1a3a1a');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      
+      if (logoImg) {
+        const logoW = W * 0.40;
+        const logoH = logoW / (logoImg.width / logoImg.height);
+        const logoX = (W - logoW) / 2;
+        const logoY = H * 0.2;
+        ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+      }
+      
+      ctx.fillStyle = '#a6ce39';
+      ctx.font = `bold ${Math.round(H * 0.05)}px BebasNeue, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(pagina.titulo, W/2, H * 0.55);
+      
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.round(H * 0.032)}px BebasNeue, sans-serif`;
+      ctx.fillText(pagina.subtitulo, W/2, H * 0.68);
+      
+      ctx.fillStyle = '#9b9d8a';
+      ctx.font = `${Math.round(H * 0.025)}px Inter`;
+      ctx.fillText(pagina.info, W/2, H * 0.88);
     }
-    
-    ctx.fillStyle = '#a6ce39';
-    ctx.font = `bold ${Math.round(H * 0.05)}px Inter`;
-    ctx.textAlign = 'center';
-    ctx.fillText(pagina.titulo, W/2, H * 0.55);
-    
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.round(H * 0.032)}px Inter`;
-    ctx.fillText(pagina.subtitulo, W/2, H * 0.68);
-    
-    ctx.fillStyle = '#9b9d8a';
-    ctx.font = `${Math.round(H * 0.025)}px Inter`;
-    ctx.fillText(pagina.info, W/2, H * 0.88);
     
   } else {
     const img = pageImagesCache[pageIdx];
@@ -1488,7 +1514,7 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, H-90, W, 90);
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.round(H * 0.045)}px Inter`;
+    ctx.font = `bold ${Math.round(H * 0.045)}px BebasNeue, sans-serif`;
     ctx.textAlign = 'center';
     
     const titulo = pagina.titulo;
@@ -1618,7 +1644,6 @@ async function exportarVideoMulti() {
     
     const audioDuration = audioBuffer.duration;
     
-    // Calcular duraciones por página basadas en el guion
     const { duraciones, inicios } = calcularDuracionesPorPagina(guionActual, resumenNotas.length, audioDuration);
     duracionesPaginas = duraciones;
     iniciosPaginas = inicios;
@@ -1667,7 +1692,6 @@ async function exportarVideoMulti() {
     function animateFrame() {
       const elapsed = (Date.now() - startTime) / 1000;
       
-      // Encontrar qué página corresponde según los tiempos acumulados
       let pageIdx = 0;
       for (let i = 0; i < iniciosPaginas.length; i++) {
         if (elapsed >= iniciosPaginas[i]) {
@@ -1796,6 +1820,7 @@ document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
 document.addEventListener('DOMContentLoaded', () => { 
   cargarNotas();
   cargarLogoDefault();
+  cargarImagenesExtras();
   initLogoEvents();
 });
 </script>
