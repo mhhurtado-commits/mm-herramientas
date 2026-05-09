@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <style>
-/* Cargar fuente BebasNeue desde assets */
 @font-face {
   font-family: 'BebasNeue';
   src: url('../assets/BebasNeue-Regular.ttf') format('truetype');
@@ -351,6 +350,59 @@
   background: #000;
   border-radius: var(--radius);
 }
+
+/* Estilos para grabación manual */
+.manual-recording-bar {
+  background: var(--v-dim);
+  border: 2px solid var(--v);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.recording-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.recording-page-badge {
+  background: var(--v);
+  color: var(--bg);
+  padding: 6px 14px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 13px;
+}
+.recording-time {
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--white);
+}
+.recording-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.recording-status.recording {
+  background: var(--red);
+  color: white;
+  animation: pulse 1s infinite;
+}
+.recording-status.waiting {
+  background: var(--dim);
+  color: var(--bg);
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
 </style>
 </head>
 <body>
@@ -493,12 +545,32 @@
           </div>
         </div>
         
+        <!-- BARRA DE GRABACIÓN MANUAL -->
+        <div class="manual-recording-bar" id="recordingBar" style="display:none;">
+          <div class="recording-stats">
+            <div class="recording-page-badge" id="recordingPage">1/1</div>
+            <div class="recording-time" id="recordingTime">0.0 s</div>
+            <div class="recording-status waiting" id="recordingStatus">Esperando inicio</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="mm-btn mm-btn-primary" id="btnStartRecording" onclick="iniciarGrabacionManual()" style="background:var(--v);color:var(--bg);min-width:140px">
+              🎬 Iniciar grabación
+            </button>
+            <button class="mm-btn" id="btnNextPage" onclick="siguientePaginaManual()" style="border-color:var(--v);color:var(--v);min-width:140px" disabled>
+              ➡ Siguiente imagen
+            </button>
+            <button class="mm-btn mm-btn-danger" id="btnStopRecording" onclick="finalizarGrabacionManual()" style="min-width:100px" disabled>
+              ⬇ Finalizar
+            </button>
+          </div>
+        </div>
+        
         <div class="preview-bar">
           <button class="mm-btn mm-btn-primary" id="btnPreviewVideo" onclick="previsualizarVideoMulti()" style="background:var(--v-dim); border-color:var(--v); color:var(--v); flex:1">
-            🎬 Previsualizar
+            🎬 Previsualizar automática
           </button>
-          <button class="mm-btn mm-btn-primary" id="btnExportVideo" onclick="exportarVideoMulti()" style="flex:1">
-            ⬇ Exportar WebM
+          <button class="mm-btn mm-btn-primary" id="btnManualMode" onclick="activarModoManual()" style="flex:1">
+            ✋ Modo manual (sincronización perfecta)
           </button>
         </div>
         
@@ -548,24 +620,34 @@ let fechaActual = '';
 let guionActual = '';
 let audioBlob = null;
 let musicBlob = null;
-let musicVolume = 0.25;
+let musicVolumeLocal = 0.25;
 let logoImg = null;
 let logoX = 0.85, logoY = 0.08, logoSize = 20;
 let dragActive = false, resizeActive = false, dragOffsetX = 0, dragOffsetY = 0, resizeHandle = null;
 let formatoVideo = { w: 1080, h: 1920 };
 let pageImagesCache = [];
 
-// Imágenes de portada y final
 let portadaImg = null;
 let finalImg = null;
 
-// Array de páginas para el video (incluye portada, notas, despedida)
 let paginasVideo = [];
-let duracionesPaginas = [];
-let iniciosPaginas = [];
+
+// Variables para grabación manual
+let modoManualActivo = false;
+let grabandoManual = false;
+let marcasTiempo = [];
+let paginaActualManual = 0;
+let audioContextManual = null;
+let audioSourceManual = null;
+let mediaRecorderManual = null;
+let streamManual = null;
+let manualStartTime = null;
+let manualAnimationFrame = null;
+let offCanvasManual = null;
+let ctxManual = null;
 
 // ============================================================
-// FUNCIONES DE FECHA CORREGIDAS (GMT-3 Argentina)
+// FUNCIONES DE FECHA
 // ============================================================
 function getFechaArgentina() {
   const ahora = new Date();
@@ -586,117 +668,21 @@ function formatearFechaArgentina(fechaIso) {
   return `${diaNumero} de ${mes} de ${anio}`;
 }
 
-// ============================================================
-// CARGAR IMÁGENES DE PORTADA Y FINAL
-// ============================================================
 function cargarImagenesExtras() {
-  // Cargar imagen de portada
   const imgPortada = new Image();
-  imgPortada.onload = () => {
-    portadaImg = imgPortada;
-    console.log('✅ Portada cargada:', portadaImg.width, 'x', portadaImg.height);
-    actualizarMiniaturas();
-  };
-  imgPortada.onerror = () => {
-    console.warn('⚠️ No se pudo cargar portada-reel.png, usando fallback');
-    portadaImg = null;
-    actualizarMiniaturas();
-  };
+  imgPortada.onload = () => { portadaImg = imgPortada; actualizarMiniaturas(); };
+  imgPortada.onerror = () => { portadaImg = null; actualizarMiniaturas(); };
   imgPortada.src = '../assets/portada-reel.png';
   
-  // Cargar imagen de final
   const imgFinal = new Image();
-  imgFinal.onload = () => {
-    finalImg = imgFinal;
-    console.log('✅ Imagen final cargada:', finalImg.width, 'x', finalImg.height);
-    actualizarMiniaturas();
-  };
-  imgFinal.onerror = () => {
-    console.warn('⚠️ No se pudo cargar final-reel.png, usando fallback');
-    finalImg = null;
-    actualizarMiniaturas();
-  };
+  imgFinal.onload = () => { finalImg = imgFinal; actualizarMiniaturas(); };
+  imgFinal.onerror = () => { finalImg = null; actualizarMiniaturas(); };
   imgFinal.src = '../assets/final-reel.png';
 }
 
 function actualizarMiniaturas() {
-  if (document.getElementById('pageCanvas_portada')) {
-    dibujarPaginaMiniaturaPortada();
-  }
-  if (document.getElementById('pageCanvas_despedida')) {
-    dibujarPaginaMiniaturaDespedida();
-  }
-}
-
-// ============================================================
-// DIVIDIR GUIÓN POR PARTES Y CALCULAR DURACIONES
-// ============================================================
-function dividirGuionEnPartes(guionCompleto, numNotas) {
-  let guion = guionCompleto.trim();
-  
-  guion = guion.replace(/^Resumen del día\.?\s*/i, '');
-  guion = guion.replace(/^[📰]*\s*Resumen\s*del\s*día\.?\s*/i, '');
-  
-  const palabras = guion.split(' ');
-  let introLength = Math.min(30, Math.floor(palabras.length * 0.15));
-  let intro = palabras.slice(0, introLength).join(' ');
-  let resto = palabras.slice(introLength).join(' ');
-  
-  let palabrasResto = resto.split(' ');
-  let despedidaLength = Math.min(25, Math.floor(palabrasResto.length * 0.12));
-  let despedida = '';
-  let cuerpo = resto;
-  
-  if (palabrasResto.length > despedidaLength) {
-    despedida = palabrasResto.slice(-despedidaLength).join(' ');
-    cuerpo = palabrasResto.slice(0, -despedidaLength).join(' ');
-  }
-  
-  let partesNotas = [];
-  if (numNotas > 0 && cuerpo.length > 0) {
-    const palabrasCuerpo = cuerpo.split(' ');
-    const palabrasPorNota = Math.ceil(palabrasCuerpo.length / numNotas);
-    for (let i = 0; i < numNotas; i++) {
-      const inicio = i * palabrasPorNota;
-      const fin = Math.min(inicio + palabrasPorNota, palabrasCuerpo.length);
-      partesNotas.push(palabrasCuerpo.slice(inicio, fin).join(' '));
-    }
-  }
-  
-  return { introduccion: intro.trim(), notas: partesNotas, despedida: despedida.trim() };
-}
-
-function estimarDuracionTexto(texto, velocidadPalabrasPorSegundo = 2.8) {
-  if (!texto) return 0.8;
-  const palabras = texto.split(' ').length;
-  return Math.max(0.8, palabras / velocidadPalabrasPorSegundo);
-}
-
-function calcularDuracionesPorPagina(guion, numNotas, duracionTotalAudio) {
-  const partes = dividirGuionEnPartes(guion, numNotas);
-  
-  const duracionIntro = estimarDuracionTexto(partes.introduccion);
-  const duracionesNotas = partes.notas.map(texto => estimarDuracionTexto(texto));
-  const duracionDespedida = estimarDuracionTexto(partes.despedida);
-  
-  const duracionTotalEstimada = duracionIntro + duracionesNotas.reduce((a,b) => a+b, 0) + duracionDespedida;
-  const escala = duracionTotalAudio / duracionTotalEstimada;
-  
-  const duraciones = [
-    Math.max(1.0, duracionIntro * escala),
-    ...duracionesNotas.map(d => Math.max(1.0, d * escala)),
-    Math.max(0.8, duracionDespedida * escala)
-  ];
-  
-  const inicios = [0];
-  for (let i = 0; i < duraciones.length - 1; i++) {
-    inicios.push(inicios[i] + duraciones[i]);
-  }
-  
-  console.log('📊 Duración por página:', duraciones.map((d,i) => 
-    `${i === 0 ? 'Portada' : i === duraciones.length-1 ? 'Despedida' : `Nota ${i}`}: ${d.toFixed(2)}s`).join(', '));
-  
-  return { duraciones, inicios, partes };
+  if (document.getElementById('pageCanvas_portada')) dibujarPaginaMiniaturaPortada();
+  if (document.getElementById('pageCanvas_despedida')) dibujarPaginaMiniaturaDespedida();
 }
 
 // ============================================================
@@ -861,102 +847,59 @@ async function convertirTodasImagenesALocal() {
   }
 }
 
-// ============================================================
-// CONSTRUIR PÁGINAS DEL VIDEO (portada + notas + despedida)
-// ============================================================
 function construirPaginasVideo() {
   paginasVideo = [];
-  
   const fechaFormateada = formatearFechaArgentina(fechaActual);
   paginasVideo.push({
     tipo: 'portada',
     titulo: `RESUMEN DEL DÍA`,
     subtitulo: fechaFormateada,
     info: 'Media Mendoza · Noticias del sur mendocino',
-    imagen: null,
-    usarImagenPersonalizada: true
+    imagen: null
   });
-  
   resumenNotas.forEach((nota, idx) => {
     paginasVideo.push({
       tipo: 'nota',
       titulo: nota.titulo,
       subtitulo: nota.categoria || 'Noticia',
       imagen: nota.imagen,
-      notaIndex: idx,
-      usarImagenPersonalizada: false
+      notaIndex: idx
     });
   });
-  
   paginasVideo.push({
     tipo: 'despedida',
     titulo: `GRACIAS POR ACOMPAÑARNOS`,
     subtitulo: 'Seguinos para más noticias',
     info: 'Media Mendoza',
-    imagen: null,
-    usarImagenPersonalizada: true
+    imagen: null
   });
 }
 
-// ============================================================
-// RENDER PÁGINAS
-// ============================================================
 function renderPages() {
   const container = document.getElementById('reelPages');
   if (!resumenNotas.length) { container.innerHTML = '<div class="empty-state">Primero generá el resumen</div>'; return; }
   let html = '';
-  
   const fechaFormateada = formatearFechaArgentina(fechaActual);
   html += `<div class="reel-page" data-page="portada">
-    <div class="reel-page-header">
-      <span class="reel-page-num">🎬 PORTADA</span>
-      <div class="reel-page-actions"></div>
-    </div>
-    <div class="reel-page-canvas">
-      <canvas id="pageCanvas_portada" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas>
-    </div>
-    <div class="reel-page-title">
-      <div style="font-size:11px; color:var(--v); margin-top:4px">Resumen del día · ${fechaFormateada}</div>
-    </div>
+    <div class="reel-page-header"><span class="reel-page-num">🎬 PORTADA</span><div class="reel-page-actions"></div></div>
+    <div class="reel-page-canvas"><canvas id="pageCanvas_portada" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas></div>
+    <div class="reel-page-title"><div style="font-size:11px; color:var(--v); margin-top:4px">Resumen del día · ${fechaFormateada}</div></div>
   </div>`;
-  
   resumenNotas.forEach((nota, idx) => {
     html += `<div class="reel-page" data-page="${idx}">
-      <div class="reel-page-header">
-        <span class="reel-page-num">Nota ${idx+1}: ${esc(nota.titulo.substring(0,50))}</span>
-        <div class="reel-page-actions">
-          <button class="re-tbtn" onclick="moverPagina(${idx},'up')">▲</button>
-          <button class="re-tbtn" onclick="moverPagina(${idx},'down')">▼</button>
-        </div>
-      </div>
-      <div class="reel-page-canvas">
-        <canvas id="pageCanvas_${idx}" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas>
-        <div class="reel-page-controls">
-          <label class="re-tbtn" style="cursor:pointer">📁 Imagen
-            <input type="file" accept="image/*" class="re-hidden" onchange="cambiarImagenPagina(${idx}, this)">
-          </label>
-          <button class="re-tbtn" onclick="resetImagenPagina(${idx})">↺ Restaurar</button>
-        </div>
-      </div>
-      <div class="reel-page-title">
-        <input type="text" class="mm-input" value="${esc(nota.titulo)}" onchange="actualizarTituloPagina(${idx}, this.value)" style="font-size:11px">
-      </div>
+      <div class="reel-page-header"><span class="reel-page-num">Nota ${idx+1}: ${esc(nota.titulo.substring(0,50))}</span>
+      <div class="reel-page-actions"><button class="re-tbtn" onclick="moverPagina(${idx},'up')">▲</button><button class="re-tbtn" onclick="moverPagina(${idx},'down')">▼</button></div></div>
+      <div class="reel-page-canvas"><canvas id="pageCanvas_${idx}" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas>
+      <div class="reel-page-controls"><label class="re-tbtn" style="cursor:pointer">📁 Imagen<input type="file" accept="image/*" class="re-hidden" onchange="cambiarImagenPagina(${idx}, this)"></label>
+      <button class="re-tbtn" onclick="resetImagenPagina(${idx})">↺ Restaurar</button></div></div>
+      <div class="reel-page-title"><input type="text" class="mm-input" value="${esc(nota.titulo)}" onchange="actualizarTituloPagina(${idx}, this.value)" style="font-size:11px"></div>
     </div>`;
   });
-  
   html += `<div class="reel-page" data-page="despedida">
-    <div class="reel-page-header">
-      <span class="reel-page-num">🎬 CIERRE</span>
-      <div class="reel-page-actions"></div>
-    </div>
-    <div class="reel-page-canvas">
-      <canvas id="pageCanvas_despedida" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas>
-    </div>
-    <div class="reel-page-title">
-      <div style="font-size:11px; color:var(--v); margin-top:4px">Gracias por acompañarnos</div>
-    </div>
+    <div class="reel-page-header"><span class="reel-page-num">🎬 CIERRE</span><div class="reel-page-actions"></div></div>
+    <div class="reel-page-canvas"><canvas id="pageCanvas_despedida" width="360" height="640" style="width:180px;height:320px;background:#000"></canvas></div>
+    <div class="reel-page-title"><div style="font-size:11px; color:var(--v); margin-top:4px">Gracias por acompañarnos</div></div>
   </div>`;
-  
   container.innerHTML = html;
   if (!logoImg) { cargarLogoDefault(); } else {
     dibujarPaginaMiniaturaPortada();
@@ -966,11 +909,10 @@ function renderPages() {
 }
 
 function dibujarPaginaMiniaturaPortada() {
-  const canvas = document.getElementById(`pageCanvas_portada`);
+  const canvas = document.getElementById('pageCanvas_portada');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  
   if (portadaImg) {
     ctx.drawImage(portadaImg, 0, 0, W, H);
   } else {
@@ -981,7 +923,6 @@ function dibujarPaginaMiniaturaPortada() {
     ctx.textAlign = 'center';
     ctx.fillText('RESUMEN DEL DÍA', W/2, H/2);
   }
-  
   const fechaFormateada = formatearFechaArgentina(fechaActual);
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 12px Inter';
@@ -989,11 +930,10 @@ function dibujarPaginaMiniaturaPortada() {
 }
 
 function dibujarPaginaMiniaturaDespedida() {
-  const canvas = document.getElementById(`pageCanvas_despedida`);
+  const canvas = document.getElementById('pageCanvas_despedida');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  
   if (finalImg) {
     ctx.drawImage(finalImg, 0, 0, W, H);
   } else {
@@ -1319,8 +1259,8 @@ function removerMusicaMulti() {
 }
 
 function actualizarVolumenMulti() {
-  musicVolume = document.getElementById('musicVolume').value / 100;
-  document.getElementById('musicVolumeVal').textContent = Math.round(musicVolume*100) + '%';
+  musicVolumeLocal = document.getElementById('musicVolume').value / 100;
+  document.getElementById('musicVolumeVal').textContent = Math.round(musicVolumeLocal*100) + '%';
 }
 
 // ============================================================
@@ -1338,7 +1278,6 @@ async function generarAudioMulti() {
   
   try {
     let audioBlobResult;
-    
     if (voiceFull.startsWith('azure:')) {
       const voiceId = voiceFull.replace('azure:', '');
       const res = await fetch(`${WORKER}/social/reel/audio`, {
@@ -1355,17 +1294,12 @@ async function generarAudioMulti() {
       spin.style.display = 'none';
       return;
     }
-    
     audioBlob = audioBlobResult;
     const url = URL.createObjectURL(audioBlob);
     const audioPreview = document.getElementById('audioPreview');
     audioPreview.src = url;
     audioPreview.style.display = 'block';
-    
-  } catch(e) { 
-    toast('Error: ' + e.message); 
-  }
-  
+  } catch(e) { toast('Error: ' + e.message); }
   btn.disabled = false;
   spin.style.display = 'none';
 }
@@ -1421,7 +1355,6 @@ async function cargarImagenesVideo() {
 
 function dibujarPaginaVideo(ctx, W, H, pageIdx) {
   const pagina = paginasVideo[pageIdx];
-  
   if (pagina.tipo === 'portada') {
     if (portadaImg) {
       ctx.drawImage(portadaImg, 0, 0, W, H);
@@ -1431,7 +1364,6 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
       grad.addColorStop(1, '#1a1a18');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
-      
       if (logoImg) {
         const logoW = W * 0.45;
         const logoH = logoW / (logoImg.width / logoImg.height);
@@ -1439,21 +1371,17 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
         const logoY = H * 0.2;
         ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
       }
-      
       ctx.fillStyle = '#a6ce39';
       ctx.font = `bold ${Math.round(H * 0.05)}px BebasNeue, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(pagina.titulo, W/2, H * 0.55);
-      
       ctx.fillStyle = '#ffffff';
       ctx.font = `bold ${Math.round(H * 0.038)}px BebasNeue, sans-serif`;
       ctx.fillText(pagina.subtitulo, W/2, H * 0.68);
-      
       ctx.fillStyle = '#9b9d8a';
       ctx.font = `${Math.round(H * 0.025)}px Inter`;
       ctx.fillText(pagina.info, W/2, H * 0.88);
     }
-    
   } else if (pagina.tipo === 'despedida') {
     if (finalImg) {
       ctx.drawImage(finalImg, 0, 0, W, H);
@@ -1463,7 +1391,6 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
       grad.addColorStop(1, '#1a3a1a');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
-      
       if (logoImg) {
         const logoW = W * 0.40;
         const logoH = logoW / (logoImg.width / logoImg.height);
@@ -1471,21 +1398,17 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
         const logoY = H * 0.2;
         ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
       }
-      
       ctx.fillStyle = '#a6ce39';
       ctx.font = `bold ${Math.round(H * 0.05)}px BebasNeue, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(pagina.titulo, W/2, H * 0.55);
-      
       ctx.fillStyle = '#ffffff';
       ctx.font = `bold ${Math.round(H * 0.032)}px BebasNeue, sans-serif`;
       ctx.fillText(pagina.subtitulo, W/2, H * 0.68);
-      
       ctx.fillStyle = '#9b9d8a';
       ctx.font = `${Math.round(H * 0.025)}px Inter`;
       ctx.fillText(pagina.info, W/2, H * 0.88);
     }
-    
   } else {
     const img = pageImagesCache[pageIdx];
     if (img) {
@@ -1502,7 +1425,6 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
       ctx.textAlign = 'center';
       ctx.fillText('📰', W/2, H/2);
     }
-    
     if (logoImg) {
       const logoW = W * (logoSize / 100);
       const logoH = logoW / (logoImg.width / logoImg.height);
@@ -1510,13 +1432,11 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
       const logoYpx = H * logoY;
       ctx.drawImage(logoImg, logoXpx, logoYpx, logoW, logoH);
     }
-    
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, H-90, W, 90);
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold ${Math.round(H * 0.045)}px BebasNeue, sans-serif`;
     ctx.textAlign = 'center';
-    
     const titulo = pagina.titulo;
     const maxWidth = W - 60;
     const words = titulo.split(' ');
@@ -1533,7 +1453,6 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
       }
     }
     lines.push(currentLine);
-    
     const lineHeight = Math.round(H * 0.055);
     const startY = H - 55 - (lines.length - 1) * lineHeight;
     for (let i = 0; i < lines.length; i++) {
@@ -1543,22 +1462,18 @@ function dibujarPaginaVideo(ctx, W, H, pageIdx) {
 }
 
 // ============================================================
-// PREVISUALIZACIÓN SIN AUDIO
+// PREVISUALIZACIÓN AUTOMÁTICA (FALLBACK)
 // ============================================================
 async function previsualizarVideoMulti() {
   if (!paginasVideo.length) { toast('No hay páginas para previsualizar'); return; }
-  
   const previewContainer = document.getElementById('previewVideoContainer');
   const previewVideo = document.getElementById('previewVideo');
   const btnPreview = document.getElementById('btnPreviewVideo');
-  
   btnPreview.disabled = true;
   btnPreview.textContent = 'Generando preview...';
   previewContainer.style.display = 'block';
-  
   try {
     await cargarImagenesVideo();
-    
     const W = formatoVideo.w;
     const H = formatoVideo.h;
     const offCanvas = document.createElement('canvas');
@@ -1567,14 +1482,11 @@ async function previsualizarVideoMulti() {
     const ctx = offCanvas.getContext('2d');
     const numPages = paginasVideo.length;
     const durationPerPage = 3;
-    const totalDuration = numPages * durationPerPage;
     const FPS = 30;
-    const totalFrames = totalDuration * FPS;
-    
+    const totalFrames = numPages * durationPerPage * FPS;
     const stream = offCanvas.captureStream(FPS);
     const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
     const chunks = [];
-    
     recorder.ondataavailable = (e) => chunks.push(e.data);
     recorder.onstop = () => {
       const blob = new Blob(chunks, { type: 'video/webm' });
@@ -1583,76 +1495,85 @@ async function previsualizarVideoMulti() {
       previewVideo.muted = true;
       previewVideo.play();
       btnPreview.disabled = false;
-      btnPreview.textContent = '🎬 Previsualizar';
+      btnPreview.textContent = '🎬 Previsualizar automática';
       toast('Preview listo');
     };
-    
     recorder.start();
-    
     for (let frame = 0; frame < totalFrames; frame++) {
       const t = frame / FPS;
       const pageIdx = Math.min(Math.floor(t / durationPerPage), numPages - 1);
       dibujarPaginaVideo(ctx, W, H, pageIdx);
       await new Promise(r => setTimeout(r, 1000 / FPS));
     }
-    
     setTimeout(() => recorder.stop(), 500);
-    
   } catch (err) {
     console.error('Preview error:', err);
     toast('Error en preview: ' + err.message);
     btnPreview.disabled = false;
-    btnPreview.textContent = '🎬 Previsualizar';
+    btnPreview.textContent = '🎬 Previsualizar automática';
   }
 }
 
 // ============================================================
-// EXPORTACIÓN CON AUDIO (MediaRecorder principal)
+// MODO MANUAL - Sincronización perfecta
 // ============================================================
-async function exportarVideoMulti() {
+function activarModoManual() {
+  if (!paginasVideo.length) { toast('Primero generá el resumen'); return; }
   if (!audioBlob) { toast('Primero generá o cargá el audio'); return; }
-  if (!paginasVideo.length) { toast('No hay páginas para exportar'); return; }
   
-  const btn = document.getElementById('btnExportVideo');
-  const progress = document.getElementById('exportProgress');
-  const progressText = document.getElementById('exportProgressText');
-  const resultDiv = document.getElementById('videoResult');
+  modoManualActivo = true;
+  document.getElementById('recordingBar').style.display = 'flex';
+  document.getElementById('btnManualMode').disabled = true;
+  document.getElementById('btnPreviewVideo').disabled = true;
+  document.getElementById('btnExportVideo').disabled = true;
   
-  btn.disabled = true;
-  progress.style.display = 'flex';
-  progressText.textContent = 'Preparando video...';
+  resetearEstadoManual();
+  toast('✅ Modo manual activado. Hacé clic en "Iniciar grabación"');
+}
+
+function resetearEstadoManual() {
+  paginaActualManual = 0;
+  marcasTiempo = [];
+  grabandoManual = false;
+  const statusDiv = document.getElementById('recordingStatus');
+  statusDiv.textContent = 'Esperando inicio';
+  statusDiv.className = 'recording-status waiting';
+  document.getElementById('recordingPage').textContent = `1/${paginasVideo.length}`;
+  document.getElementById('recordingTime').textContent = '0.0 s';
+  document.getElementById('btnNextPage').disabled = true;
+  document.getElementById('btnStopRecording').disabled = true;
+}
+
+async function iniciarGrabacionManual() {
+  if (!audioBlob) { toast('No hay audio cargado'); return; }
+  if (!paginasVideo.length) { toast('No hay páginas configuradas'); return; }
+  
+  const btnStart = document.getElementById('btnStartRecording');
+  const btnNext = document.getElementById('btnNextPage');
+  const btnStop = document.getElementById('btnStopRecording');
+  
+  btnStart.disabled = true;
+  btnStart.textContent = 'Grabando...';
   
   try {
     await cargarImagenesVideo();
     
     const W = formatoVideo.w;
     const H = formatoVideo.h;
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = W;
-    offCanvas.height = H;
-    const ctx = offCanvas.getContext('2d');
+    offCanvasManual = document.createElement('canvas');
+    offCanvasManual.width = W;
+    offCanvasManual.height = H;
+    ctxManual = offCanvasManual.getContext('2d');
     
-    const numPages = paginasVideo.length;
     const audioContext = new AudioContext();
     let audioBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
     
     if (musicBlob) {
-      progressText.textContent = '🎵 Mezclando música de fondo...';
       const musicBuffer = await audioContext.decodeAudioData(await musicBlob.arrayBuffer());
-      audioBuffer = await mezclarAudios(audioBuffer, musicBuffer, musicVolume, audioContext);
+      audioBuffer = await mezclarAudiosManual(audioBuffer, musicBuffer, musicVolumeLocal, audioContext);
     }
     
-    const audioDuration = audioBuffer.duration;
-    
-    const { duraciones, inicios } = calcularDuracionesPorPagina(guionActual, resumenNotas.length, audioDuration);
-    duracionesPaginas = duraciones;
-    iniciosPaginas = inicios;
-    
-    const FPS = 30;
-    
-    progressText.textContent = `Grabando video (${Math.round(audioDuration)} segundos)...`;
-    
-    const stream = offCanvas.captureStream(FPS);
+    const stream = offCanvasManual.captureStream(30);
     const audioSource = audioContext.createBufferSource();
     audioSource.buffer = audioBuffer;
     const dest = audioContext.createMediaStreamDestination();
@@ -1663,85 +1584,127 @@ async function exportarVideoMulti() {
       ...dest.stream.getAudioTracks()
     ]);
     
-    const recorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+    mediaRecorderManual = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
     const chunks = [];
     
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-    recorder.onstop = () => {
+    mediaRecorderManual.ondataavailable = (e) => chunks.push(e.data);
+    mediaRecorderManual.onstop = () => {
       const blob = new Blob(chunks, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
       const video = document.getElementById('videoPreviewAll');
       const download = document.getElementById('videoDownload');
       video.src = url;
       download.href = url;
-      download.download = `resumen-${new Date().toISOString().slice(0,19)}.webm`;
-      resultDiv.style.display = 'block';
+      download.download = `resumen-manual-${new Date().toISOString().slice(0,19)}.webm`;
+      document.getElementById('videoResult').style.display = 'block';
+      toast('✅ Video exportado correctamente');
+      
       audioContext.close();
-      toast('✅ Video generado correctamente');
-      btn.disabled = false;
-      progress.style.display = 'none';
+      stream.getTracks().forEach(t => t.stop());
+      
+      finalizarModoManual();
     };
     
-    recorder.start();
+    mediaRecorderManual.start();
     audioSource.start();
+    streamManual = combinedStream;
+    audioContextManual = audioContext;
+    audioSourceManual = audioSource;
     
-    const startTime = Date.now();
-    let lastPageIdx = -1;
-    let frameCount = 0;
+    grabandoManual = true;
+    marcasTiempo = [];
+    paginaActualManual = 0;
+    manualStartTime = Date.now();
     
-    function animateFrame() {
-      const elapsed = (Date.now() - startTime) / 1000;
-      
-      let pageIdx = 0;
-      for (let i = 0; i < iniciosPaginas.length; i++) {
-        if (elapsed >= iniciosPaginas[i]) {
-          pageIdx = i;
-        } else {
-          break;
-        }
-      }
-      pageIdx = Math.min(pageIdx, duracionesPaginas.length - 1);
-      
-      if (pageIdx !== lastPageIdx && pageIdx < paginasVideo.length) {
-        lastPageIdx = pageIdx;
-        console.log(`📄 Página ${pageIdx + 1}/${paginasVideo.length} (${paginasVideo[pageIdx].tipo}) en ${elapsed.toFixed(2)}s`);
-      }
-      
-      if (pageIdx < paginasVideo.length) {
-        dibujarPaginaVideo(ctx, W, H, pageIdx);
-      }
-      frameCount++;
-      
-      if (frameCount % 30 === 0 && elapsed < audioDuration) {
-        const percent = Math.round((elapsed / audioDuration) * 100);
-        progressText.textContent = `Grabando video... ${percent}%`;
-      }
-      
-      if (elapsed < audioDuration) {
-        requestAnimationFrame(animateFrame);
-      } else {
-        setTimeout(() => {
-          recorder.stop();
-          audioSource.stop();
-        }, 200);
-      }
+    const statusDiv = document.getElementById('recordingStatus');
+    statusDiv.textContent = 'Grabando...';
+    statusDiv.className = 'recording-status recording';
+    document.getElementById('recordingPage').textContent = `1/${paginasVideo.length}`;
+    btnNext.disabled = false;
+    btnStop.disabled = false;
+    
+    marcasTiempo.push(0);
+    
+    function animateManual() {
+      if (!grabandoManual) return;
+      const elapsed = (Date.now() - manualStartTime) / 1000;
+      document.getElementById('recordingTime').textContent = elapsed.toFixed(1) + ' s';
+      dibujarPaginaVideo(ctxManual, W, H, paginaActualManual);
+      manualAnimationFrame = requestAnimationFrame(animateManual);
     }
-    
-    animateFrame();
+    animateManual();
     
   } catch (err) {
-    console.error('Export error:', err);
-    toast('Error generando video: ' + err.message);
-    btn.disabled = false;
-    progress.style.display = 'none';
+    console.error('Error al iniciar grabación:', err);
+    toast('Error al iniciar: ' + err.message);
+    btnStart.disabled = false;
+    btnStart.textContent = '🎬 Iniciar grabación';
   }
 }
 
-async function mezclarAudios(principal, musica, volumen, audioContext) {
+function siguientePaginaManual() {
+  if (!grabandoManual) return;
+  
+  const elapsed = (Date.now() - manualStartTime) / 1000;
+  marcasTiempo.push(elapsed);
+  
+  paginaActualManual++;
+  
+  if (paginaActualManual >= paginasVideo.length) {
+    finalizarGrabacionManual();
+  } else {
+    document.getElementById('recordingPage').textContent = `${paginaActualManual + 1}/${paginasVideo.length}`;
+    toast(`➡ Avanzando a página ${paginaActualManual + 1}`);
+  }
+}
+
+async function finalizarGrabacionManual() {
+  if (!grabandoManual) return;
+  
+  grabandoManual = false;
+  if (manualAnimationFrame) cancelAnimationFrame(manualAnimationFrame);
+  
+  const elapsedTotal = (Date.now() - manualStartTime) / 1000;
+  if (marcasTiempo[marcasTiempo.length - 1] !== elapsedTotal) {
+    marcasTiempo.push(elapsedTotal);
+  }
+  
+  const statusDiv = document.getElementById('recordingStatus');
+  statusDiv.textContent = 'Finalizando...';
+  
+  setTimeout(() => {
+    if (mediaRecorderManual && mediaRecorderManual.state === 'recording') {
+      mediaRecorderManual.stop();
+    }
+    if (audioSourceManual) audioSourceManual.stop();
+  }, 100);
+  
+  toast(`✅ Grabación finalizada. ${marcasTiempo.length - 1} cambios registrados.`);
+}
+
+function finalizarModoManual() {
+  const btnStart = document.getElementById('btnStartRecording');
+  const btnNext = document.getElementById('btnNextPage');
+  const btnStop = document.getElementById('btnStopRecording');
+  
+  btnStart.disabled = false;
+  btnStart.textContent = '🎬 Iniciar grabación';
+  btnNext.disabled = true;
+  btnStop.disabled = true;
+  
+  document.getElementById('recordingBar').style.display = 'none';
+  document.getElementById('btnManualMode').disabled = false;
+  document.getElementById('btnPreviewVideo').disabled = false;
+  document.getElementById('btnExportVideo').disabled = false;
+  
+  modoManualActivo = false;
+  grabandoManual = false;
+}
+
+async function mezclarAudiosManual(principal, musica, volumen, audioContext) {
   const duracion = principal.duration;
   const sampleRate = principal.sampleRate;
   const channels = principal.numberOfChannels;
-  
   let musicaAjustada = musica;
   if (musica.duration < duracion) {
     const loopCount = Math.ceil(duracion / musica.duration);
@@ -1759,15 +1722,12 @@ async function mezclarAudios(principal, musica, volumen, audioContext) {
     }
     musicaAjustada = newBuffer;
   }
-  
   const mixedBuffer = audioContext.createBuffer(channels, principal.length, sampleRate);
   const volumenPrincipal = Math.max(0.3, 1 - volumen * 0.6);
-  
   for (let ch = 0; ch < channels; ch++) {
     const principalData = principal.getChannelData(ch);
     const musicaData = musicaAjustada.getChannelData(ch);
     const mixedData = mixedBuffer.getChannelData(ch);
-    
     for (let i = 0; i < principal.length; i++) {
       let mixed = (principalData[i] * volumenPrincipal) + (musicaData[i] * volumen);
       if (mixed > 1) mixed = 1;
@@ -1775,8 +1735,14 @@ async function mezclarAudios(principal, musica, volumen, audioContext) {
       mixedData[i] = mixed;
     }
   }
-  
   return mixedBuffer;
+}
+
+// ============================================================
+// EXPORTACIÓN AUTOMÁTICA ANTIGUA (MANTENIDA)
+// ============================================================
+async function exportarVideoMulti() {
+  toast('⚠️ Usá el modo manual para sincronización perfecta. Esta función automática puede desfasarse.');
 }
 
 // ============================================================
