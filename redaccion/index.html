@@ -130,6 +130,155 @@
 </style>
 </head>
 <body>
+  <!-- ============================================================ -->
+<!-- PROTECCIÓN CON CONTRASEÑA (copiar este bloque completo) -->
+<!-- ============================================================ -->
+<style>
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+.login-modal {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.3s ease;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.login-logo { margin-bottom: 24px; }
+.login-logo img { height: 48px; width: auto; }
+body.dark-theme .login-logo img { filter: brightness(0) invert(1); opacity: 0.9; }
+.login-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.login-sub {
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 24px;
+}
+.login-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  color: var(--white);
+  font-size: 14px;
+  margin-bottom: 20px;
+  outline: none;
+}
+.login-input:focus { border-color: var(--v); }
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--v);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.login-btn:hover { opacity: 0.85; }
+.login-error {
+  font-size: 11px;
+  color: var(--red);
+  margin-top: 12px;
+  display: none;
+}
+.login-error.show { display: block; }
+.content-protected { display: none; }
+.content-protected.show { display: block; }
+</style>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-modal">
+    <div class="login-logo">
+      <img src="../assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'">
+    </div>
+    <div class="login-title">Acceso restringido</div>
+    <div class="login-sub">Ingresá la contraseña para continuar</div>
+    <input type="password" id="passwordInput" class="login-input" placeholder="Contraseña" autofocus>
+    <button class="login-btn" onclick="verificarPassword()">Ingresar</button>
+    <div class="login-error" id="loginError">Contraseña incorrecta</div>
+  </div>
+</div>
+
+<div class="content-protected" id="protectedContent">
+
+<script>
+const PROTECT_PASSWORD = "tomyjerry2008";
+
+function verificarPassword() {
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('loginError');
+  const password = input.value.trim();
+  
+  if (password === PROTECT_PASSWORD) {
+    const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
+    localStorage.setItem('mm_auth', JSON.stringify({ autenticado: true, expires: expiry }));
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('protectedContent').classList.add('show');
+    input.value = '';
+    error.classList.remove('show');
+  } else {
+    error.classList.add('show');
+    input.value = '';
+    input.focus();
+  }
+}
+
+function verificarSesion() {
+  const authData = localStorage.getItem('mm_auth');
+  if (authData) {
+    try {
+      const { autenticado, expires } = JSON.parse(authData);
+      if (autenticado && expires && Date.now() < expires) {
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('protectedContent').classList.add('show');
+        return true;
+      } else {
+        localStorage.removeItem('mm_auth');
+      }
+    } catch(e) { localStorage.removeItem('mm_auth'); }
+  }
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('protectedContent').classList.remove('show');
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  verificarSesion();
+  document.getElementById('passwordInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') verificarPassword();
+  });
+});
+</script>
+<!-- FIN DEL BLOQUE DE PROTECCIÓN -->
 
 <header class="mm-header">
   <a href="/" class="mm-header-brand">
