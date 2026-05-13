@@ -531,7 +531,270 @@
 @media (max-width: 700px) {
   .expbar { z-index: 200; }
 }
-  </style>
+/* ============================================================
+   FORZAR ESTILOS DENTRO DEL PANEL MÓVIL
+   ============================================================ */
+
+/* Asegurar que los elementos dentro del panel móvil tomen los estilos globales */
+.mob-panel .mm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.mob-panel .mm-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  display: block;
+  margin-bottom: 0;
+}
+
+.mob-panel .mm-input,
+.mob-panel .mm-textarea,
+.mob-panel .mm-select {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--line2);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+  border-radius: var(--radius);
+  box-sizing: border-box;
+}
+
+.mob-panel .mm-input:focus,
+.mob-panel .mm-textarea:focus,
+.mob-panel .mm-select:focus {
+  border-color: var(--v);
+}
+
+.mob-panel .mm-textarea {
+  resize: vertical;
+  min-height: 70px;
+  line-height: 1.5;
+}
+
+.mob-panel .mm-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+body.dark-theme .mob-panel .mm-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239b9d8a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.mob-panel .urlrow {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.mob-panel .urlbtn {
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  background: var(--v);
+  color: var(--bg);
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mob-panel .urlbtn:hover {
+  background: var(--vo);
+}
+
+.mob-panel .uplbl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px dashed var(--line2);
+  border-radius: var(--radius);
+  padding: 10px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 8px;
+  width: 100%;
+  background: var(--surface);
+}
+
+.mob-panel .uplbl:hover {
+  border-color: var(--v);
+  color: var(--v);
+}
+
+.mob-panel .tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.mob-panel .tpl-btn {
+  background: var(--surface);
+  border: 1.5px solid var(--line2);
+  border-radius: var(--radius);
+  padding: 6px 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mob-panel .tpl-btn.on {
+  border-color: var(--v);
+  background: var(--v-dim);
+}
+
+.mob-panel .tpl-prev {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  display: block;
+  background: var(--bg2);
+}
+
+.mob-panel .tpl-name {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+
+.mob-panel .align-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+}
+
+.mob-panel .align-bar button {
+  flex: 1;
+  min-width: 32px;
+  padding: 6px 4px;
+  font-size: 0.75rem;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.12s;
+}
+
+.mob-panel .align-bar button:hover {
+  border-color: var(--v);
+  color: var(--v);
+}
+
+.mob-panel .el-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 6px;
+  align-items: center;
+}
+
+.mob-panel .el-actions span {
+  font-size: 0.75rem;
+  color: var(--dim);
+  flex: 1;
+}
+
+.mob-panel .btn-reset {
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  background: none;
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.mob-panel .btn-reset:hover {
+  border-color: var(--v);
+  color: var(--v);
+}
+
+.mob-panel .swatches {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.mob-panel .sw {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+
+.mob-panel .sw:hover,
+.mob-panel .sw.on {
+  border-color: var(--white);
+  transform: scale(1.15);
+}
+
+.mob-panel .sw-transp {
+  background: linear-gradient(135deg, #fff 45%, #f00 45%, #f00 55%, #fff 55%);
+  border: 1.5px solid var(--line2) !important;
+}
+
+.mob-panel .rrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.mob-panel .rrow input[type="range"] {
+  flex: 1;
+  accent-color: var(--v);
+  height: 4px;
+  cursor: pointer;
+}
+
+.mob-panel .rval {
+  font-size: 11px;
+  color: var(--v);
+  font-weight: 700;
+  min-width: 40px;
+  text-align: right;
+}
+
+.mob-panel input[type="color"] {
+  width: 36px;
+  height: 32px;
+  border: 1.5px solid var(--line2);
+  border-radius: 6px;
+  padding: 2px;
+  cursor: pointer;
+  background: var(--surface);
+}
+</style>
 </head>
 <body>
 
