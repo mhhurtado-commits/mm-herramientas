@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <title>Editor de Placas — Media Mendoza</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../style.css">
@@ -64,7 +64,6 @@
     }
     @keyframes sp { to { transform: rotate(360deg); } }
 
-    /* Accordion específico */
     .acc-item { border-bottom: 1px solid var(--line); }
     .acc-head {
       display: flex;
@@ -115,16 +114,9 @@
       margin-right: 2px;
     }
 
-    /* Formato pills (solo desktop) */
-    .fmt-pills {
-      display: flex;
-      gap: 4px;
-      margin-left: auto;
-      flex-shrink: 0;
-    }
+    .fmt-pills { display: flex; gap: 4px; margin-left: auto; flex-shrink: 0; }
     @media (max-width: 700px) { .fmt-pills { display: none; } }
 
-    /* Modos especiales */
     .mode-bar {
       display: flex;
       gap: 5px;
@@ -149,7 +141,6 @@
     .special-only { display: none; }
     .mode-section { margin-top: 8px; }
 
-    /* Template grid */
     .tpl-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -182,7 +173,6 @@
       color: var(--muted);
     }
 
-    /* Align bar */
     .align-bar {
       display: flex;
       gap: 4px;
@@ -220,7 +210,6 @@
     }
     .btn-reset:hover { border-color: var(--v); color: var(--v); }
 
-    /* Swatches */
     .swatches {
       display: flex;
       align-items: center;
@@ -243,7 +232,6 @@
       border: 1.5px solid var(--line2) !important;
     }
 
-    /* Toggle */
     .togrow {
       display: flex;
       align-items: center;
@@ -285,7 +273,6 @@
     .toggle input:checked + .togslide { background: var(--v); }
     .toggle input:checked + .togslide::before { transform: translateX(16px); }
 
-    /* Upload label */
     .uplbl {
       display: flex;
       align-items: center;
@@ -338,7 +325,6 @@
     }
     .collage-slot:hover { border-color: var(--v); }
 
-    /* Export bar */
     .expbar {
       position: fixed;
       bottom: 0;
@@ -364,22 +350,24 @@
     @media (min-width: 701px) { .exp-lbl { display: block; } }
 
     /* ============================================================
-       ESTILOS MÓVIL - PESTAÑAS FLOTANTES
+       ESTILOS MÓVIL DEFINITIVOS (pestañas siempre visibles abajo)
        ============================================================ */
     @media (max-width: 700px) {
       .placas-sidebar { display: none; }
       .placas-layout { padding-bottom: var(--footer-h); }
+      
       .placas-canvas-area {
         position: fixed;
         top: var(--header-h);
         left: 0;
         right: 0;
-        bottom: var(--footer-h);
+        bottom: 56px;
         padding: 8px;
         transition: bottom 0.26s ease;
       }
+      
       .placas-canvas-area.panel-open {
-        bottom: calc(var(--footer-h) + 56px);
+        bottom: calc(56px + 50vh);
       }
       
       .mob-tabbar {
@@ -409,17 +397,12 @@
         cursor: pointer;
         font-family: var(--font-body);
         transition: all 0.15s;
-        padding: 4px 8px;
+        padding: 4px 6px;
         border-radius: var(--radius);
       }
       
-      .mob-tab .ti {
-        font-size: 18px;
-      }
-      
-      .mob-tab.on {
-        color: var(--v);
-      }
+      .mob-tab .ti { font-size: 18px; }
+      .mob-tab.on { color: var(--v); }
       
       .mob-panel {
         position: fixed;
@@ -438,14 +421,8 @@
         box-shadow: var(--shadow-lg);
       }
       
-      .mob-panel.open {
-        transform: translateY(0);
-      }
-      
-      .mob-panel.closing {
-        transform: translateY(100%);
-      }
-      
+      .mob-panel.open { transform: translateY(0); }
+      .mob-panel.closing { transform: translateY(100%); }
       .mob-panel-inner {
         display: flex;
         flex-direction: column;
@@ -472,7 +449,7 @@
 
 <div class="placas-layout">
 
-  <!-- SIDEBAR (completo) -->
+  <!-- SIDEBAR COMPLETO (original) -->
   <aside class="placas-sidebar">
 
     <!-- MODO DE PLACA -->
@@ -674,15 +651,15 @@
       <div class="acc-body">
         <div class="el-actions">
           <span>Posición del título</span>
-          <button class="btn-reset" onclick="resetElPos('title')" title="Restablecer posición">↺ Reset</button>
+          <button class="btn-reset" onclick="resetElPos('title')">↺ Reset</button>
         </div>
         <div class="align-bar">
-          <button onclick="alignEl('title','l')"  title="Izquierda">⇤</button>
-          <button onclick="alignEl('title','ch')" title="Centrar horizontal">↔</button>
-          <button onclick="alignEl('title','r')"  title="Derecha">⇥</button>
-          <button onclick="alignEl('title','t')"  title="Arriba">⇡</button>
-          <button onclick="alignEl('title','cv')" title="Centrar vertical">↕</button>
-          <button onclick="alignEl('title','b')"  title="Abajo">⇣</button>
+          <button onclick="alignEl('title','l')">⇤</button>
+          <button onclick="alignEl('title','ch')">↔</button>
+          <button onclick="alignEl('title','r')">⇥</button>
+          <button onclick="alignEl('title','t')">⇡</button>
+          <button onclick="alignEl('title','cv')">↕</button>
+          <button onclick="alignEl('title','b')">⇣</button>
         </div>
         <div class="mm-field" style="margin-top:4px">
           <label class="mm-label">Color de texto</label>
@@ -697,7 +674,7 @@
         <div class="mm-field">
           <label class="mm-label">Fondo del recuadro</label>
           <div class="swatches">
-            <input type="color" id="tBg" value="#000000" class="mm-input" style="width:32px;height:28px;padding:2px;" oninput="S.tBg=this.value;render()">
+            <input type="color" id="tBg" value="#000000" class="mm-input" oninput="S.tBg=this.value;render()">
             <div class="sw on" style="background:#000" onclick="setSw('tBg','#000000',this)"></div>
             <div class="sw" style="background:#a6ce39" onclick="setSw('tBg','#a6ce39',this)"></div>
             <div class="sw" style="background:#8fb82d" onclick="setSw('tBg','#8fb82d',this)"></div>
@@ -708,7 +685,7 @@
           <label class="mm-label">Opacidad del fondo <span class="mm-range-label" id="rv-tBgOp">80%</span></label>
           <input type="range" id="r-tBgOp" min="0" max="100" value="80" class="mm-range" oninput="updR('tBgOp',this)">
         </div>
-        <div class="togrow" style="margin-top:8px">
+        <div class="togrow">
           <span style="font-size:0.8rem;color:var(--muted)">Sombra en texto</span>
           <label class="toggle"><input type="checkbox" id="tShadow" onchange="S.tShadow=this.checked;snapShot();render()"><span class="togslide"></span></label>
         </div>
@@ -724,20 +701,20 @@
       <div class="acc-body">
         <div class="el-actions">
           <span>Posición de la categoría</span>
-          <button class="btn-reset" onclick="resetElPos('cat')" title="Restablecer posición">↺ Reset</button>
+          <button class="btn-reset" onclick="resetElPos('cat')">↺ Reset</button>
         </div>
         <div class="align-bar">
-          <button onclick="alignEl('cat','l')"  title="Izquierda">⇤</button>
-          <button onclick="alignEl('cat','ch')" title="Centrar horizontal">↔</button>
-          <button onclick="alignEl('cat','r')"  title="Derecha">⇥</button>
-          <button onclick="alignEl('cat','t')"  title="Arriba">⇡</button>
-          <button onclick="alignEl('cat','cv')" title="Centrar vertical">↕</button>
-          <button onclick="alignEl('cat','b')"  title="Abajo">⇣</button>
+          <button onclick="alignEl('cat','l')">⇤</button>
+          <button onclick="alignEl('cat','ch')">↔</button>
+          <button onclick="alignEl('cat','r')">⇥</button>
+          <button onclick="alignEl('cat','t')">⇡</button>
+          <button onclick="alignEl('cat','cv')">↕</button>
+          <button onclick="alignEl('cat','b')">⇣</button>
         </div>
         <div class="mm-field" style="margin-top:4px">
           <label class="mm-label">Color de texto</label>
           <div class="swatches">
-            <input type="color" id="cCol" value="#111111" class="mm-input" style="width:32px;height:28px;padding:2px;" oninput="S.cCol=this.value;render()">
+            <input type="color" id="cCol" value="#111111" class="mm-input" oninput="S.cCol=this.value;render()">
             <div class="sw" style="background:#111" onclick="setSw('cCol','#111111',this)"></div>
             <div class="sw on" style="background:#fff;border-color:#ccc" onclick="setSw('cCol','#ffffff',this)"></div>
             <div class="sw" style="background:#a6ce39" onclick="setSw('cCol','#a6ce39',this)"></div>
@@ -746,7 +723,7 @@
         <div class="mm-field">
           <label class="mm-label">Color de fondo</label>
           <div class="swatches">
-            <input type="color" id="cBg" value="#a6ce39" class="mm-input" style="width:32px;height:28px;padding:2px;" oninput="S.cBg=this.value;render()">
+            <input type="color" id="cBg" value="#a6ce39" class="mm-input" oninput="S.cBg=this.value;render()">
             <div class="sw" style="background:#a6ce39" onclick="setSw('cBg','#a6ce39',this)"></div>
             <div class="sw" style="background:#8fb82d" onclick="setSw('cBg','#8fb82d',this)"></div>
             <div class="sw" style="background:#fff;border-color:#ccc" onclick="setSw('cBg','#ffffff',this)"></div>
@@ -757,7 +734,7 @@
           <label class="mm-label">Opacidad del fondo <span class="mm-range-label" id="rv-cBgOp">0%</span></label>
           <input type="range" id="r-cBgOp" min="0" max="100" value="0" class="mm-range" oninput="updR('cBgOp',this)">
         </div>
-        <div class="togrow" style="margin-top:8px">
+        <div class="togrow">
           <span style="font-size:0.8rem;color:var(--muted)">Sombra en texto</span>
           <label class="toggle"><input type="checkbox" id="cShadow" onchange="S.cShadow=this.checked;snapShot();render()"><span class="togslide"></span></label>
         </div>
@@ -778,7 +755,7 @@
         <div class="mm-field">
           <label class="mm-label">Color</label>
           <div class="swatches">
-            <input type="color" id="ovCol" value="#000000" class="mm-input" style="width:32px;height:28px;padding:2px;" oninput="S.ovCol=this.value;render()">
+            <input type="color" id="ovCol" value="#000000" class="mm-input" oninput="S.ovCol=this.value;render()">
             <div class="sw on" style="background:#000" onclick="setSw('ovCol','#000000',this)"></div>
             <div class="sw" style="background:#1a1a1a" onclick="setSw('ovCol','#1a1a1a',this)"></div>
             <div class="sw" style="background:#a6ce39" onclick="setSw('ovCol','#a6ce39',this)"></div>
@@ -801,15 +778,15 @@
       <div class="acc-body">
         <div class="el-actions">
           <span>Posición del logo</span>
-          <button class="btn-reset" onclick="resetElPos('logo')" title="Restablecer posición">↺ Reset</button>
+          <button class="btn-reset" onclick="resetElPos('logo')">↺ Reset</button>
         </div>
         <div class="align-bar">
-          <button onclick="alignEl('logo','l')"  title="Izquierda">⇤</button>
-          <button onclick="alignEl('logo','ch')" title="Centrar horizontal">↔</button>
-          <button onclick="alignEl('logo','r')"  title="Derecha">⇥</button>
-          <button onclick="alignEl('logo','t')"  title="Arriba">⇡</button>
-          <button onclick="alignEl('logo','cv')" title="Centrar vertical">↕</button>
-          <button onclick="alignEl('logo','b')"  title="Abajo">⇣</button>
+          <button onclick="alignEl('logo','l')">⇤</button>
+          <button onclick="alignEl('logo','ch')">↔</button>
+          <button onclick="alignEl('logo','r')">⇥</button>
+          <button onclick="alignEl('logo','t')">⇡</button>
+          <button onclick="alignEl('logo','cv')">↕</button>
+          <button onclick="alignEl('logo','b')">⇣</button>
         </div>
         <label class="uplbl" for="logoUp">📁 Cambiar logo</label>
         <input type="file" id="logoUp" accept="image/*" style="display:none" onchange="loadLogo(event)">
@@ -822,18 +799,18 @@
 
   </aside>
 
-  <!-- TAB BAR mobile -->
+  <!-- BARRA DE PESTAÑAS MÓVIL (SIEMPRE VISIBLE EN VERTICAL) -->
   <nav class="mob-tabbar" id="mobTabbar">
-    <button class="mob-tab" data-key="noticia" onclick="mobTab('noticia',this)"><span class="ti">📰</span>Noticia</button>
-    <button class="mob-tab" data-key="plantilla" onclick="mobTab('plantilla',this)"><span class="ti">🎨</span>Plantilla</button>
-    <button class="mob-tab" data-key="imagen" onclick="mobTab('imagen',this)"><span class="ti">🖼</span>Imagen</button>
-    <button class="mob-tab" data-key="titulo" onclick="mobTab('titulo',this)"><span class="ti">✏️</span>Título</button>
-    <button class="mob-tab" data-key="categoria" onclick="mobTab('categoria',this)"><span class="ti">🏷</span>Categoría</button>
-    <button class="mob-tab" data-key="capa" onclick="mobTab('capa',this)"><span class="ti">🌈</span>Capa</button>
-    <button class="mob-tab" data-key="logo" onclick="mobTab('logo',this)"><span class="ti">⭐</span>Logo</button>
+    <button class="mob-tab" data-key="noticia" onclick="window.mobTab('noticia',this)"><span class="ti">📰</span>Noticia</button>
+    <button class="mob-tab" data-key="plantilla" onclick="window.mobTab('plantilla',this)"><span class="ti">🎨</span>Plantilla</button>
+    <button class="mob-tab" data-key="imagen" onclick="window.mobTab('imagen',this)"><span class="ti">🖼</span>Imagen</button>
+    <button class="mob-tab" data-key="titulo" onclick="window.mobTab('titulo',this)"><span class="ti">✏️</span>Título</button>
+    <button class="mob-tab" data-key="categoria" onclick="window.mobTab('categoria',this)"><span class="ti">🏷</span>Categoría</button>
+    <button class="mob-tab" data-key="capa" onclick="window.mobTab('capa',this)"><span class="ti">🌈</span>Capa</button>
+    <button class="mob-tab" data-key="logo" onclick="window.mobTab('logo',this)"><span class="ti">⭐</span>Logo</button>
   </nav>
 
-  <!-- PANEL mobile -->
+  <!-- PANEL MÓVIL (SE ABRE AL TOCAR UNA PESTAÑA) -->
   <div class="mob-panel" id="mobPanel">
     <div class="mob-panel-inner" id="mobPanelInner"></div>
   </div>
@@ -848,7 +825,6 @@
 
 </div>
 
-<!-- EXPORT BAR -->
 <footer class="expbar">
   <span class="exp-lbl" id="fmtLbl">Instagram Cuadrado — 1080×1080</span>
   <button class="mm-btn" onclick="clearAll()" style="background:var(--v);color:var(--bg)">🗑 Limpiar</button>
@@ -856,16 +832,10 @@
   <button class="mm-btn mm-btn-primary" onclick="exportImg('download')">⬇ Descargar</button>
 </footer>
 
-<!-- TOGGLES Y MODALES -->
 <div class="mm-toast" id="toast"></div>
+<div class="theme-toggle" id="themeToggle"><span class="icon" id="themeIcon">🌙</span><span id="themeLabel">Modo oscuro</span></div>
 
-<!-- TOGGLE CLARO/OSCURO -->
-<div class="theme-toggle" id="themeToggle">
-  <span class="icon" id="themeIcon">🌙</span>
-  <span id="themeLabel">Modo oscuro</span>
-</div>
-
-<!-- Inputs hidden -->
+<!-- Inputs ocultos -->
 <input type="file" id="coll0" accept="image/*" style="display:none" onchange="loadCollageImg(event,0)">
 <input type="file" id="coll1" accept="image/*" style="display:none" onchange="loadCollageImg(event,1)">
 <input type="file" id="coll2" accept="image/*" style="display:none" onchange="loadCollageImg(event,2)">
@@ -878,7 +848,52 @@
 
 <script src="app.js"></script>
 <script>
-  // Toggle claro/oscuro
+  // Variables globales para el panel móvil (compatibles con app.js)
+  window._activeTab = window._activeTab || 'noticia';
+  window._panelOpen = window._panelOpen || false;
+  
+  window.mobTab = function(key, tabEl) {
+    const panel = document.getElementById('mobPanel');
+    const canvasArea = document.getElementById('canvasArea');
+    if (window._activeTab === key && window._panelOpen) {
+      // Cerrar panel
+      panel.classList.add('closing');
+      canvasArea.classList.remove('panel-open');
+      document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('on'));
+      window._panelOpen = false;
+      setTimeout(() => {
+        panel.classList.remove('open');
+        panel.classList.remove('closing');
+        if (typeof window.resizeCanvas === 'function') window.resizeCanvas(true);
+        if (typeof window.render === 'function') window.render();
+      }, 260);
+      return;
+    }
+    // Abrir panel
+    window._activeTab = key;
+    window._panelOpen = true;
+    document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('on'));
+    if (tabEl) tabEl.classList.add('on');
+    if (typeof window.renderMobPanel === 'function') {
+      window.renderMobPanel();
+    } else {
+      const inner = document.getElementById('mobPanelInner');
+      if (inner) inner.innerHTML = '<div style="padding:20px;text-align:center">Cargando opciones...</div>';
+    }
+    panel.classList.remove('closing');
+    panel.classList.add('open');
+    canvasArea.classList.add('panel-open');
+    setTimeout(() => {
+      if (typeof window.resizeCanvas === 'function') window.resizeCanvas(true);
+      if (typeof window.render === 'function') window.render();
+    }, 280);
+    setTimeout(() => {
+      if (typeof window.resizeCanvas === 'function') window.resizeCanvas(true);
+      if (typeof window.render === 'function') window.render();
+    }, 350);
+  };
+  
+  // Tema claro/oscuro
   function setTheme(theme) {
     const body = document.body;
     if (theme === 'dark') {
@@ -892,19 +907,9 @@
     }
     localStorage.setItem('mm-theme', theme);
   }
-
-  function toggleTheme() {
-    const isDark = document.body.classList.contains('dark-theme');
-    setTheme(isDark ? 'light' : 'dark');
-  }
-  
+  function toggleTheme() { setTheme(document.body.classList.contains('dark-theme') ? 'light' : 'dark'); }
   const savedTheme = localStorage.getItem('mm-theme');
-  if (savedTheme === 'dark') {
-    setTheme('dark');
-  } else {
-    setTheme('light');
-  }
-  
+  savedTheme === 'dark' ? setTheme('dark') : setTheme('light');
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 </script>
 </body>
