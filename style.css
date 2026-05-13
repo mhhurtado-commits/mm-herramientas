@@ -735,3 +735,95 @@ input[type="color"] {
     font-size: 10px;
   }
 }
+/* ============================================================
+   ESTILOS MÓVIL PARA PLACAS (pestañas abajo)
+   ============================================================ */
+@media (max-width: 700px) {
+  .placas-sidebar {
+    display: none;
+  }
+  
+  .placas-canvas-area {
+    position: fixed;
+    top: var(--header-h);
+    left: 0;
+    right: 0;
+    bottom: 56px;
+    padding: 8px;
+    transition: bottom 0.26s ease;
+  }
+  
+  .placas-canvas-area.panel-open {
+    bottom: calc(56px + 45vh);
+  }
+  
+  .mob-tabbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex !important;
+    justify-content: space-around;
+    background: var(--surface);
+    border-top: 1px solid var(--line2);
+    z-index: 150;
+    padding: 8px 0 12px;
+    height: 56px;
+  }
+  
+  .mob-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--dim);
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: all 0.15s;
+    padding: 4px 6px;
+    border-radius: var(--radius);
+  }
+  
+  .mob-tab .ti {
+    font-size: 18px;
+  }
+  
+  .mob-tab.on {
+    color: var(--v);
+  }
+  
+  .mob-panel {
+    position: fixed;
+    bottom: 56px;
+    left: 0;
+    right: 0;
+    max-height: 45vh;
+    background: var(--surface);
+    border-top: 2px solid var(--v);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    z-index: 149;
+    transform: translateY(100%);
+    transition: transform 0.26s ease;
+    overflow-y: auto;
+    padding: 16px;
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .mob-panel.open {
+    transform: translateY(0);
+  }
+  
+  .mob-panel.closing {
+    transform: translateY(100%);
+  }
+  
+  .mob-panel-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
