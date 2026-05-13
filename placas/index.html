@@ -381,79 +381,156 @@
       }
     }
 
-    /* TABS MÓVILES */
-    .mob-tabbar {
-      display: none;
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: var(--footer-h);
-      height: 48px;
-      background: var(--surface);
-      border-top: 2px solid var(--v);
-      z-index: 160;
-      overflow-x: auto;
-      overflow-y: hidden;
-      gap: 0;
-      scrollbar-width: none;
-    }
-    .mob-tabbar::-webkit-scrollbar { display: none; }
-    @media (max-width: 700px) { .mob-tabbar { display: flex; } }
+    /* TABS MÓVILES Y PANEL (SOLO PARA PLACAS) */
+.mob-tabbar {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--footer-h);
+  height: 48px;
+  background: var(--surface);
+  border-top: 2px solid var(--v);
+  z-index: 160;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 0;
+  scrollbar-width: none;
+}
 
-    .mob-tab {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 2px;
-      flex: 0 0 auto;
-      padding: 0 14px;
-      cursor: pointer;
-      font-family: var(--font-display);
-      font-size: 0.6rem;
-      letter-spacing: 0.5px;
-      color: var(--dim);
-      background: none;
-      border: none;
-      border-bottom: 3px solid transparent;
-      transition: all 0.15s;
-      white-space: nowrap;
-      height: 100%;
-    }
-    .mob-tab .ti { font-size: 1.1rem; line-height: 1; }
-    .mob-tab.on { color: var(--v); border-bottom-color: var(--v); }
+.mob-tabbar::-webkit-scrollbar { display: none; }
 
-    .mob-panel {
-      display: none;
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: calc(var(--footer-h) + 48px);
-      max-height: 32vh;
-      background: var(--surface);
-      border-top: 2px solid var(--line2);
-      border-radius: 14px 14px 0 0;
-      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.14);
-      z-index: 155;
-      overflow-y: auto;
-    }
-    .mob-panel.open { display: block; animation: slideUp 0.22s ease; }
-    .mob-panel.closing { animation: slideDown 0.22s ease forwards; }
-    .mob-panel-inner { padding: 12px 15px 16px; }
+@media (max-width: 700px) {
+  .mob-tabbar { display: flex; }
+}
 
-    @keyframes slideUp {
-      from { transform: translateY(20px); opacity: 0; }
-      to { transform: none; opacity: 1; }
-    }
-    @keyframes slideDown {
-      from { transform: none; opacity: 1; }
-      to { transform: translateY(20px); opacity: 0; }
-    }
+.mob-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 64px;
+  padding: 0 12px;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.58rem;
+  letter-spacing: 0.5px;
+  color: var(--dim);
+  background: var(--surface);
+  border: none;
+  border-bottom: 3px solid transparent;
+  transition: all 0.15s;
+  white-space: nowrap;
+  height: 100%;
+}
 
-    /* Ajustes para móvil */
-    @media (max-width: 700px) {
-      .expbar { z-index: 200; }
-    }
+.mob-tab .ti {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.mob-tab.on {
+  color: var(--v);
+  border-bottom-color: var(--v);
+  background: var(--surface);
+}
+
+.mob-panel {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--footer-h) + 48px);
+  max-height: 35vh;
+  background: var(--surface);
+  border-top: 2px solid var(--v);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+  z-index: 155;
+  overflow-y: auto;
+}
+
+.mob-panel.open {
+  display: block;
+  animation: slideUp 0.25s ease forwards;
+}
+
+.mob-panel.closing {
+  animation: slideDown 0.25s ease forwards;
+}
+
+.mob-panel-inner {
+  padding: 16px 18px 20px;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(20px); opacity: 0; }
+}
+
+/* Ajustes específicos del contenido dentro del panel móvil */
+@media (max-width: 700px) {
+  .mob-panel .mm-input,
+  .mob-panel .mm-textarea,
+  .mob-panel .mm-select {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  
+  .mob-panel .mm-label {
+    margin-bottom: 4px;
+  }
+  
+  .mob-panel .mm-field {
+    margin-bottom: 12px;
+  }
+  
+  .mob-panel .tpl-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  
+  .mob-panel .tpl-btn {
+    padding: 4px 2px;
+  }
+  
+  .mob-panel .tpl-name {
+    font-size: 0.65rem;
+  }
+  
+  .mob-panel .align-bar button {
+    padding: 5px 2px;
+    font-size: 0.7rem;
+  }
+  
+  .mob-panel .swatches {
+    gap: 4px;
+  }
+  
+  .mob-panel .sw {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .mob-panel .urlrow {
+    margin-top: 6px;
+  }
+  
+  .mob-panel .urlbtn {
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 700px) {
+  .expbar { z-index: 200; }
+}
   </style>
 </head>
 <body>
