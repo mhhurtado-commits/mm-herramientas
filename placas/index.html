@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>Editor de Placas — Media Mendoza</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../style.css">
@@ -362,7 +362,9 @@
     }
     @media (min-width: 701px) { .exp-lbl { display: block; } }
 
-    /* Mobile: sidebar oculta, panel flotante y tabs */
+    /* ============================================================
+       BARRA DE PESTAÑAS MÓVIL (fix para vertical)
+       ============================================================ */
     @media (max-width: 700px) {
       .placas-sidebar { display: none; }
       .placas-layout { padding-bottom: var(--footer-h); }
@@ -371,582 +373,87 @@
         top: var(--header-h);
         left: 0;
         right: 0;
-        bottom: calc(var(--footer-h) + 48px);
+        bottom: var(--footer-h);
         padding: 8px;
-        overflow: hidden;
-        transition: bottom 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: bottom 0.26s ease;
       }
       .placas-canvas-area.panel-open {
-        bottom: calc(var(--footer-h) + 48px + 32vh);
+        bottom: calc(var(--footer-h) + 56px);
+      }
+      
+      .mob-tabbar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-around;
+        background: var(--surface);
+        border-top: 1px solid var(--line2);
+        z-index: 150;
+        padding: 6px 0 10px;
+        height: 56px;
+      }
+      
+      .mob-tab {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        background: none;
+        border: none;
+        font-size: 9px;
+        font-weight: 600;
+        color: var(--dim);
+        cursor: pointer;
+        font-family: var(--font-body);
+        transition: all 0.15s;
+        padding: 4px 8px;
+        border-radius: var(--radius);
+      }
+      
+      .mob-tab .ti {
+        font-size: 18px;
+      }
+      
+      .mob-tab.on {
+        color: var(--v);
+      }
+      
+      .mob-panel {
+        position: fixed;
+        bottom: 56px;
+        left: 0;
+        right: 0;
+        max-height: 50vh;
+        background: var(--surface);
+        border-top: 2px solid var(--v);
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        z-index: 149;
+        transform: translateY(100%);
+        transition: transform 0.26s ease;
+        overflow-y: auto;
+        padding: 16px;
+        box-shadow: var(--shadow-lg);
+      }
+      
+      .mob-panel.open {
+        transform: translateY(0);
+      }
+      
+      .mob-panel.closing {
+        transform: translateY(100%);
+      }
+      
+      .mob-panel-inner {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
       }
     }
-
-    /* TABS MÓVILES Y PANEL (SOLO PARA PLACAS) */
-.mob-tabbar {
-  display: none;
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: var(--footer-h);
-  height: 48px;
-  background: var(--surface);
-  border-top: 2px solid var(--v);
-  z-index: 160;
-  overflow-x: auto;
-  overflow-y: hidden;
-  gap: 0;
-  scrollbar-width: none;
-}
-
-.mob-tabbar::-webkit-scrollbar { display: none; }
-
-@media (max-width: 700px) {
-  .mob-tabbar { display: flex; }
-}
-
-.mob-tab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  flex: 0 0 auto;
-  min-width: 64px;
-  padding: 0 12px;
-  cursor: pointer;
-  font-family: var(--font-display);
-  font-size: 0.58rem;
-  letter-spacing: 0.5px;
-  color: var(--dim);
-  background: var(--surface);
-  border: none;
-  border-bottom: 3px solid transparent;
-  transition: all 0.15s;
-  white-space: nowrap;
-  height: 100%;
-}
-
-.mob-tab .ti {
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.mob-tab.on {
-  color: var(--v);
-  border-bottom-color: var(--v);
-  background: var(--surface);
-}
-
-.mob-panel {
-  display: none;
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(var(--footer-h) + 48px);
-  max-height: 35vh;
-  background: var(--surface);
-  border-top: 2px solid var(--v);
-  border-radius: 16px 16px 0 0;
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
-  z-index: 155;
-  overflow-y: auto;
-}
-
-.mob-panel.open {
-  display: block;
-  animation: slideUp 0.25s ease forwards;
-}
-
-.mob-panel.closing {
-  animation: slideDown 0.25s ease forwards;
-}
-
-.mob-panel-inner {
-  padding: 16px 18px 20px;
-}
-
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes slideDown {
-  from { transform: translateY(0); opacity: 1; }
-  to { transform: translateY(20px); opacity: 0; }
-}
-
-/* Ajustes específicos del contenido dentro del panel móvil */
-@media (max-width: 700px) {
-  .mob-panel .mm-input,
-  .mob-panel .mm-textarea,
-  .mob-panel .mm-select {
-    font-size: 12px;
-    padding: 8px 10px;
-  }
-  
-  .mob-panel .mm-label {
-    margin-bottom: 4px;
-  }
-  
-  .mob-panel .mm-field {
-    margin-bottom: 12px;
-  }
-  
-  .mob-panel .tpl-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-  }
-  
-  .mob-panel .tpl-btn {
-    padding: 4px 2px;
-  }
-  
-  .mob-panel .tpl-name {
-    font-size: 0.65rem;
-  }
-  
-  .mob-panel .align-bar button {
-    padding: 5px 2px;
-    font-size: 0.7rem;
-  }
-  
-  .mob-panel .swatches {
-    gap: 4px;
-  }
-  
-  .mob-panel .sw {
-    width: 24px;
-    height: 24px;
-  }
-  
-  .mob-panel .urlrow {
-    margin-top: 6px;
-  }
-  
-  .mob-panel .urlbtn {
-    padding: 8px 12px;
-  }
-}
-
-@media (max-width: 700px) {
-  .expbar { z-index: 200; }
-}
-/* ============================================================
-   FORZAR ESTILOS DENTRO DEL PANEL MÓVIL
-   ============================================================ */
-
-/* Asegurar que los elementos dentro del panel móvil tomen los estilos globales */
-.mob-panel .mm-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
-  width: 100%;
-}
-
-.mob-panel .mm-label {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--dim);
-  display: block;
-  margin-bottom: 0;
-}
-
-.mob-panel .mm-input,
-.mob-panel .mm-textarea,
-.mob-panel .mm-select {
-  width: 100%;
-  background: var(--surface);
-  border: 1.5px solid var(--line2);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 13px;
-  padding: 10px 12px;
-  outline: none;
-  transition: border-color 0.15s;
-  border-radius: var(--radius);
-  box-sizing: border-box;
-}
-
-.mob-panel .mm-input:focus,
-.mob-panel .mm-textarea:focus,
-.mob-panel .mm-select:focus {
-  border-color: var(--v);
-}
-
-.mob-panel .mm-textarea {
-  resize: vertical;
-  min-height: 70px;
-  line-height: 1.5;
-}
-
-.mob-panel .mm-select {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 32px;
-  cursor: pointer;
-}
-
-body.dark-theme .mob-panel .mm-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239b9d8a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-}
-
-.mob-panel .urlrow {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-  width: 100%;
-}
-
-.mob-panel .urlbtn {
-  padding: 10px 16px;
-  border-radius: var(--radius);
-  background: var(--v);
-  color: var(--bg);
-  border: none;
-  font-size: 13px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.mob-panel .urlbtn:hover {
-  background: var(--vo);
-}
-
-.mob-panel .uplbl {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 1.5px dashed var(--line2);
-  border-radius: var(--radius);
-  padding: 10px;
-  text-align: center;
-  font-size: 11px;
-  color: var(--dim);
-  cursor: pointer;
-  transition: all 0.15s;
-  margin-top: 8px;
-  width: 100%;
-  background: var(--surface);
-}
-
-.mob-panel .uplbl:hover {
-  border-color: var(--v);
-  color: var(--v);
-}
-
-.mob-panel .tpl-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.mob-panel .tpl-btn {
-  background: var(--surface);
-  border: 1.5px solid var(--line2);
-  border-radius: var(--radius);
-  padding: 6px 4px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.mob-panel .tpl-btn.on {
-  border-color: var(--v);
-  background: var(--v-dim);
-}
-
-.mob-panel .tpl-prev {
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  display: block;
-  background: var(--bg2);
-}
-
-.mob-panel .tpl-name {
-  font-family: var(--font-display);
-  font-size: 0.7rem;
-  letter-spacing: 0.4px;
-  color: var(--muted);
-}
-
-.mob-panel .align-bar {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin: 8px 0 12px;
-}
-
-.mob-panel .align-bar button {
-  flex: 1;
-  min-width: 32px;
-  padding: 6px 4px;
-  font-size: 0.75rem;
-  background: var(--surface2);
-  border: 1px solid var(--line2);
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--muted);
-  transition: all 0.12s;
-}
-
-.mob-panel .align-bar button:hover {
-  border-color: var(--v);
-  color: var(--v);
-}
-
-.mob-panel .el-actions {
-  display: flex;
-  gap: 8px;
-  margin: 8px 0 6px;
-  align-items: center;
-}
-
-.mob-panel .el-actions span {
-  font-size: 0.75rem;
-  color: var(--dim);
-  flex: 1;
-}
-
-.mob-panel .btn-reset {
-  padding: 4px 10px;
-  font-size: 0.7rem;
-  background: none;
-  border: 1px solid var(--line2);
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--muted);
-}
-
-.mob-panel .btn-reset:hover {
-  border-color: var(--v);
-  color: var(--v);
-}
-
-.mob-panel .swatches {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-}
-
-.mob-panel .sw {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.12s;
-  flex-shrink: 0;
-}
-
-.mob-panel .sw:hover,
-.mob-panel .sw.on {
-  border-color: var(--white);
-  transform: scale(1.15);
-}
-
-.mob-panel .sw-transp {
-  background: linear-gradient(135deg, #fff 45%, #f00 45%, #f00 55%, #fff 55%);
-  border: 1.5px solid var(--line2) !important;
-}
-
-.mob-panel .rrow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.mob-panel .rrow input[type="range"] {
-  flex: 1;
-  accent-color: var(--v);
-  height: 4px;
-  cursor: pointer;
-}
-
-.mob-panel .rval {
-  font-size: 11px;
-  color: var(--v);
-  font-weight: 700;
-  min-width: 40px;
-  text-align: right;
-}
-
-.mob-panel input[type="color"] {
-  width: 36px;
-  height: 32px;
-  border: 1.5px solid var(--line2);
-  border-radius: 6px;
-  padding: 2px;
-  cursor: pointer;
-  background: var(--surface);
-}
-</style>
+  </style>
 </head>
 <body>
-
-<!-- ============================================================ -->
-<!-- PROTECCIÓN CON CONTRASEÑA -->
-<!-- ============================================================ -->
-<style>
-.login-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.3s ease;
-}
-.login-modal {
-  background: var(--surface);
-  border: 1px solid var(--line2);
-  border-radius: var(--radius-xl);
-  padding: 32px;
-  max-width: 380px;
-  width: 90%;
-  text-align: center;
-  box-shadow: var(--shadow-lg);
-  animation: fadeInUp 0.3s ease;
-}
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.login-logo { margin-bottom: 24px; }
-.login-logo img { height: 48px; width: auto; }
-body.dark-theme .login-logo img { filter: brightness(0) invert(1); opacity: 0.9; }
-.login-title {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  color: var(--white);
-  margin-bottom: 8px;
-}
-.login-sub {
-  font-size: 11px;
-  color: var(--dim);
-  margin-bottom: 24px;
-}
-.login-input {
-  width: 100%;
-  padding: 12px 16px;
-  background: var(--surface2);
-  border: 1px solid var(--line2);
-  border-radius: var(--radius);
-  color: var(--white);
-  font-size: 14px;
-  margin-bottom: 20px;
-  outline: none;
-}
-.login-input:focus { border-color: var(--v); }
-.login-btn {
-  width: 100%;
-  padding: 12px;
-  background: var(--v);
-  border: none;
-  border-radius: var(--radius);
-  color: var(--bg);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.login-btn:hover { opacity: 0.85; }
-.login-error {
-  font-size: 11px;
-  color: var(--red);
-  margin-top: 12px;
-  display: none;
-}
-.login-error.show { display: block; }
-.content-protected { display: none; }
-.content-protected.show { display: block; }
-</style>
-
-<div class="login-overlay" id="loginOverlay">
-  <div class="login-modal">
-    <div class="login-logo">
-      <img src="../assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'">
-    </div>
-    <div class="login-title">Acceso restringido</div>
-    <div class="login-sub">Ingresá la contraseña para continuar</div>
-    <input type="password" id="passwordInput" class="login-input" placeholder="Contraseña" autofocus>
-    <button class="login-btn" onclick="verificarPassword()">Ingresar</button>
-    <div class="login-error" id="loginError">Contraseña incorrecta</div>
-  </div>
-</div>
-
-<div class="content-protected" id="protectedContent">
-
-<script>
-const PROTECT_PASSWORD = "tomyjerry2008";
-
-function verificarPassword() {
-  const input = document.getElementById('passwordInput');
-  const error = document.getElementById('loginError');
-  const password = input.value.trim();
-  
-  if (password === PROTECT_PASSWORD) {
-    const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
-    localStorage.setItem('mm_auth', JSON.stringify({ autenticado: true, expires: expiry }));
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('protectedContent').classList.add('show');
-    input.value = '';
-    error.classList.remove('show');
-  } else {
-    error.classList.add('show');
-    input.value = '';
-    input.focus();
-  }
-}
-
-function verificarSesion() {
-  const authData = localStorage.getItem('mm_auth');
-  if (authData) {
-    try {
-      const { autenticado, expires } = JSON.parse(authData);
-      if (autenticado && expires && Date.now() < expires) {
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('protectedContent').classList.add('show');
-        return true;
-      } else {
-        localStorage.removeItem('mm_auth');
-      }
-    } catch(e) { localStorage.removeItem('mm_auth'); }
-  }
-  document.getElementById('loginOverlay').style.display = 'flex';
-  document.getElementById('protectedContent').classList.remove('show');
-  return false;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  verificarSesion();
-  document.getElementById('passwordInput').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') verificarPassword();
-  });
-});
-</script>
-<!-- FIN DEL BLOQUE DE PROTECCIÓN -->
 
 <header class="mm-header">
   <a href="/" class="mm-header-brand">
@@ -964,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <div class="placas-layout">
 
-  <!-- SIDEBAR (desktop) -->
+  <!-- SIDEBAR -->
   <aside class="placas-sidebar">
 
     <!-- MODO DE PLACA -->
@@ -1321,11 +828,12 @@ document.addEventListener('DOMContentLoaded', () => {
     <button class="mob-tab" data-key="plantilla" onclick="mobTab('plantilla',this)"><span class="ti">🎨</span>Plantilla</button>
     <button class="mob-tab" data-key="imagen" onclick="mobTab('imagen',this)"><span class="ti">🖼</span>Imagen</button>
     <button class="mob-tab" data-key="titulo" onclick="mobTab('titulo',this)"><span class="ti">✏️</span>Título</button>
-    <button class="mob-tab" data-key="categoria" onclick="mobTab('categoria',this)"><span class="ti">🏷️</span>Categoría</button>
+    <button class="mob-tab" data-key="categoria" onclick="mobTab('categoria',this)"><span class="ti">🏷</span>Categoría</button>
+    <button class="mob-tab" data-key="capa" onclick="mobTab('capa',this)"><span class="ti">🌈</span>Capa</button>
     <button class="mob-tab" data-key="logo" onclick="mobTab('logo',this)"><span class="ti">⭐</span>Logo</button>
   </nav>
 
-  <!-- PANEL mobile -->
+  <!-- PANEL mobile (contenido dinámico) -->
   <div class="mob-panel" id="mobPanel">
     <div class="mob-panel-inner" id="mobPanelInner"></div>
   </div>
@@ -1398,6 +906,48 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+  
+  // Variables globales para el panel móvil
+  var _activeTab = 'noticia';
+  var _panelOpen = false;
+  
+  function mobTab(key, tabEl) {
+    const panel = document.getElementById('mobPanel');
+    const canvasArea = document.getElementById('canvasArea');
+    if (_activeTab === key && _panelOpen) {
+      panel.classList.add('closing');
+      canvasArea.classList.remove('panel-open');
+      document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('on'));
+      _panelOpen = false;
+      setTimeout(() => {
+        panel.classList.remove('open');
+        panel.classList.remove('closing');
+        if (typeof resizeCanvas === 'function') resizeCanvas(true);
+        if (typeof render === 'function') render();
+      }, 260);
+      return;
+    }
+    _activeTab = key;
+    _panelOpen = true;
+    document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('on'));
+    tabEl.classList.add('on');
+    if (typeof renderMobPanel === 'function') renderMobPanel();
+    panel.classList.remove('closing');
+    panel.classList.add('open');
+    canvasArea.classList.add('panel-open');
+    setTimeout(() => { if (typeof resizeCanvas === 'function') resizeCanvas(true); if (typeof render === 'function') render(); }, 280);
+    setTimeout(() => { if (typeof resizeCanvas === 'function') resizeCanvas(true); if (typeof render === 'function') render(); }, 350);
+  }
+  
+  // Función para renderizar el panel móvil (debe existir en app.js)
+  if (typeof renderMobPanel !== 'function') {
+    window.renderMobPanel = function() {
+      const inner = document.getElementById('mobPanelInner');
+      if (!inner) return;
+      // El contenido real lo maneja app.js, esto es solo un placeholder
+      inner.innerHTML = '<div class="mm-field">Selecciona una opción</div>';
+    };
+  }
 </script>
 </body>
 </html>
