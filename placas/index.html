@@ -9,7 +9,6 @@
   <style>
     /* ============================================================
        Estilos específicos del editor de placas
-       (solo lo que no está en style.css)
        ============================================================ */
     .placas-layout {
       display: flex;
@@ -363,7 +362,7 @@
     }
     @media (min-width: 701px) { .exp-lbl { display: block; } }
 
-    /* Mobile sidebar oculta, panel flotante */
+    /* Mobile: sidebar oculta, panel flotante y tabs */
     @media (max-width: 700px) {
       .placas-sidebar { display: none; }
       .placas-layout { padding-bottom: var(--footer-h); }
@@ -372,16 +371,95 @@
         top: var(--header-h);
         left: 0;
         right: 0;
-        bottom: var(--footer-h);
+        bottom: calc(var(--footer-h) + 48px);
         padding: 8px;
+        overflow: hidden;
+        transition: bottom 0.28s cubic-bezier(0.4, 0, 0.2, 1);
       }
+      .placas-canvas-area.panel-open {
+        bottom: calc(var(--footer-h) + 48px + 32vh);
+      }
+    }
+
+    /* TABS MÓVILES */
+    .mob-tabbar {
+      display: none;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: var(--footer-h);
+      height: 48px;
+      background: var(--surface);
+      border-top: 2px solid var(--v);
+      z-index: 160;
+      overflow-x: auto;
+      overflow-y: hidden;
+      gap: 0;
+      scrollbar-width: none;
+    }
+    .mob-tabbar::-webkit-scrollbar { display: none; }
+    @media (max-width: 700px) { .mob-tabbar { display: flex; } }
+
+    .mob-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      flex: 0 0 auto;
+      padding: 0 14px;
+      cursor: pointer;
+      font-family: var(--font-display);
+      font-size: 0.6rem;
+      letter-spacing: 0.5px;
+      color: var(--dim);
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      transition: all 0.15s;
+      white-space: nowrap;
+      height: 100%;
+    }
+    .mob-tab .ti { font-size: 1.1rem; line-height: 1; }
+    .mob-tab.on { color: var(--v); border-bottom-color: var(--v); }
+
+    .mob-panel {
+      display: none;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--footer-h) + 48px);
+      max-height: 32vh;
+      background: var(--surface);
+      border-top: 2px solid var(--line2);
+      border-radius: 14px 14px 0 0;
+      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.14);
+      z-index: 155;
+      overflow-y: auto;
+    }
+    .mob-panel.open { display: block; animation: slideUp 0.22s ease; }
+    .mob-panel.closing { animation: slideDown 0.22s ease forwards; }
+    .mob-panel-inner { padding: 12px 15px 16px; }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: none; opacity: 1; }
+    }
+    @keyframes slideDown {
+      from { transform: none; opacity: 1; }
+      to { transform: translateY(20px); opacity: 0; }
+    }
+
+    /* Ajustes para móvil */
+    @media (max-width: 700px) {
+      .expbar { z-index: 200; }
     }
   </style>
 </head>
 <body>
 
 <!-- ============================================================ -->
-<!-- PROTECCIÓN CON CONTRASEÑA (copiar este bloque completo) -->
+<!-- PROTECCIÓN CON CONTRASEÑA -->
 <!-- ============================================================ -->
 <style>
 .login-overlay {
@@ -546,7 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <div class="placas-layout">
 
-  <!-- SIDEBAR -->
+  <!-- SIDEBAR (desktop) -->
   <aside class="placas-sidebar">
 
     <!-- MODO DE PLACA -->
@@ -897,18 +975,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   </aside>
 
-  <!-- TAB BAR mobile (se activa con CSS) -->
-  <nav class="mob-tabbar" id="mobTabbar" style="display:none;">
-    <button class="mob-tab" data-key="noticia"   onclick="mobTab('noticia',this)"  ><span class="ti">📰</span>Noticia</button>
+  <!-- TAB BAR mobile -->
+  <nav class="mob-tabbar" id="mobTabbar">
+    <button class="mob-tab" data-key="noticia" onclick="mobTab('noticia',this)"><span class="ti">📰</span>Noticia</button>
     <button class="mob-tab" data-key="plantilla" onclick="mobTab('plantilla',this)"><span class="ti">🎨</span>Plantilla</button>
-    <button class="mob-tab" data-key="imagen"    onclick="mobTab('imagen',this)"   ><span class="ti">🖼</span>Imagen</button>
-    <button class="mob-tab" data-key="titulo"    onclick="mobTab('titulo',this)"   ><span class="ti">✏️</span>Título</button>
-    <button class="mob-tab" data-key="categoria" onclick="mobTab('categoria',this)"><span class="ti">🏷</span>Categoría</button>
-    <button class="mob-tab" data-key="capa"      onclick="mobTab('capa',this)"     ><span class="ti">🌈</span>Capa</button>
-    <button class="mob-tab" data-key="logo"      onclick="mobTab('logo',this)"     ><span class="ti">⭐</span>Logo</button>
+    <button class="mob-tab" data-key="imagen" onclick="mobTab('imagen',this)"><span class="ti">🖼</span>Imagen</button>
+    <button class="mob-tab" data-key="titulo" onclick="mobTab('titulo',this)"><span class="ti">✏️</span>Título</button>
+    <button class="mob-tab" data-key="categoria" onclick="mobTab('categoria',this)"><span class="ti">🏷️</span>Categoría</button>
+    <button class="mob-tab" data-key="logo" onclick="mobTab('logo',this)"><span class="ti">⭐</span>Logo</button>
   </nav>
 
-  <!-- PANEL mobile (contenido dinámico) -->
+  <!-- PANEL mobile -->
   <div class="mob-panel" id="mobPanel">
     <div class="mob-panel-inner" id="mobPanelInner"></div>
   </div>
