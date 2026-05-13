@@ -64,6 +64,7 @@
     }
     @keyframes sp { to { transform: rotate(360deg); } }
 
+    /* Accordion específico */
     .acc-item { border-bottom: 1px solid var(--line); }
     .acc-head {
       display: flex;
@@ -114,9 +115,16 @@
       margin-right: 2px;
     }
 
-    .fmt-pills { display: flex; gap: 4px; margin-left: auto; flex-shrink: 0; }
+    /* Formato pills (solo desktop) */
+    .fmt-pills {
+      display: flex;
+      gap: 4px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
     @media (max-width: 700px) { .fmt-pills { display: none; } }
 
+    /* Modos especiales */
     .mode-bar {
       display: flex;
       gap: 5px;
@@ -141,6 +149,7 @@
     .special-only { display: none; }
     .mode-section { margin-top: 8px; }
 
+    /* Template grid */
     .tpl-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -173,6 +182,7 @@
       color: var(--muted);
     }
 
+    /* Align bar */
     .align-bar {
       display: flex;
       gap: 4px;
@@ -210,6 +220,7 @@
     }
     .btn-reset:hover { border-color: var(--v); color: var(--v); }
 
+    /* Swatches */
     .swatches {
       display: flex;
       align-items: center;
@@ -232,6 +243,7 @@
       border: 1.5px solid var(--line2) !important;
     }
 
+    /* Toggle */
     .togrow {
       display: flex;
       align-items: center;
@@ -273,6 +285,7 @@
     .toggle input:checked + .togslide { background: var(--v); }
     .toggle input:checked + .togslide::before { transform: translateX(16px); }
 
+    /* Upload label */
     .uplbl {
       display: flex;
       align-items: center;
@@ -325,6 +338,7 @@
     }
     .collage-slot:hover { border-color: var(--v); }
 
+    /* Export bar */
     .expbar {
       position: fixed;
       bottom: 0;
@@ -350,11 +364,12 @@
     @media (min-width: 701px) { .exp-lbl { display: block; } }
 
     /* ============================================================
-       ESTILOS MÓVIL DEFINITIVOS (pestañas siempre visibles abajo)
+       ESTILOS MÓVIL - SIDEBAR SE TRANSFORMA EN PESTAÑAS ABAJO
        ============================================================ */
     @media (max-width: 700px) {
-      .placas-sidebar { display: none; }
-      .placas-layout { padding-bottom: var(--footer-h); }
+      .placas-sidebar {
+        display: none;
+      }
       
       .placas-canvas-area {
         position: fixed;
@@ -370,6 +385,7 @@
         bottom: calc(56px + 50vh);
       }
       
+      /* Barra de pestañas móvil (solo visible en vertical) */
       .mob-tabbar {
         position: fixed;
         bottom: 0;
@@ -401,9 +417,15 @@
         border-radius: var(--radius);
       }
       
-      .mob-tab .ti { font-size: 18px; }
-      .mob-tab.on { color: var(--v); }
+      .mob-tab .ti {
+        font-size: 18px;
+      }
       
+      .mob-tab.on {
+        color: var(--v);
+      }
+      
+      /* Panel deslizante */
       .mob-panel {
         position: fixed;
         bottom: 56px;
@@ -421,8 +443,14 @@
         box-shadow: var(--shadow-lg);
       }
       
-      .mob-panel.open { transform: translateY(0); }
-      .mob-panel.closing { transform: translateY(100%); }
+      .mob-panel.open {
+        transform: translateY(0);
+      }
+      
+      .mob-panel.closing {
+        transform: translateY(100%);
+      }
+      
       .mob-panel-inner {
         display: flex;
         flex-direction: column;
@@ -449,7 +477,7 @@
 
 <div class="placas-layout">
 
-  <!-- SIDEBAR COMPLETO (original) -->
+  <!-- SIDEBAR COMPLETO (original, sin cambios) -->
   <aside class="placas-sidebar">
 
     <!-- MODO DE PLACA -->
@@ -799,7 +827,7 @@
 
   </aside>
 
-  <!-- BARRA DE PESTAÑAS MÓVIL (SIEMPRE VISIBLE EN VERTICAL) -->
+  <!-- BARRA DE PESTAÑAS MÓVIL (SOLO VISIBLE EN VERTICAL, sin duplicados en escritorio) -->
   <nav class="mob-tabbar" id="mobTabbar">
     <button class="mob-tab" data-key="noticia" onclick="window.mobTab('noticia',this)"><span class="ti">📰</span>Noticia</button>
     <button class="mob-tab" data-key="plantilla" onclick="window.mobTab('plantilla',this)"><span class="ti">🎨</span>Plantilla</button>
