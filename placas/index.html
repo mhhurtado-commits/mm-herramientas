@@ -34,6 +34,7 @@
       padding: 16px;
       overflow: auto;
       background: var(--bg);
+      transition: bottom 0.26s ease;
     }
     .canvas-wrap {
       position: relative;
@@ -363,7 +364,7 @@
     @media (min-width: 701px) { .exp-lbl { display: block; } }
 
     /* ============================================================
-       BARRA DE PESTAÑAS MÓVIL (fix para vertical)
+       ESTILOS MÓVIL - PESTAÑAS FLOTANTES
        ============================================================ */
     @media (max-width: 700px) {
       .placas-sidebar { display: none; }
@@ -386,7 +387,7 @@
         bottom: 0;
         left: 0;
         right: 0;
-        display: flex;
+        display: flex !important;
         justify-content: space-around;
         background: var(--surface);
         border-top: 1px solid var(--line2);
@@ -471,7 +472,7 @@
 
 <div class="placas-layout">
 
-  <!-- SIDEBAR -->
+  <!-- SIDEBAR (completo) -->
   <aside class="placas-sidebar">
 
     <!-- MODO DE PLACA -->
@@ -507,8 +508,7 @@
       </div>
       <div class="mm-field">
         <label class="mm-label">Tamaño del panel <span class="mm-range-label" id="rv-quoteSplit">50%</span></label>
-        <input type="range" id="r-quoteSplit" min="30" max="70" value="50" class="mm-range"
-          oninput="S.quoteSplit=this.value/100;document.getElementById('rv-quoteSplit').textContent=this.value+'%';ELS.title._textualInit=null;render()">
+        <input type="range" id="r-quoteSplit" min="30" max="70" value="50" class="mm-range" oninput="S.quoteSplit=this.value/100;document.getElementById('rv-quoteSplit').textContent=this.value+'%';ELS.title._textualInit=null;render()">
       </div>
       <div class="mm-field" style="margin-top:8px">
         <label class="mm-label">Color del texto</label>
@@ -833,7 +833,7 @@
     <button class="mob-tab" data-key="logo" onclick="mobTab('logo',this)"><span class="ti">⭐</span>Logo</button>
   </nav>
 
-  <!-- PANEL mobile (contenido dinámico) -->
+  <!-- PANEL mobile -->
   <div class="mob-panel" id="mobPanel">
     <div class="mob-panel-inner" id="mobPanelInner"></div>
   </div>
@@ -865,7 +865,7 @@
   <span id="themeLabel">Modo oscuro</span>
 </div>
 
-<!-- Inputs hidden para modos especiales desktop -->
+<!-- Inputs hidden -->
 <input type="file" id="coll0" accept="image/*" style="display:none" onchange="loadCollageImg(event,0)">
 <input type="file" id="coll1" accept="image/*" style="display:none" onchange="loadCollageImg(event,1)">
 <input type="file" id="coll2" accept="image/*" style="display:none" onchange="loadCollageImg(event,2)">
@@ -906,48 +906,6 @@
   }
   
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-  
-  // Variables globales para el panel móvil
-  var _activeTab = 'noticia';
-  var _panelOpen = false;
-  
-  function mobTab(key, tabEl) {
-    const panel = document.getElementById('mobPanel');
-    const canvasArea = document.getElementById('canvasArea');
-    if (_activeTab === key && _panelOpen) {
-      panel.classList.add('closing');
-      canvasArea.classList.remove('panel-open');
-      document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('on'));
-      _panelOpen = false;
-      setTimeout(() => {
-        panel.classList.remove('open');
-        panel.classList.remove('closing');
-        if (typeof resizeCanvas === 'function') resizeCanvas(true);
-        if (typeof render === 'function') render();
-      }, 260);
-      return;
-    }
-    _activeTab = key;
-    _panelOpen = true;
-    document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('on'));
-    tabEl.classList.add('on');
-    if (typeof renderMobPanel === 'function') renderMobPanel();
-    panel.classList.remove('closing');
-    panel.classList.add('open');
-    canvasArea.classList.add('panel-open');
-    setTimeout(() => { if (typeof resizeCanvas === 'function') resizeCanvas(true); if (typeof render === 'function') render(); }, 280);
-    setTimeout(() => { if (typeof resizeCanvas === 'function') resizeCanvas(true); if (typeof render === 'function') render(); }, 350);
-  }
-  
-  // Función para renderizar el panel móvil (debe existir en app.js)
-  if (typeof renderMobPanel !== 'function') {
-    window.renderMobPanel = function() {
-      const inner = document.getElementById('mobPanelInner');
-      if (!inner) return;
-      // El contenido real lo maneja app.js, esto es solo un placeholder
-      inner.innerHTML = '<div class="mm-field">Selecciona una opción</div>';
-    };
-  }
 </script>
 </body>
 </html>
