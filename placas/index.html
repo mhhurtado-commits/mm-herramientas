@@ -365,7 +365,7 @@
     @media (min-width: 701px) { .exp-lbl { display: block; } }
 
     /* ============================================================
-       ESTILOS MÓVIL - EXACTAMENTE COMO ESPERA app.js
+       ESTILOS MÓVIL
        ============================================================ */
     @media (max-width: 700px) {
       .placas-sidebar {
@@ -388,24 +388,23 @@
       .placas-canvas-area.panel-open {
         bottom: calc(56px + 50vh);
       }
-      
-      /* Barra de modos en móvil (igual que en escritorio) */
+
+      /* ── Barra de modos en el canvas (móvil) ── */
       .mode-bar-mobile {
         display: flex;
         gap: 5px;
-        margin: 0 0 12px 0;
-        padding: 0;
+        margin: 0 0 8px 0;
         width: 100%;
+        flex-shrink: 0;
       }
       .mode-bar-mobile .mode-btn {
         font-size: 0.65rem;
         padding: 5px 3px;
-        border-radius: var(--radius);
       }
       
-      /* Barra de pestañas móvil (exactamente como espera app.js) */
+      /* Barra de pestañas inferior */
       .mob-tabbar {
-        position: fixed;
+        position: fixed !important;
         bottom: 0;
         left: 0;
         right: 0;
@@ -430,22 +429,15 @@
         color: var(--dim);
         cursor: pointer;
         font-family: var(--font-body);
-        transition: all 0.15s;
         padding: 4px 6px;
         border-radius: var(--radius);
       }
-      
-      .mob-tab .ti {
-        font-size: 16px;
-      }
-      
-      .mob-tab.on {
-        color: var(--v);
-      }
+      .mob-tab .ti { font-size: 16px; }
+      .mob-tab.on { color: var(--v); }
       
       /* Panel deslizante */
       .mob-panel {
-        position: fixed;
+        position: fixed !important;
         bottom: 56px;
         left: 0;
         right: 0;
@@ -460,19 +452,19 @@
         padding: 16px;
         box-shadow: var(--shadow-lg);
       }
-      
-      .mob-panel.open {
-        transform: translateY(0);
-      }
-      
-      .mob-panel.closing {
-        transform: translateY(100%);
-      }
-      
+      .mob-panel.open { transform: translateY(0); }
+      .mob-panel.closing { transform: translateY(100%); }
       .mob-panel-inner {
         display: flex;
         flex-direction: column;
         gap: 12px;
+      }
+
+      /* Ajuste del toggle de tema en móvil */
+      .theme-toggle {
+        bottom: calc(var(--footer-h) + 60px) !important;
+        padding: 4px 10px;
+        font-size: 9px;
       }
     }
     
@@ -481,13 +473,28 @@
       .mob-tabbar { display: none !important; }
       .mob-panel { display: none !important; }
     }
+
+    /* fl = field label (usado por app.js en el panel móvil) */
+    .fl {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--dim);
+      display: block;
+      margin-bottom: 4px;
+      margin-top: 8px;
+    }
+    .rrow { margin-bottom: 4px; }
+    .rval { color: var(--v); margin-left: 4px; }
+    .mm-range-label { color: var(--v); margin-left: 4px; }
   </style>
 </head>
 <body>
 
 <header class="mm-header">
   <a href="/" class="mm-header-brand">
-    <img src="../assets/logo.png" alt="Media Mendoza" class="mm-header-logo" onerror="this.style.display='none'">
+    <img id="hLogo" src="../assets/logo.png" alt="Media Mendoza" class="mm-header-logo" onerror="this.style.display='none'">
     <span class="mm-header-name">Media Mendoza</span>
   </a>
   <div class="mm-header-section">
@@ -852,14 +859,14 @@
 
   <!-- CANVAS AREA -->
   <main class="placas-canvas-area" id="canvasArea">
-    <!-- Barra de modos en móvil (siempre visible) -->
-    <div class="mode-bar-mobile">
-      <div class="mode-btn on"  id="mode-normal-mobile"   onclick="setMode('normal')">📰 Normal</div>
-      <div class="mode-btn"     id="mode-textual-mobile"  onclick="setMode('textual')">💬 Textual</div>
-      <div class="mode-btn"     id="mode-foto-mobile"     onclick="setMode('foto')">👤 Foto</div>
-      <div class="mode-btn"     id="mode-collage-mobile"  onclick="setMode('collage')">🖼 Collage</div>
+    <!-- Barra de modos SIEMPRE visible en móvil (sobre el canvas) -->
+    <div class="mode-bar-mobile" id="modeBarMobile">
+      <div class="mode-btn on" id="mode-normal-m"   onclick="setMode('normal')">📰 Normal</div>
+      <div class="mode-btn"   id="mode-textual-m"   onclick="setMode('textual')">💬 Textual</div>
+      <div class="mode-btn"   id="mode-foto-m"      onclick="setMode('foto')">👤 Foto</div>
+      <div class="mode-btn"   id="mode-collage-m"   onclick="setMode('collage')">🖼 Collage</div>
     </div>
-    
+
     <div class="canvas-wrap" id="cw">
       <canvas id="mc"></canvas>
       <div class="lov" id="lov" style="display:none"><div class="spin"></div></div>
@@ -868,39 +875,39 @@
 
 </div>
 
-<!-- BARRA DE PESTAÑAS MÓVIL (USANDO EXACTAMENTE LOS MISMO data-key QUE ESPERA app.js) -->
+<!-- BARRA DE PESTAÑAS MÓVIL -->
 <nav class="mob-tabbar" id="mobTabbar">
-  <button class="mob-tab" data-key="noticia" onclick="window.mobTab('noticia',this)">
+  <button class="mob-tab" data-key="noticia">
     <span class="ti">📰</span>
     <span>Noticia</span>
   </button>
-  <button class="mob-tab" data-key="plantilla" onclick="window.mobTab('plantilla',this)">
+  <button class="mob-tab" data-key="plantilla">
     <span class="ti">🎨</span>
     <span>Plantilla</span>
   </button>
-  <button class="mob-tab" data-key="imagen" onclick="window.mobTab('imagen',this)">
+  <button class="mob-tab" data-key="imagen">
     <span class="ti">🖼</span>
     <span>Imagen</span>
   </button>
-  <button class="mob-tab" data-key="titulo" onclick="window.mobTab('titulo',this)">
+  <button class="mob-tab" data-key="titulo">
     <span class="ti">✏️</span>
     <span>Título</span>
   </button>
-  <button class="mob-tab" data-key="categoria" onclick="window.mobTab('categoria',this)">
+  <button class="mob-tab" data-key="categoria">
     <span class="ti">🏷️</span>
     <span>Categoría</span>
   </button>
-  <button class="mob-tab" data-key="capa" onclick="window.mobTab('capa',this)">
+  <button class="mob-tab" data-key="capa">
     <span class="ti">🌈</span>
     <span>Capa</span>
   </button>
-  <button class="mob-tab" data-key="logo" onclick="window.mobTab('logo',this)">
+  <button class="mob-tab" data-key="logo">
     <span class="ti">⭐</span>
     <span>Logo</span>
   </button>
 </nav>
 
-<!-- PANEL MÓVIL (se abre al tocar una pestaña) -->
+<!-- PANEL MÓVIL -->
 <div class="mob-panel" id="mobPanel">
   <div class="mob-panel-inner" id="mobPanelInner"></div>
 </div>
@@ -924,114 +931,116 @@
 <input type="file" id="fotoImgUp" accept="image/*" style="display:none" onchange="loadFotoImg(event)">
 <input type="file" id="bgImgUp2" accept="image/*" style="display:none" onchange="loadLocalImg(event)">
 <input type="file" id="textualBgUp" accept="image/*" style="display:none" onchange="loadLocalImg(event)">
-<input type="file" id="imgUp" accept="image/*" style="display:none" onchange="loadLocalImg(event)">
-<input type="file" id="logoUp" accept="image/*" style="display:none" onchange="loadLogo(event)">
 
 <script src="app.js"></script>
 <script>
-  // Sincronizar estados y asegurar que las funciones de app.js estén disponibles
-  window._activeTab = window._activeTab || 'noticia';
-  window._panelOpen = window._panelOpen || false;
-  
-  // Función para sincronizar el estado de los modos en móvil
-  function syncMobileModeButtons() {
-    const modes = ['normal', 'textual', 'foto', 'collage'];
-    modes.forEach(mode => {
-      const desktopBtn = document.getElementById(`mode-${mode}`);
-      const mobileBtn = document.getElementById(`mode-${mode}-mobile`);
-      if (desktopBtn && mobileBtn) {
-        if (desktopBtn.classList.contains('on')) {
-          mobileBtn.classList.add('on');
-        } else {
-          mobileBtn.classList.remove('on');
-        }
-      }
+(function(){
+  // ── Tema claro/oscuro ──
+  function setTheme(t){
+    document.body.classList.toggle('dark-theme', t==='dark');
+    document.getElementById('themeIcon').textContent  = t==='dark' ? '☀️' : '🌙';
+    document.getElementById('themeLabel').textContent = t==='dark' ? 'Modo claro' : 'Modo oscuro';
+    localStorage.setItem('mm-theme', t);
+  }
+  const saved = localStorage.getItem('mm-theme');
+  setTheme(saved === 'dark' ? 'dark' : 'light');
+  document.getElementById('themeToggle').addEventListener('click', ()=>{
+    setTheme(document.body.classList.contains('dark-theme') ? 'light' : 'dark');
+  });
+
+  // ── Sincronizar botones de modo en la barra mobile ──
+  // app.js llama setMode() que actualiza #mode-X (sidebar desktop).
+  // Nosotros envolvemos setMode para que también actualice #mode-X-m (barra mobile).
+  function syncModeBtns(mode){
+    ['normal','textual','foto','collage'].forEach(m=>{
+      const btn = document.getElementById('mode-'+m+'-m');
+      if(btn) btn.classList.toggle('on', m===mode);
     });
   }
-  
-  // Override de setMode para sincronizar botones móviles
-  if (typeof window.setMode === 'function') {
-    const originalSetMode = window.setMode;
-    window.setMode = function(mode) {
-      originalSetMode(mode);
-      syncMobileModeButtons();
+
+  // Esperar a que app.js defina setMode, luego envolverlo
+  function hookSetMode(){
+    if(typeof window.setMode !== 'function'){
+      setTimeout(hookSetMode, 50);
+      return;
+    }
+    const _orig = window.setMode;
+    window.setMode = function(mode){
+      _orig(mode);
+      syncModeBtns(mode);
+      // Si el panel móvil está abierto y el usuario cambió modo,
+      // refrescar el panel para mostrar las opciones correctas.
+      if(window._panelOpen && typeof window.renderMobPanel === 'function'){
+        window.renderMobPanel();
+      }
     };
+    // Sincronizar estado inicial
+    syncModeBtns(window.S ? window.S.mode : 'normal');
   }
-  
-  // Función mobTab (compatible con app.js)
-  window.mobTab = function(key, tabEl) {
-    const panel = document.getElementById('mobPanel');
+  hookSetMode();
+
+  // ── Sistema de pestañas móvil ──
+  // Registrar con touchend (iOS fix) + click
+  function initTabs(){
+    document.querySelectorAll('.mob-tab').forEach(btn=>{
+      // click para escritorio/emulador
+      btn.addEventListener('click', function(){ handleTab(this.dataset.key, this); });
+      // touchend para iOS (evita delay de 300ms)
+      btn.addEventListener('touchend', function(e){
+        e.preventDefault();
+        handleTab(this.dataset.key, this);
+      }, {passive:false});
+    });
+  }
+
+  function handleTab(key, tabEl){
+    const panel      = document.getElementById('mobPanel');
     const canvasArea = document.getElementById('canvasArea');
-    
-    if (window._activeTab === key && window._panelOpen) {
-      // Cerrar panel
+
+    if(window._activeTab === key && window._panelOpen){
+      // Cerrar
       panel.classList.add('closing');
       canvasArea.classList.remove('panel-open');
-      document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('on'));
+      document.querySelectorAll('.mob-tab').forEach(t=>t.classList.remove('on'));
       window._panelOpen = false;
-      setTimeout(() => {
-        panel.classList.remove('open');
-        panel.classList.remove('closing');
-        if (typeof window.resizeCanvas === 'function') window.resizeCanvas(true);
-        if (typeof window.render === 'function') window.render();
+      setTimeout(()=>{
+        panel.classList.remove('open','closing');
+        if(typeof window.resizeCanvas==='function') window.resizeCanvas(true);
+        if(typeof window.render==='function') window.render();
       }, 260);
       return;
     }
-    
-    // Abrir panel
+
     window._activeTab = key;
     window._panelOpen = true;
-    document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('on'));
-    if (tabEl) tabEl.classList.add('on');
-    
-    // Llamar a renderMobPanel si existe (está en app.js)
-    if (typeof window.renderMobPanel === 'function') {
-      window.renderMobPanel();
-    } else {
-      // Fallback
-      const inner = document.getElementById('mobPanelInner');
-      if (inner) {
-        inner.innerHTML = '<div style="padding:20px;text-align:center;color:var(--dim)">Seleccionaste: ' + key + '<br><br>⚠️ renderMobPanel no disponible</div>';
-      }
-    }
-    
+    document.querySelectorAll('.mob-tab').forEach(t=>t.classList.remove('on'));
+    tabEl.classList.add('on');
+
+    if(typeof window.renderMobPanel==='function') window.renderMobPanel();
+
     panel.classList.remove('closing');
     panel.classList.add('open');
     canvasArea.classList.add('panel-open');
-    
-    setTimeout(() => {
-      if (typeof window.resizeCanvas === 'function') window.resizeCanvas(true);
-      if (typeof window.render === 'function') window.render();
-    }, 280);
-    setTimeout(() => {
-      if (typeof window.resizeCanvas === 'function') window.resizeCanvas(true);
-      if (typeof window.render === 'function') window.render();
-    }, 350);
-  };
-  
-  // Tema claro/oscuro
-  function setTheme(theme) {
-    const body = document.body;
-    if (theme === 'dark') {
-      body.classList.add('dark-theme');
-      document.getElementById('themeIcon').textContent = '☀️';
-      document.getElementById('themeLabel').textContent = 'Modo claro';
-    } else {
-      body.classList.remove('dark-theme');
-      document.getElementById('themeIcon').textContent = '🌙';
-      document.getElementById('themeLabel').textContent = 'Modo oscuro';
-    }
-    localStorage.setItem('mm-theme', theme);
+
+    setTimeout(()=>{ if(typeof window.resizeCanvas==='function'){window.resizeCanvas(true);window.render();} }, 280);
+    setTimeout(()=>{ if(typeof window.resizeCanvas==='function'){window.resizeCanvas(true);window.render();} }, 380);
   }
-  function toggleTheme() { setTheme(document.body.classList.contains('dark-theme') ? 'light' : 'dark'); }
-  const savedTheme = localStorage.getItem('mm-theme');
-  savedTheme === 'dark' ? setTheme('dark') : setTheme('light');
-  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-  
-  // Sincronizar modos al cargar
-  setTimeout(syncMobileModeButtons, 500);
-  // También sincronizar después de que app.js se inicialice
-  setTimeout(syncMobileModeButtons, 1500);
+
+  // Exponer para que app.js también pueda llamar mobTab directamente
+  window.mobTab = handleTab;
+
+  // Inicializar tabs una vez que el DOM esté listo
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', initTabs);
+  } else {
+    initTabs();
+  }
+
+  // Sincronizar estado inicial de modos tras carga completa
+  window.addEventListener('load', ()=>{
+    setTimeout(()=>syncModeBtns(window.S ? window.S.mode : 'normal'), 300);
+  });
+})();
 </script>
 </body>
 </html>
