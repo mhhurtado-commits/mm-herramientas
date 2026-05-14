@@ -1658,3 +1658,5 @@ window.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}
 });
 window.addEventListener('load',init);
+// Asegurar que renderMobPanel esté disponible globalmente
+window.renderMobPanel = renderMobPanel;

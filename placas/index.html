@@ -365,7 +365,7 @@
     @media (min-width: 701px) { .exp-lbl { display: block; } }
 
     /* ============================================================
-       ESTILOS MÓVIL - SIDEBAR SE TRANSFORMA EN PESTAÑAS
+       ESTILOS MÓVIL - EXACTAMENTE COMO ESPERA app.js
        ============================================================ */
     @media (max-width: 700px) {
       .placas-sidebar {
@@ -389,7 +389,7 @@
         bottom: calc(56px + 50vh);
       }
       
-      /* Barra de modos en móvil (siempre visible arriba del canvas) */
+      /* Barra de modos en móvil (igual que en escritorio) */
       .mode-bar-mobile {
         display: flex;
         gap: 5px;
@@ -400,9 +400,10 @@
       .mode-bar-mobile .mode-btn {
         font-size: 0.65rem;
         padding: 5px 3px;
+        border-radius: var(--radius);
       }
       
-      /* Barra de pestañas móvil (solo visible en vertical) */
+      /* Barra de pestañas móvil (exactamente como espera app.js) */
       .mob-tabbar {
         position: fixed;
         bottom: 0;
@@ -473,14 +474,10 @@
         flex-direction: column;
         gap: 12px;
       }
-      
-      /* Ocultar el sidebar desktop */
-      .sidebar { display: none; }
     }
     
-    /* Escritorio: asegurar que no se vean elementos móviles */
     @media (min-width: 701px) {
-      .mode-bar-mobile { display: none; }
+      .mode-bar-mobile { display: none !important; }
       .mob-tabbar { display: none !important; }
       .mob-panel { display: none !important; }
     }
@@ -506,7 +503,6 @@
 
   <!-- SIDEBAR (desktop) -->
   <aside class="placas-sidebar">
-
     <!-- MODO DE PLACA -->
     <div class="mode-bar">
       <div class="mode-btn on"  id="mode-normal"   onclick="setMode('normal')">📰 Normal</div>
@@ -872,15 +868,36 @@
 
 </div>
 
-<!-- BARRA DE PESTAÑAS MÓVIL (usando el sistema original de app.js) -->
+<!-- BARRA DE PESTAÑAS MÓVIL (USANDO EXACTAMENTE LOS MISMO data-key QUE ESPERA app.js) -->
 <nav class="mob-tabbar" id="mobTabbar">
-  <button class="mob-tab" data-key="noticia" onclick="window.mobTab('noticia',this)"><span class="ti">📰</span><span>Noticia</span></button>
-  <button class="mob-tab" data-key="plantilla" onclick="window.mobTab('plantilla',this)"><span class="ti">🎨</span><span>Plantilla</span></button>
-  <button class="mob-tab" data-key="imagen" onclick="window.mobTab('imagen',this)"><span class="ti">🖼</span><span>Imagen</span></button>
-  <button class="mob-tab" data-key="titulo" onclick="window.mobTab('titulo',this)"><span class="ti">✏️</span><span>Título</span></button>
-  <button class="mob-tab" data-key="categoria" onclick="window.mobTab('categoria',this)"><span class="ti">🏷️</span><span>Categoría</span></button>
-  <button class="mob-tab" data-key="capa" onclick="window.mobTab('capa',this)"><span class="ti">🌈</span><span>Capa</span></button>
-  <button class="mob-tab" data-key="logo" onclick="window.mobTab('logo',this)"><span class="ti">⭐</span><span>Logo</span></button>
+  <button class="mob-tab" data-key="noticia" onclick="window.mobTab('noticia',this)">
+    <span class="ti">📰</span>
+    <span>Noticia</span>
+  </button>
+  <button class="mob-tab" data-key="plantilla" onclick="window.mobTab('plantilla',this)">
+    <span class="ti">🎨</span>
+    <span>Plantilla</span>
+  </button>
+  <button class="mob-tab" data-key="imagen" onclick="window.mobTab('imagen',this)">
+    <span class="ti">🖼</span>
+    <span>Imagen</span>
+  </button>
+  <button class="mob-tab" data-key="titulo" onclick="window.mobTab('titulo',this)">
+    <span class="ti">✏️</span>
+    <span>Título</span>
+  </button>
+  <button class="mob-tab" data-key="categoria" onclick="window.mobTab('categoria',this)">
+    <span class="ti">🏷️</span>
+    <span>Categoría</span>
+  </button>
+  <button class="mob-tab" data-key="capa" onclick="window.mobTab('capa',this)">
+    <span class="ti">🌈</span>
+    <span>Capa</span>
+  </button>
+  <button class="mob-tab" data-key="logo" onclick="window.mobTab('logo',this)">
+    <span class="ti">⭐</span>
+    <span>Logo</span>
+  </button>
 </nav>
 
 <!-- PANEL MÓVIL (se abre al tocar una pestaña) -->
@@ -912,7 +929,7 @@
 
 <script src="app.js"></script>
 <script>
-  // Variables globales para el panel móvil (compatibles con app.js)
+  // Sincronizar estados y asegurar que las funciones de app.js estén disponibles
   window._activeTab = window._activeTab || 'noticia';
   window._panelOpen = window._panelOpen || false;
   
@@ -933,18 +950,19 @@
   }
   
   // Override de setMode para sincronizar botones móviles
-  const originalSetMode = window.setMode;
-  if (originalSetMode) {
+  if (typeof window.setMode === 'function') {
+    const originalSetMode = window.setMode;
     window.setMode = function(mode) {
       originalSetMode(mode);
       syncMobileModeButtons();
     };
   }
   
-  // Función original mobTab (se mantiene igual)
+  // Función mobTab (compatible con app.js)
   window.mobTab = function(key, tabEl) {
     const panel = document.getElementById('mobPanel');
     const canvasArea = document.getElementById('canvasArea');
+    
     if (window._activeTab === key && window._panelOpen) {
       // Cerrar panel
       panel.classList.add('closing');
@@ -959,20 +977,28 @@
       }, 260);
       return;
     }
+    
     // Abrir panel
     window._activeTab = key;
     window._panelOpen = true;
     document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('on'));
     if (tabEl) tabEl.classList.add('on');
+    
+    // Llamar a renderMobPanel si existe (está en app.js)
     if (typeof window.renderMobPanel === 'function') {
       window.renderMobPanel();
     } else {
+      // Fallback
       const inner = document.getElementById('mobPanelInner');
-      if (inner) inner.innerHTML = '<div style="padding:20px;text-align:center">Cargando opciones...</div>';
+      if (inner) {
+        inner.innerHTML = '<div style="padding:20px;text-align:center;color:var(--dim)">Seleccionaste: ' + key + '<br><br>⚠️ renderMobPanel no disponible</div>';
+      }
     }
+    
     panel.classList.remove('closing');
     panel.classList.add('open');
     canvasArea.classList.add('panel-open');
+    
     setTimeout(() => {
       if (typeof window.resizeCanvas === 'function') window.resizeCanvas(true);
       if (typeof window.render === 'function') window.render();
@@ -1004,6 +1030,8 @@
   
   // Sincronizar modos al cargar
   setTimeout(syncMobileModeButtons, 500);
+  // También sincronizar después de que app.js se inicialice
+  setTimeout(syncMobileModeButtons, 1500);
 </script>
 </body>
 </html>
