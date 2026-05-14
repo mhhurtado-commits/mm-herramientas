@@ -1075,9 +1075,6 @@ window.initTabTouchEvents = function(){ /* desactivado — lo maneja el script p
     });
   }
 
-  // Cuando se toca un botón de modo en móvil:
-  // 1. Cambia el modo en app.js
-  // 2. Abre el panel "noticia" que muestra las opciones del modo activo
   function hookSetMode(){
     if(typeof window.setMode !== 'function'){ setTimeout(hookSetMode, 60); return; }
     var _orig = window.setMode;
@@ -1085,8 +1082,14 @@ window.initTabTouchEvents = function(){ /* desactivado — lo maneja el script p
       _orig(mode);
       syncModeBtns(mode);
       if(window.innerWidth <= 700){
-        // Siempre abrir el panel noticia para ver las opciones del modo
-        openPanel('noticia');
+        if(_open && _tab === 'noticia'){
+          // Panel noticia ya abierto → solo refrescar contenido
+          window._activeTab = 'noticia';
+          if(typeof window.renderMobPanel==='function') window.renderMobPanel();
+        } else {
+          // Panel cerrado o en otra pestaña → abrir noticia
+          openPanel('noticia');
+        }
       }
     };
   }
