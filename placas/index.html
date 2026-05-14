@@ -994,8 +994,6 @@
   });
 
   // ── Sincronizar botones de modo en la barra mobile ──
-  // app.js llama setMode() que actualiza #mode-X (sidebar desktop).
-  // Nosotros envolvemos setMode para que también actualice #mode-X-m (barra mobile).
   function syncModeBtns(mode){
     ['normal','textual','foto','collage'].forEach(m=>{
       const btn = document.getElementById('mode-'+m+'-m');
@@ -1003,23 +1001,46 @@
     });
   }
 
-  // Esperar a que app.js defina setMode, luego envolverlo
+  // Abrir (o refrescar) el panel "noticia" en móvil, que es donde
+  // renderMobPanel() muestra las opciones del modo activo.
+  function openNoticiaPanel(){
+    if(window.innerWidth > 700) return; // solo móvil
+    const panel      = document.getElementById('mobPanel');
+    const canvasArea = document.getElementById('canvasArea');
+    const tabEl      = document.querySelector('.mob-tab[data-key="noticia"]');
+
+    window._activeTab = 'noticia';
+    window._panelOpen = true;
+
+    document.querySelectorAll('.mob-tab').forEach(t=>t.classList.remove('on'));
+    if(tabEl) tabEl.classList.add('on');
+
+    if(typeof window.renderMobPanel==='function') window.renderMobPanel();
+
+    panel.classList.remove('closing');
+    panel.classList.add('open');
+    canvasArea.classList.add('panel-open');
+
+    setTimeout(()=>{
+      if(typeof window.resizeCanvas==='function'){
+        window.resizeCanvas(true);
+        if(typeof window.render==='function') window.render();
+      }
+    }, 280);
+  }
+
+  // Envolver setMode para sincronizar botones y abrir panel en móvil
   function hookSetMode(){
-    if(typeof window.setMode !== 'function'){
-      setTimeout(hookSetMode, 50);
-      return;
-    }
+    if(typeof window.setMode !== 'function'){ setTimeout(hookSetMode, 50); return; }
     const _orig = window.setMode;
     window.setMode = function(mode){
       _orig(mode);
       syncModeBtns(mode);
-      // Si el panel móvil está abierto y el usuario cambió modo,
-      // refrescar el panel para mostrar las opciones correctas.
-      if(window._panelOpen && typeof window.renderMobPanel === 'function'){
-        window.renderMobPanel();
+      // En móvil: siempre abrir/refrescar el panel noticia con las opciones del modo
+      if(window.innerWidth <= 700){
+        openNoticiaPanel();
       }
     };
-    // Sincronizar estado inicial
     syncModeBtns(window.S ? window.S.mode : 'normal');
   }
   hookSetMode();
