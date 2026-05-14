@@ -29,6 +29,7 @@
     .placas-canvas-area {
       flex: 1;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 16px;
@@ -364,7 +365,7 @@
     @media (min-width: 701px) { .exp-lbl { display: block; } }
 
     /* ============================================================
-       ESTILOS MÓVIL - SIDEBAR SE TRANSFORMA EN PESTAÑAS ABAJO
+       ESTILOS MÓVIL - SIDEBAR SE TRANSFORMA EN PESTAÑAS
        ============================================================ */
     @media (max-width: 700px) {
       .placas-sidebar {
@@ -379,10 +380,26 @@
         bottom: 56px;
         padding: 8px;
         transition: bottom 0.26s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
       }
       
       .placas-canvas-area.panel-open {
         bottom: calc(56px + 50vh);
+      }
+      
+      /* Barra de modos en móvil (siempre visible arriba del canvas) */
+      .mode-bar-mobile {
+        display: flex;
+        gap: 5px;
+        margin: 0 0 12px 0;
+        padding: 0;
+        width: 100%;
+      }
+      .mode-bar-mobile .mode-btn {
+        font-size: 0.65rem;
+        padding: 5px 3px;
       }
       
       /* Barra de pestañas móvil (solo visible en vertical) */
@@ -394,7 +411,7 @@
         display: flex !important;
         justify-content: space-around;
         background: var(--surface);
-        border-top: 1px solid var(--line2);
+        border-top: 2px solid var(--v);
         z-index: 150;
         padding: 6px 0 10px;
         height: 56px;
@@ -407,7 +424,7 @@
         gap: 2px;
         background: none;
         border: none;
-        font-size: 9px;
+        font-size: 8px;
         font-weight: 600;
         color: var(--dim);
         cursor: pointer;
@@ -418,7 +435,7 @@
       }
       
       .mob-tab .ti {
-        font-size: 18px;
+        font-size: 16px;
       }
       
       .mob-tab.on {
@@ -456,6 +473,16 @@
         flex-direction: column;
         gap: 12px;
       }
+      
+      /* Ocultar el sidebar desktop */
+      .sidebar { display: none; }
+    }
+    
+    /* Escritorio: asegurar que no se vean elementos móviles */
+    @media (min-width: 701px) {
+      .mode-bar-mobile { display: none; }
+      .mob-tabbar { display: none !important; }
+      .mob-panel { display: none !important; }
     }
   </style>
 </head>
@@ -477,7 +504,7 @@
 
 <div class="placas-layout">
 
-  <!-- SIDEBAR COMPLETO (original, sin cambios) -->
+  <!-- SIDEBAR (desktop) -->
   <aside class="placas-sidebar">
 
     <!-- MODO DE PLACA -->
@@ -827,24 +854,16 @@
 
   </aside>
 
-  <!-- BARRA DE PESTAÑAS MÓVIL (SOLO VISIBLE EN VERTICAL, sin duplicados en escritorio) -->
-  <nav class="mob-tabbar" id="mobTabbar">
-    <button class="mob-tab" data-key="noticia" onclick="window.mobTab('noticia',this)"><span class="ti">📰</span>Noticia</button>
-    <button class="mob-tab" data-key="plantilla" onclick="window.mobTab('plantilla',this)"><span class="ti">🎨</span>Plantilla</button>
-    <button class="mob-tab" data-key="imagen" onclick="window.mobTab('imagen',this)"><span class="ti">🖼</span>Imagen</button>
-    <button class="mob-tab" data-key="titulo" onclick="window.mobTab('titulo',this)"><span class="ti">✏️</span>Título</button>
-    <button class="mob-tab" data-key="categoria" onclick="window.mobTab('categoria',this)"><span class="ti">🏷</span>Categoría</button>
-    <button class="mob-tab" data-key="capa" onclick="window.mobTab('capa',this)"><span class="ti">🌈</span>Capa</button>
-    <button class="mob-tab" data-key="logo" onclick="window.mobTab('logo',this)"><span class="ti">⭐</span>Logo</button>
-  </nav>
-
-  <!-- PANEL MÓVIL (SE ABRE AL TOCAR UNA PESTAÑA) -->
-  <div class="mob-panel" id="mobPanel">
-    <div class="mob-panel-inner" id="mobPanelInner"></div>
-  </div>
-
-  <!-- CANVAS -->
+  <!-- CANVAS AREA -->
   <main class="placas-canvas-area" id="canvasArea">
+    <!-- Barra de modos en móvil (siempre visible) -->
+    <div class="mode-bar-mobile">
+      <div class="mode-btn on"  id="mode-normal-mobile"   onclick="setMode('normal')">📰 Normal</div>
+      <div class="mode-btn"     id="mode-textual-mobile"  onclick="setMode('textual')">💬 Textual</div>
+      <div class="mode-btn"     id="mode-foto-mobile"     onclick="setMode('foto')">👤 Foto</div>
+      <div class="mode-btn"     id="mode-collage-mobile"  onclick="setMode('collage')">🖼 Collage</div>
+    </div>
+    
     <div class="canvas-wrap" id="cw">
       <canvas id="mc"></canvas>
       <div class="lov" id="lov" style="display:none"><div class="spin"></div></div>
@@ -853,6 +872,23 @@
 
 </div>
 
+<!-- BARRA DE PESTAÑAS MÓVIL (usando el sistema original de app.js) -->
+<nav class="mob-tabbar" id="mobTabbar">
+  <button class="mob-tab" data-key="noticia" onclick="window.mobTab('noticia',this)"><span class="ti">📰</span><span>Noticia</span></button>
+  <button class="mob-tab" data-key="plantilla" onclick="window.mobTab('plantilla',this)"><span class="ti">🎨</span><span>Plantilla</span></button>
+  <button class="mob-tab" data-key="imagen" onclick="window.mobTab('imagen',this)"><span class="ti">🖼</span><span>Imagen</span></button>
+  <button class="mob-tab" data-key="titulo" onclick="window.mobTab('titulo',this)"><span class="ti">✏️</span><span>Título</span></button>
+  <button class="mob-tab" data-key="categoria" onclick="window.mobTab('categoria',this)"><span class="ti">🏷️</span><span>Categoría</span></button>
+  <button class="mob-tab" data-key="capa" onclick="window.mobTab('capa',this)"><span class="ti">🌈</span><span>Capa</span></button>
+  <button class="mob-tab" data-key="logo" onclick="window.mobTab('logo',this)"><span class="ti">⭐</span><span>Logo</span></button>
+</nav>
+
+<!-- PANEL MÓVIL (se abre al tocar una pestaña) -->
+<div class="mob-panel" id="mobPanel">
+  <div class="mob-panel-inner" id="mobPanelInner"></div>
+</div>
+
+<!-- EXPORT BAR -->
 <footer class="expbar">
   <span class="exp-lbl" id="fmtLbl">Instagram Cuadrado — 1080×1080</span>
   <button class="mm-btn" onclick="clearAll()" style="background:var(--v);color:var(--bg)">🗑 Limpiar</button>
@@ -880,6 +916,32 @@
   window._activeTab = window._activeTab || 'noticia';
   window._panelOpen = window._panelOpen || false;
   
+  // Función para sincronizar el estado de los modos en móvil
+  function syncMobileModeButtons() {
+    const modes = ['normal', 'textual', 'foto', 'collage'];
+    modes.forEach(mode => {
+      const desktopBtn = document.getElementById(`mode-${mode}`);
+      const mobileBtn = document.getElementById(`mode-${mode}-mobile`);
+      if (desktopBtn && mobileBtn) {
+        if (desktopBtn.classList.contains('on')) {
+          mobileBtn.classList.add('on');
+        } else {
+          mobileBtn.classList.remove('on');
+        }
+      }
+    });
+  }
+  
+  // Override de setMode para sincronizar botones móviles
+  const originalSetMode = window.setMode;
+  if (originalSetMode) {
+    window.setMode = function(mode) {
+      originalSetMode(mode);
+      syncMobileModeButtons();
+    };
+  }
+  
+  // Función original mobTab (se mantiene igual)
   window.mobTab = function(key, tabEl) {
     const panel = document.getElementById('mobPanel');
     const canvasArea = document.getElementById('canvasArea');
@@ -939,6 +1001,9 @@
   const savedTheme = localStorage.getItem('mm-theme');
   savedTheme === 'dark' ? setTheme('dark') : setTheme('light');
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+  
+  // Sincronizar modos al cargar
+  setTimeout(syncMobileModeButtons, 500);
 </script>
 </body>
 </html>

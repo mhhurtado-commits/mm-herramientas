@@ -827,3 +827,28 @@ input[type="color"] {
     gap: 12px;
   }
 }
+/* ============================================================
+   SOPORTE MÓVIL PARA PLACAS (agregar al final del archivo)
+   ============================================================ */
+
+/* Modo barra móvil (visible solo en móvil) */
+@media (max-width: 700px) {
+  .mode-bar-mobile {
+    display: flex;
+    gap: 5px;
+    margin: 0 0 12px 0;
+    padding: 0;
+    width: 100%;
+  }
+  .mode-bar-mobile .mode-btn {
+    font-size: 0.65rem;
+    padding: 5px 3px;
+    border-radius: var(--radius);
+  }
+}
+
+@media (min-width: 701px) {
+  .mode-bar-mobile {
+    display: none !important;
+  }
+}
