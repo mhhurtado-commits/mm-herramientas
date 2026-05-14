@@ -708,6 +708,7 @@ input[type="color"] {
   cursor: pointer;
   background: var(--surface);
 }
+
 /* Asegurar que todos los spinners comiencen ocultos */
 .mm-spinner,
 .spinner,
@@ -723,26 +724,17 @@ input[type="color"] {
 }
 
 /* ============================================================
-   RESPONSIVE
+   ESTILOS MÓVIL PARA PLACAS - COMPLETO CORREGIDO
    ============================================================ */
+
+/* Móvil (≤700px) */
 @media (max-width: 700px) {
-  .theme-toggle {
-    bottom: calc(var(--footer-h) + 60px);
-    padding: 4px 10px;
-    font-size: 9px;
-  }
-  .theme-toggle .icon {
-    font-size: 10px;
-  }
-}
-/* ============================================================
-   ESTILOS MÓVIL PARA PLACAS (pestañas abajo)
-   ============================================================ */
-@media (max-width: 700px) {
+  /* Ocultar sidebar en móvil */
   .placas-sidebar {
     display: none;
   }
   
+  /* Canvas área se ajusta para dejar espacio a las pestañas */
   .placas-canvas-area {
     position: fixed;
     top: var(--header-h);
@@ -751,12 +743,31 @@ input[type="color"] {
     bottom: 56px;
     padding: 8px;
     transition: bottom 0.26s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
   }
   
+  /* Cuando el panel está abierto, el canvas se achica */
   .placas-canvas-area.panel-open {
     bottom: calc(56px + 45vh);
   }
   
+  /* Barra de modos (Normal, Textual, Foto, Collage) en móvil */
+  .mode-bar-mobile {
+    display: flex !important;
+    gap: 5px;
+    margin: 0 0 12px 0;
+    padding: 0;
+    width: 100%;
+  }
+  .mode-bar-mobile .mode-btn {
+    font-size: 0.65rem;
+    padding: 5px 3px;
+    border-radius: var(--radius);
+  }
+  
+  /* Barra de pestañas inferior (Noticia, Plantilla, etc.) */
   .mob-tabbar {
     position: fixed;
     bottom: 0;
@@ -765,9 +776,9 @@ input[type="color"] {
     display: flex !important;
     justify-content: space-around;
     background: var(--surface);
-    border-top: 1px solid var(--line2);
+    border-top: 2px solid var(--v);
     z-index: 150;
-    padding: 8px 0 12px;
+    padding: 6px 0 10px;
     height: 56px;
   }
   
@@ -778,7 +789,7 @@ input[type="color"] {
     gap: 2px;
     background: none;
     border: none;
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 600;
     color: var(--dim);
     cursor: pointer;
@@ -789,13 +800,14 @@ input[type="color"] {
   }
   
   .mob-tab .ti {
-    font-size: 18px;
+    font-size: 16px;
   }
   
   .mob-tab.on {
     color: var(--v);
   }
   
+  /* Panel deslizante que sube desde abajo */
   .mob-panel {
     position: fixed;
     bottom: 56px;
@@ -826,29 +838,28 @@ input[type="color"] {
     flex-direction: column;
     gap: 12px;
   }
-}
-/* ============================================================
-   SOPORTE MÓVIL PARA PLACAS (agregar al final del archivo)
-   ============================================================ */
-
-/* Modo barra móvil (visible solo en móvil) */
-@media (max-width: 700px) {
-  .mode-bar-mobile {
-    display: flex;
-    gap: 5px;
-    margin: 0 0 12px 0;
-    padding: 0;
-    width: 100%;
+  
+  /* Ajustes de tema en móvil */
+  .theme-toggle {
+    bottom: calc(var(--footer-h) + 60px);
+    padding: 4px 10px;
+    font-size: 9px;
   }
-  .mode-bar-mobile .mode-btn {
-    font-size: 0.65rem;
-    padding: 5px 3px;
-    border-radius: var(--radius);
+  .theme-toggle .icon {
+    font-size: 10px;
   }
 }
 
+/* Escritorio (>700px) */
 @media (min-width: 701px) {
+  /* Ocultar elementos móviles en escritorio */
   .mode-bar-mobile {
+    display: none !important;
+  }
+  .mob-tabbar {
+    display: none !important;
+  }
+  .mob-panel {
     display: none !important;
   }
 }
