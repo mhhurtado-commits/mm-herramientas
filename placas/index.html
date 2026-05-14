@@ -955,30 +955,13 @@
 
 <script src="app.js"></script>
 <script>
+// Neutralizar initTabTouchEvents de app.js ANTES de que init() lo llame.
+// app.js lo llama en window.addEventListener('load', init), así que lo
+// sobreescribimos justo después de que app.js cargue pero antes del load.
+window.initTabTouchEvents = function(){ /* desactivado — lo maneja el script propio */ };
+</script>
+<script>
 (function(){
-
-  // ── Parche resizeCanvas ──
-  // app.js usa valores fijos internos para calcular avH en móvil.
-  // Nuestro layout CSS ya define correctamente el alto del canvasArea,
-  // así que sobreescribimos resizeCanvas para que use clientHeight real
-  // del área en lugar de los cálculos internos.
-  function patchResizeCanvas(){
-    if(typeof window.resizeCanvas !== 'function'){ setTimeout(patchResizeCanvas, 50); return; }
-    const _orig = window.resizeCanvas;
-    window.resizeCanvas = function(keepEls){
-      if(window.innerWidth <= 700){
-        const area = document.getElementById('canvasArea');
-        if(area){
-          // Quitar height inline que pudiera haber quedado de llamadas anteriores
-          area.style.height = '';
-        }
-      }
-      _orig(keepEls);
-    };
-    window.resizeCanvas(true);
-    if(typeof window.render === 'function') window.render();
-  }
-  patchResizeCanvas();
 
   // ── Tema claro/oscuro ──
   function setTheme(t){
@@ -987,125 +970,143 @@
     document.getElementById('themeLabel').textContent = t==='dark' ? 'Modo claro' : 'Modo oscuro';
     localStorage.setItem('mm-theme', t);
   }
-  const saved = localStorage.getItem('mm-theme');
-  setTheme(saved === 'dark' ? 'dark' : 'light');
+  setTheme(localStorage.getItem('mm-theme')==='dark' ? 'dark' : 'light');
   document.getElementById('themeToggle').addEventListener('click', ()=>{
     setTheme(document.body.classList.contains('dark-theme') ? 'light' : 'dark');
   });
 
-  // ── Sincronizar botones de modo en la barra mobile ──
-  function syncModeBtns(mode){
-    ['normal','textual','foto','collage'].forEach(m=>{
-      const btn = document.getElementById('mode-'+m+'-m');
-      if(btn) btn.classList.toggle('on', m===mode);
-    });
+  // ══════════════════════════════════════════════════════
+  // SISTEMA DE PESTAÑAS Y PANEL MÓVIL
+  // ══════════════════════════════════════════════════════
+
+  // Estado propio (no depende de variables de app.js)
+  var _tab    = 'noticia';
+  var _open   = false;
+
+  function doResize(){
+    if(typeof window.resizeCanvas==='function') window.resizeCanvas(true);
+    if(typeof window.render==='function')       window.render();
   }
 
-  // Abrir (o refrescar) el panel "noticia" en móvil, que es donde
-  // renderMobPanel() muestra las opciones del modo activo.
-  function openNoticiaPanel(){
-    if(window.innerWidth > 700) return; // solo móvil
-    const panel      = document.getElementById('mobPanel');
-    const canvasArea = document.getElementById('canvasArea');
-    const tabEl      = document.querySelector('.mob-tab[data-key="noticia"]');
+  // Abrir panel con una pestaña dada
+  function openPanel(key, fromTabEl){
+    var panel  = document.getElementById('mobPanel');
+    var area   = document.getElementById('canvasArea');
 
-    window._activeTab = 'noticia';
+    _tab  = key;
+    _open = true;
+    // Sincronizar variables de app.js por si las usa internamente
+    window._activeTab = key;
     window._panelOpen = true;
 
-    document.querySelectorAll('.mob-tab').forEach(t=>t.classList.remove('on'));
-    if(tabEl) tabEl.classList.add('on');
+    // Marcar pestaña activa
+    document.querySelectorAll('.mob-tab').forEach(function(t){ t.classList.remove('on'); });
+    if(fromTabEl) fromTabEl.classList.add('on');
+    else {
+      var el = document.querySelector('.mob-tab[data-key="'+key+'"]');
+      if(el) el.classList.add('on');
+    }
 
+    // Generar contenido
     if(typeof window.renderMobPanel==='function') window.renderMobPanel();
 
+    // Animar apertura
     panel.classList.remove('closing');
     panel.classList.add('open');
-    canvasArea.classList.add('panel-open');
+    area.classList.add('panel-open');
 
-    setTimeout(()=>{
-      if(typeof window.resizeCanvas==='function'){
-        window.resizeCanvas(true);
-        if(typeof window.render==='function') window.render();
-      }
+    setTimeout(doResize, 300);
+    setTimeout(doResize, 450);
+  }
+
+  // Cerrar panel
+  function closePanel(){
+    var panel = document.getElementById('mobPanel');
+    var area  = document.getElementById('canvasArea');
+
+    _open = false;
+    window._panelOpen = false;
+
+    document.querySelectorAll('.mob-tab').forEach(function(t){ t.classList.remove('on'); });
+    panel.classList.add('closing');
+    area.classList.remove('panel-open');
+
+    setTimeout(function(){
+      panel.classList.remove('open','closing');
+      doResize();
     }, 280);
   }
 
-  // Envolver setMode para sincronizar botones y abrir panel en móvil
-  function hookSetMode(){
-    if(typeof window.setMode !== 'function'){ setTimeout(hookSetMode, 50); return; }
-    const _orig = window.setMode;
-    window.setMode = function(mode){
-      _orig(mode);
-      syncModeBtns(mode);
-      // En móvil: siempre abrir/refrescar el panel noticia con las opciones del modo
-      if(window.innerWidth <= 700){
-        openNoticiaPanel();
-      }
-    };
-    syncModeBtns(window.S ? window.S.mode : 'normal');
+  // Manejar toque en una pestaña
+  function handleTab(key, tabEl){
+    if(_open && _tab === key){
+      closePanel();
+    } else {
+      openPanel(key, tabEl);
+    }
   }
-  hookSetMode();
 
-  // ── Sistema de pestañas móvil ──
-  // Registrar con touchend (iOS fix) + click
+  // Exponer globalmente (app.js llama window.mobTab en algunos lugares)
+  window.mobTab = handleTab;
+
+  // Registrar eventos en las pestañas (click + touchend para iOS)
   function initTabs(){
-    document.querySelectorAll('.mob-tab').forEach(btn=>{
-      // click para escritorio/emulador
-      btn.addEventListener('click', function(){ handleTab(this.dataset.key, this); });
-      // touchend para iOS (evita delay de 300ms)
+    document.querySelectorAll('.mob-tab').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        handleTab(this.dataset.key, this);
+      });
       btn.addEventListener('touchend', function(e){
         e.preventDefault();
+        e.stopPropagation();
         handleTab(this.dataset.key, this);
       }, {passive:false});
     });
   }
 
-  function handleTab(key, tabEl){
-    const panel      = document.getElementById('mobPanel');
-    const canvasArea = document.getElementById('canvasArea');
+  // ══════════════════════════════════════════════════════
+  // BOTONES DE MODO EN EL CANVAS MÓVIL
+  // ══════════════════════════════════════════════════════
 
-    if(window._activeTab === key && window._panelOpen){
-      // Cerrar
-      panel.classList.add('closing');
-      canvasArea.classList.remove('panel-open');
-      document.querySelectorAll('.mob-tab').forEach(t=>t.classList.remove('on'));
-      window._panelOpen = false;
-      setTimeout(()=>{
-        panel.classList.remove('open','closing');
-        if(typeof window.resizeCanvas==='function') window.resizeCanvas(true);
-        if(typeof window.render==='function') window.render();
-      }, 260);
-      return;
-    }
-
-    window._activeTab = key;
-    window._panelOpen = true;
-    document.querySelectorAll('.mob-tab').forEach(t=>t.classList.remove('on'));
-    tabEl.classList.add('on');
-
-    if(typeof window.renderMobPanel==='function') window.renderMobPanel();
-
-    panel.classList.remove('closing');
-    panel.classList.add('open');
-    canvasArea.classList.add('panel-open');
-
-    setTimeout(()=>{ if(typeof window.resizeCanvas==='function'){window.resizeCanvas(true);if(typeof window.render==='function')window.render();} }, 280);
-    setTimeout(()=>{ if(typeof window.resizeCanvas==='function'){window.resizeCanvas(true);if(typeof window.render==='function')window.render();} }, 400);
+  function syncModeBtns(mode){
+    ['normal','textual','foto','collage'].forEach(function(m){
+      var btn = document.getElementById('mode-'+m+'-m');
+      if(btn) btn.classList.toggle('on', m===mode);
+    });
   }
 
-  // Exponer para que app.js también pueda llamar mobTab directamente
-  window.mobTab = handleTab;
+  // Cuando se toca un botón de modo en móvil:
+  // 1. Cambia el modo en app.js
+  // 2. Abre el panel "noticia" que muestra las opciones del modo activo
+  function hookSetMode(){
+    if(typeof window.setMode !== 'function'){ setTimeout(hookSetMode, 60); return; }
+    var _orig = window.setMode;
+    window.setMode = function(mode){
+      _orig(mode);
+      syncModeBtns(mode);
+      if(window.innerWidth <= 700){
+        // Siempre abrir el panel noticia para ver las opciones del modo
+        openPanel('noticia');
+      }
+    };
+  }
+  hookSetMode();
 
-  // Inicializar tabs una vez que el DOM esté listo
+  // ══════════════════════════════════════════════════════
+  // INIT
+  // ══════════════════════════════════════════════════════
+
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', initTabs);
   } else {
     initTabs();
   }
 
-  // Sincronizar estado inicial de modos tras carga completa
-  window.addEventListener('load', ()=>{
-    setTimeout(()=>syncModeBtns(window.S ? window.S.mode : 'normal'), 300);
+  window.addEventListener('load', function(){
+    setTimeout(function(){ syncModeBtns(window.S ? window.S.mode : 'normal'); }, 400);
+    setTimeout(doResize, 300);
   });
+
 })();
 </script>
 </body>
