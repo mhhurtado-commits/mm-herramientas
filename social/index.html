@@ -1899,9 +1899,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 </script>
+<script>
 // ============================================================
 // TRANSCRIBIR AUDIO DIRECTAMENTE EN REELS (sin Studio)
 // ============================================================
+
+// Reuse global WORKER constant defined earlier in the page.
 
 async function transcribirAudioReel(audioBlob) {
   showLoadingReel('Transcribiendo audio con IA...');
@@ -1922,14 +1925,12 @@ async function transcribirAudioReel(audioBlob) {
     }
     
     if (data.segments && data.segments.length) {
-      // Aplicar los subtítulos al editor
       if (typeof RE !== 'undefined') {
         RE.studioSubtitles = data.segments;
         RE.studioVTT = data.vtt;
         
         toast(`✅ ${data.segments.length} segmentos de subtítulos generados`);
         
-        // Forzar re-render para mostrar los subtítulos
         if (typeof reelRender === 'function') {
           reelRender();
         }
@@ -1946,7 +1947,6 @@ async function transcribirAudioReel(audioBlob) {
   }
 }
 
-// Función para mostrar loading (si no existe)
 function showLoadingReel(text) {
   let loader = document.getElementById('reelStudioLoader');
   if (!loader) {
@@ -1957,7 +1957,8 @@ function showLoadingReel(text) {
     document.body.appendChild(loader);
   }
   loader.style.display = 'flex';
-  document.getElementById('reelLoaderText').textContent = text || 'Procesando...';
+  const loaderText = document.getElementById('reelLoaderText');
+  if (loaderText) loaderText.textContent = text || 'Procesando...';
 }
 
 function hideLoadingReel() {
@@ -1965,12 +1966,9 @@ function hideLoadingReel() {
   if (loader) loader.style.display = 'none';
 }
 
-// Agregar botón para transcribir audio directamente
 function agregarBotonTranscripcionDirecta() {
   const audioSection = document.querySelector('.re-section-body');
   if (!audioSection) return;
-  
-  // Verificar si ya existe el botón
   if (document.getElementById('btnTranscripcionDirecta')) return;
   
   const btnContainer = document.createElement('div');
@@ -1982,39 +1980,52 @@ function agregarBotonTranscripcionDirecta() {
   `;
   audioSection.appendChild(btnContainer);
   
-  document.getElementById('btnTranscripcionDirecta').addEventListener('click', async () => {
-    if (typeof RE === 'undefined' || !RE.audioBlob) {
-      toast('⚠ Primero generá o cargá el audio');
-      return;
-    }
-    
-    const btn = document.getElementById('btnTranscripcionDirecta');
-    btn.disabled = true;
-    btn.textContent = 'Generando subtítulos...';
-    
-    await transcribirAudioReel(RE.audioBlob);
-    
-    btn.disabled = false;
-    btn.textContent = '🎙 Generar subtítulos desde el audio';
-  });
+  const btn = document.getElementById('btnTranscripcionDirecta');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      if (typeof RE === 'undefined' || !RE.audioBlob) {
+        toast('⚠ Primero generá o cargá el audio');
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.textContent = 'Generando subtítulos...';
+      
+      await transcribirAudioReel(RE.audioBlob);
+      
+      btn.disabled = false;
+      btn.textContent = '🎙 Generar subtítulos desde el audio';
+    });
+  }
 }
 
-// Llamar a esta función cuando se carga la pestaña de Reel
-// Modificar la función switchTab para que al entrar a Reel agregue el botón
-const originalSwitchTab = switchTab;
-window.switchTab = function(tab, btn) {
-  originalSwitchTab(tab, btn);
-  if (tab === 'reel') {
-    setTimeout(agregarBotonTranscripcionDirecta, 500);
-  }
-};
+// Modificar la función switchTab original
+if (typeof switchTab !== 'undefined') {
+  const originalSwitchTab = switchTab;
+  window.switchTab = function(tab, btn) {
+    originalSwitchTab(tab, btn);
+    if (tab === 'reel') {
+      setTimeout(agregarBotonTranscripcionDirecta, 500);
+    }
+  };
+}
 
-// También ejecutar al cargar si ya estamos en Reel
+// Detectar cuando la pestaña recibe foco
+window.addEventListener('focus', () => {
+  const tabReel = document.getElementById('tabReel');
+  if (tabReel && tabReel.style.display !== 'none') {
+    setTimeout(agregarBotonTranscripcionDirecta, 300);
+  }
+});
+
+// Ejecutar al cargar si ya estamos en Reel
 document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('tabReel').style.display !== 'none') {
+  const tabReel = document.getElementById('tabReel');
+  if (tabReel && tabReel.style.display !== 'none') {
     setTimeout(agregarBotonTranscripcionDirecta, 1000);
   }
 });
 </script>
+
 </body>
 </html>
