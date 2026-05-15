@@ -1,8 +1,7 @@
 // ============================================================
-// Media Mendoza — Reel Editor v4.3
+// Media Mendoza — Reel Editor v5.0
 // Compatibilidad cross-browser + subtítulos sincronizados
-// Control manual de desplazamiento temporal (±500ms)
-// + Mezcla de música de fondo
+// + Soporte para subtítulos generados por Whisper (timestamps precisos)
 // ============================================================
 
 // ── Fuente BebasNeue desde /assets ──
@@ -24,6 +23,8 @@ const RE = {
   audioBlob: null,
   audioTitulo: '',
   subsOffset: 0,
+  studioSubtitles: null,     // Subtítulos generados por Whisper (timestamp precisos)
+  studioVTT: null,
   els: {
     logo:   { x: null, y: null, w: null, h: null },
     titulo: { x: null, y: null, w: null, h: null },
@@ -68,8 +69,9 @@ function isMobile() {
 }
 
 // ============================================================
-// SUBTÍTULOS (estimación por sílabas con desplazamiento)
+// SUBTÍTULOS (con soporte para timestamps precisos de Whisper)
 // ============================================================
+
 function contarSilabas(palabra) {
   const p = palabra.toLowerCase().replace(/[^a-záéíóúüñ]/g, '');
   if (!p) return 1;
@@ -196,6 +198,72 @@ function reelDrawSubs(ctx, W, H, timestamps, t, S) {
       x += ach + GAP;
     });
   });
+}
+
+// Dibujar subtítulos usando timestamps precisos de Whisper
+function reelDrawSubtitulosPrecisos(ctx, W, H, segments, currentTime, S) {
+  if (!segments || !segments.length) return false;
+  
+  // Encontrar el segmento activo en el tiempo actual
+  const activeSegment = segments.find(seg => currentTime >= seg.start && currentTime <= seg.end);
+  
+  if (!activeSegment) return false;
+  
+  const ff = RE.fontLoaded ? "'BebasNeue', Impact, sans-serif" : "Impact, sans-serif";
+  const sz = Math.round((S.subsFontSize || 72) * (W / 1080));
+  ctx.font = `900 ${sz}px ${ff}`;
+  const PAD_H = Math.round(sz * 0.45), PAD_V = Math.round(sz * 0.25);
+  
+  // Dividir texto en líneas si es muy largo
+  let texto = activeSegment.text;
+  let lineas = [texto];
+  
+  ctx.textAlign = 'center';
+  
+  // Medir ancho del texto
+  const metrics = ctx.measureText(texto);
+  if (metrics.width > W * 0.85 && texto.length > 30) {
+    // Dividir en líneas
+    const palabras = texto.split(' ');
+    lineas = [];
+    let lineaActual = '';
+    for (let i = 0; i < palabras.length; i++) {
+      const prueba = lineaActual ? lineaActual + ' ' + palabras[i] : palabras[i];
+      const ancho = ctx.measureText(prueba).width;
+      if (ancho > W * 0.85 && lineaActual) {
+        lineas.push(lineaActual);
+        lineaActual = palabras[i];
+      } else {
+        lineaActual = prueba;
+      }
+    }
+    if (lineaActual) lineas.push(lineaActual);
+  }
+  
+  const altL = sz * 1.25;
+  const yIni = Math.round(H * (S.subsPosY || 0.78)) - (lineas.length * altL) / 2;
+  
+  if (S.subsBgOp > 0) {
+    ctx.save();
+    ctx.globalAlpha = S.subsBgOp;
+    ctx.fillStyle = '#000';
+    const maxAncho = Math.max(...lineas.map(l => ctx.measureText(l).width));
+    rrCtx(ctx, (W - maxAncho) / 2 - PAD_H, yIni - PAD_V, maxAncho + PAD_H * 2, (lineas.length * altL) + PAD_V * 2, Math.round(sz * 0.18));
+    ctx.fill();
+    ctx.restore();
+  }
+  
+  ctx.fillStyle = S.subsColorNormal || '#fff';
+  ctx.shadowColor = 'rgba(0,0,0,.9)';
+  ctx.shadowBlur = Math.round(sz * 0.12);
+  
+  lineas.forEach((linea, i) => {
+    ctx.fillText(linea, W / 2, yIni + i * altL + sz * 0.85);
+  });
+  
+  ctx.shadowColor = 'transparent';
+  
+  return true;
 }
 
 function rrCtx(ctx, x, y, w, h, r) {
@@ -346,11 +414,23 @@ function drawTituloCtx(ctx, W, H, S, el) {
 function reelRender() {
   reelEnsurePos('logo'); reelEnsurePos('titulo');
   reelRenderBase(RE.ctx, RE.W, RE.H, RE.S, RE.bgImg, RE.logoImg, RE.els);
-  if (RE.S.subsActivos && RE.guion?.trim()) {
+  
+  let subsDibujados = false;
+  
+  // Prioridad: usar subtítulos precisos de Whisper si existen
+  if (RE.S.subsActivos && RE.studioSubtitles && RE.studioSubtitles.length) {
+    // Usar los timestamps precisos
+    const currentTime = 1.5; // Para preview estático
+    subsDibujados = reelDrawSubtitulosPrecisos(RE.ctx, RE.W, RE.H, RE.studioSubtitles, currentTime, RE.S);
+  }
+  
+  // Si no hay subtítulos precisos o no se dibujaron, usar el método de sílabas
+  if (!subsDibujados && RE.S.subsActivos && RE.guion?.trim()) {
     const dur = RE.audioBlob ? 30 : 30;
     const ts = generarTimestamps(RE.guion, dur, RE.S.titulo, RE.subsOffset);
     reelDrawSubs(RE.ctx, RE.W, RE.H, ts, 1.5, RE.S);
   }
+  
   if (RE.active) reelDrawActiveUI();
 }
 
@@ -499,8 +579,8 @@ function reelPreviewSubs() {
     reelToast('Primero generá o cargá el audio');
     return;
   }
-  if (!RE.guion?.trim()) {
-    reelToast('Escribí el guion primero');
+  if (!RE.guion?.trim() && !RE.studioSubtitles?.length) {
+    reelToast('Escribí el guion o generá subtítulos primero');
     return;
   }
   
@@ -508,7 +588,16 @@ function reelPreviewSubs() {
   
   const durTotal = audio.duration;
   const titulo = RE.audioTitulo || document.getElementById('re-tituloInput').value.trim() || '';
-  const timestamps = generarTimestamps(RE.guion, durTotal, titulo, RE.subsOffset);
+  
+  let timestamps = [];
+  let usarSubtitulosPrecisos = false;
+  
+  // Priorizar subtítulos precisos de Whisper
+  if (RE.studioSubtitles && RE.studioSubtitles.length) {
+    usarSubtitulosPrecisos = true;
+  } else {
+    timestamps = generarTimestamps(RE.guion, durTotal, titulo, RE.subsOffset);
+  }
   
   audio.currentTime = 0;
   audio.play();
@@ -517,7 +606,13 @@ function reelPreviewSubs() {
     const t = audio.currentTime;
     RE.active = null;
     reelRenderBase(RE.ctx, RE.W, RE.H, RE.S, RE.bgImg, RE.logoImg, RE.els);
-    reelDrawSubs(RE.ctx, RE.W, RE.H, timestamps, t, RE.S);
+    
+    if (usarSubtitulosPrecisos && RE.studioSubtitles) {
+      reelDrawSubtitulosPrecisos(RE.ctx, RE.W, RE.H, RE.studioSubtitles, t, RE.S);
+    } else {
+      reelDrawSubs(RE.ctx, RE.W, RE.H, timestamps, t, RE.S);
+    }
+    
     if (!audio.paused && !audio.ended) {
       RE._subsPreviewAudio = requestAnimationFrame(updatePreview);
     }
@@ -651,12 +746,11 @@ async function getMixedAudioBlob(principalBlob) {
 }
 
 // ============================================================
-// EXPORTACIÓN CON FALLBACK CROSS-BROWSER (con música)
+// EXPORTACIÓN CON FALLBACK CROSS-BROWSER
 // ============================================================
 async function reelExportVideo() {
   if (!RE.audioBlob) { reelToast('Primero generá o cargá el audio'); return; }
   
-  // Mezclar con música de fondo si existe
   let audioParaExportar = RE.audioBlob;
   if (window.backgroundMusicBlob) {
     reelToast('🎵 Mezclando música de fondo...');
@@ -688,7 +782,15 @@ async function reelExportVideoFallback() {
     const audioBuffer = await audioContext.decodeAudioData(await RE.audioBlob.arrayBuffer());
     const audioDuration = audioBuffer.duration;
     const titulo = RE.audioTitulo || RE.S.titulo || '';
-    const timestamps = generarTimestamps(RE.guion, audioDuration, titulo, RE.subsOffset);
+    
+    let timestamps = [];
+    let usarSubtitulosPrecisos = false;
+    
+    if (RE.studioSubtitles && RE.studioSubtitles.length) {
+      usarSubtitulosPrecisos = true;
+    } else {
+      timestamps = generarTimestamps(RE.guion, audioDuration, titulo, RE.subsOffset);
+    }
     
     const stream = RE.canvas.captureStream(30);
     const audioDestination = audioContext.createMediaStreamDestination();
@@ -719,7 +821,7 @@ async function reelExportVideoFallback() {
     recorder.start();
     audioSource.start();
     
-    progTxt.textContent = 'Grabando video... (reproducción en curso)';
+    progTxt.textContent = 'Grabando video...';
     
     setTimeout(() => {
       recorder.stop();
@@ -736,7 +838,13 @@ async function reelExportVideoFallback() {
       if (elapsed >= audioDuration) return;
       RE.active = null;
       reelRenderBase(RE.ctx, RE.W, RE.H, RE.S, RE.bgImg, RE.logoImg, RE.els);
-      reelDrawSubs(RE.ctx, RE.W, RE.H, timestamps, elapsed, RE.S);
+      
+      if (usarSubtitulosPrecisos && RE.studioSubtitles) {
+        reelDrawSubtitulosPrecisos(RE.ctx, RE.W, RE.H, RE.studioSubtitles, elapsed, RE.S);
+      } else {
+        reelDrawSubs(RE.ctx, RE.W, RE.H, timestamps, elapsed, RE.S);
+      }
+      
       requestAnimationFrame(animateFallback);
     }
     animateFallback();
@@ -771,10 +879,18 @@ async function reelExportVideoWebCodecs() {
     const audioDur = await reelGetAudioDuration(RE.audioBlob);
     const guion = RE.guion || '';
     const titulo = RE.audioTitulo || RE.S.titulo || '';
-    const usaSubs = RE.S.subsActivos && guion.trim().length > 0;
+    const usaSubs = RE.S.subsActivos && (guion.trim().length > 0 || (RE.studioSubtitles && RE.studioSubtitles.length > 0));
     const FPS = usaSubs ? (isMobileDevice ? 12 : 15) : (isMobileDevice ? 15 : 30);
     const totalFrames = Math.ceil(audioDur * FPS);
-    const timestamps = usaSubs ? generarTimestamps(guion, audioDur, titulo, RE.subsOffset) : [];
+    
+    let timestamps = [];
+    let usarSubtitulosPrecisos = false;
+    
+    if (RE.studioSubtitles && RE.studioSubtitles.length) {
+      usarSubtitulosPrecisos = true;
+    } else if (usaSubs) {
+      timestamps = generarTimestamps(guion, audioDur, titulo, RE.subsOffset);
+    }
     
     const MAX_DIM = isMobileDevice ? 540 : 720;
     const scaleFactor = RE.W > MAX_DIM ? MAX_DIM / RE.W : 1;
@@ -828,7 +944,13 @@ async function reelExportVideoWebCodecs() {
     for (let fi = 0; fi < totalFrames; fi++) {
       const t = fi / FPS;
       offCtx.putImageData(bgData, 0, 0);
-      if (usaSubs) reelDrawSubs(offCtx, RE.W, RE.H, timestamps, t, RE.S);
+      if (usaSubs) {
+        if (usarSubtitulosPrecisos && RE.studioSubtitles) {
+          reelDrawSubtitulosPrecisos(offCtx, RE.W, RE.H, RE.studioSubtitles, t, RE.S);
+        } else {
+          reelDrawSubs(offCtx, RE.W, RE.H, timestamps, t, RE.S);
+        }
+      }
       
       outCtx.clearRect(0, 0, VW, VH);
       outCtx.drawImage(offCanvas, 0, 0, VW, VH);
@@ -1019,6 +1141,7 @@ window.reelPreviewSubs = reelPreviewSubs;
 window.reelStopPreview = reelStopPreview;
 window.generarTimestamps = generarTimestamps;
 window.reelDrawSubs = reelDrawSubs;
+window.reelDrawSubtitulosPrecisos = reelDrawSubtitulosPrecisos;
 window.reelRenderBase = reelRenderBase;
 window.supportsWebCodecs = supportsWebCodecs;
 window.reelSetSubsOffset = reelSetSubsOffset;

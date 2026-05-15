@@ -1899,14 +1899,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 </script>
-<!-- ============================================================ -->
-<!-- INTEGRACIÓN CON MEDIA STUDIO - ENVIAR AUDIO Y RECIBIR SUBTÍTULOS -->
-<!-- ============================================================ -->
+// ============================================================
+// TRANSCRIBIR AUDIO DIRECTAMENTE EN REELS (sin Studio)
+// ============================================================
 
-<script>
-// ============================================================
-// FUNCIONES PARA ENVIAR AUDIO A STUDIO
-// ============================================================
+async function transcribirAudioReel(audioBlob) {
+  showLoadingReel('Transcribiendo audio con IA...');
+  
+  try {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'audio.webm');
+    
+    const res = await fetch(WORKER + '/studio/transcribir', {
+      method: 'POST',
+      body: formData
+    });
+    
+    const data = await res.json();
+    
+    if (!data.ok) {
+      throw new Error(data.error || 'Error en transcripción');
+    }
+    
+    if (data.segments && data.segments.length) {
+      // Aplicar los subtítulos al editor
+      if (typeof RE !== 'undefined') {
+        RE.studioSubtitles = data.segments;
+        RE.studioVTT = data.vtt;
+        
+        toast(`✅ ${data.segments.length} segmentos de subtítulos generados`);
+        
+        // Forzar re-render para mostrar los subtítulos
+        if (typeof reelRender === 'function') {
+          reelRender();
+        }
+      }
+    } else {
+      toast('⚠ No se generaron subtítulos. Probá con un audio más claro.');
+    }
+    
+  } catch (err) {
+    console.error('Error:', err);
+    toast('✗ Error al transcribir: ' + err.message);
+  } finally {
+    hideLoadingReel();
+  }
+}
 
 // Función para mostrar loading (si no existe)
 function showLoadingReel(text) {
@@ -1927,105 +1965,55 @@ function hideLoadingReel() {
   if (loader) loader.style.display = 'none';
 }
 
-// Verificar si el botón ya existe para no duplicarlo
-if (!document.getElementById('btnEnviarAStudio')) {
-  // Buscar el contenedor donde agregar el botón
+// Agregar botón para transcribir audio directamente
+function agregarBotonTranscripcionDirecta() {
   const audioSection = document.querySelector('.re-section-body');
-  if (audioSection) {
-    const btnContainer = document.createElement('div');
-    btnContainer.style.marginTop = '12px';
-    btnContainer.innerHTML = `
-      <button class="mm-btn mm-btn-primary" id="btnEnviarAStudio" style="width: 100%; background: var(--v); color: var(--bg); margin-bottom: 8px;">
-        🎙 Enviar audio a Studio (generar subtítulos)
-      </button>
-      <button class="mm-btn" id="btnAplicarSubtitulosStudio" style="width: 100%; border-color: var(--v); color: var(--v);">
-        📝 Aplicar subtítulos desde Studio
-      </button>
-    `;
-    audioSection.appendChild(btnContainer);
-  }
+  if (!audioSection) return;
+  
+  // Verificar si ya existe el botón
+  if (document.getElementById('btnTranscripcionDirecta')) return;
+  
+  const btnContainer = document.createElement('div');
+  btnContainer.style.marginTop = '12px';
+  btnContainer.innerHTML = `
+    <button class="mm-btn mm-btn-primary" id="btnTranscripcionDirecta" style="width: 100%; background: var(--v); color: var(--bg);">
+      🎙 Generar subtítulos desde el audio
+    </button>
+  `;
+  audioSection.appendChild(btnContainer);
+  
+  document.getElementById('btnTranscripcionDirecta').addEventListener('click', async () => {
+    if (typeof RE === 'undefined' || !RE.audioBlob) {
+      toast('⚠ Primero generá o cargá el audio');
+      return;
+    }
+    
+    const btn = document.getElementById('btnTranscripcionDirecta');
+    btn.disabled = true;
+    btn.textContent = 'Generando subtítulos...';
+    
+    await transcribirAudioReel(RE.audioBlob);
+    
+    btn.disabled = false;
+    btn.textContent = '🎙 Generar subtítulos desde el audio';
+  });
 }
 
-// Enviar audio a Studio
-document.getElementById('btnEnviarAStudio')?.addEventListener('click', async () => {
-  if (typeof RE === 'undefined' || !RE.audioBlob) {
-    toast('⚠ Primero generá o cargá el audio');
-    return;
+// Llamar a esta función cuando se carga la pestaña de Reel
+// Modificar la función switchTab para que al entrar a Reel agregue el botón
+const originalSwitchTab = switchTab;
+window.switchTab = function(tab, btn) {
+  originalSwitchTab(tab, btn);
+  if (tab === 'reel') {
+    setTimeout(agregarBotonTranscripcionDirecta, 500);
   }
+};
 
-  if (!RE.guion || RE.guion.trim() === '') {
-    toast('⚠ Escribí o generá el guion primero');
-    return;
-  }
-
-  const btn = document.getElementById('btnEnviarAStudio');
-  btn.disabled = true;
-  btn.textContent = 'Enviando...';
-
-  try {
-    const audioUrl = URL.createObjectURL(RE.audioBlob);
-    
-    const datosAudio = {
-      audioUrl: audioUrl,
-      guion: RE.guion,
-      titulo: RE.S.titulo || '',
-      voiceId: document.getElementById('re-voiceSelect')?.value || 'es-AR-TomasNeural',
-      timestamp: Date.now()
-    };
-
-    sessionStorage.setItem('reel_audio_para_studio', JSON.stringify(datosAudio));
-    window.open('https://mediamendoza.pages.dev/studio/?mode=subtitulos', '_blank');
-    toast('✓ Audio enviado. En Studio, hacé clic en "Recibir audio y generar subtítulos"');
-    
-  } catch (err) {
-    toast('✗ Error: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '🎙 Enviar audio a Studio (generar subtítulos)';
+// También ejecutar al cargar si ya estamos en Reel
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('tabReel').style.display !== 'none') {
+    setTimeout(agregarBotonTranscripcionDirecta, 1000);
   }
 });
-
-// Aplicar subtítulos recibidos desde Studio
-function aplicarSubtitulosDesdeStudio() {
-  const datos = sessionStorage.getItem('studio_subtitulos_generados');
-  if (!datos) {
-    toast('⚠ No hay subtítulos pendientes desde Studio');
-    return;
-  }
-
-  try {
-    const subtitulos = JSON.parse(datos);
-    sessionStorage.removeItem('studio_subtitulos_generados');
-    
-    if (typeof RE !== 'undefined') {
-      RE.studioSubtitles = subtitulos.segments;
-      RE.studioVTT = subtitulos.vtt;
-      
-      toast(`✅ ${subtitulos.segments.length} segmentos de subtítulos cargados desde Studio`);
-      
-      if (typeof reelRender === 'function') {
-        reelRender();
-      }
-      
-      console.log('Subtítulos cargados:', subtitulos.segments);
-    }
-  } catch (e) {
-    console.error('Error cargando subtítulos:', e);
-    toast('✗ Error al aplicar subtítulos');
-  }
-}
-
-document.getElementById('btnAplicarSubtitulosStudio')?.addEventListener('click', aplicarSubtitulosDesdeStudio);
-
-// Detectar si venimos desde Studio (para recibir subtítulos automáticamente)
-(function checkForStudioData() {
-  const studioData = sessionStorage.getItem('studio_subtitulos_generados');
-  if (studioData) {
-    setTimeout(() => {
-      aplicarSubtitulosDesdeStudio();
-    }, 1000);
-  }
-})();
-</script>
 </body>
 </html>
