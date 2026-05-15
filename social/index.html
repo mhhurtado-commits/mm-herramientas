@@ -1926,10 +1926,31 @@ async function transcribirAudioReel(audioBlob) {
     
     if (data.segments && data.segments.length) {
       if (typeof RE !== 'undefined') {
+        // Guardar segmentos (para edición)
         RE.studioSubtitles = data.segments;
         RE.studioVTT = data.vtt;
         
-        toast(`✅ ${data.segments.length} segmentos de subtítulos generados`);
+        // IMPORTANTE: Guardar palabras individuales con timestamps
+        if (data.words && data.words.length) {
+          RE.studioWords = data.words;
+          console.log(`✅ ${data.words.length} palabras con timestamps guardadas`);
+        } else {
+          // Si no vienen palabras, generarlas desde segments (fallback)
+          RE.studioWords = [];
+          data.segments.forEach(seg => {
+            const palabras = seg.text.split(' ');
+            const duracion = (seg.end - seg.start) / palabras.length;
+            palabras.forEach((palabra, idx) => {
+              RE.studioWords.push({
+                word: palabra,
+                start: seg.start + (idx * duracion),
+                end: seg.start + ((idx + 1) * duracion)
+              });
+            });
+          });
+        }
+        
+        toast(`✅ ${data.segments.length} segmentos, ${RE.studioWords.length} palabras`);
         
         if (typeof reelRender === 'function') {
           reelRender();
