@@ -1,5 +1,6 @@
 // ============================================================
-// Media Studio — Transcripción y Proyectos v2
+// Media Studio — Transcripción y Proyectos v3
+// Con integración con Reels (enviar/recibir audio y subtítulos)
 // ============================================================
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
@@ -78,7 +79,7 @@ function parseTimestampToSeconds(timestamp) {
 }
 
 // ============================================================
-// TRANSCRIPCIÓN
+// TRANSCRIPCIÓN (Cloudflare Whisper)
 // ============================================================
 
 async function transcribirAudio(file) {
@@ -483,6 +484,109 @@ function mostrarEditorSegmentos() {
 }
 
 // ============================================================
+// ENVIAR SUBTÍTULOS A REELS
+// ============================================================
+
+async function enviarSubtitulosAReels() {
+  if (!currentTranscription.segments || !currentTranscription.segments.length) {
+    toast('⚠ No hay subtítulos para enviar');
+    return;
+  }
+
+  showLoading('Preparando subtítulos para Reels...');
+
+  try {
+    let vtt = "WEBVTT\n\n";
+    currentTranscription.segments.forEach((seg, i) => {
+      const start = formatTimestampLocal(seg.start);
+      const end = formatTimestampLocal(seg.end);
+      vtt += `${i + 1}\n${start} --> ${end}\n${seg.text.trim()}\n\n`;
+    });
+    
+    sessionStorage.setItem('studio_subtitulos_generados', JSON.stringify({
+      vtt: vtt,
+      segments: currentTranscription.segments,
+      texto: currentTranscription.texto,
+      timestamp: Date.now()
+    }));
+    
+    window.open('https://mediamendoza.pages.dev/social/', '_blank');
+    toast('✓ Subtítulos enviados. En Reels, hacé clic en "Aplicar subtítulos desde Studio"');
+    
+  } catch (err) {
+    toast('✗ Error: ' + err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ============================================================
+// RECIBIR AUDIO DESDE REELS
+// ============================================================
+
+function checkForReelAudio() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const mode = urlParams.get('mode');
+  
+  if (mode === 'subtitulos') {
+    const datos = sessionStorage.getItem('reel_audio_para_studio');
+    if (datos) {
+      try {
+        const audioData = JSON.parse(datos);
+        mostrarPanelRecepcion(audioData);
+        sessionStorage.removeItem('reel_audio_para_studio');
+      } catch (e) {
+        console.error('Error cargando datos:', e);
+      }
+    }
+  }
+}
+
+function mostrarPanelRecepcion(audioData) {
+  const panel = document.getElementById('receivePanel');
+  const tituloEl = document.getElementById('receiveTitulo');
+  const guionEl = document.getElementById('receiveGuion');
+  const audioEl = document.getElementById('receiveAudio');
+  
+  tituloEl.textContent = audioData.titulo || 'Sin título';
+  guionEl.textContent = audioData.guion || 'Sin guion';
+  
+  if (audioData.audioUrl && audioData.audioUrl.startsWith('blob:')) {
+    audioEl.src = audioData.audioUrl;
+  } else if (audioData.audioUrl) {
+    audioEl.src = audioData.audioUrl;
+  }
+  
+  panel.classList.add('show');
+  
+  document.getElementById('btnTranscribirRecibido').onclick = async () => {
+    if (!audioEl.src) {
+      toast('⚠ No hay audio para transcribir');
+      return;
+    }
+    
+    try {
+      const response = await fetch(audioEl.src);
+      const audioBlob = await response.blob();
+      const file = new File([audioBlob], 'audio_desde_reel.webm', { type: 'audio/webm' });
+      
+      await transcribirAudio(file);
+      
+      if (audioData.guion && audioData.guion.trim()) {
+        const textarea = document.getElementById('transcriptionText');
+        const transcripcionActual = textarea.innerText;
+        textarea.innerText = audioData.guion + '\n\n--- TRANSCRIPCIÓN AUTOMÁTICA ---\n\n' + transcripcionActual;
+        updateCharCount();
+      }
+      
+      toast('✅ Transcripción completada. Revisá los subtítulos y ajustá si es necesario.');
+    } catch (err) {
+      toast('✗ Error al transcribir: ' + err.message);
+    }
+  };
+}
+
+// ============================================================
 // PROYECTOS
 // ============================================================
 
@@ -651,8 +755,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('descargarVTTBtn').onclick = descargarVTT;
   document.getElementById('descargarSRTBtn').onclick = descargarSRT;
   document.getElementById('editarSegmentosBtn').onclick = mostrarEditorSegmentos;
+  document.getElementById('enviarSubtitulosBtn').onclick = enviarSubtitulosAReels;
   
   document.getElementById('transcriptionText').addEventListener('input', updateCharCount);
+  
+  // Verificar si hay audio pendiente desde Reels
+  checkForReelAudio();
   
   const savedTheme = localStorage.getItem('mm-theme');
   savedTheme === 'dark' ? setTheme('dark') : setTheme('light');
