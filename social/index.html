@@ -1969,32 +1969,52 @@ function hideLoadingReel() {
 function agregarBotonTranscripcionDirecta() {
   const audioSection = document.querySelector('.re-section-body');
   if (!audioSection) return;
+  
+  // Verificar si ya existen los botones
   if (document.getElementById('btnTranscripcionDirecta')) return;
   
   const btnContainer = document.createElement('div');
   btnContainer.style.marginTop = '12px';
+  btnContainer.style.display = 'flex';
+  btnContainer.style.gap = '8px';
   btnContainer.innerHTML = `
-    <button class="mm-btn mm-btn-primary" id="btnTranscripcionDirecta" style="width: 100%; background: var(--v); color: var(--bg);">
-      🎙 Generar subtítulos desde el audio
+    <button class="mm-btn mm-btn-primary" id="btnTranscripcionDirecta" style="flex: 1; background: var(--v); color: var(--bg);">
+      🎙 Generar subtítulos
+    </button>
+    <button class="mm-btn" id="btnEditarSubtitulos" style="flex: 1; border-color: var(--v); color: var(--v);">
+      ✏ Editar subtítulos
     </button>
   `;
   audioSection.appendChild(btnContainer);
   
-  const btn = document.getElementById('btnTranscripcionDirecta');
-  if (btn) {
-    btn.addEventListener('click', async () => {
+  // Botón generar subtítulos
+  const btnGen = document.getElementById('btnTranscripcionDirecta');
+  if (btnGen) {
+    btnGen.addEventListener('click', async () => {
       if (typeof RE === 'undefined' || !RE.audioBlob) {
         toast('⚠ Primero generá o cargá el audio');
         return;
       }
       
-      btn.disabled = true;
-      btn.textContent = 'Generando subtítulos...';
+      btnGen.disabled = true;
+      btnGen.textContent = 'Generando...';
       
       await transcribirAudioReel(RE.audioBlob);
       
-      btn.disabled = false;
-      btn.textContent = '🎙 Generar subtítulos desde el audio';
+      btnGen.disabled = false;
+      btnGen.textContent = '🎙 Generar subtítulos';
+    });
+  }
+  
+  // Botón editar subtítulos
+  const btnEdit = document.getElementById('btnEditarSubtitulos');
+  if (btnEdit) {
+    btnEdit.addEventListener('click', () => {
+      if (!RE.studioSubtitles || !RE.studioSubtitles.length) {
+        toast('⚠ Primero generá los subtítulos');
+        return;
+      }
+      mostrarEditorSubtitulos();
     });
   }
 }
@@ -2025,6 +2045,113 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(agregarBotonTranscripcionDirecta, 1000);
   }
 });
+// ============================================================
+// EDITOR DE SUBTÍTULOS (corregir palabras mal transcriptas)
+// ============================================================
+
+function mostrarEditorSubtitulos() {
+  if (!RE.studioSubtitles || !RE.studioSubtitles.length) {
+    toast('⚠ No hay subtítulos para editar. Generá subtítulos primero.');
+    return;
+  }
+
+  // Crear modal
+  const modal = document.createElement('div');
+  modal.className = 'mm-modal-overlay open';
+  modal.style.display = 'flex';
+  
+  let html = `
+    <div class="mm-modal" style="max-width: 700px; max-height: 80vh;">
+      <div class="mm-modal-header">
+        <span class="mm-modal-title">✏ Editar subtítulos</span>
+        <button class="mm-modal-close" onclick="this.closest('.mm-modal-overlay').remove()">✕</button>
+      </div>
+      <div class="mm-modal-body" style="overflow-y: auto;">
+        <div style="margin-bottom: 12px; font-size: 11px; color: var(--dim);">
+          Corregí el texto de cada segmento. Los tiempos se mantienen.
+        </div>
+  `;
+  
+  RE.studioSubtitles.forEach((seg, idx) => {
+    const startFormatted = formatTimestampLocal(seg.start);
+    const endFormatted = formatTimestampLocal(seg.end);
+    html += `
+      <div class="subtitle-editor" data-idx="${idx}" style="background: var(--surface2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; margin-bottom: 12px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <div style="flex: 1;">
+            <label style="font-size: 9px; color: var(--dim);">Inicio</label>
+            <input type="text" class="mm-input seg-start" value="${startFormatted}" style="font-size: 11px; padding: 5px 8px;">
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 9px; color: var(--dim);">Fin</label>
+            <input type="text" class="mm-input seg-end" value="${endFormatted}" style="font-size: 11px; padding: 5px 8px;">
+          </div>
+        </div>
+        <div>
+          <label style="font-size: 9px; color: var(--dim);">Texto</label>
+          <textarea class="mm-textarea seg-text" rows="2" style="resize: vertical; font-size: 12px;">${esc(seg.text)}</textarea>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `
+      </div>
+      <div class="mm-modal-footer">
+        <button class="mm-btn mm-btn-primary" id="guardarSubtitulosBtn">💾 Guardar cambios</button>
+        <button class="mm-btn" onclick="this.closest('.mm-modal-overlay').remove()">Cancelar</button>
+      </div>
+    </div>
+  `;
+  
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+  
+  document.getElementById('guardarSubtitulosBtn').onclick = () => {
+    const nuevosSubtitulos = [];
+    document.querySelectorAll('.subtitle-editor').forEach(editor => {
+      const startStr = editor.querySelector('.seg-start').value;
+      const endStr = editor.querySelector('.seg-end').value;
+      const text = editor.querySelector('.seg-text').value;
+      
+      const start = parseTimestampToSeconds(startStr);
+      const end = parseTimestampToSeconds(endStr);
+      
+      if (!isNaN(start) && !isNaN(end) && text.trim()) {
+        nuevosSubtitulos.push({ start, end, text: text.trim() });
+      }
+    });
+    
+    if (nuevosSubtitulos.length) {
+      RE.studioSubtitles = nuevosSubtitulos;
+      toast(`✅ ${nuevosSubtitulos.length} segmentos actualizados`);
+      modal.remove();
+      if (typeof reelRender === 'function') reelRender();
+    } else {
+      toast('⚠ No hay segmentos válidos');
+    }
+  };
+}
+
+function formatTimestampLocal(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+}
+
+function parseTimestampToSeconds(timestamp) {
+  const match = timestamp.match(/(\d{2,3}):(\d{2}):(\d{2})[.,](\d{3})/);
+  if (match) {
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const seconds = parseInt(match[3], 10);
+    const ms = parseInt(match[4], 10);
+    return hours * 3600 + minutes * 60 + seconds + ms / 1000;
+  }
+  return 0;
+}
 </script>
 
 </body>
