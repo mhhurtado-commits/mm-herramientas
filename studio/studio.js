@@ -313,16 +313,16 @@ async function descargarVTT() {
   showLoading('Generando subtítulos...');
 
   try {
-    const res = await fetch(WORKER + '/studio/generar-vtt', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ segments: currentTranscription.segments })
+    // Generar VTT manualmente en el frontend
+    let vtt = "WEBVTT\n\n";
+    
+    currentTranscription.segments.forEach((seg, i) => {
+      const start = formatTimestampLocal(seg.start);
+      const end = formatTimestampLocal(seg.end);
+      vtt += `${i + 1}\n${start} --> ${end}\n${seg.text.trim()}\n\n`;
     });
-
-    if (!res.ok) throw new Error('Error generando VTT');
-
-    const vttText = await res.text();
-    const blob = new Blob([vttText], { type: 'text/vtt' });
+    
+    const blob = new Blob([vtt], { type: 'text/vtt' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -336,6 +336,15 @@ async function descargarVTT() {
   } finally {
     hideLoading();
   }
+}
+
+function formatTimestampLocal(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
 }
 
 // ============================================================

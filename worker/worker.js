@@ -302,15 +302,18 @@ async function handleStudioTranscribir(request, env) {
       return jsonError("Falta archivo de audio", 400);
     }
 
-    // Convertir el archivo a ArrayBuffer (formato binario)
-    const audioArrayBuffer = await audioFile.arrayBuffer();
-    
-    // Llamar al modelo Whisper de Cloudflare
+    // 1. Obtener el ArrayBuffer del archivo
+    const audioBuffer = await audioFile.arrayBuffer();
+
+    // 2. CONVERSIÓN CRÍTICA: ArrayBuffer a array de números
+    const audioArray = [...new Uint8Array(audioBuffer)];
+
+    // 3. Llamar al modelo Whisper
     const response = await env.AI.run('@cf/openai/whisper', {
-      audio: audioArrayBuffer
+      audio: audioArray
     });
 
-    // Procesar la respuesta correctamente
+    // 4. Procesar la respuesta de Whisper
     let texto = '';
     let vtt = '';
     let segments = [];
@@ -322,7 +325,6 @@ async function handleStudioTranscribir(request, env) {
       
       if (response.words && Array.isArray(response.words)) {
         words = response.words;
-        // Agrupar palabras en segments de 5-6 palabras
         const groupSize = 6;
         for (let i = 0; i < words.length; i += groupSize) {
           const group = words.slice(i, i + groupSize);
