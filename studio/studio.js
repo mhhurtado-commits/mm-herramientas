@@ -7,6 +7,7 @@ const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 let currentTranscription = {
   texto: '',
   segments: [],
+  words: [],
   proyectoId: null
 };
 
@@ -45,28 +46,14 @@ function updateCharCount() {
 }
 
 // ============================================================
-// TRANSCRIPCIÓN
+// TRANSCRIPCIÓN - VERSIÓN CORREGIDA
 // ============================================================
 
-async function transcribirAudio(audioBlob, fileName = 'audio.mp3') {
-  // Crear FormData correctamente
+async function transcribirAudio(file) {
   const formData = new FormData();
   
-  // Asegurar que el blob tenga nombre de archivo con extensión correcta
-  let nombreArchivo = fileName;
-  if (!nombreArchivo.match(/\.(mp3|m4a|wav|webm|ogg)$/i)) {
-    nombreArchivo = 'audio.mp3';
-  }
-  
-  // Crear un nuevo File en lugar de Blob (más compatible)
-  let file;
-  if (audioBlob instanceof File) {
-    file = audioBlob;
-  } else {
-    file = new File([audioBlob], nombreArchivo, { type: audioBlob.type || 'audio/mpeg' });
-  }
-  
-  formData.append('audio', file);
+  // IMPORTANTE: Usar el mismo nombre de campo que funcionó en curl ('audio')
+  formData.append('audio', file, file.name || 'audio.mp3');
 
   showLoading('Transcribiendo audio con IA...');
 
@@ -78,12 +65,8 @@ async function transcribirAudio(audioBlob, fileName = 'audio.mp3') {
 
     const data = await res.json();
 
-    if (!res.ok) {
+    if (!res.ok || !data.ok) {
       throw new Error(data.error || `HTTP ${res.status}`);
-    }
-
-    if (!data.ok) {
-      throw new Error(data.error || 'Error en transcripción');
     }
 
     currentTranscription = {
@@ -100,11 +83,10 @@ async function transcribirAudio(audioBlob, fileName = 'audio.mp3') {
     document.getElementById('transcriptionResult').style.display = 'block';
     document.getElementById('transcriptionStatus').style.display = 'none';
 
-    toast('✅ Transcripción completada');
-
+    toast(`✅ Transcripción: ${data.word_count || 0} palabras`);
     return data;
   } catch (err) {
-    console.error('Error detallado:', err);
+    console.error('Error:', err);
     toast('✗ Error: ' + err.message);
     document.getElementById('transcriptionStatus').style.display = 'none';
     throw err;
@@ -132,7 +114,7 @@ function setupFileUpload() {
     }
 
     document.getElementById('transcriptionStatus').style.display = 'block';
-    transcribirAudio(file, file.name);
+    transcribirAudio(file);
   };
 
   // Drag & drop
@@ -153,7 +135,7 @@ function setupFileUpload() {
         return;
       }
       document.getElementById('transcriptionStatus').style.display = 'block';
-      await transcribirAudio(file, file.name);
+      await transcribirAudio(file);
     } else {
       toast('⚠ Soltá un archivo de audio válido');
     }
@@ -168,7 +150,7 @@ async function startRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     
-    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    mediaRecorder = new MediaRecorder(stream);
     audioChunks = [];
     
     mediaRecorder.ondataavailable = (event) => {
@@ -178,14 +160,14 @@ async function startRecording() {
     };
     
     mediaRecorder.onstop = async () => {
-      // Crear un blob con tipo WebM (más compatible)
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const file = new File([audioBlob], 'grabacion.webm', { type: 'audio/webm' });
       stream.getTracks().forEach(track => track.stop());
       
       document.getElementById('recordingArea').classList.remove('active');
       document.getElementById('transcriptionStatus').style.display = 'block';
       
-      await transcribirAudio(audioBlob, 'grabacion.webm');
+      await transcribirAudio(file);
     };
     
     mediaRecorder.start(1000);
@@ -205,6 +187,13 @@ async function startRecording() {
   } catch (err) {
     console.error('Error al acceder al micrófono:', err);
     toast('✗ No se pudo acceder al micrófono. Verificá los permisos.');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    clearInterval(recordingTimer);
   }
 }
 
@@ -238,33 +227,17 @@ async function crearNotaPeriodistica() {
       body: JSON.stringify({
         titulo: 'Nota desde transcripción',
         contenido: texto,
-        contexto: 'Esta es una transcripción de audio convertida en nota periodística para Media Mendoza.',
+        contexto: 'Esta es una transcripción de audio convertida en nota periodística.',
         estilo: 'formal'
       })
     });
 
     const data = await res.json();
     
-    if (!data.ok) {
-      throw new Error(data.error || 'Error generando nota');
-    }
+    if (!data.ok) throw new Error(data.error);
 
-    // Abrir en nueva pestaña con la nota generada
-    const nuevaVentana = window.open('https://mediamendoza.pages.dev/redaccion/', '_blank');
-    
-    // Esperar un poco y enviar la nota por postMessage
-    setTimeout(() => {
-      nuevaVentana.postMessage({
-        type: 'NOTA_DESDE_STUDIO',
-        data: {
-          titular: data.titular,
-          cuerpo: data.cuerpo,
-          categoria: data.categoria_sugerida
-        }
-      }, '*');
-    }, 2000);
-
-    toast('✓ Nota generada. Se abrirá en Redacción');
+    window.open('https://mediamendoza.pages.dev/redaccion/', '_blank');
+    toast('✓ Nota generada');
     
   } catch (err) {
     toast('✗ Error: ' + err.message);
@@ -296,7 +269,7 @@ async function guardarProyecto() {
         titulo: titulo,
         transcripcion: texto,
         segments: currentTranscription.segments,
-        createdAt: currentTranscription.createdAt || Date.now()
+        createdAt: Date.now()
       })
     });
 
@@ -307,7 +280,6 @@ async function guardarProyecto() {
     currentTranscription.proyectoId = id;
     toast('✓ Proyecto guardado');
     
-    // Recargar lista de proyectos si está visible
     if (document.getElementById('tab-proyectos').style.display !== 'none') {
       cargarProyectos();
     }
@@ -320,7 +292,7 @@ async function guardarProyecto() {
 
 async function descargarVTT() {
   if (!currentTranscription.segments || !currentTranscription.segments.length) {
-    toast('⚠ No hay segmentos de tiempo para generar subtítulos');
+    toast('⚠ No hay segmentos para generar subtítulos');
     return;
   }
 
@@ -389,7 +361,6 @@ async function cargarProyectos() {
       container.appendChild(div);
     });
 
-    // Agregar event listeners
     container.querySelectorAll('[data-action="cargar"]').forEach(btn => {
       btn.onclick = () => cargarProyecto(btn.dataset.id);
     });
@@ -416,15 +387,14 @@ async function cargarProyecto(id) {
     currentTranscription = {
       texto: proyecto.transcripcion,
       segments: proyecto.segments || [],
-      proyectoId: proyecto.id,
-      createdAt: proyecto.createdAt
+      words: [],
+      proyectoId: proyecto.id
     };
 
     document.getElementById('transcriptionText').innerText = proyecto.transcripcion;
     updateCharCount();
     document.getElementById('transcriptionResult').style.display = 'block';
 
-    // Cambiar a pestaña de transcripción
     document.querySelector('.studio-tab[data-tab="transcripcion"]').click();
 
     toast('✓ Proyecto cargado');
@@ -510,7 +480,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupFileUpload();
   setupTabs();
   
-  // Botones
   document.getElementById('uploadBtn').onclick = () => document.getElementById('audioInput').click();
   document.getElementById('micBtn').onclick = startRecording;
   document.getElementById('stopRecordingBtn').onclick = stopRecording;
@@ -519,10 +488,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('guardarProyectoBtn').onclick = guardarProyecto;
   document.getElementById('descargarVTTBtn').onclick = descargarVTT;
   
-  // Actualizar contador de caracteres
   document.getElementById('transcriptionText').addEventListener('input', updateCharCount);
   
-  // Tema
   const savedTheme = localStorage.getItem('mm-theme');
   savedTheme === 'dark' ? setTheme('dark') : setTheme('light');
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);

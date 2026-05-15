@@ -290,13 +290,11 @@ async function handleResumenEliminar(body, env) {
 // ============================================================
 
 async function handleStudioTranscribir(request, env) {
-  // Verificar que el binding AI exista
   if (!env.AI) {
-    return jsonError("Cloudflare AI no está configurado. Agregá binding 'AI' en el dashboard.", 500);
+    return jsonError("Cloudflare AI no está configurado", 500);
   }
 
   try {
-    // Leer el formData correctamente
     const formData = await request.formData();
     const audioFile = formData.get('audio');
     
@@ -304,65 +302,22 @@ async function handleStudioTranscribir(request, env) {
       return jsonError("Falta archivo de audio", 400);
     }
 
-    console.log('📁 Audio recibido:', {
-      nombre: audioFile.name,
-      tipo: audioFile.type,
-      tamaño: audioFile.size
-    });
-
-    // Validar tipo de archivo
-    const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/webm', 'audio/ogg'];
-    if (!validTypes.includes(audioFile.type)) {
-      return jsonError(`Formato no soportado: ${audioFile.type}. Usá MP3, M4A, WAV, WebM u OGG`, 400);
-    }
-
-    // Limitar tamaño (10MB)
-    if (audioFile.size > 10 * 1024 * 1024) {
-      return jsonError("El audio es muy grande. Máximo 10MB", 400);
-    }
-
-    // Obtener el ArrayBuffer
     const audioBuffer = await audioFile.arrayBuffer();
     
-    // Llamar a Cloudflare Whisper
     const response = await env.AI.run('@cf/openai/whisper', {
-      audio: audioBuffer  // Enviar ArrayBuffer directamente
+      audio: audioBuffer
     });
 
-    console.log('✅ Respuesta de Whisper:', response ? 'recibida' : 'vacía');
-
-    // Procesar la respuesta
-    let texto = response?.text || '';
-    let vtt = response?.vtt || '';
-    let segments = [];
-    let words = [];
-    
-    if (response?.words && Array.isArray(response.words)) {
-      words = response.words;
-      // Agrupar palabras en segments de 5
-      const groupSize = 5;
-      for (let i = 0; i < words.length; i += groupSize) {
-        const group = words.slice(i, i + groupSize);
-        segments.push({
-          start: group[0].start,
-          end: group[group.length - 1].end,
-          text: group.map(w => w.word).join(' ')
-        });
-      }
-    } else if (texto) {
-      segments = [{ start: 0, end: 30, text: texto }];
-    }
-
     return jsonOk({
-      texto: texto,
-      word_count: response?.word_count || texto.split(/\s+/).length,
-      segments: segments,
-      words: words,
-      vtt: vtt
+      texto: response?.text || '',
+      word_count: response?.word_count || 0,
+      segments: response?.segments || [],
+      words: response?.words || [],
+      vtt: response?.vtt || ''
     });
 
   } catch (err) {
-    console.error('Error en transcripción:', err);
+    console.error('Error:', err);
     return jsonError("Error en transcripción: " + err.message, 500);
   }
 }
