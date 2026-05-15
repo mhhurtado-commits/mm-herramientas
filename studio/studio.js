@@ -49,17 +49,24 @@ function updateCharCount() {
 // ============================================================
 
 async function transcribirAudio(audioBlob, fileName = 'audio.mp3') {
+  // Crear FormData correctamente
   const formData = new FormData();
   
-  // Asegurar que el blob tenga el tipo MIME correcto
-  let mimeType = audioBlob.type;
-  if (!mimeType || mimeType === '') {
-    mimeType = 'audio/mpeg'; // default para MP3
+  // Asegurar que el blob tenga nombre de archivo con extensión correcta
+  let nombreArchivo = fileName;
+  if (!nombreArchivo.match(/\.(mp3|m4a|wav|webm|ogg)$/i)) {
+    nombreArchivo = 'audio.mp3';
   }
   
-  // Crear un nuevo blob con el tipo MIME correcto
-  const correctedBlob = new Blob([audioBlob], { type: mimeType });
-  formData.append('audio', correctedBlob, fileName);
+  // Crear un nuevo File en lugar de Blob (más compatible)
+  let file;
+  if (audioBlob instanceof File) {
+    file = audioBlob;
+  } else {
+    file = new File([audioBlob], nombreArchivo, { type: audioBlob.type || 'audio/mpeg' });
+  }
+  
+  formData.append('audio', file);
 
   showLoading('Transcribiendo audio con IA...');
 
@@ -69,13 +76,11 @@ async function transcribirAudio(audioBlob, fileName = 'audio.mp3') {
       body: formData
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error('Respuesta error:', errorText);
-      throw new Error(`HTTP ${res.status}: ${errorText.substring(0, 100)}`);
-    }
-
     const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
 
     if (!data.ok) {
       throw new Error(data.error || 'Error en transcripción');
@@ -92,27 +97,16 @@ async function transcribirAudio(audioBlob, fileName = 'audio.mp3') {
     textarea.innerText = data.texto || '(sin texto reconocido)';
     updateCharCount();
 
-    if (data.words && data.words.length) {
-      console.log(`✅ ${data.words.length} palabras con timestamps`);
-      toast(`✅ ${data.word_count || data.words.length} palabras transcritas`);
-    } else {
-      toast('✅ Transcripción completada');
-    }
-
     document.getElementById('transcriptionResult').style.display = 'block';
     document.getElementById('transcriptionStatus').style.display = 'none';
+
+    toast('✅ Transcripción completada');
 
     return data;
   } catch (err) {
     console.error('Error detallado:', err);
     toast('✗ Error: ' + err.message);
     document.getElementById('transcriptionStatus').style.display = 'none';
-    
-    // Mostrar error en el área de transcripción para debug
-    const textarea = document.getElementById('transcriptionText');
-    textarea.innerText = `Error: ${err.message}\n\nVerificá que el Worker esté actualizado y el binding AI configurado.`;
-    document.getElementById('transcriptionResult').style.display = 'block';
-    
     throw err;
   } finally {
     hideLoading();
@@ -174,14 +168,17 @@ async function startRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     
-    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
     audioChunks = [];
     
     mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
     };
     
     mediaRecorder.onstop = async () => {
+      // Crear un blob con tipo WebM (más compatible)
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
       stream.getTracks().forEach(track => track.stop());
       
@@ -194,6 +191,7 @@ async function startRecording() {
     mediaRecorder.start(1000);
     
     recordingSeconds = 0;
+    if (recordingTimer) clearInterval(recordingTimer);
     recordingTimer = setInterval(() => {
       recordingSeconds++;
       const minutes = Math.floor(recordingSeconds / 60);
@@ -207,13 +205,6 @@ async function startRecording() {
   } catch (err) {
     console.error('Error al acceder al micrófono:', err);
     toast('✗ No se pudo acceder al micrófono. Verificá los permisos.');
-  }
-}
-
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-    clearInterval(recordingTimer);
   }
 }
 
