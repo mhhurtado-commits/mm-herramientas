@@ -1,7 +1,7 @@
 // ============================================================
-// Media Mendoza — Reel Editor v5.1
-// Compatibilidad cross-browser + subtítulos sincronizados
-// + Soporte para palabras con timestamps (efecto TikTok)
+// Media Mendoza — Reel Editor v5.2
+// Subtítulos: bloque + palabra activa (efecto TikTok real)
+// + Edición en tiempo real
 // ============================================================
 
 // ── Fuente BebasNeue desde /assets ──
@@ -24,7 +24,7 @@ const RE = {
   audioTitulo: '',
   subsOffset: 0,
   studioSubtitles: null,     // Subtítulos generados por Whisper (segmentos completos)
-  studioWords: null,         // Palabras con timestamps (efecto TikTok)
+  studioWords: null,         // Palabras con timestamps (para saber cuál está activa)
   studioVTT: null,
   els: {
     logo:   { x: null, y: null, w: null, h: null },
@@ -140,7 +140,7 @@ function getGrupoActivo(timestamps, t) {
   return { grupo, idxEnGrupo: grupo.findIndex(p => p === timestamps[idx]) };
 }
 
-function reelDrawSubs(ctx, W, H, timestamps, t, S) {
+function reelDrawSubsFallback(ctx, W, H, timestamps, t, S) {
   if (!timestamps?.length) return;
   const info = getGrupoActivo(timestamps, t);
   if (!info) return;
@@ -202,44 +202,46 @@ function reelDrawSubs(ctx, W, H, timestamps, t, S) {
 }
 
 // ============================================================
-// SUBTÍTULOS CON TIMESTAMP EXACTO (efecto TikTok - palabra por palabra)
+// SUBTÍTULOS: BLOQUE + PALABRA ACTIVA (efecto TikTok real)
 // ============================================================
 
-function reelDrawSubtitulosPalabraPorPalabra(ctx, W, H, words, currentTime, S) {
-  if (!words || !words.length) return false;
+function reelDrawSubtitulosBloqueConPalabraActiva(ctx, W, H, segments, words, currentTime, S) {
+  if (!segments || !segments.length) return false;
   
-  // Encontrar la palabra activa en el tiempo actual
-  let activeIndex = -1;
-  for (let i = 0; i < words.length; i++) {
-    if (currentTime >= words[i].start && currentTime <= words[i].end) {
-      activeIndex = i;
-      break;
-    }
-  }
+  // Encontrar el segmento activo
+  const activeSegment = segments.find(seg => currentTime >= seg.start && currentTime <= seg.end);
+  if (!activeSegment) return false;
   
-  // Si no hay palabra activa, mostrar el grupo alrededor del tiempo actual
-  if (activeIndex === -1) {
+  // Dividir el texto del segmento en palabras
+  const palabrasTexto = activeSegment.text.split(' ');
+  let activeWordIndex = -1;
+  
+  // Si tenemos palabras con timestamps de Whisper, usarlas para saber cuál está activa
+  if (words && words.length) {
     for (let i = 0; i < words.length; i++) {
-      if (currentTime < words[i].start) {
-        activeIndex = Math.max(0, i - 1);
+      if (currentTime >= words[i].start && currentTime <= words[i].end) {
+        // Buscar esta palabra en el texto del segmento (aproximado)
+        const wordInSegment = palabrasTexto.findIndex(w => 
+          w.toLowerCase().includes(words[i].word.toLowerCase()) || 
+          words[i].word.toLowerCase().includes(w.toLowerCase())
+        );
+        if (wordInSegment !== -1) {
+          activeWordIndex = wordInSegment;
+        }
         break;
       }
     }
-    if (activeIndex === -1 && words.length) activeIndex = words.length - 1;
   }
   
-  if (activeIndex === -1) return false;
-  
-  // Determinar el grupo de palabras a mostrar (6 palabras: 2 antes, activa, 3 después)
-  const groupSize = 6;
-  let startIdx = Math.max(0, activeIndex - 2);
-  let endIdx = Math.min(words.length - 1, startIdx + groupSize - 1);
-  if (endIdx - startIdx + 1 < groupSize && startIdx > 0) {
-    startIdx = Math.max(0, endIdx - groupSize + 1);
+  // Si no tenemos timestamps de palabras, estimar por duración
+  if (activeWordIndex === -1 && palabrasTexto.length > 0) {
+    const duracionSegmento = activeSegment.end - activeSegment.start;
+    const tiempoEnSegmento = currentTime - activeSegment.start;
+    const proporcion = Math.min(1, Math.max(0, tiempoEnSegmento / duracionSegmento));
+    activeWordIndex = Math.floor(proporcion * palabrasTexto.length);
+    activeWordIndex = Math.min(activeWordIndex, palabrasTexto.length - 1);
+    activeWordIndex = Math.max(activeWordIndex, 0);
   }
-  
-  const groupWords = words.slice(startIdx, endIdx + 1);
-  const activeIdxInGroup = activeIndex - startIdx;
   
   const ff = RE.fontLoaded ? "'BebasNeue', Impact, sans-serif" : "Impact, sans-serif";
   const sz = Math.round((S.subsFontSize || 72) * (W / 1080));
@@ -247,52 +249,69 @@ function reelDrawSubtitulosPalabraPorPalabra(ctx, W, H, words, currentTime, S) {
   const GAP = Math.round(sz * 0.18);
   const PAD_H = Math.round(sz * 0.45), PAD_V = Math.round(sz * 0.25);
   
-  // Medir anchos de cada palabra
-  const textos = groupWords.map(w => w.word.toUpperCase());
-  const anchos = textos.map(tx => ctx.measureText(tx).width);
-  const anchoTotal = anchos.reduce((a, b) => a + b, 0) + GAP * (textos.length - 1);
+  // Construir palabras en mayúsculas
+  const palabrasMayus = palabrasTexto.map(p => p.toUpperCase());
+  const anchos = palabrasMayus.map(p => ctx.measureText(p).width);
   
-  // Dividir en líneas si es necesario
-  let lineas = [groupWords];
-  if (anchoTotal > W * 0.88 && groupWords.length > 3) {
-    const mid = Math.ceil(groupWords.length / 2);
-    lineas = [groupWords.slice(0, mid), groupWords.slice(mid)];
+  // Dividir en líneas según ancho disponible
+  let lineas = [];
+  let lineaActual = [];
+  let indicesActual = [];
+  let anchoActual = 0;
+  
+  for (let i = 0; i < palabrasMayus.length; i++) {
+    const anchoPalabra = anchos[i];
+    const anchoConGap = anchoActual === 0 ? anchoPalabra : anchoActual + GAP + anchoPalabra;
+    
+    if (anchoConGap > W * 0.85 && lineaActual.length > 0) {
+      lineas.push({ palabras: [...lineaActual], indices: [...indicesActual] });
+      lineaActual = [palabrasMayus[i]];
+      indicesActual = [i];
+      anchoActual = anchoPalabra;
+    } else {
+      lineaActual.push(palabrasMayus[i]);
+      indicesActual.push(i);
+      anchoActual = anchoConGap;
+    }
+  }
+  if (lineaActual.length) {
+    lineas.push({ palabras: [...lineaActual], indices: [...indicesActual] });
   }
   
   const altL = sz * 1.25;
   const yIni = Math.round(H * (S.subsPosY || 0.78)) - (lineas.length * altL) / 2;
   
-  // Dibujar fondo si está activo
+  // Dibujar fondo
   if (S.subsBgOp > 0) {
     ctx.save();
     ctx.globalAlpha = S.subsBgOp;
     ctx.fillStyle = '#000';
-    let globalWordOffset = 0;
-    const maxAncho = Math.max(...lineas.map(linea => {
-      const achs = linea.map((_, i) => anchos[globalWordOffset + i]);
-      const aw = achs.reduce((a, b) => a + b, 0) + GAP * (linea.length - 1);
-      const result = aw;
-      globalWordOffset += linea.length;
-      return result;
-    }));
-    rrCtx(ctx, (W - maxAncho) / 2 - PAD_H, yIni - PAD_V, maxAncho + PAD_H * 2, (lineas.length * altL) + PAD_V * 2, Math.round(sz * 0.18));
+    let maxAnchoLinea = 0;
+    for (const linea of lineas) {
+      const achs = linea.palabras.map((_, i) => anchos[linea.indices[i]]);
+      const aw = achs.reduce((a, b) => a + b, 0) + GAP * (linea.palabras.length - 1);
+      maxAnchoLinea = Math.max(maxAnchoLinea, aw);
+    }
+    rrCtx(ctx, (W - maxAnchoLinea) / 2 - PAD_H, yIni - PAD_V, maxAnchoLinea + PAD_H * 2, (lineas.length * altL) + PAD_V * 2, Math.round(sz * 0.18));
     ctx.fill();
     ctx.restore();
   }
   
-  // Dibujar cada línea con efecto de palabra activa
-  let globalWordOffset = 0;
-  lineas.forEach((linea, li) => {
-    const achs = linea.map((_, i) => anchos[globalWordOffset + i]);
-    const aw = achs.reduce((a, b) => a + b, 0) + GAP * (linea.length - 1);
+  // Dibujar cada línea con la palabra activa resaltada
+  let palabraOffset = 0;
+  for (let li = 0; li < lineas.length; li++) {
+    const linea = lineas[li];
+    const achs = linea.palabras.map((_, i) => anchos[linea.indices[i]]);
+    const aw = achs.reduce((a, b) => a + b, 0) + GAP * (linea.palabras.length - 1);
     const x0 = (W - aw) / 2;
     const yL = yIni + li * altL;
     
     let x = x0;
-    linea.forEach((pal, pi) => {
-      const txt = textos[globalWordOffset + pi];
+    for (let pi = 0; pi < linea.palabras.length; pi++) {
+      const txt = linea.palabras[pi];
       const ach = achs[pi];
-      const isActive = pi === activeIdxInGroup && lineas.length === 1;
+      const wordGlobalIndex = linea.indices[pi];
+      const isActive = wordGlobalIndex === activeWordIndex;
       
       ctx.save();
       if (isActive) {
@@ -308,70 +327,9 @@ function reelDrawSubtitulosPalabraPorPalabra(ctx, W, H, words, currentTime, S) {
       }
       ctx.restore();
       x += ach + GAP;
-    });
-    globalWordOffset += linea.length;
-  });
-  
-  return true;
-}
-
-// Dibujar subtítulos usando segmentos completos (fallback cuando no hay palabras)
-function reelDrawSubtitulosPrecisos(ctx, W, H, segments, currentTime, S) {
-  if (!segments || !segments.length) return false;
-  
-  const activeSegment = segments.find(seg => currentTime >= seg.start && currentTime <= seg.end);
-  if (!activeSegment) return false;
-  
-  const ff = RE.fontLoaded ? "'BebasNeue', Impact, sans-serif" : "Impact, sans-serif";
-  const sz = Math.round((S.subsFontSize || 72) * (W / 1080));
-  ctx.font = `900 ${sz}px ${ff}`;
-  const PAD_H = Math.round(sz * 0.45), PAD_V = Math.round(sz * 0.25);
-  
-  let texto = activeSegment.text;
-  let lineas = [texto];
-  
-  ctx.textAlign = 'center';
-  
-  const metrics = ctx.measureText(texto);
-  if (metrics.width > W * 0.85 && texto.length > 30) {
-    const palabras = texto.split(' ');
-    lineas = [];
-    let lineaActual = '';
-    for (let i = 0; i < palabras.length; i++) {
-      const prueba = lineaActual ? lineaActual + ' ' + palabras[i] : palabras[i];
-      const ancho = ctx.measureText(prueba).width;
-      if (ancho > W * 0.85 && lineaActual) {
-        lineas.push(lineaActual);
-        lineaActual = palabras[i];
-      } else {
-        lineaActual = prueba;
-      }
     }
-    if (lineaActual) lineas.push(lineaActual);
+    palabraOffset += linea.palabras.length;
   }
-  
-  const altL = sz * 1.25;
-  const yIni = Math.round(H * (S.subsPosY || 0.78)) - (lineas.length * altL) / 2;
-  
-  if (S.subsBgOp > 0) {
-    ctx.save();
-    ctx.globalAlpha = S.subsBgOp;
-    ctx.fillStyle = '#000';
-    const maxAncho = Math.max(...lineas.map(l => ctx.measureText(l).width));
-    rrCtx(ctx, (W - maxAncho) / 2 - PAD_H, yIni - PAD_V, maxAncho + PAD_H * 2, (lineas.length * altL) + PAD_V * 2, Math.round(sz * 0.18));
-    ctx.fill();
-    ctx.restore();
-  }
-  
-  ctx.fillStyle = S.subsColorNormal || '#fff';
-  ctx.shadowColor = 'rgba(0,0,0,.9)';
-  ctx.shadowBlur = Math.round(sz * 0.12);
-  
-  lineas.forEach((linea, i) => {
-    ctx.fillText(linea, W / 2, yIni + i * altL + sz * 0.85);
-  });
-  
-  ctx.shadowColor = 'transparent';
   
   return true;
 }
@@ -527,23 +485,23 @@ function reelRender() {
   
   let subsDibujados = false;
   
-  // Prioridad 1: Usar palabras con timestamps (efecto TikTok)
-  if (RE.S.subsActivos && RE.studioWords && RE.studioWords.length) {
+  // Usar bloque + palabra activa (efecto TikTok real) con los subtítulos de Whisper
+  if (RE.S.subsActivos && RE.studioSubtitles && RE.studioSubtitles.length) {
     const currentTime = 1.5;
-    subsDibujados = reelDrawSubtitulosPalabraPorPalabra(RE.ctx, RE.W, RE.H, RE.studioWords, currentTime, RE.S);
+    subsDibujados = reelDrawSubtitulosBloqueConPalabraActiva(
+      RE.ctx, RE.W, RE.H, 
+      RE.studioSubtitles, 
+      RE.studioWords || [], 
+      currentTime, 
+      RE.S
+    );
   }
   
-  // Prioridad 2: Usar segmentos completos
-  if (!subsDibujados && RE.S.subsActivos && RE.studioSubtitles && RE.studioSubtitles.length) {
-    const currentTime = 1.5;
-    subsDibujados = reelDrawSubtitulosPrecisos(RE.ctx, RE.W, RE.H, RE.studioSubtitles, currentTime, RE.S);
-  }
-  
-  // Prioridad 3: Usar método de sílabas (fallback)
+  // Fallback al método de sílabas
   if (!subsDibujados && RE.S.subsActivos && RE.guion?.trim()) {
     const dur = RE.audioBlob ? 30 : 30;
     const ts = generarTimestamps(RE.guion, dur, RE.S.titulo, RE.subsOffset);
-    reelDrawSubs(RE.ctx, RE.W, RE.H, ts, 1.5, RE.S);
+    reelDrawSubsFallback(RE.ctx, RE.W, RE.H, ts, 1.5, RE.S);
   }
   
   if (RE.active) reelDrawActiveUI();
@@ -701,13 +659,7 @@ function reelPreviewSubs() {
   const titulo = RE.audioTitulo || document.getElementById('re-tituloInput').value.trim() || '';
   
   let timestamps = [];
-  let usarPalabras = false;
-  
-  if (RE.studioWords && RE.studioWords.length) {
-    usarPalabras = true;
-  } else if (RE.studioSubtitles && RE.studioSubtitles.length) {
-    // Usar segmentos
-  } else {
+  if (!RE.studioSubtitles || !RE.studioSubtitles.length) {
     timestamps = generarTimestamps(RE.guion, durTotal, titulo, RE.subsOffset);
   }
   
@@ -721,16 +673,18 @@ function reelPreviewSubs() {
     
     let subsDibujados = false;
     
-    if (usarPalabras && RE.studioWords) {
-      subsDibujados = reelDrawSubtitulosPalabraPorPalabra(RE.ctx, RE.W, RE.H, RE.studioWords, t, RE.S);
+    if (RE.studioSubtitles && RE.studioSubtitles.length) {
+      subsDibujados = reelDrawSubtitulosBloqueConPalabraActiva(
+        RE.ctx, RE.W, RE.H, 
+        RE.studioSubtitles, 
+        RE.studioWords || [], 
+        t, 
+        RE.S
+      );
     }
     
-    if (!subsDibujados && RE.studioSubtitles && RE.studioSubtitles.length) {
-      subsDibujados = reelDrawSubtitulosPrecisos(RE.ctx, RE.W, RE.H, RE.studioSubtitles, t, RE.S);
-    }
-    
-    if (!subsDibujados) {
-      reelDrawSubs(RE.ctx, RE.W, RE.H, timestamps, t, RE.S);
+    if (!subsDibujados && timestamps.length) {
+      reelDrawSubsFallback(RE.ctx, RE.W, RE.H, timestamps, t, RE.S);
     }
     
     if (!audio.paused && !audio.ended) {
@@ -904,13 +858,7 @@ async function reelExportVideoFallback() {
     const titulo = RE.audioTitulo || RE.S.titulo || '';
     
     let timestamps = [];
-    let usarPalabras = false;
-    
-    if (RE.studioWords && RE.studioWords.length) {
-      usarPalabras = true;
-    } else if (RE.studioSubtitles && RE.studioSubtitles.length) {
-      // usar segmentos
-    } else {
+    if (!RE.studioSubtitles || !RE.studioSubtitles.length) {
       timestamps = generarTimestamps(RE.guion, audioDuration, titulo, RE.subsOffset);
     }
     
@@ -963,16 +911,18 @@ async function reelExportVideoFallback() {
       
       let subsDibujados = false;
       
-      if (usarPalabras && RE.studioWords) {
-        subsDibujados = reelDrawSubtitulosPalabraPorPalabra(RE.ctx, RE.W, RE.H, RE.studioWords, elapsed, RE.S);
+      if (RE.studioSubtitles && RE.studioSubtitles.length) {
+        subsDibujados = reelDrawSubtitulosBloqueConPalabraActiva(
+          RE.ctx, RE.W, RE.H, 
+          RE.studioSubtitles, 
+          RE.studioWords || [], 
+          elapsed, 
+          RE.S
+        );
       }
       
-      if (!subsDibujados && RE.studioSubtitles && RE.studioSubtitles.length) {
-        subsDibujados = reelDrawSubtitulosPrecisos(RE.ctx, RE.W, RE.H, RE.studioSubtitles, elapsed, RE.S);
-      }
-      
-      if (!subsDibujados) {
-        reelDrawSubs(RE.ctx, RE.W, RE.H, timestamps, elapsed, RE.S);
+      if (!subsDibujados && timestamps.length) {
+        reelDrawSubsFallback(RE.ctx, RE.W, RE.H, timestamps, elapsed, RE.S);
       }
       
       requestAnimationFrame(animateFallback);
@@ -1009,18 +959,12 @@ async function reelExportVideoWebCodecs() {
     const audioDur = await reelGetAudioDuration(RE.audioBlob);
     const guion = RE.guion || '';
     const titulo = RE.audioTitulo || RE.S.titulo || '';
-    const usaSubs = RE.S.subsActivos && ((RE.studioWords && RE.studioWords.length > 0) || (RE.studioSubtitles && RE.studioSubtitles.length > 0) || guion.trim().length > 0);
+    const usaSubs = RE.S.subsActivos && ((RE.studioSubtitles && RE.studioSubtitles.length > 0) || guion.trim().length > 0);
     const FPS = usaSubs ? (isMobileDevice ? 12 : 15) : (isMobileDevice ? 15 : 30);
     const totalFrames = Math.ceil(audioDur * FPS);
     
     let timestamps = [];
-    let usarPalabras = false;
-    
-    if (RE.studioWords && RE.studioWords.length) {
-      usarPalabras = true;
-    } else if (RE.studioSubtitles && RE.studioSubtitles.length) {
-      // usar segmentos
-    } else if (usaSubs) {
+    if (!RE.studioSubtitles || !RE.studioSubtitles.length) {
       timestamps = generarTimestamps(guion, audioDur, titulo, RE.subsOffset);
     }
     
@@ -1080,16 +1024,18 @@ async function reelExportVideoWebCodecs() {
       if (usaSubs) {
         let subsDibujados = false;
         
-        if (usarPalabras && RE.studioWords) {
-          subsDibujados = reelDrawSubtitulosPalabraPorPalabra(offCtx, RE.W, RE.H, RE.studioWords, t, RE.S);
+        if (RE.studioSubtitles && RE.studioSubtitles.length) {
+          subsDibujados = reelDrawSubtitulosBloqueConPalabraActiva(
+            offCtx, RE.W, RE.H, 
+            RE.studioSubtitles, 
+            RE.studioWords || [], 
+            t, 
+            RE.S
+          );
         }
         
-        if (!subsDibujados && RE.studioSubtitles && RE.studioSubtitles.length) {
-          subsDibujados = reelDrawSubtitulosPrecisos(offCtx, RE.W, RE.H, RE.studioSubtitles, t, RE.S);
-        }
-        
-        if (!subsDibujados) {
-          reelDrawSubs(offCtx, RE.W, RE.H, timestamps, t, RE.S);
+        if (!subsDibujados && timestamps.length) {
+          reelDrawSubsFallback(offCtx, RE.W, RE.H, timestamps, t, RE.S);
         }
       }
       
@@ -1281,9 +1227,8 @@ window.reelAlign = reelAlign;
 window.reelPreviewSubs = reelPreviewSubs;
 window.reelStopPreview = reelStopPreview;
 window.generarTimestamps = generarTimestamps;
-window.reelDrawSubs = reelDrawSubs;
-window.reelDrawSubtitulosPalabraPorPalabra = reelDrawSubtitulosPalabraPorPalabra;
-window.reelDrawSubtitulosPrecisos = reelDrawSubtitulosPrecisos;
+window.reelDrawSubsFallback = reelDrawSubsFallback;
+window.reelDrawSubtitulosBloqueConPalabraActiva = reelDrawSubtitulosBloqueConPalabraActiva;
 window.reelRenderBase = reelRenderBase;
 window.supportsWebCodecs = supportsWebCodecs;
 window.reelSetSubsOffset = reelSetSubsOffset;
