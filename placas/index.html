@@ -475,10 +475,11 @@
       }
       .mob-panel.open { transform: translateY(0); }
       .mob-panel.closing { transform: translateY(100%); }
-      .mob-panel-inner {
-        display: flex;
+      .mob-panel.open .mob-panel-inner {
+        display: flex !important;
         flex-direction: column;
         gap: 12px;
+        min-height: 20px;
       }
 
       /* Ajuste del toggle de tema en móvil */
@@ -995,7 +996,6 @@ window.initTabTouchEvents = function(){ /* desactivado — lo maneja el script p
 
     _tab  = key;
     _open = true;
-    // Sincronizar variables de app.js por si las usa internamente
     window._activeTab = key;
     window._panelOpen = true;
 
@@ -1007,8 +1007,15 @@ window.initTabTouchEvents = function(){ /* desactivado — lo maneja el script p
       if(el) el.classList.add('on');
     }
 
-    // Generar contenido
-    if(typeof window.renderMobPanel==='function') window.renderMobPanel();
+    // Generar contenido — intentar hasta que renderMobPanel esté disponible
+    function tryRender(attempts){
+      if(typeof window.renderMobPanel === 'function'){
+        window.renderMobPanel();
+      } else if(attempts > 0){
+        setTimeout(function(){ tryRender(attempts-1); }, 80);
+      }
+    }
+    tryRender(10);
 
     // Animar apertura
     panel.classList.remove('closing');
