@@ -1,8 +1,8 @@
 // ============================================================
-// Media Mendoza — Worker v16
+// Media Mendoza — Worker v17
 // TTS: Azure Cognitive Services (devuelve audio directo)
 // + Biblioteca de música Freesound
-// + Studio: Transcripción con Cloudflare Whisper
+// + Studio: Transcripción con Cloudflare Whisper (CORREGIDO)
 // ============================================================
 // @ts-nocheck
 
@@ -286,7 +286,7 @@ async function handleResumenEliminar(body, env) {
 }
 
 // ============================================================
-// STUDIO - Transcripción con Cloudflare Whisper (funcionando)
+// STUDIO - Transcripción con Cloudflare Whisper (CORREGIDO)
 // ============================================================
 
 async function handleStudioTranscribir(request, env) {
@@ -302,24 +302,148 @@ async function handleStudioTranscribir(request, env) {
       return jsonError("Falta archivo de audio", 400);
     }
 
-    const audioBuffer = await audioFile.arrayBuffer();
+    // Convertir el archivo a ArrayBuffer (formato binario)
+    const audioArrayBuffer = await audioFile.arrayBuffer();
     
+    // Llamar al modelo Whisper de Cloudflare
     const response = await env.AI.run('@cf/openai/whisper', {
-      audio: audioBuffer
+      audio: audioArrayBuffer
     });
 
+    // Procesar la respuesta correctamente
+    let texto = '';
+    let vtt = '';
+    let segments = [];
+    let words = [];
+    
+    if (response) {
+      texto = response.text || '';
+      vtt = response.vtt || '';
+      
+      if (response.words && Array.isArray(response.words)) {
+        words = response.words;
+        // Agrupar palabras en segments de 5-6 palabras
+        const groupSize = 6;
+        for (let i = 0; i < words.length; i += groupSize) {
+          const group = words.slice(i, i + groupSize);
+          segments.push({
+            start: group[0].start,
+            end: group[group.length - 1].end,
+            text: group.map(w => w.word).join(' ')
+          });
+        }
+      } else if (texto) {
+        segments = [{ start: 0, end: 30, text: texto }];
+      }
+    }
+
     return jsonOk({
-      texto: response?.text || '',
-      word_count: response?.word_count || 0,
-      segments: response?.segments || [],
-      words: response?.words || [],
-      vtt: response?.vtt || ''
+      texto: texto,
+      word_count: response?.word_count || texto.split(/\s+/).length,
+      segments: segments,
+      words: words,
+      vtt: vtt
     });
 
   } catch (err) {
-    console.error('Error:', err);
+    console.error('Error en transcripción:', err);
     return jsonError("Error en transcripción: " + err.message, 500);
   }
+}
+
+async function handleStudioGenerarVTT(request, env) {
+  try {
+    const { segments } = await request.json();
+    
+    if (!segments || !segments.length) {
+      return jsonError("Faltan segments", 400);
+    }
+
+    let vtt = "WEBVTT\n\n";
+    
+    segments.forEach((seg, i) => {
+      const start = formatTimestamp(seg.start);
+      const end = formatTimestamp(seg.end);
+      vtt += `${i + 1}\n${start} --> ${end}\n${seg.text.trim()}\n\n`;
+    });
+
+    return new Response(vtt, {
+      headers: {
+        ...CORS_HEADERS,
+        'Content-Type': 'text/vtt',
+        'Content-Disposition': 'attachment; filename="subtitulos.vtt"'
+      }
+    });
+
+  } catch (err) {
+    return jsonError("Error generando VTT: " + err.message, 500);
+  }
+}
+
+async function handleStudioGuardarProyecto(body, env) {
+  const { id, titulo, transcripcion, segments, createdAt } = body;
+  
+  if (!id || !titulo) {
+    return jsonError("Faltan id o titulo", 400);
+  }
+
+  const proyecto = {
+    id,
+    titulo,
+    transcripcion: transcripcion || '',
+    segments: segments || [],
+    createdAt: createdAt || Date.now(),
+    updatedAt: Date.now()
+  };
+
+  try {
+    await env.KV.put(`${STUDIO_PROYECTOS_PREFIX}${id}`, JSON.stringify(proyecto));
+    return jsonOk({ guardado: true, id });
+  } catch (err) {
+    return jsonError("Error guardando proyecto: " + err.message, 500);
+  }
+}
+
+async function handleStudioObtenerProyectos(env) {
+  try {
+    const list = await env.KV.list({ prefix: STUDIO_PROYECTOS_PREFIX });
+    const proyectos = [];
+    
+    for (const key of list.keys) {
+      const proyecto = await env.KV.get(key.name, 'json');
+      if (proyecto) proyectos.push(proyecto);
+    }
+    
+    proyectos.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    
+    return jsonOk({ proyectos });
+  } catch (err) {
+    return jsonError("Error obteniendo proyectos: " + err.message, 500);
+  }
+}
+
+async function handleStudioEliminarProyecto(url, env) {
+  const id = url.searchParams.get('id');
+  if (!id) return jsonError("Falta id", 400);
+  
+  try {
+    await env.KV.delete(`${STUDIO_PROYECTOS_PREFIX}${id}`);
+    return jsonOk({ eliminado: true });
+  } catch (err) {
+    return jsonError("Error eliminando: " + err.message, 500);
+  }
+}
+
+// ============================================================
+// TEST - Verificar binding AI
+// ============================================================
+async function handleTestAI(env) {
+  const hasAI = !!env.AI;
+  
+  return jsonOk({
+    ai_disponible: hasAI,
+    mensaje: hasAI ? "✅ AI configurado correctamente" : "❌ AI NO está configurado. Agregá binding 'AI' en el dashboard."
+  });
 }
 
 // ============================================================

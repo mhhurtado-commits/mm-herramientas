@@ -50,14 +50,28 @@ function updateCharCount() {
 // ============================================================
 
 async function transcribirAudio(file) {
-  const formData = new FormData();
-  
-  // IMPORTANTE: Usar el mismo nombre de campo que funcionó en curl ('audio')
-  formData.append('audio', file, file.name || 'audio.mp3');
-
   showLoading('Transcribiendo audio con IA...');
 
   try {
+    // Leer el archivo como ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Crear FormData y añadir el audio como Blob con tipo correcto
+    const formData = new FormData();
+    
+    // Determinar el tipo MIME correcto
+    let mimeType = file.type;
+    if (!mimeType || mimeType === '') {
+      if (file.name.endsWith('.mp3')) mimeType = 'audio/mpeg';
+      else if (file.name.endsWith('.wav')) mimeType = 'audio/wav';
+      else if (file.name.endsWith('.webm')) mimeType = 'audio/webm';
+      else mimeType = 'audio/mpeg';
+    }
+    
+    // Crear un Blob con el ArrayBuffer y el tipo MIME correcto
+    const audioBlob = new Blob([arrayBuffer], { type: mimeType });
+    formData.append('audio', audioBlob, file.name || 'audio.mp3');
+
     const res = await fetch(WORKER + '/studio/transcribir', {
       method: 'POST',
       body: formData
