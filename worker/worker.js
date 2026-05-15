@@ -1,7 +1,8 @@
 // ============================================================
-// Media Mendoza — Worker v15
+// Media Mendoza — Worker v16
 // TTS: Azure Cognitive Services (devuelve audio directo)
 // + Biblioteca de música Freesound
+// + Studio: Transcripción con Cloudflare Whisper
 // ============================================================
 // @ts-nocheck
 
@@ -24,6 +25,7 @@ const AGENDA_EV_PREFIX = "agenda:evento:";
 const AGENDA_EF_PREFIX = "agenda:efemeride:";
 const ANGULOS_PREFIX   = "agenda:angulos:";
 const ANGULOS_TTL      = 60 * 60 * 24 * 30;
+const STUDIO_PROYECTOS_PREFIX = "studio:proyecto:";
 
 const VOCES_DEFAULT = [
   { id: "es-AR-TomasNeural", nombre: "Tomás (Hombre AR)", keyAlias: "AZURE_TTS_KEY_1", region: "AZURE_TTS_REGION_1" },
@@ -60,6 +62,13 @@ function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{hea
 function jsonError(msg,status=400){return new Response(JSON.stringify({ok:false,error:msg}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
 function escapeXml(s=""){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;")}
 function localeFromVoice(v=""){const m=String(v).match(/^([a-z]{2,3}-[A-Z]{2})-/);return m?m[1]:"es-AR"}
+function formatTimestamp(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+}
 
 function extraerTexto(html){
   html=html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<nav[\s\S]*?<\/nav>/gi,'').replace(/<header[\s\S]*?<\/header>/gi,'').replace(/<footer[\s\S]*?<\/footer>/gi,'').replace(/<aside[\s\S]*?<\/aside>/gi,'');
@@ -79,6 +88,7 @@ function extraerDatosNota(html,url){
   const category=extractMeta(html,/<meta[^>]+property=["']article:section["'][^>]+content=["']([^"']{1,120})["']/i,/<meta[^>]+name=["']section["'][^>]+content=["']([^"']{1,120})["']/i)||inferirCategoriaDesdeUrl(url);
   return {title,category,description,body:extraerTexto(html),image,url};
 }
+
 // ============================================================
 // RESUMEN DIARIO
 // ============================================================
@@ -161,7 +171,6 @@ async function handleResumenGenerar(body, env) {
   const editorial = await getEditorial(env);
   const editorialText = editorial ? `\n\nLÍNEA EDITORIAL:\n${editorial.substring(0, 500)}` : '';
   
-  // Construir texto con títulos y URLs para el resumen
   let notasTexto = '';
   let notasInfo = [];
   for (let i = 0; i < notas.length; i++) {
@@ -222,7 +231,6 @@ Respondé SOLO con JSON sin markdown:
   const r = await callGemini(prompt + editorialText, env);
   if (r.error) return jsonError(r.error, 500);
   
-  // Combinar imágenes existentes con las notas generadas
   const notasConImagen = (r.data?.notas || []).map((nota, idx) => ({
     ...nota,
     imagen: notas[idx]?.imagen || '',
@@ -238,7 +246,6 @@ Respondé SOLO con JSON sin markdown:
   });
 }
 
-// ── GENERAR GUION LIMPIO PARA REEL ──
 async function handleGenerarGuionReel(body, env) {
   const { texto } = body;
   if (!texto) return jsonError('Falta texto', 400);
@@ -259,13 +266,11 @@ async function handleGenerarGuionReel(body, env) {
   if (r.error) return jsonError(r.error, 500);
   
   let guion = r.data?.guion || texto;
-  // Limpieza adicional por si la IA falla
   guion = guion.replace(/[#*_`]/g, '').replace(/https?:\/\/[^\s]+/g, '').replace(/[🔗📱📣🎧✅⚠️✗✓★✦▶️⏸️🎬📋🗑✏️🕐📍📅📰💬⚡🔍🎵🎙️]/g, '');
   
   return jsonOk({ guion });
 }
 
-// ── ELIMINAR NOTA DEL RESUMEN ──
 async function handleResumenEliminar(body, env) {
   const { id, fecha } = body;
   if (!id || !fecha) {
@@ -280,82 +285,87 @@ async function handleResumenEliminar(body, env) {
   }
 }
 
-// ── Router ──
-export default {
-  async fetch(request, env) {
-    if(request.method==="OPTIONS") return new Response(null,{headers:CORS_HEADERS});
-    const url=new URL(request.url);
-    const path=url.pathname;
+// ============================================================
+// STUDIO - Transcripción con Cloudflare Whisper (funcionando)
+// ============================================================
 
-    // ── GET ──
-    if(request.method==="GET"){
-      if(path==="/"&&url.searchParams.has("url"))    return handlePlacasUrl(url);
-      if(path==="/"&&url.searchParams.has("image"))  return handlePlacasImage(url);
-      if(path==="/rss")                              return handleRSS(url);
-      if(path==="/verificar")                        return handleVerificar(url);
-      if(path==="/scrape")                           return handleScrape(url);
-      if(path==="/fuentes")                          return handleGetFuentes(env);
-      if(path==="/editorial")                        return handleGetEditorial(env);
-      if(path==="/cubiertas")                        return handleGetCubiertas(env);
-      if(path==="/notas")                            return handleGetNotas(env);
-      if(path==="/whatsapp/programados")             return handleGetWhatsappProgramados(env);
-      if(path==="/whatsapp/config/prompt")           return handleGetWaPrompt(env);
-      if(path==="/whatsapp/config/links")            return handleGetWaLinks(env);
-      if(path==="/social/prompt")                    return handleGetSocialPrompt(url,env);
-      if(path==="/social/reel/config")               return handleGetReelConfig(env);
-      if(path==="/social/reel/reset-voces")          return handleResetVoces(env);
-      if(path==="/agenda/eventos")                   return handleGetAgendaEventos(url,env);
-      if(path==="/agenda/efemerides")                return handleGetAgendaEfemerides(env);
-      if(path==="/agenda/angulos/cache")             return handleGetAngulosCache(url,env);
-      if(path==="/resumen/obtener")                  return handleResumenObtener(url, env);
-      // ── NUEVAS RUTAS DE MÚSICA ──
-      if(path==="/music/search")                     return handleMusicSearch(url, env);
-      if(path==="/music/preview")                    return handleMusicPreview(url, env);
-      return jsonError("Ruta no encontrada",404);
+async function handleStudioTranscribir(request, env) {
+  // Verificar que el binding AI exista
+  if (!env.AI) {
+    return jsonError("Cloudflare AI no está configurado. Agregá binding 'AI' en el dashboard.", 500);
+  }
+
+  try {
+    // Leer el formData correctamente
+    const formData = await request.formData();
+    const audioFile = formData.get('audio');
+    
+    if (!audioFile) {
+      return jsonError("Falta archivo de audio", 400);
     }
 
-    // ── DELETE ──
-    if(request.method==="DELETE"){
-      if(path==="/fuentes")                          return handleDeleteFuente(url,env);
-      if(path==="/notas")                            return handleDeleteNota(url,env);
-      if(path==="/whatsapp/programado")              return handleDeleteWhatsappProgramado(url,env);
-      if(path==="/agenda/evento")                    return handleDeleteAgendaEvento(url,env);
-      if(path==="/agenda/efemeride")                 return handleDeleteAgendaEfemeride(url,env);
-      return jsonError("Ruta no encontrada",404);
+    console.log('📁 Audio recibido:', {
+      nombre: audioFile.name,
+      tipo: audioFile.type,
+      tamaño: audioFile.size
+    });
+
+    // Validar tipo de archivo
+    const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/webm', 'audio/ogg'];
+    if (!validTypes.includes(audioFile.type)) {
+      return jsonError(`Formato no soportado: ${audioFile.type}. Usá MP3, M4A, WAV, WebM u OGG`, 400);
     }
 
-    if(request.method!=="POST") return jsonError("Método no permitido",405);
-    let body; try{body=await request.json()}catch{return jsonError("JSON inválido",400)}
+    // Limitar tamaño (10MB)
+    if (audioFile.size > 10 * 1024 * 1024) {
+      return jsonError("El audio es muy grande. Máximo 10MB", 400);
+    }
 
-    // ── POST ──
-    if(path==="/"&&url.searchParams.get("ai")==="1") return handlePlacasAI(request,env,body);
-    if(path==="/titulares")                          return handleTitulares(body,env);
-    if(path==="/reformular")                         return handleReformular(body,env);
-    if(path==="/fuentes")                            return handlePostFuente(body,env);
-    if(path==="/editorial")                          return handlePostEditorial(body,env);
-    if(path==="/cubiertas")                          return handlePostCubierta(body,env);
-    if(path==="/redactar")                           return handleRedactar(body,env);
-    if(path==="/notas")                              return handlePostNota(body,env);
-    if(path==="/whatsapp/generar")                   return handleWhatsappGenerar(body,env);
-    if(path==="/whatsapp/programar")                 return handlePostWhatsappProgramar(body,env);
-    if(path==="/whatsapp/marcar-enviado")            return handlePostWhatsappMarcarEnviado(body,env);
-    if(path==="/whatsapp/config/prompt")             return handlePostWaPrompt(body,env);
-    if(path==="/whatsapp/config/links")              return handlePostWaLinks(body,env);
-    if(path==="/social/prompt")                      return handlePostSocialPrompt(body,env);
-    if(path==="/social/generar")                     return handleSocialGenerar(body,env);
-    if(path==="/social/reel/guion")                  return handleReelGuion(body,env);
-    if(path==="/social/reel/audio")                  return handleReelAudio(body,env);
-    if(path==="/social/reel/config")                 return handlePostReelConfig(body,env);
-    if(path==="/agenda/evento")                      return handlePostAgendaEvento(body,env);
-    if(path==="/agenda/efemeride")                   return handlePostAgendaEfemeride(body,env);
-    if(path==="/agenda/angulos")                     return handleAgendaAngulos(body,env);
-    if(path==="/resumen/generar")                    return handleResumenGenerar(body, env);
-    if(path==="/resumen/agregar")                    return handleResumenAgregar(body, env);
-    if(path==="/resumen/eliminar")                   return handleResumenEliminar(body, env);
-    if(path==="/resumen/generar-guion-reel")         return handleGenerarGuionReel(body, env);
-    return jsonError("Ruta no encontrada",404);
-  },
-};
+    // Obtener el ArrayBuffer
+    const audioBuffer = await audioFile.arrayBuffer();
+    
+    // Llamar a Cloudflare Whisper
+    const response = await env.AI.run('@cf/openai/whisper', {
+      audio: audioBuffer  // Enviar ArrayBuffer directamente
+    });
+
+    console.log('✅ Respuesta de Whisper:', response ? 'recibida' : 'vacía');
+
+    // Procesar la respuesta
+    let texto = response?.text || '';
+    let vtt = response?.vtt || '';
+    let segments = [];
+    let words = [];
+    
+    if (response?.words && Array.isArray(response.words)) {
+      words = response.words;
+      // Agrupar palabras en segments de 5
+      const groupSize = 5;
+      for (let i = 0; i < words.length; i += groupSize) {
+        const group = words.slice(i, i + groupSize);
+        segments.push({
+          start: group[0].start,
+          end: group[group.length - 1].end,
+          text: group.map(w => w.word).join(' ')
+        });
+      }
+    } else if (texto) {
+      segments = [{ start: 0, end: 30, text: texto }];
+    }
+
+    return jsonOk({
+      texto: texto,
+      word_count: response?.word_count || texto.split(/\s+/).length,
+      segments: segments,
+      words: words,
+      vtt: vtt
+    });
+
+  } catch (err) {
+    console.error('Error en transcripción:', err);
+    return jsonError("Error en transcripción: " + err.message, 500);
+  }
+}
 
 // ============================================================
 // REEL — CONFIG
@@ -389,9 +399,6 @@ async function handleResetVoces(env){
   }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
-// ============================================================
-// REEL — GUION (Gemini)
-// ============================================================
 async function handleReelGuion(body,env){
   const articulo = String(body.articulo||"").trim();
   if(!articulo) return jsonError("Falta campo: articulo",400);
@@ -401,9 +408,6 @@ async function handleReelGuion(body,env){
   return jsonOk({titulo: r.data?.titulo||"", guion: r.data?.guion||""});
 }
 
-// ============================================================
-// REEL — AUDIO (Azure TTS)
-// ============================================================
 async function handleReelAudio(body, env) {
   const titulo  = String(body.titulo  || '').trim();
   const guion   = String(body.guion   || '').trim();
@@ -919,7 +923,6 @@ async function handleMusicSearch(url, env) {
     }
 
     const tracks = data.results.map(track => {
-      // Usar las claves CORRECTAS: "preview-hq-mp3" (con guiones)
       const previewUrl = track.previews?.["preview-hq-mp3"] || 
                          track.previews?.["preview-lq-mp3"];
       
@@ -952,8 +955,6 @@ async function handleMusicPreview(url, env) {
   }
 
   try {
-    console.log('Proxy audio request:', audioUrl);
-    
     const res = await fetch(audioUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -981,3 +982,104 @@ async function handleMusicPreview(url, env) {
     return jsonError(`Error: ${err.message}`, 500);
   }
 }
+
+// ============================================================
+// ROUTER PRINCIPAL
+// ============================================================
+
+export default {
+  async fetch(request, env) {
+    if(request.method==="OPTIONS") return new Response(null,{headers:CORS_HEADERS});
+    const url=new URL(request.url);
+    const path=url.pathname;
+
+    // ── GET ──
+    if(request.method==="GET"){
+      if(path==="/"&&url.searchParams.has("url"))    return handlePlacasUrl(url);
+      if(path==="/"&&url.searchParams.has("image"))  return handlePlacasImage(url);
+      if(path==="/rss")                              return handleRSS(url);
+      if(path==="/verificar")                        return handleVerificar(url);
+      if(path==="/scrape")                           return handleScrape(url);
+      if(path==="/fuentes")                          return handleGetFuentes(env);
+      if(path==="/editorial")                        return handleGetEditorial(env);
+      if(path==="/cubiertas")                        return handleGetCubiertas(env);
+      if(path==="/notas")                            return handleGetNotas(env);
+      if(path==="/whatsapp/programados")             return handleGetWhatsappProgramados(env);
+      if(path==="/whatsapp/config/prompt")           return handleGetWaPrompt(env);
+      if(path==="/whatsapp/config/links")            return handleGetWaLinks(env);
+      if(path==="/social/prompt")                    return handleGetSocialPrompt(url,env);
+      if(path==="/social/reel/config")               return handleGetReelConfig(env);
+      if(path==="/social/reel/reset-voces")          return handleResetVoces(env);
+      if(path==="/agenda/eventos")                   return handleGetAgendaEventos(url,env);
+      if(path==="/agenda/efemerides")                return handleGetAgendaEfemerides(env);
+      if(path==="/agenda/angulos/cache")             return handleGetAngulosCache(url,env);
+      if(path==="/resumen/obtener")                  return handleResumenObtener(url, env);
+      if(path==="/studio/proyectos")                 return handleStudioObtenerProyectos(env);
+      if(path==="/music/search")                     return handleMusicSearch(url, env);
+      if(path==="/music/preview")                    return handleMusicPreview(url, env);
+      if(path==="/test-ai")                          return handleTestAI(env);
+      return jsonError("Ruta no encontrada",404);
+    }
+
+    // ── DELETE ──
+    if(request.method==="DELETE"){
+      if(path==="/fuentes")                          return handleDeleteFuente(url,env);
+      if(path==="/notas")                            return handleDeleteNota(url,env);
+      if(path==="/whatsapp/programado")              return handleDeleteWhatsappProgramado(url,env);
+      if(path==="/agenda/evento")                    return handleDeleteAgendaEvento(url,env);
+      if(path==="/agenda/efemeride")                 return handleDeleteAgendaEfemeride(url,env);
+      if(path==="/studio/proyecto")                  return handleStudioEliminarProyecto(url, env);
+      return jsonError("Ruta no encontrada",404);
+    }
+
+    if(request.method!=="POST") return jsonError("Método no permitido",405);
+
+    // ============================================================
+    // PRIMERO: rutas que NO usan JSON (FormData)
+    // ============================================================
+    if (path === "/studio/transcribir") {
+      return handleStudioTranscribir(request, env);
+    }
+
+    // ============================================================
+    // DESPUÉS: rutas que usan JSON
+    // ============================================================
+    let body; 
+    try {
+      body = await request.json();
+    } catch(e) {
+      return jsonError("JSON inválido", 400);
+    }
+
+    // ── POST con JSON ──
+    if(path==="/"&&url.searchParams.get("ai")==="1") return handlePlacasAI(request,env,body);
+    if(path==="/titulares")                          return handleTitulares(body,env);
+    if(path==="/reformular")                         return handleReformular(body,env);
+    if(path==="/fuentes")                            return handlePostFuente(body,env);
+    if(path==="/editorial")                          return handlePostEditorial(body,env);
+    if(path==="/cubiertas")                          return handlePostCubierta(body,env);
+    if(path==="/redactar")                           return handleRedactar(body,env);
+    if(path==="/notas")                              return handlePostNota(body,env);
+    if(path==="/whatsapp/generar")                   return handleWhatsappGenerar(body,env);
+    if(path==="/whatsapp/programar")                 return handlePostWhatsappProgramar(body,env);
+    if(path==="/whatsapp/marcar-enviado")            return handlePostWhatsappMarcarEnviado(body,env);
+    if(path==="/whatsapp/config/prompt")             return handlePostWaPrompt(body,env);
+    if(path==="/whatsapp/config/links")              return handlePostWaLinks(body,env);
+    if(path==="/social/prompt")                      return handlePostSocialPrompt(body,env);
+    if(path==="/social/generar")                     return handleSocialGenerar(body,env);
+    if(path==="/social/reel/guion")                  return handleReelGuion(body,env);
+    if(path==="/social/reel/audio")                  return handleReelAudio(body,env);
+    if(path==="/social/reel/config")                 return handlePostReelConfig(body,env);
+    if(path==="/agenda/evento")                      return handlePostAgendaEvento(body,env);
+    if(path==="/agenda/efemeride")                   return handlePostAgendaEfemeride(body,env);
+    if(path==="/agenda/angulos")                     return handleAgendaAngulos(body,env);
+    if(path==="/resumen/generar")                    return handleResumenGenerar(body, env);
+    if(path==="/resumen/agregar")                    return handleResumenAgregar(body, env);
+    if(path==="/resumen/eliminar")                   return handleResumenEliminar(body, env);
+    if(path==="/resumen/generar-guion-reel")         return handleGenerarGuionReel(body, env);
+    if(path==="/studio/generar-vtt")                 return handleStudioGenerarVTT(request, env);
+    if(path==="/studio/proyecto")                    return handleStudioGuardarProyecto(body, env);
+
+    return jsonError("Ruta no encontrada",404);
+  },
+};
