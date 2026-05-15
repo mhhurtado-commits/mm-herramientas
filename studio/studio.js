@@ -1,5 +1,5 @@
 // ============================================================
-// Media Studio — Transcripción y Proyectos
+// Media Studio — Transcripción y Proyectos v2
 // ============================================================
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
@@ -46,20 +46,48 @@ function updateCharCount() {
 }
 
 // ============================================================
-// TRANSCRIPCIÓN - VERSIÓN CORREGIDA
+// FORMATO DE TIEMPOS
+// ============================================================
+
+function formatTimestampLocal(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+}
+
+function formatTimestampLocalSRT(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+}
+
+function parseTimestampToSeconds(timestamp) {
+  const match = timestamp.match(/(\d{2,3}):(\d{2}):(\d{2})[.,](\d{3})/);
+  if (match) {
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const seconds = parseInt(match[3], 10);
+    const ms = parseInt(match[4], 10);
+    return hours * 3600 + minutes * 60 + seconds + ms / 1000;
+  }
+  return 0;
+}
+
+// ============================================================
+// TRANSCRIPCIÓN
 // ============================================================
 
 async function transcribirAudio(file) {
   showLoading('Transcribiendo audio con IA...');
 
   try {
-    // Leer el archivo como ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
-    
-    // Crear FormData y añadir el audio como Blob con tipo correcto
     const formData = new FormData();
     
-    // Determinar el tipo MIME correcto
     let mimeType = file.type;
     if (!mimeType || mimeType === '') {
       if (file.name.endsWith('.mp3')) mimeType = 'audio/mpeg';
@@ -68,7 +96,6 @@ async function transcribirAudio(file) {
       else mimeType = 'audio/mpeg';
     }
     
-    // Crear un Blob con el ArrayBuffer y el tipo MIME correcto
     const audioBlob = new Blob([arrayBuffer], { type: mimeType });
     formData.append('audio', audioBlob, file.name || 'audio.mp3');
 
@@ -131,7 +158,6 @@ function setupFileUpload() {
     transcribirAudio(file);
   };
 
-  // Drag & drop
   uploadArea.ondragover = (e) => {
     e.preventDefault();
     uploadArea.style.borderColor = 'var(--v)';
@@ -241,7 +267,7 @@ async function crearNotaPeriodistica() {
       body: JSON.stringify({
         titulo: 'Nota desde transcripción',
         contenido: texto,
-        contexto: 'Esta es una transcripción de audio convertida en nota periodística.',
+        contexto: 'Esta es una transcripción de audio convertida en nota periodística para Media Mendoza.',
         estilo: 'formal'
       })
     });
@@ -251,7 +277,7 @@ async function crearNotaPeriodistica() {
     if (!data.ok) throw new Error(data.error);
 
     window.open('https://mediamendoza.pages.dev/redaccion/', '_blank');
-    toast('✓ Nota generada');
+    toast('✓ Nota generada. Se abrirá en Redacción');
     
   } catch (err) {
     toast('✗ Error: ' + err.message);
@@ -283,7 +309,7 @@ async function guardarProyecto() {
         titulo: titulo,
         transcripcion: texto,
         segments: currentTranscription.segments,
-        createdAt: Date.now()
+        createdAt: currentTranscription.createdAt || Date.now()
       })
     });
 
@@ -310,10 +336,9 @@ async function descargarVTT() {
     return;
   }
 
-  showLoading('Generando subtítulos...');
+  showLoading('Generando subtítulos VTT...');
 
   try {
-    // Generar VTT manualmente en el frontend
     let vtt = "WEBVTT\n\n";
     
     currentTranscription.segments.forEach((seg, i) => {
@@ -330,7 +355,7 @@ async function descargarVTT() {
     a.click();
     URL.revokeObjectURL(url);
 
-    toast('✓ Subtítulos descargados');
+    toast('✓ Subtítulos VTT descargados');
   } catch (err) {
     toast('✗ Error: ' + err.message);
   } finally {
@@ -338,13 +363,123 @@ async function descargarVTT() {
   }
 }
 
-function formatTimestampLocal(seconds) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  const ms = Math.floor((seconds % 1) * 1000);
+async function descargarSRT() {
+  if (!currentTranscription.segments || !currentTranscription.segments.length) {
+    toast('⚠ No hay segmentos para generar subtítulos');
+    return;
+  }
+
+  showLoading('Generando subtítulos SRT...');
+
+  try {
+    let srt = "";
+    
+    currentTranscription.segments.forEach((seg, i) => {
+      const start = formatTimestampLocalSRT(seg.start);
+      const end = formatTimestampLocalSRT(seg.end);
+      srt += `${i + 1}\n${start} --> ${end}\n${seg.text.trim()}\n\n`;
+    });
+    
+    const blob = new Blob([srt], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'subtitulos.srt';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast('✓ Subtítulos SRT descargados');
+  } catch (err) {
+    toast('✗ Error: ' + err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ============================================================
+// EDITOR DE SEGMENTOS
+// ============================================================
+
+function mostrarEditorSegmentos() {
+  if (!currentTranscription.segments || !currentTranscription.segments.length) {
+    toast('⚠ No hay segmentos para editar');
+    return;
+  }
+
+  const modal = document.createElement('div');
+  modal.className = 'mm-modal-overlay open';
+  modal.style.display = 'flex';
   
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+  let html = `
+    <div class="mm-modal" style="max-width: 800px; max-height: 80vh;">
+      <div class="mm-modal-header">
+        <span class="mm-modal-title">✏ Editar segmentos de subtítulos</span>
+        <button class="mm-modal-close" onclick="this.closest('.mm-modal-overlay').remove()">✕</button>
+      </div>
+      <div class="mm-modal-body" style="overflow-y: auto;">
+        <div style="margin-bottom: 12px; font-size: 11px; color: var(--dim);">
+          Podés ajustar los tiempos y el texto de cada segmento.
+        </div>
+  `;
+  
+  currentTranscription.segments.forEach((seg, idx) => {
+    const startFormatted = formatTimestampLocal(seg.start);
+    const endFormatted = formatTimestampLocal(seg.end);
+    html += `
+      <div class="segment-editor" data-idx="${idx}" style="background: var(--surface2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; margin-bottom: 12px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 9px; color: var(--dim);">Inicio</label>
+            <input type="text" class="mm-input seg-start" value="${startFormatted}" placeholder="00:00:00.000">
+          </div>
+          <div>
+            <label style="font-size: 9px; color: var(--dim);">Fin</label>
+            <input type="text" class="mm-input seg-end" value="${endFormatted}" placeholder="00:00:00.000">
+          </div>
+        </div>
+        <div>
+          <label style="font-size: 9px; color: var(--dim);">Texto</label>
+          <textarea class="mm-textarea seg-text" rows="2" style="resize: vertical;">${esc(seg.text)}</textarea>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `
+      </div>
+      <div class="mm-modal-footer">
+        <button class="mm-btn mm-btn-primary" id="guardarSegmentosBtn">💾 Guardar cambios</button>
+        <button class="mm-btn" onclick="this.closest('.mm-modal-overlay').remove()">Cancelar</button>
+      </div>
+    </div>
+  `;
+  
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+  
+  document.getElementById('guardarSegmentosBtn').onclick = () => {
+    const nuevosSegmentos = [];
+    document.querySelectorAll('.segment-editor').forEach(editor => {
+      const startStr = editor.querySelector('.seg-start').value;
+      const endStr = editor.querySelector('.seg-end').value;
+      const text = editor.querySelector('.seg-text').value;
+      
+      const start = parseTimestampToSeconds(startStr);
+      const end = parseTimestampToSeconds(endStr);
+      
+      if (!isNaN(start) && !isNaN(end) && text.trim()) {
+        nuevosSegmentos.push({ start, end, text: text.trim() });
+      }
+    });
+    
+    if (nuevosSegmentos.length) {
+      currentTranscription.segments = nuevosSegmentos;
+      toast('✓ Segmentos actualizados');
+      modal.remove();
+    } else {
+      toast('⚠ No hay segmentos válidos');
+    }
+  };
 }
 
 // ============================================================
@@ -369,11 +504,14 @@ async function cargarProyectos() {
     container.innerHTML = '';
     data.proyectos.forEach(proy => {
       const fecha = new Date(proy.createdAt).toLocaleString('es-AR');
+      const preview = proy.transcripcion.substring(0, 100) + (proy.transcripcion.length > 100 ? '...' : '');
+      
       const div = document.createElement('div');
       div.className = 'proyecto-item';
       div.innerHTML = `
         <div class="proyecto-info">
           <div class="proyecto-titulo">${esc(proy.titulo)}</div>
+          <div class="proyecto-preview">${esc(preview)}</div>
           <div class="proyecto-fecha">${fecha} · ${proy.transcripcion.length} caracteres</div>
         </div>
         <div class="proyecto-actions">
@@ -411,7 +549,8 @@ async function cargarProyecto(id) {
       texto: proyecto.transcripcion,
       segments: proyecto.segments || [],
       words: [],
-      proyectoId: proyecto.id
+      proyectoId: proyecto.id,
+      createdAt: proyecto.createdAt
     };
 
     document.getElementById('transcriptionText').innerText = proyecto.transcripcion;
@@ -510,6 +649,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('crearNotaBtn').onclick = crearNotaPeriodistica;
   document.getElementById('guardarProyectoBtn').onclick = guardarProyecto;
   document.getElementById('descargarVTTBtn').onclick = descargarVTT;
+  document.getElementById('descargarSRTBtn').onclick = descargarSRT;
+  document.getElementById('editarSegmentosBtn').onclick = mostrarEditorSegmentos;
   
   document.getElementById('transcriptionText').addEventListener('input', updateCharCount);
   
