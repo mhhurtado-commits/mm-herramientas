@@ -257,18 +257,38 @@ function rrCtx(ctx, x, y, w, h, r) {
 // ============================================================
 
 function applyImageFilters(ctx, W, H) {
+  // Aplicar filtros de imagen usando filter property
+  let filters = [];
+  
+  if (imgSettings.brightness !== 0) {
+    const brightness = 1 + (imgSettings.brightness / 100);
+    filters.push(`brightness(${brightness})`);
+  }
+  
+  if (imgSettings.contrast !== 0) {
+    const contrast = 1 + (imgSettings.contrast / 100);
+    filters.push(`contrast(${contrast})`);
+  }
+  
+  if (imgSettings.saturation !== 0) {
+    const saturation = 1 + (imgSettings.saturation / 100);
+    filters.push(`saturate(${saturation})`);
+  }
+  
+  if (imgSettings.blur > 0) {
+    filters.push(`blur(${imgSettings.blur}px)`);
+  }
+  
+  if (filters.length > 0) {
+    ctx.filter = filters.join(' ');
+  }
+  
+  // Oscurecer (se aplica después de los filtros)
   if (imgSettings.dark > 0) {
     ctx.globalAlpha = imgSettings.dark / 100;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;
-  }
-  
-  if (imgSettings.brightness !== 0 || imgSettings.contrast !== 0 || imgSettings.saturation !== 0) {
-    const brightness = imgSettings.brightness / 100;
-    const contrast = imgSettings.contrast / 100;
-    const saturation = imgSettings.saturation / 100;
-    ctx.filter = `brightness(${1 + brightness}) contrast(${1 + contrast}) saturate(${1 + saturation})`;
   }
 }
 
@@ -390,8 +410,25 @@ async function renderPreview() {
   
   previewCtx.drawImage(currentImgObj, drawX, drawY, drawW, drawH);
   
-  // Aplicar filtros
-  applyImageFilters(previewCtx, W, H);
+  // Aplicar filtros (brillo, contraste, saturación, blur)
+  let filters = [];
+  if (imgSettings.brightness !== 0) filters.push(`brightness(${1 + (imgSettings.brightness / 100)})`);
+  if (imgSettings.contrast !== 0) filters.push(`contrast(${1 + (imgSettings.contrast / 100)})`);
+  if (imgSettings.saturation !== 0) filters.push(`saturate(${1 + (imgSettings.saturation / 100)})`);
+  if (imgSettings.blur > 0) filters.push(`blur(${imgSettings.blur}px)`);
+  
+  if (filters.length > 0) {
+    previewCtx.filter = filters.join(' ');
+  }
+  
+  // Oscurecer
+  if (imgSettings.dark > 0) {
+    previewCtx.globalAlpha = imgSettings.dark / 100;
+    previewCtx.fillStyle = '#000';
+    previewCtx.fillRect(0, 0, W, H);
+    previewCtx.globalAlpha = 1;
+  }
+  
   previewCtx.filter = 'none';
   
   // Plantilla
@@ -399,7 +436,12 @@ async function renderPreview() {
   if (tplFn) tplFn.call(previewCtx, W, H);
   
   // Overlay
-  drawOverlay(previewCtx, W, H);
+  if (overlaySettings.active && overlaySettings.opacity > 0) {
+    previewCtx.globalAlpha = overlaySettings.opacity;
+    previewCtx.fillStyle = overlaySettings.color;
+    previewCtx.fillRect(0, 0, W, H);
+    previewCtx.globalAlpha = 1;
+  }
   
   // Logo
   drawLogo(previewCtx, W, H);
@@ -580,7 +622,7 @@ async function renderImageToCanvas(img, W, H) {
   canvas.height = H;
   const ctx = canvas.getContext('2d');
   
-  // Dibujar imagen
+  // Dibujar imagen de fondo
   const imgW = img.width;
   const imgH = img.height;
   const scaleDraw = Math.max(W / imgW, H / imgH);
@@ -591,7 +633,18 @@ async function renderImageToCanvas(img, W, H) {
   
   ctx.drawImage(img, drawX, drawY, drawW, drawH);
   
-  // Filtros
+  // Aplicar filtros (brillo, contraste, saturación, blur)
+  let filters = [];
+  if (imgSettings.brightness !== 0) filters.push(`brightness(${1 + (imgSettings.brightness / 100)})`);
+  if (imgSettings.contrast !== 0) filters.push(`contrast(${1 + (imgSettings.contrast / 100)})`);
+  if (imgSettings.saturation !== 0) filters.push(`saturate(${1 + (imgSettings.saturation / 100)})`);
+  if (imgSettings.blur > 0) filters.push(`blur(${imgSettings.blur}px)`);
+  
+  if (filters.length > 0) {
+    ctx.filter = filters.join(' ');
+  }
+  
+  // Oscurecer (se aplica como overlay)
   if (imgSettings.dark > 0) {
     ctx.globalAlpha = imgSettings.dark / 100;
     ctx.fillStyle = '#000';
@@ -599,13 +652,14 @@ async function renderImageToCanvas(img, W, H) {
     ctx.globalAlpha = 1;
   }
   
+  // Reset filter para los elementos superpuestos
   ctx.filter = 'none';
   
   // Plantilla
   const tplFn = TPLS[currentTpl];
   if (tplFn) tplFn.call(ctx, W, H);
   
-  // Overlay
+  // Overlay de color
   if (overlaySettings.active && overlaySettings.opacity > 0) {
     ctx.globalAlpha = overlaySettings.opacity;
     ctx.fillStyle = overlaySettings.color;

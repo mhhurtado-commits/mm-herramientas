@@ -402,79 +402,81 @@
         </div>
       </div>
       
-      <!-- IMAGEN DE FONDO (ajustes) -->
-      <div class="section">
-        <div class="section-head" onclick="toggleSection(this)">
-          <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Ajustes de imagen</span>
-          <span class="section-arrow">▼</span>
+      <!-- AJUSTES DE IMAGEN -->
+<div class="section">
+  <div class="section-head" onclick="toggleSection(this)">
+    <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Ajustes de imagen</span>
+    <span class="section-arrow">▼</span>
+  </div>
+  <div class="section-body">
+    <span class="label">Oscurecer <span class="rval" id="rv-dark">0%</span></span>
+    <div class="rrow"><input type="range" id="darkSlider" min="0" max="90" value="0" step="1"><span class="rval">0%</span></div>
+    <span class="label">Desenfoque (Blur) <span class="rval" id="rv-blur">0px</span></span>
+    <div class="rrow"><input type="range" id="blurSlider" min="0" max="18" value="0" step="1"><span class="rval">0px</span></div>
+    <span class="label">Brillo <span class="rval" id="rv-brightness">0%</span></span>
+    <div class="rrow"><input type="range" id="brightnessSlider" min="-50" max="50" value="0" step="1"><span class="rval">0%</span></div>
+    <span class="label">Contraste <span class="rval" id="rv-contrast">0%</span></span>
+    <div class="rrow"><input type="range" id="contrastSlider" min="-50" max="50" value="0" step="1"><span class="rval">0%</span></div>
+    <span class="label">Saturación <span class="rval" id="rv-saturation">0%</span></span>
+    <div class="rrow"><input type="range" id="saturationSlider" min="-100" max="100" value="0" step="1"><span class="rval">0%</span></div>
+  </div>
+</div>
+
+<!-- TEXTO SUPERPUESTO -->
+<div class="section">
+  <div class="section-head" onclick="toggleSection(this)">
+    <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Texto</span>
+    <span class="section-arrow">▼</span>
+  </div>
+  <div class="section-body">
+    <div class="togrow"><span class="label" style="margin:0">Agregar texto</span>
+      <label class="toggle"><input type="checkbox" id="textActive"><span class="togslide"></span></label>
+    </div>
+    <div id="textControls" style="display:none">
+      <span class="label">Texto</span>
+      <input type="text" id="textContent" class="input" placeholder="Ej: Media Mendoza" value="Media Mendoza">
+      <div class="row2">
+        <div><span class="label">Color texto</span>
+          <div class="swatches"><input type="color" id="textColor" value="#ffffff"><div class="sw" style="background:#fff" onclick="setTextColor('#ffffff')"></div><div class="sw" style="background:#a6ce39" onclick="setTextColor('#a6ce39')"></div><div class="sw" style="background:#111" onclick="setTextColor('#111111')"></div></div>
         </div>
-        <div class="section-body">
-          <span class="label">Oscurecer <span class="rval" id="rv-dark">0%</span></span>
-          <div class="rrow"><input type="range" id="darkSlider" min="0" max="90" value="0" step="1"><span class="rval">0%</span></div>
-          <span class="label">Blur <span class="rval" id="rv-blur">0px</span></span>
-          <div class="rrow"><input type="range" id="blurSlider" min="0" max="18" value="0" step="1"><span class="rval">0px</span></div>
-          <span class="label">Brillo <span class="rval" id="rv-brightness">0%</span></span>
-          <div class="rrow"><input type="range" id="brightnessSlider" min="-50" max="50" value="0" step="1"><span class="rval">0%</span></div>
-          <span class="label">Contraste <span class="rval" id="rv-contrast">0%</span></span>
-          <div class="rrow"><input type="range" id="contrastSlider" min="-50" max="50" value="0" step="1"><span class="rval">0%</span></div>
-          <span class="label">Saturación <span class="rval" id="rv-saturation">0%</span></span>
-          <div class="rrow"><input type="range" id="saturationSlider" min="-100" max="100" value="0" step="1"><span class="rval">0%</span></div>
-        </div>
-      </div>
-      
-      <!-- TEXTO SUPERPUESTO -->
-      <div class="section">
-        <div class="section-head" onclick="toggleSection(this)">
-          <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Texto</span>
-          <span class="section-arrow">▼</span>
-        </div>
-        <div class="section-body">
-          <div class="togrow"><span class="label" style="margin:0">Agregar texto</span>
-            <label class="toggle"><input type="checkbox" id="textActive"><span class="togslide"></span></label>
-          </div>
-          <div id="textControls" style="display:none">
-            <span class="label">Texto</span>
-            <input type="text" id="textContent" class="input" placeholder="Ej: Media Mendoza" value="Media Mendoza">
-            <div class="row2">
-              <div><span class="label">Tamaño</span><input type="range" id="textSize" min="20" max="120" value="48" class="mm-range"></div>
-              <div><span class="label">Opacidad fondo</span><input type="range" id="textBgOp" min="0" max="100" value="60" class="mm-range"></div>
-            </div>
-            <div class="row2">
-              <div><span class="label">Posición X</span><input type="range" id="textX" min="0" max="100" value="50" class="mm-range"></div>
-              <div><span class="label">Posición Y</span><input type="range" id="textY" min="0" max="100" value="85" class="mm-range"></div>
-            </div>
-            <span class="label">Color texto</span>
-            <div class="swatches"><input type="color" id="textColor" value="#ffffff"><div class="sw" style="background:#fff" onclick="setTextColor('#ffffff')"></div><div class="sw" style="background:#a6ce39" onclick="setTextColor('#a6ce39')"></div><div class="sw" style="background:#111" onclick="setTextColor('#111111')"></div></div>
-            <span class="label">Color fondo</span>
-            <div class="swatches"><input type="color" id="textBgColor" value="#000000"><div class="sw" style="background:#000" onclick="setTextBgColor('#000000')"></div><div class="sw" style="background:#a6ce39" onclick="setTextBgColor('#a6ce39')"></div><div class="sw sw-transp" onclick="setTextBgColor('transparent')" title="Sin fondo"></div></div>
-          </div>
+        <div><span class="label">Color fondo</span>
+          <div class="swatches"><input type="color" id="textBgColor" value="#000000"><div class="sw" style="background:#000" onclick="setTextBgColor('#000000')"></div><div class="sw" style="background:#a6ce39" onclick="setTextBgColor('#a6ce39')"></div><div class="sw sw-transp" onclick="setTextBgColor('transparent')" title="Sin fondo"></div></div>
         </div>
       </div>
-      
-      <!-- LOGO -->
-      <div class="section">
-        <div class="section-head" onclick="toggleSection(this)">
-          <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Logo</span>
-          <span class="section-arrow">▼</span>
-        </div>
-        <div class="section-body">
-          <div class="togrow"><span class="label" style="margin:0">Agregar logo</span>
-            <label class="toggle"><input type="checkbox" id="logoActive"><span class="togslide"></span></label>
-          </div>
-          <div id="logoControls" style="display:none">
-            <label class="uplbl" for="logoUpload">📁 Subir logo</label>
-            <input type="file" id="logoUpload" accept="image/*" style="display:none">
-            <span class="label">Tamaño <span class="rval" id="logoSizeVal">15%</span></span>
-            <div class="rrow"><input type="range" id="logoSize" min="5" max="40" value="15" step="1"></div>
-            <span class="label">Opacidad <span class="rval" id="logoOpacityVal">100%</span></span>
-            <div class="rrow"><input type="range" id="logoOpacity" min="20" max="100" value="100" step="1"></div>
-            <div class="row2">
-              <div><span class="label">Posición X</span><input type="range" id="logoX" min="0" max="100" value="85" step="1"></div>
-              <div><span class="label">Posición Y</span><input type="range" id="logoY" min="0" max="100" value="8" step="1"></div>
-            </div>
-          </div>
+      <div><span class="label">Opacidad fondo <span class="rval" id="rv-textBgOp">60%</span></span>
+        <div class="rrow"><input type="range" id="textBgOp" min="0" max="100" value="60" step="1"><span class="rval">60%</span></div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:8px;margin-top:8px;font-size:10px;color:var(--dim)">
+        💡 Arrastrá el texto sobre el canvas para moverlo. Usá los puntos en las esquinas para cambiar tamaño.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGO -->
+<div class="section">
+  <div class="section-head" onclick="toggleSection(this)">
+    <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Logo</span>
+    <span class="section-arrow">▼</span>
+  </div>
+  <div class="section-body">
+    <div class="togrow"><span class="label" style="margin:0">Agregar logo</span>
+      <label class="toggle"><input type="checkbox" id="logoActive"><span class="togslide"></span></label>
+    </div>
+    <div id="logoControls" style="display:none">
+      <label class="uplbl" for="logoUpload">📁 Subir logo personalizado</label>
+      <input type="file" id="logoUpload" accept="image/*" style="display:none">
+      <div class="row2">
+        <div><span class="label">Opacidad <span class="rval" id="logoOpacityVal">100%</span></span>
+          <div class="rrow"><input type="range" id="logoOpacity" min="20" max="100" value="100" step="1"><span class="rval">100%</span></div>
         </div>
       </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:8px;margin-top:8px;font-size:10px;color:var(--dim)">
+        💡 Arrastrá el logo sobre el canvas para moverlo. Usá los puntos en las esquinas para cambiar tamaño.
+      </div>
+    </div>
+  </div>
+</div>
       
       <!-- CAPA DE COLOR -->
       <div class="section">
