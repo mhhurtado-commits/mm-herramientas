@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>Editor de Imágenes por Lotes — Media Mendoza</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    /* Estilos específicos del Editor de Imágenes por Lotes */
+    .bulk-main {
+      padding-top: var(--header-h);
+      padding-bottom: var(--footer-h);
+      max-width: 1400px;
+      margin: 0 auto;
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+    
+    .bulk-header {
+      margin: 24px 0 32px;
+    }
+    
+    .bulk-eyebrow {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .bulk-eyebrow::before {
+      content: '';
+      display: block;
+      width: 28px;
+      height: 1px;
+      background: var(--v);
+    }
+    
+    .bulk-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 1;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+    
+    .bulk-title span:first-child { color: var(--text); }
+    .bulk-title span:last-child { color: var(--v); }
+    
+    .bulk-desc {
+      font-size: 12px;
+      color: var(--muted);
+      max-width: 560px;
+      line-height: 1.6;
+    }
+    
+    /* Layout principal */
+    .bulk-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    
+    @media (max-width: 900px) {
+      .bulk-layout { grid-template-columns: 1fr; }
+    }
+    
+    /* Sidebar de ajustes */
+    .bulk-sidebar {
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+    
+    .section {
+      border-bottom: 1px solid var(--line);
+    }
+    
+    .section:last-child { border-bottom: none; }
+    
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 15px;
+      cursor: pointer;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: var(--surface);
+      transition: background 0.15s;
+    }
+    
+    .section-head:hover { background: var(--surface2); }
+    .section-head .section-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--v); flex-shrink: 0; }
+    .section-head .section-arrow { font-size: 9px; color: var(--dim); transition: transform 0.2s; }
+    .section-head.open .section-arrow { transform: rotate(180deg); }
+    .section-body { display: none; padding: 4px 15px 14px; background: var(--surface2); }
+    .section-body.open { display: block; }
+    
+    .label {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--dim);
+      display: block;
+      margin: 10px 0 4px;
+    }
+    .label:first-child { margin-top: 4px; }
+    
+    .input, .textarea, .select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      color: var(--white);
+      font-family: var(--font-body);
+      font-size: 11px;
+      padding: 7px 9px;
+      outline: none;
+      transition: border 0.15s;
+      border-radius: var(--radius);
+    }
+    .input:focus, .textarea:focus, .select:focus { border-color: var(--v); }
+    
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .rrow { display: flex; align-items: center; gap: 7px; }
+    .rrow input[type=range] { flex: 1; accent-color: var(--v); height: 3px; cursor: pointer; }
+    .rval { font-size: 9px; color: var(--v); font-weight: 700; min-width: 34px; text-align: right; }
+    
+    .swatches {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .sw {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.12s;
+    }
+    .sw:hover, .sw.on { border-color: var(--white); transform: scale(1.15); }
+    .sw-transp {
+      background: linear-gradient(135deg, #fff 45%, #f00 45%, #f00 55%, #fff 55%);
+      border: 1.5px solid var(--line2) !important;
+    }
+    
+    .togrow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .togslide {
+      position: absolute;
+      inset: 0;
+      background: var(--line2);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .togslide::before {
+      content: '';
+      position: absolute;
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background: var(--white);
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    .toggle input:checked + .togslide { background: var(--v); }
+    .toggle input:checked + .togslide::before { transform: translateX(16px); }
+    
+    /* Tabs de formato */
+    .fmt-pills {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin: 6px 0 4px;
+    }
+    .fmt-pill {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      cursor: pointer;
+      border: 1.5px solid var(--line2);
+      background: var(--surface);
+      color: var(--dim);
+      transition: all 0.12s;
+    }
+    .fmt-pill:hover { border-color: var(--v); color: var(--v); }
+    .fmt-pill.on { background: var(--v); border-color: var(--v); color: var(--bg); }
+    
+    /* Plantillas */
+    .tpl-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .tpl-btn {
+      background: var(--surface);
+      border: 1.5px solid var(--line2);
+      border-radius: var(--radius);
+      padding: 6px 4px 5px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tpl-btn:hover { border-color: var(--v); }
+    .tpl-btn.on { border-color: var(--v); background: var(--v-dim); }
+    .tpl-prev {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 4px;
+      margin-bottom: 3px;
+      display: block;
+      background: var(--bg2);
+    }
+    .tpl-name {
+      font-family: var(--font-display);
+      font-size: 0.7rem;
+      letter-spacing: 0.4px;
+      color: var(--muted);
+    }
+    
+    /* Área de imágenes */
+    .bulk-canvas-area {
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+    }
+    
+    .upload-area {
+      border: 2px dashed var(--line2);
+      border-radius: var(--radius-lg);
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 20px;
+    }
+    .upload-area:hover {
+      border-color: var(--v);
+      background: var(--v-dim);
+    }
+    
+    .preview-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .preview-thumb {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: var(--radius);
+      border: 2px solid var(--line2);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preview-thumb:hover { border-color: var(--v); transform: scale(1.05); }
+    .preview-thumb.active { border-color: var(--v); box-shadow: 0 0 0 2px var(--v-dim); }
+    
+    .main-preview {
+      background: var(--bg2);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .main-preview canvas {
+      max-width: 100%;
+      max-height: 400px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    
+    .batch-stats {
+      background: var(--v-dim);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: 11px;
+      color: var(--v);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .progress-bar {
+      background: var(--surface2);
+      border-radius: 20px;
+      height: 6px;
+      overflow: hidden;
+      margin: 12px 0;
+      display: none;
+    }
+    .progress-bar.active { display: block; }
+    .progress-fill {
+      background: var(--v);
+      width: 0%;
+      height: 100%;
+      transition: width 0.3s;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    
+    @media (max-width: 700px) {
+      .bulk-main { padding: 0 16px; }
+      .preview-thumb { width: 60px; height: 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="mm-header">
+  <a href="/" class="mm-header-brand">
+    <img src="../assets/logo.png" alt="Media Mendoza" class="mm-header-logo" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section">
+    <span class="mm-header-label">Editor de Imágenes por Lotes</span>
+  </div>
+  <div class="mm-header-status">
+    <div class="mm-status-dot"></div>
+    <span class="mm-status-txt">Conectado</span>
+  </div>
+</header>
+
+<div class="bulk-main">
+  
+  <div class="bulk-header">
+    <div class="bulk-eyebrow">Procesamiento masivo</div>
+    <h1 class="bulk-title">
+      <span>Editor de</span><br>
+      <span>Imágenes por Lotes</span>
+    </h1>
+    <p class="bulk-desc">Subí hasta 30 imágenes, aplicá ajustes profesionales a todas simultáneamente y descargá un ZIP con los resultados.</p>
+  </div>
+  
+  <div class="bulk-layout">
+    
+    <!-- Sidebar de ajustes -->
+    <div class="bulk-sidebar">
+      
+      <!-- FORMATO -->
+      <div class="section">
+        <div class="section-head open" onclick="toggleSection(this)">
+          <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Formato</span>
+          <span class="section-arrow">▼</span>
+        </div>
+        <div class="section-body open">
+          <div class="fmt-pills" id="fmtPills">
+            <div class="fmt-pill on" data-fmt="sq">Cuadrado 1080×1080</div>
+            <div class="fmt-pill" data-fmt="story">Historia 1080×1920</div>
+            <div class="fmt-pill" data-fmt="portrait">Portrait 1080×1350</div>
+            <div class="fmt-pill" data-fmt="fb">Facebook 1200×628</div>
+            <div class="fmt-pill" data-fmt="tw">Twitter 1600×900</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- PLANTILLA -->
+      <div class="section">
+        <div class="section-head" onclick="toggleSection(this)">
+          <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Plantilla</span>
+          <span class="section-arrow">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="tpl-grid" id="tplGrid"></div>
+        </div>
+      </div>
+      
+      <!-- IMAGEN DE FONDO (ajustes) -->
+      <div class="section">
+        <div class="section-head" onclick="toggleSection(this)">
+          <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Ajustes de imagen</span>
+          <span class="section-arrow">▼</span>
+        </div>
+        <div class="section-body">
+          <span class="label">Oscurecer <span class="rval" id="rv-dark">0%</span></span>
+          <div class="rrow"><input type="range" id="darkSlider" min="0" max="90" value="0" step="1"><span class="rval">0%</span></div>
+          <span class="label">Blur <span class="rval" id="rv-blur">0px</span></span>
+          <div class="rrow"><input type="range" id="blurSlider" min="0" max="18" value="0" step="1"><span class="rval">0px</span></div>
+          <span class="label">Brillo <span class="rval" id="rv-brightness">0%</span></span>
+          <div class="rrow"><input type="range" id="brightnessSlider" min="-50" max="50" value="0" step="1"><span class="rval">0%</span></div>
+          <span class="label">Contraste <span class="rval" id="rv-contrast">0%</span></span>
+          <div class="rrow"><input type="range" id="contrastSlider" min="-50" max="50" value="0" step="1"><span class="rval">0%</span></div>
+          <span class="label">Saturación <span class="rval" id="rv-saturation">0%</span></span>
+          <div class="rrow"><input type="range" id="saturationSlider" min="-100" max="100" value="0" step="1"><span class="rval">0%</span></div>
+        </div>
+      </div>
+      
+      <!-- TEXTO SUPERPUESTO -->
+      <div class="section">
+        <div class="section-head" onclick="toggleSection(this)">
+          <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Texto</span>
+          <span class="section-arrow">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="togrow"><span class="label" style="margin:0">Agregar texto</span>
+            <label class="toggle"><input type="checkbox" id="textActive"><span class="togslide"></span></label>
+          </div>
+          <div id="textControls" style="display:none">
+            <span class="label">Texto</span>
+            <input type="text" id="textContent" class="input" placeholder="Ej: Media Mendoza" value="Media Mendoza">
+            <div class="row2">
+              <div><span class="label">Tamaño</span><input type="range" id="textSize" min="20" max="120" value="48" class="mm-range"></div>
+              <div><span class="label">Opacidad fondo</span><input type="range" id="textBgOp" min="0" max="100" value="60" class="mm-range"></div>
+            </div>
+            <div class="row2">
+              <div><span class="label">Posición X</span><input type="range" id="textX" min="0" max="100" value="50" class="mm-range"></div>
+              <div><span class="label">Posición Y</span><input type="range" id="textY" min="0" max="100" value="85" class="mm-range"></div>
+            </div>
+            <span class="label">Color texto</span>
+            <div class="swatches"><input type="color" id="textColor" value="#ffffff"><div class="sw" style="background:#fff" onclick="setTextColor('#ffffff')"></div><div class="sw" style="background:#a6ce39" onclick="setTextColor('#a6ce39')"></div><div class="sw" style="background:#111" onclick="setTextColor('#111111')"></div></div>
+            <span class="label">Color fondo</span>
+            <div class="swatches"><input type="color" id="textBgColor" value="#000000"><div class="sw" style="background:#000" onclick="setTextBgColor('#000000')"></div><div class="sw" style="background:#a6ce39" onclick="setTextBgColor('#a6ce39')"></div><div class="sw sw-transp" onclick="setTextBgColor('transparent')" title="Sin fondo"></div></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- LOGO -->
+      <div class="section">
+        <div class="section-head" onclick="toggleSection(this)">
+          <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Logo</span>
+          <span class="section-arrow">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="togrow"><span class="label" style="margin:0">Agregar logo</span>
+            <label class="toggle"><input type="checkbox" id="logoActive"><span class="togslide"></span></label>
+          </div>
+          <div id="logoControls" style="display:none">
+            <label class="uplbl" for="logoUpload">📁 Subir logo</label>
+            <input type="file" id="logoUpload" accept="image/*" style="display:none">
+            <span class="label">Tamaño <span class="rval" id="logoSizeVal">15%</span></span>
+            <div class="rrow"><input type="range" id="logoSize" min="5" max="40" value="15" step="1"></div>
+            <span class="label">Opacidad <span class="rval" id="logoOpacityVal">100%</span></span>
+            <div class="rrow"><input type="range" id="logoOpacity" min="20" max="100" value="100" step="1"></div>
+            <div class="row2">
+              <div><span class="label">Posición X</span><input type="range" id="logoX" min="0" max="100" value="85" step="1"></div>
+              <div><span class="label">Posición Y</span><input type="range" id="logoY" min="0" max="100" value="8" step="1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- CAPA DE COLOR -->
+      <div class="section">
+        <div class="section-head" onclick="toggleSection(this)">
+          <span style="display:flex;align-items:center;gap:7px"><span class="section-dot"></span>Capa de color</span>
+          <span class="section-arrow">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="togrow"><span class="label" style="margin:0">Activar capa</span>
+            <label class="toggle"><input type="checkbox" id="overlayActive"><span class="togslide"></span></label>
+          </div>
+          <div id="overlayControls" style="display:none">
+            <span class="label">Color</span>
+            <div class="swatches"><input type="color" id="overlayColor" value="#000000"><div class="sw" style="background:#000" onclick="setOverlayColor('#000000')"></div><div class="sw" style="background:#a6ce39" onclick="setOverlayColor('#a6ce39')"></div><div class="sw" style="background:#fff" onclick="setOverlayColor('#ffffff')"></div></div>
+            <span class="label">Opacidad <span class="rval" id="overlayOpVal">30%</span></span>
+            <div class="rrow"><input type="range" id="overlayOpacity" min="0" max="80" value="30" step="1"></div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+    
+    <!-- Área principal -->
+    <div class="bulk-canvas-area">
+      
+      <div class="upload-area" id="uploadArea">
+        <div class="audio-upload-icon">🖼️</div>
+        <div>Hacé clic o arrastrá imágenes</div>
+        <div style="font-size: 11px; color: var(--dim); margin-top: 8px">JPG, PNG, WebP · Máx 20-30 imágenes · Hasta 10MB c/u</div>
+        <input type="file" id="imageInput" accept="image/*" multiple style="display:none">
+      </div>
+      
+      <div class="batch-stats" id="batchStats" style="display:none">
+        <span id="statsText">0 imágenes cargadas</span>
+        <button class="mm-btn mm-btn-sm" id="clearImagesBtn">✕ Limpiar todo</button>
+      </div>
+      
+      <div class="preview-container" id="previewContainer"></div>
+      
+      <div class="main-preview">
+        <canvas id="previewCanvas"></canvas>
+      </div>
+      
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      
+      <div class="action-buttons">
+        <button class="mm-btn mm-btn-primary" id="applyToAllBtn" style="flex:1">🎨 Aplicar ajustes a todas</button>
+        <button class="mm-btn mm-btn-primary" id="downloadZipBtn" style="flex:1; background: var(--v); color: var(--bg)">⬇ Descargar ZIP</button>
+      </div>
+      
+    </div>
+    
+  </div>
+  
+</div>
+
+<footer class="mm-footer">
+  <div class="mm-footer-dot"></div>
+  <span class="mm-footer-txt">Procesamiento en navegador · Sin servidor</span>
+  <div class="mm-footer-sep"></div>
+  <div class="mm-footer-meta">
+    <span class="mm-footer-item">Cloudflare Pages</span>
+    <span class="mm-footer-item">mediamendoza.pages.dev/bulk-image</span>
+  </div>
+</footer>
+
+<div class="mm-toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner">
+    <div class="mm-spinner"></div>
+    <div id="loadingText">Procesando imágenes...</div>
+  </div>
+</div>
+
+<div class="theme-toggle" id="themeToggle">
+  <span class="icon" id="themeIcon">🌙</span>
+  <span id="themeLabel">Modo oscuro</span>
+</div>
+
+<script src="bulk-editor.js"></script>
+</body>
+</html>
