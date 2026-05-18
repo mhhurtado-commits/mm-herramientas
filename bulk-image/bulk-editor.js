@@ -590,18 +590,7 @@ async function renderPreview() {
   previewCanvas.height = H;
   previewCtx.clearRect(0, 0, W, H);
   
-  // Dibujar imagen
-  const imgW = currentImgObj.width;
-  const imgH = currentImgObj.height;
-  const scaleDraw = Math.max(W / imgW, H / imgH);
-  const drawW = imgW * scaleDraw;
-  const drawH = imgH * scaleDraw;
-  const drawX = (W - drawW) / 2;
-  const drawY = (H - drawH) / 2;
-  
-  previewCtx.drawImage(currentImgObj, drawX, drawY, drawW, drawH);
-  
-  // Aplicar filtros (brillo, contraste, saturación, blur)
+  // Aplicar filtros ANTES de dibujar (brillo, contraste, saturación, blur)
   let filters = [];
   if (imgSettings.brightness !== 0) filters.push(`brightness(${1 + (imgSettings.brightness / 100)})`);
   if (imgSettings.contrast !== 0) filters.push(`contrast(${1 + (imgSettings.contrast / 100)})`);
@@ -611,6 +600,17 @@ async function renderPreview() {
   if (filters.length > 0) {
     previewCtx.filter = filters.join(' ');
   }
+  
+  // Dibujar imagen CON los filtros aplicados
+  const imgW = currentImgObj.width;
+  const imgH = currentImgObj.height;
+  const scaleDraw = Math.max(W / imgW, H / imgH);
+  const drawW = imgW * scaleDraw;
+  const drawH = imgH * scaleDraw;
+  const drawX = (W - drawW) / 2;
+  const drawY = (H - drawH) / 2;
+  
+  previewCtx.drawImage(currentImgObj, drawX, drawY, drawW, drawH);
   
   // Oscurecer
   if (imgSettings.dark > 0) {
@@ -811,18 +811,7 @@ async function renderImageToCanvas(img, W, H) {
   canvas.height = H;
   const ctx = canvas.getContext('2d');
   
-  // Dibujar imagen de fondo
-  const imgW = img.width;
-  const imgH = img.height;
-  const scaleDraw = Math.max(W / imgW, H / imgH);
-  const drawW = imgW * scaleDraw;
-  const drawH = imgH * scaleDraw;
-  const drawX = (W - drawW) / 2;
-  const drawY = (H - drawH) / 2;
-  
-  ctx.drawImage(img, drawX, drawY, drawW, drawH);
-  
-  // Aplicar filtros (brillo, contraste, saturación, blur)
+  // Aplicar filtros ANTES de dibujar la imagen (brillo, contraste, saturación, blur)
   let filters = [];
   if (imgSettings.brightness !== 0) filters.push(`brightness(${1 + (imgSettings.brightness / 100)})`);
   if (imgSettings.contrast !== 0) filters.push(`contrast(${1 + (imgSettings.contrast / 100)})`);
@@ -832,6 +821,17 @@ async function renderImageToCanvas(img, W, H) {
   if (filters.length > 0) {
     ctx.filter = filters.join(' ');
   }
+  
+  // Dibujar imagen de fondo CON los filtros aplicados
+  const imgW = img.width;
+  const imgH = img.height;
+  const scaleDraw = Math.max(W / imgW, H / imgH);
+  const drawW = imgW * scaleDraw;
+  const drawH = imgH * scaleDraw;
+  const drawX = (W - drawW) / 2;
+  const drawY = (H - drawH) / 2;
+  
+  ctx.drawImage(img, drawX, drawY, drawW, drawH);
   
   // Oscurecer (se aplica como overlay)
   if (imgSettings.dark > 0) {
