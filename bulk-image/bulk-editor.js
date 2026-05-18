@@ -1053,6 +1053,22 @@ function clearAllImages() {
 }
 
 // ============================================================
+// CONTROLES DE COLOR DE TEXTO
+// ============================================================
+
+function setTextColor(color) {
+  textElement.color = color;
+  document.getElementById('textColor').value = color;
+  updatePreview();
+}
+
+function setTextBgColor(color) {
+  textElement.bgColor = color;
+  document.getElementById('textBgColor').value = color;
+  updatePreview();
+}
+
+// ============================================================
 // EVENTOS DE UI
 // ============================================================
 
