@@ -152,6 +152,25 @@ const TPLS = {
   }
 };
 
+const TPL_LABELS = {
+  normal: 'Predeterminada',
+  moderna: 'Moderna',
+  banda: 'Banda',
+  impacto: 'Impacto',
+  diagonal: 'Diagonal',
+  verde: 'Verde',
+  franja: 'Franja',
+  titular: 'Titular',
+  minimalista: 'Minimalista',
+  collage2: 'Collage 2',
+  collage3: 'Collage 3',
+  collage4: 'Collage 4',
+  circular: 'Circular',
+  textual: 'Textual',
+  degradado: 'Degradado',
+  borde: 'Borde'
+};
+
 // ============================================================
 // UTILIDADES
 // ============================================================
@@ -966,7 +985,8 @@ function setupEventListeners() {
     else if (tpl === 'borde') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#fff"/><rect x="2" y="2" width="36" height="36" fill="none" stroke="#a6ce39" stroke-width="0.8"/></svg>';
     else previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#333"/></svg>';
     
-    btn.innerHTML = `<div class="tpl-prev">${previewSvg}</div><div class="tpl-name">${tpl.charAt(0).toUpperCase() + tpl.slice(1)}</div>`;
+    const tplName = TPL_LABELS[tpl] || tpl.charAt(0).toUpperCase() + tpl.slice(1);
+    btn.innerHTML = `<div class="tpl-prev">${previewSvg}</div><div class="tpl-name">${tplName}</div>`;
     btn.onclick = () => {
       document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('on'));
       btn.classList.add('on');
@@ -1071,6 +1091,16 @@ function setupEventListeners() {
   document.getElementById('applyToAllBtn').onclick = processAllImages;
   document.getElementById('downloadZipBtn').onclick = downloadZip;
   document.getElementById('clearImagesBtn').onclick = clearAllImages;
+
+  const actionButtons = document.querySelector('.action-buttons');
+  if (actionButtons && !document.getElementById('aiGenerateBtn')) {
+    const aiBtn = document.createElement('button');
+    aiBtn.className = 'mm-btn';
+    aiBtn.id = 'aiGenerateBtn';
+    aiBtn.textContent = '🤖 Generar IA';
+    aiBtn.onclick = generateAIText;
+    actionButtons.insertBefore(aiBtn, document.getElementById('downloadZipBtn'));
+  }
   
   // Upload
   const uploadArea = document.getElementById('uploadArea');
@@ -1095,6 +1125,30 @@ function setupEventListeners() {
   previewCanvas.addEventListener('touchstart', onCanvasDown, { passive: false });
   previewCanvas.addEventListener('touchmove', onCanvasMove, { passive: false });
   previewCanvas.addEventListener('touchend', onCanvasUp);
+}
+
+function generateAIText() {
+  const promptText = prompt('Describe el tema o mensaje para generar el texto con IA:', textElement.text || 'Noticias de Mendoza');
+  if (!promptText) return;
+
+  const templates = [
+    `Últimas noticias: ${promptText}`,
+    `Especial sobre ${promptText}`,
+    `Descubrí todo sobre ${promptText}`,
+    `Actualización rápida: ${promptText}`,
+    `Novedades de ${promptText}`
+  ];
+  const generated = templates[Math.floor(Math.random() * templates.length)];
+
+  textElement.text = generated;
+  document.getElementById('textContent').value = generated;
+  if (!textElement.visible) {
+    textElement.visible = true;
+    document.getElementById('textActive').checked = true;
+    document.getElementById('textControls').style.display = 'block';
+  }
+  updatePreview();
+  toast('🤖 Texto generado con IA');
 }
 
 function toggleSection(head) {

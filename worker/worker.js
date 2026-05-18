@@ -1161,6 +1161,56 @@ export default {
     if(path==="/studio/generar-vtt")                 return handleStudioGenerarVTT(request, env);
     if(path==="/studio/proyecto")                    return handleStudioGuardarProyecto(body, env);
 
+    // API: Generar titular con IA (Gemini Vision)
+    if (url.pathname === '/api/generate-headline' && request.method === 'POST') {
+      try {
+        const { image } = await request.json();
+        
+        // Validar que exista la API Key
+        if (!env.GEMINI_API_KEY) {
+          return new Response(JSON.stringify({ error: 'Falta configurar GEMINI_API_KEY' }), { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          });
+        }
+
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
+
+        // Extraer base64 puro (quitar 'data:image/jpeg;base64,')
+        const base64Data = image.split(',')[1]; 
+        const mimeType = image.split(';')[0].split(':')[1];
+
+        const payload = {
+          contents: [{
+            parts: [
+              { text: "Eres un editor periodístico de Media Mendoza. Mira esta imagen y escribe un titular corto, impactante y en español argentino (máximo 8 palabras). Usa mayúsculas solo en la primera letra y nombres propios. Sin puntos finales." },
+              { inline_data: { mime_type: mimeType, data: base64Data } }
+            ]
+          }]
+        };
+
+        const aiResponse = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const aiData = await aiResponse.json();
+        const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
+
+        return new Response(JSON.stringify({ headline: headline.trim() }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+
+      } catch (error) {
+        console.error("Error Gemini:", error);
+        return new Response(JSON.stringify({ error: error.message }), { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+    }
+
     return jsonError("Ruta no encontrada",404);
   },
 };
