@@ -798,7 +798,201 @@ function onCanvasMove(e) {
 
 function onCanvasUp() {
   action = null;
+}
+
+// ============================================================
+// FUNCIONES PARA MANEJO DE COLORES
+// ============================================================
+
+// Función para establecer el color del texto
+function setTextColor(color) {
+  textElement.color = color;
   updatePreview();
+}
+
+// Función para establecer el color de fondo del texto
+function setTextBgColor(color) {
+  textElement.bgColor = color;
+  updatePreview();
+}
+
+// Función para establecer el color de la capa de overlay
+function setOverlayColor(color) {
+  overlaySettings.color = color;
+  updatePreview();
+}
+
+// Función para conectar los eventos de los inputs de color
+function setupColorPickers() {
+  // Obtener referencias a los inputs de color
+  const textColorPicker = document.getElementById('textColor');
+  const textBgColorPicker = document.getElementById('textBgColor');
+  const overlayColorPicker = document.getElementById('overlayColor');
+  
+  // Conectar eventos de cambio a las funciones correspondientes
+  if (textColorPicker) {
+    textColorPicker.oninput = function() {
+      setTextColor(this.value);
+    };
+  }
+  
+  if (textBgColorPicker) {
+    textBgColorPicker.oninput = function() {
+      setTextBgColor(this.value);
+    };
+  }
+  
+  if (overlayColorPicker) {
+    overlayColorPicker.oninput = function() {
+      setOverlayColor(this.value);
+    };
+  }
+  
+  // También conectar los sliders de opacidad
+  const textBgOpSlider = document.getElementById('textBgOp');
+  if (textBgOpSlider) {
+    textBgOpSlider.oninput = function() {
+      textElement.bgOpacity = parseInt(this.value) / 100;
+      document.getElementById('rv-textBgOp').textContent = this.value + '%';
+      updatePreview();
+    };
+  }
+  
+  const overlayOpacitySlider = document.getElementById('overlayOpacity');
+  if (overlayOpacitySlider) {
+    overlayOpacitySlider.oninput = function() {
+      overlaySettings.opacity = parseInt(this.value) / 100;
+      document.getElementById('overlayOpVal').textContent = this.value + '%';
+      updatePreview();
+    };
+  }
+}
+
+// Conectar los eventos de los inputs de texto y activación
+function setupTextControls() {
+  const textInput = document.getElementById('textContent');
+  const textActiveCheckbox = document.getElementById('textActive');
+  const textControls = document.getElementById('textControls');
+  
+  if (textInput) {
+    textInput.oninput = function() {
+      textElement.text = this.value;
+      updatePreview();
+    };
+  }
+  
+  if (textActiveCheckbox) {
+    textActiveCheckbox.onchange = function() {
+      textElement.visible = this.checked;
+      textControls.style.display = this.checked ? 'block' : 'none';
+      updatePreview();
+    };
+  }
+  
+  // Inicializar estado del checkbox de texto
+  textActiveCheckbox.checked = textElement.visible;
+  textControls.style.display = textElement.visible ? 'block' : 'none';
+}
+
+// Conectar los eventos de los controles de logo
+function setupLogoControls() {
+  const logoActiveCheckbox = document.getElementById('logoActive');
+  const logoControls = document.getElementById('logoControls');
+  const logoOpacitySlider = document.getElementById('logoOpacity');
+  const logoUpload = document.getElementById('logoUpload');
+  
+  if (logoActiveCheckbox) {
+    logoActiveCheckbox.onchange = function() {
+      logoElement.visible = this.checked;
+      logoControls.style.display = this.checked ? 'block' : 'none';
+      updatePreview();
+    };
+  }
+  
+  if (logoOpacitySlider) {
+    logoOpacitySlider.oninput = function() {
+      logoElement.opacity = parseInt(this.value) / 100;
+      document.getElementById('logoOpacityVal').textContent = this.value + '%';
+      updatePreview();
+    };
+  }
+  
+  if (logoUpload) {
+    logoUpload.onchange = async function(e) {
+      if (e.target.files[0]) {
+        customLogoImg = await loadImage(e.target.files[0]);
+        logoImg = customLogoImg;
+        updatePreview();
+      }
+    };
+  }
+  
+  // Inicializar estado del checkbox de logo
+  logoActiveCheckbox.checked = logoElement.visible;
+  logoControls.style.display = logoElement.visible ? 'block' : 'none';
+  
+  // Inicializar valor del slider de opacidad del logo
+  if (logoOpacitySlider) {
+    logoOpacitySlider.value = Math.round(logoElement.opacity * 100);
+    document.getElementById('logoOpacityVal').textContent = Math.round(logoElement.opacity * 100) + '%';
+  }
+}
+
+// Conectar los eventos de los controles de overlay
+function setupOverlayControls() {
+  const overlayActiveCheckbox = document.getElementById('overlayActive');
+  const overlayControls = document.getElementById('overlayControls');
+  
+  if (overlayActiveCheckbox) {
+    overlayActiveCheckbox.onchange = function() {
+      overlaySettings.active = this.checked;
+      overlayControls.style.display = this.checked ? 'block' : 'none';
+      updatePreview();
+    };
+  }
+  
+  // Inicializar estado del checkbox de overlay
+  overlayActiveCheckbox.checked = overlaySettings.active;
+  overlayControls.style.display = overlaySettings.active ? 'block' : 'none';
+}
+
+// Inicializar todos los controles
+function initControls() {
+  setupColorPickers();
+  setupTextControls();
+  setupLogoControls();
+  setupOverlayControls();
+  
+  // Conectar eventos de sliders de ajustes de imagen
+  document.getElementById('darkSlider').oninput = function() {
+    imgSettings.dark = parseInt(this.value);
+    document.getElementById('rv-dark').textContent = this.value + '%';
+    updatePreview();
+  };
+  
+  document.getElementById('blurSlider').oninput = function() {
+    imgSettings.blur = parseInt(this.value);
+    document.getElementById('rv-blur').textContent = this.value + 'px';
+    updatePreview();
+  };
+  
+  document.getElementById('brightnessSlider').oninput = function() {
+    imgSettings.brightness = parseInt(this.value);
+    document.getElementById('rv-brightness').textContent = (this.value > 0 ? '+' : '') + this.value + '%';
+    updatePreview();
+  };
+  
+  document.getElementById('contrastSlider').oninput = function() {
+    imgSettings.contrast = parseInt(this.value);
+    document.getElementById('rv-contrast').textContent = (this.value > 0 ? '+' : '') + this.value + '%';
+    updatePreview();
+  };
+  
+  document.getElementById('saturationSlider').oninput = function() {
+    imgSettings.saturation = parseInt(this.value);
+    document.getElementById('rv-saturation').textContent = (this.value > 0 ? '+' : '') + this.value + '%';
+    updatePreview();
+  };
 }
 
 // ============================================================
@@ -1053,22 +1247,6 @@ function clearAllImages() {
 }
 
 // ============================================================
-// CONTROLES DE COLOR DE TEXTO
-// ============================================================
-
-function setTextColor(color) {
-  textElement.color = color;
-  document.getElementById('textColor').value = color;
-  updatePreview();
-}
-
-function setTextBgColor(color) {
-  textElement.bgColor = color;
-  document.getElementById('textBgColor').value = color;
-  updatePreview();
-}
-
-// ============================================================
 // EVENTOS DE UI
 // ============================================================
 
@@ -1310,17 +1488,68 @@ function toggleTheme() {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Inicializar canvas
+  previewCanvas = document.getElementById('previewCanvas');
+  previewCtx = previewCanvas.getContext('2d');
+  
+  // Inicializar controles
+  initControls();
+  
+  // Inicializar eventos del canvas
+  previewCanvas.addEventListener('mousedown', onCanvasDown);
+  previewCanvas.addEventListener('mousemove', onCanvasMove);
+  previewCanvas.addEventListener('mouseup', onCanvasUp);
+  previewCanvas.addEventListener('mouseleave', onCanvasUp);
+  
+  // Eventos táctiles para dispositivos móviles
+  previewCanvas.addEventListener('touchstart', e => { e.preventDefault(); onCanvasDown(e.touches[0]); });
+  previewCanvas.addEventListener('touchmove', e => { e.preventDefault(); onCanvasMove(e.touches[0]); });
+  previewCanvas.addEventListener('touchend', onCanvasUp);
+  
   // Cargar logo por defecto
-  const defaultLogo = new Image();
-  defaultLogo.onload = () => {
-    logoImg = defaultLogo;
-    if (logoElement.visible) updatePreview();
-  };
-  defaultLogo.src = '../assets/logo.png';
+  try {
+    logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    logoImg.src = '../assets/logo.png';
+    logoImg.onload = () => updatePreview();
+  } catch (e) {
+    console.warn('No se pudo cargar el logo por defecto');
+  }
   
-  setupEventListeners();
+  // Inicializar plantillas
+  const tplGrid = document.getElementById('tplGrid');
+  for (const key in TPLS) {
+    const btn = document.createElement('div');
+    btn.className = 'tpl-btn';
+    btn.dataset.tpl = key;
+    btn.innerHTML = `<div class="tpl-prev" style="background:linear-gradient(135deg, #f0f0f0 50%, #a6ce39 50%)"></div><div class="tpl-name">${TPL_LABELS[key]}</div>`;
+    btn.onclick = () => {
+      currentTpl = key;
+      document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      updatePreview();
+    };
+    tplGrid.appendChild(btn);
+  }
   
-  const savedTheme = localStorage.getItem('mm-theme');
-  savedTheme === 'dark' ? setTheme('dark') : setTheme('light');
-  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+  // Activar la primera plantilla
+  document.querySelector('.tpl-btn').classList.add('on');
+  
+  // Inicializar formatos
+  document.querySelectorAll('.fmt-pill').forEach(pill => {
+    pill.onclick = () => {
+      currentFmt = pill.dataset.fmt;
+      document.querySelectorAll('.fmt-pill').forEach(p => p.classList.remove('on'));
+      pill.classList.add('on');
+      updatePreview();
+      
+      // Actualizar el tamaño del canvas según el formato
+      const fmt = FMTS[currentFmt];
+      previewCanvas.style.maxWidth = fmt.w * 0.8 + 'px';
+      previewCanvas.style.maxHeight = fmt.h * 0.8 + 'px';
+    };
+  });
+  
+  // Configurar áreas de carga
+  setupImageUpload();
 });
