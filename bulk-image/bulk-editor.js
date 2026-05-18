@@ -333,6 +333,26 @@ function rrCtx(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+function wrapText(ctx, text, maxW) {
+  if (!text || maxW <= 0) return [];
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = '';
+
+  for (const word of words) {
+    const test = cur ? `${cur} ${word}` : word;
+    if (cur && ctx.measureText(test).width > maxW) {
+      lines.push(cur);
+      cur = word;
+    } else {
+      cur = test;
+    }
+  }
+
+  if (cur.trim()) lines.push(cur);
+  return lines;
+}
+
 // ============================================================
 // DIBUJADO
 // ============================================================
@@ -391,30 +411,49 @@ function drawText(ctx, W, H) {
   const rect = getElementRect(textElement, W, H);
   if (!rect) return;
   
-  const fontSize = Math.min(rect.h * 0.7, rect.w * 0.15);
-  ctx.font = `700 ${fontSize}px 'BebasNeue', 'Inter', sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  
-  const text = textElement.text.toUpperCase();
-  const metrics = ctx.measureText(text);
-  const padding = fontSize * 0.3;
-  
+  const rawText = textElement.text.toUpperCase();
+  const padding = Math.max(8, Math.round(rect.h * 0.08));
+  let fontSize = Math.min(rect.h * 0.75, rect.w * 0.14);
+  let lines = [];
+  let lineHeight = 0;
+
+  for (let i = 0; i < 25; i++) {
+    ctx.font = `700 ${fontSize}px 'BebasNeue', 'Inter', sans-serif`;
+    lines = wrapText(ctx, rawText, rect.w - padding * 2);
+    lineHeight = Math.max(1, fontSize * 1.1);
+    const blockHeight = lines.length * lineHeight;
+    const maxLineWidth = Math.max(0, ...lines.map(l => ctx.measureText(l).width));
+
+    if ((blockHeight <= rect.h - padding * 2 && maxLineWidth <= rect.w - padding * 2) || fontSize <= 10) break;
+    fontSize = Math.max(10, Math.round(fontSize * 0.88));
+  }
+
+  const blockHeight = lines.length * lineHeight;
+  const blockWidth = Math.min(rect.w, Math.max(0, ...lines.map(l => ctx.measureText(l).width)) + padding * 2);
+  const textX = rect.x + rect.w / 2;
+  const textY = rect.y + Math.max(0, (rect.h - blockHeight) / 2);
+
   if (textElement.bgColor !== 'transparent' && textElement.bgOpacity > 0) {
     ctx.save();
     ctx.globalAlpha = textElement.bgOpacity;
     ctx.fillStyle = textElement.bgColor;
-    const rectW = Math.min(metrics.width + padding * 2, rect.w);
-    const rectH = fontSize + padding;
-    ctx.fillRect(rect.x + (rect.w - rectW) / 2, rect.y + (rect.h - rectH) / 2, rectW, rectH);
+    const rectH = blockHeight + padding;
+    ctx.fillRect(rect.x + (rect.w - blockWidth) / 2, rect.y + (rect.h - rectH) / 2, blockWidth, rectH);
     ctx.restore();
   }
-  
+
   ctx.fillStyle = textElement.color;
   ctx.shadowColor = 'rgba(0,0,0,.7)';
   ctx.shadowBlur = Math.round(fontSize * 0.12);
-  ctx.fillText(text, rect.x + rect.w / 2, rect.y + rect.h / 2);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  lines.forEach((line, index) => {
+    ctx.fillText(line, textX, textY + index * lineHeight);
+  });
+
   ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
 }
 
 function drawOverlay(ctx, W, H) {
