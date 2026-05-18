@@ -289,16 +289,15 @@ function getElementRect(el, W, H) {
 function getHandles(el, W, H) {
   const rect = getElementRect(el, W, H);
   if (!rect) return [];
-  const hs = Math.max(8, Math.round(HR * (W / 1080)));
   return [
-    { x: rect.x, y: rect.y, id: 'nw', cursor: 'nw-resize' },
-    { x: rect.x + rect.w, y: rect.y, id: 'ne', cursor: 'ne-resize' },
-    { x: rect.x, y: rect.y + rect.h, id: 'sw', cursor: 'sw-resize' },
-    { x: rect.x + rect.w, y: rect.y + rect.h, id: 'se', cursor: 'se-resize' },
-    { x: rect.x + rect.w / 2, y: rect.y, id: 'n', cursor: 'n-resize' },
-    { x: rect.x + rect.w / 2, y: rect.y + rect.h, id: 's', cursor: 's-resize' },
-    { x: rect.x, y: rect.y + rect.h / 2, id: 'w', cursor: 'w-resize' },
-    { x: rect.x + rect.w, y: rect.y + rect.h / 2, id: 'e', cursor: 'e-resize' }
+    { x: rect.x, y: rect.y, id: 'nw', cursor: 'nw-resize', type: 'corner' },
+    { x: rect.x + rect.w, y: rect.y, id: 'ne', cursor: 'ne-resize', type: 'corner' },
+    { x: rect.x, y: rect.y + rect.h, id: 'sw', cursor: 'sw-resize', type: 'corner' },
+    { x: rect.x + rect.w, y: rect.y + rect.h, id: 'se', cursor: 'se-resize', type: 'corner' },
+    { x: rect.x + rect.w / 2, y: rect.y, id: 'n', cursor: 'n-resize', type: 'side' },
+    { x: rect.x + rect.w / 2, y: rect.y + rect.h, id: 's', cursor: 's-resize', type: 'side' },
+    { x: rect.x, y: rect.y + rect.h / 2, id: 'w', cursor: 'w-resize', type: 'side' },
+    { x: rect.x + rect.w, y: rect.y + rect.h / 2, id: 'e', cursor: 'e-resize', type: 'side' }
   ];
 }
 
@@ -309,7 +308,7 @@ function hitTest(pos, el, W, H) {
     return 'drag';
   }
   const handles = getHandles(el, W, H);
-  const hs = Math.max(8, Math.round(HR * (W / 1080)));
+  const hs = Math.max(10, Math.round(HR * (W / 1080)));
   for (const h of handles) {
     if (Math.abs(pos.x - h.x) < hs && Math.abs(pos.y - h.y) < hs) {
       return 'resize-' + h.id;
@@ -472,29 +471,15 @@ function drawActiveUI(ctx, W, H) {
   const rect = getElementRect(el, W, H);
   if (!rect) return;
   
+  const lw = Math.max(2, Math.round(W * 0.0016));
+  const hs = Math.max(10, Math.round(HR * (W / 1080)));
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+
   ctx.save();
-  ctx.strokeStyle = '#a6ce39';
-  ctx.lineWidth = Math.max(2, Math.round(W * 0.002));
+  ctx.strokeStyle = 'rgba(166,206,57,.85)';
+  ctx.lineWidth = Math.max(2, lw * 1.5);
   ctx.setLineDash([Math.round(W * 0.008), Math.round(W * 0.004)]);
-  ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
-  ctx.setLineDash([]);
-  
-  const hs = Math.max(8, Math.round(HR * (W / 1080)));
-  const handles = getHandles(el, W, H);
-  for (const h of handles) {
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = '#a6ce39';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(h.x, h.y, hs * 0.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  }
-  
-  // Líneas de guía (centro)
-  ctx.strokeStyle = 'rgba(166,206,57,0.4)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([Math.round(W * 0.008), Math.round(W * 0.008)]);
   ctx.beginPath();
   ctx.moveTo(W / 2, 0);
   ctx.lineTo(W / 2, H);
@@ -503,9 +488,95 @@ function drawActiveUI(ctx, W, H) {
   ctx.moveTo(0, H / 2);
   ctx.lineTo(W, H / 2);
   ctx.stroke();
-  ctx.setLineDash([]);
-  
   ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(166,206,57,.45)';
+  ctx.lineWidth = Math.max(1, lw);
+  ctx.beginPath();
+  ctx.moveTo(W / 3, 0);
+  ctx.lineTo(W / 3, H);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo((W * 2) / 3, 0);
+  ctx.lineTo((W * 2) / 3, H);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, H / 3);
+  ctx.lineTo(W, H / 3);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, (H * 2) / 3);
+  ctx.lineTo(W, (H * 2) / 3);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.35)';
+  ctx.lineWidth = Math.max(1, lw);
+  ctx.beginPath();
+  ctx.moveTo(rect.x, 0);
+  ctx.lineTo(rect.x, H);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(rect.x + rect.w, 0);
+  ctx.lineTo(rect.x + rect.w, H);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, rect.y);
+  ctx.lineTo(W, rect.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, rect.y + rect.h);
+  ctx.lineTo(W, rect.y + rect.h);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.9)';
+  ctx.lineWidth = Math.max(2, Math.round(W * 0.002));
+  const cs = Math.round(W * 0.022);
+  ctx.beginPath();
+  ctx.moveTo(cx - cs, cy);
+  ctx.lineTo(cx + cs, cy);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - cs);
+  ctx.lineTo(cx, cy + cs);
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(cx, cy, Math.round(W * 0.004), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(166,206,57,.9)';
+  ctx.lineWidth = lw * 1.5;
+  ctx.setLineDash([]);
+  ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
+
+  const handles = getHandles(el, W, H);
+  handles.forEach(h => {
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#a6ce39';
+    ctx.lineWidth = Math.max(2, Math.round(W * 0.002));
+    if (h.type === 'side') {
+      const hw = hs * 0.6;
+      const hh = hs * 1.4;
+      rrCtx(ctx, h.x - hw / 2, h.y - hh / 2, hw, hh, hw / 2);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, hs * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
 }
 
 async function renderPreview() {
@@ -646,39 +717,37 @@ function onCanvasDown(e) {
 }
 
 function onCanvasMove(e) {
-  if (!action || !activeElement) return;
+  if (!activeElement) return;
   e.preventDefault();
-  
+
   const pos = getCanvasCoords(e);
   const W = previewCanvas.width;
   const H = previewCanvas.height;
-  const SNAP = W * 0.012;
-  
+  const SNAP = Math.max(10, Math.round(W * 0.014));
+
   const el = activeElement === 'text' ? textElement : logoElement;
   
   if (action === 'drag') {
     let newX = pos.x - dragOffset.x;
     let newY = pos.y - dragOffset.y;
     const rect = getElementRect(el, W, H);
-    
+    if (!rect) return;
+
+    const centerX = newX + rect.w / 2;
+    const centerY = newY + rect.h / 2;
+    if (Math.abs(centerX - W / 2) < SNAP) {
+      newX = W / 2 - rect.w / 2;
+    }
+    if (Math.abs(centerY - H / 2) < SNAP) {
+      newY = H / 2 - rect.h / 2;
+    }
+
     if (activeElement === 'text') {
-      // Centro del texto
-      const centerX = newX + rect.w / 2;
-      const centerY = newY + rect.h / 2;
-      if (Math.abs(centerX - W / 2) < SNAP) {
-        textElement.x = 50;
-      } else {
-        textElement.x = (centerX / W) * 100;
-      }
-      if (Math.abs(centerY - H / 2) < SNAP) {
-        textElement.y = 50;
-      } else {
-        textElement.y = (centerY / H) * 100;
-      }
+      textElement.x = (newX + rect.w / 2) / W * 100;
+      textElement.y = (newY + rect.h / 2) / H * 100;
       textElement.x = Math.min(95, Math.max(5, textElement.x));
       textElement.y = Math.min(95, Math.max(5, textElement.y));
     } else if (activeElement === 'logo') {
-      // Esquina superior derecha
       const logoX = newX + rect.w;
       const logoY = newY;
       logoElement.x = (logoX / W) * 100;
