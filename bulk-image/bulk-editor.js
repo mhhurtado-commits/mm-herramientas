@@ -87,6 +87,68 @@ const TPLS = {
     ctx.fillRect(0, H - bh, W, bh);
     ctx.fillStyle = '#a6ce39';
     ctx.fillRect(0, H - bh, W, Math.round(H * 0.008));
+  },
+  // Nuevas plantillas de Placas
+  collage2(W,H) {
+    const ctx = this;
+    ctx.fillStyle = '#a6ce39';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(Math.round(W*0.02), Math.round(H*0.02), Math.round(W*0.96), Math.round(H*0.96));
+  },
+  collage3(W,H) {
+    const ctx = this;
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#a6ce39';
+    ctx.lineWidth = Math.round(H * 0.008);
+    ctx.strokeRect(Math.round(W*0.05), Math.round(H*0.05), Math.round(W*0.9), Math.round(H*0.9));
+  },
+  collage4(W,H) {
+    const ctx = this;
+    const gap = Math.round(H * 0.015);
+    ctx.fillStyle = '#a6ce39';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(gap, gap, Math.round(W/2)-gap*1.5, Math.round(H/2)-gap*1.5);
+    ctx.fillRect(Math.round(W/2)+gap/2, gap, Math.round(W/2)-gap*1.5, Math.round(H/2)-gap*1.5);
+    ctx.fillRect(gap, Math.round(H/2)+gap/2, Math.round(W/2)-gap*1.5, Math.round(H/2)-gap*1.5);
+    ctx.fillRect(Math.round(W/2)+gap/2, Math.round(H/2)+gap/2, Math.round(W/2)-gap*1.5, Math.round(H/2)-gap*1.5);
+  },
+  circular(W,H) {
+    const ctx = this;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    ctx.beginPath();
+    ctx.arc(W/2, H/2, Math.min(W,H)*0.42, 0, Math.PI*2);
+    ctx.fillStyle = '#a6ce39';
+    ctx.fill();
+    ctx.lineWidth = Math.round(H * 0.01);
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+  },
+  textual(W,H) {
+    const ctx = this;
+    ctx.fillStyle = '#a6ce39';
+    ctx.fillRect(0, 0, W, Math.round(H*0.15));
+    ctx.fillStyle = '#f5f9e8';
+    ctx.fillRect(0, Math.round(H*0.15), W, Math.round(H*0.85));
+  },
+  degradado(W,H) {
+    const ctx = this;
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, 'rgba(166,206,57,0.9)');
+    g.addColorStop(1, 'rgba(166,206,57,0.2)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  },
+  borde(W,H) {
+    const ctx = this;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#a6ce39';
+    ctx.lineWidth = Math.round(H * 0.02);
+    ctx.strokeRect(Math.round(W*0.05), Math.round(H*0.05), Math.round(W*0.9), Math.round(H*0.9));
   }
 };
 
@@ -883,7 +945,28 @@ function setupEventListeners() {
   Object.keys(TPLS).forEach(tpl => {
     const btn = document.createElement('div');
     btn.className = 'tpl-btn' + (currentTpl === tpl ? ' on' : '');
-    btn.innerHTML = `<div class="tpl-name">${tpl.charAt(0).toUpperCase() + tpl.slice(1)}</div>`;
+    
+    // Miniatura visual para cada plantilla
+    let previewSvg = '';
+    if (tpl === 'normal') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#333"/></svg>';
+    else if (tpl === 'moderna') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#555"/><rect y="15" width="40" height="25" fill="rgba(0,0,0,0.8)"/></svg>';
+    else if (tpl === 'banda') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#666"/><rect y="27" width="40" height="13" fill="rgba(0,0,0,0.9)"/><rect y="27" width="40" height="1" fill="#a6ce39"/></svg>';
+    else if (tpl === 'impacto') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#555"/><rect width="1" height="40" fill="#a6ce39"/></svg>';
+    else if (tpl === 'diagonal') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><defs><linearGradient id="g'+tpl+'" x1="0%" y1="100%" x2="70%" y2="0%"><stop offset="0%" style="stop-color:#000;stop-opacity:0.9"/><stop offset="60%" style="stop-color:#000;stop-opacity:0.3"/><stop offset="100%" style="stop-color:#000;stop-opacity:0"/></linearGradient></defs><rect width="40" height="40" fill="#555"/><rect width="40" height="40" fill="url(#g'+tpl+')"/></svg>';
+    else if (tpl === 'verde') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#666"/><rect y="27" width="40" height="13" fill="#a6ce39"/><rect y="27" width="40" height="0.5" fill="rgba(255,255,255,0.2)"/></svg>';
+    else if (tpl === 'franja') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#555"/><rect x="1.5" width="0.2" height="40" fill="#a6ce39"/><rect x="1.7" width="0.15" height="40" fill="rgba(0,0,0,0.5)"/></svg>';
+    else if (tpl === 'titular') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#111"/><rect width="40" height="0.5" fill="#a6ce39"/><rect y="39.5" width="40" height="0.5" fill="#a6ce39"/></svg>';
+    else if (tpl === 'minimalista') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="rgba(245,249,232,0.2)"/><rect y="28" width="40" height="12" fill="rgba(255,255,255,0.9)"/><rect y="28" width="40" height="0.3" fill="#a6ce39"/></svg>';
+    else if (tpl === 'collage2') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#a6ce39"/><rect x="0.8" y="0.8" width="38.4" height="38.4" fill="#fff"/></svg>';
+    else if (tpl === 'collage3') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#111"/><rect x="2" y="2" width="36" height="36" fill="none" stroke="#a6ce39" stroke-width="0.3"/></svg>';
+    else if (tpl === 'collage4') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#a6ce39"/><rect x="0.6" y="0.6" width="18.8" height="18.8" fill="#fff"/><rect x="20.6" y="0.6" width="18.8" height="18.8" fill="#fff"/><rect x="0.6" y="20.6" width="18.8" height="18.8" fill="#fff"/><rect x="20.6" y="20.6" width="18.8" height="18.8" fill="#fff"/></svg>';
+    else if (tpl === 'circular') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#000"/><circle cx="20" cy="20" r="8.4" fill="#a6ce39" stroke="#fff" stroke-width="0.4"/></svg>';
+    else if (tpl === 'textual') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="6" fill="#a6ce39"/><rect y="6" width="40" height="34" fill="#f5f9e8"/></svg>';
+    else if (tpl === 'degradado') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><defs><linearGradient id="gd'+tpl+'" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#a6ce39;stop-opacity:0.9"/><stop offset="100%" style="stop-color:#a6ce39;stop-opacity:0.2"/></linearGradient></defs><rect width="40" height="40" fill="url(#gd'+tpl+')"/></svg>';
+    else if (tpl === 'borde') previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#fff"/><rect x="2" y="2" width="36" height="36" fill="none" stroke="#a6ce39" stroke-width="0.8"/></svg>';
+    else previewSvg = '<svg viewBox="0 0 40 40" style="width:100%;height:100%"><rect width="40" height="40" fill="#333"/></svg>';
+    
+    btn.innerHTML = `<div class="tpl-prev">${previewSvg}</div><div class="tpl-name">${tpl.charAt(0).toUpperCase() + tpl.slice(1)}</div>`;
     btn.onclick = () => {
       document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('on'));
       btn.classList.add('on');
