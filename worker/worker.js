@@ -1068,6 +1068,81 @@ async function handleMusicPreview(url, env) {
 // VIDEO EDITOR - Transcripción y sugerencias de corte
 // ============================================================
 
+async function handleTranscribe(request, env) {
+  if (!env.AI) {
+    return jsonError("Cloudflare AI no está configurado", 500);
+  }
+
+  try {
+    const formData = await request.formData();
+    const audioFile = formData.get('audio');
+    
+    if (!audioFile) {
+      return jsonError("Falta archivo de audio", 400);
+    }
+
+    // Convertir el archivo a ArrayBuffer
+    const audioBuffer = await audioFile.arrayBuffer();
+    const audioArray = [...new Uint8Array(audioBuffer)];
+
+    // Llamar al modelo Whisper
+    const response = await env.AI.run('@cf/openai/whisper', {
+      audio: audioArray
+    });
+
+    let texto = '';
+    let segments = [];
+    let words = [];
+    
+    if (response) {
+      texto = response.text || '';
+      
+      if (response.words && Array.isArray(response.words)) {
+        words = response.words;
+        // Agrupar palabras en segmentos de aproximadamente 5 segundos
+        const groupDuration = 5; // segundos
+        let currentGroup = [];
+        let currentStart = 0;
+        
+        for (const word of words) {
+          if (currentGroup.length === 0) {
+            currentStart = word.start;
+          }
+          
+          currentGroup.push(word);
+          
+          // Si el grupo supera la duración objetivo o es el último
+          if (word.end - currentStart >= groupDuration || word === words[words.length - 1]) {
+            segments.push({
+              start: currentStart,
+              end: word.end,
+              text: currentGroup.map(w => w.word).join(' ').trim()
+            });
+            
+            currentGroup = [];
+          }
+        }
+      } else if (texto) {
+        // Si no hay palabras individuales, crear un segmento único
+        segments = [{ start: 0, end: 30, text: texto }];
+      }
+    }
+
+    return jsonOk({
+      success: true,
+      text: texto,
+      texto: texto,
+      word_count: response?.word_count || texto.split(/\s+/).length,
+      segments: segments,
+      words: words
+    });
+
+  } catch (err) {
+    console.error('Error en transcripción:', err);
+    return jsonError("Error en transcripción: " + err.message, 500);
+  }
+}
+
 async function handleVideoEditorTranscribe(request, env) {
   if (!env.AI) {
     return jsonError("Cloudflare AI no está configurado", 500);
@@ -1129,6 +1204,8 @@ async function handleVideoEditorTranscribe(request, env) {
     }
 
     return jsonOk({
+      success: true,
+      text: texto,
       texto: texto,
       word_count: response?.word_count || texto.split(/\s+/).length,
       segments: segments,
@@ -1138,6 +1215,11 @@ async function handleVideoEditorTranscribe(request, env) {
   } catch (err) {
     console.error('Error en transcripción de video editor:', err);
     return jsonError("Error en transcripción: " + err.message, 500);
+  }
+}
+
+// No es necesario duplicar la función, usamos la misma para ambos casos
+
   }
 }
 
@@ -1202,6 +1284,8 @@ Transcripción: ${transcript.substring(0, 3000)}`;
   } catch (err) {
     console.error('Error en sugerencias de corte:', err);
     return jsonError("Error procesando sugerencias: " + err.message, 500);
+}
+
   }
 }
 
@@ -1268,7 +1352,7 @@ export default {
     
     // Rutas del editor de video que manejan FormData
     if (path === "/api/transcribe") {
-      return handleVideoEditorTranscribe(request, env);
+      return handleTranscribe(request, env);
     }
 
     // ============================================================
