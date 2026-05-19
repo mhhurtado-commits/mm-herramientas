@@ -95,9 +95,16 @@ function loadFFmpegScript() {
       return;
     }
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
-    script.onload = resolve;
-    script.onerror = reject;
+    // Cambiar a una CDN que funciona correctamente
+    script.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
+    script.onload = () => {
+      console.log('FFmpeg script cargado correctamente');
+      resolve();
+    };
+    script.onerror = (err) => {
+      console.error('Error cargando FFmpeg:', err);
+      reject(err);
+    };
     document.head.appendChild(script);
   });
 }
@@ -121,32 +128,40 @@ async function transcribeVideo() {
   showLoading('Extrayendo audio del video...');
   
   try {
-    // Cargar FFmpeg
-    await loadFFmpegScript();
+    // Intentar cargar FFmpeg
+    let ffmpegLoaded = false;
+    try {
+      await loadFFmpegScript();
+      ffmpegLoaded = true;
+    } catch (ffmpegError) {
+      console.warn('FFmpeg no se pudo cargar, usando método alternativo:', ffmpegError);
+    }
     
-    const { createFFmpeg } = FFmpeg;
-    const ffmpegInstance = createFFmpeg({ log: false });
+    let audioBlob = null;
     
-    await ffmpegInstance.load();
+    if (ffmpegLoaded && typeof FFmpeg !== 'undefined') {
+      // Método con FFmpeg
+      const { createFFmpeg } = FFmpeg;
+      const ffmpegInstance = createFFmpeg({ log: false });
+      
+      await ffmpegInstance.load();
+      
+      const videoData = await readFileAsArrayBuffer(currentVideoFile);
+      ffmpegInstance.FS('writeFile', 'input.mp4', new Uint8Array(videoData));
+      await ffmpegInstance.run('-i', 'input.mp4', '-ac', '1', '-ar', '16000', '-vn', 'output.wav');
+      
+      const audioData = ffmpegInstance.FS('readFile', 'output.wav');
+      audioBlob = new Blob([audioData.buffer], { type: 'audio/wav' });
+      
+      ffmpegInstance.FS('unlink', 'input.mp4');
+      ffmpegInstance.FS('unlink', 'output.wav');
+    } else {
+      // Método alternativo sin FFmpeg
+      showLoading('Usando método alternativo de extracción...');
+      audioBlob = await extractAudioWithoutFFmpeg();
+    }
     
-    // Leer el archivo como ArrayBuffer
-    const videoData = await readFileAsArrayBuffer(currentVideoFile);
-    
-    // Escribir el archivo de video
-    ffmpegInstance.FS('writeFile', 'input.mp4', new Uint8Array(videoData));
-    
-    // Extraer audio a WAV
-    await ffmpegInstance.run('-i', 'input.mp4', '-ac', '1', '-ar', '16000', '-vn', 'output.wav');
-    
-    // Leer el audio extraído
-    const audioData = ffmpegInstance.FS('readFile', 'output.wav');
-    const audioBlob = new Blob([audioData.buffer], { type: 'audio/wav' });
-    
-    // Limpiar archivos temporales
-    ffmpegInstance.FS('unlink', 'input.mp4');
-    ffmpegInstance.FS('unlink', 'output.wav');
-    
-    if (audioBlob.size === 0) {
+    if (!audioBlob || audioBlob.size === 0) {
       throw new Error('No se pudo extraer el audio del video');
     }
     
@@ -192,6 +207,61 @@ async function transcribeVideo() {
   } finally {
     hideLoading();
   }
+}
+
+// Función para extraer audio sin FFmpeg
+async function extractAudioWithoutFFmpeg() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const videoUrl = URL.createObjectURL(currentVideoFile);
+      const audio = new Audio();
+      audio.src = videoUrl;
+      
+      await new Promise((resolve) => {
+        audio.addEventListener('canplaythrough', resolve, { once: true });
+      });
+      
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaElementSource(audio);
+      const destination = audioContext.createMediaStreamDestination();
+      source.connect(destination);
+      source.connect(audioContext.destination);
+      
+      const mediaRecorder = new MediaRecorder(destination.stream);
+      const chunks = [];
+      
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      
+      const recordingPromise = new Promise((res) => {
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          res(blob);
+        };
+      });
+      
+      mediaRecorder.start();
+      audio.play();
+      
+      await new Promise((resolve) => {
+        audio.addEventListener('ended', resolve, { once: true });
+        setTimeout(resolve, audio.duration * 1000 + 1000);
+      });
+      
+      mediaRecorder.stop();
+      const audioBlob = await recordingPromise;
+      
+      audio.pause();
+      audio.src = '';
+      URL.revokeObjectURL(videoUrl);
+      await audioContext.close();
+      
+      resolve(audioBlob);
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 
 async function cleanTranscriptWithAI() {
@@ -399,6 +469,118 @@ function showLoading(text) {
 
 function hideLoading() {
   document.getElementById('loadingOverlay').classList.remove('active');
+}
+
+// ============================================================
+// MÉTODO ALTERNATIVO SIN FFMPEG
+// ============================================================
+
+async function transcribeVideoSinFFmpeg() {
+  if (!currentVideoFile) {
+    showToast('Primero subí un video');
+    return;
+  }
+  
+  showLoading('Extrayendo audio del video...');
+  
+  try {
+    // Crear un elemento de audio para extraer el audio del video
+    const videoUrl = URL.createObjectURL(currentVideoFile);
+    const audio = new Audio();
+    audio.src = videoUrl;
+    
+    // Esperar a que se pueda reproducir
+    await new Promise((resolve) => {
+      audio.addEventListener('canplaythrough', resolve, { once: true });
+    });
+    
+    // Crear un contexto de audio
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioContext.createMediaElementSource(audio);
+    const destination = audioContext.createMediaStreamDestination();
+    source.connect(destination);
+    source.connect(audioContext.destination);
+    
+    // Grabar el audio
+    const mediaRecorder = new MediaRecorder(destination.stream);
+    const chunks = [];
+    
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+    
+    const recordingPromise = new Promise((resolve) => {
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        resolve(blob);
+      };
+    });
+    
+    // Reproducir y grabar
+    mediaRecorder.start();
+    audio.play();
+    
+    // Detener después de la duración del audio
+    await new Promise((resolve) => {
+      audio.addEventListener('ended', resolve, { once: true });
+      setTimeout(resolve, audio.duration * 1000 + 1000);
+    });
+    
+    mediaRecorder.stop();
+    const audioBlob = await recordingPromise;
+    
+    // Limpiar
+    audio.pause();
+    audio.src = '';
+    URL.revokeObjectURL(videoUrl);
+    await audioContext.close();
+    
+    if (audioBlob.size === 0) {
+      throw new Error('No se pudo extraer el audio');
+    }
+    
+    showLoading('Transcribiendo con IA...');
+    
+    const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'audio.webm');
+    
+    const response = await fetch(WORKER + '/studio/transcribir', {
+      method: 'POST',
+      body: formData
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || 'Error en transcripción');
+    }
+    
+    if (result.segments && result.segments.length) {
+      currentSegments = result.segments.map(seg => ({
+        ...seg,
+        removed: false
+      }));
+      originalSegments = [...currentSegments];
+      renderTranscript(currentSegments);
+      
+      const buttons = ['cleanBtn', 'previewBtn', 'exportBtn', 'addSubtitlesBtn'];
+      buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.disabled = false;
+      });
+      
+      showToast(`✅ Transcripción completada: ${result.segments.length} segmentos`);
+    } else {
+      showToast('⚠ No se pudo transcribir el audio');
+    }
+    
+  } catch (error) {
+    console.error('Error en método alternativo:', error);
+    showToast(`Error: ${error.message}`);
+  } finally {
+    hideLoading();
+  }
 }
 
 // Exponer toggleSegment globalmente para los botones onclick
