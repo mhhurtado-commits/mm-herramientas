@@ -297,7 +297,7 @@ async function handleStudioTranscribir(request, env) {
   try {
     const formData = await request.formData();
     console.log('handleStudioTranscribir: formData keys', Array.from(formData.keys()));
-    const audioFile = formData.get('audio');
+    const audioFile = formData.get('audio') || formData.get('file');
     
     if (!audioFile) {
       console.log('handleStudioTranscribir: no audio file found');
@@ -361,6 +361,34 @@ async function handleStudioTranscribir(request, env) {
   } catch (err) {
     console.error('Error en transcripción:', err);
     return jsonError("Error en transcripción: " + err.message, 500);
+  }
+}
+
+// ============================================================
+// VIDEO-EDITOR - Transcripción de video con extracción de audio
+// ============================================================
+
+async function handleVideoEditorTranscribir(request, env) {
+  if (!env.AI) {
+    return jsonError("Cloudflare AI no está configurado", 500);
+  }
+
+  try {
+    const formData = await request.formData();
+    console.log('handleVideoEditorTranscribir: formData keys', Array.from(formData.keys()));
+    const videoFile = formData.get('video');
+    
+    if (!videoFile) {
+      console.log('handleVideoEditorTranscribir: no video file found');
+      return jsonError("Falta archivo de video", 400);
+    }
+
+    // En lugar de procesar el video aquí para extraer audio (ya que no tenemos FFmpeg en el worker),
+    // devolvemos un error explicando que actualmente solo aceptamos archivos de audio
+    return jsonError("Actualmente solo se aceptan archivos de audio. La funcionalidad de extracción de audio desde video se implementará próximamente.", 501);
+  } catch (err) {
+    console.error('Error en transcripción de video:', err);
+    return jsonError("Error en transcripción de video: " + err.message, 500);
   }
 }
 
@@ -752,7 +780,7 @@ async function handleScrape(url){
     const texto=extraerTexto(html);
     if(!texto||texto.length<100) return jsonError("No se pudo extraer contenido",422);
     return jsonOk({titulo,texto,imagen:ogImg?.[1]||'',url:targetUrl});
-  }catch(err){return jsonError(`Error scrapeando: ${err.message}`,502)}
+  }catch(err){return jsonError(`Error scrapeando: ${err.message}`,522)}
 }
 async function handlePlacasUrl(url){
   const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
@@ -1028,7 +1056,7 @@ async function callGemini(prompt,env){
 async function handleMusicSearch(url, env) {
   const query = url.searchParams.get('q') || '';
   const page = parseInt(url.searchParams.get('page')) || 1;
-  const perPage = parseInt(url.searchParams.get('per_page')) || 12;
+  const perPage = parseInt(url.searchParams.get('page_size')) || 12;
   const apiKey = env.FREESOUND_API_KEY;
 
   if (!apiKey) {
@@ -1469,6 +1497,12 @@ export default {
     if (path === "/api/transcribe") {
       console.log('worker: incoming /api/transcribe (FormData)', request.method, path, request.url, request.headers.get('content-type'));
       return handleStudioTranscribir(request, env);
+    }
+
+    // Nueva ruta para video-editor
+    if (path === "/video-editor/transcribir") {
+      console.log('worker: incoming /video-editor/transcribir (FormData)', request.method, path, request.url, request.headers.get('content-type'));
+      return handleVideoEditorTranscribir(request, env);
     }
 
     // Alias para entornos donde la app vive en un subpath (ej. /video-editor)
