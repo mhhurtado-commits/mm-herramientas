@@ -210,7 +210,8 @@ async function transcribeVideo() {
     // Enviar al Worker
     const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
     const formData = new FormData();
-    formData.append('audio', audioBlob, 'audio.webm');
+    // Nuevo código - usar 'file' y formato MP3
+    formData.append('file', audioBlob, 'audio.mp3');
     
     const response = await fetch(WORKER + '/studio/transcribir', {
       method: 'POST',
