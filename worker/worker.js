@@ -1218,11 +1218,6 @@ async function handleVideoEditorTranscribe(request, env) {
   }
 }
 
-// No es necesario duplicar la función, usamos la misma para ambos casos
-
-  }
-}
-
 async function handleVideoEditorSuggestCuts(body, env) {
   if (!env.AI) {
     return jsonError("Cloudflare AI no está configurado", 500);
@@ -1287,7 +1282,6 @@ Transcripción: ${transcript.substring(0, 3000)}`;
 }
 
   }
-}
 
 // ============================================================
 // ROUTER PRINCIPAL
