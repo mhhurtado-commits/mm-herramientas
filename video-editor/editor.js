@@ -4,6 +4,33 @@ let currentSegments = [];
 let originalSegments = [];
 
 // ============================================================
+// CARGA DE FFMPEG (misma librería que usa Studio implícitamente)
+// ============================================================
+
+let ffmpegLoaded = false;
+let ffmpeg = null;
+
+async function getFFmpeg() {
+  if (ffmpeg) return ffmpeg;
+  
+  // Cargar el script de FFmpeg
+  if (typeof FFmpeg === 'undefined') {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+  
+  const { createFFmpeg } = FFmpeg;
+  ffmpeg = createFFmpeg({ log: false });
+  await ffmpeg.load();
+  return ffmpeg;
+}
+
+// ============================================================
 // EXTRACCIÓN DE AUDIO CON FFMPEG (alternativa si falla el método anterior)
 // ============================================================
 
@@ -152,76 +179,43 @@ async function transcribeVideo() {
   showLoading('Extrayendo audio del video...');
   
   try {
-    // Crear un elemento de audio para extraer el audio del video
-    // Esto evita la dependencia de FFmpeg
-    const videoElement = document.createElement('video');
-    const videoUrl = URL.createObjectURL(currentVideoFile);
-    videoElement.src = videoUrl;
+    // Usar FFmpeg.wasm que ya funciona en el proyecto
+    // Verificar si FFmpeg está disponible
+    if (typeof FFmpeg === 'undefined') {
+      // Cargar FFmpeg si no está disponible
+      await loadFFmpegScript();
+    }
     
-    // Esperar a que el video esté listo
-    await new Promise((resolve) => {
-      videoElement.onloadedmetadata = resolve;
-    });
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: false });
     
-    // Crear un contexto de audio para capturar el audio del video
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioContext.createMediaElementSource(videoElement);
-    const destination = audioContext.createMediaStreamDestination();
-    source.connect(destination);
+    await ffmpeg.load();
     
-    // Conectar también a los altavoces para que se pueda escuchar
-    source.connect(audioContext.destination);
+    // Escribir el archivo de video
+    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(currentVideoFile));
     
-    // Crear un MediaRecorder para grabar el audio
-    const mediaRecorder = new MediaRecorder(destination.stream);
-    const audioChunks = [];
+    // Extraer audio a WAV (formato que Whisper prefiere)
+    await ffmpeg.run('-i', 'input.mp4', '-ac', '1', '-ar', '16000', '-vn', 'output.wav');
     
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-      }
-    };
+    // Leer el audio extraído
+    const audioData = ffmpeg.FS('readFile', 'output.wav');
+    const audioBlob = new Blob([audioData.buffer], { type: 'audio/wav' });
     
-    // Reproducir el video para capturar el audio
-    videoElement.play();
-    
-    // Grabar durante la duración del video
-    const recordingPromise = new Promise((resolve) => {
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        resolve(audioBlob);
-      };
-    });
-    
-    mediaRecorder.start();
-    
-    // Detener la grabación cuando termine el video
-    await new Promise((resolve) => {
-      videoElement.onended = resolve;
-      setTimeout(resolve, videoElement.duration * 1000 + 1000);
-    });
-    
-    mediaRecorder.stop();
-    const audioBlob = await recordingPromise;
-    
-    // Limpiar
-    videoElement.pause();
-    videoElement.src = '';
-    URL.revokeObjectURL(videoUrl);
-    await audioContext.close();
+    // Limpiar archivos temporales
+    ffmpeg.FS('unlink', 'input.mp4');
+    ffmpeg.FS('unlink', 'output.wav');
     
     if (audioBlob.size === 0) {
       throw new Error('No se pudo extraer el audio del video');
     }
     
-    showLoading('Transcribiendo audio con IA...');
+    showLoading('Transcribiendo con IA (igual que en Studio)...');
     
-    // Enviar al Worker para transcripción
+    // === ESTA ES LA PARTE QUE REUTILIZA LA LÓGICA DE STUDIO ===
     const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
     const formData = new FormData();
-    formData.append('audio', audioBlob, 'audio.webm');
+    formData.append('audio', audioBlob, 'audio.wav');
     
-    // Usar el endpoint correcto
     const response = await fetch(WORKER + '/studio/transcribir', {
       method: 'POST',
       body: formData
@@ -242,15 +236,11 @@ async function transcribeVideo() {
       renderTranscript(currentSegments);
       
       // Habilitar botones
-      const cleanBtn = document.getElementById('cleanBtn');
-      const previewBtn = document.getElementById('previewBtn');
-      const exportBtn = document.getElementById('exportBtn');
-      const addSubtitlesBtn = document.getElementById('addSubtitlesBtn');
-      
-      if (cleanBtn) cleanBtn.disabled = false;
-      if (previewBtn) previewBtn.disabled = false;
-      if (exportBtn) exportBtn.disabled = false;
-      if (addSubtitlesBtn) addSubtitlesBtn.disabled = false;
+      const buttons = ['cleanBtn', 'previewBtn', 'exportBtn', 'addSubtitlesBtn'];
+      buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.disabled = false;
+      });
       
       showToast(`✅ Transcripción completada: ${result.segments.length} segmentos`);
     } else {
@@ -263,6 +253,21 @@ async function transcribeVideo() {
   } finally {
     hideLoading();
   }
+}
+
+// Función para cargar FFmpeg.wasm si no está disponible
+function loadFFmpegScript() {
+  return new Promise((resolve, reject) => {
+    if (typeof FFmpeg !== 'undefined') {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
 }
 
 async function cleanTranscriptWithAI() {
