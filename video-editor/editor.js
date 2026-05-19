@@ -96,19 +96,34 @@ async function transcribeVideo() {
     return;
   }
   
-  showLoading('Transcribiendo video con IA...');
+  showLoading('Extrayendo audio y transcribiendo con IA...');
   
   try {
-    // Extraer audio del video (simulado, en realidad se haría con ffmpeg)
-    // En una implementación real, convertiríamos el video a audio aquí
+    // Extraer audio del video usando ffmpeg.wasm
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
+
+    // Inicializar ffmpeg
+    await ffmpeg.load();
+
+    // Escribir el archivo de video en el sistema virtual de ffmpeg
+    ffmpeg.FS('writeFile', 'input.' + currentVideoFile.name.split('.').pop(), await fetchFile(currentVideoFile));
+
+    // Ejecutar ffmpeg para extraer el audio
+    await ffmpeg.run('-i', 'input.' + currentVideoFile.name.split('.').pop(), '-ac', '1', '-vn', 'output.wav');
+
+    // Leer el archivo de audio resultante
+    const audioData = ffmpeg.FS('readFile', 'output.wav');
     
+    // Crear un blob con el audio
+    const audioBlob = new Blob([audioData.buffer], { type: 'audio/wav' });
+    const audioFile = new File([audioBlob], 'extracted_audio.wav', { type: 'audio/wav' });
+
     // Enviar archivo de audio al worker para transcribir
     const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 
     const formData = new FormData();
-    // En este paso usamos el mismo archivo; el Worker acepta el campo 'audio'
-    // Si tenés audio separado, podés enviar ese blob en su lugar.
-    formData.append('audio', currentVideoFile, currentVideoFile.name);
+    formData.append('audio', audioFile, audioFile.name);
 
     const response = await fetch(WORKER + '/studio/transcribir', {
       method: 'POST',
