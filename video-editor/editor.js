@@ -114,12 +114,24 @@ async function transcribeVideo() {
       method: 'POST',
       body: formData
     });
-    
-    if (!response.ok) {
-      throw new Error(`Error: ${response.status}`);
+
+    let resultText = null;
+    try {
+      resultText = await response.text();
+    } catch (e) {
+      resultText = null;
     }
-    
-    const result = await response.json();
+
+    if (!response.ok) {
+      let errMsg = `HTTP ${response.status}`;
+      try {
+        const parsed = resultText ? JSON.parse(resultText) : null;
+        if (parsed && parsed.error) errMsg = parsed.error;
+      } catch (e) {}
+      throw new Error(errMsg + (resultText ? ` — ${resultText}` : ''));
+    }
+
+    const result = resultText ? JSON.parse(resultText) : {};
     
     if (result.ok) {
       currentSegments = [...result.segments];
