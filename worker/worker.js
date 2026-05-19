@@ -1075,7 +1075,7 @@ async function handleTranscribe(request, env) {
 
   try {
     const formData = await request.formData();
-    const audioFile = formData.get('audio');
+    const audioFile = formData.get('audio') || formData.get('file');
     
     if (!audioFile) {
       return jsonError("Falta archivo de audio", 400);
@@ -1345,7 +1345,7 @@ export default {
     }
     
     // Rutas del editor de video que manejan FormData
-    if (path === "/api/transcribe") {
+    if (url.pathname === '/api/transcribe' && request.method === 'POST') {
       return handleTranscribe(request, env);
     }
 
