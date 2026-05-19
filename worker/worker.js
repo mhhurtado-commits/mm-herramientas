@@ -675,226 +675,75 @@ async function handleRedactar(body,env){
   return jsonOk(r.data);
 }
 
-async function handleDeleteFuente(url,env){
-  const id=url.searchParams.get("id");if(!id) return jsonError("id requerido",400);
-  try{await env.KV.delete(`fuente:${id}`);return jsonOk({eliminado:true})}
+// ============================================================
+// AGENDA
+// ============================================================
+async function handleGetAgendaEfemerides(env){
+  try{const e=await listarObjetosKV(env,AGENDA_EF_PREFIX);e.sort((a,b)=>a.mes-b.mes||a.dia-b.dia);return jsonOk({efemerides:e})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handlePostAgendaEfemeride(body,env){
+  const titulo=String(body.titulo||"").trim();const dia=parseInt(body.dia)||0;const mes=parseInt(body.mes)||0;
+  if(!titulo||!dia||!mes||dia<1||dia>31||mes<1||mes>12) return jsonError("Faltan campos válidos",400);
+  const ef={id:body.id||generarId("ef_"),titulo,tituloBase:body.tituloBase||titulo,dia,mes,tipo:String(body.tipo||"efemeride").trim(),alcance:String(body.alcance||"local").trim(),descripcion:String(body.descripcion||"").trim(),creado:body.creado||Date.now()};
+  try{await env.KV.put(`${AGENDA_EF_PREFIX}${ef.id}`,JSON.stringify(ef));return jsonOk({guardado:true,id:ef.id,efemeride:ef})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handleDeleteAgendaEfemeride(url,env){
+  const id=url.searchParams.get("id");if(!id) return jsonError("Falta id",400);
+  try{await env.KV.delete(`${AGENDA_EF_PREFIX}${id}`);return jsonOk({eliminado:true})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handleGetAngulosCache(url,env){
+  const key=String(url.searchParams.get("key")||"").trim();if(!key) return jsonError("Falta key",400);
+  try{const v=await env.KV.get(ANGULOS_PREFIX+key,"json");return jsonOk({data:v||null})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handleAgendaAngulos(body,env){
+  const titulo=String(body.titulo||"").trim();if(!titulo) return jsonError("Falta titulo",400);
+  const kvKey=String(body.kvKey||"").trim();
+  if(kvKey){try{const c=await env.KV.get(ANGULOS_PREFIX+kvKey,"json");if(c) return jsonOk({...c,fromCache:true})}catch(e){}}
+  const prompt=`Sos editor de agenda de Media Mendoza.\nEVENTO:\nTitulo: ${titulo}\nDescripcion: ${String(body.descripcion||"").trim()}\nFecha: ${String(body.fecha||"").trim()}\nTipo: ${String(body.tipo||"").trim()}\n\nResponde SOLO con JSON sin backticks:\n{"angulos":["a1"],"preguntas":["p1"],"fuentes_sugeridas":["f1"],"consejo":""}`;
+  const r=await callGemini(prompt,env);if(r.error) return jsonError(r.error,500);
+  const data={angulos:Array.isArray(r.data?.angulos)?r.data.angulos:[],preguntas:Array.isArray(r.data?.preguntas)?r.data.preguntas:[],fuentes_sugeridas:Array.isArray(r.data?.fuentes_sugeridas)?r.data.fuentes_sugeridas:[],consejo:String(r.data?.consejo||"").trim()};
+  if(kvKey){try{await env.KV.put(ANGULOS_PREFIX+kvKey,JSON.stringify(data),{expirationTtl:ANGULOS_TTL})}catch(e){}}
+  return jsonOk(data);
+}
+async function handleGetAgendaEventos(url,env){
+  try{const mes=String(url.searchParams.get("mes")||"").trim();let ev=await listarObjetosKV(env,AGENDA_EV_PREFIX);if(mes)ev=ev.filter(e=>String(e.fecha||"").startsWith(mes));ev.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));return jsonOk({eventos:ev})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handlePostAgendaEvento(body,env){
+  const titulo=String(body.titulo||"").trim();const fecha=String(body.fecha||"").trim();
+  if(!titulo||!fecha) return jsonError("Faltan campos",400);
+  const ev={id:body.id||generarId("ag_"),titulo,fecha,hora:String(body.hora||"").trim(),tipo:String(body.tipo||"evento").trim(),alcance:String(body.alcance||"local").trim(),descripcion:String(body.descripcion||"").trim(),periodista:String(body.periodista||"").trim(),creado:body.creado||Date.now()};
+  try{await env.KV.put(`${AGENDA_EV_PREFIX}${ev.id}`,JSON.stringify(ev));return jsonOk({guardado:true,id:ev.id,evento:ev})}
+  catch(err){return jsonError("Error KV: "+err.message,500)}
+}
+async function handleDeleteAgendaEvento(url,env){
+  const id=url.searchParams.get("id");if(!id) return jsonError("Falta id",400);
+  try{await env.KV.delete(`${AGENDA_EV_PREFIX}${id}`);return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
 // ============================================================
-// VIDEO EDITOR - Transcripción y sugerencias de corte
+// SCRAPING / PLACAS
 // ============================================================
-
-async function handleVideoEditorTranscribe(request, env) {
-  if (!env.AI) {
-    return jsonError("Cloudflare AI no está configurado", 500);
-  }
-
-  try {
-    const formData = await request.formData();
-    const audioFile = formData.get('audio');
-    
-    if (!audioFile) {
-      return jsonError("Falta archivo de audio", 400);
-    }
-
-    // Convertir el archivo a ArrayBuffer
-    const audioBuffer = await audioFile.arrayBuffer();
-    const audioArray = [...new Uint8Array(audioBuffer)];
-
-    // Llamar al modelo Whisper
-    const response = await env.AI.run('@cf/openai/whisper', {
-      audio: audioArray
-    });
-
-    let texto = '';
-    let segments = [];
-    let words = [];
-    
-    if (response) {
-      texto = response.text || '';
-      
-      if (response.words && Array.isArray(response.words)) {
-        words = response.words;
-        // Agrupar palabras en segmentos de aproximadamente 5 segundos
-        const groupDuration = 5; // segundos
-        let currentGroup = [];
-        let currentStart = 0;
-        
-        for (const word of words) {
-          if (currentGroup.length === 0) {
-            currentStart = word.start;
-          }
-          
-          currentGroup.push(word);
-          
-          // Si el grupo supera la duración objetivo o es el último
-          if (word.end - currentStart >= groupDuration || word === words[words.length - 1]) {
-            segments.push({
-              start: currentStart,
-              end: word.end,
-              text: currentGroup.map(w => w.word).join(' ').trim()
-            });
-            
-            currentGroup = [];
-          }
-        }
-      } else if (texto) {
-        // Si no hay palabras individuales, crear un segmento único
-        segments = [{ start: 0, end: 30, text: texto }];
-      }
-    }
-
-    return jsonOk({
-      texto: texto,
-      word_count: response?.word_count || texto.split(/\s+/).length,
-      segments: segments,
-      words: words
-    });
-
-  } catch (err) {
-    console.error('Error en transcripción de video editor:', err);
-    return jsonError("Error en transcripción: " + err.message, 500);
-  }
+async function handleScrape(url){
+  const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
+  try{new URL(targetUrl)}catch{return jsonError("URL inválida",400)}
+  try{
+    const{html}=await fetchHtml(targetUrl,300);
+    const ogTitle=html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,200})["']/i);
+    const titleTag=html.match(/<title[^>]*>([^<]{1,200})<\/title>/i);
+    const titulo=(ogTitle?.[1]||titleTag?.[1]||'').replace(/\s+/g,' ').trim();
+    const ogImg=html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,500})["']/i)||html.match(/<meta[^>]+content=["']([^"']{1,500})["'][^>]+property=["']og:image["']/i);
+    const texto=extraerTexto(html);
+    if(!texto||texto.length<100) return jsonError("No se pudo extraer contenido",422);
+    return jsonOk({titulo,texto,imagen:ogImg?.[1]||'',url:targetUrl});
+  }catch(err){return jsonError(`Error scrapeando: ${err.message}`,502)}
 }
-
-async function handleVideoEditorSuggestCuts(body, env) {
-  if (!env.AI) {
-    return jsonError("Cloudflare AI no está configurado", 500);
-  }
-
-  const { transcript, segments } = body;
-  
-  if (!transcript) {
-    return jsonError("Falta la transcripción", 400);
-  }
-
-  // Prompt para identificar muletillas y silencios
-  const prompt = `Analiza esta transcripción de una entrevista y sugiere cortes para mejorarla.
-Identifica y marca para corte:
-1. Muletillas ("ehh", "umm", "este", etc.)
-2. Silencios prolongados (más de 2 segundos)
-3. Repeticiones innecesarias
-4. Frases incompletas
-
-Devuelve una lista de segmentos temporales que deben eliminarse con sus tiempos de inicio y fin en segundos.
-Formato esperado: {"suggestions": [{"start": inicio_en_segundos, "end": fin_en_segundos, "reason": "motivo"}]}
-
-Transcripción: ${transcript.substring(0, 3000)}`;
-
-  try {
-    const response = await env.AI.run('@cf/meta/llama-3.2-1b-instruct', {
-      prompt: prompt
-    });
-
-    // Parsear la respuesta para extraer las sugerencias
-    let suggestions = [];
-    const responseText = response.response || "";
-    
-    // Intentar parsear como JSON
-    try {
-      const parsed = JSON.parse(responseText);
-      if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
-        suggestions = parsed.suggestions;
-      }
-    } catch (e) {
-      // Si no es JSON válido, intentar extraer información de texto
-      // Esta es una implementación simplificada - en la práctica se necesitaría un parser más robusto
-      const regex = /"start":\s*(\d+(?:\.\d+)?).*?"end":\s*(\d+(?:\.\d+)?)/g;
-      let match;
-      while ((match = regex.exec(responseText)) !== null) {
-        suggestions.push({
-          start: parseFloat(match[1]),
-          end: parseFloat(match[2]),
-          reason: "Automático"
-        });
-      }
-    }
-
-    return jsonOk({
-      suggestions: suggestions,
-      total_suggestions: suggestions.length
-    });
-
-  } catch (err) {
-    console.error('Error en sugerencias de corte:', err);
-    return jsonError("Error procesando sugerencias: " + err.message, 500);
-  }
-}
-
-// ============================================================
-// ROUTER PRINCIPAL
-// ============================================================
-
-async function handleRequest(request, env) {
-  const url = new URL(request.url);
-  const path = url.pathname;
-
-  // Rutas CORS
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { headers: CORS_HEADERS });
-  }
-
-  // Rutas API
-  if (path === '/api/test-ai') return handleTestAI(env);
-  if (path === '/api/resumen-agregar' && request.method === 'POST') return handleResumenAgregar(await request.json(), env);
-  if (path === '/api/resumen-obtener' && request.method === 'GET') return handleResumenObtener(url, env);
-  if (path === '/api/resumen-generar' && request.method === 'POST') return handleResumenGenerar(await request.json(), env);
-  if (path === '/api/resumen-eliminar' && request.method === 'POST') return handleResumenEliminar(await request.json(), env);
-  if (path === '/api/generar-guion-reel' && request.method === 'POST') return handleGenerarGuionReel(await request.json(), env);
-  if (path === '/api/studio/transcribir' && request.method === 'POST') return handleStudioTranscribir(request, env);
-  if (path === '/api/studio/generar-vtt' && request.method === 'POST') return handleStudioGenerarVTT(request, env);
-  if (path === '/api/studio/guardar-proyecto' && request.method === 'POST') return handleStudioGuardarProyecto(await request.json(), env);
-  if (path === '/api/studio/proyectos' && request.method === 'GET') return handleStudioObtenerProyectos(env);
-  if (path === '/api/studio/eliminar-proyecto' && request.method === 'DELETE') return handleStudioEliminarProyecto(url, env);
-  if (path === '/api/reel/config' && request.method === 'GET') return handleGetReelConfig(env);
-  if (path === '/api/reel/config' && request.method === 'POST') return handlePostReelConfig(await request.json(), env);
-  if (path === '/api/reset-voces' && request.method === 'POST') return handleResetVoces(env);
-  if (path === '/api/reel/guion' && request.method === 'POST') return handleReelGuion(await request.json(), env);
-  if (path === '/api/reel/audio' && request.method === 'POST') return handleReelAudio(await request.json(), env);
-  if (path === '/api/social/prompt' && request.method === 'GET') return handleGetSocialPrompt(url, env);
-  if (path === '/api/social/prompt' && request.method === 'POST') return handlePostSocialPrompt(await request.json(), env);
-  if (path === '/api/social/generar' && request.method === 'POST') return handleSocialGenerar(await request.json(), env);
-  if (path === '/api/wa/prompt' && request.method === 'GET') return handleGetWaPrompt(env);
-  if (path === '/api/wa/prompt' && request.method === 'POST') return handlePostWaPrompt(await request.json(), env);
-  if (path === '/api/wa/links' && request.method === 'GET') return handleGetWaLinks(env);
-  if (path === '/api/wa/links' && request.method === 'POST') return handlePostWaLinks(await request.json(), env);
-  if (path === '/api/titulares' && request.method === 'POST') return handleTitulares(await request.json(), env);
-  if (path === '/api/reformular' && request.method === 'POST') return handleReformular(await request.json(), env);
-  if (path === '/api/redactar' && request.method === 'POST') return handleRedactar(await request.json(), env);
-  if (path === '/api/agenda/efemerides' && request.method === 'GET') return handleGetAgendaEfemerides(env);
-  if (path === '/api/agenda/efemeride' && request.method === 'POST') return handlePostAgendaEfemeride(await request.json(), env);
-  if (path === '/api/agenda/efemeride' && request.method === 'DELETE') return handleDeleteAgendaEfemeride(url, env);
-  if (path === '/api/agenda/angulos-cache' && request.method === 'GET') return handleGetAngulosCache(url, env);
-  if (path === '/api/agenda/angulos' && request.method === 'POST') return handleAgendaAngulos(await request.json(), env);
-  if (path === '/api/agenda/eventos' && request.method === 'GET') return handleGetAgendaEventos(url, env);
-  if (path === '/api/agenda/evento' && request.method === 'POST') return handlePostAgendaEvento(await request.json(), env);
-  if (path === '/api/agenda/evento' && request.method === 'DELETE') return handleDeleteAgendaEvento(url, env);
-  if (path === '/api/scrape' && request.method === 'GET') return handleScrape(url);
-  if (path === '/api/placas-url' && request.method === 'GET') return handlePlacasUrl(url);
-  if (path === '/api/placas-image' && request.method === 'GET') return handlePlacasImage(url);
-  if (path === '/api/placas-ai' && request.method === 'POST') return handlePlacasAI(request, env, await request.json());
-  if (path === '/api/editorial' && request.method === 'GET') return handleGetEditorial(env);
-  if (path === '/api/editorial' && request.method === 'POST') return handlePostEditorial(await request.json(), env);
-  if (path === '/api/fuentes' && request.method === 'GET') return handleGetFuentes(env);
-  if (path === '/api/fuente' && request.method === 'POST') return handlePostFuente(await request.json(), env);
-  if (path === '/api/fuente' && request.method === 'DELETE') return handleDeleteFuente(url, env);
-  
-  // Nuevas rutas para el editor de video
-  if (path === '/api/transcribe' && request.method === 'POST') return handleVideoEditorTranscribe(request, env);
-  if (path === '/api/suggest-cuts' && request.method === 'POST') return handleVideoEditorSuggestCuts(await request.json(), env);
-
-  // Ruta por defecto
-  return new Response('API no encontrada', { status: 404, headers: CORS_HEADERS });
-}
-
-// Exportar el módulo
-export default {
-  async fetch(request, env) {
-    return handleRequest(request, env);
-  }
-};
-
+async function handlePlacasUrl(url){
   const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
   try{new URL(targetUrl)}catch{return jsonError("URL inválida",400)}
   try{const{html}=await fetchHtml(targetUrl,300);const data=extraerDatosNota(html,targetUrl);if(!data.title&&!data.body) return jsonError("No se pudo extraer contenido",422);return jsonOk(data)}
