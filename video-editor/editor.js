@@ -220,6 +220,11 @@ async function transcribeVideo() {
     
     const result = await response.json();
     
+    console.log('Respuesta del Worker:', result);
+    console.log('Status:', response.status);
+    console.log('Audio blob size:', audioBlob.size);
+    console.log('Audio blob type:', audioBlob.type);
+    
     if (!response.ok || !result.ok) {
       throw new Error(result.error || 'Error en transcripción');
     }
