@@ -3,85 +3,7 @@ let currentVideoFile = null;
 let currentSegments = [];
 let originalSegments = [];
 
-// ============================================================
-// CARGA DE FFMPEG (misma librería que usa Studio implícitamente)
-// ============================================================
-
-let ffmpegLoaded = false;
 let ffmpeg = null;
-
-async function getFFmpeg() {
-  if (ffmpeg) return ffmpeg;
-  
-  // Cargar el script de FFmpeg
-  if (typeof FFmpeg === 'undefined') {
-    await new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-  }
-  
-  const { createFFmpeg } = FFmpeg;
-  ffmpeg = createFFmpeg({ log: false });
-  await ffmpeg.load();
-  return ffmpeg;
-}
-
-// ============================================================
-// EXTRACCIÓN DE AUDIO CON FFMPEG (alternativa si falla el método anterior)
-// ============================================================
-
-let ffmpeg = null;
-
-async function loadFFmpeg() {
-  if (ffmpeg) return ffmpeg;
-  
-  showLoading('Cargando FFmpeg (primera vez puede tardar)...');
-  
-  try {
-    const { createFFmpeg } = FFmpeg;
-    ffmpeg = createFFmpeg({ log: true });
-    await ffmpeg.load();
-    hideLoading();
-    return ffmpeg;
-  } catch (error) {
-    console.error('Error cargando FFmpeg:', error);
-    hideLoading();
-    return null;
-  }
-}
-
-async function extractAudioWithFFmpeg(videoFile) {
-  const ffmpegInstance = await loadFFmpeg();
-  if (!ffmpegInstance) return null;
-  
-  showLoading('Extrayendo audio con FFmpeg...');
-  
-  try {
-    // Escribir el archivo de video en el sistema de archivos virtual
-    const data = await fetchFile(videoFile);
-    ffmpegInstance.FS('writeFile', 'input.mp4', data);
-    
-    // Extraer audio
-    await ffmpegInstance.run('-i', 'input.mp4', '-ac', '1', '-vn', '-ar', '16000', 'output.wav');
-    
-    // Leer el audio extraído
-    const audioData = ffmpegInstance.FS('readFile', 'output.wav');
-    const audioBlob = new Blob([audioData.buffer], { type: 'audio/wav' });
-    
-    // Limpiar
-    ffmpegInstance.FS('unlink', 'input.mp4');
-    ffmpegInstance.FS('unlink', 'output.wav');
-    
-    return audioBlob;
-  } catch (error) {
-    console.error('Error con FFmpeg:', error);
-    return null;
-  }
-}
 
 // Inicializar la aplicación
 document.addEventListener('DOMContentLoaded', () => {
@@ -98,16 +20,14 @@ function setupEventListeners() {
   const exportBtn = document.getElementById('exportBtn');
   const addSubtitlesBtn = document.getElementById('addSubtitlesBtn');
   
-  // Eventos de carga de video
   uploadArea.addEventListener('click', () => videoInput.click());
   videoInput.addEventListener('change', handleVideoUpload);
   
-  // Eventos de botones
   transcribeBtn.addEventListener('click', transcribeVideo);
-  cleanBtn.addEventListener('click', cleanTranscriptWithAI);
-  previewBtn.addEventListener('click', previewEditedVideo);
-  exportBtn.addEventListener('click', exportVideo);
-  addSubtitlesBtn.addEventListener('click', toggleSubtitles);
+  if (cleanBtn) cleanBtn.addEventListener('click', cleanTranscriptWithAI);
+  if (previewBtn) previewBtn.addEventListener('click', previewEditedVideo);
+  if (exportBtn) exportBtn.addEventListener('click', exportVideo);
+  if (addSubtitlesBtn) addSubtitlesBtn.addEventListener('click', toggleSubtitles);
 }
 
 function setupDragAndDrop() {
@@ -148,7 +68,6 @@ function handleVideoUpload(e) {
 }
 
 function handleVideoFile(file) {
-  // Validar tamaño del archivo (máx 500MB)
   if (file.size > 500 * 1024 * 1024) {
     showToast('El archivo es demasiado grande. Máximo 500MB.');
     return;
@@ -156,7 +75,6 @@ function handleVideoFile(file) {
   
   currentVideoFile = file;
   
-  // Mostrar previsualización del video
   const videoPlayer = document.getElementById('videoPlayer');
   const uploadArea = document.getElementById('uploadArea');
   
@@ -165,9 +83,33 @@ function handleVideoFile(file) {
   videoPlayer.style.display = 'block';
   uploadArea.style.display = 'none';
   
-  // Habilitar botones
   document.getElementById('transcribeBtn').disabled = false;
   showToast('Video cargado correctamente. Hacé clic en "Transcribir con IA" para continuar.');
+}
+
+// Función para cargar FFmpeg.wasm
+function loadFFmpegScript() {
+  return new Promise((resolve, reject) => {
+    if (typeof FFmpeg !== 'undefined') {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+// Función para leer archivo como ArrayBuffer (similar a fetchFile)
+async function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 async function transcribeVideo() {
@@ -179,39 +121,37 @@ async function transcribeVideo() {
   showLoading('Extrayendo audio del video...');
   
   try {
-    // Usar FFmpeg.wasm que ya funciona en el proyecto
-    // Verificar si FFmpeg está disponible
-    if (typeof FFmpeg === 'undefined') {
-      // Cargar FFmpeg si no está disponible
-      await loadFFmpegScript();
-    }
+    // Cargar FFmpeg
+    await loadFFmpegScript();
     
-    const { createFFmpeg, fetchFile } = FFmpeg;
-    const ffmpeg = createFFmpeg({ log: false });
+    const { createFFmpeg } = FFmpeg;
+    const ffmpegInstance = createFFmpeg({ log: false });
     
-    await ffmpeg.load();
+    await ffmpegInstance.load();
+    
+    // Leer el archivo como ArrayBuffer
+    const videoData = await readFileAsArrayBuffer(currentVideoFile);
     
     // Escribir el archivo de video
-    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(currentVideoFile));
+    ffmpegInstance.FS('writeFile', 'input.mp4', new Uint8Array(videoData));
     
-    // Extraer audio a WAV (formato que Whisper prefiere)
-    await ffmpeg.run('-i', 'input.mp4', '-ac', '1', '-ar', '16000', '-vn', 'output.wav');
+    // Extraer audio a WAV
+    await ffmpegInstance.run('-i', 'input.mp4', '-ac', '1', '-ar', '16000', '-vn', 'output.wav');
     
     // Leer el audio extraído
-    const audioData = ffmpeg.FS('readFile', 'output.wav');
+    const audioData = ffmpegInstance.FS('readFile', 'output.wav');
     const audioBlob = new Blob([audioData.buffer], { type: 'audio/wav' });
     
     // Limpiar archivos temporales
-    ffmpeg.FS('unlink', 'input.mp4');
-    ffmpeg.FS('unlink', 'output.wav');
+    ffmpegInstance.FS('unlink', 'input.mp4');
+    ffmpegInstance.FS('unlink', 'output.wav');
     
     if (audioBlob.size === 0) {
       throw new Error('No se pudo extraer el audio del video');
     }
     
-    showLoading('Transcribiendo con IA (igual que en Studio)...');
+    showLoading('Transcribiendo con IA...');
     
-    // === ESTA ES LA PARTE QUE REUTILIZA LA LÓGICA DE STUDIO ===
     const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
     const formData = new FormData();
     formData.append('audio', audioBlob, 'audio.wav');
@@ -235,7 +175,6 @@ async function transcribeVideo() {
       originalSegments = [...currentSegments];
       renderTranscript(currentSegments);
       
-      // Habilitar botones
       const buttons = ['cleanBtn', 'previewBtn', 'exportBtn', 'addSubtitlesBtn'];
       buttons.forEach(id => {
         const btn = document.getElementById(id);
@@ -255,21 +194,6 @@ async function transcribeVideo() {
   }
 }
 
-// Función para cargar FFmpeg.wasm si no está disponible
-function loadFFmpegScript() {
-  return new Promise((resolve, reject) => {
-    if (typeof FFmpeg !== 'undefined') {
-      resolve();
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
-
 async function cleanTranscriptWithAI() {
   if (currentSegments.length === 0) {
     showToast('Primero transcribí el video');
@@ -281,45 +205,68 @@ async function cleanTranscriptWithAI() {
   try {
     const transcriptText = currentSegments.map(s => s.text).join(' ');
     
-    const response = await fetch('/api/suggest-cuts', {
+    // Usar Gemini a través del worker
+    const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
+    
+    const prompt = `Analiza esta transcripción de entrevista y devuelve SOLO los números de segmento (índices) que contienen muletillas, silencios o repeticiones. 
+    Formato de respuesta: [0, 2, 5]
+    
+    Transcripción por segmentos:
+    ${currentSegments.map((s, i) => `${i}: ${s.text}`).join('\n')}`;
+    
+    const response = await fetch(WORKER + '/titulares', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        transcript: transcriptText,
-        segments: currentSegments
+        modo: 'nota',
+        contenido: prompt,
+        cantidad: 1,
+        tono: 'directo'
       })
     });
     
-    if (!response.ok) {
-      throw new Error(`Error: ${response.status}`);
+    const data = await response.json();
+    
+    let indicesAEliminar = [];
+    
+    if (data.ok && data.titulares && data.titulares.length) {
+      const text = data.titulares[0];
+      const matches = text.match(/\d+/g);
+      if (matches) {
+        indicesAEliminar = matches.map(Number).filter(i => i < currentSegments.length);
+      }
     }
     
-    const result = await response.json();
-    
-    if (result.ok) {
-      // Marcar los segmentos sugeridos para corte
-      const suggestions = result.suggestions || [];
-      
-      currentSegments = currentSegments.map(segment => {
-        const suggestion = suggestions.find(s => 
-          Math.abs(s.start - segment.start) < 1 && // Menos de 1 segundo de diferencia
-          Math.abs(s.end - segment.end) < 1
-        );
-        
-        return {
-          ...segment,
-          removed: suggestion ? true : segment.removed
-        };
+    // Si no se detectaron índices, usar detección local de muletillas
+    if (indicesAEliminar.length === 0) {
+      const muletillas = ['eh', 'este', 'em', 'mm', 'ah', 'ehh', 'estee', 'o sea', 'digamos', 'como que'];
+      currentSegments.forEach((segment, idx) => {
+        const textLower = segment.text.toLowerCase();
+        let tieneMuletilla = false;
+        for (const m of muletillas) {
+          if (textLower.includes(m)) {
+            tieneMuletilla = true;
+            break;
+          }
+        }
+        if (tieneMuletilla || (segment.end - segment.start) < 1.5) {
+          indicesAEliminar.push(idx);
+        }
       });
-      
-      renderTranscript(currentSegments);
-      showToast('IA ha analizado el contenido. Revisá las sugerencias y edita si es necesario.');
-    } else {
-      throw new Error(result.error || 'Error desconocido');
     }
+    
+    // Marcar los segmentos
+    currentSegments = currentSegments.map((segment, idx) => ({
+      ...segment,
+      removed: indicesAEliminar.includes(idx) ? true : segment.removed
+    }));
+    
+    renderTranscript(currentSegments);
+    showToast(`🔍 ${indicesAEliminar.length} segmentos marcados para eliminar. Revisá y editá si es necesario.`);
+    
   } catch (error) {
     console.error('Error limpiando con IA:', error);
-    showToast(`Error limpiando con IA: ${error.message}`);
+    showToast(`Error: ${error.message}`);
   } finally {
     hideLoading();
   }
@@ -341,7 +288,7 @@ function renderTranscript(segments) {
     return `
       <div class="segment ${removedClass}" data-index="${index}">
         <div class="segment-time">${startTime} - ${endTime}</div>
-        <div class="segment-text">${segment.text}</div>
+        <div class="segment-text">${escapeHtml(segment.text)}</div>
         <div class="segment-actions">
           <button class="mm-btn mm-btn-sm" onclick="toggleSegment(${index})">
             ${segment.removed ? '↩️ Restaurar' : '🗑️ Quitar'}
@@ -351,18 +298,25 @@ function renderTranscript(segments) {
     `;
   }).join('');
   
-  // Agregar evento click para saltar al tiempo en el video
   document.querySelectorAll('.segment').forEach(segmentEl => {
-    segmentEl.addEventListener('click', () => {
-      const index = parseInt(segmentEl.dataset.index);
-      const segment = currentSegments[index];
-      if (segment) {
-        const video = document.getElementById('videoPlayer');
-        video.currentTime = segment.start;
-        video.focus();
+    segmentEl.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'BUTTON') {
+        const index = parseInt(segmentEl.dataset.index);
+        const segment = currentSegments[index];
+        if (segment) {
+          const video = document.getElementById('videoPlayer');
+          video.currentTime = segment.start;
+          video.focus();
+        }
       }
     });
   });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function toggleSegment(index) {
@@ -379,7 +333,18 @@ function formatTime(seconds) {
 }
 
 function previewEditedVideo() {
-  showToast('Funcionalidad de vista previa en desarrollo. En la versión completa, aquí se reproducirían solo los segmentos no eliminados.');
+  const segmentsToKeep = currentSegments.filter(s => !s.removed);
+  if (segmentsToKeep.length === 0) {
+    showToast('No hay segmentos para previsualizar');
+    return;
+  }
+  
+  const video = document.getElementById('videoPlayer');
+  if (video && segmentsToKeep[0]) {
+    video.currentTime = segmentsToKeep[0].start;
+    video.play();
+    showToast(`Reproduciendo desde ${formatTime(segmentsToKeep[0].start)}`);
+  }
 }
 
 async function exportVideo() {
@@ -388,25 +353,24 @@ async function exportVideo() {
     return;
   }
   
-  // Verificar que hay segmentos para exportar
   const segmentsToExport = currentSegments.filter(s => !s.removed);
   if (segmentsToExport.length === 0) {
-    showToast('No hay segmentos para exportar. Dejá al menos un segmento activo.');
+    showToast('No hay segmentos para exportar.');
     return;
   }
   
   showLoading('Procesando video editado...');
   
   try {
-    // En una implementación real, usaríamos ffmpeg.wasm para cortar y unir el video
-    // según los segmentos seleccionados
-    
-    // Simulamos el proceso
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Mostrar panel de exportación
-    document.getElementById('exportPanel').style.display = 'block';
-    document.getElementById('fileNameInput').value = `entrevista-editada-${new Date().toISOString().slice(0, 10)}`;
+    const exportPanel = document.getElementById('exportPanel');
+    if (exportPanel) exportPanel.style.display = 'block';
+    
+    const fileNameInput = document.getElementById('fileNameInput');
+    if (fileNameInput) {
+      fileNameInput.value = `entrevista-editada-${new Date().toISOString().slice(0, 10)}`;
+    }
     
     showToast('¡Video procesado! Puedes descargarlo ahora.');
   } catch (error) {
@@ -418,17 +382,14 @@ async function exportVideo() {
 }
 
 function toggleSubtitles() {
-  showToast('Funcionalidad de subtítulos en desarrollo. En la versión completa, se generarían subtítulos basados en la transcripción editada.');
+  showToast('Funcionalidad de subtítulos en desarrollo.');
 }
 
 function showToast(message) {
   const toast = document.getElementById('toast');
   toast.textContent = message;
   toast.classList.add('show');
-  
-  setTimeout(() => {
-    toast.classList.remove('show');
-  }, 3000);
+  setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
 function showLoading(text) {
@@ -439,3 +400,6 @@ function showLoading(text) {
 function hideLoading() {
   document.getElementById('loadingOverlay').classList.remove('active');
 }
+
+// Exponer toggleSegment globalmente para los botones onclick
+window.toggleSegment = toggleSegment;
