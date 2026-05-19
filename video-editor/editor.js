@@ -570,5 +570,8 @@ async function transcribeVideoSinFFmpeg() {
   }
 }
 
+// Convertir a MP3 (usando Web Audio API y librería externa si es necesario)
+// Por ahora, mantener WAV pero cambiar el campo a 'file' es suficiente
+
 // Exponer toggleSegment globalmente para los botones onclick
 window.toggleSegment = toggleSegment;
