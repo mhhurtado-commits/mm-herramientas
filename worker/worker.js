@@ -1293,6 +1293,95 @@ export default {
     const url=new URL(request.url);
     const path=url.pathname;
 
+    // ============================================================
+    // PRIORIDAD 1: RUTAS DE API (GET, POST, DELETE)
+    // Deben evaluarse PRIMERO antes que cualquier otra lógica
+    // ============================================================
+
+    // ── API GET ──
+    if(request.method==="GET"){
+      if(path==="/api/test-ai")                      return handleTestAI(env);
+      if(path==="/api/studio/proyectos")             return handleStudioObtenerProyectos(env);
+    }
+
+    // ── API DELETE ──
+    if(request.method==="DELETE"){
+      if(path==="/api/studio/proyecto")              return handleStudioEliminarProyecto(url, env);
+    }
+
+    // ── API POST (FormData) ──
+    if(request.method==="POST"){
+      if(path==="/api/transcribe") {
+        return handleTranscribe(request, env);
+      }
+    }
+
+    // ── API POST (JSON) ──
+    if(request.method==="POST"){
+      if(path==="/api/suggest-cuts"){
+        let body;
+        try {
+          body = await request.json();
+        } catch(e) {
+          return jsonError("JSON inválido", 400);
+        }
+        return handleVideoEditorSuggestCuts(body, env);
+      }
+
+      if(path==="/api/generate-headline"){
+        try {
+          const { image } = await request.json();
+          
+          // Validar que exista la API Key
+          if (!env.GEMINI_API_KEY) {
+            return new Response(JSON.stringify({ error: 'Falta configurar GEMINI_API_KEY' }), { 
+              status: 500, 
+              headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
+            });
+          }
+
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
+
+          // Extraer base64 puro (quitar 'data:image/jpeg;base64,')
+          const base64Data = image.split(',')[1]; 
+          const mimeType = image.split(';')[0].split(':')[1];
+
+          const payload = {
+            contents: [{
+              parts: [
+                { text: "Eres un editor periodístico de Media Mendoza. Mira esta imagen y escribe un titular corto, impactante y en español argentino (máximo 8 palabras). Usa mayúsculas solo en la primera letra y nombres propios. Sin puntos finales." },
+                { inline_data: { mime_type: mimeType, data: base64Data } }
+              ]
+            }]
+          };
+
+          const aiResponse = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const aiData = await aiResponse.json();
+          const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
+
+          return new Response(JSON.stringify({ headline: headline.trim() }), { 
+            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
+          });
+
+        } catch (error) {
+          console.error("Error Gemini:", error);
+          return new Response(JSON.stringify({ error: error.message }), { 
+            status: 500, 
+            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
+          });
+        }
+      }
+    }
+
+    // ============================================================
+    // PRIORIDAD 2: RESTO DE RUTAS (GET, DELETE, POST)
+    // ============================================================
+
     // ── GET ──
     if(request.method==="GET"){
       if(path==="/"&&url.searchParams.has("url"))    return handlePlacasUrl(url);
@@ -1318,8 +1407,6 @@ export default {
       if(path==="/music/search")                     return handleMusicSearch(url, env);
       if(path==="/music/preview")                    return handleMusicPreview(url, env);
       if(path==="/test-ai")                          return handleTestAI(env);
-      if(path==="/api/test-ai")                      return handleTestAI(env);
-      if(path==="/api/studio/proyectos")             return handleStudioObtenerProyectos(env);
       return jsonError("Ruta no encontrada",404);
     }
 
@@ -1331,26 +1418,20 @@ export default {
       if(path==="/agenda/evento")                    return handleDeleteAgendaEvento(url,env);
       if(path==="/agenda/efemeride")                 return handleDeleteAgendaEfemeride(url,env);
       if(path==="/studio/proyecto")                  return handleStudioEliminarProyecto(url, env);
-      if(path==="/api/studio/proyecto")              return handleStudioEliminarProyecto(url, env);
       return jsonError("Ruta no encontrada",404);
     }
 
     if(request.method!=="POST") return jsonError("Método no permitido",405);
 
     // ============================================================
-    // PRIMERO: rutas que NO usan JSON (FormData)
+    // POST: rutas que NO usan JSON (FormData)
     // ============================================================
     if (path === "/studio/transcribir") {
       return handleStudioTranscribir(request, env);
     }
-    
-    // Rutas del editor de video que manejan FormData
-    if (url.pathname === '/api/transcribe' && request.method === 'POST') {
-      return handleTranscribe(request, env);
-    }
 
     // ============================================================
-    // DESPUÉS: rutas que usan JSON
+    // POST: rutas que usan JSON
     // ============================================================
     let body; 
     try {
@@ -1387,59 +1468,6 @@ export default {
     if(path==="/resumen/generar-guion-reel")         return handleGenerarGuionReel(body, env);
     if(path==="/studio/generar-vtt")                 return handleStudioGenerarVTT(request, env);
     if(path==="/studio/proyecto")                    return handleStudioGuardarProyecto(body, env);
-    
-    // Rutas del editor de video que manejan JSON
-    if(path==="/api/suggest-cuts")                   return handleVideoEditorSuggestCuts(body, env);
-
-    // API: Generar titular con IA (Gemini Vision)
-    if (url.pathname === '/api/generate-headline' && request.method === 'POST') {
-      try {
-        const { image } = await request.json();
-        
-        // Validar que exista la API Key
-        if (!env.GEMINI_API_KEY) {
-          return new Response(JSON.stringify({ error: 'Falta configurar GEMINI_API_KEY' }), { 
-            status: 500, 
-            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
-          });
-        }
-
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
-
-        // Extraer base64 puro (quitar 'data:image/jpeg;base64,')
-        const base64Data = image.split(',')[1]; 
-        const mimeType = image.split(';')[0].split(':')[1];
-
-        const payload = {
-          contents: [{
-            parts: [
-              { text: "Eres un editor periodístico de Media Mendoza. Mira esta imagen y escribe un titular corto, impactante y en español argentino (máximo 8 palabras). Usa mayúsculas solo en la primera letra y nombres propios. Sin puntos finales." },
-              { inline_data: { mime_type: mimeType, data: base64Data } }
-            ]
-          }]
-        };
-
-        const aiResponse = await fetch(geminiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const aiData = await aiResponse.json();
-        const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
-
-        return new Response(JSON.stringify({ headline: headline.trim() }), { 
-          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
-        });
-
-      } catch (error) {
-        console.error("Error Gemini:", error);
-        return new Response(JSON.stringify({ error: error.message }), { 
-          status: 500, 
-          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
-        });
-      }
-    }
 
     return jsonError("Ruta no encontrada",404);
   },
