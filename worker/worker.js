@@ -657,6 +657,23 @@ async function handleTitulares(body,env){
 }
 async function handleReformular(body,env){
   const{titulo,contenido,contexto="",estilo="formal"}=body;
+  if(!titulo||!contenido) return jsonError("Faltan campos",400);
+  const ed=comprimirEditorial(await getEditorial(env));
+  const prompt=`Sos redactor de Media Mendoza.\nReformulá completamente esta nota.\n\nTítulo original: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${contexto?`\nINFO EXTRA:\n${contexto}\n`:""}\n${ESTILOS_DESC[estilo]||ESTILOS_DESC.formal}\n${ed?`\nREGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titular":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[]}`;
+  const r=await callGemini(prompt,env);
+  if(r.error) return jsonError(r.error,500);
+  return jsonOk(r.data);
+}
+async function handleRedactar(body,env){
+  const{ideas,buscarWeb=false}=body;
+  if(!ideas) return jsonError("Falta campo: ideas",400);
+  const ed=comprimirEditorial(await getEditorial(env));
+  const prompt=`Sos redactor de Media Mendoza.\nRedactá una nota periodística.\n\nCONTENIDO:\n${ideas}\n\n${buscarWeb?"Buscá contexto en la web.":"Solo usá la info provista."}\n${ed?`\nREGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titular":"","bajada":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}`;
+  const fn=buscarWeb?callGeminiConBusqueda:callGemini;
+  const r=await fn(prompt,env);
+  if(r.error) return jsonError(r.error,500);
+  return jsonOk(r.data);
+}
 
 async function handleDeleteFuente(url,env){
   const id=url.searchParams.get("id");if(!id) return jsonError("id requerido",400);
@@ -878,93 +895,6 @@ export default {
   }
 };
 
-  if(!titulo||!contenido) return jsonError("Faltan campos",400);
-  const ed=comprimirEditorial(await getEditorial(env));
-  const prompt=`Sos redactor de Media Mendoza.\nReformulá completamente esta nota.\n\nTítulo original: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${contexto?`\nINFO EXTRA:\n${contexto}\n`:""}\n${ESTILOS_DESC[estilo]||ESTILOS_DESC.formal}\n${ed?`\nREGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titular":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[]}`;
-  const r=await callGemini(prompt,env);
-  if(r.error) return jsonError(r.error,500);
-  return jsonOk(r.data);
-}
-async function handleRedactar(body,env){
-  const{ideas,buscarWeb=false}=body;
-  if(!ideas) return jsonError("Falta campo: ideas",400);
-  const ed=comprimirEditorial(await getEditorial(env));
-  const prompt=`Sos redactor de Media Mendoza.\nRedactá una nota periodística.\n\nCONTENIDO:\n${ideas}\n\n${buscarWeb?"Buscá contexto en la web.":"Solo usá la info provista."}\n${ed?`\nREGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titular":"","bajada":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}`;
-  const fn=buscarWeb?callGeminiConBusqueda:callGemini;
-  const r=await fn(prompt,env);
-  if(r.error) return jsonError(r.error,500);
-  return jsonOk(r.data);
-}
-
-// ============================================================
-// AGENDA
-// ============================================================
-async function handleGetAgendaEfemerides(env){
-  try{const e=await listarObjetosKV(env,AGENDA_EF_PREFIX);e.sort((a,b)=>a.mes-b.mes||a.dia-b.dia);return jsonOk({efemerides:e})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
-}
-async function handlePostAgendaEfemeride(body,env){
-  const titulo=String(body.titulo||"").trim();const dia=parseInt(body.dia)||0;const mes=parseInt(body.mes)||0;
-  if(!titulo||!dia||!mes||dia<1||dia>31||mes<1||mes>12) return jsonError("Faltan campos válidos",400);
-  const ef={id:body.id||generarId("ef_"),titulo,tituloBase:body.tituloBase||titulo,dia,mes,tipo:String(body.tipo||"efemeride").trim(),alcance:String(body.alcance||"local").trim(),descripcion:String(body.descripcion||"").trim(),creado:body.creado||Date.now()};
-  try{await env.KV.put(`${AGENDA_EF_PREFIX}${ef.id}`,JSON.stringify(ef));return jsonOk({guardado:true,id:ef.id,efemeride:ef})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
-}
-async function handleDeleteAgendaEfemeride(url,env){
-  const id=url.searchParams.get("id");if(!id) return jsonError("Falta id",400);
-  try{await env.KV.delete(`${AGENDA_EF_PREFIX}${id}`);return jsonOk({eliminado:true})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
-}
-async function handleGetAngulosCache(url,env){
-  const key=String(url.searchParams.get("key")||"").trim();if(!key) return jsonError("Falta key",400);
-  try{const v=await env.KV.get(ANGULOS_PREFIX+key,"json");return jsonOk({data:v||null})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
-}
-async function handleAgendaAngulos(body,env){
-  const titulo=String(body.titulo||"").trim();if(!titulo) return jsonError("Falta titulo",400);
-  const kvKey=String(body.kvKey||"").trim();
-  if(kvKey){try{const c=await env.KV.get(ANGULOS_PREFIX+kvKey,"json");if(c) return jsonOk({...c,fromCache:true})}catch(e){}}
-  const prompt=`Sos editor de agenda de Media Mendoza.\nEVENTO:\nTitulo: ${titulo}\nDescripcion: ${String(body.descripcion||"").trim()}\nFecha: ${String(body.fecha||"").trim()}\nTipo: ${String(body.tipo||"").trim()}\n\nResponde SOLO con JSON sin backticks:\n{"angulos":["a1"],"preguntas":["p1"],"fuentes_sugeridas":["f1"],"consejo":""}`;
-  const r=await callGemini(prompt,env);if(r.error) return jsonError(r.error,500);
-  const data={angulos:Array.isArray(r.data?.angulos)?r.data.angulos:[],preguntas:Array.isArray(r.data?.preguntas)?r.data.preguntas:[],fuentes_sugeridas:Array.isArray(r.data?.fuentes_sugeridas)?r.data.fuentes_sugeridas:[],consejo:String(r.data?.consejo||"").trim()};
-  if(kvKey){try{await env.KV.put(ANGULOS_PREFIX+kvKey,JSON.stringify(data),{expirationTtl:ANGULOS_TTL})}catch(e){}}
-  return jsonOk(data);
-}
-async function handleGetAgendaEventos(url,env){
-  try{const mes=String(url.searchParams.get("mes")||"").trim();let ev=await listarObjetosKV(env,AGENDA_EV_PREFIX);if(mes)ev=ev.filter(e=>String(e.fecha||"").startsWith(mes));ev.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));return jsonOk({eventos:ev})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
-}
-async function handlePostAgendaEvento(body,env){
-  const titulo=String(body.titulo||"").trim();const fecha=String(body.fecha||"").trim();
-  if(!titulo||!fecha) return jsonError("Faltan campos",400);
-  const ev={id:body.id||generarId("ag_"),titulo,fecha,hora:String(body.hora||"").trim(),tipo:String(body.tipo||"evento").trim(),alcance:String(body.alcance||"local").trim(),descripcion:String(body.descripcion||"").trim(),periodista:String(body.periodista||"").trim(),creado:body.creado||Date.now()};
-  try{await env.KV.put(`${AGENDA_EV_PREFIX}${ev.id}`,JSON.stringify(ev));return jsonOk({guardado:true,id:ev.id,evento:ev})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
-}
-async function handleDeleteAgendaEvento(url,env){
-  const id=url.searchParams.get("id");if(!id) return jsonError("Falta id",400);
-  try{await env.KV.delete(`${AGENDA_EV_PREFIX}${id}`);return jsonOk({eliminado:true})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
-}
-
-// ============================================================
-// SCRAPING / PLACAS
-// ============================================================
-async function handleScrape(url){
-  const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
-  try{new URL(targetUrl)}catch{return jsonError("URL inválida",400)}
-  try{
-    const{html}=await fetchHtml(targetUrl,300);
-    const ogTitle=html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,200})["']/i);
-    const titleTag=html.match(/<title[^>]*>([^<]{1,200})<\/title>/i);
-    const titulo=(ogTitle?.[1]||titleTag?.[1]||'').replace(/\s+/g,' ').trim();
-    const ogImg=html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,500})["']/i)||html.match(/<meta[^>]+content=["']([^"']{1,500})["'][^>]+property=["']og:image["']/i);
-    const texto=extraerTexto(html);
-    if(!texto||texto.length<100) return jsonError("No se pudo extraer contenido",422);
-    return jsonOk({titulo,texto,imagen:ogImg?.[1]||'',url:targetUrl});
-  }catch(err){return jsonError(`Error scrapeando: ${err.message}`,502)}
-}
-async function handlePlacasUrl(url){
   const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
   try{new URL(targetUrl)}catch{return jsonError("URL inválida",400)}
   try{const{html}=await fetchHtml(targetUrl,300);const data=extraerDatosNota(html,targetUrl);if(!data.title&&!data.body) return jsonError("No se pudo extraer contenido",422);return jsonOk(data)}
