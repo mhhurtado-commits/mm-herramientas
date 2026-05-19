@@ -3,6 +3,59 @@ let currentVideoFile = null;
 let currentSegments = [];
 let originalSegments = [];
 
+// ============================================================
+// EXTRACCIÓN DE AUDIO CON FFMPEG (alternativa si falla el método anterior)
+// ============================================================
+
+let ffmpeg = null;
+
+async function loadFFmpeg() {
+  if (ffmpeg) return ffmpeg;
+  
+  showLoading('Cargando FFmpeg (primera vez puede tardar)...');
+  
+  try {
+    const { createFFmpeg } = FFmpeg;
+    ffmpeg = createFFmpeg({ log: true });
+    await ffmpeg.load();
+    hideLoading();
+    return ffmpeg;
+  } catch (error) {
+    console.error('Error cargando FFmpeg:', error);
+    hideLoading();
+    return null;
+  }
+}
+
+async function extractAudioWithFFmpeg(videoFile) {
+  const ffmpegInstance = await loadFFmpeg();
+  if (!ffmpegInstance) return null;
+  
+  showLoading('Extrayendo audio con FFmpeg...');
+  
+  try {
+    // Escribir el archivo de video en el sistema de archivos virtual
+    const data = await fetchFile(videoFile);
+    ffmpegInstance.FS('writeFile', 'input.mp4', data);
+    
+    // Extraer audio
+    await ffmpegInstance.run('-i', 'input.mp4', '-ac', '1', '-vn', '-ar', '16000', 'output.wav');
+    
+    // Leer el audio extraído
+    const audioData = ffmpegInstance.FS('readFile', 'output.wav');
+    const audioBlob = new Blob([audioData.buffer], { type: 'audio/wav' });
+    
+    // Limpiar
+    ffmpegInstance.FS('unlink', 'input.mp4');
+    ffmpegInstance.FS('unlink', 'output.wav');
+    
+    return audioBlob;
+  } catch (error) {
+    console.error('Error con FFmpeg:', error);
+    return null;
+  }
+}
+
 // Inicializar la aplicación
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
@@ -96,77 +149,117 @@ async function transcribeVideo() {
     return;
   }
   
-  showLoading('Extrayendo audio del video y transcribiendo con IA...');
+  showLoading('Extrayendo audio del video...');
   
   try {
-    // Inicializar FFmpeg
-    const { createFFmpeg, fetchFile } = FFmpeg;
-    const ffmpeg = createFFmpeg({ log: true });
-
-    // Cargar FFmpeg
-    await ffmpeg.load();
-
-    // Copiar el archivo de video al sistema de archivos virtual de FFmpeg
-    ffmpeg.FS('writeFile', 'input_video', await fetchFile(currentVideoFile));
-
-    // Extraer audio del video usando FFmpeg
-    await ffmpeg.run('-i', 'input_video', '-ac', '1', '-vn', '-ab', '128k', '-ar', '44100', 'extracted_audio.wav');
-
-    // Leer el archivo de audio extraído
-    const audioData = ffmpeg.FS('readFile', 'extracted_audio.wav');
-
-    // Crear un blob con el audio
-    const audioBlob = new Blob([audioData.buffer], { type: 'audio/wav' });
-    const audioFile = new File([audioBlob], 'extracted_audio.wav', { type: 'audio/wav' });
-
-    // Enviar archivo de audio al worker para transcribir
+    // Crear un elemento de audio para extraer el audio del video
+    // Esto evita la dependencia de FFmpeg
+    const videoElement = document.createElement('video');
+    const videoUrl = URL.createObjectURL(currentVideoFile);
+    videoElement.src = videoUrl;
+    
+    // Esperar a que el video esté listo
+    await new Promise((resolve) => {
+      videoElement.onloadedmetadata = resolve;
+    });
+    
+    // Crear un contexto de audio para capturar el audio del video
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioContext.createMediaElementSource(videoElement);
+    const destination = audioContext.createMediaStreamDestination();
+    source.connect(destination);
+    
+    // Conectar también a los altavoces para que se pueda escuchar
+    source.connect(audioContext.destination);
+    
+    // Crear un MediaRecorder para grabar el audio
+    const mediaRecorder = new MediaRecorder(destination.stream);
+    const audioChunks = [];
+    
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    };
+    
+    // Reproducir el video para capturar el audio
+    videoElement.play();
+    
+    // Grabar durante la duración del video
+    const recordingPromise = new Promise((resolve) => {
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        resolve(audioBlob);
+      };
+    });
+    
+    mediaRecorder.start();
+    
+    // Detener la grabación cuando termine el video
+    await new Promise((resolve) => {
+      videoElement.onended = resolve;
+      setTimeout(resolve, videoElement.duration * 1000 + 1000);
+    });
+    
+    mediaRecorder.stop();
+    const audioBlob = await recordingPromise;
+    
+    // Limpiar
+    videoElement.pause();
+    videoElement.src = '';
+    URL.revokeObjectURL(videoUrl);
+    await audioContext.close();
+    
+    if (audioBlob.size === 0) {
+      throw new Error('No se pudo extraer el audio del video');
+    }
+    
+    showLoading('Transcribiendo audio con IA...');
+    
+    // Enviar al Worker para transcripción
     const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-
     const formData = new FormData();
-    // Cambiamos el nombre del campo a 'audio' para que coincida con lo que espera el worker
-    formData.append('audio', audioFile, audioFile.name);
-
+    formData.append('audio', audioBlob, 'audio.webm');
+    
+    // Usar el endpoint correcto
     const response = await fetch(WORKER + '/studio/transcribir', {
       method: 'POST',
       body: formData
     });
-
-    let resultText = null;
-    try {
-      resultText = await response.text();
-    } catch (e) {
-      resultText = null;
-    }
-
-    if (!response.ok) {
-      let errMsg = `HTTP ${response.status}`;
-      try {
-        const parsed = resultText ? JSON.parse(resultText) : null;
-        if (parsed && parsed.error) errMsg = parsed.error;
-      } catch (e) {}
-      throw new Error(errMsg + (resultText ? ` — ${resultText}` : ''));
-    }
-
-    const result = resultText ? JSON.parse(resultText) : {};
     
-    if (result.ok) {
-      currentSegments = [...result.segments];
-      originalSegments = [...result.segments];
-      renderTranscript(result.segments);
+    const result = await response.json();
+    
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || 'Error en transcripción');
+    }
+    
+    if (result.segments && result.segments.length) {
+      currentSegments = result.segments.map(seg => ({
+        ...seg,
+        removed: false
+      }));
+      originalSegments = [...currentSegments];
+      renderTranscript(currentSegments);
       
       // Habilitar botones
-      document.getElementById('cleanBtn').disabled = false;
-      document.getElementById('previewBtn').disabled = false;
-      document.getElementById('exportBtn').disabled = false;
-      document.getElementById('addSubtitlesBtn').disabled = false;
+      const cleanBtn = document.getElementById('cleanBtn');
+      const previewBtn = document.getElementById('previewBtn');
+      const exportBtn = document.getElementById('exportBtn');
+      const addSubtitlesBtn = document.getElementById('addSubtitlesBtn');
       
-      showToast('Transcripción completada. Editá el texto para marcar partes a eliminar.');
+      if (cleanBtn) cleanBtn.disabled = false;
+      if (previewBtn) previewBtn.disabled = false;
+      if (exportBtn) exportBtn.disabled = false;
+      if (addSubtitlesBtn) addSubtitlesBtn.disabled = false;
+      
+      showToast(`✅ Transcripción completada: ${result.segments.length} segmentos`);
     } else {
-      throw new Error(result.error || 'Error desconocido');
+      showToast('⚠ No se pudo transcribir el audio. Probá con otro video.');
     }
+    
   } catch (error) {
     console.error('Error transcribiendo:', error);
-    showToast(`Error transcribiendo: ${error.message}`);
+    showToast(`Error: ${error.message}`);
   } finally {
     hideLoading();
   }
