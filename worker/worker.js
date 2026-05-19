@@ -1312,7 +1312,7 @@ export default {
     // ── API POST (FormData) ──
     if(request.method==="POST"){
       if(path==="/api/transcribe") {
-        return handleTranscribe(request, env);
+        return handleStudioTranscribir(request, env);
       }
     }
 
