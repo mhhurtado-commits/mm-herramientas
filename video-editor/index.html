@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editor de Entrevistas IA — Media Mendoza</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .video-editor-main {
+      padding-top: var(--header-h);
+      padding-bottom: var(--footer-h);
+      max-width: 1400px;
+      margin: 0 auto;
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+
+    .video-editor-header {
+      margin: 24px 0 32px;
+    }
+
+    .video-editor-eyebrow {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .video-editor-eyebrow::before {
+      content: '';
+      display: block;
+      width: 28px;
+      height: 1px;
+      background: var(--v);
+    }
+
+    .video-editor-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 1;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+
+    .video-editor-title span:first-child { color: var(--text); }
+    .video-editor-title span:last-child { color: var(--v); }
+
+    .video-editor-desc {
+      font-size: 12px;
+      color: var(--muted);
+      max-width: 560px;
+      line-height: 1.6;
+    }
+
+    .video-editor-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .video-editor-layout { grid-template-columns: 1fr; }
+    }
+
+    .video-container {
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .video-player {
+      width: 100%;
+      background: #000;
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+    }
+
+    .transcript-container {
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .transcript-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .transcript-content {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 60vh;
+      padding: 10px;
+      background: var(--surface2);
+      border-radius: var(--radius);
+    }
+
+    .segment {
+      padding: 8px;
+      margin: 4px 0;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s;
+      position: relative;
+    }
+
+    .segment:hover {
+      background: var(--v-dim);
+    }
+
+    .segment.removed {
+      background: rgba(230, 57, 70, 0.1);
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .segment-time {
+      font-size: 10px;
+      color: var(--dim);
+      margin-bottom: 4px;
+    }
+
+    .segment-actions {
+      position: absolute;
+      right: 8px;
+      top: 8px;
+      display: none;
+    }
+
+    .segment:hover .segment-actions {
+      display: flex;
+    }
+
+    .export-panel {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+
+    .loading-spinner {
+      background: var(--surface);
+      padding: 24px;
+      border-radius: var(--radius-xl);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .upload-area {
+      border: 2px dashed var(--line2);
+      border-radius: var(--radius-lg);
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 20px;
+    }
+
+    .upload-area:hover {
+      border-color: var(--v);
+      background: var(--v-dim);
+    }
+
+    .progress-bar {
+      background: var(--surface2);
+      border-radius: 20px;
+      height: 6px;
+      overflow: hidden;
+      margin: 12px 0;
+      display: none;
+    }
+
+    .progress-bar.active {
+      display: block;
+    }
+
+    .progress-fill {
+      background: var(--v);
+      width: 0%;
+      height: 100%;
+      transition: width 0.3s;
+    }
+  </style>
+</head>
+<body>
+
+<header class="mm-header">
+  <a href="/" class="mm-header-brand">
+    <img src="../assets/logo.png" alt="Media Mendoza" class="mm-header-logo" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section">
+    <span class="mm-header-label">Editor de Entrevistas IA</span>
+  </div>
+  <div class="mm-header-status">
+    <div class="mm-status-dot"></div>
+    <span class="mm-status-txt">Conectado</span>
+  </div>
+</header>
+
+<div class="video-editor-main">
+  
+  <div class="video-editor-header">
+    <div class="video-editor-eyebrow">Edición de video automatizada</div>
+    <h1 class="video-editor-title">
+      <span>Editor de</span><br>
+      <span>Entrevistas IA</span>
+    </h1>
+    <p class="video-editor-desc">Subí un video de entrevista, transcríbelo con IA y edita el contenido eliminando partes no deseadas directamente desde la transcripción.</p>
+  </div>
+  
+  <div class="video-editor-layout">
+    
+    <!-- Panel izquierdo: Reproductor de video -->
+    <div class="video-container">
+      <div class="upload-area" id="uploadArea">
+        <div class="audio-upload-icon">🎥</div>
+        <div>Hacé clic o arrastrá un archivo de video</div>
+        <div style="font-size: 11px; color: var(--dim); margin-top: 8px">MP4, MOV, AVI · Máx 500MB · Hasta 10 minutos</div>
+        <input type="file" id="videoInput" accept="video/*" style="display:none">
+      </div>
+      
+      <video id="videoPlayer" class="video-player" controls style="display:none;">
+        Tu navegador no soporta el elemento de video.
+      </video>
+      
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      
+      <div class="action-buttons">
+        <button class="mm-btn mm-btn-primary" id="transcribeBtn" disabled>🔤 Transcribir con IA</button>
+        <button class="mm-btn" id="cleanBtn" disabled>✨ Limpiar Muletillas y Silencios</button>
+      </div>
+    </div>
+    
+    <!-- Panel derecho: Transcripción -->
+    <div class="transcript-container">
+      <div class="transcript-controls">
+        <button class="mm-btn" id="previewBtn" disabled>👁️ Vista Previa</button>
+        <button class="mm-btn mm-btn-primary" id="exportBtn" disabled>💾 Exportar Video</button>
+        <button class="mm-btn" id="addSubtitlesBtn" disabled>📝 Agregar Subtítulos</button>
+      </div>
+      
+      <div class="transcript-content" id="transcriptContent">
+        <p class="text-muted">Subí un video para comenzar. La transcripción aparecerá aquí.</p>
+      </div>
+      
+      <div class="export-panel" id="exportPanel" style="display:none;">
+        <div class="mm-field">
+          <label class="mm-label">Nombre del archivo</label>
+          <input type="text" id="fileNameInput" class="mm-input" placeholder="Nombre del video editado">
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+</div>
+
+<footer class="mm-footer">
+  <div class="mm-footer-dot"></div>
+  <span class="mm-footer-txt">Procesamiento en navegador · Sin servidor</span>
+  <div class="mm-footer-sep"></div>
+  <div class="mm-footer-meta">
+    <span class="mm-footer-item">Cloudflare Workers AI</span>
+    <span class="mm-footer-item">mediamendoza.pages.dev/video-editor</span>
+  </div>
+</footer>
+
+<div class="mm-toast" id="toast"></div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner">
+    <div class="mm-spinner"></div>
+    <div id="loadingText">Procesando video...</div>
+  </div>
+</div>
+
+<div class="theme-toggle" id="themeToggle">
+  <span class="icon" id="themeIcon">🌙</span>
+  <span id="themeLabel">Modo oscuro</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+<script src="./editor.js"></script>
+
+</body>
+</html>
