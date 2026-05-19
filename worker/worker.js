@@ -307,8 +307,9 @@ async function handleStudioTranscribir(request, env) {
     // 1. Obtener el ArrayBuffer del archivo
     const audioBuffer = await audioFile.arrayBuffer();
 
-    // 2. CONVERSIÓN CORRECTA: convertir ArrayBuffer a array de números para Whisper
-    const audioArray = Array.from(new Uint8Array(audioBuffer));
+    // 2. CONVERSIÓN: usar Uint8Array en lugar de crear un array JS grande
+    const audioArray = new Uint8Array(audioBuffer);
+    console.log('handleStudioTranscribir: audio bytes', audioArray.byteLength, 'file name', audioFile.name, 'type', audioFile.type);
 
     // 3. Llamar al modelo Whisper
     let response;

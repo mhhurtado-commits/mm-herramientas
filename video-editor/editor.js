@@ -96,25 +96,25 @@ async function transcribeVideo() {
     return;
   }
   
-  showLoading('Extrayendo audio y transcribiendo con IA...');
+  showLoading('Extrayendo audio del video y transcribiendo con IA...');
   
   try {
-    // Extraer audio del video usando ffmpeg.wasm
+    // Inicializar FFmpeg
     const { createFFmpeg, fetchFile } = FFmpeg;
     const ffmpeg = createFFmpeg({ log: true });
 
-    // Inicializar ffmpeg
+    // Cargar FFmpeg
     await ffmpeg.load();
 
-    // Escribir el archivo de video en el sistema virtual de ffmpeg
-    ffmpeg.FS('writeFile', 'input.' + currentVideoFile.name.split('.').pop(), await fetchFile(currentVideoFile));
+    // Copiar el archivo de video al sistema de archivos virtual de FFmpeg
+    ffmpeg.FS('writeFile', 'input_video', await fetchFile(currentVideoFile));
 
-    // Ejecutar ffmpeg para extraer el audio
-    await ffmpeg.run('-i', 'input.' + currentVideoFile.name.split('.').pop(), '-ac', '1', '-vn', 'output.wav');
+    // Extraer audio del video usando FFmpeg
+    await ffmpeg.run('-i', 'input_video', '-ac', '1', '-vn', '-ab', '128k', '-ar', '44100', ' extracted_audio.wav');
 
-    // Leer el archivo de audio resultante
-    const audioData = ffmpeg.FS('readFile', 'output.wav');
-    
+    // Leer el archivo de audio extraído
+    const audioData = ffmpeg.FS('readFile', 'extracted_audio.wav');
+
     // Crear un blob con el audio
     const audioBlob = new Blob([audioData.buffer], { type: 'audio/wav' });
     const audioFile = new File([audioBlob], 'extracted_audio.wav', { type: 'audio/wav' });
