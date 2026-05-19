@@ -1065,6 +1065,147 @@ async function handleMusicPreview(url, env) {
 }
 
 // ============================================================
+// VIDEO EDITOR - Transcripción y sugerencias de corte
+// ============================================================
+
+async function handleVideoEditorTranscribe(request, env) {
+  if (!env.AI) {
+    return jsonError("Cloudflare AI no está configurado", 500);
+  }
+
+  try {
+    const formData = await request.formData();
+    const audioFile = formData.get('audio');
+    
+    if (!audioFile) {
+      return jsonError("Falta archivo de audio", 400);
+    }
+
+    // Convertir el archivo a ArrayBuffer
+    const audioBuffer = await audioFile.arrayBuffer();
+    const audioArray = [...new Uint8Array(audioBuffer)];
+
+    // Llamar al modelo Whisper
+    const response = await env.AI.run('@cf/openai/whisper', {
+      audio: audioArray
+    });
+
+    let texto = '';
+    let segments = [];
+    let words = [];
+    
+    if (response) {
+      texto = response.text || '';
+      
+      if (response.words && Array.isArray(response.words)) {
+        words = response.words;
+        // Agrupar palabras en segmentos de aproximadamente 5 segundos
+        const groupDuration = 5; // segundos
+        let currentGroup = [];
+        let currentStart = 0;
+        
+        for (const word of words) {
+          if (currentGroup.length === 0) {
+            currentStart = word.start;
+          }
+          
+          currentGroup.push(word);
+          
+          // Si el grupo supera la duración objetivo o es el último
+          if (word.end - currentStart >= groupDuration || word === words[words.length - 1]) {
+            segments.push({
+              start: currentStart,
+              end: word.end,
+              text: currentGroup.map(w => w.word).join(' ').trim()
+            });
+            
+            currentGroup = [];
+          }
+        }
+      } else if (texto) {
+        // Si no hay palabras individuales, crear un segmento único
+        segments = [{ start: 0, end: 30, text: texto }];
+      }
+    }
+
+    return jsonOk({
+      texto: texto,
+      word_count: response?.word_count || texto.split(/\s+/).length,
+      segments: segments,
+      words: words
+    });
+
+  } catch (err) {
+    console.error('Error en transcripción de video editor:', err);
+    return jsonError("Error en transcripción: " + err.message, 500);
+  }
+}
+
+async function handleVideoEditorSuggestCuts(body, env) {
+  if (!env.AI) {
+    return jsonError("Cloudflare AI no está configurado", 500);
+  }
+
+  const { transcript, segments } = body;
+  
+  if (!transcript) {
+    return jsonError("Falta la transcripción", 400);
+  }
+
+  // Prompt para identificar muletillas y silencios
+  const prompt = `Analiza esta transcripción de una entrevista y sugiere cortes para mejorarla.
+Identifica y marca para corte:
+1. Muletillas ("ehh", "umm", "este", etc.)
+2. Silencios prolongados (más de 2 segundos)
+3. Repeticiones innecesarias
+4. Frases incompletas
+
+Devuelve una lista de segmentos temporales que deben eliminarse con sus tiempos de inicio y fin en segundos.
+Formato esperado: {"suggestions": [{"start": inicio_en_segundos, "end": fin_en_segundos, "reason": "motivo"}]}
+
+Transcripción: ${transcript.substring(0, 3000)}`;
+
+  try {
+    const response = await env.AI.run('@cf/meta/llama-3.2-1b-instruct', {
+      prompt: prompt
+    });
+
+    // Parsear la respuesta para extraer las sugerencias
+    let suggestions = [];
+    const responseText = response.response || "";
+    
+    // Intentar parsear como JSON
+    try {
+      const parsed = JSON.parse(responseText);
+      if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
+        suggestions = parsed.suggestions;
+      }
+    } catch (e) {
+      // Si no es JSON válido, intentar extraer información de texto
+      // Esta es una implementación simplificada - en la práctica se necesitaría un parser más robusto
+      const regex = /"start":\s*(\d+(?:\.\d+)?).*?"end":\s*(\d+(?:\.\d+)?)/g;
+      let match;
+      while ((match = regex.exec(responseText)) !== null) {
+        suggestions.push({
+          start: parseFloat(match[1]),
+          end: parseFloat(match[2]),
+          reason: "Automático"
+        });
+      }
+    }
+
+    return jsonOk({
+      suggestions: suggestions,
+      total_suggestions: suggestions.length
+    });
+
+  } catch (err) {
+    console.error('Error en sugerencias de corte:', err);
+    return jsonError("Error procesando sugerencias: " + err.message, 500);
+  }
+}
+
+// ============================================================
 // ROUTER PRINCIPAL
 // ============================================================
 
@@ -1099,6 +1240,8 @@ export default {
       if(path==="/music/search")                     return handleMusicSearch(url, env);
       if(path==="/music/preview")                    return handleMusicPreview(url, env);
       if(path==="/test-ai")                          return handleTestAI(env);
+      if(path==="/api/test-ai")                      return handleTestAI(env);
+      if(path==="/api/studio/proyectos")             return handleStudioObtenerProyectos(env);
       return jsonError("Ruta no encontrada",404);
     }
 
@@ -1110,6 +1253,7 @@ export default {
       if(path==="/agenda/evento")                    return handleDeleteAgendaEvento(url,env);
       if(path==="/agenda/efemeride")                 return handleDeleteAgendaEfemeride(url,env);
       if(path==="/studio/proyecto")                  return handleStudioEliminarProyecto(url, env);
+      if(path==="/api/studio/proyecto")              return handleStudioEliminarProyecto(url, env);
       return jsonError("Ruta no encontrada",404);
     }
 
@@ -1120,6 +1264,11 @@ export default {
     // ============================================================
     if (path === "/studio/transcribir") {
       return handleStudioTranscribir(request, env);
+    }
+    
+    // Rutas del editor de video que manejan FormData
+    if (path === "/api/transcribe") {
+      return handleVideoEditorTranscribe(request, env);
     }
 
     // ============================================================
@@ -1160,6 +1309,9 @@ export default {
     if(path==="/resumen/generar-guion-reel")         return handleGenerarGuionReel(body, env);
     if(path==="/studio/generar-vtt")                 return handleStudioGenerarVTT(request, env);
     if(path==="/studio/proyecto")                    return handleStudioGuardarProyecto(body, env);
+    
+    // Rutas del editor de video que manejan JSON
+    if(path==="/api/suggest-cuts")                   return handleVideoEditorSuggestCuts(body, env);
 
     // API: Generar titular con IA (Gemini Vision)
     if (url.pathname === '/api/generate-headline' && request.method === 'POST') {
@@ -1170,7 +1322,7 @@ export default {
         if (!env.GEMINI_API_KEY) {
           return new Response(JSON.stringify({ error: 'Falta configurar GEMINI_API_KEY' }), { 
             status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
           });
         }
 
@@ -1199,14 +1351,14 @@ export default {
         const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
 
         return new Response(JSON.stringify({ headline: headline.trim() }), { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
         });
 
       } catch (error) {
         console.error("Error Gemini:", error);
         return new Response(JSON.stringify({ error: error.message }), { 
           status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
         });
       }
     }
