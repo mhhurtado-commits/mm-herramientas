@@ -103,12 +103,14 @@ async function transcribeVideo() {
     // En una implementación real, convertiríamos el video a audio aquí
     
     // Enviar archivo de audio al worker para transcribir
+    const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
+
     const formData = new FormData();
-    // En lugar de enviar el video completo, lo convertimos a audio
-    // Por simplicidad en este ejemplo, usaremos el mismo archivo
+    // En este paso usamos el mismo archivo; el Worker acepta el campo 'audio'
+    // Si tenés audio separado, podés enviar ese blob en su lugar.
     formData.append('audio', currentVideoFile, currentVideoFile.name);
-    
-    const response = await fetch('/api/transcribe', {
+
+    const response = await fetch(WORKER + '/studio/transcribir', {
       method: 'POST',
       body: formData
     });

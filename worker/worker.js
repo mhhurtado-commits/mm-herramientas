@@ -296,9 +296,11 @@ async function handleStudioTranscribir(request, env) {
 
   try {
     const formData = await request.formData();
+    console.log('handleStudioTranscribir: formData keys', Array.from(formData.keys()));
     const audioFile = formData.get('audio');
     
     if (!audioFile) {
+      console.log('handleStudioTranscribir: no audio file found');
       return jsonError("Falta archivo de audio", 400);
     }
 
@@ -410,7 +412,6 @@ async function handleStudioObtenerProyectos(env) {
   try {
     const list = await env.KV.list({ prefix: STUDIO_PROYECTOS_PREFIX });
     const proyectos = [];
-    
     for (const key of list.keys) {
       const proyecto = await env.KV.get(key.name, 'json');
       if (proyecto) proyectos.push(proyecto);
@@ -470,6 +471,7 @@ async function handlePostReelConfig(body,env){
       if(!Array.isArray(body.voces)) return jsonError("voces debe ser array",400);
       await env.KV.put(REEL_VOCES_KEY, JSON.stringify(body.voces));
     }
+      console.log('handleStudioTranscribir: no audio file found');
     return jsonOk({guardado:true});
   }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -945,18 +947,50 @@ async function callGeminiConBusqueda(prompt,env){
   return r;
 }
 async function buscarDuckDuckGo(query){
-  try{
-    const res=await fetch("https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar",{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"text/html"},redirect:"follow"});
-    if(!res.ok) return [];
-    const html=await res.text();const resultados=[];
-    const linkRegex=/class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</g;let match;
-    while((match=linkRegex.exec(html))!==null&&resultados.length<5){
-      let u=match[1];const t=match[2].trim();
-      if(u.includes("uddg=")){const d=decodeURIComponent(u.split("uddg=")[1]?.split("&")[0]||"");if(d.startsWith("http"))u=d}
-      if(u.startsWith("http")&&t) resultados.push({url:u,titulo:t});
+    try {
+      const res = await fetch("https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query) + "&kl=es-ar", {
+        headers: { "User-Agent": BROWSER_HEADERS["User-Agent"], "Accept": "text/html" },
+        redirect: "follow"
+      });
+
+      if (!res.ok) return [];
+      const html = await res.text();
+      const resultados = [];
+
+      // Buscar anchors con clase result__a (títulos) y manejar enlaces con uddg=
+      const re = /<a[^>]+href=["']([^"']+)["'][^>]*class=["'][^"']*result__a[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi;
+      let m;
+      while ((m = re.exec(html)) !== null) {
+        let href = m[1];
+        const title = m[2].replace(/<[^>]+>/g, '').trim();
+        if (href.includes('uddg=')) {
+          try {
+            const d = decodeURIComponent(href.split('uddg=')[1].split('&')[0] || '');
+            if (d.startsWith('http')) href = d;
+          } catch (e) {}
+        }
+        if (href.startsWith('http')) resultados.push({ url: href, titulo: title });
+      }
+
+      // Fallback: buscar parámetros uddg por si quedaron enlaces distintos
+      const re2 = /uddg=([^"'&<>\s]{1,500})/gi;
+      while ((m = re2.exec(html)) !== null) {
+        try {
+          const d = decodeURIComponent(m[1]);
+          if (d.startsWith('http')) resultados.push({ url: d, titulo: '' });
+        } catch (e) {}
+      }
+
+      // Deduplicar por URL
+      const seen = new Set();
+      return resultados.filter(r => {
+        if (seen.has(r.url)) return false;
+        seen.add(r.url);
+        return true;
+      });
+    } catch (e) {
+      return [];
     }
-    return resultados;
-  }catch(e){return []}
 }
 async function callGemini(prompt,env){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
@@ -982,7 +1016,6 @@ async function callGemini(prompt,env){
 // ============================================================
 // MÚSICA DE FONDO - FREESOUND API
 // ============================================================
-
 async function handleMusicSearch(url, env) {
   const query = url.searchParams.get('q') || '';
   const page = parseInt(url.searchParams.get('page')) || 1;
@@ -1419,10 +1452,23 @@ export default {
     // ============================================================
     // POST: rutas que NO usan JSON (FormData)
     // ============================================================
+    // Rutas principales para transcripción (FormData)
     if (path === "/studio/transcribir") {
+      console.log('worker: incoming /studio/transcribir (FormData)', request.method, path, request.url, request.headers.get('content-type'));
       return handleStudioTranscribir(request, env);
     }
     if (path === "/api/transcribe") {
+      console.log('worker: incoming /api/transcribe (FormData)', request.method, path, request.url, request.headers.get('content-type'));
+      return handleStudioTranscribir(request, env);
+    }
+
+    // Alias para entornos donde la app vive en un subpath (ej. /video-editor)
+    if (path === "/video-editor/studio/transcribir") {
+      console.log('worker: incoming /video-editor/studio/transcribir (FormData)', request.method, path, request.url, request.headers.get('content-type'));
+      return handleStudioTranscribir(request, env);
+    }
+    if (path === "/video-editor/api/transcribe") {
+      console.log('worker: incoming /video-editor/api/transcribe (FormData)', request.method, path, request.url, request.headers.get('content-type'));
       return handleStudioTranscribir(request, env);
     }
 
