@@ -1309,13 +1309,6 @@ export default {
       if(path==="/api/studio/proyecto")              return handleStudioEliminarProyecto(url, env);
     }
 
-    // ── API POST (FormData) ──
-    if(request.method==="POST"){
-      if(path==="/api/transcribe") {
-        return handleStudioTranscribir(request, env);
-      }
-    }
-
     // ── API POST (JSON) ──
     if(request.method==="POST"){
       if(path==="/api/suggest-cuts"){
@@ -1427,6 +1420,9 @@ export default {
     // POST: rutas que NO usan JSON (FormData)
     // ============================================================
     if (path === "/studio/transcribir") {
+      return handleStudioTranscribir(request, env);
+    }
+    if (path === "/api/transcribe") {
       return handleStudioTranscribir(request, env);
     }
 
