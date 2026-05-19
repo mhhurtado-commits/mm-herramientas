@@ -376,16 +376,67 @@ async function handleVideoEditorTranscribir(request, env) {
   try {
     const formData = await request.formData();
     console.log('handleVideoEditorTranscribir: formData keys', Array.from(formData.keys()));
-    const videoFile = formData.get('video');
+    const audioFile = formData.get('audio') || formData.get('file');
     
-    if (!videoFile) {
-      console.log('handleVideoEditorTranscribir: no video file found');
-      return jsonError("Falta archivo de video", 400);
+    if (!audioFile) {
+      console.log('handleVideoEditorTranscribir: no audio file found');
+      return jsonError("Falta archivo de audio", 400);
     }
 
-    // En lugar de procesar el video aquí para extraer audio (ya que no tenemos FFmpeg en el worker),
-    // devolvemos un error explicando que actualmente solo aceptamos archivos de audio
-    return jsonError("Actualmente solo se aceptan archivos de audio. La funcionalidad de extracción de audio desde video se implementará próximamente.", 501);
+    // 1. Obtener el ArrayBuffer del archivo
+    const audioBuffer = await audioFile.arrayBuffer();
+
+    // 2. CONVERSIÓN: usar Uint8Array en lugar de crear un array JS grande
+    const audioArray = [...new Uint8Array(audioBuffer)];
+    console.log('handleVideoEditorTranscribir: audio bytes', audioArray.byteLength, 'file name', audioFile.name, 'type', audioFile.type);
+
+    // 3. Llamar al modelo Whisper
+    let response;
+    try {
+      console.log('handleVideoEditorTranscribir: calling env.AI.run whisper model');
+      response = await env.AI.run('@cf/openai/whisper', {
+        audio: audioArray
+      });
+      console.log('handleVideoEditorTranscribir: whisper response received');
+    } catch (aiErr) {
+      console.error('handleVideoEditorTranscribir: AI.run error', aiErr);
+      return jsonError('Error from AI model: ' + (aiErr.message || String(aiErr)), 500);
+    }
+
+    // 4. Procesar la respuesta de Whisper
+    let texto = '';
+    let vtt = '';
+    let segments = [];
+    let words = [];
+    
+    if (response) {
+      texto = response.text || '';
+      vtt = response.vtt || '';
+      
+      if (response.words && Array.isArray(response.words)) {
+        words = response.words;
+        const groupSize = 6;
+        for (let i = 0; i < words.length; i += groupSize) {
+          const group = words.slice(i, i + groupSize);
+          segments.push({
+            start: group[0].start,
+            end: group[group.length - 1].end,
+            text: group.map(w => w.word).join(' ')
+          });
+        }
+      } else if (texto) {
+        segments = [{ start: 0, end: 30, text: texto }];
+      }
+    }
+
+    return jsonOk({
+      texto: texto,
+      word_count: response?.word_count || texto.split(/\s+/).length,
+      segments: segments,
+      words: words,
+      vtt: vtt
+    });
+
   } catch (err) {
     console.error('Error en transcripción de video:', err);
     return jsonError("Error en transcripción de video: " + err.message, 500);

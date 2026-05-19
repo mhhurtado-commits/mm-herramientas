@@ -96,37 +96,17 @@ async function transcribeVideo() {
     return;
   }
   
-  showLoading('Extrayendo audio del video y transcribiendo con IA...');
+  showLoading('Enviando video para transcribir con IA...');
   
   try {
-    // Inicializar FFmpeg
-    const { createFFmpeg, fetchFile } = window.FFmpeg;
-    const ffmpeg = createFFmpeg({ log: true });
-
-    // Cargar FFmpeg
-    await ffmpeg.load();
-
-    // Copiar el archivo de video al sistema de archivos virtual de FFmpeg
-    ffmpeg.FS('writeFile', 'input_video', await fetchFile(currentVideoFile));
-
-    // Extraer audio del video usando FFmpeg
-    await ffmpeg.run('-i', 'input_video', '-ac', '1', '-vn', '-ab', '128k', '-ar', '44100', 'extracted_audio.wav');
-
-    // Leer el archivo de audio extraído
-    const audioData = ffmpeg.FS('readFile', 'extracted_audio.wav');
-
-    // Crear un blob con el audio
-    const audioBlob = new Blob([audioData.buffer], { type: 'audio/wav' });
-    const audioFile = new File([audioBlob], 'extracted_audio.wav', { type: 'audio/wav' });
-
-    // Enviar archivo de audio al worker para transcribir
     const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 
     const formData = new FormData();
-    formData.append('audio', audioFile, audioFile.name);
+    // En lugar de procesar el video aquí, enviamos directamente el video al worker
+    // El worker se encargará de extraer el audio y transcribirlo
+    formData.append('video', currentVideoFile, currentVideoFile.name);
 
-    // Usar el endpoint correcto para video editor
-    const response = await fetch(WORKER + '/studio/transcribir', {
+    const response = await fetch(WORKER + '/video-editor/transcribir', {
       method: 'POST',
       body: formData
     });
@@ -183,7 +163,7 @@ async function cleanTranscriptWithAI() {
   try {
     const transcriptText = currentSegments.map(s => s.text).join(' ');
     
-    const response = await fetch('https://mm-herramientas-worker.mhhurtado.workers.dev/api/suggest-cuts', {
+    const response = await fetch('/api/suggest-cuts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
