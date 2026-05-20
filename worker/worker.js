@@ -1,8 +1,5 @@
 // ============================================================
-// Media Mendoza — Worker v17
-// TTS: Azure Cognitive Services (devuelve audio directo)
-// + Biblioteca de música Freesound
-// + Studio: Transcripción con Cloudflare Whisper (CORREGIDO)
+// Media Mendoza — Worker v18 (FINAL CON TODAS LAS FUNCIONALIDADES)
 // ============================================================
 // @ts-nocheck
 
@@ -296,7 +293,8 @@ async function handleStudioTranscribir(request, env) {
 
   try {
     const formData = await request.formData();
-    const audioFile = formData.get('audio');
+    let audioFile = formData.get('audio');
+    if (!audioFile) audioFile = formData.get('file');
     
     if (!audioFile) {
       return jsonError("Falta archivo de audio", 400);
@@ -437,8 +435,158 @@ async function handleStudioEliminarProyecto(url, env) {
 }
 
 // ============================================================
+// VIDEO-EDITOR - Transcripción de audio extraído de video
+// ============================================================
+
+async function handleVideoEditorTranscribir(request, env) {
+  if (!env.AI) {
+    return jsonError("Cloudflare AI no está configurado", 500);
+  }
+
+  try {
+    const formData = await request.formData();
+    let audioFile = formData.get('audio');
+    if (!audioFile) audioFile = formData.get('file');
+    
+    if (!audioFile) {
+      return jsonError("Falta archivo de audio", 400);
+    }
+
+    console.log('[video-editor] Audio recibido:', audioFile.name, audioFile.size, audioFile.type);
+
+    const audioBuffer = await audioFile.arrayBuffer();
+    const audioArray = [...new Uint8Array(audioBuffer)];
+
+    const response = await env.AI.run('@cf/openai/whisper', {
+      audio: audioArray
+    });
+
+    let texto = '';
+    let vtt = '';
+    let segments = [];
+    let words = [];
+    
+    if (response) {
+      texto = response.text || '';
+      vtt = response.vtt || '';
+      
+      if (response.words && Array.isArray(response.words)) {
+        words = response.words;
+        const groupSize = 6;
+        for (let i = 0; i < words.length; i += groupSize) {
+          const group = words.slice(i, i + groupSize);
+          segments.push({
+            start: group[0].start,
+            end: group[group.length - 1].end,
+            text: group.map(w => w.word).join(' ')
+          });
+        }
+      } else if (texto) {
+        segments = [{ start: 0, end: 30, text: texto }];
+      }
+    }
+
+    console.log('[video-editor] Transcripción completada, segmentos:', segments.length);
+    return jsonOk({
+      texto: texto,
+      word_count: response?.word_count || texto.split(/\s+/).length,
+      segments: segments,
+      words: words,
+      vtt: vtt
+    });
+
+  } catch (err) {
+    console.error('Error en transcripción de video:', err);
+    return jsonError("Error en transcripción de video: " + err.message, 500);
+  }
+}
+
+// ============================================================
+// VIDEO-EDITOR - Sugerir cortes con IA
+// ============================================================
+
+async function handleVideoEditorSuggestCuts(body, env) {
+  const { transcript, segments } = body;
+  if (!transcript) return jsonError("Falta la transcripción", 400);
+
+  const prompt = `Analiza esta transcripción de entrevista y devuelve SOLO los números de segmento (índices) que contienen muletillas (eh, este, em, o sea, digamos, como que), silencios largos, repeticiones o frases incompletas.
+  Formato de respuesta: [0, 2, 5]
+  NO añadas explicaciones, solo el array.
+  
+  Transcripción por segmentos (cada línea es un segmento con su índice):
+  ${segments.map((s, i) => `${i}: ${s.text}`).join('\n')}`;
+
+  try {
+    const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+    if (!keys.length) throw new Error("No hay API keys de Gemini configuradas");
+
+    let response;
+    for (let i = 0; i < keys.length; i++) {
+      try {
+        const res = await fetch(`${GEMINI_URL}?key=${keys[i]}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 200 } })
+        });
+        if (res.ok) { response = await res.json(); break; }
+      } catch (e) { continue; }
+    }
+    if (!response) throw new Error("No se pudo obtener respuesta de Gemini");
+
+    const raw = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const match = raw.match(/\[[\d,\s]*\]/);
+    let indices = [];
+    if (match) {
+      indices = JSON.parse(match[0]);
+    } else {
+      const muletillas = ['eh', 'este', 'em', 'mm', 'ah', 'ehh', 'estee', 'o sea', 'digamos', 'como que'];
+      indices = segments.filter((seg, idx) => {
+        const text = seg.text.toLowerCase();
+        return muletillas.some(m => text.includes(m)) || (seg.end - seg.start) < 1.5;
+      }).map((_, idx) => idx);
+    }
+    return jsonOk({ suggestions: indices.map(i => ({ start: segments[i].start, end: segments[i].end, reason: "sugerido por IA" })), total_suggestions: indices.length });
+  } catch (err) {
+    console.error('Error en sugerencias de corte:', err);
+    return jsonError("Error procesando sugerencias: " + err.message, 500);
+  }
+}
+
+// ============================================================
+// GENERAR TITULAR CON GEMINI VISION (desde imagen)
+// ============================================================
+
+async function handleGenerateHeadline(request, env) {
+  try {
+    const { image } = await request.json();
+    if (!env.GEMINI_API_KEY) {
+      return new Response(JSON.stringify({ error: 'Falta configurar GEMINI_API_KEY' }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
+    const base64Data = image.split(',')[1];
+    const mimeType = image.split(';')[0].split(':')[1];
+    const payload = {
+      contents: [{
+        parts: [
+          { text: "Eres un editor periodístico de Media Mendoza. Mira esta imagen y escribe un titular corto, impactante y en español argentino (máximo 8 palabras). Usa mayúsculas solo en la primera letra y nombres propios. Sin puntos finales." },
+          { inline_data: { mime_type: mimeType, data: base64Data } }
+        ]
+      }]
+    };
+    const aiResponse = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const aiData = await aiResponse.json();
+    const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
+    return new Response(JSON.stringify({ headline: headline.trim() }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+  } catch (error) {
+    console.error("Error Gemini:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+  }
+}
+
+// ============================================================
 // TEST - Verificar binding AI
 // ============================================================
+
 async function handleTestAI(env) {
   const hasAI = !!env.AI;
   
@@ -451,6 +599,7 @@ async function handleTestAI(env) {
 // ============================================================
 // REEL — CONFIG
 // ============================================================
+
 async function handleGetReelConfig(env){
   try{
     const prompt = await env.KV.get(REEL_PROMPT_KEY,"text");
@@ -575,6 +724,7 @@ async function handleReelAudio(body, env) {
 // ============================================================
 // SOCIAL — PROMPTS Y GENERACIÓN
 // ============================================================
+
 async function handleGetSocialPrompt(url,env){
   const net=url.searchParams.get("net");
   if(!net) return jsonError("Falta parámetro net",400);
@@ -600,6 +750,7 @@ async function handleSocialGenerar(body,env){
 // ============================================================
 // CONFIG WA
 // ============================================================
+
 async function handleGetWaPrompt(env){
   try{ const v=await env.KV.get(WA_PROMPT_KV_KEY,"text"); return jsonOk({prompt:v||null}); }
   catch(err){ return jsonError("Error KV: "+err.message,500); }
@@ -623,6 +774,7 @@ async function handlePostWaLinks(body,env){
 // ============================================================
 // TITULARES / REFORMULAR / REDACTAR
 // ============================================================
+
 const ESTILOS_DESC={
   formal:`FORMATO — Periodístico formal:\n- Titular: sujeto+verbo+dato, máx 10 palabras.\n- P1: qué/quién/cuándo/dónde/cómo.\n- P2-4: orden de importancia.\n- Cierre: dato proyectivo.`,
   directo:`FORMATO — Directo:\n- Titular: máx 7 palabras.\n- 3 párrafos de 2 oraciones.`,
@@ -678,6 +830,7 @@ async function handleRedactar(body,env){
 // ============================================================
 // AGENDA
 // ============================================================
+
 async function handleGetAgendaEfemerides(env){
   try{const e=await listarObjetosKV(env,AGENDA_EF_PREFIX);e.sort((a,b)=>a.mes-b.mes||a.dia-b.dia);return jsonOk({efemerides:e})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
@@ -729,6 +882,7 @@ async function handleDeleteAgendaEvento(url,env){
 // ============================================================
 // SCRAPING / PLACAS
 // ============================================================
+
 async function handleScrape(url){
   const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
   try{new URL(targetUrl)}catch{return jsonError("URL inválida",400)}
@@ -775,6 +929,7 @@ async function handlePlacasAI(request,env,body){
 // ============================================================
 // EDITORIAL / FUENTES / NOTAS / CUBIERTAS
 // ============================================================
+
 async function handleGetEditorial(env){
   try{const v=await env.KV.get(EDITORIAL_KV_KEY,"json");return jsonOk({editorial:v||{prompt:"",activo:false}})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
@@ -825,6 +980,7 @@ async function handlePostCubierta(body,env){
 // ============================================================
 // WHATSAPP
 // ============================================================
+
 const WA_PROMPT_DEFECTO=`Sos editor de redes sociales de Media Mendoza, diario digital del sur de Mendoza, Argentina.
 Transformá esta noticia en dos mensajes de WhatsApp. Español rioplatense. Emojis estratégicos.
 
@@ -892,6 +1048,7 @@ async function handleDeleteWhatsappProgramado(url,env){
 // ============================================================
 // RSS / VERIFICAR
 // ============================================================
+
 async function handleRSS(url){
   const feedUrl=url.searchParams.get("url");if(!feedUrl) return jsonError("url requerida",400);
   try{new URL(feedUrl)}catch{return jsonError("URL inválida",400)}
@@ -921,6 +1078,7 @@ async function handleVerificar(url){
 // ============================================================
 // GEMINI
 // ============================================================
+
 async function getEditorial(env){
   try{const v=await env.KV.get(EDITORIAL_KV_KEY,"json");if(v&&v.activo&&v.prompt) return v.prompt}catch(e){}
   return null;
@@ -1121,6 +1279,12 @@ export default {
     if (path === "/studio/transcribir") {
       return handleStudioTranscribir(request, env);
     }
+    if (path === "/video-editor/transcribir") {
+      return handleVideoEditorTranscribir(request, env);
+    }
+    if (path === "/api/transcribe") {
+      return handleStudioTranscribir(request, env);
+    }
 
     // ============================================================
     // DESPUÉS: rutas que usan JSON
@@ -1160,56 +1324,8 @@ export default {
     if(path==="/resumen/generar-guion-reel")         return handleGenerarGuionReel(body, env);
     if(path==="/studio/generar-vtt")                 return handleStudioGenerarVTT(request, env);
     if(path==="/studio/proyecto")                    return handleStudioGuardarProyecto(body, env);
-
-    // API: Generar titular con IA (Gemini Vision)
-    if (url.pathname === '/api/generate-headline' && request.method === 'POST') {
-      try {
-        const { image } = await request.json();
-        
-        // Validar que exista la API Key
-        if (!env.GEMINI_API_KEY) {
-          return new Response(JSON.stringify({ error: 'Falta configurar GEMINI_API_KEY' }), { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          });
-        }
-
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
-
-        // Extraer base64 puro (quitar 'data:image/jpeg;base64,')
-        const base64Data = image.split(',')[1]; 
-        const mimeType = image.split(';')[0].split(':')[1];
-
-        const payload = {
-          contents: [{
-            parts: [
-              { text: "Eres un editor periodístico de Media Mendoza. Mira esta imagen y escribe un titular corto, impactante y en español argentino (máximo 8 palabras). Usa mayúsculas solo en la primera letra y nombres propios. Sin puntos finales." },
-              { inline_data: { mime_type: mimeType, data: base64Data } }
-            ]
-          }]
-        };
-
-        const aiResponse = await fetch(geminiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const aiData = await aiResponse.json();
-        const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
-
-        return new Response(JSON.stringify({ headline: headline.trim() }), { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        });
-
-      } catch (error) {
-        console.error("Error Gemini:", error);
-        return new Response(JSON.stringify({ error: error.message }), { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        });
-      }
-    }
+    if(path==="/api/suggest-cuts")                   return handleVideoEditorSuggestCuts(body, env);
+    if(path==="/api/generate-headline")              return handleGenerateHeadline(request, env);
 
     return jsonError("Ruta no encontrada",404);
   },
