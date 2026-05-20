@@ -97,63 +97,45 @@ async function transcribeVideo() {
   showLoading('Extrayendo audio del video...');
   
   try {
-    // Crear un elemento de video para obtener el track de audio
+    // Crear un elemento de video para obtener metadatos
     const videoUrl = URL.createObjectURL(currentVideoFile);
     const video = document.createElement('video');
     video.src = videoUrl;
     video.muted = true;
-    video.crossOrigin = 'anonymous';
     
-    // Esperar a que el video esté listo
     await new Promise((resolve) => {
       video.onloadedmetadata = resolve;
     });
     
     const duration = video.duration;
-    const sampleRate = 16000; // 16kHz (recomendado para Whisper)
+    const sampleRate = 16000;
     
-    // Crear un OfflineAudioContext (procesa en memoria, sin reproducción)
-    // @ts-ignore - webkitOfflineAudioContext para Safari
-    const AudioContextClass = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-    const audioContext = new AudioContextClass(1, duration * sampleRate, sampleRate);
+    // Crear un AudioContext normal para decodificar el audio
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     
-    // Crear un elemento de audio para obtener la fuente
-    const audio = new Audio();
-    audio.src = videoUrl;
-    audio.crossOrigin = 'anonymous';
+    // Obtener el audio del video usando fetch (sin reproducción)
+    const response = await fetch(videoUrl);
+    const arrayBuffer = await response.arrayBuffer();
     
-    await new Promise((resolve) => {
-      audio.addEventListener('canplaythrough', resolve, { once: true });
-    });
+    // Decodificar el audio completo
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
     
-    // Crear la fuente desde el elemento de audio
-    const source = audioContext.createMediaElementSource(audio);
-    source.connect(audioContext.destination);
-    
-    // Iniciar el renderizado offline (esto procesa el audio sin reproducirlo)
-    audio.play();
-    
-    // Renderizar el audio completo
-    const renderedBuffer = await audioContext.startRendering();
-    
-    // Detener y limpiar
-    audio.pause();
-    audio.src = '';
+    // Limpiar recursos
     video.src = '';
     URL.revokeObjectURL(videoUrl);
     
-    if (!renderedBuffer || renderedBuffer.length === 0) {
+    if (!audioBuffer || audioBuffer.duration === 0) {
       throw new Error('No se pudo extraer el audio del video');
     }
     
-    console.log('Audio extraído correctamente, duración:', renderedBuffer.duration);
+    console.log('Audio extraído correctamente, duración:', audioBuffer.duration);
     
-    showLoading('Convirtiendo a formato WAV...');
-    
-    // Convertir el AudioBuffer a WAV
-    const wavBlob = audioBufferToWavBlob(renderedBuffer);
+    // Convertir a formato WAV (mono, 16kHz)
+    const wavBlob = convertAudioBufferToWav(audioBuffer, sampleRate);
     
     console.log('Audio convertido a WAV, tamaño:', wavBlob.size);
+    
+    await audioContext.close();
     
     showLoading('Transcribiendo con IA...');
     
@@ -162,14 +144,14 @@ async function transcribeVideo() {
     const formData = new FormData();
     formData.append('audio', wavBlob, 'audio.wav');
     
-    const response = await fetch(WORKER + '/video-editor/transcribir', {
+    const responseWorker = await fetch(WORKER + '/video-editor/transcribir', {
       method: 'POST',
       body: formData
     });
     
-    const result = await response.json();
+    const result = await responseWorker.json();
     
-    if (!response.ok || !result.ok) {
+    if (!responseWorker.ok || !result.ok) {
       throw new Error(result.error || 'Error en transcripción');
     }
     
@@ -200,15 +182,32 @@ async function transcribeVideo() {
   }
 }
 
-// Función para convertir AudioBuffer a WAV Blob (optimizada)
-function audioBufferToWavBlob(buffer) {
-  const numChannels = 1; // Mono para Whisper
-  const sampleRate = buffer.sampleRate;
-  const format = 1; // PCM
-  const bitDepth = 16;
+// Función para convertir AudioBuffer a WAV con resampleo
+function convertAudioBufferToWav(audioBuffer, targetSampleRate = 16000) {
+  const originalSampleRate = audioBuffer.sampleRate;
+  const originalSamples = audioBuffer.getChannelData(0);
   
-  // Obtener datos del canal (mono)
-  const samples = buffer.getChannelData(0);
+  let samples = originalSamples;
+  
+  // Resamplear si es necesario
+  if (originalSampleRate !== targetSampleRate) {
+    const ratio = targetSampleRate / originalSampleRate;
+    const newLength = Math.round(originalSamples.length * ratio);
+    samples = new Float32Array(newLength);
+    
+    for (let i = 0; i < newLength; i++) {
+      const srcIndex = i / ratio;
+      const srcIndexFloor = Math.floor(srcIndex);
+      const srcIndexCeil = Math.min(srcIndexFloor + 1, originalSamples.length - 1);
+      const fraction = srcIndex - srcIndexFloor;
+      samples[i] = originalSamples[srcIndexFloor] * (1 - fraction) + originalSamples[srcIndexCeil] * fraction;
+    }
+  }
+  
+  const numChannels = 1;
+  const sampleRate = targetSampleRate;
+  const format = 1;
+  const bitDepth = 16;
   const dataLength = samples.length * 2;
   const bufferLength = 44 + dataLength;
   const arrayBuffer = new ArrayBuffer(bufferLength);
