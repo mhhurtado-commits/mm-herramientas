@@ -87,38 +87,6 @@ function handleVideoFile(file) {
   showToast('Video cargado correctamente. Hacé clic en "Transcribir con IA" para continuar.');
 }
 
-// Función para cargar FFmpeg.wasm
-function loadFFmpegScript() {
-  return new Promise((resolve, reject) => {
-    if (typeof FFmpeg !== 'undefined') {
-      resolve();
-      return;
-    }
-    const script = document.createElement('script');
-    // Cambiar a una CDN que funciona correctamente
-    script.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
-    script.onload = () => {
-      console.log('FFmpeg script cargado correctamente');
-      resolve();
-    };
-    script.onerror = (err) => {
-      console.error('Error cargando FFmpeg:', err);
-      reject(err);
-    };
-    document.head.appendChild(script);
-  });
-}
-
-// Función para leer archivo como ArrayBuffer (similar a fetchFile)
-async function readFileAsArrayBuffer(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
-  });
-}
-
 // Función principal de transcripción (sin FFmpeg)
 async function transcribeVideo() {
   if (!currentVideoFile) {
@@ -129,29 +97,19 @@ async function transcribeVideo() {
   showLoading('Extrayendo audio del video...');
   
   try {
-    // Método directo: crear un elemento de audio y capturar su stream
+    // Método: crear un elemento de audio y capturar su stream
     const videoUrl = URL.createObjectURL(currentVideoFile);
-    const videoElement = document.createElement('video');
-    videoElement.src = videoUrl;
-    videoElement.muted = true;
-    videoElement.crossOrigin = 'anonymous';
     
-    // Esperar a que el video esté listo
-    await new Promise((resolve) => {
-      videoElement.onloadedmetadata = resolve;
-    });
-    
-    // Crear un contexto de audio
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Crear un elemento de audio separado para extraer el audio
+    // Crear un elemento de audio
     const audioElement = new Audio();
     audioElement.src = videoUrl;
-    audioElement.crossOrigin = 'anonymous';
     
     await new Promise((resolve) => {
       audioElement.addEventListener('canplaythrough', resolve, { once: true });
     });
+    
+    // Crear contexto de audio
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     
     // Crear el stream de audio
     const destination = audioContext.createMediaStreamDestination();
@@ -159,10 +117,8 @@ async function transcribeVideo() {
     source.connect(destination);
     source.connect(audioContext.destination);
     
-    // Configurar grabación
-    const mediaRecorder = new MediaRecorder(destination.stream, {
-      mimeType: 'audio/webm'
-    });
+    // Grabar el audio
+    const mediaRecorder = new MediaRecorder(destination.stream);
     const chunks = [];
     
     mediaRecorder.ondataavailable = (e) => {
@@ -171,47 +127,47 @@ async function transcribeVideo() {
     
     const recordingPromise = new Promise((resolve) => {
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        resolve(blob);
+        const webmBlob = new Blob(chunks, { type: 'audio/webm' });
+        resolve(webmBlob);
       };
     });
     
-    // Iniciar reproducción y grabación
     mediaRecorder.start();
     await audioElement.play();
     
-    // Esperar a que termine el audio
     await new Promise((resolve) => {
       audioElement.addEventListener('ended', resolve, { once: true });
-      // Fallback por si no termina
       setTimeout(resolve, (audioElement.duration || 30) * 1000 + 2000);
     });
     
-    // Detener todo
     mediaRecorder.stop();
-    const audioBlob = await recordingPromise;
+    const webmBlob = await recordingPromise;
     
-    // Limpiar recursos
+    // Limpiar
     audioElement.pause();
     audioElement.src = '';
-    videoElement.pause();
-    videoElement.src = '';
     URL.revokeObjectURL(videoUrl);
     await audioContext.close();
     
-    if (!audioBlob || audioBlob.size < 1000) {
-      throw new Error('No se pudo extraer audio suficiente del video');
+    if (!webmBlob || webmBlob.size < 1000) {
+      throw new Error('No se pudo extraer audio del video');
     }
     
-    console.log('Audio extraído correctamente, tamaño:', audioBlob.size);
+    console.log('Audio WebM extraído, tamaño:', webmBlob.size);
+    
+    showLoading('Convirtiendo audio a WAV...');
+    
+    // Convertir WebM a WAV
+    const wavBlob = await convertWebMToWav(webmBlob);
+    
+    console.log('Audio WAV convertido, tamaño:', wavBlob.size, 'tipo:', wavBlob.type);
     
     showLoading('Transcribiendo con IA...');
     
-    // Enviar al Worker
+    // Enviar al Worker - usar 'audio' como campo (el mismo que funciona en Studio)
     const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
     const formData = new FormData();
-    // Nuevo código - usar 'file' y formato MP3
-    formData.append('file', audioBlob, 'audio.mp3');
+    formData.append('audio', wavBlob, 'audio.wav');
     
     const response = await fetch(WORKER + '/studio/transcribir', {
       method: 'POST',
@@ -221,9 +177,6 @@ async function transcribeVideo() {
     const result = await response.json();
     
     console.log('Respuesta del Worker:', result);
-    console.log('Status:', response.status);
-    console.log('Audio blob size:', audioBlob.size);
-    console.log('Audio blob type:', audioBlob.type);
     
     if (!response.ok || !result.ok) {
       throw new Error(result.error || 'Error en transcripción');
@@ -254,6 +207,94 @@ async function transcribeVideo() {
   } finally {
     hideLoading();
   }
+}
+
+// Función para convertir WebM a WAV
+async function convertWebMToWav(webmBlob) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Crear AudioContext para decodificar
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Leer el blob como ArrayBuffer
+      const arrayBuffer = await webmBlob.arrayBuffer();
+      
+      // Decodificar el audio
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      
+      // Configurar para WAV (mono, 16000Hz)
+      const numChannels = 1;
+      const sampleRate = 16000;
+      const bitDepth = 16;
+      
+      // Crear un buffer mono
+      const offlineContext = new OfflineAudioContext(
+        numChannels,
+        audioBuffer.duration * sampleRate,
+        sampleRate
+      );
+      
+      const source = offlineContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(offlineContext.destination);
+      source.start();
+      
+      const renderedBuffer = await offlineContext.startRendering();
+      
+      // Convertir a WAV
+      const wavBlob = audioBufferToWav(renderedBuffer);
+      
+      await audioContext.close();
+      resolve(wavBlob);
+      
+    } catch (error) {
+      console.error('Error convirtiendo a WAV:', error);
+      reject(error);
+    }
+  });
+}
+
+// Función para convertir AudioBuffer a WAV Blob
+function audioBufferToWav(buffer) {
+  const numChannels = 1; // Mono
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+  
+  const samples = buffer.getChannelData(0);
+  const dataLength = samples.length * 2;
+  const bufferLength = 44 + dataLength;
+  const arrayBuffer = new ArrayBuffer(bufferLength);
+  const view = new DataView(arrayBuffer);
+  
+  function writeString(view, offset, str) {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(i + offset, str.charCodeAt(i));
+    }
+  }
+  
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, bufferLength - 8, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * 2, true);
+  view.setUint16(32, numChannels * 2, true);
+  view.setUint16(34, bitDepth, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataLength, true);
+  
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const sample = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+    offset += 2;
+  }
+  
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
 }
 
 async function cleanTranscriptWithAI() {
@@ -462,121 +503,6 @@ function showLoading(text) {
 function hideLoading() {
   document.getElementById('loadingOverlay').classList.remove('active');
 }
-
-// ============================================================
-// MÉTODO ALTERNATIVO SIN FFMPEG
-// ============================================================
-
-async function transcribeVideoSinFFmpeg() {
-  if (!currentVideoFile) {
-    showToast('Primero subí un video');
-    return;
-  }
-  
-  showLoading('Extrayendo audio del video...');
-  
-  try {
-    // Crear un elemento de audio para extraer el audio del video
-    const videoUrl = URL.createObjectURL(currentVideoFile);
-    const audio = new Audio();
-    audio.src = videoUrl;
-    
-    // Esperar a que se pueda reproducir
-    await new Promise((resolve) => {
-      audio.addEventListener('canplaythrough', resolve, { once: true });
-    });
-    
-    // Crear un contexto de audio
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioContext.createMediaElementSource(audio);
-    const destination = audioContext.createMediaStreamDestination();
-    source.connect(destination);
-    source.connect(audioContext.destination);
-    
-    // Grabar el audio
-    const mediaRecorder = new MediaRecorder(destination.stream);
-    const chunks = [];
-    
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
-    
-    const recordingPromise = new Promise((resolve) => {
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        resolve(blob);
-      };
-    });
-    
-    // Reproducir y grabar
-    mediaRecorder.start();
-    audio.play();
-    
-    // Detener después de la duración del audio
-    await new Promise((resolve) => {
-      audio.addEventListener('ended', resolve, { once: true });
-      setTimeout(resolve, audio.duration * 1000 + 1000);
-    });
-    
-    mediaRecorder.stop();
-    const audioBlob = await recordingPromise;
-    
-    // Limpiar
-    audio.pause();
-    audio.src = '';
-    URL.revokeObjectURL(videoUrl);
-    await audioContext.close();
-    
-    if (audioBlob.size === 0) {
-      throw new Error('No se pudo extraer el audio');
-    }
-    
-    showLoading('Transcribiendo con IA...');
-    
-    const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'audio.webm');
-    
-    const response = await fetch(WORKER + '/studio/transcribir', {
-      method: 'POST',
-      body: formData
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok || !result.ok) {
-      throw new Error(result.error || 'Error en transcripción');
-    }
-    
-    if (result.segments && result.segments.length) {
-      currentSegments = result.segments.map(seg => ({
-        ...seg,
-        removed: false
-      }));
-      originalSegments = [...currentSegments];
-      renderTranscript(currentSegments);
-      
-      const buttons = ['cleanBtn', 'previewBtn', 'exportBtn', 'addSubtitlesBtn'];
-      buttons.forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) btn.disabled = false;
-      });
-      
-      showToast(`✅ Transcripción completada: ${result.segments.length} segmentos`);
-    } else {
-      showToast('⚠ No se pudo transcribir el audio');
-    }
-    
-  } catch (error) {
-    console.error('Error en método alternativo:', error);
-    showToast(`Error: ${error.message}`);
-  } finally {
-    hideLoading();
-  }
-}
-
-// Convertir a MP3 (usando Web Audio API y librería externa si es necesario)
-// Por ahora, mantener WAV pero cambiar el campo a 'file' es suficiente
 
 // Exponer toggleSegment globalmente para los botones onclick
 window.toggleSegment = toggleSegment;
