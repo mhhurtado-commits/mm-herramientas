@@ -285,6 +285,11 @@
           <label class="mm-label">Nombre del archivo</label>
           <input type="text" id="fileNameInput" class="mm-input" placeholder="Nombre del video editado">
         </div>
+        <div id="videoResult" style="display:none; margin-top: 16px;">
+          <label class="mm-label">Vista previa del video editado</label>
+          <video id="exportVideoPreview" controls style="width:100%; border-radius: var(--radius); margin-bottom: 10px;"></video>
+          <a id="exportDownloadLink" class="mm-btn mm-btn-primary" download style="display:inline-block; text-align:center; text-decoration:none;">⬇ Descargar MP4</a>
+        </div>
       </div>
     </div>
     

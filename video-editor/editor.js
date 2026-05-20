@@ -402,26 +402,79 @@ async function exportVideo() {
     return;
   }
   
-  const segmentsToExport = currentSegments.filter(s => !s.removed);
-  if (segmentsToExport.length === 0) {
-    showToast('No hay segmentos para exportar.');
+  const segmentsToKeep = currentSegments.filter(s => !s.removed);
+  if (segmentsToKeep.length === 0) {
+    showToast('No hay segmentos para exportar. Dejá al menos un segmento activo.');
     return;
   }
   
-  showLoading('Procesando video editado...');
+  // Si solo hay un segmento y es el original, no hay cortes que hacer
+  if (segmentsToKeep.length === 1 && 
+      segmentsToKeep[0].start === 0 && 
+      segmentsToKeep[0].end === currentSegments[currentSegments.length - 1].end) {
+    showToast('No hay cambios para exportar. El video se mantiene igual.');
+    return;
+  }
+  
+  showLoading('Cargando FFmpeg...');
   
   try {
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const ffmpegInstance = await loadFFmpeg();
     
-    const exportPanel = document.getElementById('exportPanel');
-    if (exportPanel) exportPanel.style.display = 'block';
+    showLoading('Procesando video editado...');
     
-    const fileNameInput = document.getElementById('fileNameInput');
-    if (fileNameInput) {
-      fileNameInput.value = `entrevista-editada-${new Date().toISOString().slice(0, 10)}`;
+    // Escribir el video original en el sistema de archivos virtual
+    const videoData = await readFileAsArrayBuffer(currentVideoFile);
+    ffmpegInstance.FS('writeFile', 'input.mp4', new Uint8Array(videoData));
+    
+    // Construir el comando de FFmpeg para cortar y unir segmentos
+    let filterComplex = '';
+    let mapV = '';
+    let mapA = '';
+    
+    for (let i = 0; i < segmentsToKeep.length; i++) {
+      const seg = segmentsToKeep[i];
+      const start = seg.start;
+      const end = seg.end;
+      
+      filterComplex += `[0:v]trim=start=${start}:end=${end},setpts=PTS-STARTPTS[v${i}];`;
+      filterComplex += `[0:a]atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS[a${i}];`;
+      mapV += `[v${i}]`;
+      mapA += `[a${i}]`;
     }
     
-    showToast('¡Video procesado! Puedes descargarlo ahora.');
+    filterComplex += `${mapV}concat=n=${segmentsToKeep.length}:v=1:a=0[vout];${mapA}concat=n=${segmentsToKeep.length}:v=0:a=1[aout]`;
+    
+    // Ejecutar FFmpeg
+    await ffmpegInstance.run('-i', 'input.mp4', '-filter_complex', filterComplex, '-map', '[vout]', '-map', '[aout]', '-c:v', 'libx264', '-c:a', 'aac', '-preset', 'fast', '-crf', '23', 'output.mp4');
+    
+    // Leer el archivo resultante
+    const data = ffmpegInstance.FS('readFile', 'output.mp4');
+    const outputBlob = new Blob([data.buffer], { type: 'video/mp4' });
+    const outputUrl = URL.createObjectURL(outputBlob);
+    
+    // Limpiar archivos temporales
+    ffmpegInstance.FS('unlink', 'input.mp4');
+    ffmpegInstance.FS('unlink', 'output.mp4');
+    
+    // Mostrar el resultado
+    const videoPlayer = document.getElementById('videoPlayer');
+    const videoResult = document.getElementById('videoResult');
+    const exportVideoPreview = document.getElementById('exportVideoPreview');
+    const downloadLink = document.getElementById('exportDownloadLink');
+    
+    if (exportVideoPreview) {
+      exportVideoPreview.src = outputUrl;
+      exportVideoPreview.style.display = 'block';
+    }
+    if (videoResult) videoResult.style.display = 'block';
+    if (downloadLink) {
+      downloadLink.href = outputUrl;
+      downloadLink.download = `entrevista-editada-${new Date().toISOString().slice(0, 19)}.mp4`;
+    }
+    
+    showToast(`✅ Video exportado correctamente. Segmentos conservados: ${segmentsToKeep.length}`);
+    
   } catch (error) {
     console.error('Error exportando:', error);
     showToast(`Error exportando: ${error.message}`);
@@ -452,3 +505,47 @@ function hideLoading() {
 
 // Exponer toggleSegment globalmente para los botones onclick
 window.toggleSegment = toggleSegment;
+
+// ============================================================
+// FFMPEG.WASM PARA CORTAR VIDEO
+// ============================================================
+
+let ffmpeg = null;
+
+async function loadFFmpeg() {
+  if (ffmpeg) return ffmpeg;
+  
+  showLoading('Cargando FFmpeg (primera vez puede tardar unos segundos)...');
+  
+  try {
+    // Cargar FFmpeg desde CDN confiable
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
+    await new Promise((resolve, reject) => {
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    
+    const { createFFmpeg } = FFmpeg;
+    ffmpeg = createFFmpeg({ log: false });
+    await ffmpeg.load();
+    
+    hideLoading();
+    return ffmpeg;
+  } catch (error) {
+    console.error('Error cargando FFmpeg:', error);
+    hideLoading();
+    throw new Error('No se pudo cargar FFmpeg. Verificá tu conexión a internet.');
+  }
+}
+
+// Función auxiliar para leer archivo como ArrayBuffer
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
