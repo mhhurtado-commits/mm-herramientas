@@ -307,16 +307,16 @@ async function handleStudioTranscribir(request, env) {
     // 1. Obtener el ArrayBuffer del archivo
     const audioBuffer = await audioFile.arrayBuffer();
 
-    // 2. CONVERSIÓN: usar Uint8Array en lugar de crear un array JS grande
-    const audioArray = new Uint8Array(audioBuffer);
-    console.log('handleStudioTranscribir: audio bytes', audioArray.byteLength, 'file name', audioFile.name, 'type', audioFile.type);
+    // 2. CONVERSIÓN: usar base64 en lugar de Uint8Array
+    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    console.log('handleStudioTranscribir: audio bytes', base64Audio.length, 'file name', audioFile.name, 'type', audioFile.type);
 
     // 3. Llamar al modelo Whisper
     let response;
     try {
       console.log('handleStudioTranscribir: calling env.AI.run whisper model');
       response = await env.AI.run('@cf/openai/whisper', {
-        audio: audioArray
+        audio: base64Audio
       });
       console.log('handleStudioTranscribir: whisper response received');
     } catch (aiErr) {
