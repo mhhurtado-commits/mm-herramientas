@@ -296,33 +296,22 @@ async function handleStudioTranscribir(request, env) {
 
   try {
     const formData = await request.formData();
-    console.log('handleStudioTranscribir: formData keys', Array.from(formData.keys()));
-    const audioFile = formData.get('audio') || formData.get('file');
+    const audioFile = formData.get('audio');
     
     if (!audioFile) {
-      console.log('handleStudioTranscribir: no audio file found');
       return jsonError("Falta archivo de audio", 400);
     }
 
     // 1. Obtener el ArrayBuffer del archivo
     const audioBuffer = await audioFile.arrayBuffer();
 
-    // 2. CONVERSIÓN: usar base64 en lugar de Uint8Array
-    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
-    console.log('handleStudioTranscribir: audio bytes', base64Audio.length, 'file name', audioFile.name, 'type', audioFile.type);
+    // 2. CONVERSIÓN CRÍTICA: ArrayBuffer a array de números
+    const audioArray = [...new Uint8Array(audioBuffer)];
 
     // 3. Llamar al modelo Whisper
-    let response;
-    try {
-      console.log('handleStudioTranscribir: calling env.AI.run whisper model');
-      response = await env.AI.run('@cf/openai/whisper', {
-        audio: base64Audio
-      });
-      console.log('handleStudioTranscribir: whisper response received');
-    } catch (aiErr) {
-      console.error('handleStudioTranscribir: AI.run error', aiErr);
-      return jsonError('Error from AI model: ' + (aiErr.message || String(aiErr)), 500);
-    }
+    const response = await env.AI.run('@cf/openai/whisper', {
+      audio: audioArray
+    });
 
     // 4. Procesar la respuesta de Whisper
     let texto = '';
@@ -361,85 +350,6 @@ async function handleStudioTranscribir(request, env) {
   } catch (err) {
     console.error('Error en transcripción:', err);
     return jsonError("Error en transcripción: " + err.message, 500);
-  }
-}
-
-// ============================================================
-// VIDEO-EDITOR - Transcripción de video con extracción de audio
-// ============================================================
-
-async function handleVideoEditorTranscribir(request, env) {
-  if (!env.AI) {
-    return jsonError("Cloudflare AI no está configurado", 500);
-  }
-
-  try {
-    const formData = await request.formData();
-    console.log('handleVideoEditorTranscribir: formData keys', Array.from(formData.keys()));
-    const audioFile = formData.get('audio') || formData.get('file');
-    
-    if (!audioFile) {
-      console.log('handleVideoEditorTranscribir: no audio file found');
-      return jsonError("Falta archivo de audio", 400);
-    }
-
-    // 1. Obtener el ArrayBuffer del archivo
-    const audioBuffer = await audioFile.arrayBuffer();
-
-    // 2. CONVERSIÓN: usar Uint8Array en lugar de crear un array JS grande
-    const audioArray = new Uint8Array(audioBuffer);
-    console.log('handleVideoEditorTranscribir: audio bytes', audioArray.byteLength, 'file name', audioFile.name, 'type', audioFile.type);
-
-    // 3. Llamar al modelo Whisper
-    let response;
-    try {
-      console.log('handleVideoEditorTranscribir: calling env.AI.run whisper model');
-      response = await env.AI.run('@cf/openai/whisper', {
-        audio: audioArray
-      });
-      console.log('handleVideoEditorTranscribir: whisper response received');
-    } catch (aiErr) {
-      console.error('handleVideoEditorTranscribir: AI.run error', aiErr);
-      return jsonError('Error from AI model: ' + (aiErr.message || String(aiErr)), 500);
-    }
-
-    // 4. Procesar la respuesta de Whisper
-    let texto = '';
-    let vtt = '';
-    let segments = [];
-    let words = [];
-    
-    if (response) {
-      texto = response.text || '';
-      vtt = response.vtt || '';
-      
-      if (response.words && Array.isArray(response.words)) {
-        words = response.words;
-        const groupSize = 6;
-        for (let i = 0; i < words.length; i += groupSize) {
-          const group = words.slice(i, i + groupSize);
-          segments.push({
-            start: group[0].start,
-            end: group[group.length - 1].end,
-            text: group.map(w => w.word).join(' ')
-          });
-        }
-      } else if (texto) {
-        segments = [{ start: 0, end: 30, text: texto }];
-      }
-    }
-
-    return jsonOk({
-      texto: texto,
-      word_count: response?.word_count || texto.split(/\s+/).length,
-      segments: segments,
-      words: words,
-      vtt: vtt
-    });
-
-  } catch (err) {
-    console.error('Error en transcripción de video:', err);
-    return jsonError("Error en transcripción de video: " + err.message, 500);
   }
 }
 
@@ -500,6 +410,7 @@ async function handleStudioObtenerProyectos(env) {
   try {
     const list = await env.KV.list({ prefix: STUDIO_PROYECTOS_PREFIX });
     const proyectos = [];
+    
     for (const key of list.keys) {
       const proyecto = await env.KV.get(key.name, 'json');
       if (proyecto) proyectos.push(proyecto);
@@ -559,7 +470,6 @@ async function handlePostReelConfig(body,env){
       if(!Array.isArray(body.voces)) return jsonError("voces debe ser array",400);
       await env.KV.put(REEL_VOCES_KEY, JSON.stringify(body.voces));
     }
-      console.log('handleStudioTranscribir: no audio file found');
     return jsonOk({guardado:true});
   }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -831,7 +741,7 @@ async function handleScrape(url){
     const texto=extraerTexto(html);
     if(!texto||texto.length<100) return jsonError("No se pudo extraer contenido",422);
     return jsonOk({titulo,texto,imagen:ogImg?.[1]||'',url:targetUrl});
-  }catch(err){return jsonError(`Error scrapeando: ${err.message}`,522)}
+  }catch(err){return jsonError(`Error scrapeando: ${err.message}`,502)}
 }
 async function handlePlacasUrl(url){
   const targetUrl=url.searchParams.get("url");if(!targetUrl) return jsonError("url requerida",400);
@@ -1035,50 +945,18 @@ async function callGeminiConBusqueda(prompt,env){
   return r;
 }
 async function buscarDuckDuckGo(query){
-    try {
-      const res = await fetch("https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query) + "&kl=es-ar", {
-        headers: { "User-Agent": BROWSER_HEADERS["User-Agent"], "Accept": "text/html" },
-        redirect: "follow"
-      });
-
-      if (!res.ok) return [];
-      const html = await res.text();
-      const resultados = [];
-
-      // Buscar anchors con clase result__a (títulos) y manejar enlaces con uddg=
-      const re = /<a[^>]+href=["']([^"']+)["'][^>]*class=["'][^"']*result__a[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi;
-      let m;
-      while ((m = re.exec(html)) !== null) {
-        let href = m[1];
-        const title = m[2].replace(/<[^>]+>/g, '').trim();
-        if (href.includes('uddg=')) {
-          try {
-            const d = decodeURIComponent(href.split('uddg=')[1].split('&')[0] || '');
-            if (d.startsWith('http')) href = d;
-          } catch (e) {}
-        }
-        if (href.startsWith('http')) resultados.push({ url: href, titulo: title });
-      }
-
-      // Fallback: buscar parámetros uddg por si quedaron enlaces distintos
-      const re2 = /uddg=([^"'&<>\s]{1,500})/gi;
-      while ((m = re2.exec(html)) !== null) {
-        try {
-          const d = decodeURIComponent(m[1]);
-          if (d.startsWith('http')) resultados.push({ url: d, titulo: '' });
-        } catch (e) {}
-      }
-
-      // Deduplicar por URL
-      const seen = new Set();
-      return resultados.filter(r => {
-        if (seen.has(r.url)) return false;
-        seen.add(r.url);
-        return true;
-      });
-    } catch (e) {
-      return [];
+  try{
+    const res=await fetch("https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar",{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"text/html"},redirect:"follow"});
+    if(!res.ok) return [];
+    const html=await res.text();const resultados=[];
+    const linkRegex=/class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</g;let match;
+    while((match=linkRegex.exec(html))!==null&&resultados.length<5){
+      let u=match[1];const t=match[2].trim();
+      if(u.includes("uddg=")){const d=decodeURIComponent(u.split("uddg=")[1]?.split("&")[0]||"");if(d.startsWith("http"))u=d}
+      if(u.startsWith("http")&&t) resultados.push({url:u,titulo:t});
     }
+    return resultados;
+  }catch(e){return []}
 }
 async function callGemini(prompt,env){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
@@ -1104,10 +982,11 @@ async function callGemini(prompt,env){
 // ============================================================
 // MÚSICA DE FONDO - FREESOUND API
 // ============================================================
+
 async function handleMusicSearch(url, env) {
   const query = url.searchParams.get('q') || '';
   const page = parseInt(url.searchParams.get('page')) || 1;
-  const perPage = parseInt(url.searchParams.get('page_size')) || 12;
+  const perPage = parseInt(url.searchParams.get('per_page')) || 12;
   const apiKey = env.FREESOUND_API_KEY;
 
   if (!apiKey) {
@@ -1186,225 +1065,6 @@ async function handleMusicPreview(url, env) {
 }
 
 // ============================================================
-// VIDEO EDITOR - Transcripción y sugerencias de corte
-// ============================================================
-
-async function handleTranscribe(request, env) {
-  if (!env.AI) {
-    return jsonError("Cloudflare AI no está configurado", 500);
-  }
-
-  try {
-    const formData = await request.formData();
-    const audioFile = formData.get('audio') || formData.get('file');
-    
-    if (!audioFile) {
-      return jsonError("Falta archivo de audio", 400);
-    }
-
-    // Convertir el archivo a ArrayBuffer
-    const audioBuffer = await audioFile.arrayBuffer();
-    const audioArray = [...new Uint8Array(audioBuffer)];
-
-    // Llamar al modelo Whisper
-    const response = await env.AI.run('@cf/openai/whisper', {
-      audio: audioArray
-    });
-
-    let texto = '';
-    let segments = [];
-    let words = [];
-    
-    if (response) {
-      texto = response.text || '';
-      
-      if (response.words && Array.isArray(response.words)) {
-        words = response.words;
-        // Agrupar palabras en segmentos de aproximadamente 5 segundos
-        const groupDuration = 5; // segundos
-        let currentGroup = [];
-        let currentStart = 0;
-        
-        for (const word of words) {
-          if (currentGroup.length === 0) {
-            currentStart = word.start;
-          }
-          
-          currentGroup.push(word);
-          
-          // Si el grupo supera la duración objetivo o es el último
-          if (word.end - currentStart >= groupDuration || word === words[words.length - 1]) {
-            segments.push({
-              start: currentStart,
-              end: word.end,
-              text: currentGroup.map(w => w.word).join(' ').trim()
-            });
-            
-            currentGroup = [];
-          }
-        }
-      } else if (texto) {
-        // Si no hay palabras individuales, crear un segmento único
-        segments = [{ start: 0, end: 30, text: texto }];
-      }
-    }
-
-    return jsonOk({
-      success: true,
-      text: texto,
-      texto: texto,
-      word_count: response?.word_count || texto.split(/\s+/).length,
-      segments: segments,
-      words: words
-    });
-
-  } catch (err) {
-    console.error('Error en transcripción:', err);
-    return jsonError("Error en transcripción: " + err.message, 500);
-  }
-}
-
-async function handleVideoEditorTranscribe(request, env) {
-  if (!env.AI) {
-    return jsonError("Cloudflare AI no está configurado", 500);
-  }
-
-  try {
-    const formData = await request.formData();
-    const audioFile = formData.get('audio');
-    
-    if (!audioFile) {
-      return jsonError("Falta archivo de audio", 400);
-    }
-
-    // Convertir el archivo a ArrayBuffer
-    const audioBuffer = await audioFile.arrayBuffer();
-    const audioArray = [...new Uint8Array(audioBuffer)];
-
-    // Llamar al modelo Whisper
-    const response = await env.AI.run('@cf/openai/whisper', {
-      audio: audioArray
-    });
-
-    let texto = '';
-    let segments = [];
-    let words = [];
-    
-    if (response) {
-      texto = response.text || '';
-      
-      if (response.words && Array.isArray(response.words)) {
-        words = response.words;
-        // Agrupar palabras en segmentos de aproximadamente 5 segundos
-        const groupDuration = 5; // segundos
-        let currentGroup = [];
-        let currentStart = 0;
-        
-        for (const word of words) {
-          if (currentGroup.length === 0) {
-            currentStart = word.start;
-          }
-          
-          currentGroup.push(word);
-          
-          // Si el grupo supera la duración objetivo o es el último
-          if (word.end - currentStart >= groupDuration || word === words[words.length - 1]) {
-            segments.push({
-              start: currentStart,
-              end: word.end,
-              text: currentGroup.map(w => w.word).join(' ').trim()
-            });
-            
-            currentGroup = [];
-          }
-        }
-      } else if (texto) {
-        // Si no hay palabras individuales, crear un segmento único
-        segments = [{ start: 0, end: 30, text: texto }];
-      }
-    }
-
-    return jsonOk({
-      success: true,
-      text: texto,
-      texto: texto,
-      word_count: response?.word_count || texto.split(/\s+/).length,
-      segments: segments,
-      words: words
-    });
-
-  } catch (err) {
-    console.error('Error en transcripción de video editor:', err);
-    return jsonError("Error en transcripción: " + err.message, 500);
-  }
-}
-
-async function handleVideoEditorSuggestCuts(body, env) {
-  if (!env.AI) {
-    return jsonError("Cloudflare AI no está configurado", 500);
-  }
-
-  const { transcript, segments } = body;
-  
-  if (!transcript) {
-    return jsonError("Falta la transcripción", 400);
-  }
-
-  // Prompt para identificar muletillas y silencios
-  const prompt = `Analiza esta transcripción de una entrevista y sugiere cortes para mejorarla.
-Identifica y marca para corte:
-1. Muletillas ("ehh", "umm", "este", etc.)
-2. Silencios prolongados (más de 2 segundos)
-3. Repeticiones innecesarias
-4. Frases incompletas
-
-Devuelve una lista de segmentos temporales que deben eliminarse con sus tiempos de inicio y fin en segundos.
-Formato esperado: {"suggestions": [{"start": inicio_en_segundos, "end": fin_en_segundos, "reason": "motivo"}]}
-
-Transcripción: ${transcript.substring(0, 3000)}`;
-
-  try {
-    const response = await env.AI.run('@cf/meta/llama-3.2-1b-instruct', {
-      prompt: prompt
-    });
-
-    // Parsear la respuesta para extraer las sugerencias
-    let suggestions = [];
-    const responseText = response.response || "";
-    
-    // Intentar parsear como JSON
-    try {
-      const parsed = JSON.parse(responseText);
-      if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
-        suggestions = parsed.suggestions;
-      }
-    } catch (e) {
-      // Si no es JSON válido, intentar extraer información de texto
-      // Esta es una implementación simplificada - en la práctica se necesitaría un parser más robusto
-      const regex = /"start":\s*(\d+(?:\.\d+)?).*?"end":\s*(\d+(?:\.\d+)?)/g;
-      let match;
-      while ((match = regex.exec(responseText)) !== null) {
-        suggestions.push({
-          start: parseFloat(match[1]),
-          end: parseFloat(match[2]),
-          reason: "Automático"
-        });
-      }
-    }
-
-    return jsonOk({
-      suggestions: suggestions,
-      total_suggestions: suggestions.length
-    });
-
-  } catch (err) {
-    console.error('Error en sugerencias de corte:', err);
-    return jsonError("Error procesando sugerencias: " + err.message, 500);
-}
-
-  }
-
-// ============================================================
 // ROUTER PRINCIPAL
 // ============================================================
 
@@ -1413,88 +1073,6 @@ export default {
     if(request.method==="OPTIONS") return new Response(null,{headers:CORS_HEADERS});
     const url=new URL(request.url);
     const path=url.pathname;
-
-    // ============================================================
-    // PRIORIDAD 1: RUTAS DE API (GET, POST, DELETE)
-    // Deben evaluarse PRIMERO antes que cualquier otra lógica
-    // ============================================================
-
-    // ── API GET ──
-    if(request.method==="GET"){
-      if(path==="/api/test-ai")                      return handleTestAI(env);
-      if(path==="/api/studio/proyectos")             return handleStudioObtenerProyectos(env);
-    }
-
-    // ── API DELETE ──
-    if(request.method==="DELETE"){
-      if(path==="/api/studio/proyecto")              return handleStudioEliminarProyecto(url, env);
-    }
-
-    // ── API POST (JSON) ──
-    if(request.method==="POST"){
-      if(path==="/api/suggest-cuts"){
-        let body;
-        try {
-          body = await request.json();
-        } catch(e) {
-          return jsonError("JSON inválido", 400);
-        }
-        return handleVideoEditorSuggestCuts(body, env);
-      }
-
-      if(path==="/api/generate-headline"){
-        try {
-          const { image } = await request.json();
-          
-          // Validar que exista la API Key
-          if (!env.GEMINI_API_KEY) {
-            return new Response(JSON.stringify({ error: 'Falta configurar GEMINI_API_KEY' }), { 
-              status: 500, 
-              headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
-            });
-          }
-
-          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
-
-          // Extraer base64 puro (quitar 'data:image/jpeg;base64,')
-          const base64Data = image.split(',')[1]; 
-          const mimeType = image.split(';')[0].split(':')[1];
-
-          const payload = {
-            contents: [{
-              parts: [
-                { text: "Eres un editor periodístico de Media Mendoza. Mira esta imagen y escribe un titular corto, impactante y en español argentino (máximo 8 palabras). Usa mayúsculas solo en la primera letra y nombres propios. Sin puntos finales." },
-                { inline_data: { mime_type: mimeType, data: base64Data } }
-              ]
-            }]
-          };
-
-          const aiResponse = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-
-          const aiData = await aiResponse.json();
-          const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
-
-          return new Response(JSON.stringify({ headline: headline.trim() }), { 
-            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
-          });
-
-        } catch (error) {
-          console.error("Error Gemini:", error);
-          return new Response(JSON.stringify({ error: error.message }), { 
-            status: 500, 
-            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } 
-          });
-        }
-      }
-    }
-
-    // ============================================================
-    // PRIORIDAD 2: RESTO DE RUTAS (GET, DELETE, POST)
-    // ============================================================
 
     // ── GET ──
     if(request.method==="GET"){
@@ -1538,36 +1116,14 @@ export default {
     if(request.method!=="POST") return jsonError("Método no permitido",405);
 
     // ============================================================
-    // POST: rutas que NO usan JSON (FormData)
+    // PRIMERO: rutas que NO usan JSON (FormData)
     // ============================================================
-    // Rutas principales para transcripción (FormData)
     if (path === "/studio/transcribir") {
-      console.log('worker: incoming /studio/transcribir (FormData)', request.method, path, request.url, request.headers.get('content-type'));
-      return handleStudioTranscribir(request, env);
-    }
-    if (path === "/api/transcribe") {
-      console.log('worker: incoming /api/transcribe (FormData)', request.method, path, request.url, request.headers.get('content-type'));
-      return handleStudioTranscribir(request, env);
-    }
-
-    // Nueva ruta para video-editor
-    if (path === "/video-editor/transcribir") {
-      console.log('worker: incoming /video-editor/transcribir (FormData)', request.method, path, request.url, request.headers.get('content-type'));
-      return handleVideoEditorTranscribir(request, env);
-    }
-
-    // Alias para entornos donde la app vive en un subpath (ej. /video-editor)
-    if (path === "/video-editor/studio/transcribir") {
-      console.log('worker: incoming /video-editor/studio/transcribir (FormData)', request.method, path, request.url, request.headers.get('content-type'));
-      return handleStudioTranscribir(request, env);
-    }
-    if (path === "/video-editor/api/transcribe") {
-      console.log('worker: incoming /video-editor/api/transcribe (FormData)', request.method, path, request.url, request.headers.get('content-type'));
       return handleStudioTranscribir(request, env);
     }
 
     // ============================================================
-    // POST: rutas que usan JSON
+    // DESPUÉS: rutas que usan JSON
     // ============================================================
     let body; 
     try {
@@ -1604,6 +1160,56 @@ export default {
     if(path==="/resumen/generar-guion-reel")         return handleGenerarGuionReel(body, env);
     if(path==="/studio/generar-vtt")                 return handleStudioGenerarVTT(request, env);
     if(path==="/studio/proyecto")                    return handleStudioGuardarProyecto(body, env);
+
+    // API: Generar titular con IA (Gemini Vision)
+    if (url.pathname === '/api/generate-headline' && request.method === 'POST') {
+      try {
+        const { image } = await request.json();
+        
+        // Validar que exista la API Key
+        if (!env.GEMINI_API_KEY) {
+          return new Response(JSON.stringify({ error: 'Falta configurar GEMINI_API_KEY' }), { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          });
+        }
+
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
+
+        // Extraer base64 puro (quitar 'data:image/jpeg;base64,')
+        const base64Data = image.split(',')[1]; 
+        const mimeType = image.split(';')[0].split(':')[1];
+
+        const payload = {
+          contents: [{
+            parts: [
+              { text: "Eres un editor periodístico de Media Mendoza. Mira esta imagen y escribe un titular corto, impactante y en español argentino (máximo 8 palabras). Usa mayúsculas solo en la primera letra y nombres propios. Sin puntos finales." },
+              { inline_data: { mime_type: mimeType, data: base64Data } }
+            ]
+          }]
+        };
+
+        const aiResponse = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const aiData = await aiResponse.json();
+        const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
+
+        return new Response(JSON.stringify({ headline: headline.trim() }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+
+      } catch (error) {
+        console.error("Error Gemini:", error);
+        return new Response(JSON.stringify({ error: error.message }), { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+    }
 
     return jsonError("Ruta no encontrada",404);
   },
