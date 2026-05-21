@@ -75,6 +75,7 @@
       border-radius: var(--radius-xl);
       padding: 16px;
       text-align: center;
+      position: relative; /* Asegurar posición relativa para el canvas de superposición */
     }
 
     .video-player {
@@ -82,6 +83,8 @@
       background: #000;
       border-radius: var(--radius);
       margin-bottom: 16px;
+      position: relative; /* Asegurar posición relativa para el canvas de superposición */
+      z-index: 1; /* Asegurar que el video esté debajo del canvas de superposición */
     }
 
     .transcript-container {
@@ -214,6 +217,15 @@
       height: 100%;
       transition: width 0.3s;
     }
+    
+    /* Estilos para el canvas de superposición de logo */
+    #logo-overlay {
+      position: absolute !important;
+      top: 16px !important; /* Considerar el padding del contenedor */
+      left: 16px !important;
+      pointer-events: auto;
+      z-index: 10 !important;
+    }
   </style>
 </head>
 <body>
@@ -246,7 +258,7 @@
   <div class="video-editor-layout">
     
     <!-- Panel izquierdo: Reproductor de video -->
-    <div class="video-container">
+    <div class="video-container" id="videoContainer">
       <div class="upload-area" id="uploadArea">
         <div class="audio-upload-icon">🎥</div>
         <div>Hacé clic o arrastrá un archivo de video</div>
