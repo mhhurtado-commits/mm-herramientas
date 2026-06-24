@@ -3,15 +3,16 @@
 // API: Open-Meteo (gratuita, sin API key)
 // ════════════════════════════════════════════════════════════════════
 
-// Función para obtener fondo dinámico basado en clima y hora del día (estilo widget Android)
+// Función para obtener fondo dinámico basado en clima y hora del día (estilo widget Android vibrante)
 function getFondoDinamico(esDia, codigoClima) {
   const fondos = {
-    // DÍA - Gradientes suaves y delicados estilo widget Android
+    // DÍA - Gradientes vibrantes estilo widget Android
     diaDespejado: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#4A90D9');
-        g.addColorStop(1, '#87CEEB');
+        g.addColorStop(0, '#1E88E5');
+        g.addColorStop(0.5, '#42A5F5');
+        g.addColorStop(1, '#64B5F6');
         return g;
       },
       sol: true
@@ -19,8 +20,9 @@ function getFondoDinamico(esDia, codigoClima) {
     diaParcial: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#7BA3C9');
-        g.addColorStop(1, '#B8D4E8');
+        g.addColorStop(0, '#5C9CE5');
+        g.addColorStop(0.5, '#7EB3E8');
+        g.addColorStop(1, '#A5CAE8');
         return g;
       },
       sol: true,
@@ -29,8 +31,9 @@ function getFondoDinamico(esDia, codigoClima) {
     diaNublado: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#9CA8B5');
-        g.addColorStop(1, '#C4CED8');
+        g.addColorStop(0, '#607D8B');
+        g.addColorStop(0.5, '#78909C');
+        g.addColorStop(1, '#90A4AE');
         return g;
       },
       nube: true
@@ -38,8 +41,9 @@ function getFondoDinamico(esDia, codigoClima) {
     diaLluvia: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#5C7A8A');
-        g.addColorStop(1, '#8BA4B0');
+        g.addColorStop(0, '#455A64');
+        g.addColorStop(0.5, '#546E7A');
+        g.addColorStop(1, '#607D8B');
         return g;
       },
       lluvia: true
@@ -47,8 +51,9 @@ function getFondoDinamico(esDia, codigoClima) {
     diaLluviaFuerte: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#4A6370');
-        g.addColorStop(1, '#7A8E98');
+        g.addColorStop(0, '#37474F');
+        g.addColorStop(0.5, '#455A64');
+        g.addColorStop(1, '#546E7A');
         return g;
       },
       lluvia: true
@@ -56,8 +61,9 @@ function getFondoDinamico(esDia, codigoClima) {
     diaTormenta: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#3D4F5F');
-        g.addColorStop(1, '#6B7D8D');
+        g.addColorStop(0, '#2C3E50');
+        g.addColorStop(0.5, '#34495E');
+        g.addColorStop(1, '#4A5568');
         return g;
       },
       tormenta: true
@@ -65,8 +71,9 @@ function getFondoDinamico(esDia, codigoClima) {
     diaNieve: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#D4E0E8');
-        g.addColorStop(1, '#F0F4F8');
+        g.addColorStop(0, '#B0BEC5');
+        g.addColorStop(0.5, '#CFD8DC');
+        g.addColorStop(1, '#ECEFF1');
         return g;
       },
       nieve: true
@@ -74,19 +81,22 @@ function getFondoDinamico(esDia, codigoClima) {
     diaNiebla: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#B8C4D0');
-        g.addColorStop(1, '#E0E8F0');
+        g.addColorStop(0, '#90A4AE');
+        g.addColorStop(0.5, '#B0BEC5');
+        g.addColorStop(1, '#CFD8DC');
         return g;
       },
       niebla: true
     },
     
-    // NOCHE - Gradientes oscuros suaves estilo widget Android
+    // NOCHE - Gradientes oscuros vibrantes estilo widget Android
     nocheDespejado: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#1A2A3A');
-        g.addColorStop(1, '#2D4A5F');
+        g.addColorStop(0, '#0D1B2A');
+        g.addColorStop(0.3, '#1B263B');
+        g.addColorStop(0.6, '#2C3E50');
+        g.addColorStop(1, '#34495E');
         return g;
       },
       luna: true
@@ -94,8 +104,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheParcial: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#253545');
-        g.addColorStop(1, '#3D5568');
+        g.addColorStop(0, '#1A1A2E');
+        g.addColorStop(0.4, '#2D3047');
+        g.addColorStop(1, '#3D405B');
         return g;
       },
       luna: true,
@@ -104,8 +115,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheNublado: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#2F3F4F');
-        g.addColorStop(1, '#4A5A6A');
+        g.addColorStop(0, '#16213E');
+        g.addColorStop(0.5, '#1F2A44');
+        g.addColorStop(1, '#2A3B55');
         return g;
       },
       nube: true
@@ -113,8 +125,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheLluvia: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#1F303F');
-        g.addColorStop(1, '#354555');
+        g.addColorStop(0, '#0F1C2E');
+        g.addColorStop(0.4, '#1A2D42');
+        g.addColorStop(1, '#243B55');
         return g;
       },
       lluvia: true
@@ -122,8 +135,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheTormenta: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#152030');
-        g.addColorStop(1, '#2A3545');
+        g.addColorStop(0, '#0A0A14');
+        g.addColorStop(0.4, '#151525');
+        g.addColorStop(1, '#1F1F35');
         return g;
       },
       tormenta: true
@@ -131,8 +145,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheNieve: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#3A4A5A');
-        g.addColorStop(1, '#5A6A7A');
+        g.addColorStop(0, '#37474F');
+        g.addColorStop(0.5, '#455A64');
+        g.addColorStop(1, '#546E7A');
         return g;
       },
       nieve: true
@@ -140,8 +155,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheNiebla: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#2F3F4F');
-        g.addColorStop(1, '#4F5F6F');
+        g.addColorStop(0, '#2C3E50');
+        g.addColorStop(0.5, '#34495E');
+        g.addColorStop(1, '#3D4F61');
         return g;
       },
       niebla: true
@@ -1041,7 +1057,7 @@ function renderClima(W, H) {
     const panelY = mainY + 20;
     const panelH = mainH - 40;
 
-    // TARJETA IZQUIERDA (Clima Actual) - Fondo dinámico delicado estilo widget
+    // TARJETA IZQUIERDA (Clima Actual) - Fondo dinámico vibrante estilo widget Android
     const config = getFondoDinamico(actual.esDia, actual.codigo);
     
     // Clip para el fondo solo en esta tarjeta
@@ -1050,12 +1066,8 @@ function renderClima(W, H) {
     ctx.roundRect(leftX, panelY, panelW, panelH, 20);
     ctx.clip();
     
-    // Fondo dinámico sutil
+    // Fondo dinámico vibrante
     ctx.fillStyle = config.grad(ctx, panelW, panelH);
-    ctx.fillRect(leftX, panelY, panelW, panelH);
-    
-    // Overlay muy sutil para que el texto sea legible (reducido de 0.3 a 0.15)
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
     ctx.fillRect(leftX, panelY, panelW, panelH);
     
     ctx.restore();
@@ -1439,7 +1451,7 @@ function renderClimaCombinado(W, H) {
   const panelY = mainY + 20;
   const panelH = mainH - 40;
 
-  // TARJETA IZQUIERDA (Clima Actual) - Fondo dinámico delicado estilo widget
+  // TARJETA IZQUIERDA (Clima Actual) - Fondo dinámico vibrante estilo widget Android
   const config = getFondoDinamico(actual.esDia, actual.codigo);
   
   // Clip para el fondo solo en esta tarjeta
@@ -1448,12 +1460,8 @@ function renderClimaCombinado(W, H) {
   ctx.roundRect(leftX, panelY, panelW, panelH, 20);
   ctx.clip();
   
-  // Fondo dinámico sutil
+  // Fondo dinámico vibrante
   ctx.fillStyle = config.grad(ctx, panelW, panelH);
-  ctx.fillRect(leftX, panelY, panelW, panelH);
-  
-  // Overlay muy sutil para que el texto sea legible (reducido de 0.3 a 0.15)
-  ctx.fillStyle = 'rgba(0,0,0,0.15)';
   ctx.fillRect(leftX, panelY, panelW, panelH);
   
   ctx.restore();
