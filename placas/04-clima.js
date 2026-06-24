@@ -89,14 +89,14 @@ function getFondoDinamico(esDia, codigoClima) {
       niebla: true
     },
     
-    // NOCHE - Gradientes oscuros vibrantes estilo widget Android
+    // NOCHE - Gradientes vibrantes y coloridos estilo widget Android
     nocheDespejado: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#0D1B2A');
-        g.addColorStop(0.3, '#1B263B');
-        g.addColorStop(0.6, '#2C3E50');
-        g.addColorStop(1, '#34495E');
+        g.addColorStop(0, '#1A237E');
+        g.addColorStop(0.3, '#3949AB');
+        g.addColorStop(0.6, '#5C6BC0');
+        g.addColorStop(1, '#7986CB');
         return g;
       },
       luna: true
@@ -104,9 +104,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheParcial: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#1A1A2E');
-        g.addColorStop(0.4, '#2D3047');
-        g.addColorStop(1, '#3D405B');
+        g.addColorStop(0, '#283593');
+        g.addColorStop(0.4, '#4527A0');
+        g.addColorStop(1, '#5E35B1');
         return g;
       },
       luna: true,
@@ -115,9 +115,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheNublado: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#16213E');
-        g.addColorStop(0.5, '#1F2A44');
-        g.addColorStop(1, '#2A3B55');
+        g.addColorStop(0, '#37474F');
+        g.addColorStop(0.5, '#455A64');
+        g.addColorStop(1, '#546E7A');
         return g;
       },
       nube: true
@@ -125,9 +125,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheLluvia: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#0F1C2E');
-        g.addColorStop(0.4, '#1A2D42');
-        g.addColorStop(1, '#243B55');
+        g.addColorStop(0, '#1565C0');
+        g.addColorStop(0.4, '#1976D2');
+        g.addColorStop(1, '#42A5F5');
         return g;
       },
       lluvia: true
@@ -135,9 +135,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheTormenta: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#0A0A14');
-        g.addColorStop(0.4, '#151525');
-        g.addColorStop(1, '#1F1F35');
+        g.addColorStop(0, '#4A148C');
+        g.addColorStop(0.4, '#6A1B9A');
+        g.addColorStop(1, '#7B1FA2');
         return g;
       },
       tormenta: true
@@ -145,9 +145,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheNieve: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#37474F');
-        g.addColorStop(0.5, '#455A64');
-        g.addColorStop(1, '#546E7A');
+        g.addColorStop(0, '#5C6BC0');
+        g.addColorStop(0.5, '#7986CB');
+        g.addColorStop(1, '#9FA8DA');
         return g;
       },
       nieve: true
@@ -155,9 +155,9 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheNiebla: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#2C3E50');
-        g.addColorStop(0.5, '#34495E');
-        g.addColorStop(1, '#3D4F61');
+        g.addColorStop(0, '#455A64');
+        g.addColorStop(0.5, '#546E7A');
+        g.addColorStop(1, '#607D8B');
         return g;
       },
       niebla: true
@@ -1460,8 +1460,8 @@ function renderClimaCombinado(W, H) {
   ctx.roundRect(leftX, panelY, panelW, panelH, 20);
   ctx.clip();
   
-  // DEBUG: Color sólido rojo para verificar que se dibuja
-  ctx.fillStyle = '#FF0000';
+  // Fondo dinámico vibrante
+  ctx.fillStyle = config.grad(ctx, panelW, panelH);
   ctx.fillRect(leftX, panelY, panelW, panelH);
   
   ctx.restore();
