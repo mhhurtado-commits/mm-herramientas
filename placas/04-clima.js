@@ -1054,8 +1054,8 @@ function renderClima(W, H) {
     ctx.fillStyle = config.grad(ctx, panelW, panelH);
     ctx.fillRect(leftX, panelY, panelW, panelH);
     
-    // Overlay oscuro sutil para que el texto sea legible
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    // Overlay muy sutil para que el texto sea legible (reducido de 0.3 a 0.15)
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
     ctx.fillRect(leftX, panelY, panelW, panelH);
     
     ctx.restore();
@@ -1452,8 +1452,8 @@ function renderClimaCombinado(W, H) {
   ctx.fillStyle = config.grad(ctx, panelW, panelH);
   ctx.fillRect(leftX, panelY, panelW, panelH);
   
-  // Overlay oscuro sutil para que el texto sea legible
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  // Overlay muy sutil para que el texto sea legible (reducido de 0.3 a 0.15)
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
   ctx.fillRect(leftX, panelY, panelW, panelH);
   
   ctx.restore();
