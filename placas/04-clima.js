@@ -3,165 +3,30 @@
 // API: Open-Meteo (gratuita, sin API key)
 // ════════════════════════════════════════════════════════════════════
 
-// Función para obtener fondo dinámico basado en clima y hora del día (estilo widget Android vibrante)
-function getFondoDinamico(esDia, codigoClima) {
+// Caché de imágenes de fondo
+const fondoImagenesCache = {};
+
+// Función para obtener URL de imagen de fondo basado en clima y hora del día
+function getFondoImagen(esDia, codigoClima) {
   const fondos = {
-    // DÍA - Gradientes vibrantes estilo widget Android
-    diaDespejado: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#1E88E5');
-        g.addColorStop(0.5, '#42A5F5');
-        g.addColorStop(1, '#64B5F6');
-        return g;
-      },
-      sol: true
-    },
-    diaParcial: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#5C9CE5');
-        g.addColorStop(0.5, '#7EB3E8');
-        g.addColorStop(1, '#A5CAE8');
-        return g;
-      },
-      sol: true,
-      nube: true
-    },
-    diaNublado: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#607D8B');
-        g.addColorStop(0.5, '#78909C');
-        g.addColorStop(1, '#90A4AE');
-        return g;
-      },
-      nube: true
-    },
-    diaLluvia: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#455A64');
-        g.addColorStop(0.5, '#546E7A');
-        g.addColorStop(1, '#607D8B');
-        return g;
-      },
-      lluvia: true
-    },
-    diaLluviaFuerte: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#37474F');
-        g.addColorStop(0.5, '#455A64');
-        g.addColorStop(1, '#546E7A');
-        return g;
-      },
-      lluvia: true
-    },
-    diaTormenta: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#2C3E50');
-        g.addColorStop(0.5, '#34495E');
-        g.addColorStop(1, '#4A5568');
-        return g;
-      },
-      tormenta: true
-    },
-    diaNieve: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#B0BEC5');
-        g.addColorStop(0.5, '#CFD8DC');
-        g.addColorStop(1, '#ECEFF1');
-        return g;
-      },
-      nieve: true
-    },
-    diaNiebla: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#90A4AE');
-        g.addColorStop(0.5, '#B0BEC5');
-        g.addColorStop(1, '#CFD8DC');
-        return g;
-      },
-      niebla: true
-    },
+    // DÍA - Imágenes realistas
+    diaDespejado: 'https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?w=800&q=80',
+    diaParcial: 'https://images.unsplash.com/photo-1594056110047-7f0f3d4b8d5c?w=800&q=80',
+    diaNublado: 'https://images.unsplash.com/photo-5402106475-1?w=800&q=80',
+    diaLluvia: 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=800&q=80',
+    diaLluviaFuerte: 'https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?w=800&q=80',
+    diaTormenta: 'https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&q=80',
+    diaNieve: 'https://images.unsplash.com/photo-1491002052546-bf38f186af56?w=800&q=80',
+    diaNiebla: 'https://images.unsplash.com/photo-1505567745926-ba89000d255a?w=800&q=80',
     
-    // NOCHE - Gradientes vibrantes y coloridos estilo widget Android
-    nocheDespejado: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#1A237E');
-        g.addColorStop(0.3, '#3949AB');
-        g.addColorStop(0.6, '#5C6BC0');
-        g.addColorStop(1, '#7986CB');
-        return g;
-      },
-      luna: true
-    },
-    nocheParcial: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#283593');
-        g.addColorStop(0.4, '#4527A0');
-        g.addColorStop(1, '#5E35B1');
-        return g;
-      },
-      luna: true,
-      nube: true
-    },
-    nocheNublado: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#37474F');
-        g.addColorStop(0.5, '#455A64');
-        g.addColorStop(1, '#546E7A');
-        return g;
-      },
-      nube: true
-    },
-    nocheLluvia: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#1565C0');
-        g.addColorStop(0.4, '#1976D2');
-        g.addColorStop(1, '#42A5F5');
-        return g;
-      },
-      lluvia: true
-    },
-    nocheTormenta: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#4A148C');
-        g.addColorStop(0.4, '#6A1B9A');
-        g.addColorStop(1, '#7B1FA2');
-        return g;
-      },
-      tormenta: true
-    },
-    nocheNieve: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#5C6BC0');
-        g.addColorStop(0.5, '#7986CB');
-        g.addColorStop(1, '#9FA8DA');
-        return g;
-      },
-      nieve: true
-    },
-    nocheNiebla: {
-      grad: (ctx, W, H) => {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#455A64');
-        g.addColorStop(0.5, '#546E7A');
-        g.addColorStop(1, '#607D8B');
-        return g;
-      },
-      niebla: true
-    }
+    // NOCHE - Imágenes realistas
+    nocheDespejado: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800&q=80',
+    nocheParcial: 'https://images.unsplash.com/photo-1483347754190-08d5c0c7a610?w=800&q=80',
+    nocheNublado: 'https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?w=800&q=80',
+    nocheLluvia: 'https://images.unsplash.com/photo-1519638399535-1b036603ac77?w=800&q=80',
+    nocheTormenta: 'https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?w=800&q=80',
+    nocheNieve: 'https://images.unsplash.com/photo-1483664852095-d6cc6870705d?w=800&q=80',
+    nocheNiebla: 'https://images.unsplash.com/photo-1505567745926-ba89000d255a?w=800&q=80'
   };
   
   // Determinar tipo de clima
@@ -180,6 +45,24 @@ function getFondoDinamico(esDia, codigoClima) {
   
   const clave = (esDia ? 'dia' : 'noche') + tipoClima.charAt(0).toUpperCase() + tipoClima.slice(1);
   return fondos[clave] || fondos[(esDia ? 'dia' : 'noche') + 'Despejado'];
+}
+
+// Función para cargar imagen de fondo con caché
+async function cargarFondoImagen(url) {
+  if (fondoImagenesCache[url]) {
+    return fondoImagenesCache[url];
+  }
+  
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      fondoImagenesCache[url] = img;
+      resolve(img);
+    };
+    img.onerror = () => reject(new Error('Error cargando imagen'));
+    img.src = url;
+  });
 }
 
 // Función para dibujar fondo dinámico con efectos visuales
@@ -1057,8 +940,8 @@ function renderClima(W, H) {
     const panelY = mainY + 20;
     const panelH = mainH - 40;
 
-    // TARJETA IZQUIERDA (Clima Actual) - Fondo dinámico vibrante estilo widget Android
-    const config = getFondoDinamico(actual.esDia, actual.codigo);
+    // TARJETA IZQUIERDA (Clima Actual) - Fondo con imagen realista
+    const fondoUrl = getFondoImagen(actual.esDia, actual.codigo);
     
     // Clip para el fondo solo en esta tarjeta
     ctx.save();
@@ -1066,8 +949,28 @@ function renderClima(W, H) {
     ctx.roundRect(leftX, panelY, panelW, panelH, 20);
     ctx.clip();
     
-    // Fondo dinámico vibrante
-    ctx.fillStyle = config.grad(ctx, panelW, panelH);
+    // Intentar cargar y dibujar imagen de fondo
+    if (fondoImagenesCache[fondoUrl]) {
+      // Imagen ya cargada en caché
+      const img = fondoImagenesCache[fondoUrl];
+      ctx.drawImage(img, leftX, panelY, panelW, panelH);
+    } else {
+      // Fallback: gradiente mientras carga la imagen
+      const g = ctx.createLinearGradient(leftX, panelY, leftX, panelY + panelH);
+      g.addColorStop(0, actual.esDia ? '#1E88E5' : '#1A237E');
+      g.addColorStop(1, actual.esDia ? '#64B5F6' : '#7986CB');
+      ctx.fillStyle = g;
+      ctx.fillRect(leftX, panelY, panelW, panelH);
+      
+      // Cargar imagen en background
+      cargarFondoImagen(fondoUrl).then(() => {
+        // Re-renderizar cuando la imagen cargue
+        if (renderClima) renderClima(canvas.width, canvas.height);
+      }).catch(() => {});
+    }
+    
+    // Overlay oscuro sutil para que el texto sea legible
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.fillRect(leftX, panelY, panelW, panelH);
     
     ctx.restore();
@@ -1451,8 +1354,8 @@ function renderClimaCombinado(W, H) {
   const panelY = mainY + 20;
   const panelH = mainH - 40;
 
-  // TARJETA IZQUIERDA (Clima Actual) - Fondo dinámico vibrante estilo widget Android
-  const config = getFondoDinamico(actual.esDia, actual.codigo);
+  // TARJETA IZQUIERDA (Clima Actual) - Fondo con imagen realista
+  const fondoUrl = getFondoImagen(actual.esDia, actual.codigo);
   
   // Clip para el fondo solo en esta tarjeta
   ctx.save();
@@ -1460,8 +1363,28 @@ function renderClimaCombinado(W, H) {
   ctx.roundRect(leftX, panelY, panelW, panelH, 20);
   ctx.clip();
   
-  // Fondo dinámico vibrante
-  ctx.fillStyle = config.grad(ctx, panelW, panelH);
+  // Intentar cargar y dibujar imagen de fondo
+  if (fondoImagenesCache[fondoUrl]) {
+    // Imagen ya cargada en caché
+    const img = fondoImagenesCache[fondoUrl];
+    ctx.drawImage(img, leftX, panelY, panelW, panelH);
+  } else {
+    // Fallback: gradiente mientras carga la imagen
+    const g = ctx.createLinearGradient(leftX, panelY, leftX, panelY + panelH);
+    g.addColorStop(0, actual.esDia ? '#1E88E5' : '#1A237E');
+    g.addColorStop(1, actual.esDia ? '#64B5F6' : '#7986CB');
+    ctx.fillStyle = g;
+    ctx.fillRect(leftX, panelY, panelW, panelH);
+    
+    // Cargar imagen en background
+    cargarFondoImagen(fondoUrl).then(() => {
+      // Re-renderizar cuando la imagen cargue
+      if (renderClima) renderClima(canvas.width, canvas.height);
+    }).catch(() => {});
+  }
+  
+  // Overlay oscuro sutil para que el texto sea legible
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.fillRect(leftX, panelY, panelW, panelH);
   
   ctx.restore();
