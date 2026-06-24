@@ -1460,8 +1460,8 @@ function renderClimaCombinado(W, H) {
   ctx.roundRect(leftX, panelY, panelW, panelH, 20);
   ctx.clip();
   
-  // Fondo dinámico vibrante
-  ctx.fillStyle = config.grad(ctx, panelW, panelH);
+  // DEBUG: Color sólido rojo para verificar que se dibuja
+  ctx.fillStyle = '#FF0000';
   ctx.fillRect(leftX, panelY, panelW, panelH);
   
   ctx.restore();
