@@ -3,6 +3,326 @@
 // API: Open-Meteo (gratuita, sin API key)
 // ════════════════════════════════════════════════════════════════════
 
+// Función para obtener fondo dinámico basado en clima y hora del día
+function getFondoDinamico(esDia, codigoClima) {
+  const fondos = {
+    // DÍA - Cielos claros y brillantes
+    diaDespejado: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#1E88E5');
+        g.addColorStop(0.3, '#42A5F5');
+        g.addColorStop(0.6, '#64B5F6');
+        g.addColorStop(1, '#90CAF9');
+        return g;
+      },
+      sol: true
+    },
+    diaParcial: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#5C9CE5');
+        g.addColorStop(0.4, '#7EB3E8');
+        g.addColorStop(0.7, '#A5CAE8');
+        g.addColorStop(1, '#C5DFF0');
+        return g;
+      },
+      sol: true,
+      nube: true
+    },
+    diaNublado: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#607D8B');
+        g.addColorStop(0.5, '#78909C');
+        g.addColorStop(1, '#90A4AE');
+        return g;
+      },
+      nube: true
+    },
+    diaLluvia: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#455A64');
+        g.addColorStop(0.4, '#546E7A');
+        g.addColorStop(1, '#607D8B');
+        return g;
+      },
+      lluvia: true
+    },
+    diaLluviaFuerte: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#37474F');
+        g.addColorStop(0.5, '#455A64');
+        g.addColorStop(1, '#546E7A');
+        return g;
+      },
+      lluvia: true
+    },
+    diaTormenta: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#2C3E50');
+        g.addColorStop(0.4, '#34495E');
+        g.addColorStop(1, '#4A5568');
+        return g;
+      },
+      tormenta: true
+    },
+    diaNieve: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#B0BEC5');
+        g.addColorStop(0.5, '#CFD8DC');
+        g.addColorStop(1, '#ECEFF1');
+        return g;
+      },
+      nieve: true
+    },
+    diaNiebla: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#90A4AE');
+        g.addColorStop(0.5, '#B0BEC5');
+        g.addColorStop(1, '#CFD8DC');
+        return g;
+      },
+      niebla: true
+    },
+    
+    // NOCHE - Cielos oscuros y estrellados
+    nocheDespejado: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#0D1B2A');
+        g.addColorStop(0.3, '#1B263B');
+        g.addColorStop(0.6, '#2C3E50');
+        g.addColorStop(1, '#34495E');
+        return g;
+      },
+      luna: true
+    },
+    nocheParcial: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#1A1A2E');
+        g.addColorStop(0.4, '#2D3047');
+        g.addColorStop(1, '#3D405B');
+        return g;
+      },
+      luna: true,
+      nube: true
+    },
+    nocheNublado: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#16213E');
+        g.addColorStop(0.5, '#1F2A44');
+        g.addColorStop(1, '#2A3B55');
+        return g;
+      },
+      nube: true
+    },
+    nocheLluvia: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#0F1C2E');
+        g.addColorStop(0.4, '#1A2D42');
+        g.addColorStop(1, '#243B55');
+        return g;
+      },
+      lluvia: true
+    },
+    nocheTormenta: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#0A0A14');
+        g.addColorStop(0.4, '#151525');
+        g.addColorStop(1, '#1F1F35');
+        return g;
+      },
+      tormenta: true
+    },
+    nocheNieve: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#37474F');
+        g.addColorStop(0.5, '#455A64');
+        g.addColorStop(1, '#546E7A');
+        return g;
+      },
+      nieve: true
+    },
+    nocheNiebla: {
+      grad: (ctx, W, H) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#2C3E50');
+        g.addColorStop(0.5, '#34495E');
+        g.addColorStop(1, '#3D4F61');
+        return g;
+      },
+      niebla: true
+    }
+  };
+  
+  // Determinar tipo de clima
+  let tipoClima = 'despejado';
+  if (codigoClima === 0) tipoClima = 'despejado';
+  else if (codigoClima === 1 || codigoClima === 2) tipoClima = 'parcial';
+  else if (codigoClima === 3) tipoClima = 'nublado';
+  else if (codigoClima === 45 || codigoClima === 48) tipoClima = 'niebla';
+  else if (codigoClima >= 51 && codigoClima <= 57) tipoClima = 'lluvia';
+  else if (codigoClima >= 61 && codigoClima <= 67) tipoClima = 'lluvia';
+  else if (codigoClima >= 71 && codigoClima <= 77) tipoClima = 'nieve';
+  else if (codigoClima >= 80 && codigoClima <= 82) tipoClima = 'lluviaFuerte';
+  else if (codigoClima >= 85 && codigoClima <= 86) tipoClima = 'nieve';
+  else if (codigoClima >= 95) tipoClima = 'tormenta';
+  else if (codigoClima >= 80) tipoClima = 'lluviaFuerte';
+  
+  const clave = (esDia ? 'dia' : 'noche') + tipoClima.charAt(0).toUpperCase() + tipoClima.slice(1);
+  return fondos[clave] || fondos[(esDia ? 'dia' : 'noche') + 'Despejado'];
+}
+
+// Función para dibujar fondo dinámico con efectos visuales
+function dibujarFondoDinamico(ctx, W, H, esDia, codigoClima) {
+  const config = getFondoDinamico(esDia, codigoClima);
+  
+  // Aplicar gradiente base
+  ctx.fillStyle = config.grad(ctx, W, H);
+  ctx.fillRect(0, 0, W, H);
+  
+  // Efectos adicionales según el clima
+  if (config.sol) {
+    // Sol radiante (esquina superior derecha)
+    const solX = W * 0.85;
+    const solY = H * 0.12;
+    const solR = Math.min(W, H) * 0.08;
+    
+    // Halo del sol
+    const halo = ctx.createRadialGradient(solX, solY, solR * 0.5, solX, solY, solR * 3);
+    halo.addColorStop(0, 'rgba(255, 235, 59, 0.3)');
+    halo.addColorStop(0.5, 'rgba(255, 235, 59, 0.1)');
+    halo.addColorStop(1, 'rgba(255, 235, 59, 0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, W, H);
+    
+    // Núcleo del sol
+    ctx.fillStyle = '#FFD54F';
+    ctx.shadowColor = '#FFD54F';
+    ctx.shadowBlur = 30;
+    ctx.beginPath();
+    ctx.arc(solX, solY, solR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  
+  if (config.luna) {
+    // Luna creciente (esquina superior derecha)
+    const lunaX = W * 0.85;
+    const lunaY = H * 0.12;
+    const lunaR = Math.min(W, H) * 0.05;
+    
+    // Halo de luna
+    const halo = ctx.createRadialGradient(lunaX, lunaY, lunaR * 0.5, lunaX, lunaY, lunaR * 4);
+    halo.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
+    halo.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, W, H);
+    
+    // Luna
+    ctx.fillStyle = '#E8EAF6';
+    ctx.shadowColor = '#C5CAE9';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(lunaX, lunaY, lunaR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    
+    // Estrellas
+    const estrellas = [
+      { x: 0.15, y: 0.1, s: 2 },
+      { x: 0.25, y: 0.2, s: 1.5 },
+      { x: 0.08, y: 0.25, s: 2.5 },
+      { x: 0.35, y: 0.08, s: 1 },
+      { x: 0.45, y: 0.15, s: 2 },
+      { x: 0.12, y: 0.35, s: 1.5 },
+      { x: 0.55, y: 0.25, s: 1 },
+      { x: 0.65, y: 0.1, s: 2 },
+    ];
+    
+    ctx.fillStyle = '#FFFFFF';
+    estrellas.forEach(e => {
+      ctx.beginPath();
+      ctx.arc(W * e.x, H * e.y, lunaR * e.s * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+  
+  if (config.nube) {
+    // Nubes decorativas sutiles
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    const nubes = [
+      { x: 0.1, y: 0.08, w: W * 0.12, h: H * 0.04 },
+      { x: 0.3, y: 0.15, w: W * 0.08, h: H * 0.03 },
+      { x: 0.6, y: 0.05, w: W * 0.1, h: H * 0.035 },
+    ];
+    nubes.forEach(n => {
+      ctx.beginPath();
+      ctx.ellipse(W * n.x + n.w/2, H * n.y + n.h/2, n.w/2, n.h/2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+  
+  if (config.lluvia) {
+    // Líneas de lluvia sutiles
+    ctx.strokeStyle = 'rgba(150, 180, 220, 0.15)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 30; i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * H * 0.6;
+      const len = 10 + Math.random() * 20;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - 5, y + len);
+      ctx.stroke();
+    }
+  }
+  
+  if (config.nieve) {
+    // Copos de nieve sutiles
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    for (let i = 0; i < 25; i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * H * 0.7;
+      const r = 1 + Math.random() * 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  
+  if (config.tormenta) {
+    // Efecto de tormenta más dramático
+    ctx.fillStyle = 'rgba(50, 30, 80, 0.3)';
+    ctx.fillRect(0, 0, W, H);
+    
+    // Rayos ocasionales
+    ctx.strokeStyle = 'rgba(255, 255, 200, 0.2)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      const x = W * (0.2 + Math.random() * 0.6);
+      const y = 0;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - 20, y + H * 0.15);
+      ctx.lineTo(x + 10, y + H * 0.15);
+      ctx.lineTo(x - 10, y + H * 0.35);
+      ctx.stroke();
+    }
+  }
+}
+
 // Variables de estado para el clima
 let climaData = null;
 let climaCiudad = 'San Rafael'; // Ciudad por defecto
@@ -515,44 +835,8 @@ function renderClima(W, H) {
     
     const { actual, ciudad, diario } = climaData;
     
-    // Fondo con degradado basado en el clima
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    if (actual.codigo <= 2) {
-      grad.addColorStop(0, '#2d3e50');
-      grad.addColorStop(0.4, '#3d5068');
-      grad.addColorStop(0.7, '#475b73');
-      grad.addColorStop(1, '#5a7b99');
-    } else if (actual.codigo <= 48) {
-      grad.addColorStop(0, '#2d3e50');
-      grad.addColorStop(0.5, '#3d5068');
-      grad.addColorStop(1, '#475b73');
-    } else if (actual.codigo <= 65) {
-      grad.addColorStop(0, '#1e2a38');
-      grad.addColorStop(0.5, '#2d3e50');
-      grad.addColorStop(1, '#3d5068');
-    } else {
-      grad.addColorStop(0, '#1e2a38');
-      grad.addColorStop(0.5, '#2d3e50');
-      grad.addColorStop(1, '#a6ce39');
-    }
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-    
-    // Grid de fondo sutil para dar textura
-    ctx.strokeStyle = 'rgba(255,255,255,0.01)';
-    ctx.lineWidth = 1;
-    for(let i = 0; i < W; i += 40) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i, H);
-      ctx.stroke();
-    }
-    for(let i = 0; i < H; i += 40) {
-      ctx.beginPath();
-      ctx.moveTo(0, i);
-      ctx.lineTo(W, i);
-      ctx.stroke();
-    }
+    // Fondo dinámico basado en hora del día y clima
+    dibujarFondoDinamico(ctx, W, H, actual.esDia, actual.codigo);
 
     // --- CABECERA (HEADER) ---
     const headerH = Math.round(H * 0.12);
@@ -675,44 +959,8 @@ function renderClima(W, H) {
     
     const { actual, pronostico, ciudad } = climaData;
     
-    // Fondo con degradado basado en el clima
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    if (actual.codigo <= 2) {
-      grad.addColorStop(0, '#2d3e50');
-      grad.addColorStop(0.4, '#3d5068');
-      grad.addColorStop(0.7, '#475b73');
-      grad.addColorStop(1, '#5a7b99');
-    } else if (actual.codigo <= 48) {
-      grad.addColorStop(0, '#2d3e50');
-      grad.addColorStop(0.5, '#3d5068');
-      grad.addColorStop(1, '#475b73');
-    } else if (actual.codigo <= 65) {
-      grad.addColorStop(0, '#1e2a38');
-      grad.addColorStop(0.5, '#2d3e50');
-      grad.addColorStop(1, '#3d5068');
-    } else {
-      grad.addColorStop(0, '#1e2a38');
-      grad.addColorStop(0.5, '#2d3e50');
-      grad.addColorStop(1, '#a6ce39');
-    }
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-    
-    // Grid de fondo sutil para dar textura
-    ctx.strokeStyle = 'rgba(255,255,255,0.01)';
-    ctx.lineWidth = 1;
-    for(let i = 0; i < W; i += 40) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i, H);
-      ctx.stroke();
-    }
-    for(let i = 0; i < H; i += 40) {
-      ctx.beginPath();
-      ctx.moveTo(0, i);
-      ctx.lineTo(W, i);
-      ctx.stroke();
-    }
+    // Fondo dinámico basado en hora del día y clima
+    dibujarFondoDinamico(ctx, W, H, actual.esDia, actual.codigo);
 
     // --- SECCIONES PROPORCIONALES ---
     const headerH = Math.round(H * 0.12);
@@ -1053,44 +1301,8 @@ function renderClimaCombinado(W, H) {
   
   const { actual, ciudad, diario } = climaData;
   
-  // Fondo con degradado basado en el clima
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  if (actual.codigo <= 2) {
-    grad.addColorStop(0, '#2d3e50');
-    grad.addColorStop(0.4, '#3d5068');
-    grad.addColorStop(0.7, '#475b73');
-    grad.addColorStop(1, '#5a7b99');
-  } else if (actual.codigo <= 48) {
-    grad.addColorStop(0, '#2d3e50');
-    grad.addColorStop(0.5, '#3d5068');
-    grad.addColorStop(1, '#475b73');
-  } else if (actual.codigo <= 65) {
-    grad.addColorStop(0, '#1e2a38');
-    grad.addColorStop(0.5, '#2d3e50');
-    grad.addColorStop(1, '#3d5068');
-  } else {
-    grad.addColorStop(0, '#1e2a38');
-    grad.addColorStop(0.5, '#2d3e50');
-    grad.addColorStop(1, '#a6ce39');
-  }
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-  
-  // Grid de fondo sutil para dar textura
-  ctx.strokeStyle = 'rgba(255,255,255,0.01)';
-  ctx.lineWidth = 1;
-  for(let i = 0; i < W; i += 40) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i, H);
-    ctx.stroke();
-  }
-  for(let i = 0; i < H; i += 40) {
-    ctx.beginPath();
-    ctx.moveTo(0, i);
-    ctx.lineTo(W, i);
-    ctx.stroke();
-  }
+  // Fondo dinámico basado en hora del día y clima
+  dibujarFondoDinamico(ctx, W, H, actual.esDia, actual.codigo);
 
   // --- SECCIONES PROPORCIONALES ---
   const headerH = Math.round(H * 0.12);
@@ -1307,25 +1519,66 @@ function renderClimaCombinado(W, H) {
     }
   });
   
-  // Alerta si existe
+  // Alerta si existe - MÁS GRANDE Y LLAMATIVA
   if (climaAlerta && climaAlerta.trim()) {
     const alertaW = W - 50;
-    const alertaH = 35;
+    const alertaH = 55;
     const alertaY = footerY + footerH - alertaH - 10;
+    const padding = 20;
     
-    ctx.fillStyle = 'rgba(230, 57, 70, 0.9)';
+    // Sombra de la alerta
+    ctx.shadowColor = 'rgba(220, 53, 69, 0.5)';
+    ctx.shadowBlur = 15;
+    ctx.shadowOffsetY = 5;
+    
+    // Fondo rojo brillante con gradiente
+    const alertaGrad = ctx.createLinearGradient(25, alertaY, 25, alertaY + alertaH);
+    alertaGrad.addColorStop(0, '#DC3545');
+    alertaGrad.addColorStop(0.5, '#E63946');
+    alertaGrad.addColorStop(1, '#DC3545');
+    ctx.fillStyle = alertaGrad;
     ctx.beginPath();
-    ctx.roundRect(25, alertaY, alertaW, alertaH, 8);
+    ctx.roundRect(25, alertaY, alertaW, alertaH, 12);
     ctx.fill();
     
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px Inter, sans-serif';
+    // Borde blanco brillante
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Icono de advertencia
+    const iconX = 25 + padding + 20;
+    const iconY = alertaY + alertaH / 2;
+    
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 28px Inter, sans-serif';
     ctx.textAlign = 'center';
-    let alertaTexto = '⚠️ ' + climaAlerta.toUpperCase();
-    if (alertaTexto.length > Math.floor(alertaW / 7)) {
-      alertaTexto = alertaTexto.substring(0, Math.floor(alertaW / 7) - 3) + '...';
+    ctx.fillText('⚠️', iconX, iconY + 8);
+    
+    // Texto de la alerta
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 18px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = 3;
+    let alertaTexto = climaAlerta.toUpperCase();
+    
+    // Calcular el ancho disponible para el texto
+    const textoX = iconX + 35;
+    const maxTextoAncho = alertaW - (textoX - 25) - padding;
+    
+    // Ajustar tamaño de fuente si el texto es largo
+    let fontSize = 18;
+    ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+    while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 12) {
+      fontSize--;
+      ctx.font = `bold ${fontSize}px Inter, sans-serif`;
     }
-    ctx.fillText(alertaTexto, W / 2, alertaY + 22);
+    
+    ctx.fillText(alertaTexto, textoX, iconY + 7);
+    ctx.shadowBlur = 0;
   }
 }
 
