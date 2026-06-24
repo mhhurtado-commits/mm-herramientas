@@ -766,17 +766,22 @@
       
       <label class="mm-label" style="margin-top:10px">Alerta manual (opcional)</label>
       <input type="text" id="txtClimaAlerta" class="mm-input" placeholder="Ej: Alerta de tormenta severa" style="width:100%" oninput="window.climaAlerta=this.value;render()">
-        <select id="selClimaCiudadExtra" class="mm-select" style="flex:1">
-          <option value="">Seleccionar...</option>
-          <option value="San Rafael">San Rafael</option>
-          <option value="General Alvear">General Alvear</option>
-          <option value="Malargüe">Malargüe</option>
-          <option value="Mendoza">Mendoza</option>
-          <option value="San Juan">San Juan</option>
-          <option value="San Luis">San Luis</option>
-          <option value="Neuquén">Neuquén</option>
-        </select>
-        <button class="mm-btn" onclick="agregarCiudadExtra()" style="padding:8px 12px">+</button>
+      
+      <div style="margin-top:10px">
+        <label class="mm-label">Ciudad extra para comparativa</label>
+        <div style="display:flex;gap:6px;margin-top:4px">
+          <select id="selClimaCiudadExtra" class="mm-select" style="flex:1">
+            <option value="">Seleccionar...</option>
+            <option value="San Rafael">San Rafael</option>
+            <option value="General Alvear">General Alvear</option>
+            <option value="Malargüe">Malargüe</option>
+            <option value="Mendoza">Mendoza</option>
+            <option value="San Juan">San Juan</option>
+            <option value="San Luis">San Luis</option>
+            <option value="Neuquén">Neuquén</option>
+          </select>
+          <button class="mm-btn" onclick="agregarCiudadExtra()" style="padding:8px 12px">+</button>
+        </div>
       </div>
       <div id="listaCiudadesExtra" style="margin-top:8px;font-size:0.75rem;color:var(--muted)"></div>
       

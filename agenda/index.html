@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Agenda — Media Mendoza</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>
+/* ============================================================
+   Estilos específicos de Agenda (solo lo que no está en el sistema global)
+   ============================================================ */
+
+/* ── Calendario ── */
+.cal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.cal-nav {
+  display: flex;
+  gap: 6px;
+}
+.cal-mes {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--white);
+}
+.cal-hoy {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--line2);
+  background: var(--surface);
+  color: var(--dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cal-hoy:hover {
+  border-color: var(--v);
+  color: var(--v);
+}
+
+.cal-grid {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.cal-dias-semana {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--surface2);
+  border-bottom: 1px solid var(--line);
+}
+.cal-dia-semana {
+  padding: 10px 6px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cal-dia-semana.domingo {
+  color: var(--red);
+}
+.cal-celdas {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.cal-celda {
+  min-height: 88px;
+  padding: 6px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.1s;
+  position: relative;
+  overflow: hidden;
+}
+.cal-celda:nth-child(7n) { border-right: none; }
+.cal-celda:hover { background: var(--v-dim); }
+.cal-celda.otro-mes { background: var(--bg2); }
+.cal-celda.otro-mes .cal-num { color: var(--dim); }
+.cal-celda.hoy { background: rgba(166,206,57,0.08); }
+.cal-celda.hoy .cal-num {
+  background: var(--v);
+  color: var(--bg);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+.cal-celda.seleccionado {
+  background: rgba(166,206,57,0.15);
+  border: 2px solid var(--v);
+}
+.cal-num {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 4px;
+  line-height: 1;
+}
+.cal-eventos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cal-evento-chip {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-mas {
+  font-size: 9px;
+  color: var(--dim);
+  font-weight: 600;
+  padding: 1px 4px;
+}
+
+/* Chips por tipo */
+.chip-feriado { background: rgba(230,57,70,0.15); color: var(--red); }
+.chip-efemeride { background: rgba(166,206,57,0.12); color: var(--v); }
+.chip-evento { background: rgba(155,157,138,0.15); color: var(--muted); }
+.chip-cobertura { background: rgba(230,57,70,0.1); color: #ff6b6b; }
+.chip-local { background: rgba(166,206,57,0.08); color: var(--v-badge); }
+
+/* ── Vista lista ── */
+.lista-wrap { display: none; }
+.lista-wrap.activo { display: block; }
+.lista-mes-header {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  color: var(--white);
+  padding: 12px 0 6px;
+  border-bottom: 2px solid var(--v);
+  margin-bottom: 10px;
+}
+.lista-item {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  border-left-width: 4px;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.lista-item:hover { box-shadow: var(--shadow-sm); }
+.lista-item.feriado { border-left-color: var(--red); }
+.lista-item.efemeride { border-left-color: var(--v); }
+.lista-item.evento { border-left-color: var(--muted); }
+.lista-item.cobertura { border-left-color: #ff6b6b; }
+.lista-item.local { border-left-color: var(--v-badge); }
+.lista-fecha-col {
+  flex-shrink: 0;
+  text-align: center;
+  min-width: 44px;
+}
+.lista-fecha-dia {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--white);
+}
+.lista-fecha-dow {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.lista-info { flex: 1; min-width: 0; }
+.lista-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 3px;
+}
+.lista-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.lista-acciones {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Panel lateral ── */
+.panel-sticky {
+  position: sticky;
+  top: 72px;
+}
+.panel-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.evento-item {
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  margin-bottom: 8px;
+  transition: all 0.15s;
+  position: relative;
+  border-left-width: 3px;
+  background: var(--surface);
+}
+.evento-item.feriado { border-left-color: var(--red); }
+.evento-item.efemeride { border-left-color: var(--v); }
+.evento-item.evento { border-left-color: var(--muted); }
+.evento-item.cobertura { border-left-color: #ff6b6b; }
+.evento-item.local { border-left-color: var(--v-badge); }
+.evento-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 3px;
+}
+.evento-meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tipo-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.badge-feriado { background: rgba(230,57,70,0.15); color: var(--red); }
+.badge-efemeride { background: rgba(166,206,57,0.12); color: var(--v); }
+.badge-evento { background: rgba(155,157,138,0.15); color: var(--muted); }
+.badge-cobertura { background: rgba(230,57,70,0.1); color: #ff6b6b; }
+.badge-local { background: rgba(166,206,57,0.08); color: var(--v-badge); }
+.alcance-badge {
+  font-size: 9px;
+  color: var(--dim);
+  font-weight: 600;
+}
+.quick-btns {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.btn-ia {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(166,206,57,0.3);
+  background: rgba(166,206,57,0.1);
+  color: var(--v);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-ia:hover {
+  background: var(--v);
+  color: var(--bg);
+}
+.ef-kv-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--v);
+  background: rgba(166,206,57,0.12);
+  border: 1px solid rgba(166,206,57,0.3);
+  padding: 1px 6px;
+  border-radius: 20px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* ── Ángulos IA ── */
+.angulos-box {
+  background: rgba(166,206,57,0.06);
+  border: 1px solid rgba(166,206,57,0.15);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-top: 8px;
+}
+.angulos-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--v);
+}
+.angulos-titulo {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--v);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 8px;
+}
+.angulo-tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--v);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 10px 0 5px;
+}
+.angulo-item {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 6px 10px;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+.pregunta-item {
+  font-size: 12px;
+  color: var(--dim);
+  padding: 5px 10px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+.pregunta-item::before {
+  content: '→ ';
+  color: var(--v);
+  font-weight: 700;
+}
+.consejo-box {
+  font-size: 11px;
+  color: var(--v);
+  background: rgba(166,206,57,0.05);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin-top: 6px;
+  line-height: 1.6;
+  font-style: italic;
+  border-left: 3px solid var(--v);
+}
+.angulo-guardado-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--v);
+  background: rgba(166,206,57,0.15);
+  padding: 2px 8px;
+  border-radius: 20px;
+  display: inline-block;
+  margin-left: 6px;
+}
+
+/* ── Próxima semana ── */
+.semana-header {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 8px;
+}
+.semana-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.1s;
+  border-radius: var(--radius);
+}
+.semana-item:last-child { border-bottom: none; }
+.semana-item:hover { background: var(--v-dim); }
+.semana-fecha {
+  flex-shrink: 0;
+  text-align: center;
+  min-width: 40px;
+}
+.semana-fecha-dia {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  color: var(--white);
+  line-height: 1;
+}
+.semana-fecha-dow {
+  font-size: 9px;
+  color: var(--dim);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.semana-items { flex: 1; }
+.semana-chip {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 2px 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+  display: inline-block;
+  background: var(--surface2);
+  margin: 2px 4px 2px 0;
+}
+
+/* ── Placeholder ── */
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 20px;
+  border: 2px dashed var(--line2);
+  border-radius: var(--radius-lg);
+  color: var(--dim);
+  background: var(--surface);
+}
+.placeholder p {
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* ── Responsive calendario móvil ── */
+@media (max-width: 700px) {
+  .cal-celda { min-height: 60px; }
+  .cal-eventos {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin-top: 2px;
+  }
+  .cal-evento-chip {
+    font-size: 0;
+    padding: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .chip-feriado { background: var(--red); }
+  .chip-efemeride { background: var(--v); }
+  .chip-evento { background: var(--muted); }
+  .chip-cobertura { background: #ff6b6b; }
+  .chip-local { background: var(--v-badge); }
+  .cal-mas { display: none; }
+}
+</style>
+</head>
+<body>
+<!-- ============================================================ -->
+<!-- PROTECCIÓN CON CONTRASEÑA (copiar este bloque completo) -->
+<!-- ============================================================ -->
+<style>
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+.login-modal {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.3s ease;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.login-logo { margin-bottom: 24px; }
+.login-logo img { height: 48px; width: auto; }
+body.dark-theme .login-logo img { filter: brightness(0) invert(1); opacity: 0.9; }
+.login-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.login-sub {
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 24px;
+}
+.login-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  color: var(--white);
+  font-size: 14px;
+  margin-bottom: 20px;
+  outline: none;
+}
+.login-input:focus { border-color: var(--v); }
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--v);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.login-btn:hover { opacity: 0.85; }
+.login-error {
+  font-size: 11px;
+  color: var(--red);
+  margin-top: 12px;
+  display: none;
+}
+.login-error.show { display: block; }
+.content-protected { display: none; }
+.content-protected.show { display: block; }
+</style>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-modal">
+    <div class="login-logo">
+      <img src="../assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'">
+    </div>
+    <div class="login-title">Acceso restringido</div>
+    <div class="login-sub">Ingresá la contraseña para continuar</div>
+    <input type="password" id="passwordInput" class="login-input" placeholder="Contraseña" autofocus>
+    <button class="login-btn" onclick="verificarPassword()">Ingresar</button>
+    <div class="login-error" id="loginError">Contraseña incorrecta</div>
+  </div>
+</div>
+
+<div class="content-protected" id="protectedContent">
+
+<script>
+const PROTECT_PASSWORD = "tomyjerry2008";
+
+function verificarPassword() {
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('loginError');
+  const password = input.value.trim();
+  
+  if (password === PROTECT_PASSWORD) {
+    const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
+    localStorage.setItem('mm_auth', JSON.stringify({ autenticado: true, expires: expiry }));
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('protectedContent').classList.add('show');
+    input.value = '';
+    error.classList.remove('show');
+  } else {
+    error.classList.add('show');
+    input.value = '';
+    input.focus();
+  }
+}
+
+function verificarSesion() {
+  const authData = localStorage.getItem('mm_auth');
+  if (authData) {
+    try {
+      const { autenticado, expires } = JSON.parse(authData);
+      if (autenticado && expires && Date.now() < expires) {
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('protectedContent').classList.add('show');
+        return true;
+      } else {
+        localStorage.removeItem('mm_auth');
+      }
+    } catch(e) { localStorage.removeItem('mm_auth'); }
+  }
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('protectedContent').classList.remove('show');
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  verificarSesion();
+  document.getElementById('passwordInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') verificarPassword();
+  });
+});
+</script>
+<!-- FIN DEL BLOQUE DE PROTECCIÓN -->
+
+<!-- HEADER -->
+<header class="mm-header">
+  <a href="/" class="mm-header-brand">
+    <img src="../assets/logo.png" alt="Media Mendoza" class="mm-header-logo" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section">
+    <span class="mm-header-label">Agenda de Cobertura</span>
+  </div>
+    <div class="mm-header-status">
+    <div class="mm-status-dot"></div>
+    <span class="mm-status-txt">Conectado</span>
+  </div>
+</header>
+
+<div style="padding-top: var(--header-h);">
+<div class="mm-container" style="padding: 20px; max-width: 1280px; margin: 0 auto;">
+
+  <div class="mm-layout" style="display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start;">
+    <div>
+
+      <!-- Toolbar -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+        <div style="position: relative; flex: 1; min-width: 180px;">
+          <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--dim); font-size: 13px;">🔍</span>
+          <input type="text" id="busqueda" placeholder="Buscar eventos, efemérides..." class="mm-input" style="padding-left: 32px;" oninput="renderVista()">
+        </div>
+        <button class="mm-tab" id="btnCalendario" onclick="cambiarVista('calendario')" style="background: var(--surface); border-radius: 20px;">📅 Calendario</button>
+        <button class="mm-tab" id="btnLista" onclick="cambiarVista('lista')" style="background: var(--surface); border-radius: 20px;">☰ Lista</button>
+      </div>
+
+      <!-- Vista Calendario -->
+      <div id="vistaCalendario">
+        <div class="cal-header">
+          <div class="cal-nav">
+            <button class="mm-btn mm-btn-sm" style="padding: 6px 12px;" onclick="cambiarMes(-1)">‹</button>
+            <button class="mm-btn mm-btn-sm" style="padding: 6px 12px;" onclick="cambiarMes(1)">›</button>
+          </div>
+          <div class="cal-mes" id="calMes"></div>
+          <button class="cal-hoy" onclick="irAHoy()">Hoy</button>
+        </div>
+
+        <!-- Filtros -->
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;">
+          <span style="font-size: 9px; font-weight: 700; color: var(--dim); align-self: center;">Filtrar:</span>
+          <div class="filtro on feriado" onclick="toggleFiltro('feriado',this)" style="font-size: 10px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1.5px solid var(--line2); background: var(--surface); color: var(--dim); cursor: pointer;">🔴 Feriados</div>
+          <div class="filtro on efemeride" onclick="toggleFiltro('efemeride',this)" style="font-size: 10px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1.5px solid var(--line2); background: var(--surface); color: var(--dim); cursor: pointer;">🔵 Efemérides</div>
+          <div class="filtro on evento" onclick="toggleFiltro('evento',this)" style="font-size: 10px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1.5px solid var(--line2); background: var(--surface); color: var(--dim); cursor: pointer;">🟣 Eventos</div>
+          <div class="filtro on cobertura" onclick="toggleFiltro('cobertura',this)" style="font-size: 10px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1.5px solid var(--line2); background: var(--surface); color: var(--dim); cursor: pointer;">🟡 Coberturas</div>
+          <div class="filtro on local" onclick="toggleFiltro('local',this)" style="font-size: 10px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1.5px solid var(--line2); background: var(--surface); color: var(--dim); cursor: pointer;">🩵 Local</div>
+        </div>
+
+        <div class="cal-grid">
+          <div class="cal-dias-semana">
+            <div class="cal-dia-semana domingo">Dom</div>
+            <div class="cal-dia-semana">Lun</div>
+            <div class="cal-dia-semana">Mar</div>
+            <div class="cal-dia-semana">Mié</div>
+            <div class="cal-dia-semana">Jue</div>
+            <div class="cal-dia-semana">Vie</div>
+            <div class="cal-dia-semana">Sáb</div>
+          </div>
+          <div class="cal-celdas" id="calCeldas"></div>
+        </div>
+        <div id="proximaSemana" style="margin-top: 16px;"></div>
+      </div>
+
+      <!-- Vista Lista -->
+      <div id="vistaLista" class="lista-wrap">
+        <div id="listaContenido"></div>
+      </div>
+
+    </div>
+
+    <!-- Panel derecho -->
+    <div class="panel-sticky">
+      <div class="mm-panel" style="margin-bottom: 0;">
+        <div id="panelContenido">
+          <div class="mm-panel-header">Seleccioná un día</div>
+          <div class="panel-sub">Hacé clic en cualquier fecha para ver los eventos o agregar uno nuevo.</div>
+          <div id="proximosHoy"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- FOOTER -->
+<footer class="mm-footer">
+  <div class="mm-footer-dot"></div>
+  <span class="mm-footer-txt">Gemini 2.5 Flash Lite · Activo</span>
+  <div class="mm-footer-sep"></div>
+  <div class="mm-footer-meta">
+    <span class="mm-footer-item">Cloudflare Pages</span>
+    <span class="mm-footer-item">mediamendoza.pages.dev/agenda</span>
+  </div>
+</footer>
+
+<!-- TOAST -->
+<div class="mm-toast" id="toast"></div>
+
+<!-- MODAL EVENTO -->
+<div class="mm-modal-overlay" id="modalEvento" onclick="if(event.target===this)cerrarModalEvento()">
+  <div class="mm-modal">
+    <div class="mm-modal-header">
+      <span class="mm-modal-title" id="modalEventoTitulo">Nuevo evento</span>
+      <button class="mm-modal-close" onclick="cerrarModalEvento()">✕</button>
+    </div>
+    <div class="mm-modal-body">
+      <input type="hidden" id="evId">
+      <div class="mm-field"><label class="mm-label">Título</label>
+        <input type="text" id="evTitulo" class="mm-input" placeholder="Ej: Conferencia de prensa gobernación..."></div>
+      <div class="mm-row2">
+        <div class="mm-field"><label class="mm-label">Fecha</label><input type="date" id="evFecha" class="mm-input"></div>
+        <div class="mm-field"><label class="mm-label">Hora (opcional)</label><input type="time" id="evHora" class="mm-input"></div>
+      </div>
+      <div class="mm-row2">
+        <div class="mm-field"><label class="mm-label">Tipo</label>
+          <select id="evTipo" class="mm-select"><option value="evento">Evento</option><option value="cobertura">Cobertura asignada</option><option value="alerta">Alerta de seguimiento</option></select></div>
+        <div class="mm-field"><label class="mm-label">Alcance</label>
+          <select id="evAlcance" class="mm-select"><option value="local">Local</option><option value="provincial">Provincial</option><option value="nacional">Nacional</option></select></div>
+      </div>
+      <div class="mm-field"><label class="mm-label">Descripción / notas</label>
+        <textarea id="evDesc" class="mm-textarea" rows="3" placeholder="Detalles, contactos, notas de cobertura..."></textarea></div>
+      <div class="mm-field"><label class="mm-label">Periodista asignado (opcional)</label>
+        <input type="text" id="evPeriodista" class="mm-input" placeholder="Nombre del periodista..."></div>
+    </div>
+    <div class="mm-modal-footer">
+      <button class="mm-btn mm-btn-primary" style="flex: 1" onclick="guardarEvento()">
+        <span class="mm-spinner" id="spinEvento" style="display:none;"></span>
+        <span id="btnEventoText">Guardar evento</span>
+      </button>
+      <button class="mm-btn" onclick="cerrarModalEvento()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EFEMÉRIDE -->
+<div class="mm-modal-overlay" id="modalEfemeride" onclick="if(event.target===this)cerrarModalEfemeride()">
+  <div class="mm-modal">
+    <div class="mm-modal-header">
+      <span class="mm-modal-title" id="modalEfemerideTitulo">Nueva efeméride</span>
+      <button class="mm-modal-close" onclick="cerrarModalEfemeride()">✕</button>
+    </div>
+    <div class="mm-modal-body">
+      <input type="hidden" id="efId">
+      <div class="mm-field"><label class="mm-label">Título</label>
+        <input type="text" id="efTitulo" class="mm-input" placeholder="Ej: Aniversario del diario..."></div>
+      <div class="mm-row3">
+        <div class="mm-field"><label class="mm-label">Día</label><input type="number" id="efDia" class="mm-input" min="1" max="31" placeholder="1-31"></div>
+        <div class="mm-field"><label class="mm-label">Mes</label>
+          <select id="efMes" class="mm-select">
+            <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+            <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+            <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+            <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+          </select></div>
+        <div class="mm-field"><label class="mm-label">Tipo</label>
+          <select id="efTipo" class="mm-select"><option value="efemeride">Efeméride</option><option value="feriado">Feriado</option></select></div>
+      </div>
+      <div class="mm-field"><label class="mm-label">Alcance</label>
+        <select id="efAlcance" class="mm-select"><option value="local">Local</option><option value="provincial">Provincial</option><option value="nacional">Nacional</option></select></div>
+      <div class="mm-field"><label class="mm-label">Descripción</label>
+        <textarea id="efDesc" class="mm-textarea" rows="3" placeholder="Contexto, cobertura sugerida..."></textarea></div>
+    </div>
+    <div class="mm-modal-footer">
+      <button class="mm-btn mm-btn-primary" style="flex:1; background: var(--v); color: var(--bg);" onclick="guardarEfemeride()">
+        <span class="mm-spinner" id="spinEfemeride" style="display:none;"></span>
+        <span id="btnEfemerideText">Guardar efeméride</span>
+      </button>
+      <button class="mm-btn" onclick="cerrarModalEfemeride()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE -->
+<div class="mm-modal-overlay" id="modalDetalle" onclick="if(event.target===this)cerrarModalDetalle()">
+  <div class="mm-modal">
+    <div class="mm-modal-header">
+      <span class="mm-modal-title" id="detalleTitulo">Detalle</span>
+      <button class="mm-modal-close" onclick="cerrarModalDetalle()">✕</button>
+    </div>
+    <div class="mm-modal-body" id="detalleBody"></div>
+    <div class="mm-modal-footer">
+      <button class="mm-btn mm-btn-primary" style="flex:1" id="detalleAngulosBtn" onclick="generarAngulosDesdeDetalle()">✦ Ángulos IA</button>
+      <button id="detalleEditarBtn" class="mm-btn" onclick="editarDesdeDetalle()">✎ Editar</button>
+      <button class="mm-btn" onclick="cerrarModalDetalle()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
+
+let HOY          = new Date();
+let MES_ACTUAL   = new Date(HOY.getFullYear(), HOY.getMonth(), 1);
+let DIA_SEL      = null;
+let EF_JSON      = [];
+let EF_KV        = [];
+let EVENTOS_KV   = [];
+let FILTROS      = {feriado:true,efemeride:true,evento:true,cobertura:true,local:true};
+let VISTA        = 'calendario';
+let _detalleEv   = null;
+
+const MESES      = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS_CORTO = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+function toast(m){
+  const t=document.getElementById('toast');
+  t.textContent=m;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fechaISO(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function chipCls(tipo){return {feriado:'chip-feriado',efemeride:'chip-efemeride',evento:'chip-evento',cobertura:'chip-cobertura',alerta:'chip-cobertura',local:'chip-local'}[tipo]||'chip-efemeride';}
+function badgeCls(tipo){return {feriado:'badge-feriado',efemeride:'badge-efemeride',evento:'badge-evento',cobertura:'badge-cobertura',alerta:'badge-cobertura',local:'badge-local'}[tipo]||'badge-efemeride';}
+function tv(ev){return ev.alcance==='local'?'local':ev.tipo;}
+function qb(){return (document.getElementById('busqueda').value||'').toLowerCase().trim();}
+
+async function cargarEfemerides(){
+  try{const r=await fetch('../agenda/efemerides.json');const d=await r.json();EF_JSON=d.efemerides||[]}catch(e){EF_JSON=[];}
+}
+async function cargarEfemeridesKV(){
+  try{const r=await fetch(WORKER+'/agenda/efemerides');const d=await r.json();if(d.ok)EF_KV=d.efemerides||[]}catch(e){EF_KV=[];}
+}
+async function cargarEventosKV(){
+  try{
+    const mes=`${MES_ACTUAL.getFullYear()}-${String(MES_ACTUAL.getMonth()+1).padStart(2,'0')}`;
+    const r=await fetch(WORKER+'/agenda/eventos?mes='+mes);const d=await r.json();
+    if(d.ok)EVENTOS_KV=d.eventos||[];
+  }catch(e){EVENTOS_KV=[];}
+}
+
+function efDelDia(mes,dia){
+  const json=EF_JSON.filter(e=>e.mes===mes&&e.dia===dia);
+  const kv  =EF_KV.filter(e=>e.mes===mes&&e.dia===dia);
+  const kvTit=new Set(kv.map(e=>e.tituloBase||e.titulo));
+  return [...json.filter(e=>!kvTit.has(e.titulo)), ...kv];
+}
+
+function eventosDelDia(fecha){
+  const mes=fecha.getMonth()+1, dia=fecha.getDate(), iso=fechaISO(fecha);
+  const q=qb();
+  const match=e=>!q||(e.titulo||'').toLowerCase().includes(q)||(e.descripcion||'').toLowerCase().includes(q);
+  return [
+    ...efDelDia(mes,dia).map(e=>({...e,fuente:e.id?'efkv':'efjson'})),
+    ...EVENTOS_KV.filter(e=>e.fecha===iso).map(e=>({...e,fuente:'evkv'}))
+  ].filter(e=>{
+    if(!match(e)) return false;
+    if(e.alcance==='local'&&!FILTROS.local) return false;
+    if(e.tipo==='feriado'&&!FILTROS.feriado) return false;
+    if(e.tipo==='efemeride'&&!FILTROS.efemeride) return false;
+    if((e.tipo==='evento'||e.tipo==='alerta')&&!FILTROS.evento) return false;
+    if(e.tipo==='cobertura'&&!FILTROS.cobertura) return false;
+    return true;
+  });
+}
+
+function cambiarVista(v){
+  VISTA=v;
+  document.getElementById('vistaCalendario').style.display=v==='calendario'?'block':'none';
+  document.getElementById('vistaLista').classList.toggle('activo',v==='lista');
+  document.getElementById('btnCalendario').classList.toggle('active',v==='calendario');
+  document.getElementById('btnLista').classList.toggle('active',v==='lista');
+  renderVista();
+}
+function renderVista(){VISTA==='calendario'?renderCalendario():renderLista();}
+
+function renderCalendario(){
+  document.getElementById('calMes').textContent=`${MESES[MES_ACTUAL.getMonth()]} ${MES_ACTUAL.getFullYear()}`;
+  const primer=new Date(MES_ACTUAL.getFullYear(),MES_ACTUAL.getMonth(),1);
+  const ultimo=new Date(MES_ACTUAL.getFullYear(),MES_ACTUAL.getMonth()+1,0);
+  const cel=document.getElementById('calCeldas'); cel.innerHTML='';
+  for(let i=0;i<primer.getDay();i++){const d=new Date(primer);d.setDate(d.getDate()-(primer.getDay()-i));cel.appendChild(crearCelda(d,true));}
+  for(let d=1;d<=ultimo.getDate();d++) cel.appendChild(crearCelda(new Date(MES_ACTUAL.getFullYear(),MES_ACTUAL.getMonth(),d),false));
+  const falt=(7-cel.children.length%7)%7;
+  for(let i=1;i<=falt;i++){const d=new Date(ultimo);d.setDate(d.getDate()+i);cel.appendChild(crearCelda(d,true));}
+  renderProximaSemana(); renderProximosHoy();
+}
+
+function crearCelda(fecha,otroMes){
+  const cel=document.createElement('div');
+  cel.className='cal-celda'+(otroMes?' otro-mes':'');
+  const iso=fechaISO(fecha);
+  cel.dataset.iso=iso;
+  if(iso===fechaISO(HOY)) cel.classList.add('hoy');
+  if(DIA_SEL&&iso===fechaISO(DIA_SEL)) cel.classList.add('seleccionado');
+  const num=document.createElement('div'); num.className='cal-num'; num.textContent=fecha.getDate(); cel.appendChild(num);
+  const evts=eventosDelDia(fecha);
+  const evDiv=document.createElement('div'); evDiv.className='cal-eventos';
+  evts.slice(0,2).forEach(ev=>{
+    const c=document.createElement('div');
+    c.className='cal-evento-chip '+chipCls(tv(ev)); c.textContent=ev.titulo; c.title=ev.titulo; evDiv.appendChild(c);
+  });
+  if(evts.length>2){const m=document.createElement('div');m.className='cal-mas';m.textContent=`+${evts.length-2} más`;evDiv.appendChild(m);}
+  cel.appendChild(evDiv);
+  cel.onclick=()=>seleccionarDia(fecha);
+  return cel;
+}
+
+function seleccionarDia(fecha){
+  DIA_SEL=fecha;
+  document.querySelectorAll('.cal-celda').forEach(c=>{
+    c.classList.toggle('seleccionado', c.dataset.iso===fechaISO(fecha));
+  });
+  renderPanelDia(fecha);
+}
+
+function renderLista(){
+  const ahora=new Date(); let porMes={};
+  for(let m=0;m<12;m++){
+    const diasMes=new Date(ahora.getFullYear(),m+1,0).getDate();
+    for(let d=1;d<=diasMes;d++){
+      const fecha=new Date(ahora.getFullYear(),m,d);
+      const evts=eventosDelDia(fecha);
+      if(evts.length){if(!porMes[m])porMes[m]=[];evts.forEach(ev=>porMes[m].push({...ev,_fecha:fecha,_iso:fechaISO(fecha)}));}
+    }
+  }
+  const meses=Object.keys(porMes).map(Number).sort((a,b)=>a-b);
+  if(!meses.length){document.getElementById('listaContenido').innerHTML='<div class="placeholder"><p>No se encontraron eventos</p></div>';return;}
+  let html='';
+  meses.forEach(m=>{
+    html+=`<div class="lista-mes-header">${MESES[m]} ${ahora.getFullYear()}</div>`;
+    porMes[m].sort((a,b)=>a._fecha-b._fecha).forEach(ev=>{
+      const t=tv(ev); const esEv=ev.fuente==='evkv'; const esEf=ev.fuente==='efkv';
+      html+=`<div class="lista-item ${t}" onclick="abrirDetalle(${JSON.stringify(ev).replace(/"/g,'&quot;')})">
+        <div class="lista-fecha-col">
+          <div class="lista-fecha-dia">${ev._fecha.getDate()}</div>
+          <div class="lista-fecha-dow">${DIAS_CORTO[ev._fecha.getDay()]}</div>
+        </div>
+        <div class="lista-info">
+          <div class="lista-titulo">${esc(ev.titulo)}${esEf?'<span class="ef-kv-badge">personalizada</span>':''}</div>
+          <div class="evento-meta" style="margin-bottom:3px">
+            <span class="tipo-badge ${badgeCls(t)}">${ev.tipo||'evento'}</span>
+            ${ev.alcance?`<span class="alcance-badge">${ev.alcance}</span>`:''}
+            ${ev.hora?`<span class="alcance-badge">🕐 ${ev.hora}</span>`:''}
+            ${ev.periodista?`<span class="alcance-badge">👤 ${ev.periodista}</span>`:''}
+          </div>
+          ${ev.descripcion?`<div class="lista-desc">${esc(ev.descripcion)}</div>`:''}
+        </div>
+        <div class="lista-acciones" onclick="event.stopPropagation()">
+          ${esEv?`<button class="mm-btn mm-btn-sm" onclick="abrirModalEditarEvento(${JSON.stringify(ev).replace(/"/g,'&quot;')})">✎</button>`:''}
+          ${esEf?`<button class="mm-btn mm-btn-sm" onclick="abrirModalEditarEfemeride(${JSON.stringify(ev).replace(/"/g,'&quot;')})">✎</button>`:''}
+          ${esEv?`<button class="mm-btn mm-btn-sm mm-btn-danger" onclick="eliminarEvento('${ev.id}')">✕</button>`:''}
+          ${esEf?`<button class="mm-btn mm-btn-sm mm-btn-danger" onclick="eliminarEfemeride('${ev.id}')">✕</button>`:''}
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('listaContenido').innerHTML=html;
+}
+
+function renderPanelDia(fecha){
+  const evts=eventosDelDia(fecha);
+  const iso=fechaISO(fecha);
+  const mes=fecha.getMonth(), dia=fecha.getDate();
+  const label=`${DIAS_CORTO[fecha.getDay()]} ${dia} de ${MESES[mes]}`;
+  let html=`
+    <div class="mm-panel-header">${label}</div>
+    <div class="panel-sub">${evts.length} evento${evts.length!==1?'s':''} este día</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button class="mm-btn mm-btn-primary" style="margin:0;flex:1" onclick="abrirModalNuevoEvento('${iso}')">+ Evento</button>
+      <button class="mm-btn mm-btn-primary" style="margin:0;flex:1;background:var(--v);color:var(--bg)" onclick="abrirModalNuevaEfemeride(${mes+1},${dia})">+ Efeméride</button>
+    </div>`;
+  if(!evts.length){
+    html+=`<div class="placeholder" style="padding:20px 10px"><span style="font-size:1.8rem">📭</span><p>Sin eventos. Podés agregar<br>coberturas o efemérides.</p></div>`;
+  } else {
+    evts.forEach((ev,i)=>{
+      const t=tv(ev); const esEv=ev.fuente==='evkv'; const esEf=ev.fuente==='efkv';
+      const ck=`${iso}_${i}`;
+      html+=`<div class="evento-item ${t}">
+        <div class="evento-titulo">${esc(ev.titulo)}${esEf?'<span class="ef-kv-badge">personalizada</span>':''}</div>
+        <div class="evento-meta">
+          <span class="tipo-badge ${badgeCls(t)}">${ev.tipo||'evento'}</span>
+          ${ev.alcance?`<span class="alcance-badge">${ev.alcance}</span>`:''}
+          ${ev.hora?`<span class="alcance-badge">🕐 ${ev.hora}</span>`:''}
+          ${ev.periodista?`<span class="alcance-badge">👤 ${ev.periodista}</span>`:''}
+        </div>
+        ${ev.descripcion?`<div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5">${esc(ev.descripcion)}</div>`:''}
+        <div class="quick-btns">
+          <button class="btn-ia" onclick="generarAngulos('${ck}',${JSON.stringify(ev).replace(/"/g,'&quot;')})">✦ Ángulos IA</button>
+          <button class="mm-btn mm-btn-sm" onclick="abrirDetalle(${JSON.stringify(ev).replace(/"/g,'&quot;')})">Ver detalle</button>
+          ${esEv?`<button class="mm-btn mm-btn-sm" onclick="abrirModalEditarEvento(${JSON.stringify(ev).replace(/"/g,'&quot;')})">✎ Editar</button>`:''}
+          ${esEf?`<button class="mm-btn mm-btn-sm" onclick="abrirModalEditarEfemeride(${JSON.stringify(ev).replace(/"/g,'&quot;')})">✎ Editar</button>`:''}
+          ${esEv?`<button class="mm-btn mm-btn-sm mm-btn-danger" onclick="eliminarEvento('${ev.id}')">✕ Eliminar</button>`:''}
+          ${esEf?`<button class="mm-btn mm-btn-sm mm-btn-danger" onclick="eliminarEfemeride('${ev.id}')">✕ Eliminar</button>`:''}
+        </div>
+        <div id="angulos-${ck}"></div>
+      </div>`;
+    });
+  }
+  document.getElementById('panelContenido').innerHTML=html;
+  evts.forEach((_,i)=>{const k=`${iso}_${i}`;const c=sessionStorage.getItem('angulos_'+k);const el=document.getElementById('angulos-'+k);if(c&&el)el.innerHTML=c});
+}
+
+function renderProximaSemana(){
+  const inicio=new Date(HOY); inicio.setDate(inicio.getDate()+1);
+  let html=`<div class="mm-panel" style="margin-top:0"><div class="semana-header">Próximos 7 días</div>`;
+  let hay=false;
+  for(let i=0;i<7;i++){
+    const d=new Date(inicio); d.setDate(d.getDate()+i);
+    const evts=eventosDelDia(d);
+    if(!evts.length) continue;
+    hay=true;
+    const iso=fechaISO(d);
+    html+=`<div class="semana-item" onclick="irADia('${iso}')">
+      <div class="semana-fecha">
+        <div class="semana-fecha-dia">${d.getDate()}</div>
+        <div class="semana-fecha-dow">${DIAS_CORTO[d.getDay()]}</div>
+      </div>
+      <div class="semana-items">
+        ${evts.slice(0,3).map(ev=>`<div class="semana-chip ${chipCls(tv(ev))}">${esc(ev.titulo)}</div>`).join('')}
+        ${evts.length>3?`<div style="font-size:10px;color:var(--dim)">+${evts.length-3} más</div>`:''}
+      </div>
+    </div>`;
+  }
+  if(!hay) html+=`<div style="font-size:12px;color:var(--dim);padding:8px 0">Sin eventos los próximos 7 días</div>`;
+  document.getElementById('proximaSemana').innerHTML=html+'</div>';
+}
+
+function irADia(isoStr){
+  const [y,m,d]=isoStr.split('-').map(Number);
+  const fecha=new Date(y,m-1,d);
+  if(fecha.getFullYear()!==MES_ACTUAL.getFullYear()||fecha.getMonth()!==MES_ACTUAL.getMonth()){
+    MES_ACTUAL=new Date(fecha.getFullYear(),fecha.getMonth(),1);
+    DIA_SEL=fecha;
+    cargarEventosKV().then(()=>{renderCalendario();renderPanelDia(fecha);});
+  } else {
+    seleccionarDia(fecha);
+  }
+}
+
+function renderProximosHoy(){
+  const evHoy=eventosDelDia(HOY);
+  if(!evHoy.length){document.getElementById('proximosHoy').innerHTML='';return;}
+  document.getElementById('proximosHoy').innerHTML=`<div style="margin-top:10px">
+    <div class="semana-header" style="cursor:pointer" onclick="irADia('${fechaISO(HOY)}')">
+      Hoy — ${HOY.getDate()} de ${MESES[HOY.getMonth()]} ↗
+    </div>
+    ${evHoy.map(ev=>`<div style="font-size:12px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--line)">
+      <span class="tipo-badge ${badgeCls(tv(ev))}" style="margin-right:5px">${ev.tipo}</span>${esc(ev.titulo)}</div>`).join('')}
+  </div>`;
+}
+
+async function generarAngulos(key,ev){
+  const container=document.getElementById('angulos-'+key); if(!container) return;
+  const ses=sessionStorage.getItem('angulos_'+key);
+  if(ses){container.innerHTML=ses;return;}
+  container.innerHTML=`<div class="angulos-box"><div class="angulos-loading"><span class="mm-spinner"></span> Generando sugerencias...</div></div>`;
+  const kvKey=`${ev.titulo}_${ev.mes||''}_${ev.dia||ev.fecha||''}`.replace(/\s+/g,'_').substring(0,80);
+  try{
+    const kr=await fetch(WORKER+'/agenda/angulos/cache?key='+encodeURIComponent(kvKey));
+    if(kr.ok){const kd=await kr.json();if(kd.ok&&kd.data){const h=renderAngulosHTML(kd.data,true);sessionStorage.setItem('angulos_'+key,h);container.innerHTML=h;return;}}
+  }catch(e){}
+  try{
+    const res=await fetch(WORKER+'/agenda/angulos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:ev.titulo,descripcion:ev.descripcion||'',fecha:ev.fecha||ev.dia,tipo:ev.tipo,kvKey})});
+    const data=await res.json(); if(!data.ok) throw new Error(data.error);
+    const html=renderAngulosHTML(data,false); sessionStorage.setItem('angulos_'+key,html); container.innerHTML=html;
+  }catch(e){container.innerHTML=`<div style="font-size:11px;color:red;padding:6px">Error: ${esc(e.message)}</div>`;}
+}
+function renderAngulosHTML(data,desdeCache){
+  return `<div class="angulos-box">
+    <div class="angulos-titulo">✦ Sugerencias de cobertura${desdeCache?'<span class="angulo-guardado-badge">guardado</span>':''}</div>
+    <div class="angulo-tag">Ángulos</div>${(data.angulos||[]).map(a=>`<div class="angulo-item">• ${esc(a)}</div>`).join('')}
+    <div class="angulo-tag">Preguntas clave</div>${(data.preguntas||[]).map(p=>`<div class="pregunta-item">${esc(p)}</div>`).join('')}
+    <div class="angulo-tag">Fuentes sugeridas</div>${(data.fuentes_sugeridas||[]).map(f=>`<div class="angulo-item" style="font-size:11px">🔎 ${esc(f)}</div>`).join('')}
+    ${data.consejo?`<div class="consejo-box">💡 ${esc(data.consejo)}</div>`:''}
+  </div>`;
+}
+
+function abrirDetalle(ev){
+  _detalleEv=ev;
+  const t=tv(ev); const esEditable=ev.fuente==='evkv'||ev.fuente==='efkv';
+  document.getElementById('detalleTitulo').textContent=ev.titulo;
+  document.getElementById('detalleEditarBtn').style.display=esEditable?'':'none';
+  const tipos={feriado:'Feriado',efemeride:'Efeméride',evento:'Evento',cobertura:'Cobertura asignada',alerta:'Alerta',local:'Local'};
+  document.getElementById('detalleBody').innerHTML=`
+    <div class="mm-field"><div class="mm-label">Tipo</div>
+      <div><span class="tipo-badge ${badgeCls(t)}">${tipos[ev.tipo]||ev.tipo||'—'}</span>
+      ${ev.alcance?`<span class="alcance-badge" style="margin-left:8px">${ev.alcance}</span>`:''}</div>
+    </div>
+    ${(ev.dia||ev.fecha)?`<div class="mm-field"><div class="mm-label">Fecha</div><div class="text-muted">${ev.fecha||(ev.dia+'/'+ev.mes)}</div></div>`:''}
+    ${ev.hora?`<div class="mm-field"><div class="mm-label">Hora</div><div class="text-muted">${ev.hora}</div></div>`:''}
+    ${ev.descripcion?`<div class="mm-field"><div class="mm-label">Descripción</div><div class="text-muted">${esc(ev.descripcion)}</div></div>`:''}
+    ${ev.periodista?`<div class="mm-field"><div class="mm-label">Periodista asignado</div><div class="text-muted">👤 ${esc(ev.periodista)}</div></div>`:''}
+    <div id="detalleAngulos"></div>`;
+  document.getElementById('modalDetalle').classList.add('open');
+}
+function cerrarModalDetalle(){document.getElementById('modalDetalle').classList.remove('open');_detalleEv=null;}
+function editarDesdeDetalle(){
+  if(!_detalleEv) return; cerrarModalDetalle();
+  if(_detalleEv.fuente==='evkv') abrirModalEditarEvento(_detalleEv);
+  else if(_detalleEv.fuente==='efkv') abrirModalEditarEfemeride(_detalleEv);
+}
+async function generarAngulosDesdeDetalle(){
+  if(!_detalleEv) return;
+  const btn=document.getElementById('detalleAngulosBtn'); btn.disabled=true; btn.textContent='Generando...';
+  const container=document.getElementById('detalleAngulos');
+  container.innerHTML=`<div class="angulos-box"><div class="angulos-loading"><span class="mm-spinner"></span> Generando sugerencias...</div></div>`;
+  const ev=_detalleEv;
+  try{
+    const res=await fetch(WORKER+'/agenda/angulos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:ev.titulo,descripcion:ev.descripcion||'',fecha:ev.fecha||ev.dia,tipo:ev.tipo})});
+    const data=await res.json(); if(!data.ok) throw new Error(data.error);
+    container.innerHTML=renderAngulosHTML(data,false);
+  }catch(e){container.innerHTML=`<div style="font-size:11px;color:red;padding:6px">Error: ${esc(e.message)}</div>`;}
+  btn.disabled=false; btn.textContent='✦ Ángulos IA';
+}
+
+function _fillEvento(id,titulo,fecha,hora,tipo,alcance,desc,per,btnText){
+  document.getElementById('evId').value=id||'';
+  document.getElementById('evTitulo').value=titulo||'';
+  document.getElementById('evFecha').value=fecha||'';
+  document.getElementById('evHora').value=hora||'';
+  document.getElementById('evTipo').value=tipo||'evento';
+  document.getElementById('evAlcance').value=alcance||'local';
+  document.getElementById('evDesc').value=desc||'';
+  document.getElementById('evPeriodista').value=per||'';
+  document.getElementById('btnEventoText').textContent=btnText;
+  document.getElementById('modalEvento').classList.add('open');
+}
+function abrirModalNuevoEvento(isoStr){
+  document.getElementById('modalEventoTitulo').textContent='Nuevo evento';
+  _fillEvento('','',isoStr,'','evento','local','','','Guardar evento');
+}
+function abrirModalEditarEvento(ev){
+  document.getElementById('modalEventoTitulo').textContent='Editar evento';
+  _fillEvento(ev.id,ev.titulo,ev.fecha,ev.hora,ev.tipo,ev.alcance,ev.descripcion,ev.periodista,'Guardar cambios');
+}
+function cerrarModalEvento(){document.getElementById('modalEvento').classList.remove('open');}
+async function guardarEvento(){
+  const titulo=document.getElementById('evTitulo').value.trim();
+  const fecha=document.getElementById('evFecha').value;
+  if(!titulo||!fecha){toast('⚠ Completá título y fecha');return;}
+  document.getElementById('spinEvento').style.display='inline-block';
+  document.getElementById('btnEventoText').textContent='Guardando...';
+  try{
+    const id=document.getElementById('evId').value;
+    const body={titulo,fecha,hora:document.getElementById('evHora').value,tipo:document.getElementById('evTipo').value,alcance:document.getElementById('evAlcance').value,descripcion:document.getElementById('evDesc').value.trim(),periodista:document.getElementById('evPeriodista').value.trim()};
+    if(id) body.id=id;
+    const res=await fetch(WORKER+'/agenda/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json(); if(!data.ok) throw new Error(data.error);
+    cerrarModalEvento(); toast(id?'✓ Evento actualizado':'✓ Evento guardado');
+    await cargarEventosKV(); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
+  }catch(e){toast('✗ '+e.message);}
+  document.getElementById('spinEvento').style.display='none';
+  document.getElementById('btnEventoText').textContent='Guardar evento';
+}
+async function eliminarEvento(id){
+  if(!confirm('¿Eliminar este evento?')) return;
+  try{
+    await fetch(WORKER+'/agenda/evento?id='+encodeURIComponent(id),{method:'DELETE'});
+    toast('Evento eliminado'); await cargarEventosKV(); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
+  }catch(e){toast('✗ '+e.message);}
+}
+
+function _fillEfemeride(id,titulo,dia,mes,tipo,alcance,desc,btnText){
+  document.getElementById('efId').value=id||'';
+  document.getElementById('efTitulo').value=titulo||'';
+  document.getElementById('efDia').value=dia||'';
+  document.getElementById('efMes').value=mes||'1';
+  document.getElementById('efTipo').value=tipo||'efemeride';
+  document.getElementById('efAlcance').value=alcance||'local';
+  document.getElementById('efDesc').value=desc||'';
+  document.getElementById('btnEfemerideText').textContent=btnText;
+  document.getElementById('modalEfemeride').classList.add('open');
+}
+function abrirModalNuevaEfemeride(mes,dia){
+  document.getElementById('modalEfemerideTitulo').textContent='Nueva efeméride';
+  _fillEfemeride('','',dia,mes,'efemeride','local','','Guardar efeméride');
+}
+function abrirModalEditarEfemeride(ev){
+  document.getElementById('modalEfemerideTitulo').textContent='Editar efeméride';
+  _fillEfemeride(ev.id,ev.titulo,ev.dia,ev.mes,ev.tipo,ev.alcance,ev.descripcion,'Guardar cambios');
+}
+function cerrarModalEfemeride(){document.getElementById('modalEfemeride').classList.remove('open');}
+async function guardarEfemeride(){
+  const titulo=document.getElementById('efTitulo').value.trim();
+  const dia=parseInt(document.getElementById('efDia').value);
+  const mes=parseInt(document.getElementById('efMes').value);
+  if(!titulo||!dia||dia<1||dia>31){toast('⚠ Completá título y día válido');return;}
+  document.getElementById('spinEfemeride').style.display='inline-block';
+  document.getElementById('btnEfemerideText').textContent='Guardando...';
+  try{
+    const id=document.getElementById('efId').value;
+    const body={titulo,dia,mes,tipo:document.getElementById('efTipo').value,alcance:document.getElementById('efAlcance').value,descripcion:document.getElementById('efDesc').value.trim()};
+    if(id) body.id=id;
+    const res=await fetch(WORKER+'/agenda/efemeride',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json(); if(!data.ok) throw new Error(data.error);
+    cerrarModalEfemeride(); toast(id?'✓ Efeméride actualizada':'✓ Efeméride guardada');
+    await cargarEfemeridesKV(); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
+  }catch(e){toast('✗ '+e.message);}
+  document.getElementById('spinEfemeride').style.display='none';
+  document.getElementById('btnEfemerideText').textContent='Guardar efeméride';
+}
+async function eliminarEfemeride(id){
+  if(!confirm('¿Eliminar esta efeméride?')) return;
+  try{
+    await fetch(WORKER+'/agenda/efemeride?id='+encodeURIComponent(id),{method:'DELETE'});
+    toast('Efeméride eliminada'); await cargarEfemeridesKV(); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
+  }catch(e){toast('✗ '+e.message);}
+}
+
+function cambiarMes(delta){MES_ACTUAL=new Date(MES_ACTUAL.getFullYear(),MES_ACTUAL.getMonth()+delta,1);cargarEventosKV().then(renderCalendario);}
+function irAHoy(){MES_ACTUAL=new Date(HOY.getFullYear(),HOY.getMonth(),1);DIA_SEL=HOY;cargarEventosKV().then(()=>{renderCalendario();renderPanelDia(HOY);});}
+function toggleFiltro(tipo,el){FILTROS[tipo]=!FILTROS[tipo];el.classList.toggle('active',FILTROS[tipo]);renderCalendario();}
+
+async function init(){
+  await cargarEfemerides();
+  await Promise.all([cargarEfemeridesKV(), cargarEventosKV()]);
+  DIA_SEL=HOY; renderCalendario(); renderPanelDia(HOY);
+}
+init();
+</script>
+<!-- TOGGLE CLARO/OSCURO -->
+<div class="theme-toggle" id="themeToggle">
+  <span class="icon" id="themeIcon">🌙</span>
+  <span id="themeLabel">Modo oscuro</span>
+</div>
+
+<script>
+  function setTheme(theme) {
+    const body = document.body;
+    if (theme === 'dark') {
+      body.classList.add('dark-theme');
+      document.getElementById('themeIcon').textContent = '☀️';
+      document.getElementById('themeLabel').textContent = 'Modo claro';
+    } else {
+      body.classList.remove('dark-theme');
+      document.getElementById('themeIcon').textContent = '🌙';
+      document.getElementById('themeLabel').textContent = 'Modo oscuro';
+    }
+    localStorage.setItem('mm-theme', theme);
+  }
+
+  function toggleTheme() {
+    const isDark = document.body.classList.contains('dark-theme');
+    setTheme(isDark ? 'light' : 'dark');
+  }
+  
+  // Cargar tema guardado o usar claro por defecto
+  const savedTheme = localStorage.getItem('mm-theme');
+  if (savedTheme === 'dark') {
+    setTheme('dark');
+  } else {
+    setTheme('light'); // explícitamente modo claro
+  }
+  
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+</script>
+</body>
+</html>

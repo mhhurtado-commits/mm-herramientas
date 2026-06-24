@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Suite IA — Media Mendoza</title>
+<link rel="icon" type="image/png" href="assets/logo-cuadrado.png">
+<link rel="apple-touch-icon" href="assets/logo-cuadrado.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.hub-main {
+  padding-top: var(--header-h);
+  padding-bottom: var(--footer-h);
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.masthead {
+  padding: 32px 0 0;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 16px;
+}
+@media (max-width: 960px) {
+  .masthead { grid-template-columns: 1fr; }
+}
+.masthead-left {
+  padding: 0 60px 32px 60px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 960px) {
+  .masthead-left {
+    padding: 0 28px 28px;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+}
+.logo-hero { margin-bottom: 28px; }
+.logo-hero img { height: 48px; width: auto; display: block; }
+body.dark-theme .logo-hero img { filter: brightness(0) invert(1); opacity: 0.92; }
+.masthead-eyebrow {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.masthead-eyebrow::before {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 1px;
+  background: var(--v);
+}
+.masthead-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 0.9;
+  letter-spacing: -1px;
+  margin-bottom: 20px;
+  flex: 1;
+}
+.masthead-h1 .l1 { color: var(--text); display: block; }
+.masthead-h1 .l2 { color: transparent; -webkit-text-stroke: 1px var(--line2); display: block; }
+.masthead-h1 .l3 { color: var(--v); display: block; }
+.masthead-desc {
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--muted);
+  max-width: 380px;
+  line-height: 1.7;
+}
+.masthead-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.masthead-logo-sq {
+  padding: 24px 60px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.masthead-logo-sq img { width: 80px; height: 80px; object-fit: contain; opacity: 0.15; }
+body.dark-theme .masthead-logo-sq img { filter: brightness(0) invert(1); opacity: 0.25; }
+.masthead-meta {
+  padding: 16px 60px;
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  text-align: center;
+}
+.meta-item-val {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  line-height: 1;
+}
+.meta-item-key {
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.tools {
+  padding: 0 0 40px;
+}
+.tools-header {
+  display: grid;
+  grid-template-columns: 50px 160px 1fr 140px 40px;
+  padding: 8px 60px;
+  border-bottom: 1px solid var(--line2);
+  background: var(--surface2);
+}
+@media (max-width: 960px) { .tools-header { display: none; } }
+.tools-col-label {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.tool-row {
+  display: grid;
+  grid-template-columns: 50px 160px 1fr 140px 40px;
+  padding: 0 60px;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+  align-items: stretch;
+  position: relative;
+  transition: background 0.15s;
+  overflow: hidden;
+}
+@media (max-width: 960px) {
+  .tool-row {
+    grid-template-columns: 45px 1fr 32px;
+    padding: 0 28px;
+  }
+  .tool-cell.desc-cell,
+  .tool-cell.pills-cell { display: none; }
+}
+.tool-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--v);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.2s ease;
+}
+.tool-row:hover::before { transform: scaleY(1); }
+.tool-row:hover { background: var(--v-dim); }
+.tool-row:hover .tool-num,
+.tool-row:hover .tool-name { color: var(--v); }
+.tool-row:hover .tool-arrow { transform: translateX(4px); opacity: 1; }
+.tool-cell { padding: 18px 16px 18px 0; display: flex; flex-direction: column; justify-content: center; }
+.tool-cell:first-child { padding-left: 0; }
+.tool-num { font-family: var(--font-display); font-size: 1.5rem; letter-spacing: -1px; color: var(--dim); line-height: 1; transition: color 0.2s; }
+.tool-name { font-family: var(--font-display); font-size: 1.3rem; letter-spacing: -0.5px; color: var(--text); line-height: 1; transition: color 0.2s; }
+@media (max-width: 960px) { .tool-num, .tool-name { font-size: 1.2rem; } }
+.tool-name-tag { margin-top: 4px; }
+.mm-tag {
+  display: inline-block;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border: 1px solid var(--v);
+  color: var(--v);
+  background: var(--v-dim);
+  border-radius: 20px;
+}
+.tool-desc {
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 320px;
+}
+.tool-pills { display: flex; flex-direction: column; gap: 3px; justify-content: center; }
+.tool-pill {
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tool-pill::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--v); flex-shrink: 0; }
+.tool-arrow { display: flex; align-items: center; justify-content: center; font-size: 1rem; color: var(--v); opacity: 0.35; transition: transform 0.2s ease, opacity 0.2s; }
+.mm-footer { margin-top: 0; }
+
+/* ============================================================
+   MODAL DE LOGIN
+   ============================================================ */
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+.login-modal {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.3s ease;
+}
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.login-logo {
+  margin-bottom: 24px;
+}
+.login-logo img {
+  height: 48px;
+  width: auto;
+}
+body.dark-theme .login-logo img {
+  filter: brightness(0) invert(1);
+  opacity: 0.9;
+}
+.login-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.login-sub {
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 24px;
+}
+.login-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  color: var(--white);
+  font-size: 14px;
+  margin-bottom: 20px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.login-input:focus {
+  border-color: var(--v);
+}
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--v);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.login-btn:hover {
+  opacity: 0.85;
+}
+.login-error {
+  font-size: 11px;
+  color: var(--red);
+  margin-top: 12px;
+  display: none;
+}
+.login-error.show {
+  display: block;
+}
+.logout-btn {
+  position: fixed;
+  bottom: calc(var(--footer-h) + 60px);
+  right: 80px;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 30px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--dim);
+  transition: all 0.15s;
+}
+.logout-btn:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+@media (max-width: 700px) {
+  .logout-btn {
+    bottom: calc(var(--footer-h) + 60px);
+    right: 20px;
+  }
+}
+.content-protected {
+  display: none;
+}
+.content-protected.show {
+  display: block;
+}
+</style>
+</head>
+<body>
+
+<!-- MODAL DE LOGIN -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-modal">
+    <div class="login-logo">
+      <img src="assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'">
+    </div>
+    <div class="login-title">Acceso restringido</div>
+    <div class="login-sub">Ingresá la contraseña para continuar</div>
+    <input type="password" id="passwordInput" class="login-input" placeholder="Contraseña" autofocus>
+    <button class="login-btn" onclick="verificarPassword()">Ingresar</button>
+    <div class="login-error" id="loginError">Contraseña incorrecta</div>
+  </div>
+</div>
+
+<!-- CONTENIDO PROTEGIDO (se muestra solo después de login) -->
+<div class="content-protected" id="protectedContent">
+
+<header class="mm-header">
+  <a href="/" class="mm-header-brand">
+    <img src="assets/logo.png" alt="MM" class="mm-header-logo" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section">
+    <span class="mm-header-label">Sala de Redacción Digital</span>
+  </div>
+  <div class="mm-header-status">
+    <div class="mm-status-dot"></div>
+    <span class="mm-status-txt">Conectado</span>
+  </div>
+</header>
+
+<div class="hub-main">
+
+  <div class="masthead">
+    <div class="masthead-left">
+      <div class="logo-hero"><img src="assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'"></div>
+      <div class="masthead-eyebrow">Suite de herramientas</div>
+      <h1 class="masthead-h1"><span class="l1">Producción</span><span class="l2">Periodística</span><span class="l3">con IA</span></h1>
+      <p class="masthead-desc">Desde el monitoreo de fuentes hasta la difusión en redes sociales.</p>
+    </div>
+    <div class="masthead-right">
+      <div class="masthead-logo-sq"><img src="assets/logo-cuadrado.png" alt="" onerror="this.style.display='none'"></div>
+      <div class="masthead-meta">
+        <div class="meta-item"><div class="meta-item-val">09</div><div class="meta-item-key">Herramientas</div></div>
+        <div class="meta-item"><div class="meta-item-val">16+</div><div class="meta-item-key">Plantillas</div></div>
+        <div class="meta-item"><div class="meta-item-val">IA</div><div class="meta-item-key">Gemini 2.5</div></div>
+        <div class="meta-item"><div class="meta-item-val">v2</div><div class="meta-item-key">2026</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tools">
+    <div class="tools-header">
+      <div class="tools-col-label">—</div>
+      <div class="tools-col-label">Herramienta</div>
+      <div class="tools-col-label">Descripción</div>
+      <div class="tools-col-label">Módulos</div>
+      <div class="tools-col-label"></div>
+    </div>
+
+    <a href="/whatsapp/" target="_blank" class="tool-row mm-animate mm-animate-1">
+      <div class="tool-cell"><div class="tool-num">01</div></div>
+      <div class="tool-cell"><div class="tool-name">WhatsApp</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Principal</span></div></div>
+      <div class="tool-cell desc-cell"><p class="tool-desc">Generá mensajes para grupo y canal. Programá envíos con recordatorios automáticos.</p></div>
+      <div class="tool-cell pills-cell"><div class="tool-pills"><span class="tool-pill">Grupo</span><span class="tool-pill">Canal</span><span class="tool-pill">Programar</span></div></div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <a href="/social/" target="_blank" class="tool-row mm-animate mm-animate-2">
+      <div class="tool-cell"><div class="tool-num">02</div></div>
+      <div class="tool-cell"><div class="tool-name">Social</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">+ Reel</span></div></div>
+      <div class="tool-cell desc-cell"><p class="tool-desc">Contenido para Facebook, Instagram y X. Editor de Reels con subtítulos y música.</p></div>
+      <div class="tool-cell pills-cell"><div class="tool-pills"><span class="tool-pill">Facebook</span><span class="tool-pill">Instagram</span><span class="tool-pill">Reel Editor</span></div></div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <a href="/redaccion/" target="_blank" class="tool-row mm-animate mm-animate-3">
+      <div class="tool-cell"><div class="tool-num">03</div></div>
+      <div class="tool-cell"><div class="tool-name">Redacción</div><div class="tool-name-tag"><span class="mm-tag">Monitor</span></div></div>
+      <div class="tool-cell desc-cell"><p class="tool-desc">Monitor RSS, reformulación de notas, redacción con IA y línea editorial.</p></div>
+      <div class="tool-cell pills-cell"><div class="tool-pills"><span class="tool-pill">Monitor RSS</span><span class="tool-pill">Reformular</span><span class="tool-pill">Redactar</span></div></div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <a href="/placas/" target="_blank" class="tool-row mm-animate mm-animate-4">
+      <div class="tool-cell"><div class="tool-num">04</div></div>
+      <div class="tool-cell"><div class="tool-name">Placas</div><div class="tool-name-tag"><span class="mm-tag">Editor</span></div></div>
+      <div class="tool-cell desc-cell"><p class="tool-desc">Editor visual para redes sociales. 16 plantillas, collage, foto circular y modo textual.</p></div>
+      <div class="tool-cell pills-cell"><div class="tool-pills"><span class="tool-pill">16 plantillas</span><span class="tool-pill">Collage</span><span class="tool-pill">Modo texto</span></div></div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <a href="/studio/" target="_blank" class="tool-row mm-animate mm-animate-7">
+      <div class="tool-cell"><div class="tool-num">05</div></div>
+      <div class="tool-cell"><div class="tool-name">Media Studio</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div></div>
+      <div class="tool-cell desc-cell"><p class="tool-desc">Transcribí audios de WhatsApp o entrevistas. Generá notas y subtítulos con IA.</p></div>
+      <div class="tool-cell pills-cell"><div class="tool-pills"><span class="tool-pill">Transcripción</span><span class="tool-pill">Subtítulos</span><span class="tool-pill">Notas IA</span></div></div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <a href="/resumen/" target="_blank" class="tool-row mm-animate mm-animate-5">
+      <div class="tool-cell"><div class="tool-num">06</div></div>
+      <div class="tool-cell"><div class="tool-name">Resumen</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div></div>
+      <div class="tool-cell desc-cell"><p class="tool-desc">Resumen diario de noticias para WhatsApp y redes sociales. Seleccioná notas y generá contenido.</p></div>
+      <div class="tool-cell pills-cell"><div class="tool-pills"><span class="tool-pill">WhatsApp</span><span class="tool-pill">Instagram</span><span class="tool-pill">Facebook</span></div></div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <a href="/agenda/" target="_blank" class="tool-row mm-animate mm-animate-6">
+      <div class="tool-cell"><div class="tool-num">07</div></div>
+      <div class="tool-cell"><div class="tool-name">Agenda</div><div class="tool-name-tag"><span class="mm-tag">Calendario</span></div></div>
+      <div class="tool-cell desc-cell"><p class="tool-desc">Calendario de cobertura con efemérides. Agregá eventos y ángulos periodísticos con IA.</p></div>
+      <div class="tool-cell pills-cell"><div class="tool-pills"><span class="tool-pill">Calendario</span><span class="tool-pill">Efemérides</span><span class="tool-pill">Ángulos IA</span></div></div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <a href="/bulk-image/" target="_blank" class="tool-row mm-animate mm-animate-7">
+      <div class="tool-cell"><div class="tool-num">08</div></div>
+      <div class="tool-cell"><div class="tool-name">Editor por Lotes</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div></div>
+      <div class="tool-cell desc-cell"><p class="tool-desc">Procesá hasta 30 imágenes a la vez. Redimensioná, ajustá color, agregá texto y logo.</p></div>
+      <div class="tool-cell pills-cell"><div class="tool-pills"><span class="tool-pill">Redimensionar</span><span class="tool-pill">Ajustes</span><span class="tool-pill">Texto</span><span class="tool-pill">Logo</span></div></div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+    <a href="/video-editor/" target="_blank" class="tool-row mm-animate mm-animate-8">
+      <div class="tool-cell"><div class="tool-num">09</div></div>
+      <div class="tool-cell"><div class="tool-name">Editor de Entrevistas</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div></div>
+      <div class="tool-cell desc-cell"><p class="tool-desc">Editá videos borrando texto. IA elimina silencios y muletillas.</p></div>
+      <div class="tool-cell pills-cell"><div class="tool-pills"><span class="tool-pill">Transcripción IA</span><span class="tool-pill">Corte Inteligente</span><span class="tool-pill">Sin Silencios</span></div></div>
+      <div class="tool-cell tool-arrow">→</div>
+    </a>
+
+  </div>
+
+</div>
+
+<footer class="mm-footer">
+  <div class="mm-footer-dot"></div>
+  <span class="mm-footer-txt">Gemini 2.5 Flash Lite · Activo</span>
+  <div class="mm-footer-sep"></div>
+  <div class="mm-footer-meta">
+    <span class="mm-footer-item">Cloudflare Pages</span>
+    <span class="mm-footer-item">mediamendoza.pages.dev</span>
+    <span class="mm-footer-item">v2.0 — 2026</span>
+  </div>
+</footer>
+
+<!-- Botón de cerrar sesión -->
+<div class="logout-btn" id="logoutBtn" onclick="cerrarSesion()">
+  <span>🚪</span>
+  <span>Cerrar sesión</span>
+</div>
+
+</div> <!-- cierre content-protected -->
+
+<div class="theme-toggle" id="themeToggle">
+  <span class="icon" id="themeIcon">🌙</span>
+  <span id="themeLabel">Modo oscuro</span>
+</div>
+
+<script>
+// ============================================================
+// AUTENTICACIÓN SIMPLE
+// ============================================================
+// CAMBIAR ESTA CONTRASEÑA POR LA QUE QUIERAS USAR
+const PASSWORD = "tomyjerry2008";
+
+function verificarPassword() {
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('loginError');
+  const password = input.value.trim();
+  
+  if (password === PASSWORD) {
+    // Guardar sesión en localStorage (expira en 7 días por defecto)
+    const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 días
+    localStorage.setItem('mm_auth', JSON.stringify({ 
+      autenticado: true, 
+      expires: expiry 
+    }));
+    
+    // Ocultar modal y mostrar contenido
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('protectedContent').classList.add('show');
+    
+    // Limpiar input y error
+    input.value = '';
+    error.classList.remove('show');
+  } else {
+    error.classList.add('show');
+    input.value = '';
+    input.focus();
+  }
+}
+
+function cerrarSesion() {
+  // Eliminar sesión del localStorage
+  localStorage.removeItem('mm_auth');
+  
+  // Ocultar contenido y mostrar modal
+  document.getElementById('protectedContent').classList.remove('show');
+  document.getElementById('loginOverlay').style.display = 'flex';
+  
+  // Limpiar input
+  document.getElementById('passwordInput').value = '';
+  document.getElementById('passwordInput').focus();
+  
+  toast('Sesión cerrada');
+}
+
+function verificarSesion() {
+  const authData = localStorage.getItem('mm_auth');
+  
+  if (authData) {
+    try {
+      const { autenticado, expires } = JSON.parse(authData);
+      if (autenticado && expires && Date.now() < expires) {
+        // Sesión válida
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('protectedContent').classList.add('show');
+        return true;
+      } else {
+        // Sesión expirada
+        localStorage.removeItem('mm_auth');
+      }
+    } catch(e) {
+      localStorage.removeItem('mm_auth');
+    }
+  }
+  
+  // Sin sesión válida
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('protectedContent').classList.remove('show');
+  return false;
+}
+
+// ============================================================
+// TOAST PARA MENSAJES
+// ============================================================
+function toast(m) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = m;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ============================================================
+// TEMA CLARO/OSCURO
+// ============================================================
+function setTheme(theme) {
+  const body = document.body;
+  if (theme === 'dark') {
+    body.classList.add('dark-theme');
+    document.getElementById('themeIcon').textContent = '☀️';
+    document.getElementById('themeLabel').textContent = 'Modo claro';
+  } else {
+    body.classList.remove('dark-theme');
+    document.getElementById('themeIcon').textContent = '🌙';
+    document.getElementById('themeLabel').textContent = 'Modo oscuro';
+  }
+  localStorage.setItem('mm-theme', theme);
+}
+
+function toggleTheme() {
+  const isDark = document.body.classList.contains('dark-theme');
+  setTheme(isDark ? 'light' : 'dark');
+}
+
+// ============================================================
+// INICIALIZACIÓN
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  // Verificar sesión al cargar
+  verificarSesion();
+  
+  // Configurar tema
+  const savedTheme = localStorage.getItem('mm-theme');
+  savedTheme === 'dark' ? setTheme('dark') : setTheme('light');
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+  
+  // Permitir enviar con Enter en el campo de contraseña
+  document.getElementById('passwordInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      verificarPassword();
+    }
+  });
+});
+</script>
+
+</body>
+</html>

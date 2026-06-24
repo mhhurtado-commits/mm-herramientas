@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Editor de Entrevistas IA — Media Mendoza</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    /* ============================================================
+       ESTILOS PROPIOS DEL VIDEO-EDITOR
+       Alineados al design system de style.css
+       ============================================================ */
+
+    /* Fuente subtítulos */
+    @font-face { font-family:'BebasNeue'; src:url('../assets/BebasNeue-Regular.ttf') format('truetype'); font-weight:400; font-style:normal; }
+
+    /* Layout principal */
+    .ve-main {
+      padding-top: var(--header-h);
+      padding-bottom: var(--footer-h);
+      min-height: 100vh;
+    }
+
+    .ve-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    /* Header del editor */
+    .ve-header {
+      margin-bottom: 24px;
+    }
+
+    .ve-eyebrow {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--v);
+      margin-bottom: 4px;
+    }
+
+    .ve-title {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      letter-spacing: 2px;
+      color: var(--text);
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .ve-desc {
+      font-size: 13px;
+      color: var(--muted);
+      max-width: 600px;
+    }
+
+    /* Grilla principal: video + sidebar */
+    .ve-layout {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .ve-layout { grid-template-columns: 1fr; }
+    }
+
+    /* Columna izquierda */
+    .ve-video-col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Card de video */
+    .ve-card {
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+    }
+
+    /* Área de upload */
+    .upload-area {
+      background: var(--surface2);
+      border: 2px dashed var(--line2);
+      border-radius: var(--radius-lg);
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .upload-area:hover {
+      border-color: var(--v);
+      background: var(--v-dim);
+    }
+
+    .upload-area.drag-over {
+      border-color: var(--v);
+      background: var(--v-dim);
+    }
+
+    .upload-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .upload-text {
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .upload-hint {
+      font-size: 11px;
+      color: var(--dim);
+    }
+
+    /* Wrapper del video */
+    .video-wrapper {
+      position: relative;
+      background: #000;
+      border-radius: var(--radius);
+      overflow: hidden;
+      line-height: 0;
+    }
+
+    .video-player {
+      width: 100%;
+      display: block;
+      border-radius: var(--radius);
+    }
+
+    .subtitle-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Botón seleccionar archivo */
+    .btn-seleccionar {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    /* Timeline */
+    .timeline-section {
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .timeline-title {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .timeline-time {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: monospace;
+    }
+
+    .timeline-wrapper {
+      position: relative;
+      background: #1e1e1c;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .timeline-canvas {
+      display: block;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    /* Track de audio */
+    .audio-track {
+      background: #252522;
+      border-radius: 0 0 var(--radius) var(--radius);
+      overflow: hidden;
+    }
+
+    .audio-canvas {
+      display: block;
+      width: 100%;
+      height: 40px;
+    }
+
+    .timeline-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--dim);
+      font-family: monospace;
+    }
+
+    /* Controles de corte */
+    .cut-controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    /* Botones de acción */
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .action-buttons .mm-btn {
+      flex: 1;
+      min-width: 120px;
+      justify-content: center;
+    }
+
+    /* Transcripción mini */
+    .transcription-mini {
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+    }
+
+    .transcription-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--v);
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+
+    .transcription-content {
+      max-height: 160px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .transcription-content.collapsed {
+      display: none;
+    }
+
+    /* Sidebar: Cortes y Overlays */
+    .ve-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sidebar-panel {
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+    }
+
+    .panel-header {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .panel-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .panel-empty {
+      font-size: 11px;
+      color: var(--dim);
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    /* Item de corte */
+    .cut-item {
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .cut-item-input {
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-sm);
+      padding: 4px 6px;
+      font-family: monospace;
+      font-size: 11px;
+      width: 60px;
+      text-align: center;
+      color: var(--white);
+    }
+
+    .cut-item-input:focus {
+      outline: none;
+      border-color: var(--v);
+    }
+
+    .cut-sep {
+      color: var(--dim);
+      font-size: 10px;
+    }
+
+    .cut-remove {
+      background: none;
+      border: none;
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-left: auto;
+    }
+
+    .cut-remove:hover {
+      color: var(--red);
+      background: var(--red-bg);
+    }
+
+    /* Item de overlay */
+    .overlay-item {
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .overlay-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .overlay-type {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--v);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 2px;
+    }
+
+    .overlay-name {
+      font-size: 11px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .overlay-time {
+      font-size: 10px;
+      color: var(--dim);
+      font-family: monospace;
+    }
+
+    .overlay-remove {
+      background: none;
+      border: none;
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .overlay-remove:hover {
+      color: var(--red);
+      background: var(--red-bg);
+    }
+
+    /* Sección de agregar overlay */
+    .overlay-upload-section {
+      margin-top: 12px;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+
+    .overlay-upload-section .mm-input,
+    .overlay-upload-section .mm-select {
+      margin-bottom: 12px;
+    }
+
+    .overlay-properties {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .overlay-properties.open {
+      display: flex;
+    }
+
+    /* Panel de resultados */
+    .video-result {
+      display: none;
+      margin-top: 16px;
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+    }
+
+    .video-result.open {
+      display: block;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loading-overlay.open {
+      display: flex;
+    }
+
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: var(--v);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    /* Transcripción interactiva */
+    .mm-transcript-words {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+    }
+
+    .mm-transcript-word {
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: var(--radius-sm);
+      transition: background-color 0.15s, color 0.15s;
+      color: var(--text);
+    }
+
+    .mm-transcript-word:hover {
+      background: var(--v-dim);
+      color: var(--v-dark);
+    }
+
+    .mm-transcript-word.active {
+      background: var(--v);
+      color: var(--bg);
+      font-weight: 600;
+    }
+
+    .mm-speaker-block {
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line3);
+    }
+
+    .mm-speaker-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: var(--v-badge);
+      color: #1a1a1a;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<header class="mm-header">
+  <a href="/" class="mm-header-brand">
+    <img src="../assets/logo.png" alt="Media Mendoza" class="mm-header-logo" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section">
+    <span class="mm-header-label">Editor de Entrevistas IA</span>
+  </div>
+  <div class="mm-header-status">
+    <div class="mm-status-dot"></div>
+    <span class="mm-status-txt">Conectado</span>
+  </div>
+</header>
+
+<main class="ve-main">
+  <div class="ve-container">
+
+    <!-- Header del editor -->
+    <div class="ve-header">
+      <div class="ve-eyebrow">Edición de video automatizada</div>
+      <h1 class="ve-title">Editor de Entrevistas IA</h1>
+      <p class="ve-desc">Subí un video de entrevista, cortá las partes que no necesitás, agregá subtítulos y exportá.</p>
+    </div>
+
+    <div class="ve-layout">
+
+      <!-- Columna izquierda: video, timeline, controles -->
+      <div class="ve-video-col">
+
+        <!-- Card: Video player + upload -->
+        <div class="ve-card">
+          <div id="uploadArea" class="upload-area">
+            <div class="upload-icon">🎥</div>
+            <div class="upload-text">Hacé clic o arrastrá un archivo de video</div>
+            <div class="upload-hint">MP4, MOV, AVI · Máx 500MB</div>
+          </div>
+          <input type="file" id="videoInput" accept="video/*" style="display:none">
+          <label for="videoInput" id="btnAbrirArchivo" class="mm-btn mm-btn-primary btn-seleccionar">📁 Seleccionar archivo</label>
+
+          <div id="videoWrapper" class="video-wrapper" style="display:none;">
+            <video id="videoPlayer" class="video-player" controls></video>
+            <canvas id="subtitleCanvas" class="subtitle-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Card: Timeline -->
+        <div class="timeline-section" id="timelineContainer" style="display:none;">
+          <div class="timeline-header">
+            <span class="timeline-title">⏱ Timeline</span>
+            <span class="timeline-time" id="timelineTime">0:00 / 0:00</span>
+          </div>
+          <div class="timeline-wrapper">
+            <canvas id="timelineCanvas" class="timeline-canvas"></canvas>
+            <div class="audio-track">
+              <canvas id="audioCanvas" class="audio-canvas"></canvas>
+            </div>
+          </div>
+          <div class="timeline-labels">
+            <span id="timelineStart">0:00</span>
+            <span id="timelineEnd">0:00</span>
+          </div>
+
+          <div class="cut-controls" id="cutControls">
+            <button id="markInBtn" class="mm-btn" style="background:var(--v-dim); border-color:var(--v); color:var(--v);">🔴 Inicio</button>
+            <button id="markOutBtn" class="mm-btn" style="background:var(--v-dim); border-color:var(--v); color:var(--v);">🔴 Fin</button>
+            <button id="clearCutsBtn" class="mm-btn" style="border-color:var(--red); color:var(--red);">🗑️ Limpiar</button>
+          </div>
+
+          <div class="action-buttons">
+            <button class="mm-btn mm-btn-primary" id="transcribeBtn" disabled>🔤 Transcribir</button>
+            <button class="mm-btn" id="toggleSubsBtn" disabled>💬 Subtítulos</button>
+            <button class="mm-btn" id="previewBtn" disabled>👁️ Preview</button>
+            <button class="mm-btn mm-btn-primary" id="exportBtn" disabled>💾 Exportar</button>
+          </div>
+        </div>
+
+        <!-- Transcripción mini -->
+        <div class="transcription-mini" id="transcriptionMini" style="display:none;">
+          <div class="transcription-header" id="transcriptionHeader">
+            <span>📝 Transcripción</span>
+            <span id="transcriptionToggleIcon">▼</span>
+          </div>
+          <div id="transcriptionContent" class="transcription-content"></div>
+        </div>
+
+        <!-- Resultado de exportación -->
+        <div id="videoResult" class="video-result">
+          <div class="mm-label" style="margin-bottom:12px;">Vista previa del video editado</div>
+          <video id="exportVideoPreview" controls style="width:100%; border-radius:var(--radius); margin-bottom:12px;"></video>
+          <a id="exportDownloadLink" class="mm-btn mm-btn-primary" download style="display:inline-block; text-decoration:none;">⬇ Descargar MP4</a>
+        </div>
+
+      </div>
+
+      <!-- Sidebar: Cortes + Overlays -->
+      <div class="ve-sidebar">
+
+        <!-- Panel: Cortes -->
+        <div class="sidebar-panel">
+          <div class="panel-header">✂️ Cortes</div>
+          <div id="cutsList" class="panel-list">
+            <div class="panel-empty">No hay cortes. Usá los botones de la timeline.</div>
+          </div>
+          <button id="addManualCutBtn" class="mm-btn" style="margin-top:10px; width:100%;">➕ Agregar corte manual</button>
+        </div>
+
+        <!-- Panel: Overlays -->
+        <div class="sidebar-panel">
+          <div class="panel-header">🎬 Overlays</div>
+          <div id="overlaysList" class="panel-list">
+            <div class="panel-empty">No hay overlays. Agregá imágenes o videos.</div>
+          </div>
+          <div class="overlay-upload-section">
+            <input type="file" id="overlayInput" accept="image/*,video/*" style="display:none">
+            <label for="overlayInput" class="mm-btn mm-btn-primary" style="width:100%; cursor:pointer; text-align:center; margin-bottom:10px;">➕ Agregar Overlay</label>
+            <div id="overlayProperties" class="overlay-properties">
+              <div class="mm-field">
+                <label class="mm-label">Inicio (segundos)</label>
+                <input type="number" id="overlayStartTime" min="0" step="0.1" class="mm-input" placeholder="0" style="padding:8px;">
+              </div>
+              <div class="mm-field">
+                <label class="mm-label">Duración (segundos)</label>
+                <input type="number" id="overlayDuration" min="0.1" step="0.1" class="mm-input" placeholder="3" style="padding:8px;">
+              </div>
+              <div class="mm-field">
+                <label class="mm-label">Opacidad (%)</label>
+                <input type="range" id="overlayOpacity" min="0" max="100" value="80" class="mm-range">
+                <span id="opacityValue" style="font-size:10px; color:var(--dim);">80%</span>
+              </div>
+              <button id="confirmOverlayBtn" class="mm-btn mm-btn-primary" style="width:100%;">✓ Confirmar</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="mm-footer">
+  <div class="mm-footer-dot"></div>
+  <span class="mm-footer-txt">Procesamiento en navegador · Sin servidor</span>
+  <div class="mm-footer-sep"></div>
+  <div class="mm-footer-meta">
+    <span class="mm-footer-item">Cloudflare Workers AI</span>
+    <span class="mm-footer-item">mediamendoza.pages.dev/video-editor</span>
+  </div>
+</footer>
+
+<!-- Toast -->
+<div class="mm-toast" id="toast"></div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">Procesando...</div>
+</div>
+
+<!-- Toggle tema -->
+<div class="theme-toggle" id="themeToggle">
+  <span id="themeIcon">🌙</span>
+  <span id="themeLabel">Modo oscuro</span>
+</div>
+
+<!-- FFmpeg + Editor -->
+<script async src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@latest/dist/ffmpeg.min.js"></script>
+<script src="./editor.js"></script>
+
+</body>
+</html>

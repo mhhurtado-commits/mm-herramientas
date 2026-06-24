@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>Media Studio — Transcripción y Video</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    /* Estilos específicos de Media Studio */
+    .studio-main {
+      padding-top: var(--header-h);
+      padding-bottom: var(--footer-h);
+      max-width: 1100px;
+      margin: 0 auto;
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+    
+    .studio-header {
+      margin: 24px 0 32px;
+    }
+    
+    .studio-eyebrow {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .studio-eyebrow::before {
+      content: '';
+      display: block;
+      width: 28px;
+      height: 1px;
+      background: var(--v);
+    }
+    
+    .studio-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 1;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+    
+    .studio-title span:first-child { color: var(--text); }
+    .studio-title span:last-child { color: var(--v); }
+    
+    .studio-desc {
+      font-size: 12px;
+      color: var(--muted);
+      max-width: 480px;
+      line-height: 1.6;
+    }
+    
+    /* Tabs */
+    .studio-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+    
+    .studio-tab {
+      padding: 10px 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: none;
+      border: none;
+      color: var(--dim);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+    
+    .studio-tab:hover { color: var(--white); }
+    .studio-tab.active { color: var(--v); border-bottom-color: var(--v); }
+    
+    /* Cards */
+    .studio-card {
+      background: var(--surface);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-xl);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .studio-card-header {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--dim);
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+    
+    /* Audio input area */
+    .audio-upload-area {
+      border: 2px dashed var(--line2);
+      border-radius: var(--radius-lg);
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 16px;
+    }
+    
+    .audio-upload-area:hover {
+      border-color: var(--v);
+      background: var(--v-dim);
+    }
+    
+    .audio-upload-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    
+    .recording-area {
+      background: var(--v-dim);
+      border: 1px solid rgba(166,206,57,0.3);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 16px;
+      display: none;
+    }
+    
+    .recording-area.active {
+      display: block;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    
+    .transcription-text {
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      font-size: 13px;
+      line-height: 1.7;
+      font-family: var(--font-body);
+      white-space: pre-wrap;
+    }
+    
+    .transcription-text:focus {
+      outline: none;
+      border-color: var(--v);
+    }
+    
+    .char-count {
+      font-size: 9px;
+      color: var(--dim);
+      text-align: right;
+      margin-top: 6px;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    
+    /* Proyectos */
+    .proyectos-grid {
+      display: grid;
+      gap: 10px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    
+    .proyecto-item {
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    
+    .proyecto-item:hover {
+      border-color: var(--v);
+      background: var(--v-dim);
+    }
+    
+    .proyecto-info {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .proyecto-titulo {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: 4px;
+    }
+    
+    .proyecto-preview {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    
+    .proyecto-fecha {
+      font-size: 9px;
+      color: var(--dim);
+      margin-top: 4px;
+    }
+    
+    .proyecto-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+      margin-left: 12px;
+    }
+    
+    /* Editor de segmentos */
+    .segment-editor {
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    
+    /* Loading */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      display: none;
+    }
+    
+    .loading-overlay.active {
+      display: flex;
+    }
+    
+    .loading-spinner {
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      padding: 24px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--line2);
+    }
+    
+    /* Responsive */
+    @media (max-width: 700px) {
+      .studio-main { padding: 0 16px; }
+      .studio-card { padding: 16px; }
+      .action-buttons button { flex: 1; }
+      .proyecto-item { flex-direction: column; }
+      .proyecto-actions { margin-left: 0; margin-top: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="mm-header">
+  <a href="/" class="mm-header-brand">
+    <img src="../assets/logo.png" alt="Media Mendoza" class="mm-header-logo" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section">
+    <span class="mm-header-label">Media Studio</span>
+  </div>
+  <div class="mm-header-status">
+    <div class="mm-status-dot"></div>
+    <span class="mm-status-txt">Conectado</span>
+  </div>
+</header>
+
+<div class="studio-main">
+  
+  <div class="studio-header">
+    <div class="studio-eyebrow">Herramienta multimedia</div>
+    <h1 class="studio-title">
+      <span>Media</span><br>
+      <span>Studio</span>
+    </h1>
+    <p class="studio-desc">Transcribí audios de WhatsApp, entrevistas o notas de voz. Editá, guardá proyectos y convertilos en notas periodísticas.</p>
+  </div>
+  
+  <div class="studio-tabs">
+    <button class="studio-tab active" data-tab="transcripcion">🎙 Transcripción</button>
+    <button class="studio-tab" data-tab="proyectos">📁 Proyectos</button>
+  </div>
+  
+  <!-- TAB: Transcripción -->
+  <div id="tab-transcripcion">
+    <div class="studio-card">
+      <div class="studio-card-header">📂 Subir audio</div>
+      
+      <div class="audio-upload-area" id="uploadArea">
+        <div class="audio-upload-icon">🎤</div>
+        <div>Hacé clic o arrastrá un audio</div>
+        <div style="font-size: 11px; color: var(--dim); margin-top: 8px">MP3, M4A, WAV, WebM, OGG (máx 10MB)</div>
+        <input type="file" id="audioInput" accept="audio/*" style="display:none">
+      </div>
+      
+      <div class="recording-area" id="recordingArea">
+        <div class="audio-upload-icon">🔴 Grabando...</div>
+        <div id="recordingTimer">0:00</div>
+        <button class="mm-btn mm-btn-danger" id="stopRecordingBtn" style="margin-top: 10px;">⏹ Detener</button>
+      </div>
+      
+      <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+        <button class="mm-btn" id="micBtn" style="flex: 1">🎤 Grabar desde micrófono</button>
+        <button class="mm-btn" id="uploadBtn" style="flex: 1">📁 Seleccionar archivo</button>
+      </div>
+      
+      <div class="studio-card-header" style="margin-top: 16px;">📝 Transcripción</div>
+      
+      <div id="transcriptionStatus" style="display: none; background: var(--v-dim); border-radius: var(--radius); padding: 12px; margin-bottom: 12px; text-align: center;">
+        <div class="mm-spinner"></div> Procesando audio...
+      </div>
+      
+      <div id="transcriptionResult" style="display: none;">
+        <div class="transcription-text" id="transcriptionText" contenteditable="true"></div>
+        <div class="char-count" id="charCount">0 caracteres</div>
+        
+        <div class="action-buttons">
+          <button class="mm-btn mm-btn-primary" id="crearNotaBtn">✍ Crear nota periodística</button>
+          <button class="mm-btn" id="copiarTextoBtn">📋 Copiar texto</button>
+          <button class="mm-btn" id="guardarProyectoBtn">💾 Guardar proyecto</button>
+          <button class="mm-btn" id="descargarVTTBtn">📄 Descargar VTT</button>
+          <button class="mm-btn" id="descargarSRTBtn">📄 Descargar SRT</button>
+          <button class="mm-btn" id="editarSegmentosBtn">✏ Editar subtítulos</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- TAB: Proyectos -->
+  <div id="tab-proyectos" style="display: none;">
+    <div class="studio-card">
+      <div class="studio-card-header">📁 Mis proyectos</div>
+      <div id="proyectosList" class="proyectos-grid">
+        <div class="text-muted" style="text-align: center; padding: 40px;">Cargando proyectos...</div>
+      </div>
+    </div>
+  </div>
+  
+</div>
+
+<footer class="mm-footer">
+  <div class="mm-footer-dot"></div>
+  <span class="mm-footer-txt">Cloudflare AI · Whisper · Activo</span>
+  <div class="mm-footer-sep"></div>
+  <div class="mm-footer-meta">
+    <span class="mm-footer-item">Cloudflare Pages</span>
+    <span class="mm-footer-item">mediamendoza.pages.dev/studio</span>
+  </div>
+</footer>
+
+<div class="mm-toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner">
+    <div class="mm-spinner"></div>
+    <div id="loadingText">Procesando...</div>
+  </div>
+</div>
+
+<div class="theme-toggle" id="themeToggle">
+  <span class="icon" id="themeIcon">🌙</span>
+  <span id="themeLabel">Modo oscuro</span>
+</div>
+
+<script src="studio.js"></script>
+</body>
+</html>

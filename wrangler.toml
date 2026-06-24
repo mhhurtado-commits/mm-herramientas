@@ -1,0 +1,26 @@
+name = "mm-herramientas-worker"
+main = "worker/worker.js"
+compatibility_date = "2025-05-20"
+account_id = "00df0db3bb0b5b3c467bc08b75766280"
+
+# Enlace a KV (reemplazá TU_KV_ID con el ID real)
+[[kv_namespaces]]
+binding = "KV"
+id = "f5bbbdf9531b4881bfb1fddf1f943750"
+
+# Enlace a R2
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "mm-reels"
+
+# Enlace a la cola (productor y consumidor)
+[[queues.producers]]
+queue = "transcription-queue"
+binding = "transcription_queue"
+
+[[queues.consumers]]
+queue = "transcription-queue"
+binding = "transcription_queue"
+
+[ai]
+binding = "AI"
