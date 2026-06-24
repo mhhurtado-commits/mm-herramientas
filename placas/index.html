@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>Editor de Placas — Media Mendoza</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    /* ============================================================
+       Estilos específicos del editor de placas
+       (Los estilos base de layout están en style.css)
+       ============================================================ */
+    .canvas-wrap {
+      position: relative;
+      box-shadow: var(--shadow);
+      border-radius: 4px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    #mc { display: block; }
+    .lov {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      border-radius: 4px;
+    }
+    .lov .spin {
+      width: 30px;
+      height: 30px;
+      border: 3px solid var(--line2);
+      border-top-color: var(--v);
+      border-radius: 50%;
+      animation: sp 0.7s linear infinite;
+    }
+    @keyframes sp { to { transform: rotate(360deg); } }
+
+    /* Accordion específico */
+    .acc-item { border-bottom: 1px solid var(--line); }
+    .acc-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 15px;
+      cursor: pointer;
+      user-select: none;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      letter-spacing: 0.8px;
+      color: var(--text);
+      background: var(--surface);
+      transition: background 0.15s;
+      gap: 8px;
+    }
+    .acc-head:hover { background: var(--surface2); }
+    .acc-head.open { color: var(--v); }
+    .acc-icon {
+      font-size: 0.7rem;
+      color: var(--dim);
+      transition: transform 0.25s;
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .acc-head.open .acc-icon { transform: rotate(180deg); color: var(--v); }
+    .acc-body {
+      display: none;
+      padding: 4px 15px 14px;
+      background: var(--bg2);
+      animation: fadeIn 0.18s ease;
+    }
+    .acc-body.open { display: block; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: none; }
+    }
+    .acc-label-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--v);
+      flex-shrink: 0;
+      margin-right: 2px;
+    }
+
+    /* Formato pills (solo desktop) */
+    .fmt-pills {
+      display: flex;
+      gap: 4px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    @media (max-width: 700px) { .fmt-pills { display: none; } }
+
+    /* Modos especiales */
+    .mode-bar {
+      display: flex;
+      gap: 5px;
+      margin: 10px 0 14px;
+      padding: 0 2px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 6px 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-align: center;
+      border: 1.5px solid var(--line2);
+      border-radius: var(--radius);
+      cursor: pointer;
+      background: var(--surface);
+      color: var(--dim);
+      transition: all 0.15s;
+    }
+    .mode-btn:hover { border-color: var(--v); color: var(--v); }
+    .mode-btn.on { background: var(--v); border-color: var(--v); color: var(--bg); }
+    .special-only { display: none; }
+    .mode-section { margin-top: 8px; }
+    
+    /* Ocultar barra de modos del canvas (ya está dentro del panel) */
+    @media (max-width: 700px) {
+      .mode-bar-mobile {
+        display: none !important;
+      }
+    }
+
+    /* Template grid */
+    .tpl-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .tpl-btn {
+      background: var(--surface);
+      border: 1.5px solid var(--line2);
+      border-radius: var(--radius);
+      padding: 6px 4px 5px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tpl-btn:hover { border-color: var(--v); }
+    .tpl-btn.on { border-color: var(--v); background: var(--v-dim); }
+    .tpl-prev {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 4px;
+      margin-bottom: 3px;
+      display: block;
+      background: var(--bg2);
+    }
+    .tpl-name {
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      letter-spacing: 0.4px;
+      color: var(--muted);
+    }
+
+    /* Align bar */
+    .align-bar {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin: 6px 0 2px;
+    }
+    .align-bar button {
+      flex: 1;
+      min-width: 28px;
+      padding: 4px 2px;
+      font-size: 0.75rem;
+      background: var(--surface2);
+      border: 1px solid var(--line2);
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.12s;
+    }
+    .align-bar button:hover { border-color: var(--v); color: var(--v); }
+    .el-actions {
+      display: flex;
+      gap: 6px;
+      margin: 8px 0 2px;
+      align-items: center;
+    }
+    .el-actions span { font-size: 0.75rem; color: var(--dim); flex: 1; }
+    .btn-reset {
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      background: none;
+      border: 1px solid var(--line2);
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--muted);
+    }
+    .btn-reset:hover { border-color: var(--v); color: var(--v); }
+
+    /* Swatches */
+    .swatches {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .sw {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.12s;
+      flex-shrink: 0;
+    }
+    .sw:hover, .sw.on { border-color: var(--white); transform: scale(1.15); }
+    .sw-transp {
+      background: linear-gradient(135deg, #fff 45%, #f00 45%, #f00 55%, #fff 55%);
+      border: 1.5px solid var(--line2) !important;
+    }
+
+    /* Toggle */
+    .togrow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+    .togslide {
+      position: absolute;
+      inset: 0;
+      background: var(--line2);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .togslide::before {
+      content: "";
+      position: absolute;
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background: var(--white);
+      border-radius: 50%;
+      transition: 0.2s;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+    .toggle input:checked + .togslide { background: var(--v); }
+    .toggle input:checked + .togslide::before { transform: translateX(16px); }
+
+    /* Upload label */
+    .uplbl {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1.5px dashed var(--line2);
+      border-radius: var(--radius);
+      padding: 9px;
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--dim);
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-top: 8px;
+      font-family: var(--font-body);
+    }
+    .uplbl:hover { border-color: var(--v); color: var(--v); }
+    .urlrow {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .urlbtn {
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      background: var(--v);
+      color: var(--bg);
+      border: none;
+      font-size: 0.95rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s;
+      font-weight: 700;
+    }
+    .urlbtn:hover { background: var(--vo); }
+    .collage-slots {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 8px 0;
+    }
+    .collage-slot {
+      border: 2px dashed var(--line2);
+      border-radius: var(--radius);
+      padding: 10px 6px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--dim);
+      cursor: pointer;
+    }
+    .collage-slot:hover { border-color: var(--v); }
+
+    /* Export bar — desktop */
+    .expbar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: var(--footer-h);
+      background: var(--surface);
+      border-top: 2px solid var(--line2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      z-index: 200;
+    }
+    .exp-lbl {
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      color: var(--dim);
+      margin-right: auto;
+      letter-spacing: 0.3px;
+      display: none;
+    }
+    @media (min-width: 701px) { .exp-lbl { display: block; } }
+
+    /* ============================================================
+       ESTILOS MÓVIL
+       ============================================================ */
+    @media (max-width: 700px) {
+      /* En móvil la expbar va encima de la tabbar (56px) */
+      .expbar {
+        bottom: 56px;
+        height: 46px;
+        z-index: 151;
+        border-top: 1px solid var(--line2);
+        padding: 0 10px;
+        gap: 6px;
+      }
+      .expbar .mm-btn {
+        padding: 7px 12px;
+        font-size: 10px;
+      }
+
+      .placas-sidebar {
+        display: none;
+      }
+
+      /* Canvas area: top = header(56), bottom = expbar(46) + tabbar(56) = 102px */
+      /* app.js internamente usa TB=52 + EB=58 + TABS=48 = 158 — nosotros ajustamos
+         el área visible para que clientHeight coincida con lo que app.js espera.
+         Como no podemos cambiar app.js, hacemos que el canvas area tenga el alto
+         exacto y app.js lo leerá bien con area.clientHeight */
+      .placas-canvas-area {
+        position: fixed;
+        top: 56px;   /* header */
+        left: 0;
+        right: 0;
+        bottom: 102px; /* expbar(46) + tabbar(56) */
+        padding: 4px 8px 0;
+        transition: bottom 0.26s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        overflow: hidden;
+      }
+      
+      .placas-canvas-area.panel-open {
+        bottom: calc(102px + 45vh);
+      }
+
+      /* ── Barra de modos en el canvas (móvil) ── */
+      .mode-bar-mobile {
+        display: flex;
+        gap: 5px;
+        margin: 0 0 8px 0;
+        width: 100%;
+        flex-shrink: 0;
+      }
+      .mode-bar-mobile .mode-btn {
+        font-size: 0.65rem;
+        padding: 5px 3px;
+      }
+      
+      /* Barra de pestañas inferior */
+      .mob-tabbar {
+        position: fixed !important;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex !important;
+        justify-content: space-around;
+        background: var(--surface);
+        border-top: 2px solid var(--v);
+        z-index: 150;
+        padding: 6px 0 10px;
+        height: 56px;
+      }
+      
+      .mob-tab {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        background: none;
+        border: none;
+        font-size: 8px;
+        font-weight: 600;
+        color: var(--dim);
+        cursor: pointer;
+        font-family: var(--font-body);
+        padding: 4px 6px;
+        border-radius: var(--radius);
+      }
+      .mob-tab .ti { font-size: 16px; }
+      .mob-tab.on { color: var(--v); }
+      
+      /* Panel deslizante — encima de expbar+tabbar */
+      .mob-panel {
+        position: fixed !important;
+        bottom: 102px;  /* expbar(46) + tabbar(56) */
+        left: 0;
+        right: 0;
+        max-height: 45vh;
+        background: var(--surface);
+        border-top: 2px solid var(--v);
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        z-index: 149;
+        transform: translateY(100%);
+        transition: transform 0.26s ease;
+        overflow-y: auto;
+        padding: 14px;
+        box-shadow: var(--shadow-lg);
+      }
+      .mob-panel.open { transform: translateY(0); }
+      .mob-panel.closing { transform: translateY(100%); }
+      .mob-panel.open .mob-panel-inner {
+        display: flex !important;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 20px;
+      }
+
+      /* Ajuste del toggle de tema en móvil */
+      .theme-toggle {
+        bottom: calc(var(--footer-h) + 60px) !important;
+        padding: 4px 10px;
+        font-size: 9px;
+      }
+    }
+    
+    @media (min-width: 701px) {
+      .mode-bar-mobile { display: none !important; }
+      .mob-tabbar { display: none !important; }
+      .mob-panel { display: none !important; }
+    }
+
+    /* fl = field label (usado por app.js en el panel móvil) */
+    .fl {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--dim);
+      display: block;
+      margin-bottom: 4px;
+      margin-top: 8px;
+    }
+    .rrow { margin-bottom: 4px; }
+    .rval { color: var(--v); margin-left: 4px; }
+    .mm-range-label { color: var(--v); margin-left: 4px; }
+
+    /* ════ CALENDARIO MUNDIAL ════ */
+    .calendario-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0; margin-bottom: 6px;
+    }
+    .calendario-header button {
+      background: var(--surface2); border: 1px solid var(--line2); border-radius: var(--radius);
+      color: var(--v); cursor: pointer; padding: 4px 10px; font-size: 0.9rem;
+      transition: all 0.15s;
+    }
+    .calendario-header button:hover { background: var(--v); color: var(--bg); }
+    .mes-año {
+      font-family: var(--font-display); font-size: 0.9rem; letter-spacing: 1px;
+      color: var(--v);
+    }
+    .calendario-dias {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+      margin-bottom: 8px;
+    }
+    .dia-semana {
+      text-align: center; font-size: 0.7rem; font-weight: 600;
+      color: var(--dim); padding: 4px 0;
+    }
+    .dia {
+      text-align: center; padding: 6px 2px; font-size: 0.8rem; cursor: pointer;
+      border-radius: 4px; transition: all 0.12s; color: var(--text);
+      border: 1.5px solid transparent;
+    }
+    .dia:hover { background: var(--surface2); border-color: var(--v); }
+    .dia.seleccionada {
+      background: var(--v); color: var(--bg); font-weight: 700;
+      border-color: #f5c518;
+    }
+    .dia.hoy { border-color: var(--v); }
+    .dia-vacio { padding: 6px 2px; }
+
+    /* ════ LISTADO DE PARTIDOS ════ */
+    .partidos-lista { margin-top: 4px; }
+    .partido-item {
+      padding: 8px 6px; border-radius: var(--radius); cursor: pointer;
+      border: 1px solid var(--line2); margin-bottom: 4px;
+      transition: all 0.15s; background: var(--surface);
+    }
+    .partido-item:hover { border-color: var(--v); background: var(--surface2); }
+    .partido-item.finalizado { opacity: 0.85; }
+    .partido-equipos {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.82rem; gap: 4px;
+    }
+    .equipo { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .equipo:last-child { text-align: right; }
+    .score {
+      font-family: var(--font-display); font-size: 0.9rem; font-weight: 700;
+      color: var(--v); flex-shrink: 0; padding: 0 6px;
+    }
+    .partido-info {
+      font-size: 0.68rem; color: var(--dim); margin-top: 2px; text-align: center;
+    }
+    .madrugada-tag {
+      display: inline-block; font-size: 0.6rem; color: #f0c040; background: rgba(240,192,64,0.15);
+      border-radius: 8px; padding: 1px 6px; margin-left: 4px; vertical-align: middle;
+    }
+    .partidos-empty {
+      text-align: center; color: var(--dim); font-size: 0.8rem;
+      padding: 16px 0;
+    }
+
+    /* ════ SECCIÓN MUNDIAL (SIDEBAR) ════ */
+    #mundial-section { display: none; }
+    #mundial-section .mundial-title {
+      font-family: var(--font-display); font-size: 1rem; letter-spacing: 1px;
+      color: var(--v); padding: 10px 0 6px;
+    }
+    #mundial-section .mundial-subtitle {
+      font-size: 0.74rem; color: var(--muted); margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .mundial-generar-btn {
+      display: block; width: 100%; padding: 10px; margin-top: 10px;
+      background: var(--v); color: var(--bg); border: none; border-radius: var(--radius);
+      font-family: var(--font-display); font-size: 0.9rem; letter-spacing: 0.5px;
+      cursor: pointer; transition: background 0.15s; text-align: center;
+    }
+    .mundial-generar-btn:hover { background: var(--vo); }
+    .mundial-templates {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;
+      margin-top: 10px;
+    }
+    .mundial-tpl-btn {
+      background: var(--surface); border: 1.5px solid var(--line2);
+      border-radius: var(--radius); padding: 5px 3px; text-align: center;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .mundial-tpl-btn:hover { border-color: var(--v); }
+    .mundial-tpl-btn.on { border-color: var(--v); background: var(--v-dim); }
+    .mundial-tpl-name {
+      font-family: var(--font-display); font-size: 0.7rem;
+      color: var(--muted); margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+<header class="mm-header">
+  <a href="/" class="mm-header-brand">
+    <img id="hLogo" src="../assets/logo.png" alt="Media Mendoza" class="mm-header-logo" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section">
+    <span class="mm-header-label">Editor de Placas</span>
+  </div>
+  <div class="mm-header-status">
+    <div class="mm-status-dot"></div>
+    <span class="mm-status-txt">Conectado</span>
+  </div>
+</header>
+
+<div class="placas-layout">
+
+  <!-- SIDEBAR (desktop) -->
+  <aside class="placas-sidebar">
+    <!-- MODO DE PLACA -->
+    <div class="mode-bar">
+      <div class="mode-btn on"  id="mode-normal"   onclick="setMode('normal')">📰 Normal</div>
+      <div class="mode-btn"     id="mode-textual"  onclick="setMode('textual')">💬 Textual</div>
+      <div class="mode-btn"     id="mode-foto"     onclick="setMode('foto')">👤 Foto</div>
+      <div class="mode-btn"     id="mode-collage"  onclick="setMode('collage')">🖼 Collage</div>
+      <div class="mode-btn"     id="mode-futbol"   onclick="setMode('futbol')">⚽ Mundial</div>
+      <div class="mode-btn"     id="mode-clima"    onclick="setMode('clima')">🌤️ Clima</div>
+    </div>
+
+    <!-- PANEL MODO TEXTUAL -->
+    <div id="special-panel-textual" class="special-only mode-section">
+      <div class="mm-field">
+        <label class="mm-label">Texto <span style="font-size:0.72rem;color:var(--dim)">(editá también sobre el canvas)</span></label>
+        <textarea id="quoteIn" class="mm-textarea" rows="3" placeholder="Escribí el textual aquí..." oninput="S.quote=this.value;ELS.title._textualInit=null;render()"></textarea>
+      </div>
+      <div class="mm-field">
+        <label class="mm-label">Autor / Fuente</label>
+        <input type="text" id="quoteAuthorIn" class="mm-input" placeholder="Nombre, cargo..." oninput="S.quoteAuthor=this.value;render()">
+      </div>
+      <label class="mm-label" style="margin-top:8px">Color del panel</label>
+      <div style="display:flex;gap:5px;margin:4px 0 8px">
+        <div class="tpl-btn on" id="qs-verde"  onclick="S.quoteStyle='verde'; setQS(this)" style="flex:1;padding:5px 2px;font-size:0.72rem">Verde MM</div>
+        <div class="tpl-btn"   id="qs-negro"   onclick="S.quoteStyle='negro'; setQS(this)" style="flex:1;padding:5px 2px;font-size:0.72rem">Negro</div>
+        <div class="tpl-btn"   id="qs-blanco"  onclick="S.quoteStyle='blanco';setQS(this)" style="flex:1;padding:5px 2px;font-size:0.72rem">Blanco</div>
+      </div>
+      <label class="mm-label">Posición del panel</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:4px 0 8px">
+        <div class="tpl-btn on" id="qp-left"   onclick="S.quotePos='left';  setQP(this);ELS.title._textualInit=null;render()" style="padding:5px;font-size:0.72rem">◀ Izquierda</div>
+        <div class="tpl-btn"   id="qp-right"   onclick="S.quotePos='right'; setQP(this);ELS.title._textualInit=null;render()" style="padding:5px;font-size:0.72rem">Derecha ▶</div>
+        <div class="tpl-btn"   id="qp-top"     onclick="S.quotePos='top';   setQP(this);ELS.title._textualInit=null;render()" style="padding:5px;font-size:0.72rem">▲ Arriba</div>
+        <div class="tpl-btn"   id="qp-bottom"  onclick="S.quotePos='bottom';setQP(this);ELS.title._textualInit=null;render()" style="padding:5px;font-size:0.72rem">Abajo ▼</div>
+      </div>
+      <div class="mm-field">
+        <label class="mm-label">Tamaño del panel <span class="mm-range-label" id="rv-quoteSplit">50%</span></label>
+        <input type="range" id="r-quoteSplit" min="30" max="70" value="50" class="mm-range" oninput="S.quoteSplit=this.value/100;document.getElementById('rv-quoteSplit').textContent=this.value+'%';ELS.title._textualInit=null;render()">
+      </div>
+      <div class="mm-field" style="margin-top:8px">
+        <label class="mm-label">Color del texto</label>
+        <div class="swatches">
+          <input type="color" id="qtCol" value="#111111" class="mm-input" style="width:32px;height:28px;padding:2px;" oninput="S.quoteTextCol=this.value;render()">
+          <div class="sw on" id="qtc-auto" style="background:linear-gradient(135deg,#111 50%,#fff 50%);border-color:#ccc" onclick="S.quoteTextCol='';document.querySelectorAll('[id^=qtc-]').forEach(b=>b.classList.remove('on'));this.classList.add('on');render()" title="Auto"></div>
+          <div class="sw" id="qtc-white" style="background:#fff;border-color:#ccc" onclick="S.quoteTextCol='#ffffff';document.querySelectorAll('[id^=qtc-]').forEach(b=>b.classList.remove('on'));this.classList.add('on');render()"></div>
+          <div class="sw" id="qtc-black" style="background:#111" onclick="S.quoteTextCol='#111111';document.querySelectorAll('[id^=qtc-]').forEach(b=>b.classList.remove('on'));this.classList.add('on');render()"></div>
+          <div class="sw" id="qtc-green" style="background:#a6ce39" onclick="S.quoteTextCol='#a6ce39';document.querySelectorAll('[id^=qtc-]').forEach(b=>b.classList.remove('on'));this.classList.add('on');render()"></div>
+        </div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:7px 10px;margin:8px 0 4px;font-size:0.74rem;color:var(--muted)">
+        🖱️ <strong>Logo:</strong> arrastrá y redimensionás sobre el canvas. <strong>Texto:</strong> idem.
+      </div>
+      <label class="mm-label">Foto de fondo <span style="font-size:0.72rem;color:var(--dim)">(opcional)</span></label>
+      <button class="uplbl" onclick="document.getElementById('textualBgUp').click()" style="cursor:pointer;display:block;width:100%;text-align:left">📁 Subir foto de fondo</button>
+      <button class="btn-reset" onclick="S.bgImg=null;render()" style="margin-top:4px;width:100%;text-align:center">✕ Quitar foto</button>
+    </div>
+
+    <!-- PANEL MODO FOTO CÍRCULO -->
+    <div id="special-panel-foto" class="special-only mode-section">
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:8px 10px;margin-bottom:10px;font-size:0.78rem;color:var(--muted);line-height:1.4">
+        📌 <strong>Cómo funciona:</strong> La imagen de la noticia va de fondo. Acá cargás la foto de la persona que aparece en el círculo.
+      </div>
+      <label class="mm-label">Imagen de fondo (noticia)</label>
+      <button class="uplbl" onclick="document.getElementById('bgImgUp2').click()" style="cursor:pointer;display:block;width:100%;text-align:left">📁 Subir imagen de fondo</button>
+      <label class="mm-label" style="margin-top:10px">Foto en círculo (persona)</label>
+      <button class="uplbl" onclick="document.getElementById('fotoImgUp').click()" style="cursor:pointer;display:block;width:100%;text-align:left">📁 Subir foto de la persona</button>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:7px 10px;margin:8px 0;font-size:0.76rem;color:var(--muted)">
+        🖱️ <strong>Arrastrá y redimensionás</strong> la foto directamente sobre el canvas.
+      </div>
+      <label class="mm-label">Forma del contenedor</label>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:4px 0 10px">
+        <div class="tpl-btn on" id="fs-circle"  onclick="S.fotoShape='circle'; setFS(this)" style="padding:6px 2px;font-size:0.8rem">⬤</div>
+        <div class="tpl-btn"   id="fs-square"   onclick="S.fotoShape='square'; setFS(this)" style="padding:6px 2px;font-size:0.8rem">⬛</div>
+        <div class="tpl-btn"   id="fs-diamond"  onclick="S.fotoShape='diamond';setFS(this)" style="padding:6px 2px;font-size:0.8rem">◆</div>
+        <div class="tpl-btn"   id="fs-hexagon"  onclick="S.fotoShape='hexagon';setFS(this)" style="padding:6px 2px;font-size:0.8rem">⬡</div>
+      </div>
+      <label class="mm-label">Color del borde</label>
+      <div class="swatches">
+        <input type="color" value="#a6ce39" class="mm-input" style="width:32px;height:28px;padding:2px;" oninput="S.fotoBorder=this.value;render()">
+        <div class="sw on" style="background:#a6ce39" onclick="S.fotoBorder='#a6ce39';render()"></div>
+        <div class="sw" style="background:#fff;border-color:#ccc" onclick="S.fotoBorder='#ffffff';render()"></div>
+        <div class="sw" style="background:#111" onclick="S.fotoBorder='#111111';render()"></div>
+      </div>
+    </div>
+
+    <!-- PANEL MODO COLLAGE -->
+    <div id="special-panel-collage" class="special-only mode-section">
+      <label class="mm-label">Distribución</label>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:4px 0 12px">
+        <div class="tpl-btn on" id="cl-2h" onclick="S.collageLayout='2h';setCL(this)" title="2 lado a lado" style="padding:6px 2px;font-size:0.7rem">⬜⬜</div>
+        <div class="tpl-btn"   id="cl-2v" onclick="S.collageLayout='2v';setCL(this)" title="2 arriba/abajo" style="padding:6px 2px;font-size:0.7rem">🔲</div>
+        <div class="tpl-btn"   id="cl-3t" onclick="S.collageLayout='3t';setCL(this)" title="grande arriba, 2 abajo" style="padding:6px 2px;font-size:0.65rem">1↑2↓</div>
+        <div class="tpl-btn"   id="cl-3b" onclick="S.collageLayout='3b';setCL(this)" title="2 arriba, grande abajo" style="padding:6px 2px;font-size:0.65rem">2↑1↓</div>
+        <div class="tpl-btn"   id="cl-3l" onclick="S.collageLayout='3l';setCL(this)" title="grande izq, 2 der" style="padding:6px 2px;font-size:0.65rem">1←2→</div>
+        <div class="tpl-btn"   id="cl-3r" onclick="S.collageLayout='3r';setCL(this)" title="2 izq, grande der" style="padding:6px 2px;font-size:0.65rem">2←1→</div>
+        <div class="tpl-btn"   id="cl-4"  onclick="S.collageLayout='4'; setCL(this)" title="4 iguales" style="padding:6px 2px;font-size:0.7rem">⊞</div>
+      </div>
+      <label class="mm-label">Imágenes</label>
+      <div class="collage-slots" style="grid-template-columns:1fr 1fr">
+        <div class="collage-slot" onclick="document.getElementById('coll0').click()"><div>🖼</div><div style="font-size:0.72rem">Imagen 1</div></div>
+        <div class="collage-slot" onclick="document.getElementById('coll1').click()"><div>🖼</div><div style="font-size:0.72rem">Imagen 2</div></div>
+        <div class="collage-slot" id="coll-slot-2" onclick="document.getElementById('coll2').click()"><div>🖼</div><div style="font-size:0.72rem">Imagen 3</div></div>
+        <div class="collage-slot" id="coll-slot-3" onclick="document.getElementById('coll3').click()"><div>🖼</div><div style="font-size:0.72rem">Imagen 4</div></div>
+      </div>
+    </div>
+
+    <!-- PANEL MODO CLIMA -->
+    <div id="special-panel-clima" class="special-only mode-section">
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:8px 10px;margin-bottom:10px;font-size:0.78rem;color:var(--muted);line-height:1.4">
+        🌤️ <strong>Clima dinámico:</strong> Datos en tiempo real desde Open-Meteo API. Seleccioná una ciudad y actualizá.
+      </div>
+      <label class="mm-label">Ciudad</label>
+      <select id="selClimaCiudad" class="mm-select" onchange="window.climaCiudad=this.value">
+        <option value="San Rafael">San Rafael</option>
+        <option value="General Alvear">General Alvear</option>
+        <option value="Malargüe">Malargüe</option>
+        <option value="Mendoza">Mendoza</option>
+        <option value="San Juan">San Juan</option>
+        <option value="San Luis">San Luis</option>
+        <option value="Neuquén">Neuquén</option>
+      </select>
+      <button id="btn-actualizar-clima" class="mm-btn mm-btn-primary" style="width:100%;margin-top:10px" onclick="obtenerClima(window.climaCiudad)">
+        🔄 Actualizar clima
+      </button>
+      
+      <label class="mm-label" style="margin-top:15px">Tipo de Placa</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:5px;margin-bottom:15px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text)">
+          <input type="radio" name="climaTipoPlaca" value="combinado" checked onchange="window.climaTipoPlaca=this.value;render()">
+          Combinado (Actual + Evolución Diaria)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text)">
+          <input type="radio" name="climaTipoPlaca" value="extendido" onchange="window.climaTipoPlaca=this.value;render()">
+          Pronóstico 5 Días
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text)">
+          <input type="radio" name="climaTipoPlaca" value="diario" onchange="window.climaTipoPlaca=this.value;render()">
+          Evolución Diaria (Madrugada, Mañana, Tarde, Noche)
+        </label>
+      </div>
+      
+      <label class="mm-label">Contenido a mostrar</label>
+      <div style="display:flex;gap:8px;margin-top:5px">
+        <label style="flex:1;display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text)">
+          <input type="checkbox" id="chkClimaActual" checked onchange="window.climaMostrarActual=this.checked;render()">
+          Datos actuales
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text)">
+          <input type="checkbox" id="chkClimaPronostico" checked onchange="window.climaMostrarPronostico=this.checked;render()">
+          Pronóstico
+        </label>
+      </div>
+      
+      <label class="mm-label" style="margin-top:10px">Alerta manual (opcional)</label>
+      <input type="text" id="txtClimaAlerta" class="mm-input" placeholder="Ej: Alerta de tormenta severa" style="width:100%" oninput="window.climaAlerta=this.value;render()">
+        <select id="selClimaCiudadExtra" class="mm-select" style="flex:1">
+          <option value="">Seleccionar...</option>
+          <option value="San Rafael">San Rafael</option>
+          <option value="General Alvear">General Alvear</option>
+          <option value="Malargüe">Malargüe</option>
+          <option value="Mendoza">Mendoza</option>
+          <option value="San Juan">San Juan</option>
+          <option value="San Luis">San Luis</option>
+          <option value="Neuquén">Neuquén</option>
+        </select>
+        <button class="mm-btn" onclick="agregarCiudadExtra()" style="padding:8px 12px">+</button>
+      </div>
+      <div id="listaCiudadesExtra" style="margin-top:8px;font-size:0.75rem;color:var(--muted)"></div>
+      
+      <div id="clima-status" style="margin-top:8px;font-size:0.74rem;color:var(--muted);text-align:center"></div>
+    </div>
+
+    <!-- SECCIÓN MUNDIAL 2026 -->
+    <div id="mundial-section">
+      <div class="mundial-title">⚽ MUNDIAL 2026</div>
+      <div class="mundial-subtitle">Seleccioná fecha: El calendario muestra todos los partidos del día. Hacé clic en "Generar placa" para crear la placa de partidos, o en un partido individual para hacer su placa.</div>
+      <div id="mundialCalendario" class="mundial-calendario-content"></div>
+      <button class="mundial-generar-btn" onclick="generarPlacaDelDia()">
+        ☀️ Generar placa "Partidos del día"
+      </button>
+      <button class="mundial-generar-btn" style="background:#1a3a5c;margin-top:6px" onclick="generarResultadosDelDia()">
+        🌙 Generar placa "Resultados del día"
+      </button>
+      <div style="margin-top:6px;display:flex;gap:5px;align-items:center">
+        <label class="mm-label" style="margin:0;white-space:nowrap;font-size:0.76rem">Grupo:</label>
+        <select id="selGrupoPosiciones" class="mm-input" style="flex:1;padding:5px;font-size:0.76rem" onchange="S.grupoPosiciones=this.value;S.posicionesPage=0;if(S.mundialTipo==='posiciones'){render();drawPreviews();}">
+          <option value="all">Todos (6 por placa)</option>
+          <option value="A">Grupo A</option>
+          <option value="B">Grupo B</option>
+          <option value="C">Grupo C</option>
+          <option value="D">Grupo D</option>
+          <option value="E">Grupo E</option>
+          <option value="F">Grupo F</option>
+          <option value="G">Grupo G</option>
+          <option value="H">Grupo H</option>
+          <option value="I">Grupo I</option>
+          <option value="J">Grupo J</option>
+          <option value="K">Grupo K</option>
+          <option value="L">Grupo L</option>
+        </select>
+      </div>
+      <div id="posicionesNav" style="display:none;margin-top:6px;gap:5px">
+        <button class="mundial-generar-btn" style="background:var(--surface2);flex:1;padding:6px;font-size:0.76rem;margin:0" onclick="if(S.posicionesPage>0){S.posicionesPage--;render();drawPreviews();}">◀ Anterior</button>
+        <span id="posicionesPageLabel" style="color:var(--muted);font-size:0.74rem;display:flex;align-items:center;padding:0 4px">1/6</span>
+        <button class="mundial-generar-btn" style="background:var(--surface2);flex:1;padding:6px;font-size:0.76rem;margin:0" onclick="S.posicionesPage++;render();drawPreviews();">Siguiente ▶</button>
+      </div>
+      <button class="mundial-generar-btn" style="background:#0b3d0b;margin-top:6px" onclick="generarPlacaPosiciones()">
+        📊 Generar placa "Posiciones"
+      </button>
+      <button class="mundial-generar-btn" style="background:#5c3a1a;margin-top:6px" onclick="generarPlacaGoleadores()">
+        ⚽ Generar placa "Goleadores"
+      </button>
+      <button class="mundial-generar-btn" style="background:#3a1a5c;margin-top:6px" onclick="generarPlacaBracket()">
+        🏆 Generar placa "Eliminatorias"
+      </button>
+      <div style="margin-top:6px;display:flex;gap:5px;align-items:center">
+        <label class="mm-label" style="margin:0;white-space:nowrap;font-size:0.76rem">Etapa:</label>
+        <select id="selEtapa" class="mm-input" style="flex:1;padding:5px;font-size:0.76rem" onchange="S.bracketEtapa=this.value;if(S.mundialTipo==='bracket'){render();drawPreviews();}">
+          <option value="all">Todas (placa completa)</option>
+          <option value="Ronda de 32">Ronda de 32</option>
+          <option value="Octavos de Final">Octavos de Final</option>
+          <option value="Cuartos de Final">Cuartos de Final</option>
+          <option value="Semifinales">Semifinales</option>
+          <option value="Tercer Puesto">Tercer Puesto</option>
+          <option value="Final">Final</option>
+        </select>
+      </div>
+      <div style="margin-top:12px">
+        <label class="mm-label">Plantilla Mundial</label>
+        <div class="mundial-templates">
+          <div class="mundial-tpl-btn on" id="mundial-tpl-futbol-mañana" onclick="setTpl('futbol-mañana')">
+            <div class="mundial-tpl-name">☀️ Mañana</div>
+          </div>
+          <div class="mundial-tpl-btn" id="mundial-tpl-futbol-noche" onclick="setTpl('futbol-noche')">
+            <div class="mundial-tpl-name">🌙 Noche</div>
+          </div>
+          <div class="mundial-tpl-btn" id="mundial-tpl-futbol-minimalista" onclick="setTpl('futbol-minimalista')">
+            <div class="mundial-tpl-name">◻️ Minimal</div>
+          </div>
+          <div class="mundial-tpl-btn" id="mundial-tpl-futbol-fifa" onclick="setTpl('futbol-fifa')">
+            <div class="mundial-tpl-name">🏆 FIFA</div>
+          </div>
+          <div class="mundial-tpl-btn" id="mundial-tpl-futbol-cancha" onclick="setTpl('futbol-cancha')">
+            <div class="mundial-tpl-name">⚽ Cancha</div>
+          </div>
+          <div class="mundial-tpl-btn" id="mundial-tpl-futbol-atardecer" onclick="setTpl('futbol-atardecer')">
+            <div class="mundial-tpl-name">🌅 Atardecer</div>
+          </div>
+          <div class="mundial-tpl-btn" id="mundial-tpl-futbol-celeste" onclick="setTpl('futbol-celeste')">
+            <div class="mundial-tpl-name">💙 Celeste</div>
+          </div>
+          <div class="mundial-tpl-btn" id="mundial-tpl-futbol-premium" onclick="setTpl('futbol-premium')">
+            <div class="mundial-tpl-name">✨ Premium</div>
+          </div>
+          <div class="mundial-tpl-btn" id="mundial-tpl-futbol-wc26" onclick="setTpl('futbol-wc26')">
+            <div class="mundial-tpl-name">🏆 WC 2026</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOGGLES DE CAMPOS A MOSTRAR -->
+      <div style="margin-top:12px">
+        <div class="acc-head" onclick="toggleAcc(this)" style="background:var(--surface2);border-radius:var(--radius);padding:8px 10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:0.82rem;font-weight:600;color:var(--txt)">🎛️ Campos a mostrar</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <div style="background:var(--surface2);border-radius:var(--radius);padding:8px 10px">
+            <div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">Activá/desactivá qué información mostrar en las placas</div>
+            
+            <div style="font-size:0.74rem;font-weight:600;color:var(--v);margin:8px 0 4px">📊 Datos del partido</div>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.estado=this.checked;render()"> Estado (FINAL/EN VIVO)
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.hora=this.checked;render()"> Hora del partido
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.grupo=this.checked;render()"> Grupo
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.htScore=this.checked;render()"> Resultado entretiempo
+            </label>
+            
+            <div style="font-size:0.74rem;font-weight:600;color:var(--v);margin:10px 0 4px">🏟️ Ubicación</div>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.estadio=this.checked;render()"> Estadio
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.ciudad=this.checked;render()"> Ciudad
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.asistencia=this.checked;render()"> Asistencia
+            </label>
+            
+            <div style="font-size:0.74rem;font-weight:600;color:var(--v);margin:10px 0 4px">⚽ Juego</div>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.goleadores=this.checked;render()"> Goleadores
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.eventos=this.checked;render()"> Eventos (goles/tarjetas)
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.tarjetas=this.checked;render()"> Tarjetas
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.formaciones=this.checked;render()"> Formaciones
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" checked onchange="S.showFields.arbitro=this.checked;render()"> Árbitro
+            </label>
+            
+            <div style="font-size:0.74rem;font-weight:600;color:var(--v);margin:10px 0 4px">🧠 Knowledge Graph (Google)</div>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" onchange="S.showFields.equipoBio=this.checked;render()"> Bio de equipos
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" onchange="S.showFields.estadioBio=this.checked;render()"> Bio de estadio
+            </label>
+            <label class="toggle-row" style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:0.78rem">
+              <input type="checkbox" onchange="S.showFields.ciudadBio=this.checked;render()"> Bio de ciudad
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTICIA -->
+    <div class="acc-item normal-only">
+      <div class="acc-head open" onclick="toggleAcc(this)">
+        <span style="display:flex;align-items:center;gap:7px"><span class="acc-label-dot"></span>Noticia</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body open">
+        <div class="mm-field" style="margin-top:4px">
+          <label class="mm-label">Formato</label>
+          <select id="fmtSel" class="mm-select" onchange="setFmt(this.value)">
+            <option value="sq">Instagram Cuadrado (1080×1080)</option>
+            <option value="story">Historia (1080×1920)</option>
+            <option value="portrait">Portrait (1080×1350)</option>
+            <option value="fb">Facebook (1200×628)</option>
+            <option value="tw">Twitter / X (1600×900)</option>
+          </select>
+        </div>
+        <div class="urlrow" style="margin-top:10px">
+          <input type="url" id="urlIn" class="mm-input" placeholder="https://mediamendoza.com/...">
+          <button class="urlbtn" onclick="fetchUrl()">→</button>
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Título</label>
+          <textarea id="titIn" class="mm-textarea" rows="3" placeholder="Título de la noticia..."></textarea>
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Categoría</label>
+          <input type="text" id="catIn" class="mm-input" placeholder="Ej: Mendoza, Policiales...">
+        </div>
+        <label class="uplbl" for="imgUp">📁 Subir imagen alternativa</label>
+        <input type="file" id="imgUp" accept="image/*" style="display:none" onchange="loadLocalImg(event)">
+      </div>
+    </div>
+
+    <!-- PLANTILLA -->
+    <div class="acc-item normal-only">
+      <div class="acc-head" onclick="toggleAcc(this)">
+        <span style="display:flex;align-items:center;gap:7px"><span class="acc-label-dot"></span>Plantilla</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="tpl-grid">
+          <div class="tpl-btn on" onclick="setTpl('normal')"     id="tpl-normal">    <canvas class="tpl-prev" id="tp-normal"></canvas>    <div class="tpl-name">Normal</div></div>
+          <div class="tpl-btn"   onclick="setTpl('moderna')"    id="tpl-moderna">   <canvas class="tpl-prev" id="tp-moderna"></canvas>   <div class="tpl-name">Moderna</div></div>
+          <div class="tpl-btn"   onclick="setTpl('banda')"      id="tpl-banda">     <canvas class="tpl-prev" id="tp-banda"></canvas>     <div class="tpl-name">Banda</div></div>
+          <div class="tpl-btn"   onclick="setTpl('impacto')"    id="tpl-impacto">   <canvas class="tpl-prev" id="tp-impacto"></canvas>   <div class="tpl-name">Impacto</div></div>
+          <div class="tpl-btn"   onclick="setTpl('diagonal')"   id="tpl-diagonal">  <canvas class="tpl-prev" id="tp-diagonal"></canvas>  <div class="tpl-name">Diagonal</div></div>
+          <div class="tpl-btn"   onclick="setTpl('verde')"      id="tpl-verde">     <canvas class="tpl-prev" id="tp-verde"></canvas>     <div class="tpl-name">Verde MM</div></div>
+          <div class="tpl-btn"   onclick="setTpl('policiales')"    id="tpl-policiales">   <canvas class="tpl-prev" id="tp-policiales"></canvas>   <div class="tpl-name">Policiales</div></div>
+          <div class="tpl-btn"   onclick="setTpl('policialesrojo')" id="tpl-policialesrojo"><canvas class="tpl-prev" id="tp-policialesrojo"></canvas><div class="tpl-name">Policiales 🔴</div></div>
+          <div class="tpl-btn"   onclick="setTpl('franja')"         id="tpl-franja">        <canvas class="tpl-prev" id="tp-franja"></canvas>        <div class="tpl-name">Franja</div></div>
+          <div class="tpl-btn"   onclick="setTpl('franjarojo')"     id="tpl-franjarojo">    <canvas class="tpl-prev" id="tp-franjarojo"></canvas>    <div class="tpl-name">Franja 🔴</div></div>
+          <div class="tpl-btn"   onclick="setTpl('urgente')"        id="tpl-urgente">       <canvas class="tpl-prev" id="tp-urgente"></canvas>       <div class="tpl-name">Urgente</div></div>
+          <div class="tpl-btn"   onclick="setTpl('urgenterojo')"    id="tpl-urgenterojo">   <canvas class="tpl-prev" id="tp-urgenterojo"></canvas>   <div class="tpl-name">Urgente 🔴</div></div>
+          <div class="tpl-btn"   onclick="setTpl('clima')"          id="tpl-clima">         <canvas class="tpl-prev" id="tp-clima"></canvas>         <div class="tpl-name">Clima</div></div>
+          <div class="tpl-btn"   onclick="setTpl('economia')"       id="tpl-economia">      <canvas class="tpl-prev" id="tp-economia"></canvas>      <div class="tpl-name">Economía</div></div>
+          <div class="tpl-btn"   onclick="setTpl('titular')"        id="tpl-titular">       <canvas class="tpl-prev" id="tp-titular"></canvas>       <div class="tpl-name">Titular</div></div>
+          <div class="tpl-btn"   onclick="setTpl('minimalista')"    id="tpl-minimalista">   <canvas class="tpl-prev" id="tp-minimalista"></canvas>   <div class="tpl-name">Minimalista</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IMAGEN -->
+    <div class="acc-item normal-only">
+      <div class="acc-head" onclick="toggleAcc(this)">
+        <span style="display:flex;align-items:center;gap:7px"><span class="acc-label-dot"></span>Imagen de fondo</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="mm-field" style="margin-top:4px">
+          <label class="mm-label">Oscurecer <span class="mm-range-label" id="rv-iDark">0%</span></label>
+          <input type="range" id="r-iDark" min="0" max="100" value="0" class="mm-range" oninput="updR('iDark',this)">
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Blur <span class="mm-range-label" id="rv-iBlur">0px</span></label>
+          <input type="range" id="r-iBlur" min="0" max="20" value="0" class="mm-range" oninput="updR('iBlur',this)">
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Posición horizontal <span class="mm-range-label" id="rv-imgX">Centro</span></label>
+          <input type="range" id="r-imgX" min="-100" max="100" value="0" class="mm-range" oninput="updR('imgX',this)">
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Posición vertical <span class="mm-range-label" id="rv-imgY">Centro</span></label>
+          <input type="range" id="r-imgY" min="-100" max="100" value="0" class="mm-range" oninput="updR('imgY',this)">
+        </div>
+      </div>
+    </div>
+
+    <!-- TÍTULO -->
+    <div class="acc-item normal-only">
+      <div class="acc-head" onclick="toggleAcc(this)">
+        <span style="display:flex;align-items:center;gap:7px"><span class="acc-label-dot"></span>Título</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="el-actions">
+          <span>Posición del título</span>
+          <button class="btn-reset" onclick="resetElPos('title')">↺ Reset</button>
+        </div>
+        <div class="align-bar">
+          <button onclick="alignEl('title','l')">⇤</button>
+          <button onclick="alignEl('title','ch')">↔</button>
+          <button onclick="alignEl('title','r')">⇥</button>
+          <button onclick="alignEl('title','t')">⇡</button>
+          <button onclick="alignEl('title','cv')">↕</button>
+          <button onclick="alignEl('title','b')">⇣</button>
+        </div>
+        <div class="mm-field" style="margin-top:4px">
+          <label class="mm-label">Color de texto</label>
+          <div class="swatches">
+            <input type="color" id="tCol" value="#ffffff" class="mm-input" style="width:32px;height:28px;padding:2px;" oninput="S.tCol=this.value;render()">
+            <div class="sw on" style="background:#fff;border-color:#ccc" onclick="setSw('tCol','#ffffff',this)"></div>
+            <div class="sw" style="background:#111" onclick="setSw('tCol','#111111',this)"></div>
+            <div class="sw" style="background:#a6ce39" onclick="setSw('tCol','#a6ce39',this)"></div>
+            <div class="sw" style="background:#f5c518" onclick="setSw('tCol','#f5c518',this)"></div>
+          </div>
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Fondo del recuadro</label>
+          <div class="swatches">
+            <input type="color" id="tBg" value="#000000" class="mm-input" oninput="S.tBg=this.value;render()">
+            <div class="sw on" style="background:#000" onclick="setSw('tBg','#000000',this)"></div>
+            <div class="sw" style="background:#a6ce39" onclick="setSw('tBg','#a6ce39',this)"></div>
+            <div class="sw" style="background:#8fb82d" onclick="setSw('tBg','#8fb82d',this)"></div>
+            <div class="sw sw-transp" onclick="setSw('tBg','transparent',this)" title="Sin fondo"></div>
+          </div>
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Opacidad del fondo <span class="mm-range-label" id="rv-tBgOp">80%</span></label>
+          <input type="range" id="r-tBgOp" min="0" max="100" value="80" class="mm-range" oninput="updR('tBgOp',this)">
+        </div>
+        <div class="togrow">
+          <span style="font-size:0.8rem;color:var(--muted)">Sombra en texto</span>
+          <label class="toggle"><input type="checkbox" id="tShadow" onchange="S.tShadow=this.checked;snapShot();render()"><span class="togslide"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- CATEGORÍA -->
+    <div class="acc-item normal-only">
+      <div class="acc-head" onclick="toggleAcc(this)">
+        <span style="display:flex;align-items:center;gap:7px"><span class="acc-label-dot"></span>Categoría</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="el-actions">
+          <span>Posición de la categoría</span>
+          <button class="btn-reset" onclick="resetElPos('cat')">↺ Reset</button>
+        </div>
+        <div class="align-bar">
+          <button onclick="alignEl('cat','l')">⇤</button>
+          <button onclick="alignEl('cat','ch')">↔</button>
+          <button onclick="alignEl('cat','r')">⇥</button>
+          <button onclick="alignEl('cat','t')">⇡</button>
+          <button onclick="alignEl('cat','cv')">↕</button>
+          <button onclick="alignEl('cat','b')">⇣</button>
+        </div>
+        <div class="mm-field" style="margin-top:4px">
+          <label class="mm-label">Color de texto</label>
+          <div class="swatches">
+            <input type="color" id="cCol" value="#111111" class="mm-input" oninput="S.cCol=this.value;render()">
+            <div class="sw" style="background:#111" onclick="setSw('cCol','#111111',this)"></div>
+            <div class="sw on" style="background:#fff;border-color:#ccc" onclick="setSw('cCol','#ffffff',this)"></div>
+            <div class="sw" style="background:#a6ce39" onclick="setSw('cCol','#a6ce39',this)"></div>
+          </div>
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Color de fondo</label>
+          <div class="swatches">
+            <input type="color" id="cBg" value="#a6ce39" class="mm-input" oninput="S.cBg=this.value;render()">
+            <div class="sw" style="background:#a6ce39" onclick="setSw('cBg','#a6ce39',this)"></div>
+            <div class="sw" style="background:#8fb82d" onclick="setSw('cBg','#8fb82d',this)"></div>
+            <div class="sw" style="background:#fff;border-color:#ccc" onclick="setSw('cBg','#ffffff',this)"></div>
+            <div class="sw" style="background:#111" onclick="setSw('cBg','#111111',this)"></div>
+          </div>
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Opacidad del fondo <span class="mm-range-label" id="rv-cBgOp">0%</span></label>
+          <input type="range" id="r-cBgOp" min="0" max="100" value="0" class="mm-range" oninput="updR('cBgOp',this)">
+        </div>
+        <div class="togrow">
+          <span style="font-size:0.8rem;color:var(--muted)">Sombra en texto</span>
+          <label class="toggle"><input type="checkbox" id="cShadow" onchange="S.cShadow=this.checked;snapShot();render()"><span class="togslide"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- OVERLAY -->
+    <div class="acc-item normal-only">
+      <div class="acc-head" onclick="toggleAcc(this)">
+        <span style="display:flex;align-items:center;gap:7px"><span class="acc-label-dot"></span>Capa de color</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="togrow" style="margin-top:4px">
+          <span style="font-size:0.8rem;color:var(--muted)">Activar capa</span>
+          <label class="toggle"><input type="checkbox" id="ovTog" onchange="render()"><span class="togslide"></span></label>
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Color</label>
+          <div class="swatches">
+            <input type="color" id="ovCol" value="#000000" class="mm-input" oninput="S.ovCol=this.value;render()">
+            <div class="sw on" style="background:#000" onclick="setSw('ovCol','#000000',this)"></div>
+            <div class="sw" style="background:#1a1a1a" onclick="setSw('ovCol','#1a1a1a',this)"></div>
+            <div class="sw" style="background:#a6ce39" onclick="setSw('ovCol','#a6ce39',this)"></div>
+            <div class="sw" style="background:#fff;border-color:#ccc" onclick="setSw('ovCol','#ffffff',this)"></div>
+          </div>
+        </div>
+        <div class="mm-field">
+          <label class="mm-label">Opacidad <span class="mm-range-label" id="rv-ovOp">50%</span></label>
+          <input type="range" id="r-ovOp" min="0" max="100" value="50" class="mm-range" oninput="updR('ovOp',this)">
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGO -->
+    <div class="acc-item normal-only">
+      <div class="acc-head" onclick="toggleAcc(this)">
+        <span style="display:flex;align-items:center;gap:7px"><span class="acc-label-dot"></span>Logo</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="el-actions">
+          <span>Posición del logo</span>
+          <button class="btn-reset" onclick="resetElPos('logo')">↺ Reset</button>
+        </div>
+        <div class="align-bar">
+          <button onclick="alignEl('logo','l')">⇤</button>
+          <button onclick="alignEl('logo','ch')">↔</button>
+          <button onclick="alignEl('logo','r')">⇥</button>
+          <button onclick="alignEl('logo','t')">⇡</button>
+          <button onclick="alignEl('logo','cv')">↕</button>
+          <button onclick="alignEl('logo','b')">⇣</button>
+        </div>
+        <div class="mm-field" style="margin-top: 8px;">
+          <label class="mm-label">Logo predefinido</label>
+          <select id="selectPredefinedLogo" class="mm-select" onchange="cambiarLogoPredefinido(this.value)">
+            <option value="logo.png">Media Mendoza (por defecto)</option>
+            <option value="logo-patrio.png">Media Mendoza - Versión Patria</option>
+          </select>
+        </div>
+        <label class="uplbl" for="logoUp">📁 Cambiar logo</label>
+        <input type="file" id="logoUp" accept="image/*" style="display:none" onchange="loadLogo(event)">
+        <div class="mm-field">
+          <label class="mm-label">Opacidad <span class="mm-range-label" id="rv-lOp">100%</span></label>
+          <input type="range" id="r-lOp" min="10" max="100" value="100" class="mm-range" oninput="updR('lOp',this)">
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- CANVAS AREA -->
+  <main class="placas-canvas-area" id="canvasArea">
+    <!-- Barra de modos SIEMPRE visible en móvil (sobre el canvas) -->
+    <!--
+    <div class="mode-bar-mobile" id="modeBarMobile">
+      <div class="mode-btn on" id="mode-normal-m"   onclick="setMode('normal')">📰 Normal</div>
+      <div class="mode-btn"   id="mode-textual-m"   onclick="setMode('textual')">💬 Textual</div>
+      <div class="mode-btn"   id="mode-foto-m"      onclick="setMode('foto')">👤 Foto</div>
+      <div class="mode-btn"   id="mode-collage-m"   onclick="setMode('collage')">🖼 Collage</div>
+    </div>
+    -->
+
+    <div class="canvas-wrap" id="cw">
+      <canvas id="mc"></canvas>
+      <div class="lov" id="lov" style="display:none"><div class="spin"></div></div>
+    </div>
+  </main>
+
+</div>
+
+<!-- BARRA DE PESTAÑAS MÓVIL -->
+<nav class="mob-tabbar" id="mobTabbar">
+  <button class="mob-tab" data-key="noticia">
+    <span class="ti">📰</span>
+    <span>Noticia</span>
+  </button>
+  <button class="mob-tab" data-key="plantilla">
+    <span class="ti">🎨</span>
+    <span>Plantilla</span>
+  </button>
+  <button class="mob-tab" data-key="imagen">
+    <span class="ti">🖼</span>
+    <span>Imagen</span>
+  </button>
+  <button class="mob-tab" data-key="titulo">
+    <span class="ti">✏️</span>
+    <span>Título</span>
+  </button>
+  <button class="mob-tab" data-key="categoria">
+    <span class="ti">🏷️</span>
+    <span>Categoría</span>
+  </button>
+  <button class="mob-tab" data-key="capa">
+    <span class="ti">🌈</span>
+    <span>Capa</span>
+  </button>
+  <button class="mob-tab" data-key="logo">
+    <span class="ti">⭐</span>
+    <span>Logo</span>
+  </button>
+  <button class="mob-tab" data-key="mundial">
+    <span class="ti">⚽</span>
+    <span>Mundial</span>
+  </button>
+</nav>
+
+<!-- PANEL MÓVIL -->
+<div class="mob-panel" id="mobPanel">
+  <div class="mob-panel-inner" id="mobPanelInner"></div>
+</div>
+
+<!-- EXPORT BAR -->
+<footer class="expbar">
+  <span class="exp-lbl" id="fmtLbl">Instagram Cuadrado — 1080×1080</span>
+  <button class="mm-btn" onclick="clearAll()" style="background:var(--v);color:var(--bg)">🗑 Limpiar</button>
+  <button class="mm-btn" onclick="exportImg('copy')">📋 Copiar</button>
+  <button class="mm-btn mm-btn-primary" onclick="exportImg('download')">⬇ Descargar</button>
+</footer>
+
+<div class="mm-toast" id="toast"></div>
+<div class="theme-toggle" id="themeToggle"><span class="icon" id="themeIcon">🌙</span><span id="themeLabel">Modo oscuro</span></div>
+
+<!-- Inputs ocultos -->
+<input type="file" id="coll0" accept="image/*" style="display:none" onchange="loadCollageImg(event,0)">
+<input type="file" id="coll1" accept="image/*" style="display:none" onchange="loadCollageImg(event,1)">
+<input type="file" id="coll2" accept="image/*" style="display:none" onchange="loadCollageImg(event,2)">
+<input type="file" id="coll3" accept="image/*" style="display:none" onchange="loadCollageImg(event,3)">
+<input type="file" id="fotoImgUp" accept="image/*" style="display:none" onchange="loadFotoImg(event)">
+<input type="file" id="bgImgUp2" accept="image/*" style="display:none" onchange="loadLocalImg(event)">
+<input type="file" id="textualBgUp" accept="image/*" style="display:none" onchange="loadLocalImg(event)">
+
+<script src="app.js"></script>
+<script src="01-mundial-functions.js"></script>
+<script src="02-calendario-mundial.js"></script>
+<script src="03-plantillas-futbol.js"></script>
+<script src="04-clima.js"></script>
+<script>
+// Neutralizar initTabTouchEvents de app.js ANTES de que init() lo llame.
+// app.js lo llama en window.addEventListener('load', init), así que lo
+// sobreescribimos justo después de que app.js cargue pero antes del load.
+window.initTabTouchEvents = function(){ /* desactivado — lo maneja el script propio */ };
+
+// Inicializar módulo de clima
+window.addEventListener('load', function(){
+  if(typeof initClimaModule === 'function'){
+    initClimaModule();
+  }
+});
+</script>
+<script>
+(function(){
+
+  // ── Tema claro/oscuro ──
+  function setTheme(t){
+    document.body.classList.toggle('dark-theme', t==='dark');
+    document.getElementById('themeIcon').textContent  = t==='dark' ? '☀️' : '🌙';
+    document.getElementById('themeLabel').textContent = t==='dark' ? 'Modo claro' : 'Modo oscuro';
+    localStorage.setItem('mm-theme', t);
+  }
+  setTheme(localStorage.getItem('mm-theme')==='dark' ? 'dark' : 'light');
+  document.getElementById('themeToggle').addEventListener('click', ()=>{
+    setTheme(document.body.classList.contains('dark-theme') ? 'light' : 'dark');
+  });
+
+  // ══════════════════════════════════════════════════════
+  // SISTEMA DE PESTAÑAS Y PANEL MÓVIL
+  // ══════════════════════════════════════════════════════
+
+  // Estado propio (no depende de variables de app.js)
+  var _tab    = 'noticia';
+  var _open   = false;
+
+  function doResize(){
+    if(typeof window.resizeCanvas==='function') window.resizeCanvas(true);
+    if(typeof window.render==='function')       window.render();
+  }
+
+  // Abrir panel con una pestaña dada
+  function openPanel(key, fromTabEl){
+    var panel  = document.getElementById('mobPanel');
+    var area   = document.getElementById('canvasArea');
+
+    _tab  = key;
+    _open = true;
+    window._activeTab = key;
+    window._panelOpen = true;
+
+    // Marcar pestaña activa
+    document.querySelectorAll('.mob-tab').forEach(function(t){ t.classList.remove('on'); });
+    if(fromTabEl) fromTabEl.classList.add('on');
+    else {
+      var el = document.querySelector('.mob-tab[data-key="'+key+'"]');
+      if(el) el.classList.add('on');
+    }
+
+    // Generar contenido — intentar hasta que renderMobPanel esté disponible
+    function tryRender(attempts){
+      if(typeof window.renderMobPanel === 'function'){
+        window.renderMobPanel();
+      } else if(attempts > 0){
+        setTimeout(function(){ tryRender(attempts-1); }, 80);
+      }
+    }
+    tryRender(10);
+
+    // Animar apertura
+    panel.classList.remove('closing');
+    panel.classList.add('open');
+    area.classList.add('panel-open');
+
+    setTimeout(doResize, 300);
+    setTimeout(doResize, 450);
+  }
+
+  // Cerrar panel
+  function closePanel(){
+    var panel = document.getElementById('mobPanel');
+    var area  = document.getElementById('canvasArea');
+
+    _open = false;
+    window._panelOpen = false;
+
+    document.querySelectorAll('.mob-tab').forEach(function(t){ t.classList.remove('on'); });
+    panel.classList.add('closing');
+    area.classList.remove('panel-open');
+
+    setTimeout(function(){
+      panel.classList.remove('open','closing');
+      doResize();
+    }, 280);
+  }
+
+  // Manejar toque en una pestaña
+  function handleTab(key, tabEl){
+    if(_open && _tab === key){
+      closePanel();
+    } else {
+      openPanel(key, tabEl);
+    }
+  }
+
+  // Exponer globalmente (app.js llama window.mobTab en algunos lugares)
+  window.mobTab = handleTab;
+
+  // Registrar eventos en las pestañas (click + touchend para iOS)
+  function initTabs(){
+    document.querySelectorAll('.mob-tab').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        handleTab(this.dataset.key, this);
+      });
+      btn.addEventListener('touchend', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        handleTab(this.dataset.key, this);
+      }, {passive:false});
+    });
+  }
+
+  // ══════════════════════════════════════════════════════
+  // BOTONES DE MODO EN EL CANVAS MÓVIL
+  // ══════════════════════════════════════════════════════
+
+  function syncModeBtns(mode){
+    ['normal','textual','foto','collage'].forEach(function(m){
+      var btn = document.getElementById('mode-'+m+'-m');
+      if(btn) btn.classList.toggle('on', m===mode);
+    });
+  }
+
+  function hookSetMode(){
+    if(typeof window.setMode !== 'function'){ setTimeout(hookSetMode, 60); return; }
+    var _orig = window.setMode;
+    window.setMode = function(mode){
+      _orig(mode);
+      syncModeBtns(mode);
+      if(window.innerWidth <= 700){
+        if(_open && _tab === 'noticia'){
+          // Panel noticia ya abierto → solo refrescar contenido
+          window._activeTab = 'noticia';
+          if(typeof window.renderMobPanel==='function') window.renderMobPanel();
+        } else {
+          // Panel cerrado o en otra pestaña → abrir noticia
+          openPanel('noticia');
+        }
+      }
+    };
+  }
+  hookSetMode();
+
+  // ══════════════════════════════════════════════════════
+  // INIT
+  // ══════════════════════════════════════════════════════
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', initTabs);
+  } else {
+    initTabs();
+  }
+
+  window.addEventListener('load', function(){
+    setTimeout(function(){ syncModeBtns(window.S ? window.S.mode : 'normal'); }, 400);
+    setTimeout(doResize, 300);
+  });
+
+})();
+</script>
+</body>
+</html>
