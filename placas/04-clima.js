@@ -3,17 +3,15 @@
 // API: Open-Meteo (gratuita, sin API key)
 // ════════════════════════════════════════════════════════════════════
 
-// Función para obtener fondo dinámico basado en clima y hora del día
+// Función para obtener fondo dinámico basado en clima y hora del día (estilo widget Android)
 function getFondoDinamico(esDia, codigoClima) {
   const fondos = {
-    // DÍA - Cielos claros y brillantes
+    // DÍA - Gradientes suaves y delicados estilo widget Android
     diaDespejado: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#1E88E5');
-        g.addColorStop(0.3, '#42A5F5');
-        g.addColorStop(0.6, '#64B5F6');
-        g.addColorStop(1, '#90CAF9');
+        g.addColorStop(0, '#4A90D9');
+        g.addColorStop(1, '#87CEEB');
         return g;
       },
       sol: true
@@ -21,10 +19,8 @@ function getFondoDinamico(esDia, codigoClima) {
     diaParcial: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#5C9CE5');
-        g.addColorStop(0.4, '#7EB3E8');
-        g.addColorStop(0.7, '#A5CAE8');
-        g.addColorStop(1, '#C5DFF0');
+        g.addColorStop(0, '#7BA3C9');
+        g.addColorStop(1, '#B8D4E8');
         return g;
       },
       sol: true,
@@ -33,9 +29,8 @@ function getFondoDinamico(esDia, codigoClima) {
     diaNublado: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#607D8B');
-        g.addColorStop(0.5, '#78909C');
-        g.addColorStop(1, '#90A4AE');
+        g.addColorStop(0, '#9CA8B5');
+        g.addColorStop(1, '#C4CED8');
         return g;
       },
       nube: true
@@ -43,9 +38,8 @@ function getFondoDinamico(esDia, codigoClima) {
     diaLluvia: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#455A64');
-        g.addColorStop(0.4, '#546E7A');
-        g.addColorStop(1, '#607D8B');
+        g.addColorStop(0, '#5C7A8A');
+        g.addColorStop(1, '#8BA4B0');
         return g;
       },
       lluvia: true
@@ -53,9 +47,8 @@ function getFondoDinamico(esDia, codigoClima) {
     diaLluviaFuerte: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#37474F');
-        g.addColorStop(0.5, '#455A64');
-        g.addColorStop(1, '#546E7A');
+        g.addColorStop(0, '#4A6370');
+        g.addColorStop(1, '#7A8E98');
         return g;
       },
       lluvia: true
@@ -63,9 +56,8 @@ function getFondoDinamico(esDia, codigoClima) {
     diaTormenta: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#2C3E50');
-        g.addColorStop(0.4, '#34495E');
-        g.addColorStop(1, '#4A5568');
+        g.addColorStop(0, '#3D4F5F');
+        g.addColorStop(1, '#6B7D8D');
         return g;
       },
       tormenta: true
@@ -73,9 +65,8 @@ function getFondoDinamico(esDia, codigoClima) {
     diaNieve: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#B0BEC5');
-        g.addColorStop(0.5, '#CFD8DC');
-        g.addColorStop(1, '#ECEFF1');
+        g.addColorStop(0, '#D4E0E8');
+        g.addColorStop(1, '#F0F4F8');
         return g;
       },
       nieve: true
@@ -83,22 +74,19 @@ function getFondoDinamico(esDia, codigoClima) {
     diaNiebla: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#90A4AE');
-        g.addColorStop(0.5, '#B0BEC5');
-        g.addColorStop(1, '#CFD8DC');
+        g.addColorStop(0, '#B8C4D0');
+        g.addColorStop(1, '#E0E8F0');
         return g;
       },
       niebla: true
     },
     
-    // NOCHE - Cielos oscuros y estrellados
+    // NOCHE - Gradientes oscuros suaves estilo widget Android
     nocheDespejado: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#0D1B2A');
-        g.addColorStop(0.3, '#1B263B');
-        g.addColorStop(0.6, '#2C3E50');
-        g.addColorStop(1, '#34495E');
+        g.addColorStop(0, '#1A2A3A');
+        g.addColorStop(1, '#2D4A5F');
         return g;
       },
       luna: true
@@ -106,9 +94,8 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheParcial: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#1A1A2E');
-        g.addColorStop(0.4, '#2D3047');
-        g.addColorStop(1, '#3D405B');
+        g.addColorStop(0, '#253545');
+        g.addColorStop(1, '#3D5568');
         return g;
       },
       luna: true,
@@ -117,9 +104,8 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheNublado: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#16213E');
-        g.addColorStop(0.5, '#1F2A44');
-        g.addColorStop(1, '#2A3B55');
+        g.addColorStop(0, '#2F3F4F');
+        g.addColorStop(1, '#4A5A6A');
         return g;
       },
       nube: true
@@ -127,9 +113,8 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheLluvia: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#0F1C2E');
-        g.addColorStop(0.4, '#1A2D42');
-        g.addColorStop(1, '#243B55');
+        g.addColorStop(0, '#1F303F');
+        g.addColorStop(1, '#354555');
         return g;
       },
       lluvia: true
@@ -137,9 +122,8 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheTormenta: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#0A0A14');
-        g.addColorStop(0.4, '#151525');
-        g.addColorStop(1, '#1F1F35');
+        g.addColorStop(0, '#152030');
+        g.addColorStop(1, '#2A3545');
         return g;
       },
       tormenta: true
@@ -147,9 +131,8 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheNieve: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#37474F');
-        g.addColorStop(0.5, '#455A64');
-        g.addColorStop(1, '#546E7A');
+        g.addColorStop(0, '#3A4A5A');
+        g.addColorStop(1, '#5A6A7A');
         return g;
       },
       nieve: true
@@ -157,9 +140,8 @@ function getFondoDinamico(esDia, codigoClima) {
     nocheNiebla: {
       grad: (ctx, W, H) => {
         const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, '#2C3E50');
-        g.addColorStop(0.5, '#34495E');
-        g.addColorStop(1, '#3D4F61');
+        g.addColorStop(0, '#2F3F4F');
+        g.addColorStop(1, '#4F5F6F');
         return g;
       },
       niebla: true
@@ -835,8 +817,9 @@ function renderClima(W, H) {
     
     const { actual, ciudad, diario } = climaData;
     
-    // Fondo dinámico basado en hora del día y clima
-    dibujarFondoDinamico(ctx, W, H, actual.esDia, actual.codigo);
+    // Fondo base oscuro para toda la placa
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, W, H);
 
     // --- CABECERA (HEADER) ---
     const headerH = Math.round(H * 0.12);
@@ -919,25 +902,66 @@ function renderClima(W, H) {
       }
     });
     
-    // Alerta si existe
+    // Alerta mejorada
     if (climaAlerta && climaAlerta.trim()) {
       const alertaW = W - 50;
-      const alertaH = 35;
+      const alertaH = 50;
       const alertaY = H - alertaH - 10;
+      const padding = 20;
       
-      ctx.fillStyle = 'rgba(230, 57, 70, 0.9)';
+      // Sombra de la alerta
+      ctx.shadowColor = 'rgba(220, 53, 69, 0.5)';
+      ctx.shadowBlur = 15;
+      ctx.shadowOffsetY = 5;
+      
+      // Fondo rojo brillante con gradiente
+      const alertaGrad = ctx.createLinearGradient(25, alertaY, 25, alertaY + alertaH);
+      alertaGrad.addColorStop(0, '#DC3545');
+      alertaGrad.addColorStop(0.5, '#E63946');
+      alertaGrad.addColorStop(1, '#DC3545');
+      ctx.fillStyle = alertaGrad;
       ctx.beginPath();
-      ctx.roundRect(25, alertaY, alertaW, alertaH, 8);
+      ctx.roundRect(25, alertaY, alertaW, alertaH, 12);
       ctx.fill();
       
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px Inter, sans-serif';
+      // Borde blanco brillante
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Icono de advertencia
+      const iconX = 25 + padding + 20;
+      const iconY = alertaY + alertaH / 2;
+      
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 28px Inter, sans-serif';
       ctx.textAlign = 'center';
-      let alertaTexto = '⚠️ ' + climaAlerta.toUpperCase();
-      if (alertaTexto.length > Math.floor(alertaW / 7)) {
-        alertaTexto = alertaTexto.substring(0, Math.floor(alertaW / 7) - 3) + '...';
+      ctx.fillText('⚠️', iconX, iconY + 8);
+      
+      // Texto de la alerta
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 18px Inter, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+      ctx.shadowBlur = 3;
+      let alertaTexto = climaAlerta.toUpperCase();
+      
+      // Calcular el ancho disponible para el texto
+      const textoX = iconX + 35;
+      const maxTextoAncho = alertaW - (textoX - 25) - padding;
+      
+      // Ajustar tamaño de fuente si el texto es largo
+      let fontSize = 18;
+      ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+      while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 12) {
+        fontSize--;
+        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
       }
-      ctx.fillText(alertaTexto, W / 2, alertaY + 22);
+      
+      ctx.fillText(alertaTexto, textoX, iconY + 7);
+      ctx.shadowBlur = 0;
     }
   } else {
     // Mantener la funcionalidad original para 'extendido' (pronóstico 5 días)
@@ -959,8 +983,9 @@ function renderClima(W, H) {
     
     const { actual, pronostico, ciudad } = climaData;
     
-    // Fondo dinámico basado en hora del día y clima
-    dibujarFondoDinamico(ctx, W, H, actual.esDia, actual.codigo);
+    // Fondo base oscuro para toda la placa
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, W, H);
 
     // --- SECCIONES PROPORCIONALES ---
     const headerH = Math.round(H * 0.12);
@@ -1016,16 +1041,30 @@ function renderClima(W, H) {
     const panelY = mainY + 20;
     const panelH = mainH - 40;
 
-    // TARJETA IZQUIERDA (Clima Actual)
-    const gradTarjeta = ctx.createLinearGradient(leftX, panelY, leftX, panelY + panelH);
-    gradTarjeta.addColorStop(0, 'rgba(166,206,57,0.18)');
-    gradTarjeta.addColorStop(1, 'rgba(166,206,57,0.06)');
-    ctx.fillStyle = gradTarjeta;
+    // TARJETA IZQUIERDA (Clima Actual) - Fondo dinámico delicado estilo widget
+    const config = getFondoDinamico(actual.esDia, actual.codigo);
+    
+    // Clip para el fondo solo en esta tarjeta
+    ctx.save();
     ctx.beginPath();
     ctx.roundRect(leftX, panelY, panelW, panelH, 20);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(166,206,57,0.4)';
-    ctx.lineWidth = 2;
+    ctx.clip();
+    
+    // Fondo dinámico sutil
+    ctx.fillStyle = config.grad(ctx, panelW, panelH);
+    ctx.fillRect(leftX, panelY, panelW, panelH);
+    
+    // Overlay oscuro sutil para que el texto sea legible
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(leftX, panelY, panelW, panelH);
+    
+    ctx.restore();
+    
+    // Borde sutil
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(leftX, panelY, panelW, panelH, 20);
     ctx.stroke();
     
     const centerX = leftX + panelW / 2;
@@ -1055,25 +1094,66 @@ function renderClima(W, H) {
     ctx.fillStyle = 'rgba(255,255,255,0.8)';
     ctx.fillText(`Sensación térmica: ${sensacion}°`, centerX, tempY + 85);
     
-    // Alerta
+    // Alerta mejorada
     if (climaAlerta && climaAlerta.trim()) {
       const alertaW = panelW - 40;
-      const alertaH = 40;
+      const alertaH = 50;
       const alertaY = panelY + panelH - alertaH - 20;
+      const padding = 15;
       
-      ctx.fillStyle = 'rgba(230, 57, 70, 0.9)';
+      // Sombra de la alerta
+      ctx.shadowColor = 'rgba(220, 53, 69, 0.5)';
+      ctx.shadowBlur = 15;
+      ctx.shadowOffsetY = 5;
+      
+      // Fondo rojo brillante con gradiente
+      const alertaGrad = ctx.createLinearGradient(centerX - alertaW/2, alertaY, centerX - alertaW/2, alertaY + alertaH);
+      alertaGrad.addColorStop(0, '#DC3545');
+      alertaGrad.addColorStop(0.5, '#E63946');
+      alertaGrad.addColorStop(1, '#DC3545');
+      ctx.fillStyle = alertaGrad;
       ctx.beginPath();
-      ctx.roundRect(centerX - alertaW/2, alertaY, alertaW, alertaH, 8);
+      ctx.roundRect(centerX - alertaW/2, alertaY, alertaW, alertaH, 10);
       ctx.fill();
       
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 13px Inter, sans-serif';
+      // Borde blanco brillante
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Icono de advertencia
+      const iconX = centerX - alertaW/2 + padding + 15;
+      const iconY = alertaY + alertaH / 2;
+      
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 24px Inter, sans-serif';
       ctx.textAlign = 'center';
-      let alertaTexto = '⚠️ ' + climaAlerta.toUpperCase();
-      if (alertaTexto.length > Math.floor(alertaW / 8)) {
-        alertaTexto = alertaTexto.substring(0, Math.floor(alertaW / 8) - 3) + '...';
+      ctx.fillText('⚠️', iconX, iconY + 8);
+      
+      // Texto de la alerta
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 15px Inter, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+      ctx.shadowBlur = 3;
+      let alertaTexto = climaAlerta.toUpperCase();
+      
+      // Calcular el ancho disponible para el texto
+      const textoX = iconX + 30;
+      const maxTextoAncho = alertaW - (textoX - (centerX - alertaW/2)) - padding;
+      
+      // Ajustar tamaño de fuente si el texto es largo
+      let fontSize = 15;
+      ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+      while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 11) {
+        fontSize--;
+        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
       }
-      ctx.fillText(alertaTexto, centerX, alertaY + 25);
+      
+      ctx.fillText(alertaTexto, textoX, iconY + 6);
+      ctx.shadowBlur = 0;
     }
     
     // PANEL DERECHO (Dashboard de métricas)
@@ -1301,8 +1381,9 @@ function renderClimaCombinado(W, H) {
   
   const { actual, ciudad, diario } = climaData;
   
-  // Fondo dinámico basado en hora del día y clima
-  dibujarFondoDinamico(ctx, W, H, actual.esDia, actual.codigo);
+  // Fondo base oscuro para toda la placa
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, W, H);
 
   // --- SECCIONES PROPORCIONALES ---
   const headerH = Math.round(H * 0.12);
@@ -1358,16 +1439,30 @@ function renderClimaCombinado(W, H) {
   const panelY = mainY + 20;
   const panelH = mainH - 40;
 
-  // TARJETA IZQUIERDA (Clima Actual)
-  const gradTarjeta = ctx.createLinearGradient(leftX, panelY, leftX, panelY + panelH);
-  gradTarjeta.addColorStop(0, 'rgba(166,206,57,0.18)');
-  gradTarjeta.addColorStop(1, 'rgba(166,206,57,0.06)');
-  ctx.fillStyle = gradTarjeta;
+  // TARJETA IZQUIERDA (Clima Actual) - Fondo dinámico delicado estilo widget
+  const config = getFondoDinamico(actual.esDia, actual.codigo);
+  
+  // Clip para el fondo solo en esta tarjeta
+  ctx.save();
   ctx.beginPath();
   ctx.roundRect(leftX, panelY, panelW, panelH, 20);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(166,206,57,0.4)';
-  ctx.lineWidth = 2;
+  ctx.clip();
+  
+  // Fondo dinámico sutil
+  ctx.fillStyle = config.grad(ctx, panelW, panelH);
+  ctx.fillRect(leftX, panelY, panelW, panelH);
+  
+  // Overlay oscuro sutil para que el texto sea legible
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(leftX, panelY, panelW, panelH);
+  
+  ctx.restore();
+  
+  // Borde sutil
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(leftX, panelY, panelW, panelH, 20);
   ctx.stroke();
   
   const centerX = leftX + panelW / 2;
