@@ -204,6 +204,220 @@ function dibujarFondoDinamico(ctx, W, H, esDia, codigoClima) {
   }
 }
 
+function makeSeededRandom(seedValue) {
+  let seed = 0;
+  const seedText = String(seedValue || 'clima');
+  for (let i = 0; i < seedText.length; i++) {
+    seed = (seed * 31 + seedText.charCodeAt(i)) >>> 0;
+  }
+  return function nextRandom() {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let value = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    value ^= value + Math.imul(value ^ value >>> 7, 61 | value);
+    return ((value ^ value >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function drawCoverImage(ctx, img, x, y, w, h, focusX = 0.5, focusY = 0.5) {
+  const imgRatio = img.width / img.height;
+  const boxRatio = w / h;
+  let sx = 0;
+  let sy = 0;
+  let sw = img.width;
+  let sh = img.height;
+
+  if (imgRatio > boxRatio) {
+    sh = img.height;
+    sw = sh * boxRatio;
+    sx = (img.width - sw) * focusX;
+  } else {
+    sw = img.width;
+    sh = sw / boxRatio;
+    sy = (img.height - sh) * focusY;
+  }
+
+  const maxX = Math.max(0, img.width - sw);
+  const maxY = Math.max(0, img.height - sh);
+  sx = Math.max(0, Math.min(maxX, sx));
+  sy = Math.max(0, Math.min(maxY, sy));
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+function paintClimateTexture(ctx, x, y, w, h, actual) {
+  const rand = makeSeededRandom(`${actual.tipo}-${actual.codigo}-${actual.esDia ? 'd' : 'n'}-${actual.temp}`);
+  const isNight = !actual.esDia;
+  const type = actual.tipo || 'cloud';
+  const isFrost = actual.codigo === 48;
+
+  if (isNight) {
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 46; i++) {
+      const starX = x + rand() * w;
+      const starY = y + rand() * h * 0.9;
+      const starR = 0.6 + rand() * 1.6;
+      ctx.globalAlpha = 0.35 + rand() * 0.55;
+      ctx.beginPath();
+      ctx.arc(starX, starY, starR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  if (type === 'sun' || type === 'sun-cloud') {
+    const glowX = x + w * (isNight ? 0.72 : 0.74);
+    const glowY = y + h * 0.18;
+    const glow = ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, Math.max(w, h) * 0.52);
+    glow.addColorStop(0, actual.esDia ? 'rgba(255,223,99,0.42)' : 'rgba(255,244,180,0.22)');
+    glow.addColorStop(0.45, 'rgba(255,223,99,0.12)');
+    glow.addColorStop(1, 'rgba(255,223,99,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(x, y, w, h);
+  }
+
+  if (type === 'cloud' || type === 'sun-cloud') {
+    ctx.fillStyle = actual.esDia ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.07)';
+    const cloudBands = [
+      { px: 0.08, py: 0.18, pw: 0.34, ph: 0.12 },
+      { px: 0.56, py: 0.12, pw: 0.28, ph: 0.10 },
+      { px: 0.22, py: 0.34, pw: 0.42, ph: 0.14 },
+    ];
+    cloudBands.forEach(cloud => {
+      ctx.beginPath();
+      ctx.ellipse(x + w * cloud.px, y + h * cloud.py, w * cloud.pw, h * cloud.ph, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  if (type === 'fog' || isFrost) {
+    const fog = ctx.createLinearGradient(x, y + h * 0.2, x, y + h);
+    fog.addColorStop(0, 'rgba(255,255,255,0)');
+    fog.addColorStop(0.5, isFrost ? 'rgba(220,245,255,0.12)' : 'rgba(240,245,255,0.09)');
+    fog.addColorStop(1, isFrost ? 'rgba(205,235,255,0.28)' : 'rgba(220,230,240,0.22)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(x, y, w, h);
+  }
+
+  if (isFrost) {
+    ctx.fillStyle = 'rgba(220, 245, 255, 0.14)';
+    for (let i = 0; i < 12; i++) {
+      const frostX = x + rand() * w;
+      const frostY = y + rand() * h * 0.75;
+      const frostSize = 1 + rand() * 2;
+      ctx.beginPath();
+      ctx.arc(frostX, frostY, frostSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (type === 'rain' || type === 'rain-light' || type === 'rain-heavy') {
+    ctx.strokeStyle = type === 'rain-heavy' ? 'rgba(170, 200, 255, 0.22)' : 'rgba(170, 200, 255, 0.14)';
+    ctx.lineWidth = type === 'rain-heavy' ? 2 : 1;
+    for (let i = 0; i < 32; i++) {
+      const dropX = x + rand() * w;
+      const dropY = y + rand() * h * 0.9;
+      const dropLen = 10 + rand() * 26;
+      ctx.beginPath();
+      ctx.moveTo(dropX, dropY);
+      ctx.lineTo(dropX - 4, dropY + dropLen);
+      ctx.stroke();
+    }
+  }
+
+  if (type === 'snow' || type === 'snow-heavy') {
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    for (let i = 0; i < 30; i++) {
+      const flakeX = x + rand() * w;
+      const flakeY = y + rand() * h * 0.88;
+      const flakeR = 0.9 + rand() * 2.4;
+      ctx.beginPath();
+      ctx.arc(flakeX, flakeY, flakeR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (type === 'storm') {
+    const stormGlow = ctx.createLinearGradient(x, y, x, y + h);
+    stormGlow.addColorStop(0, 'rgba(70, 40, 110, 0.22)');
+    stormGlow.addColorStop(1, 'rgba(15, 15, 25, 0.28)');
+    ctx.fillStyle = stormGlow;
+    ctx.fillRect(x, y, w, h);
+
+    ctx.strokeStyle = 'rgba(255, 245, 180, 0.18)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 2; i++) {
+      const boltX = x + w * (0.22 + rand() * 0.52);
+      ctx.beginPath();
+      ctx.moveTo(boltX, y + h * 0.05);
+      ctx.lineTo(boltX - 18, y + h * 0.24);
+      ctx.lineTo(boltX + 10, y + h * 0.24);
+      ctx.lineTo(boltX - 8, y + h * 0.40);
+      ctx.stroke();
+    }
+  }
+}
+
+function paintClimateCardBackdrop(ctx, x, y, w, h, actual, fondoUrl) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 20);
+  ctx.clip();
+
+  const cachedImage = fondoImagenesCache[fondoUrl];
+  if (cachedImage) {
+    drawCoverImage(ctx, cachedImage, x, y, w, h, actual.esDia ? 0.55 : 0.5, actual.esDia ? 0.4 : 0.3);
+  } else {
+    const base = ctx.createLinearGradient(x, y, x, y + h);
+    if (actual.esDia) {
+      base.addColorStop(0, '#7cb7ff');
+      base.addColorStop(0.45, '#4c84d6');
+      base.addColorStop(1, '#1a1a38');
+    } else {
+      base.addColorStop(0, '#090b1b');
+      base.addColorStop(0.5, '#1f2044');
+      base.addColorStop(1, '#09090f');
+    }
+    ctx.fillStyle = base;
+    ctx.fillRect(x, y, w, h);
+
+    cargarFondoImagen(fondoUrl).then(() => {
+      if (renderClima) renderClima(canvas.width, canvas.height);
+    }).catch(() => {});
+  }
+
+  paintClimateTexture(ctx, x, y, w, h, actual);
+
+  const topGlow = ctx.createLinearGradient(x, y, x, y + h);
+  topGlow.addColorStop(0, actual.esDia ? 'rgba(255,255,255,0.06)' : 'rgba(140,160,255,0.08)');
+  topGlow.addColorStop(0.28, 'rgba(255,255,255,0.02)');
+  topGlow.addColorStop(0.72, 'rgba(0,0,0,0.08)');
+  topGlow.addColorStop(1, 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = topGlow;
+  ctx.fillRect(x, y, w, h);
+
+  const vignette = ctx.createRadialGradient(x + w * 0.52, y + h * 0.42, Math.min(w, h) * 0.18, x + w * 0.52, y + h * 0.48, Math.max(w, h) * 0.75);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(0.68, 'rgba(0,0,0,0.08)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.38)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(x, y, w, h);
+
+  const lowerBand = ctx.createLinearGradient(x, y + h * 0.45, x, y + h);
+  lowerBand.addColorStop(0, 'rgba(0,0,0,0)');
+  lowerBand.addColorStop(1, 'rgba(0,0,0,0.42)');
+  ctx.fillStyle = lowerBand;
+  ctx.fillRect(x, y, w, h);
+
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 20);
+  ctx.stroke();
+  ctx.restore();
+}
+
 // Variables de estado para el clima
 let climaData = null;
 let climaCiudad = 'San Rafael'; // Ciudad por defecto
@@ -1354,57 +1568,37 @@ function renderClimaCombinado(W, H) {
   const panelY = mainY + 20;
   const panelH = mainH - 40;
 
-  // TARJETA IZQUIERDA (Clima Actual) - Fondo con imagen realista
+  // TARJETA IZQUIERDA (Clima Actual) - Fondo fotográfico
   const fondoUrl = getFondoImagen(actual.esDia, actual.codigo);
-  
-  // Clip para el fondo solo en esta tarjeta
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(leftX, panelY, panelW, panelH, 20);
-  ctx.clip();
-  
-  // Intentar cargar y dibujar imagen de fondo
-  if (fondoImagenesCache[fondoUrl]) {
-    // Imagen ya cargada en caché
-    const img = fondoImagenesCache[fondoUrl];
-    ctx.drawImage(img, leftX, panelY, panelW, panelH);
-  } else {
-    // Fallback: gradiente mientras carga la imagen
-    const g = ctx.createLinearGradient(leftX, panelY, leftX, panelY + panelH);
-    g.addColorStop(0, actual.esDia ? '#1E88E5' : '#1A237E');
-    g.addColorStop(1, actual.esDia ? '#64B5F6' : '#7986CB');
-    ctx.fillStyle = g;
-    ctx.fillRect(leftX, panelY, panelW, panelH);
-    
-    // Cargar imagen en background
-    cargarFondoImagen(fondoUrl).then(() => {
-      // Re-renderizar cuando la imagen cargue
-      if (renderClima) renderClima(canvas.width, canvas.height);
-    }).catch(() => {});
-  }
-  
-  // Overlay oscuro sutil para que el texto sea legible
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(leftX, panelY, panelW, panelH);
-  
-  ctx.restore();
-  
-  // Borde sutil
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.roundRect(leftX, panelY, panelW, panelH, 20);
-  ctx.stroke();
+  paintClimateCardBackdrop(ctx, leftX, panelY, panelW, panelH, actual, fondoUrl);
   
   const centerX = leftX + panelW / 2;
   
   // Distribuir elementos verticalmente
-  const iconY = panelY + panelH * 0.28;
+  const iconY = panelY + panelH * 0.24;
   const tempY = panelY + panelH * 0.60;
   
   dibujarIconoClima(ctx, centerX, iconY, 110, actual.tipo);
+
+  const chipW = 156;
+  const chipH = 34;
+  const chipX = leftX + 22;
+  const chipY = panelY + 22;
+  ctx.save();
+  ctx.fillStyle = 'rgba(13, 16, 34, 0.42)';
+  ctx.beginPath();
+  ctx.roundRect(chipX, chipY, chipW, chipH, 999);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = 'bold 13px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(actual.descripcion.toUpperCase(), chipX + chipW / 2, chipY + 22);
+  ctx.restore();
   
-  ctx.font = 'bold 120px BebasNeue, sans-serif';
+  ctx.font = 'bold 126px BebasNeue, sans-serif';
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
@@ -1412,14 +1606,14 @@ function renderClimaCombinado(W, H) {
   ctx.fillText(`${actual.temp}°`, centerX, tempY);
   ctx.shadowBlur = 0;
   
-  ctx.font = 'bold 26px BebasNeue, sans-serif';
+  ctx.font = 'bold 24px Inter, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ctx.letterSpacing = '1px';
+  ctx.letterSpacing = '0.5px';
   ctx.fillText(actual.descripcion.toUpperCase(), centerX, tempY + 55);
   
   const sensacion = actual.temp - Math.round(actual.viento / 10);
-  ctx.font = 'bold 16px Inter, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.font = '600 15px Inter, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.84)';
   ctx.fillText(`Sensación térmica: ${sensacion}°`, centerX, tempY + 85);
   
   // PANEL DERECHO (Dashboard de métricas)
