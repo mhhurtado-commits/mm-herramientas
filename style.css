@@ -380,6 +380,9 @@ body.dark-theme .mm-spinner { border-color: rgba(255,255,255,0.15); border-top-c
     transform: translateY(100%) !important;
     transition: transform 0.26s ease !important;
     overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    touch-action: pan-y !important;
     padding: 16px !important;
     box-shadow: var(--shadow-lg) !important;
   }
@@ -396,6 +399,7 @@ body.dark-theme .mm-spinner { border-color: rgba(255,255,255,0.15); border-top-c
     display: flex !important;
     flex-direction: column !important;
     gap: 12px !important;
+    min-height: 100% !important;
   }
   
   /* Ajustes de tema en móvil */
@@ -412,6 +416,7 @@ body.dark-theme .mm-spinner { border-color: rgba(255,255,255,0.15); border-top-c
   padding-top: var(--header-h);
   padding-bottom: var(--footer-h);
   height: 100vh;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -420,6 +425,10 @@ body.dark-theme .mm-spinner { border-color: rgba(255,255,255,0.15); border-top-c
   min-width: 280px !important;
   flex-shrink: 0 !important;
   height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .placas-canvas-area {
@@ -450,6 +459,7 @@ body.dark-theme .mm-spinner { border-color: rgba(255,255,255,0.15); border-top-c
   .placas-sidebar {
     display: flex !important;
     flex-direction: column;
+    min-height: 0;
   }
 }
 

@@ -384,6 +384,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: flex-start;
+        min-height: 0;
         overflow: hidden;
       }
       
@@ -443,7 +444,8 @@
         bottom: 102px;  /* expbar(46) + tabbar(56) */
         left: 0;
         right: 0;
-        max-height: 45vh;
+        height: min(45vh, calc(100dvh - 158px));
+        max-height: none;
         background: var(--surface);
         border-top: 2px solid var(--v);
         border-radius: var(--radius-xl) var(--radius-xl) 0 0;
@@ -451,6 +453,9 @@
         transform: translateY(100%);
         transition: transform 0.26s ease;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
         padding: 14px;
         box-shadow: var(--shadow-lg);
       }
@@ -460,7 +465,7 @@
         display: flex !important;
         flex-direction: column;
         gap: 12px;
-        min-height: 20px;
+        min-height: 100%;
       }
 
       /* Ajuste del toggle de tema en móvil */
