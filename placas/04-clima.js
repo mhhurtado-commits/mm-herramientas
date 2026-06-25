@@ -3,67 +3,24 @@
 // API: Open-Meteo (gratuita, sin API key)
 // ════════════════════════════════════════════════════════════════════
 
-// Caché de imágenes de fondo
-const fondoImagenesCache = {};
-
-// Función para obtener URL de imagen de fondo basado en clima y hora del día
-function getFondoImagen(esDia, codigoClima) {
-  const fondos = {
-    // DÍA - Imágenes realistas
-    diaDespejado: 'https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?w=800&q=80',
-    diaParcial: 'https://images.unsplash.com/photo-1594056110047-7f0f3d4b8d5c?w=800&q=80',
-    diaNublado: 'https://images.unsplash.com/photo-5402106475-1?w=800&q=80',
-    diaLluvia: 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=800&q=80',
-    diaLluviaFuerte: 'https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?w=800&q=80',
-    diaTormenta: 'https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&q=80',
-    diaNieve: 'https://images.unsplash.com/photo-1491002052546-bf38f186af56?w=800&q=80',
-    diaNiebla: 'https://images.unsplash.com/photo-1505567745926-ba89000d255a?w=800&q=80',
-    
-    // NOCHE - Imágenes realistas
-    nocheDespejado: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800&q=80',
-    nocheParcial: 'https://images.unsplash.com/photo-1483347754190-08d5c0c7a610?w=800&q=80',
-    nocheNublado: 'https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?w=800&q=80',
-    nocheLluvia: 'https://images.unsplash.com/photo-1519638399535-1b036603ac77?w=800&q=80',
-    nocheTormenta: 'https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?w=800&q=80',
-    nocheNieve: 'https://images.unsplash.com/photo-1483664852095-d6cc6870705d?w=800&q=80',
-    nocheNiebla: 'https://images.unsplash.com/photo-1505567745926-ba89000d255a?w=800&q=80'
-  };
-  
-  // Determinar tipo de clima
-  let tipoClima = 'despejado';
-  if (codigoClima === 0) tipoClima = 'despejado';
-  else if (codigoClima === 1 || codigoClima === 2) tipoClima = 'parcial';
-  else if (codigoClima === 3) tipoClima = 'nublado';
-  else if (codigoClima === 45 || codigoClima === 48) tipoClima = 'niebla';
-  else if (codigoClima >= 51 && codigoClima <= 57) tipoClima = 'lluvia';
-  else if (codigoClima >= 61 && codigoClima <= 67) tipoClima = 'lluvia';
-  else if (codigoClima >= 71 && codigoClima <= 77) tipoClima = 'nieve';
-  else if (codigoClima >= 80 && codigoClima <= 82) tipoClima = 'lluviaFuerte';
-  else if (codigoClima >= 85 && codigoClima <= 86) tipoClima = 'nieve';
-  else if (codigoClima >= 95) tipoClima = 'tormenta';
-  else if (codigoClima >= 80) tipoClima = 'lluviaFuerte';
-  
-  const clave = (esDia ? 'dia' : 'noche') + tipoClima.charAt(0).toUpperCase() + tipoClima.slice(1);
-  return fondos[clave] || fondos[(esDia ? 'dia' : 'noche') + 'Despejado'];
+// Fondo procedimental, sin fotos externas
+function getClimateBackdropType(codigoClima) {
+  if (codigoClima === 0) return 'sun';
+  if (codigoClima === 1 || codigoClima === 2) return 'sun-cloud';
+  if (codigoClima === 3) return 'cloud';
+  if (codigoClima === 45 || codigoClima === 48) return 'fog';
+  if (codigoClima >= 51 && codigoClima <= 57) return 'rain-light';
+  if (codigoClima >= 61 && codigoClima <= 67) return 'rain';
+  if (codigoClima >= 71 && codigoClima <= 77) return 'snow';
+  if (codigoClima >= 80 && codigoClima <= 82) return 'rain-heavy';
+  if (codigoClima >= 85 && codigoClima <= 86) return 'snow';
+  if (codigoClima >= 95) return 'storm';
+  return 'sun';
 }
 
-// Función para cargar imagen de fondo con caché
-async function cargarFondoImagen(url) {
-  if (fondoImagenesCache[url]) {
-    return fondoImagenesCache[url];
-  }
-  
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      fondoImagenesCache[url] = img;
-      resolve(img);
-    };
-    img.onerror = () => reject(new Error('Error cargando imagen'));
-    img.src = url;
-  });
-}
+const mostrarToast = window.showToast || window.mostrarToast || function(msg) {
+  console.log(msg);
+};
 
 // Función para dibujar fondo dinámico con efectos visuales
 function dibujarFondoDinamico(ctx, W, H, esDia, codigoClima) {
@@ -218,31 +175,6 @@ function makeSeededRandom(seedValue) {
   };
 }
 
-function drawCoverImage(ctx, img, x, y, w, h, focusX = 0.5, focusY = 0.5) {
-  const imgRatio = img.width / img.height;
-  const boxRatio = w / h;
-  let sx = 0;
-  let sy = 0;
-  let sw = img.width;
-  let sh = img.height;
-
-  if (imgRatio > boxRatio) {
-    sh = img.height;
-    sw = sh * boxRatio;
-    sx = (img.width - sw) * focusX;
-  } else {
-    sw = img.width;
-    sh = sw / boxRatio;
-    sy = (img.height - sh) * focusY;
-  }
-
-  const maxX = Math.max(0, img.width - sw);
-  const maxY = Math.max(0, img.height - sh);
-  sx = Math.max(0, Math.min(maxX, sx));
-  sy = Math.max(0, Math.min(maxY, sy));
-  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
-}
-
 function paintClimateTexture(ctx, x, y, w, h, actual) {
   const rand = makeSeededRandom(`${actual.tipo}-${actual.codigo}-${actual.esDia ? 'd' : 'n'}-${actual.temp}`);
   const isNight = !actual.esDia;
@@ -356,61 +288,204 @@ function paintClimateTexture(ctx, x, y, w, h, actual) {
   }
 }
 
-function paintClimateCardBackdrop(ctx, x, y, w, h, actual, fondoUrl) {
+function paintClimateCardBackdrop(ctx, x, y, w, h, actual) {
+  const rand = makeSeededRandom(`backdrop-${actual.codigo}-${actual.esDia ? 'd' : 'n'}-${actual.temp}`);
+  const type = getClimateBackdropType(actual.codigo);
+  const isNight = !actual.esDia;
+
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 20);
   ctx.clip();
 
-  const cachedImage = fondoImagenesCache[fondoUrl];
-  if (cachedImage) {
-    drawCoverImage(ctx, cachedImage, x, y, w, h, actual.esDia ? 0.55 : 0.5, actual.esDia ? 0.4 : 0.3);
+  const sky = ctx.createLinearGradient(x, y, x, y + h);
+  if (isNight) {
+    sky.addColorStop(0, '#0b1026');
+    sky.addColorStop(0.42, '#1a1240');
+    sky.addColorStop(1, '#07090f');
+  } else if (type === 'storm' || type === 'rain-heavy') {
+    sky.addColorStop(0, '#3f5b8e');
+    sky.addColorStop(0.45, '#2a335a');
+    sky.addColorStop(1, '#11131d');
+  } else if (type === 'fog') {
+    sky.addColorStop(0, '#a9bfd2');
+    sky.addColorStop(0.45, '#879eb4');
+    sky.addColorStop(1, '#5e6c79');
+  } else if (type === 'snow') {
+    sky.addColorStop(0, '#bed2e8');
+    sky.addColorStop(0.45, '#90a9c2');
+    sky.addColorStop(1, '#53637a');
+  } else if (type === 'cloud' || type === 'sun-cloud') {
+    sky.addColorStop(0, '#7fb3e8');
+    sky.addColorStop(0.48, '#516f9a');
+    sky.addColorStop(1, '#243044');
   } else {
-    const base = ctx.createLinearGradient(x, y, x, y + h);
-    if (actual.esDia) {
-      base.addColorStop(0, '#7cb7ff');
-      base.addColorStop(0.45, '#4c84d6');
-      base.addColorStop(1, '#1a1a38');
-    } else {
-      base.addColorStop(0, '#090b1b');
-      base.addColorStop(0.5, '#1f2044');
-      base.addColorStop(1, '#09090f');
-    }
-    ctx.fillStyle = base;
-    ctx.fillRect(x, y, w, h);
-
-    cargarFondoImagen(fondoUrl).then(() => {
-      if (renderClima) renderClima(canvas.width, canvas.height);
-    }).catch(() => {});
+    sky.addColorStop(0, '#8cc7ff');
+    sky.addColorStop(0.45, '#5387cf');
+    sky.addColorStop(1, '#17233e');
   }
-
-  paintClimateTexture(ctx, x, y, w, h, actual);
-
-  const topGlow = ctx.createLinearGradient(x, y, x, y + h);
-  topGlow.addColorStop(0, actual.esDia ? 'rgba(255,255,255,0.06)' : 'rgba(140,160,255,0.08)');
-  topGlow.addColorStop(0.28, 'rgba(255,255,255,0.02)');
-  topGlow.addColorStop(0.72, 'rgba(0,0,0,0.08)');
-  topGlow.addColorStop(1, 'rgba(0,0,0,0.55)');
-  ctx.fillStyle = topGlow;
+  ctx.fillStyle = sky;
   ctx.fillRect(x, y, w, h);
 
-  const vignette = ctx.createRadialGradient(x + w * 0.52, y + h * 0.42, Math.min(w, h) * 0.18, x + w * 0.52, y + h * 0.48, Math.max(w, h) * 0.75);
+  const horizon = ctx.createLinearGradient(x, y + h * 0.55, x, y + h);
+  if (isNight) {
+    horizon.addColorStop(0, 'rgba(199,125,255,0.24)');
+    horizon.addColorStop(0.6, 'rgba(65,37,96,0.22)');
+    horizon.addColorStop(1, 'rgba(0,0,0,0.5)');
+  } else if (type === 'storm' || type === 'rain-heavy') {
+    horizon.addColorStop(0, 'rgba(255,255,255,0.05)');
+    horizon.addColorStop(1, 'rgba(0,0,0,0.42)');
+  } else {
+    horizon.addColorStop(0, 'rgba(255,255,255,0.12)');
+    horizon.addColorStop(1, 'rgba(0,0,0,0.3)');
+  }
+  ctx.fillStyle = horizon;
+  ctx.fillRect(x, y, w, h);
+
+  if (isNight) {
+    const moonX = x + w * 0.77;
+    const moonY = y + h * 0.18;
+    const moonR = Math.min(w, h) * 0.055;
+    const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, moonR * 5);
+    moonGlow.addColorStop(0, 'rgba(230,240,255,0.18)');
+    moonGlow.addColorStop(1, 'rgba(230,240,255,0)');
+    ctx.fillStyle = moonGlow;
+    ctx.fillRect(x, y, w, h);
+
+    ctx.fillStyle = '#edf1ff';
+    ctx.beginPath();
+    ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#0b1026';
+    ctx.beginPath();
+    ctx.arc(moonX + moonR * 0.35, moonY - moonR * 0.08, moonR * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    for (let i = 0; i < 42; i++) {
+      const starX = x + rand() * w;
+      const starY = y + rand() * h * 0.72;
+      const starR = 0.5 + rand() * 1.8;
+      ctx.globalAlpha = 0.35 + rand() * 0.65;
+      ctx.beginPath();
+      ctx.arc(starX, starY, starR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  } else {
+    const sunX = x + w * 0.76;
+    const sunY = y + h * 0.2;
+    const sunR = Math.min(w, h) * 0.055;
+    const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR * 6);
+    sunGlow.addColorStop(0, 'rgba(255,226,120,0.38)');
+    sunGlow.addColorStop(0.35, 'rgba(255,216,100,0.18)');
+    sunGlow.addColorStop(1, 'rgba(255,216,100,0)');
+    ctx.fillStyle = sunGlow;
+    ctx.fillRect(x, y, w, h);
+
+    ctx.fillStyle = '#ffd84d';
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,216,77,0.85)';
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < 8; i++) {
+      const angle = i * Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(sunX + Math.cos(angle) * sunR * 1.35, sunY + Math.sin(angle) * sunR * 1.35);
+      ctx.lineTo(sunX + Math.cos(angle) * sunR * 2.0, sunY + Math.sin(angle) * sunR * 2.0);
+      ctx.stroke();
+    }
+  }
+
+  if (type === 'cloud' || type === 'sun-cloud' || type === 'rain' || type === 'rain-light' || type === 'rain-heavy' || type === 'storm' || type === 'fog') {
+    const cloudCount = type === 'storm' ? 6 : type === 'fog' ? 4 : 3;
+    for (let i = 0; i < cloudCount; i++) {
+      const baseX = x + w * (0.08 + rand() * 0.82);
+      const baseY = y + h * (0.12 + rand() * 0.28);
+      const cloudW = w * (0.18 + rand() * 0.22);
+      const cloudH = h * (0.05 + rand() * 0.06);
+      const alpha = type === 'fog' ? 0.12 : type === 'storm' ? 0.16 : 0.1;
+      ctx.fillStyle = isNight ? `rgba(220,230,255,${alpha})` : `rgba(255,255,255,${alpha})`;
+      ctx.beginPath();
+      ctx.ellipse(baseX, baseY, cloudW * 0.45, cloudH * 0.55, -0.18, 0, Math.PI * 2);
+      ctx.ellipse(baseX + cloudW * 0.24, baseY - cloudH * 0.1, cloudW * 0.34, cloudH * 0.48, -0.18, 0, Math.PI * 2);
+      ctx.ellipse(baseX - cloudW * 0.18, baseY + cloudH * 0.05, cloudW * 0.28, cloudH * 0.42, -0.18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (type === 'rain' || type === 'rain-light' || type === 'rain-heavy' || type === 'storm') {
+    ctx.strokeStyle = type === 'rain-heavy' || type === 'storm' ? 'rgba(160,195,255,0.26)' : 'rgba(160,195,255,0.15)';
+    ctx.lineWidth = type === 'rain-heavy' || type === 'storm' ? 2 : 1;
+    const rainCount = type === 'rain-heavy' || type === 'storm' ? 36 : 22;
+    for (let i = 0; i < rainCount; i++) {
+      const rx = x + rand() * w;
+      const ry = y + rand() * h * 0.85;
+      const len = 10 + rand() * 24;
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx - 4, ry + len);
+      ctx.stroke();
+    }
+  }
+
+  if (type === 'snow') {
+    ctx.fillStyle = 'rgba(255,255,255,0.38)';
+    for (let i = 0; i < 36; i++) {
+      const sx = x + rand() * w;
+      const sy = y + rand() * h * 0.86;
+      const sr = 0.9 + rand() * 2.6;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (type === 'fog') {
+    const mist = ctx.createLinearGradient(x, y + h * 0.28, x, y + h);
+    mist.addColorStop(0, 'rgba(255,255,255,0)');
+    mist.addColorStop(0.55, 'rgba(240,248,255,0.12)');
+    mist.addColorStop(1, 'rgba(230,240,255,0.26)');
+    ctx.fillStyle = mist;
+    ctx.fillRect(x, y, w, h);
+  }
+
+  if (type === 'storm') {
+    ctx.fillStyle = 'rgba(35, 20, 60, 0.18)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(255, 245, 180, 0.18)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 2; i++) {
+      const boltX = x + w * (0.22 + rand() * 0.52);
+      ctx.beginPath();
+      ctx.moveTo(boltX, y + h * 0.05);
+      ctx.lineTo(boltX - 18, y + h * 0.24);
+      ctx.lineTo(boltX + 10, y + h * 0.24);
+      ctx.lineTo(boltX - 8, y + h * 0.4);
+      ctx.stroke();
+    }
+  }
+
+  const vignette = ctx.createRadialGradient(x + w * 0.5, y + h * 0.42, Math.min(w, h) * 0.18, x + w * 0.5, y + h * 0.45, Math.max(w, h) * 0.85);
   vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(0.68, 'rgba(0,0,0,0.08)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.38)');
+  vignette.addColorStop(0.7, 'rgba(0,0,0,0.08)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.45)');
   ctx.fillStyle = vignette;
   ctx.fillRect(x, y, w, h);
 
-  const lowerBand = ctx.createLinearGradient(x, y + h * 0.45, x, y + h);
-  lowerBand.addColorStop(0, 'rgba(0,0,0,0)');
-  lowerBand.addColorStop(1, 'rgba(0,0,0,0.42)');
-  ctx.fillStyle = lowerBand;
+  const bottomSilhouette = ctx.createLinearGradient(x, y + h * 0.6, x, y + h);
+  bottomSilhouette.addColorStop(0, 'rgba(0,0,0,0)');
+  bottomSilhouette.addColorStop(1, 'rgba(0,0,0,0.62)');
+  ctx.fillStyle = bottomSilhouette;
   ctx.fillRect(x, y, w, h);
 
   ctx.restore();
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 20);
@@ -1154,47 +1229,8 @@ function renderClima(W, H) {
     const panelY = mainY + 20;
     const panelH = mainH - 40;
 
-    // TARJETA IZQUIERDA (Clima Actual) - Fondo con imagen realista
-    const fondoUrl = getFondoImagen(actual.esDia, actual.codigo);
-    
-    // Clip para el fondo solo en esta tarjeta
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(leftX, panelY, panelW, panelH, 20);
-    ctx.clip();
-    
-    // Intentar cargar y dibujar imagen de fondo
-    if (fondoImagenesCache[fondoUrl]) {
-      // Imagen ya cargada en caché
-      const img = fondoImagenesCache[fondoUrl];
-      ctx.drawImage(img, leftX, panelY, panelW, panelH);
-    } else {
-      // Fallback: gradiente mientras carga la imagen
-      const g = ctx.createLinearGradient(leftX, panelY, leftX, panelY + panelH);
-      g.addColorStop(0, actual.esDia ? '#1E88E5' : '#1A237E');
-      g.addColorStop(1, actual.esDia ? '#64B5F6' : '#7986CB');
-      ctx.fillStyle = g;
-      ctx.fillRect(leftX, panelY, panelW, panelH);
-      
-      // Cargar imagen en background
-      cargarFondoImagen(fondoUrl).then(() => {
-        // Re-renderizar cuando la imagen cargue
-        if (renderClima) renderClima(canvas.width, canvas.height);
-      }).catch(() => {});
-    }
-    
-    // Overlay oscuro sutil para que el texto sea legible
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillRect(leftX, panelY, panelW, panelH);
-    
-    ctx.restore();
-    
-    // Borde sutil
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(leftX, panelY, panelW, panelH, 20);
-    ctx.stroke();
+    // TARJETA IZQUIERDA (Clima Actual) - Fondo procedimental
+    paintClimateCardBackdrop(ctx, leftX, panelY, panelW, panelH, actual);
     
     const centerX = leftX + panelW / 2;
     
@@ -1568,9 +1604,8 @@ function renderClimaCombinado(W, H) {
   const panelY = mainY + 20;
   const panelH = mainH - 40;
 
-  // TARJETA IZQUIERDA (Clima Actual) - Fondo fotográfico
-  const fondoUrl = getFondoImagen(actual.esDia, actual.codigo);
-  paintClimateCardBackdrop(ctx, leftX, panelY, panelW, panelH, actual, fondoUrl);
+  // TARJETA IZQUIERDA (Clima Actual) - Fondo procedimental
+  paintClimateCardBackdrop(ctx, leftX, panelY, panelW, panelH, actual);
   
   const centerX = leftX + panelW / 2;
   
