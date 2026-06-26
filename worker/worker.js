@@ -3825,6 +3825,170 @@ async function handleMundialIDs(env) {
 
 
 // ============================================================
+
+// ============================================================
+// SMN Token & API Helpers
+// ============================================================
+
+// Decodificar JWT sin librerías externas
+function decodeJWT(token) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = parts[1];
+    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(decoded);
+  } catch(e) { return null; }
+}
+
+// Obtener token SMN desde KV y validar expiración
+async function getSmnToken(env) {
+  try {
+    const token = await env.KV.get(SMN_TOKEN_KV_KEY);
+    if (!token) return null;
+    const decoded = decodeJWT(token);
+    if (!decoded || !decoded.exp) return null;
+    // Verificar expiración con 5 min de margen
+    const now = Math.floor(Date.now() / 1000);
+    if (decoded.exp < now + 300) return null;
+    return token;
+  } catch(e) { return null; }
+}
+
+// Guardar token SMN en KV
+async function setSmnToken(env, token) {
+  await env.KV.put(SMN_TOKEN_KV_KEY, token);
+}
+
+// Proxy: Clima actual SMN
+async function handleSmnWeather(url, env) {
+  const locationId = url.searchParams.get("location");
+  if (!locationId) return jsonError("Parámetro 'location' requerido", 400);
+  const token = await getSmnToken(env);
+  if (!token) return jsonError("Token SMN expirado o no configurado. Actualizalo desde la app.", 401);
+  try {
+    const res = await fetch(`${SMN_API_BASE}/weather/location/${encodeURIComponent(locationId)}`, {
+      headers: { "Authorization": `JWT ${token}` }
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return new Response(JSON.stringify({ ok: false, error: `SMN respondió ${res.status}`, detail: text.substring(0, 200) }),
+        { status: res.status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
+    }
+    const data = await res.json();
+    // Enriquecer con código de clima mapeado
+    if (data.weather && data.weather.id !== undefined) {
+      data.weather.smn_code = SMN_CODES[data.weather.id] || null;
+    }
+    return jsonOk({ data });
+  } catch(e) {
+    return jsonError(`Error conectando con SMN: ${e.message}`, 502);
+  }
+}
+
+// Proxy: Pronóstico extendido SMN
+async function handleSmnForecast(url, env) {
+  const locationId = url.searchParams.get("location");
+  if (!locationId) return jsonError("Parámetro 'location' requerido", 400);
+  const token = await getSmnToken(env);
+  if (!token) return jsonError("Token SMN expirado o no configurado. Actualizalo desde la app.", 401);
+  try {
+    const res = await fetch(`${SMN_API_BASE}/forecast/location/${encodeURIComponent(locationId)}`, {
+      headers: { "Authorization": `JWT ${token}` }
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return new Response(JSON.stringify({ ok: false, error: `SMN respondió ${res.status}`, detail: text.substring(0, 200) }),
+        { status: res.status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
+    }
+    const data = await res.json();
+    // Enriquecer forecast items con códigos mapeados
+    const forecastItems = Array.isArray(data) ? data : (data.forecast || []);
+    if (forecastItems.length > 0) {
+      forecastItems.forEach(item => {
+        if (item.morning?.weather?.id !== undefined) item.morning.weather.smn_code = SMN_CODES[item.morning.weather.id] || null;
+        if (item.afternoon?.weather?.id !== undefined) item.afternoon.weather.smn_code = SMN_CODES[item.afternoon.weather.id] || null;
+        if (item.night?.weather?.id !== undefined) item.night.weather.smn_code = SMN_CODES[item.night.weather.id] || null;
+        // Parse wind speed range string to average
+        ["morning","afternoon","night","early_morning"].forEach(period => {
+          if (item[period]?.wind?.speed_range) {
+            const p = item[period].wind.speed_range.split(" ").map(Number);
+            item[period].wind.speed_avg = p.length === 2 ? Math.round((p[0]+p[1])/2) : p[0];
+          }
+        });
+      });
+    }
+    return jsonOk({ data });
+  } catch(e) {
+    return jsonError(`Error conectando con SMN: ${e.message}`, 502);
+  }
+}
+
+// Guardar token SMN (POST /smn/token)
+async function handlePostSmnToken(body, env) {
+  if (!body || !body.token) return jsonError("Campo 'token' requerido", 400);
+  const token = String(body.token).trim();
+  const decoded = decodeJWT(token);
+  if (!decoded || !decoded.exp) return jsonError("El token JWT no es válido", 400);
+  const now = Math.floor(Date.now() / 1000);
+  const expiresIn = decoded.exp - now;
+  if (expiresIn <= 0) return jsonError("El token ya expiró. Obtené uno nuevo desde www.smn.gob.ar", 400);
+  await setSmnToken(env, token);
+  return jsonOk({
+    message: "Token SMN guardado correctamente",
+    expiresIn,
+    expiresInMin: Math.round(expiresIn / 60),
+    scopes: decoded.scopes || decoded.roles || null
+  });
+}
+
+// Estado del token SMN
+async function handleSmnTokenStatus(env) {
+  const token = await getSmnToken(env);
+  if (!token) {
+    // Ver si hay uno almacenado aunque esté expirado
+    const stored = await env.KV.get(SMN_TOKEN_KV_KEY);
+    if (stored) {
+      const decoded = decodeJWT(stored);
+      return jsonOk({
+        valid: false,
+        reason: "expirado",
+        expiredAt: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null
+      });
+    }
+    return jsonOk({ valid: false, reason: "no_configurado" });
+  }
+  const decoded = decodeJWT(token);
+  return jsonOk({
+    valid: true,
+    expiresAt: new Date(decoded.exp * 1000).toISOString(),
+    expiresInMin: Math.round((decoded.exp - Math.floor(Date.now() / 1000)) / 60),
+    scopes: decoded.scopes || decoded.roles || null
+  });
+}
+
+
+
+// Proxy: B�squeda de ubicaciones SMN (georef)
+async function handleSmnGeoref(url, env) {
+  const q = url.searchParams.get("q");
+  if (!q) return jsonError("Par�metro 'q' requerido", 400);
+  const token = await getSmnToken(env);
+  if (!token) return jsonError("Token SMN expirado o no configurado", 401);
+  try {
+    const res = await fetch(`${SMN_API_BASE}/location/search?q=${encodeURIComponent(q)}`, {
+      headers: { "Authorization": `JWT ${token}` }
+    });
+    if (!res.ok) {
+      return new Response(JSON.stringify({ ok: false, error: `SMN respondi� ${res.status}` }),
+        { status: res.status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
+    }
+    const data = await res.json();
+    return jsonOk({ data });
+  } catch(e) {
+    return jsonError(`Error conectando con SMN: ${e.message}`, 502);
+  }
+}
 // ROUTER PRINCIPAL
 // ============================================================
 
@@ -4033,7 +4197,8 @@ export default {
 
           // Intentar encontrar el array de partidos
           let zMatches = null;
-          if (Array.isArray(data)) {
+          const forecastItems = Array.isArray(data) ? data : (data.forecast || []);
+    if (forecastItems.length > 0) {
             zMatches = data;
           } else if (data.matches && Array.isArray(data.matches)) {
             zMatches = data.matches;
@@ -4306,6 +4471,10 @@ export default {
           {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
       }
 
+      if(path==="/smn/weather")                     return handleSmnWeather(url, env);
+      if(path==="/smn/forecast")                    return handleSmnForecast(url, env);
+      if(path==="/smn/token-status")                return handleSmnTokenStatus(env);
+      if(path==="/smn/georef")                      return handleSmnGeoref(url, env);
       return jsonError("Ruta no encontrada",404);
     }
 
@@ -4375,6 +4544,7 @@ export default {
     if(path==="/studio/proyecto")                    return handleStudioGuardarProyecto(body, env);
     if(path==="/api/suggest-cuts")                   return handleVideoEditorSuggestCuts(body, env);
     if(path==="/api/generate-headline")              return handleGenerateHeadline(request, env);
+    if(path==="/smn/token")                         return handlePostSmnToken(body, env);
 
     return jsonError("Ruta no encontrada",404);
   },
