@@ -3926,6 +3926,7 @@ async function handleSmnForecast(url, env) {
 
 // Guardar token SMN (POST /smn/token)
 async function handlePostSmnToken(body, env) {
+  try {
   if (!body || !body.token) return jsonError("Campo 'token' requerido", 400);
   const token = String(body.token).trim();
   const decoded = decodeJWT(token);
@@ -3940,6 +3941,7 @@ async function handlePostSmnToken(body, env) {
     expiresInMin: Math.round(expiresIn / 60),
     scopes: decoded.scopes || decoded.roles || null
   });
+  } catch(e) { return jsonError("Error procesando token: " + e.message, 500); }
 }
 
 // Estado del token SMN
