@@ -3831,13 +3831,26 @@ async function handleMundialIDs(env) {
 // ============================================================
 
 // Decodificar JWT sin librerÃ­as externas
+// Decodificar JWT sin librerías externas (base64url decode puro)
 function decodeJWT(token) {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
     const payload = parts[1];
-    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(decoded);
+    // Base64url decode sin usar atob/Buffer
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const binStr = base64.replace(/[^A-Za-z0-9+/=]/g, '');
+    let result = '';
+    for (let i = 0; i < binStr.length; i += 4) {
+      const a = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".indexOf(binStr[i] || 'A');
+      const b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".indexOf(binStr[i+1] || 'A');
+      const c = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".indexOf(binStr[i+2] || 'A');
+      const d = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".indexOf(binStr[i+3] || 'A');
+      result += String.fromCharCode((a << 2) | (b >> 4));
+      if (binStr[i+2] !== '=') result += String.fromCharCode(((b & 15) << 4) | (c >> 2));
+      if (binStr[i+3] !== '=') result += String.fromCharCode(((c & 3) << 6) | d);
+    }
+    return JSON.parse(result);
   } catch(e) { return null; }
 }
 
