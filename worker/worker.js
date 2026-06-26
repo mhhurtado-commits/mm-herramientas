@@ -9,7 +9,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, cache-control",
 };
 
-const GEMINI_MODEL     = "gemini-2.5-flash-lite";
+const GEMINI_MODEL     = "gemini-3.1-flash-lite";
 const GEMINI_URL       = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const EDITORIAL_KV_KEY = "config:editorial";
 const WA_PROMPT_KV_KEY = "config:wa_prompt";
@@ -4197,8 +4197,7 @@ export default {
 
           // Intentar encontrar el array de partidos
           let zMatches = null;
-          const forecastItems = Array.isArray(data) ? data : (data.forecast || []);
-    if (forecastItems.length > 0) {
+          if (Array.isArray(data)) {
             zMatches = data;
           } else if (data.matches && Array.isArray(data.matches)) {
             zMatches = data.matches;
