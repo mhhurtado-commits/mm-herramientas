@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════
 // MÓDULO CLIMA - PLACAS DINÁMICAS
-// API: SMN (Servicio Meteorológico Nacional) + Open-Meteo (fallback)
+// API: Open-Meteo (gratuita, sin API key)
 // ════════════════════════════════════════════════════════════════════
 
 // Fondo procedimental, sin fotos externas
@@ -778,16 +778,6 @@ const CIUDADES_ARG = {
   'San Luis': { lat: -33.3013, lon: -66.3366 },
   'Neuquén': { lat: -38.9516, lon: -68.0591 }
 };
-// IDs de ubicación del SMN para cada ciudad
-const SMN_LOCATION_IDS = {
-  'San Rafael': 24824,
-  'General Alvear': 24803,
-  'Malargüe': 24817,
-  'Mendoza': 24049,
-  'San Juan': 21024,
-  'San Luis': 23031,
-  'Neuquén': 23002
-};
 
 // Actualizar estado visual de la UI de clima
 function actualizarUIEstadoClima() {
@@ -861,230 +851,14 @@ function eliminarCiudadExtra(index) {
   render();
 }
 
-
-// Mapear código SMN a tipo visual
-function mapearCodigoSMN(codigoSMN) {
-  const map = {
-    0: { desc: 'Despejado', type: 'sun' },
-    1: { desc: 'Algo nublado', type: 'sun-cloud' },
-    2: { desc: 'Parcialmente nublado', type: 'sun-cloud' },
-    3: { desc: 'Parcialmente nublado', type: 'sun-cloud' },
-    4: { desc: 'Parcialmente nublado', type: 'sun-cloud' },
-    5: { desc: 'Parcialmente nublado', type: 'sun-cloud' },
-    10: { desc: 'Neblina', type: 'fog' },
-    11: { desc: 'Neblina', type: 'fog' },
-    12: { desc: 'Neblina', type: 'fog' },
-    13: { desc: 'Niebla', type: 'fog' },
-    14: { desc: 'Niebla', type: 'fog' },
-    15: { desc: 'Niebla', type: 'fog' },
-    16: { desc: 'Niebla', type: 'fog' },
-    17: { desc: 'Niebla', type: 'fog' },
-    20: { desc: 'Nublado', type: 'cloud' },
-    21: { desc: 'Nublado', type: 'cloud' },
-    22: { desc: 'Nublado', type: 'cloud' },
-    23: { desc: 'Nublado', type: 'cloud' },
-    25: { desc: 'Parcialmente nublado', type: 'sun-cloud' },
-    26: { desc: 'Mayormente nublado', type: 'cloud' },
-    27: { desc: 'Mayormente nublado', type: 'cloud' },
-    29: { desc: 'Mayormente nublado', type: 'cloud' },
-    30: { desc: 'Llovizna ligera', type: 'rain-light' },
-    31: { desc: 'Llovizna', type: 'rain-light' },
-    32: { desc: 'Llovizna', type: 'rain-light' },
-    33: { desc: 'Lluvia ligera', type: 'rain-light' },
-    34: { desc: 'Lluvia moderada', type: 'rain' },
-    35: { desc: 'Lluvia fuerte', type: 'rain-heavy' },
-    36: { desc: 'Lluvia', type: 'rain' },
-    37: { desc: 'Mayormente nublado', type: 'cloud' },
-    40: { desc: 'Tormenta aislada', type: 'storm' },
-    41: { desc: 'Tormenta', type: 'storm' },
-    42: { desc: 'Tormenta fuerte', type: 'storm' },
-    43: { desc: 'Tormenta', type: 'storm' },
-    44: { desc: 'Tormenta', type: 'storm' },
-    45: { desc: 'Tormenta', type: 'storm' },
-    50: { desc: 'Nieve ligera', type: 'snow' },
-    51: { desc: 'Nieve', type: 'snow' },
-    52: { desc: 'Nieve', type: 'snow' },
-    53: { desc: 'Nieve', type: 'snow' },
-    60: { desc: 'Chubascos', type: 'rain-light' },
-    61: { desc: 'Chubascos', type: 'rain' },
-    62: { desc: 'Chubascos fuertes', type: 'rain-heavy' },
-    70: { desc: 'Ventoso', type: 'wind' },
-    19: { desc: 'Algo nublado', type: 'sun-cloud' },
-    74: { desc: 'Chaparrones', type: 'rain' },
-    77: { desc: 'Lluvias y nevadas', type: 'snow' },
-    78: { desc: 'Lluvias y nevadas', type: 'snow' },
-    79: { desc: 'Nevadas', type: 'snow' },
-    86: { desc: 'Granizo', type: 'snow' },
-  };
-  return map[codigoSMN] || { desc: 'Desconocido', type: 'sun' };
-}
-
-// Obtener datos del clima desde SMN API (via worker proxy)
-async function obtenerClimaSMN(ciudad) {
-  climaLoading = true;
-  window.climaLoading = climaLoading;
-  actualizarUIEstadoClima();
-  
-  const locationId = SMN_LOCATION_IDS[ciudad];
-  if (!locationId) {
-    throw new Error(`No hay ID de ubicación SMN para ${ciudad}`);
-  }
-  
-  try {
-    // Obtener clima actual
-    const weatherRes = await fetch(`${WORKER}/smn/weather?location=${locationId}`);
-    const weatherJson = await weatherRes.json();
-    
-    if (!weatherJson.ok) {
-      throw new Error(weatherJson.error || 'Error en SMN weather');
-    }
-    
-    const w = weatherJson.data;
-    const smnCode = w.weather?.id;
-    const mapped = mapearCodigoSMN(smnCode);
-    
-    // Obtener pronóstico extendido
-    let pronosticoRaw = [];
-    try {
-      const forecastRes = await fetch(`${WORKER}/smn/forecast?location=${locationId}`);
-      const forecastJson = await forecastRes.json();
-      if (forecastJson.ok && forecastJson.data) {
-        pronosticoRaw = Array.isArray(forecastJson.data) ? forecastJson.data : (forecastJson.data.forecast || []);
-      }
-    } catch(e) {
-      console.warn('SMN forecast falló, usando solo datos actuales:', e.message);
-    }
-    
-    // Construir estructura de datos compatible con el renderizador actual
-    const ahora = new Date();
-    const esDia = ahora.getHours() >= 6 && ahora.getHours() < 20;
-    
-    // Datos diarios (madrugada, mañana, tarde, noche) desde forecast si hay
-    let datosDiario = [
-      { nombre: 'Madrugada', temp: Math.round(w.temperature), codigo: smnCode || 0, tipo: mapped.type, probLluvia: 0 },
-      { nombre: 'Mañana', temp: Math.round(w.temperature), codigo: smnCode || 0, tipo: mapped.type, probLluvia: 0 },
-      { nombre: 'Tarde', temp: Math.round(w.temperature), codigo: smnCode || 0, tipo: mapped.type, probLluvia: 0 },
-      { nombre: 'Noche', temp: Math.round(w.temperature), codigo: smnCode || 0, tipo: mapped.type, probLluvia: 0 }
-    ];
-    
-    let pronostico5d = [];
-    
-    if (pronosticoRaw.length > 0) {
-      // Usar datos del forecast SMN para diario (primer día)
-      const hoy = pronosticoRaw[0];
-      if (hoy) {
-        if (hoy.early_morning && hoy.early_morning.temperature !== null) {
-          const codigoEM = hoy.early_morning.weather?.id || smnCode;
-          datosDiario[0] = { nombre: 'Madrugada', temp: Math.round(hoy.early_morning.temperature), codigo: codigoEM, tipo: mapearCodigoSMN(codigoEM).type, probLluvia: (hoy.early_morning.rain_prob_range?.[1]) || 0 };
-        }
-        if (hoy.morning) {
-          const codigoM = hoy.morning.weather?.id || smnCode;
-          datosDiario[1] = { nombre: 'Mañana', temp: Math.round(hoy.morning.temperature), codigo: codigoM, tipo: mapearCodigoSMN(codigoM).type, probLluvia: (hoy.morning.rain_prob_range?.[1]) || 0 };
-        }
-        if (hoy.afternoon) {
-          const codigoA = hoy.afternoon.weather?.id || smnCode;
-          datosDiario[2] = { nombre: 'Tarde', temp: Math.round(hoy.afternoon.temperature), codigo: codigoA, tipo: mapearCodigoSMN(codigoA).type, probLluvia: (hoy.afternoon.rain_prob_range?.[1]) || 0 };
-        }
-        if (hoy.night) {
-          const codigoN = hoy.night.weather?.id || smnCode;
-          datosDiario[3] = { nombre: 'Noche', temp: Math.round(hoy.night.temperature), codigo: codigoN, tipo: mapearCodigoSMN(codigoN).type, probLluvia: (hoy.night.rain_prob_range?.[1]) || 0 };
-        }
-      }
-      
-      // Construir pronóstico 5 días
-      pronostico5d = pronosticoRaw.slice(0, 5).map(dia => {
-        const codigoDia = dia.afternoon?.weather?.id || dia.morning?.weather?.id || smnCode;
-        return {
-          fecha: new Date(dia.date + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }),
-          viento: dia.afternoon?.wind?.speed_avg || dia.morning?.wind?.speed_avg || Math.round(w.wind?.speed || 0),
-          tempMax: Math.round(dia.temp_max || w.temperature),
-          tempMin: Math.round(dia.temp_min || w.temperature),
-          codigo: codigoDia,
-          tipo: mapearCodigoSMN(codigoDia).type,
-          probLluvia: Math.max(
-            (dia.morning?.rain_prob_range?.[1]) || 0,
-            (dia.afternoon?.rain_prob_range?.[1]) || 0,
-            (dia.night?.rain_prob_range?.[1]) || 0
-          ),
-          uvMax: null,
-          amanecer: null,
-          atardecer: null
-        };
-      });
-    }
-    
-    climaData = {
-      fuente: 'Open-Meteo',
-      ciudad: ciudad,
-      fuente: 'SMN',
-      actual: {
-        temp: Math.round(w.temperature),
-        humedad: Math.round(w.humidity || 0),
-        viento: typeof w.wind?.speed === 'string' ? Math.round((parseInt(w.wind.speed) || 0)) : Math.round(w.wind?.speed || 0),
-        codigo: smnCode || 0,
-        descripcion: w.weather?.description || mapped.desc,
-        tipo: mapped.type,
-        presion: Math.round(w.pressure || 0),
-        precipitacion: 0,
-        visibilidad: Math.round(w.visibility || 10),
-        uv: null,
-        nubosidad: null,
-        esDia: esDia
-      },
-      pronostico: pronostico5d.length > 0 ? pronostico5d : null,
-      diario: datosDiario
-    };
-    
-    climaCiudad = ciudad;
-    window.climaCiudad = climaCiudad;
-    window.climaData = climaData;
-    
-    mostrarToast(`Clima SMN actualizado: ${ciudad}`);
-    
-    // Inicializar logo si no está inicializado
-    if (S.logoImg && (!ELS.logo || ELS.logo.x === null)) {
-      const fmt = FMTS[S.fmt];
-      const W = fmt.w, H = fmt.h;
-      const bandaAlto = Math.round(H * 0.15);
-      const logoH = bandaAlto * 0.7;
-      const logoW = Math.round(logoH * (S.logoImg.width / S.logoImg.height));
-      ELS.logo = { x: 20, y: (bandaAlto - logoH) / 2, w: logoW, h: logoH, visible: true };
-    }
-    
-    if (S.mode === 'clima') {
-      render();
-    }
-    
-    return climaData;
-    
-  } catch (error) {
-    throw error; // Dejar que el caller maneje el fallback
-  } finally {
-    climaLoading = false;
-    window.climaLoading = climaLoading;
-    actualizarUIEstadoClima();
-  }
-}
-
 // Obtener datos del clima desde Open-Meteo API
 async function obtenerClima(ciudad) {
   climaLoading = true;
+  // Actualizar variable global
   window.climaLoading = climaLoading;
   actualizarUIEstadoClima();
   
-  // Intentar SMN primero (datos más fiables localmente)
   try {
-    const smnData = await obtenerClimaSMN(ciudad);
-    return smnData;
-  } catch(smnError) {
-    console.warn('SMN no disponible, usando Open-Meteo como fallback:', smnError.message);
-    // Continuar con Open-Meteo abajo
-  }
-  
-  // Fallback: Open-Meteo
-  try {
-    // Open-Meteo fallback
-    
     const coords = CIUDADES_ARG[ciudad] || CIUDADES_ARG['Mendoza'];
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,surface_pressure,precipitation,visibility,uv_index,is_day,cloud_cover&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,sunrise,sunset&hourly=temperature_2m,weather_code,precipitation_probability&timezone=America/Argentina/Mendoza`;
     
@@ -1108,7 +882,6 @@ async function obtenerClima(ciudad) {
     };
     
     climaData = {
-      fuente: 'Open-Meteo',
       ciudad: ciudad,
       actual: {
         temp: Math.round(data.current.temperature_2m),

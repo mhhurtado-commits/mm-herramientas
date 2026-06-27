@@ -725,7 +725,7 @@
     <!-- PANEL MODO CLIMA -->
     <div id="special-panel-clima" class="special-only mode-section">
       <div style="background:var(--surface2);border-radius:var(--radius);padding:8px 10px;margin-bottom:10px;font-size:0.78rem;color:var(--muted);line-height:1.4">
-        🌤️ <strong>Clima dinámico:</strong> Datos del SMN (Servicio Meteorológico Nacional) con fallback a Open-Meteo.
+        🌤️ <strong>Clima dinámico:</strong> Datos en tiempo real desde Open-Meteo API. Seleccioná una ciudad y actualizá.
       </div>
       <label class="mm-label">Ciudad</label>
       <select id="selClimaCiudad" class="mm-select" onchange="window.climaCiudad=this.value">
@@ -737,22 +737,6 @@
         <option value="San Luis">San Luis</option>
         <option value="Neuquén">Neuquén</option>
       </select>
-      
-      <!-- SMN Token Management -->
-      <div id="smn-token-section" style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:var(--radius);border-left:3px solid var(--v)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <span style="font-size:0.78rem;font-weight:600;color:var(--text)">🔐 Token SMN</span>
-          <span id="smn-token-badge" style="font-size:0.7rem;padding:2px 8px;border-radius:10px;background:var(--line);color:var(--muted)">Sin configurar</span>
-        </div>
-        <div style="display:flex;gap:4px">
-          <input type="text" id="txtSmnToken" class="mm-input" placeholder="Pegá el JWT desde www.smn.gob.ar" style="flex:1;font-size:0.72rem;font-family:monospace">
-          <button id="btn-guardar-token" class="mm-btn mm-btn-primary" style="padding:6px 10px;font-size:0.75rem" onclick="guardarTokenSMN()">Guardar</button>
-        </div>
-        <div style="margin-top:4px;font-size:0.68rem;color:var(--muted);line-height:1.3">
-          Abrí <a href="https://www.smn.gob.ar" target="_blank" style="color:var(--v)">www.smn.gob.ar</a>, 
-          F12 → Application → Local Storage → copiá el valor JWT.
-        </div>
-      </div>
       <button id="btn-actualizar-clima" class="mm-btn mm-btn-primary" style="width:100%;margin-top:10px" onclick="obtenerClima(window.climaCiudad)">
         🔄 Actualizar clima
       </button>
@@ -1302,82 +1286,6 @@
 <script src="02-calendario-mundial.js"></script>
 <script src="03-plantillas-futbol.js"></script>
 <script src="04-clima.js?v=20260624b"></script>
-
-<script>
-// ============================================================
-// SMN Token Management
-// ============================================================
-
-async function verificarTokenSMN() {
-  const badge = document.getElementById('smn-token-badge');
-  try {
-    const res = await fetch(WORKER + '/smn/token-status');
-    const data = await res.json();
-    if (!data.ok) return;
-    if (data.valid) {
-      badge.textContent = `✅ Válido (${data.expiresInMin} min)`;
-      badge.style.background = 'rgba(163,206,57,0.2)';
-      badge.style.color = '#a6ce39';
-      document.getElementById('btn-guardar-token').textContent = 'Actualizar';
-    } else if (data.reason === 'expirado') {
-      badge.textContent = '⚠️ Expirado';
-      badge.style.background = 'rgba(253,184,19,0.2)';
-      badge.style.color = '#fdb813';
-      document.getElementById('btn-guardar-token').textContent = 'Guardar';
-    } else {
-      badge.textContent = 'Sin configurar';
-      badge.style.background = 'var(--line)';
-      badge.style.color = 'var(--muted)';
-      document.getElementById('btn-guardar-token').textContent = 'Guardar';
-    }
-  } catch(e) {
-    badge.textContent = 'Error';
-  }
-}
-
-async function guardarTokenSMN() {
-  const input = document.getElementById('txtSmnToken');
-  const btn = document.getElementById('btn-guardar-token');
-  const token = input.value.trim();
-  
-  if (!token) {
-    mostrarToast('Pegá el token JWT primero');
-    return;
-  }
-  
-  btn.disabled = true;
-  btn.textContent = '...';
-  
-  try {
-    const res = await fetch(WORKER + '/smn/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token })
-    });
-    const data = await res.json();
-    
-    if (data.ok) {
-      mostrarToast(`✅ Token SMN guardado (${data.expiresInMin} min)`);
-      input.value = '';
-      await verificarTokenSMN();
-    } else {
-      mostrarToast('❌ ' + (data.error || 'Error al guardar'));
-    }
-  } catch(e) {
-    mostrarToast('Error de conexión');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Guardar';
-  }
-}
-
-// Verificar estado al cargar
-if (typeof WORKER !== 'undefined') {
-  verificarTokenSMN();
-  // Verificar cada 10 minutos
-  setInterval(verificarTokenSMN, 600000);
-}
-</script>
 <script>
 // Neutralizar initTabTouchEvents de app.js ANTES de que init() lo llame.
 // app.js lo llama en window.addEventListener('load', init), así que lo
