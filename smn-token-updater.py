@@ -19,7 +19,7 @@ WORKER_URL = "https://mm-herramientas-worker.workers.dev"
 
 # API Key secreta para proteger el endpoint (debe coincidir con worker.js)
 # Generá una clave segura y usá la misma en ambos lados
-WORKER_API_KEY = "CAMBIAR_ESTA_CLAVE_SECRETA"
+WORKER_API_KEY = "tomyjerry2008"
 
 # Intervalo de actualización en segundos (50 minutos = 3000 segundos)
 # El token dura 1 hora, renovamos 10 min antes por seguridad
