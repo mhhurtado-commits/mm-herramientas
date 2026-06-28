@@ -55,12 +55,12 @@ const SMN_TOKEN_TTL = 3000; // 50 minutos
 // Mapeo de ciudades a IDs de ubicación SMN
 const SMN_LOCATION_IDS = {
   "San Rafael": "9553",
-  "General Alvear": "9554",
-  "Malargüe": "9555",
-  "Mendoza": "87509",
-  "San Juan": "87510",
-  "San Luis": "87511",
-  "Neuquén": "87512"
+  "General Alvear": "9560",
+  "Malargüe": "9296",
+  "Mendoza": "9378",
+  "San Juan": "1425",
+  "San Luis": "1712",
+  "Neuquén": "9903"
 };
 
 // ── Helpers ──
