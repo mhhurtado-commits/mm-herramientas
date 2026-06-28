@@ -880,7 +880,7 @@ async function obtenerClima(ciudad) {
 
   try {
     // Intentar obtener datos del Worker SMN primero
-    const workerUrl = 'https://mm-herramientas-worker.workers.dev/smn/weather?ciudad=' + encodeURIComponent(ciudad);
+    const workerUrl = 'https://mm-herramientas-worker.mhhurtado.workers.dev/smn/weather?ciudad=' + encodeURIComponent(ciudad);
     const smnResponse = await fetch(workerUrl);
     const smnData = await smnResponse.json();
 

@@ -15,7 +15,7 @@ from datetime import datetime
 # ============================================================
 
 # URL de tu Cloudflare Worker
-WORKER_URL = "https://mm-herramientas-worker.workers.dev"
+WORKER_URL = "https://mm-herramientas-worker.mhhurtado.workers.dev"
 
 # API Key secreta para proteger el endpoint (debe coincidir con worker.js)
 # Generá una clave segura y usá la misma en ambos lados
