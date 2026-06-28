@@ -44,6 +44,25 @@ const BROWSER_HEADERS = {
   "Cache-Control": "no-cache",
 };
 
+// ============================================================
+// SMN - Servicio Meteorológico Nacional
+// ============================================================
+
+const SMN_KV_TOKEN_KEY = "smn:jwt_token";
+const SMN_API_BASE = "https://ws1.smn.gob.ar/v1";
+const SMN_TOKEN_TTL = 3000; // 50 minutos
+
+// Mapeo de ciudades a IDs de ubicación SMN
+const SMN_LOCATION_IDS = {
+  "San Rafael": "9553",
+  "General Alvear": "9554",
+  "Malargüe": "9555",
+  "Mendoza": "87509",
+  "San Juan": "87510",
+  "San Luis": "87511",
+  "Neuquén": "87512"
+};
+
 // ── Helpers ──
 function esXMLvalido(t){return t.includes("<rss")||t.includes("<feed")||t.includes("<channel")||t.includes("<item")||t.includes("<entry")||(t.trimStart().startsWith("<?xml")&&t.includes("<title"))}
 function decodeHtml(t=""){return t.replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'")}
@@ -726,11 +745,82 @@ async function handleGenerateHeadline(request, env) {
 
 async function handleTestAI(env) {
   const hasAI = !!env.AI;
-  
+
   return jsonOk({
     ai_disponible: hasAI,
     mensaje: hasAI ? "✅ AI configurado correctamente" : "❌ AI NO está configurado. Agregá binding 'AI' en el dashboard."
   });
+}
+
+// ============================================================
+// SMN - Servicio Meteorológico Nacional
+// ============================================================
+
+async function handleSMNUpdateToken(body, env) {
+  const { token } = body;
+
+  if (!token) {
+    return jsonError("Falta token", 400);
+  }
+
+  try {
+    await env.KV.put(SMN_KV_TOKEN_KEY, token, { expirationTtl: SMN_TOKEN_TTL });
+    return jsonOk({ guardado: true, expiraEn: SMN_TOKEN_TTL });
+  } catch (err) {
+    console.error('Error guardando token SMN:', err);
+    return jsonError("Error guardando token: " + err.message, 500);
+  }
+}
+
+async function handleSMNWeather(url, env) {
+  const ciudad = url.searchParams.get('ciudad') || 'San Rafael';
+  const locationId = SMN_LOCATION_IDS[ciudad];
+
+  if (!locationId) {
+    return jsonError(`Ciudad no encontrada: ${ciudad}`, 404);
+  }
+
+  try {
+    const token = await env.KV.get(SMN_KV_TOKEN_KEY);
+
+    if (!token) {
+      return jsonError("Token SMN no disponible. Ejecutá el script de actualización.", 503);
+    }
+
+    const endpoints = [
+      `weather/location/${locationId}`,
+      `forecast/location/${locationId}`,
+      `sun/location/${locationId}`
+    ];
+
+    const results = {};
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(`${SMN_API_BASE}/${endpoint}`, {
+          headers: {
+            "Authorization": `JWT ${token}`,
+            "User-Agent": BROWSER_HEADERS["User-Agent"]
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          results[endpoint.split('/')[0]] = data;
+        } else {
+          results[endpoint.split('/')[0]] = { error: `HTTP ${response.status}` };
+        }
+      } catch (e) {
+        results[endpoint.split('/')[0]] = { error: e.message };
+      }
+    }
+
+    return jsonOk({ ciudad, locationId, data: results });
+
+  } catch (err) {
+    console.error('Error obteniendo clima SMN:', err);
+    return jsonError("Error obteniendo clima: " + err.message, 500);
+  }
 }
 
 // ============================================================
@@ -3859,6 +3949,7 @@ export default {
       if(path==="/music/search")                     return handleMusicSearch(url, env);
       if(path==="/music/preview")                    return handleMusicPreview(url, env);
       if(path==="/test-ai")                          return handleTestAI(env);
+      if(path==="/smn/weather")                      return handleSMNWeather(url, env);
       if(path==="/mundo/placa-manana")               return handleMundialManana(env);
       if(path==="/mundo/placa-noche")                return handleMundialNoche(env);
       if(path==="/mundo/partidos") {
@@ -4375,6 +4466,7 @@ export default {
     if(path==="/studio/proyecto")                    return handleStudioGuardarProyecto(body, env);
     if(path==="/api/suggest-cuts")                   return handleVideoEditorSuggestCuts(body, env);
     if(path==="/api/generate-headline")              return handleGenerateHeadline(request, env);
+    if(path==="/smn/update-token")                   return handleSMNUpdateToken(body, env);
 
     return jsonError("Ruta no encontrada",404);
   },

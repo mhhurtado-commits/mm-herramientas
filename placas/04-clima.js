@@ -538,6 +538,26 @@ const WMO_CODES = {
   99: { desc: 'Tormenta con granizo fuerte', type: 'storm' }
 };
 
+// Mapeo de códigos SMN a códigos WMO equivalentes
+const SMN_TO_WMO = {
+  3: 0,    // Despejado
+  19: 2,   // Algo nublado
+  25: 2,   // Parcialmente nublado
+  37: 3,   // Mayormente nublado
+  43: 3,   // Nublado
+  74: 81,  // Chaparrones
+  77: 71,  // Lluvias y nevadas
+  79: 75,  // Nevadas
+  95: 95,  // Tormenta
+  96: 96,  // Tormenta con granizo
+  99: 99   // Tormenta severa
+};
+
+// Función para convertir código SMN a WMO
+function mapearCodigoSMNaWMO(smnCode) {
+  return SMN_TO_WMO[smnCode] || 0; // Default a despejado si no está mapeado
+}
+
 // Dibujar iconos de clima profesionales en el canvas
 function dibujarIconoClima(ctx, x, y, size, type) {
   ctx.save();
@@ -851,20 +871,99 @@ function eliminarCiudadExtra(index) {
   render();
 }
 
-// Obtener datos del clima desde Open-Meteo API
+// Obtener datos del clima desde SMN (via Worker) con fallback a Open-Meteo
 async function obtenerClima(ciudad) {
   climaLoading = true;
   // Actualizar variable global
   window.climaLoading = climaLoading;
   actualizarUIEstadoClima();
-  
+
+  try {
+    // Intentar obtener datos del Worker SMN primero
+    const workerUrl = 'https://mm-herramientas-worker.workers.dev/smn/weather?ciudad=' + encodeURIComponent(ciudad);
+    const smnResponse = await fetch(workerUrl);
+    const smnData = await smnResponse.json();
+
+    if (smnData.ok && smnData.data && smnData.data.weather) {
+      // Procesar datos SMN
+      const weather = smnData.data.weather;
+      const forecast = smnData.data.forecast;
+      const sun = smnData.data.sun;
+
+      const wmoCode = mapearCodigoSMNaWMO(weather.weather.id);
+      const wmoInfo = WMO_CODES[wmoCode] || WMO_CODES[0];
+
+      climaData = {
+        ciudad: ciudad,
+        actual: {
+          temp: Math.round(weather.temperature),
+          humedad: weather.humidity,
+          viento: Math.round(weather.wind.speed),
+          codigo: wmoCode,
+          descripcion: wmoInfo.desc,
+          tipo: wmoInfo.type,
+          presion: Math.round(weather.pressure),
+          precipitacion: 0, // SMN no proporciona precipitación actual
+          visibilidad: Math.round(weather.visibility),
+          uv: 0, // SMN no proporciona UV actual
+          nubosidad: 0, // SMN no proporciona nubosidad
+          esDia: true // SMN no proporciona is_day
+        },
+        pronostico: forecast.forecast.slice(0, 5).map((dia, i) => {
+          const wmoCodePron = mapearCodigoSMNaWMO(dia.weather?.id || 3);
+          const wmoInfoPron = WMO_CODES[wmoCodePron] || WMO_CODES[0];
+          return {
+            fecha: new Date(dia.date).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }),
+            tempMax: Math.round(dia.temp_max),
+            tempMin: Math.round(dia.temp_min),
+            codigo: wmoCodePron,
+            tipo: wmoInfoPron.type,
+            probLluvia: dia.rain_prob_range ? (dia.rain_prob_range[0] + dia.rain_prob_range[1]) / 2 : 0,
+            uvMax: 0, // SMN no proporciona UV en pronóstico
+            amanecer: sun?.sun?.sunrise || '06:00',
+            atardecer: sun?.sun?.sunset || '18:00'
+          };
+        }),
+        diario: [
+          { nombre: 'Madrugada', temp: forecast.forecast[0]?.early_morning?.temperature || 0, codigo: 3, tipo: 'sun', probLluvia: 0 },
+          { nombre: 'Mañana', temp: forecast.forecast[0]?.morning?.temperature || 0, codigo: 3, tipo: 'sun', probLluvia: 0 },
+          { nombre: 'Tarde', temp: forecast.forecast[0]?.afternoon?.temperature || 0, codigo: 3, tipo: 'sun', probLluvia: 0 },
+          { nombre: 'Noche', temp: forecast.forecast[0]?.night?.temperature || 0, codigo: 3, tipo: 'sun', probLluvia: 0 }
+        ]
+      };
+
+      climaCiudad = ciudad;
+      window.climaCiudad = climaCiudad;
+      window.climaData = climaData;
+      mostrarToast(`Clima actualizado (SMN): ${ciudad}`);
+
+      // Inicializar logo si no está inicializado
+      if (S.logoImg && (!ELS.logo || ELS.logo.x === null)) {
+        const fmt = FMTS[S.fmt];
+        const W = fmt.w, H = fmt.h;
+        const bandaAlto = Math.round(H * 0.15);
+        const logoH = bandaAlto * 0.7;
+        const logoW = Math.round(logoH * (S.logoImg.width / S.logoImg.height));
+        ELS.logo = { x: 20, y: (bandaAlto - logoH) / 2, w: logoW, h: logoH, visible: true };
+      }
+
+      if (S.mode === 'clima') {
+        render();
+      }
+      return;
+    }
+  } catch (e) {
+    console.log('SMN no disponible, usando Open-Meteo fallback:', e);
+  }
+
+  // Fallback a Open-Meteo si SMN falla
   try {
     const coords = CIUDADES_ARG[ciudad] || CIUDADES_ARG['Mendoza'];
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,surface_pressure,precipitation,visibility,uv_index,is_day,cloud_cover&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,sunrise,sunset&hourly=temperature_2m,weather_code,precipitation_probability&timezone=America/Argentina/Mendoza`;
-    
+
     const response = await fetch(url);
     const data = await response.json();
-    
+
     const getPeriodo = (startIdx) => {
       let maxTemp = -999;
       let maxProb = 0;
@@ -880,7 +979,7 @@ async function obtenerClima(ciudad) {
         probLluvia: maxProb
       };
     };
-    
+
     climaData = {
       ciudad: ciudad,
       actual: {
@@ -915,14 +1014,12 @@ async function obtenerClima(ciudad) {
         { nombre: 'Noche', ...getPeriodo(18) }
       ]
     };
-    
+
     climaCiudad = ciudad;
-    // Actualizar variables globales
     window.climaCiudad = climaCiudad;
     window.climaData = climaData;
-    
-    mostrarToast(`Clima actualizado: ${ciudad}`);
-    
+    mostrarToast(`Clima actualizado (Open-Meteo): ${ciudad}`);
+
     // Inicializar logo si no está inicializado
     if (S.logoImg && (!ELS.logo || ELS.logo.x === null)) {
       const fmt = FMTS[S.fmt];
