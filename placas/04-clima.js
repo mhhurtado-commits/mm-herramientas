@@ -514,6 +514,7 @@ window.climaData = climaData;
 window.climaLoading = climaLoading;
 
 // Mapeo de códigos WMO a descripciones en español
+// 'type' puede ser 'sun', 'moon', 'sun-cloud', 'cloud', 'fog', 'rain-light', 'rain', 'rain-heavy', 'snow', 'snow-heavy', 'storm'
 const WMO_CODES = {
   0: { desc: 'Despejado', type: 'sun' },
   1: { desc: 'Mayormente despejado', type: 'sun-cloud' },
@@ -537,6 +538,49 @@ const WMO_CODES = {
   96: { desc: 'Tormenta con granizo ligero', type: 'storm' },
   99: { desc: 'Tormenta con granizo fuerte', type: 'storm' }
 };
+
+// Mapeo de códigos SMN (nativos) a descripciones
+const SMN_CODES = {
+  3: { desc: 'Despejado', type: 'sun' },
+  19: { desc: 'Algo nublado', type: 'sun-cloud' },
+  25: { desc: 'Parcialmente nublado', type: 'sun-cloud' },
+  37: { desc: 'Mayormente nublado', type: 'cloud' },
+  43: { desc: 'Nublado', type: 'cloud' },
+  74: { desc: 'Chaparrones', type: 'rain' },
+  77: { desc: 'Lluvias y nevadas', type: 'snow' },
+  79: { desc: 'Nevadas', type: 'snow' },
+  95: { desc: 'Tormenta', type: 'storm' },
+  96: { desc: 'Tormenta con granizo', type: 'storm' },
+  99: { desc: 'Tormenta severa', type: 'storm' }
+};
+
+// Función para obtener el tipo de clima según la hora del día
+function getTipoClimaPorHora(tipoBase, nombrePeriodo, esDia) {
+  // Si es de noche o madrugada, usar variante moon para tipos claros
+  if (!esDia) {
+    if (tipoBase === 'sun') return 'moon';
+    if (tipoBase === 'sun-cloud') return 'moon-cloud';
+    if (tipoBase === 'cloud') return 'moon-cloud';
+  }
+  return tipoBase;
+}
+
+// Función para determinar si es de día basándose en amanecer/atardecer
+function esDeDia(amanecer, atardecer) {
+  const ahora = new Date();
+  const horaActual = ahora.getHours() + ahora.getMinutes() / 60;
+
+  try {
+    const [amH, amM] = amanecer.split(':').map(Number);
+    const [atH, atM] = atardecer.split(':').map(Number);
+    const horaAmanecer = amH + amM / 60;
+    const horaAtardecer = atH + atM / 60;
+    return horaActual >= horaAmanecer && horaActual <= horaAtardecer;
+  } catch (e) {
+    // Si hay error, asumir es de día
+    return true;
+  }
+}
 
 // Mapeo de códigos SMN a códigos WMO equivalentes
 const SMN_TO_WMO = {
@@ -893,43 +937,144 @@ async function obtenerClima(ciudad) {
       const wmoCode = mapearCodigoSMNaWMO(weather.weather.id);
       const wmoInfo = WMO_CODES[wmoCode] || WMO_CODES[0];
 
+      // Datos del sol (amanecer/atardecer)
+      const solData = smnData.sun || {};
+      const amanecer = solData.sunrise || '06:00';
+      const atardecer = solData.sunset || '18:00';
+
+      // Detectar si es de día basándose en la hora actual vs amanecer/atardecer
+      const ahora = new Date();
+      const [amH, amM] = amanecer.split(':').map(Number);
+      const [atH, atM] = atardecer.split(':').map(Number);
+      const horaActual = ahora.getHours() + ahora.getMinutes() / 60;
+      const horaAmanecer = amH + amM / 60;
+      const horaAtardecer = atH + atM / 60;
+      const esDia = horaActual >= horaAmanecer && horaActual <= horaAtardecer;
+
       climaData = {
         ciudad: ciudad,
         actual: {
-          temp: weather.temperature, // Mantener decimales como en SMN
-          sensacionTermica: weather.feels_like, // Agregar sensación térmica con decimales
+          temp: weather.temperature,
+          sensacionTermica: weather.feels_like,
           humedad: weather.humidity,
           viento: Math.round(weather.wind.speed),
+          vientoDireccion: weather.wind.direction || '',
+          vientoDeg: weather.wind.deg || 0,
+          vientoRafaMax: weather.wind.gust || null,
           codigo: wmoCode,
           descripcion: wmoInfo.desc,
           tipo: wmoInfo.type,
           presion: Math.round(weather.pressure),
-          precipitacion: 0, // SMN no proporciona precipitación actual
-          visibilidad: Math.round(weather.visibility),
-          uv: 0, // SMN no proporciona UV actual
-          nubosidad: 0, // SMN no proporciona nubosidad
-          esDia: true // SMN no proporciona is_day
+          precipitacion: 0,
+          visibilidad: weather.visibility ? `${weather.visibility} km` : 'N/D',
+          visibilidadValor: weather.visibility,
+          uv: 0,
+          nubosidad: 0,
+          esDia: esDia,
+          amanecer: amanecer,
+          atardecer: atardecer,
+          // Datos de estación
+          estacion: weather.station_id || null,
+          ubicacion: weather.location?.name || ciudad
         },
-        pronostico: forecast.forecast.slice(0, 5).map((dia, i) => {
-          const wmoCodePron = mapearCodigoSMNaWMO(dia.weather?.id || 3);
+        pronostico: forecast.forecast.slice(0, 7).map((dia) => {
+          const wmoCodePron = mapearCodigoSMNaWMO(dia.weather?.id || dia.night?.weather?.id || dia.afternoon?.weather?.id || 3);
           const wmoInfoPron = WMO_CODES[wmoCodePron] || WMO_CODES[0];
+          // Usar el período más representativo del día para el icono
+          const periodoIcono = dia.afternoon || dia.night || dia.morning || dia;
+          const probLluvia = periodoIcono.rain_prob_range
+            ? Math.round((periodoIcono.rain_prob_range[0] + periodoIcono.rain_prob_range[1]) / 2)
+            : 0;
+          const rafagas = periodoIcono.gust_range
+            ? Math.round((periodoIcono.gust_range[0] + periodoIcono.gust_range[1]) / 2)
+            : null;
           return {
             fecha: new Date(dia.date).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }),
+            fechaCompleta: dia.date,
             tempMax: dia.temp_max !== null ? Math.round(dia.temp_max) : null,
             tempMin: dia.temp_min !== null ? Math.round(dia.temp_min) : null,
             codigo: wmoCodePron,
             tipo: wmoInfoPron.type,
-            probLluvia: dia.rain_prob_range ? (dia.rain_prob_range[0] + dia.rain_prob_range[1]) / 2 : 0,
-            uvMax: 0, // SMN no proporciona UV en pronóstico
-            amanecer: sun?.sun?.sunrise || '06:00',
-            atardecer: sun?.sun?.sunset || '18:00'
+            descripcion: periodoIcono.weather?.description || wmoInfoPron.desc,
+            probLluvia: probLluvia,
+            rafagas: rafagas,
+            visibilidad: periodoIcono.visibility || 'Buena',
+            humedadMin: dia.humidity_min,
+            humedadMax: dia.humidity_max,
+            amanecer: amanecer,
+            atardecer: atardecer
           };
         }),
         diario: [
-          { nombre: 'Madrugada', temp: forecast.forecast[0]?.early_morning?.temperature || 0, codigo: mapearCodigoSMNaWMO(forecast.forecast[0]?.early_morning?.weather?.id || 3), tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0]?.early_morning?.weather?.id || 3)]?.type || 'sun', probLluvia: forecast.forecast[0]?.early_morning?.rain_prob_range ? (forecast.forecast[0].early_morning.rain_prob_range[0] + forecast.forecast[0].early_morning.rain_prob_range[1]) / 2 : 0 },
-          { nombre: 'Mañana', temp: forecast.forecast[0]?.morning?.temperature || 0, codigo: mapearCodigoSMNaWMO(forecast.forecast[0]?.morning?.weather?.id || 3), tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0]?.morning?.weather?.id || 3)]?.type || 'sun', probLluvia: forecast.forecast[0]?.morning?.rain_prob_range ? (forecast.forecast[0].morning.rain_prob_range[0] + forecast.forecast[0].morning.rain_prob_range[1]) / 2 : 0 },
-          { nombre: 'Tarde', temp: forecast.forecast[0]?.afternoon?.temperature || 0, codigo: mapearCodigoSMNaWMO(forecast.forecast[0]?.afternoon?.weather?.id || 3), tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0]?.afternoon?.weather?.id || 3)]?.type || 'sun', probLluvia: forecast.forecast[0]?.afternoon?.rain_prob_range ? (forecast.forecast[0].afternoon.rain_prob_range[0] + forecast.forecast[0].afternoon.rain_prob_range[1]) / 2 : 0 },
-          { nombre: 'Noche', temp: forecast.forecast[0]?.night?.temperature || 0, codigo: mapearCodigoSMNaWMO(forecast.forecast[0]?.night?.weather?.id || 3), tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0]?.night?.weather?.id || 3)]?.type || 'sun', probLluvia: forecast.forecast[0]?.night?.rain_prob_range ? (forecast.forecast[0].night.rain_prob_range[0] + forecast.forecast[0].night.rain_prob_range[1]) / 2 : 0 }
+          // Procesar los 4 períodos del día actual con todos los datos
+          ...(forecast.forecast[0]?.early_morning ? [{
+            nombre: 'Madrugada',
+            temp: Math.round(forecast.forecast[0].early_morning.temperature),
+            codigo: mapearCodigoSMNaWMO(forecast.forecast[0].early_morning.weather?.id || 3),
+            tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0].early_morning.weather?.id || 3)]?.type || 'moon',
+            descripcion: forecast.forecast[0].early_morning.weather?.description || 'Nublado',
+            probLluvia: Math.round((forecast.forecast[0].early_morning.rain_prob_range[0] + forecast.forecast[0].early_morning.rain_prob_range[1]) / 2),
+            vientoVelocidad: forecast.forecast[0].early_morning.wind?.speed_range
+              ? Math.round((forecast.forecast[0].early_morning.wind.speed_range[0] + forecast.forecast[0].early_morning.wind.speed_range[1]) / 2)
+              : null,
+            vientoDireccion: forecast.forecast[0].early_morning.wind?.direction || '',
+            rafagas: forecast.forecast[0].early_morning.gust_range
+              ? Math.round((forecast.forecast[0].early_morning.gust_range[0] + forecast.forecast[0].early_morning.gust_range[1]) / 2)
+              : null,
+            visibilidad: forecast.forecast[0].early_morning.visibility || 'Buena',
+            lluvia6h: forecast.forecast[0].early_morning.rain06h || 0
+          }] : []),
+          ...(forecast.forecast[0]?.morning ? [{
+            nombre: 'Mañana',
+            temp: Math.round(forecast.forecast[0].morning.temperature),
+            codigo: mapearCodigoSMNaWMO(forecast.forecast[0].morning.weather?.id || 3),
+            tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0].morning.weather?.id || 3)]?.type || 'sun',
+            descripcion: forecast.forecast[0].morning.weather?.description || 'Nublado',
+            probLluvia: Math.round((forecast.forecast[0].morning.rain_prob_range[0] + forecast.forecast[0].morning.rain_prob_range[1]) / 2),
+            vientoVelocidad: forecast.forecast[0].morning.wind?.speed_range
+              ? Math.round((forecast.forecast[0].morning.wind.speed_range[0] + forecast.forecast[0].morning.wind.speed_range[1]) / 2)
+              : null,
+            vientoDireccion: forecast.forecast[0].morning.wind?.direction || '',
+            rafagas: forecast.forecast[0].morning.gust_range
+              ? Math.round((forecast.forecast[0].morning.gust_range[0] + forecast.forecast[0].morning.gust_range[1]) / 2)
+              : null,
+            visibilidad: forecast.forecast[0].morning.visibility || 'Buena',
+            lluvia6h: forecast.forecast[0].morning.rain06h || 0
+          }] : []),
+          ...(forecast.forecast[0]?.afternoon ? [{
+            nombre: 'Tarde',
+            temp: Math.round(forecast.forecast[0].afternoon.temperature),
+            codigo: mapearCodigoSMNaWMO(forecast.forecast[0].afternoon.weather?.id || 3),
+            tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0].afternoon.weather?.id || 3)]?.type || 'sun',
+            descripcion: forecast.forecast[0].afternoon.weather?.description || 'Nublado',
+            probLluvia: Math.round((forecast.forecast[0].afternoon.rain_prob_range[0] + forecast.forecast[0].afternoon.rain_prob_range[1]) / 2),
+            vientoVelocidad: forecast.forecast[0].afternoon.wind?.speed_range
+              ? Math.round((forecast.forecast[0].afternoon.wind.speed_range[0] + forecast.forecast[0].afternoon.wind.speed_range[1]) / 2)
+              : null,
+            vientoDireccion: forecast.forecast[0].afternoon.wind?.direction || '',
+            rafagas: forecast.forecast[0].afternoon.gust_range
+              ? Math.round((forecast.forecast[0].afternoon.gust_range[0] + forecast.forecast[0].afternoon.gust_range[1]) / 2)
+              : null,
+            visibilidad: forecast.forecast[0].afternoon.visibility || 'Buena',
+            lluvia6h: forecast.forecast[0].afternoon.rain06h || 0
+          }] : []),
+          ...(forecast.forecast[0]?.night ? [{
+            nombre: 'Noche',
+            temp: Math.round(forecast.forecast[0].night.temperature),
+            codigo: mapearCodigoSMNaWMO(forecast.forecast[0].night.weather?.id || 3),
+            tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0].night.weather?.id || 3)]?.type || 'moon',
+            descripcion: forecast.forecast[0].night.weather?.description || 'Nublado',
+            probLluvia: Math.round((forecast.forecast[0].night.rain_prob_range[0] + forecast.forecast[0].night.rain_prob_range[1]) / 2),
+            vientoVelocidad: forecast.forecast[0].night.wind?.speed_range
+              ? Math.round((forecast.forecast[0].night.wind.speed_range[0] + forecast.forecast[0].night.wind.speed_range[1]) / 2)
+              : null,
+            vientoDireccion: forecast.forecast[0].night.wind?.direction || '',
+            rafagas: forecast.forecast[0].night.gust_range
+              ? Math.round((forecast.forecast[0].night.gust_range[0] + forecast.forecast[0].night.gust_range[1]) / 2)
+              : null,
+            visibilidad: forecast.forecast[0].night.visibility || 'Buena',
+            lluvia6h: forecast.forecast[0].night.rain06h || 0
+          }] : [])
         ]
       };
 
@@ -977,42 +1122,63 @@ async function obtenerClima(ciudad) {
         temp: Math.round(maxTemp),
         codigo: midCode,
         tipo: WMO_CODES[midCode]?.type || 'sun',
+        descripcion: WMO_CODES[midCode]?.desc || 'Desconocido',
         probLluvia: maxProb
       };
     };
+
+    // Detectar si es de día basándose en is_day de Open-Meteo
+    const esDiaOM = data.current.is_day === 1;
+    const amanecerOM = new Date(data.daily.sunrise[0]).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    const atardecerOM = new Date(data.daily.sunset[0]).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
     climaData = {
       ciudad: ciudad,
       actual: {
         temp: Math.round(data.current.temperature_2m),
+        sensacionTermica: Math.round(data.current.apparent_temperature || data.current.temperature_2m),
         humedad: data.current.relative_humidity_2m,
         viento: Math.round(data.current.wind_speed_10m),
+        vientoDireccion: '', // Open-Meteo no proporciona dirección en current
+        vientoDeg: 0,
+        vientoRafaMax: data.current.wind_gusts_10m ? Math.round(data.current.wind_gusts_10m) : null,
         codigo: data.current.weather_code,
         descripcion: WMO_CODES[data.current.weather_code]?.desc || 'Desconocido',
-        tipo: WMO_CODES[data.current.weather_code]?.type || 'sun',
+        tipo: WMO_CODES[data.current.weather_code]?.type || (esDiaOM ? 'sun' : 'moon'),
         presion: Math.round(data.current.surface_pressure),
-        precipitacion: data.current.precipitation,
-        visibilidad: Math.round(data.current.visibility / 1000),
-        uv: Math.round(data.current.uv_index),
-        nubosidad: data.current.cloud_cover,
-        esDia: data.current.is_day
+        precipitacion: data.current.precipitation || 0,
+        visibilidad: data.current.visibility ? `${Math.round(data.current.visibility / 1000)} km` : 'N/D',
+        visibilidadValor: data.current.visibility ? Math.round(data.current.visibility / 1000) : null,
+        uv: Math.round(data.current.uv_index || 0),
+        nubosidad: data.current.cloud_cover || 0,
+        esDia: esDiaOM,
+        amanecer: amanecerOM,
+        atardecer: atardecerOM,
+        // Datos de ubicación (aproximados)
+        estacion: null,
+        ubicacion: ciudad
       },
-      pronostico: data.daily.time.slice(0, 5).map((fecha, i) => ({
+      pronostico: data.daily.time.slice(0, 7).map((fecha, i) => ({
         fecha: new Date(fecha).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }),
+        fechaCompleta: fecha,
         tempMax: Math.round(data.daily.temperature_2m_max[i]),
         tempMin: Math.round(data.daily.temperature_2m_min[i]),
         codigo: data.daily.weather_code[i],
         tipo: WMO_CODES[data.daily.weather_code[i]]?.type || 'sun',
-        probLluvia: data.daily.precipitation_probability_max[i],
-        uvMax: Math.round(data.daily.uv_index_max[i]),
+        descripcion: WMO_CODES[data.daily.weather_code[i]]?.desc || 'Desconocido',
+        probLluvia: data.daily.precipitation_probability_max[i] || 0,
+        rafagas: null, // Open-Meteo no proporciona ráfagas en daily
+        visibilidad: 'Variable',
+        humedadMin: null,
+        humedadMax: null,
         amanecer: new Date(data.daily.sunrise[i]).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
         atardecer: new Date(data.daily.sunset[i]).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
       })),
       diario: [
-        { nombre: 'Madrugada', ...getPeriodo(0) },
-        { nombre: 'Mañana', ...getPeriodo(6) },
-        { nombre: 'Tarde', ...getPeriodo(12) },
-        { nombre: 'Noche', ...getPeriodo(18) }
+        { nombre: 'Madrugada', ...getPeriodo(0), vientoDireccion: '', rafagas: null, visibilidad: 'Variable', lluvia6h: 0 },
+        { nombre: 'Mañana', ...getPeriodo(6), vientoDireccion: '', rafagas: null, visibilidad: 'Variable', lluvia6h: 0 },
+        { nombre: 'Tarde', ...getPeriodo(12), vientoDireccion: '', rafagas: null, visibilidad: 'Variable', lluvia6h: 0 },
+        { nombre: 'Noche', ...getPeriodo(18), vientoDireccion: '', rafagas: null, visibilidad: 'Variable', lluvia6h: 0 }
       ]
     };
 

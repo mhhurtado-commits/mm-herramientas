@@ -779,6 +779,98 @@ async function handleSMNUpdateToken(body, env) {
   }
 }
 
+// Normaliza la respuesta SMN para que coincida con lo que espera placas/04-clima.js
+function smnEsRespuestaValida(payload) {
+  return payload && !payload.error && typeof payload === "object";
+}
+
+function smnAplanarSol(sunPayload) {
+  const nested = sunPayload?.sun || {};
+  return {
+    sunrise: nested.sunrise || "06:00",
+    sunset: nested.sunset || "18:00",
+    location_id: sunPayload?.location_id ?? null,
+    date: sunPayload?.date ?? null,
+  };
+}
+
+function smnNormalizarPeriodo(periodo) {
+  if (!periodo || periodo.error) return null;
+
+  const wind = periodo.wind || {};
+  return {
+    ...periodo,
+    rain_prob_range: Array.isArray(periodo.rain_prob_range) ? periodo.rain_prob_range : [0, 0],
+    gust_range: Array.isArray(periodo.gust_range) ? periodo.gust_range : null,
+    rain06h: periodo.rain06h ?? 0,
+    visibility: periodo.visibility || "Buena",
+    weather: periodo.weather || { id: 3, description: "Nublado" },
+    wind: {
+      ...wind,
+      direction: wind.direction || "",
+      deg: wind.deg ?? 0,
+      speed_range: Array.isArray(wind.speed_range) ? wind.speed_range : [0, 0],
+    },
+  };
+}
+
+function smnElegirPeriodoRepresentativo(dia) {
+  return dia?.afternoon || dia?.morning || dia?.night || dia?.early_morning || null;
+}
+
+function smnNormalizarDiaPronostico(dia) {
+  const normalizado = {
+    ...dia,
+    early_morning: smnNormalizarPeriodo(dia.early_morning),
+    morning: smnNormalizarPeriodo(dia.morning),
+    afternoon: smnNormalizarPeriodo(dia.afternoon),
+    night: smnNormalizarPeriodo(dia.night),
+  };
+
+  const periodoRef = smnElegirPeriodoRepresentativo(normalizado);
+  normalizado.weather = periodoRef?.weather || { id: 3, description: "Nublado" };
+
+  return normalizado;
+}
+
+function smnNormalizarPronostico(forecastPayload) {
+  if (!smnEsRespuestaValida(forecastPayload)) {
+    return { forecast: [] };
+  }
+
+  const dias = Array.isArray(forecastPayload.forecast) ? forecastPayload.forecast : [];
+  return {
+    ...forecastPayload,
+    forecast: dias.map(smnNormalizarDiaPronostico),
+  };
+}
+
+function smnEnriquecerVientoActual(weatherPayload, forecastPayload) {
+  if (!smnEsRespuestaValida(weatherPayload)) return null;
+
+  const wind = weatherPayload.wind || {};
+  if (wind.gust != null) {
+    return { ...weatherPayload, wind: { direction: "", deg: 0, ...wind } };
+  }
+
+  const hoy = smnNormalizarPronostico(forecastPayload).forecast?.[0];
+  const periodo = smnElegirPeriodoRepresentativo(hoy);
+  const rafaga = periodo?.gust_range
+    ? Math.round((periodo.gust_range[0] + periodo.gust_range[1]) / 2)
+    : null;
+
+  return {
+    ...weatherPayload,
+    wind: {
+      direction: "",
+      deg: 0,
+      speed: 0,
+      ...wind,
+      gust: rafaga,
+    },
+  };
+}
+
 async function handleSMNWeather(url, env) {
   const ciudad = url.searchParams.get('ciudad') || 'San Rafael';
   const locationId = SMN_LOCATION_IDS[ciudad];
@@ -832,7 +924,27 @@ async function handleSMNWeather(url, env) {
       }
     }
 
-    return jsonOk({ ciudad, locationId, data: results });
+    const weather = smnEnriquecerVientoActual(results.weather, results.forecast);
+    if (!weather) {
+      return jsonError("No se pudo obtener el clima actual desde SMN", 502);
+    }
+
+    const forecast = smnNormalizarPronostico(results.forecast);
+    const sunRaw = smnEsRespuestaValida(results.sun) ? results.sun : null;
+    const sun = smnAplanarSol(sunRaw);
+
+    return jsonOk({
+      ciudad,
+      locationId,
+      // 04-clima.js lee smnData.sun (raíz) para amanecer/atardecer
+      sun,
+      data: {
+        weather,
+        forecast,
+        sun: sunRaw,
+        warning: smnEsRespuestaValida(results.warning) ? results.warning : null,
+      },
+    });
 
   } catch (err) {
     console.error('Error obteniendo clima SMN:', err);
