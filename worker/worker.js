@@ -887,9 +887,12 @@ async function handleSMNWeather(url, env) {
     }
 
     const endpoints = [
+      `georef/location/${locationId}`,
       `weather/location/${locationId}`,
       `forecast/location/${locationId}`,
-      `sun/location/${locationId}`
+      `sun/location/${locationId}`,
+      `warning/shortterm/location/${locationId}`,
+      `warning/alert/location/${locationId}`
     ];
 
     // Agregar alertas meteorológicas si la ciudad tiene área de alertas

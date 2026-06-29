@@ -933,6 +933,10 @@ async function obtenerClima(ciudad) {
       const weather = smnData.data.weather;
       const forecast = smnData.data.forecast;
       const sun = smnData.data.sun;
+      const warningHeat = smnData.data.warning;
+      const warningShortterm = smnData.data.warning;
+      const warningAlert = smnData.data.warning;
+      const georef = smnData.data.georef;
 
       const wmoCode = mapearCodigoSMNaWMO(weather.weather.id);
       const wmoInfo = WMO_CODES[wmoCode] || WMO_CODES[0];
@@ -977,7 +981,7 @@ async function obtenerClima(ciudad) {
           estacion: weather.station_id || null,
           ubicacion: weather.location?.name || ciudad
         },
-        pronostico: forecast.forecast.slice(0, 7).map((dia) => {
+        pronostico: forecast.forecast.slice(0, 7).map((dia, i) => {
           const wmoCodePron = mapearCodigoSMNaWMO(dia.weather?.id || dia.night?.weather?.id || dia.afternoon?.weather?.id || 3);
           const wmoInfoPron = WMO_CODES[wmoCodePron] || WMO_CODES[0];
           // Usar el período más representativo del día para el icono
@@ -988,8 +992,10 @@ async function obtenerClima(ciudad) {
           const rafagas = periodoIcono.gust_range
             ? Math.round((periodoIcono.gust_range[0] + periodoIcono.gust_range[1]) / 2)
             : null;
+          const fecha = new Date(dia.date);
+          const esHoy = i === 0;
           return {
-            fecha: new Date(dia.date).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }),
+            fecha: esHoy ? 'Hoy' : fecha.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }),
             fechaCompleta: dia.date,
             tempMax: dia.temp_max !== null ? Math.round(dia.temp_max) : null,
             tempMin: dia.temp_min !== null ? Math.round(dia.temp_min) : null,
