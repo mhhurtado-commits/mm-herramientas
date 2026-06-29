@@ -1102,10 +1102,9 @@ function renderClima(W, H) {
     }
     
     const { actual, ciudad, diario } = climaData;
-    
-    // Fondo base oscuro para toda la placa
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(0, 0, W, H);
+
+    // FONDO DINÁMICO basado en clima y hora del día
+    paintFullClimateBackground(ctx, W, H, actual);
 
     // --- CABECERA (HEADER) ---
     const headerH = Math.round(H * 0.12);
@@ -1188,18 +1187,18 @@ function renderClima(W, H) {
       }
     });
     
-    // Alerta mejorada
+    // Alerta mejorada - MÁS GRANDE
     if (climaAlerta && climaAlerta.trim()) {
       const alertaW = W - 50;
-      const alertaH = 50;
+      const alertaH = 70;
       const alertaY = H - alertaH - 10;
-      const padding = 20;
-      
-      // Sombra de la alerta
-      ctx.shadowColor = 'rgba(220, 53, 69, 0.5)';
-      ctx.shadowBlur = 15;
-      ctx.shadowOffsetY = 5;
-      
+      const padding = 22;
+
+      // Sombra de la alerta (más pronunciada)
+      ctx.shadowColor = 'rgba(220, 53, 69, 0.7)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetY = 6;
+
       // Fondo rojo brillante con gradiente
       const alertaGrad = ctx.createLinearGradient(25, alertaY, 25, alertaY + alertaH);
       alertaGrad.addColorStop(0, '#DC3545');
@@ -1207,46 +1206,46 @@ function renderClima(W, H) {
       alertaGrad.addColorStop(1, '#DC3545');
       ctx.fillStyle = alertaGrad;
       ctx.beginPath();
-      ctx.roundRect(25, alertaY, alertaW, alertaH, 12);
+      ctx.roundRect(25, alertaY, alertaW, alertaH, 14);
       ctx.fill();
-      
+
       // Borde blanco brillante
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.lineWidth = 2.5;
       ctx.stroke();
-      
-      // Icono de advertencia
-      const iconX = 25 + padding + 20;
+
+      // Icono de advertencia (más grande)
+      const iconX = 25 + padding + 22;
       const iconY = alertaY + alertaH / 2;
-      
+
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 28px Inter, sans-serif';
+      ctx.font = 'bold 32px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('⚠️', iconX, iconY + 8);
-      
-      // Texto de la alerta
+      ctx.fillText('⚠️', iconX, iconY + 10);
+
+      // Texto de la alerta (más grande)
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 18px Inter, sans-serif';
+      ctx.font = 'bold 22px Inter, sans-serif';
       ctx.textAlign = 'left';
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-      ctx.shadowBlur = 3;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+      ctx.shadowBlur = 4;
       let alertaTexto = climaAlerta.toUpperCase();
-      
+
       // Calcular el ancho disponible para el texto
-      const textoX = iconX + 35;
+      const textoX = iconX + 40;
       const maxTextoAncho = alertaW - (textoX - 25) - padding;
-      
+
       // Ajustar tamaño de fuente si el texto es largo
-      let fontSize = 18;
+      let fontSize = 22;
       ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-      while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 12) {
+      while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 14) {
         fontSize--;
         ctx.font = `bold ${fontSize}px Inter, sans-serif`;
       }
-      
-      ctx.fillText(alertaTexto, textoX, iconY + 7);
+
+      ctx.fillText(alertaTexto, textoX, iconY + 8);
       ctx.shadowBlur = 0;
     }
   } else {
@@ -1268,10 +1267,9 @@ function renderClima(W, H) {
     }
     
     const { actual, pronostico, ciudad } = climaData;
-    
-    // Fondo base oscuro para toda la placa
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(0, 0, W, H);
+
+    // FONDO DINÁMICO basado en clima y hora del día
+    paintFullClimateBackground(ctx, W, H, actual);
 
     // --- SECCIONES PROPORCIONALES ---
     const headerH = Math.round(H * 0.12);
@@ -1357,18 +1355,18 @@ function renderClima(W, H) {
     ctx.fillStyle = 'rgba(255,255,255,0.8)';
     ctx.fillText(`Sensación térmica: ${sensacion}°`, centerX, tempY + 85);
     
-    // Alerta mejorada
+    // Alerta mejorada - MÁS GRANDE
     if (climaAlerta && climaAlerta.trim()) {
-      const alertaW = panelW - 40;
-      const alertaH = 50;
-      const alertaY = panelY + panelH - alertaH - 20;
-      const padding = 15;
-      
-      // Sombra de la alerta
-      ctx.shadowColor = 'rgba(220, 53, 69, 0.5)';
-      ctx.shadowBlur = 15;
-      ctx.shadowOffsetY = 5;
-      
+      const alertaW = panelW - 30;
+      const alertaH = 65;
+      const alertaY = panelY + panelH - alertaH - 18;
+      const padding = 18;
+
+      // Sombra de la alerta (más pronunciada)
+      ctx.shadowColor = 'rgba(220, 53, 69, 0.7)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetY = 6;
+
       // Fondo rojo brillante con gradiente
       const alertaGrad = ctx.createLinearGradient(centerX - alertaW/2, alertaY, centerX - alertaW/2, alertaY + alertaH);
       alertaGrad.addColorStop(0, '#DC3545');
@@ -1376,46 +1374,46 @@ function renderClima(W, H) {
       alertaGrad.addColorStop(1, '#DC3545');
       ctx.fillStyle = alertaGrad;
       ctx.beginPath();
-      ctx.roundRect(centerX - alertaW/2, alertaY, alertaW, alertaH, 10);
+      ctx.roundRect(centerX - alertaW/2, alertaY, alertaW, alertaH, 12);
       ctx.fill();
-      
+
       // Borde blanco brillante
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.lineWidth = 2.5;
       ctx.stroke();
-      
-      // Icono de advertencia
-      const iconX = centerX - alertaW/2 + padding + 15;
+
+      // Icono de advertencia (más grande)
+      const iconX = centerX - alertaW/2 + padding + 18;
       const iconY = alertaY + alertaH / 2;
-      
+
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 24px Inter, sans-serif';
+      ctx.font = 'bold 28px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('⚠️', iconX, iconY + 8);
-      
-      // Texto de la alerta
+      ctx.fillText('⚠️', iconX, iconY + 9);
+
+      // Texto de la alerta (más grande)
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 15px Inter, sans-serif';
+      ctx.font = 'bold 20px Inter, sans-serif';
       ctx.textAlign = 'left';
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-      ctx.shadowBlur = 3;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+      ctx.shadowBlur = 4;
       let alertaTexto = climaAlerta.toUpperCase();
-      
+
       // Calcular el ancho disponible para el texto
-      const textoX = iconX + 30;
+      const textoX = iconX + 35;
       const maxTextoAncho = alertaW - (textoX - (centerX - alertaW/2)) - padding;
-      
+
       // Ajustar tamaño de fuente si el texto es largo
-      let fontSize = 15;
+      let fontSize = 20;
       ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-      while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 11) {
+      while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 13) {
         fontSize--;
         ctx.font = `bold ${fontSize}px Inter, sans-serif`;
       }
-      
-      ctx.fillText(alertaTexto, textoX, iconY + 6);
+
+      ctx.fillText(alertaTexto, textoX, iconY + 7);
       ctx.shadowBlur = 0;
     }
     
@@ -1622,6 +1620,250 @@ function renderClima(W, H) {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// FONDO DINÁMICO COMPLETO PARA LA PLACA DE CLIMA
+// Aplica efectos visuales según día/noche y tipo de clima
+// ════════════════════════════════════════════════════════════════════
+
+function paintFullClimateBackground(ctx, W, H, actual) {
+  const rand = makeSeededRandom(`fullbg-${actual.codigo}-${actual.esDia ? 'd' : 'n'}-${actual.temp}`);
+  const type = getClimateBackdropType(actual.codigo);
+  const isNight = !actual.esDia;
+
+  ctx.save();
+
+  // ── Gradiente base del cielo ──
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+
+  if (isNight) {
+    // Noche: púrpura profundo a negro azulado
+    sky.addColorStop(0, '#0b1026');
+    sky.addColorStop(0.3, '#151030');
+    sky.addColorStop(0.6, '#1a1240');
+    sky.addColorStop(1, '#07090f');
+  } else if (type === 'storm' || type === 'rain-heavy') {
+    // Tormenta: gris oscuro amenazante
+    sky.addColorStop(0, '#2a3a52');
+    sky.addColorStop(0.4, '#1e2840');
+    sky.addColorStop(1, '#0f1520');
+  } else if (type === 'fog') {
+    // Niebla: gris suave
+    sky.addColorStop(0, '#8a9db0');
+    sky.addColorStop(0.4, '#6b8096');
+    sky.addColorStop(1, '#4a5c6a');
+  } else if (type === 'snow') {
+    // Nieve: blanco azulado
+    sky.addColorStop(0, '#c8d8ec');
+    sky.addColorStop(0.4, '#a0b8cc');
+    sky.addColorStop(1, '#708090');
+  } else if (type === 'cloud') {
+    // Nublado: azul grisáceo
+    sky.addColorStop(0, '#6a8db8');
+    sky.addColorStop(0.4, '#4a6a8a');
+    sky.addColorStop(1, '#2a3a4a');
+  } else if (type === 'sun-cloud') {
+    // Parcialmente nublado: azul con tonos cálidos
+    sky.addColorStop(0, '#7db8e8');
+    sky.addColorStop(0.35, '#5a9acc');
+    sky.addColorStop(0.7, '#3a6a9a');
+    sky.addColorStop(1, '#1a3a5a');
+  } else if (type === 'rain' || type === 'rain-light') {
+    // Lluvia: azul gris oscuro
+    sky.addColorStop(0, '#4a6080');
+    sky.addColorStop(0.4, '#304560');
+    sky.addColorStop(1, '#1a2840');
+  } else {
+    // Despejado: azul celeste a azul profundo
+    sky.addColorStop(0, '#4da6ff');
+    sky.addColorStop(0.25, '#3399e6');
+    sky.addColorStop(0.5, '#2277cc');
+    sky.addColorStop(0.75, '#1a5a9a');
+    sky.addColorStop(1, '#0d3060');
+  }
+
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Efecto de horizonte (brillo en el horizonte) ──
+  const horizon = ctx.createLinearGradient(0, H * 0.5, 0, H);
+  if (isNight) {
+    // Horizonte nocturno con tonos púrpuras/rosados
+    horizon.addColorStop(0, 'rgba(150, 80, 180, 0.15)');
+    horizon.addColorStop(0.4, 'rgba(80, 40, 100, 0.2)');
+    horizon.addColorStop(1, 'rgba(20, 10, 30, 0.6)');
+  } else if (type === 'storm') {
+    horizon.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
+    horizon.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+  } else if (type === 'fog' || type === 'snow') {
+    horizon.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+    horizon.addColorStop(1, 'rgba(200, 210, 220, 0.3)');
+  } else {
+    // Horizonte diurno con resplandor
+    const glowColor = type === 'sun' || type === 'sun-cloud' ? 'rgba(255, 220, 100, 0.25)' : 'rgba(255, 255, 255, 0.15)';
+    horizon.addColorStop(0, glowColor);
+    horizon.addColorStop(0.5, 'rgba(255, 255, 255, 0.08)');
+    horizon.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
+  }
+  ctx.fillStyle = horizon;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Sol o Luna ──
+  if (isNight) {
+    // Luna con halo
+    const moonX = W * 0.82;
+    const moonY = H * 0.15;
+    const moonR = Math.min(W, H) * 0.06;
+
+    const moonGlow = ctx.createRadialGradient(moonX, moonY, moonR * 0.5, moonX, moonY, moonR * 5);
+    moonGlow.addColorStop(0, 'rgba(240, 245, 255, 0.2)');
+    moonGlow.addColorStop(0.5, 'rgba(200, 210, 240, 0.08)');
+    moonGlow.addColorStop(1, 'rgba(200, 210, 240, 0)');
+    ctx.fillStyle = moonGlow;
+    ctx.fillRect(0, 0, W, H);
+
+    // Núcleo de la luna
+    ctx.fillStyle = '#edf1ff';
+    ctx.shadowColor = '#c5cae9';
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sombra de luna creciente
+    ctx.fillStyle = '#0b1026';
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(moonX + moonR * 0.35, moonY - moonR * 0.08, moonR * 0.88, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Estrellas
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 50; i++) {
+      const starX = rand() * W;
+      const starY = rand() * H * 0.75;
+      const starR = 0.5 + rand() * 2;
+      ctx.globalAlpha = 0.3 + rand() * 0.7;
+      ctx.beginPath();
+      ctx.arc(starX, starY, starR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  } else if (type !== 'storm' && type !== 'rain-heavy') {
+    // Sol radiante (excepto en tormentas)
+    const sunX = W * 0.78;
+    const sunY = H * 0.18;
+    const sunR = Math.min(W, H) * 0.07;
+
+    // Halo del sol
+    const sunGlow = ctx.createRadialGradient(sunX, sunY, sunR * 0.5, sunX, sunY, sunR * 5);
+    sunGlow.addColorStop(0, 'rgba(255, 230, 100, 0.35)');
+    sunGlow.addColorStop(0.4, 'rgba(255, 220, 80, 0.15)');
+    sunGlow.addColorStop(1, 'rgba(255, 220, 80, 0)');
+    ctx.fillStyle = sunGlow;
+    ctx.fillRect(0, 0, W, H);
+
+    // Núcleo del sol
+    ctx.fillStyle = '#ffd84d';
+    ctx.shadowColor = '#ffc107';
+    ctx.shadowBlur = 25;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rayos del sol
+    ctx.strokeStyle = 'rgba(255, 220, 80, 0.6)';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 8; i++) {
+      const angle = i * Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(sunX + Math.cos(angle) * sunR * 1.3, sunY + Math.sin(angle) * sunR * 1.3);
+      ctx.lineTo(sunX + Math.cos(angle) * sunR * 1.9, sunY + Math.sin(angle) * sunR * 1.9);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // ── Nubes decorativas ──
+  if (type === 'cloud' || type === 'sun-cloud' || type === 'rain' || type === 'rain-light' ||
+      type === 'rain-heavy' || type === 'storm' || type === 'fog') {
+    const cloudCount = type === 'storm' ? 8 : type === 'fog' ? 5 : 4;
+    for (let i = 0; i < cloudCount; i++) {
+      const baseX = rand() * W * 1.2 - W * 0.1;
+      const baseY = H * (0.08 + rand() * 0.3);
+      const cloudW = W * (0.15 + rand() * 0.25);
+      const cloudH = H * (0.04 + rand() * 0.06);
+      const alpha = type === 'fog' ? 0.15 : type === 'storm' ? 0.2 : 0.12;
+
+      ctx.fillStyle = isNight ? `rgba(200, 210, 230, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
+      ctx.beginPath();
+      ctx.ellipse(baseX + cloudW * 0.25, baseY, cloudW * 0.35, cloudH * 0.5, -0.15, 0, Math.PI * 2);
+      ctx.ellipse(baseX + cloudW * 0.55, baseY - cloudH * 0.1, cloudW * 0.4, cloudH * 0.55, -0.15, 0, Math.PI * 2);
+      ctx.ellipse(baseX + cloudW * 0.78, baseY + cloudH * 0.05, cloudW * 0.3, cloudH * 0.45, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ── Efecto de lluvia ──
+  if (type === 'rain' || type === 'rain-light' || type === 'rain-heavy' || type === 'storm') {
+    const rainAlpha = type === 'rain-heavy' || type === 'storm' ? 0.18 : 0.12;
+    const rainCount = type === 'rain-heavy' || type === 'storm' ? 50 : 35;
+    ctx.strokeStyle = `rgba(160, 195, 255, ${rainAlpha})`;
+    ctx.lineWidth = type === 'rain-heavy' || type === 'storm' ? 2 : 1.5;
+
+    for (let i = 0; i < rainCount; i++) {
+      const rx = rand() * W;
+      const ry = rand() * H * 0.9;
+      const len = 12 + rand() * 30;
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx - 5, ry + len);
+      ctx.stroke();
+    }
+  }
+
+  // ── Copos de nieve ──
+  if (type === 'snow') {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    for (let i = 0; i < 45; i++) {
+      const sx = rand() * W;
+      const sy = rand() * H * 0.9;
+      const sr = 1 + rand() * 3;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ── Tormenta: rayos ──
+  if (type === 'storm') {
+    ctx.fillStyle = 'rgba(30, 15, 50, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = 'rgba(255, 245, 180, 0.15)';
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < 3; i++) {
+      const boltX = W * (0.15 + rand() * 0.7);
+      ctx.beginPath();
+      ctx.moveTo(boltX, H * 0.05);
+      ctx.lineTo(boltX - 20, H * 0.2);
+      ctx.lineTo(boltX + 10, H * 0.2);
+      ctx.lineTo(boltX - 15, H * 0.4);
+      ctx.stroke();
+    }
+  }
+
+  // ── Vignette (sombra en bordes) ──
+  const vignette = ctx.createRadialGradient(W * 0.5, H * 0.45, Math.min(W, H) * 0.2, W * 0.5, H * 0.45, Math.max(W, H) * 0.85);
+  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  vignette.addColorStop(0.6, 'rgba(0, 0, 0, 0.08)');
+  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.restore();
+}
+
+// ════════════════════════════════════════════════════════════════════
 // NUEVA PLANTILLA CLIMA COMBINADA - Tiempo actual + Evolución Diaria
 // ════════════════════════════════════════════════════════════════════
 
@@ -1643,10 +1885,9 @@ function renderClimaCombinado(W, H) {
   }
   
   const { actual, ciudad, diario } = climaData;
-  
-  // Fondo base oscuro para toda la placa
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(0, 0, W, H);
+
+  // FONDO DINÁMICO basado en clima y hora del día
+  paintFullClimateBackground(ctx, W, H, actual);
 
   // --- SECCIONES PROPORCIONALES ---
   const headerH = Math.round(H * 0.12);
@@ -1875,15 +2116,15 @@ function renderClimaCombinado(W, H) {
   // Alerta si existe - MÁS GRANDE Y LLAMATIVA
   if (climaAlerta && climaAlerta.trim()) {
     const alertaW = W - 50;
-    const alertaH = 55;
+    const alertaH = 72; // Más grande que antes (era 55)
     const alertaY = footerY + footerH - alertaH - 10;
-    const padding = 20;
-    
-    // Sombra de la alerta
-    ctx.shadowColor = 'rgba(220, 53, 69, 0.5)';
-    ctx.shadowBlur = 15;
-    ctx.shadowOffsetY = 5;
-    
+    const padding = 22;
+
+    // Sombra de la alerta (más pronunciada)
+    ctx.shadowColor = 'rgba(220, 53, 69, 0.7)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetY = 6;
+
     // Fondo rojo brillante con gradiente
     const alertaGrad = ctx.createLinearGradient(25, alertaY, 25, alertaY + alertaH);
     alertaGrad.addColorStop(0, '#DC3545');
@@ -1891,46 +2132,46 @@ function renderClimaCombinado(W, H) {
     alertaGrad.addColorStop(1, '#DC3545');
     ctx.fillStyle = alertaGrad;
     ctx.beginPath();
-    ctx.roundRect(25, alertaY, alertaW, alertaH, 12);
+    ctx.roundRect(25, alertaY, alertaW, alertaH, 14);
     ctx.fill();
-    
+
     // Borde blanco brillante
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 2.5;
     ctx.stroke();
-    
-    // Icono de advertencia
-    const iconX = 25 + padding + 20;
+
+    // Icono de advertencia (más grande)
+    const iconX = 25 + padding + 22;
     const iconY = alertaY + alertaH / 2;
-    
+
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 28px Inter, sans-serif';
+    ctx.font = 'bold 32px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('⚠️', iconX, iconY + 8);
-    
-    // Texto de la alerta
+    ctx.fillText('⚠️', iconX, iconY + 10);
+
+    // Texto de la alerta (más grande)
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 18px Inter, sans-serif';
+    ctx.font = 'bold 22px Inter, sans-serif';
     ctx.textAlign = 'left';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-    ctx.shadowBlur = 3;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+    ctx.shadowBlur = 4;
     let alertaTexto = climaAlerta.toUpperCase();
-    
+
     // Calcular el ancho disponible para el texto
-    const textoX = iconX + 35;
+    const textoX = iconX + 40;
     const maxTextoAncho = alertaW - (textoX - 25) - padding;
-    
+
     // Ajustar tamaño de fuente si el texto es largo
-    let fontSize = 18;
+    let fontSize = 22;
     ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-    while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 12) {
+    while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 14) {
       fontSize--;
       ctx.font = `bold ${fontSize}px Inter, sans-serif`;
     }
-    
-    ctx.fillText(alertaTexto, textoX, iconY + 7);
+
+    ctx.fillText(alertaTexto, textoX, iconY + 8);
     ctx.shadowBlur = 0;
   }
 }
