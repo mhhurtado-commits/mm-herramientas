@@ -914,8 +914,8 @@ async function obtenerClima(ciudad) {
           const wmoInfoPron = WMO_CODES[wmoCodePron] || WMO_CODES[0];
           return {
             fecha: new Date(dia.date).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }),
-            tempMax: Math.round(dia.temp_max),
-            tempMin: Math.round(dia.temp_min),
+            tempMax: dia.temp_max !== null ? Math.round(dia.temp_max) : null,
+            tempMin: dia.temp_min !== null ? Math.round(dia.temp_min) : null,
             codigo: wmoCodePron,
             tipo: wmoInfoPron.type,
             probLluvia: dia.rain_prob_range ? (dia.rain_prob_range[0] + dia.rain_prob_range[1]) / 2 : 0,
@@ -925,10 +925,10 @@ async function obtenerClima(ciudad) {
           };
         }),
         diario: [
-          { nombre: 'Madrugada', temp: forecast.forecast[0]?.early_morning?.temperature || 0, codigo: 3, tipo: 'sun', probLluvia: 0 },
-          { nombre: 'Mañana', temp: forecast.forecast[0]?.morning?.temperature || 0, codigo: 3, tipo: 'sun', probLluvia: 0 },
-          { nombre: 'Tarde', temp: forecast.forecast[0]?.afternoon?.temperature || 0, codigo: 3, tipo: 'sun', probLluvia: 0 },
-          { nombre: 'Noche', temp: forecast.forecast[0]?.night?.temperature || 0, codigo: 3, tipo: 'sun', probLluvia: 0 }
+          { nombre: 'Madrugada', temp: forecast.forecast[0]?.early_morning?.temperature || 0, codigo: mapearCodigoSMNaWMO(forecast.forecast[0]?.early_morning?.weather?.id || 3), tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0]?.early_morning?.weather?.id || 3)]?.type || 'sun', probLluvia: forecast.forecast[0]?.early_morning?.rain_prob_range ? (forecast.forecast[0].early_morning.rain_prob_range[0] + forecast.forecast[0].early_morning.rain_prob_range[1]) / 2 : 0 },
+          { nombre: 'Mañana', temp: forecast.forecast[0]?.morning?.temperature || 0, codigo: mapearCodigoSMNaWMO(forecast.forecast[0]?.morning?.weather?.id || 3), tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0]?.morning?.weather?.id || 3)]?.type || 'sun', probLluvia: forecast.forecast[0]?.morning?.rain_prob_range ? (forecast.forecast[0].morning.rain_prob_range[0] + forecast.forecast[0].morning.rain_prob_range[1]) / 2 : 0 },
+          { nombre: 'Tarde', temp: forecast.forecast[0]?.afternoon?.temperature || 0, codigo: mapearCodigoSMNaWMO(forecast.forecast[0]?.afternoon?.weather?.id || 3), tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0]?.afternoon?.weather?.id || 3)]?.type || 'sun', probLluvia: forecast.forecast[0]?.afternoon?.rain_prob_range ? (forecast.forecast[0].afternoon.rain_prob_range[0] + forecast.forecast[0].afternoon.rain_prob_range[1]) / 2 : 0 },
+          { nombre: 'Noche', temp: forecast.forecast[0]?.night?.temperature || 0, codigo: mapearCodigoSMNaWMO(forecast.forecast[0]?.night?.weather?.id || 3), tipo: WMO_CODES[mapearCodigoSMNaWMO(forecast.forecast[0]?.night?.weather?.id || 3)]?.type || 'sun', probLluvia: forecast.forecast[0]?.night?.rain_prob_range ? (forecast.forecast[0].night.rain_prob_range[0] + forecast.forecast[0].night.rain_prob_range[1]) / 2 : 0 }
         ]
       };
 
