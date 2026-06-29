@@ -896,7 +896,8 @@ async function obtenerClima(ciudad) {
       climaData = {
         ciudad: ciudad,
         actual: {
-          temp: Math.round(weather.temperature),
+          temp: weather.temperature, // Mantener decimales como en SMN
+          sensacionTermica: weather.feels_like, // Agregar sensación térmica con decimales
           humedad: weather.humidity,
           viento: Math.round(weather.wind.speed),
           codigo: wmoCode,

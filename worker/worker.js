@@ -63,6 +63,13 @@ const SMN_LOCATION_IDS = {
   "Neuquén": "9903"
 };
 
+// Mapeo de ciudades a áreas de alertas meteorológicas
+const SMN_WARNING_AREAS = {
+  "San Rafael": "3365",
+  "General Alvear": "3365",
+  "Malargüe": "3365"
+};
+
 // ── Helpers ──
 function esXMLvalido(t){return t.includes("<rss")||t.includes("<feed")||t.includes("<channel")||t.includes("<item")||t.includes("<entry")||(t.trimStart().startsWith("<?xml")&&t.includes("<title"))}
 function decodeHtml(t=""){return t.replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'")}
@@ -793,6 +800,12 @@ async function handleSMNWeather(url, env) {
       `sun/location/${locationId}`
     ];
 
+    // Agregar alertas meteorológicas si la ciudad tiene área de alertas
+    const warningArea = SMN_WARNING_AREAS[ciudad];
+    if (warningArea) {
+      endpoints.push(`warning/heat/area/${warningArea}`);
+    }
+
     const results = {};
 
     for (const endpoint of endpoints) {
@@ -806,12 +819,16 @@ async function handleSMNWeather(url, env) {
 
         if (response.ok) {
           const data = await response.json();
-          results[endpoint.split('/')[0]] = data;
+          // Usar el primer segmento del endpoint como clave (weather, forecast, sun, warning)
+          const key = endpoint.split('/')[0];
+          results[key] = data;
         } else {
-          results[endpoint.split('/')[0]] = { error: `HTTP ${response.status}` };
+          const key = endpoint.split('/')[0];
+          results[key] = { error: `HTTP ${response.status}` };
         }
       } catch (e) {
-        results[endpoint.split('/')[0]] = { error: e.message };
+        const key = endpoint.split('/')[0];
+        results[key] = { error: e.message };
       }
     }
 
