@@ -728,7 +728,7 @@
         🌤️ <strong>Clima dinámico:</strong> Datos en tiempo real desde Open-Meteo API. Seleccioná una ciudad y actualizá.
       </div>
       <label class="mm-label">Ciudad</label>
-      <select id="selClimaCiudad" class="mm-select" onchange="window.climaCiudad=this.value">
+      <select id="selClimaCiudad" class="mm-select" onchange="window.climaCiudad=this.value;obtenerClima(this.value)">
         <option value="San Rafael">San Rafael</option>
         <option value="General Alvear">General Alvear</option>
         <option value="Malargüe">Malargüe</option>

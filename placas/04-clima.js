@@ -933,9 +933,7 @@ async function obtenerClima(ciudad) {
       const weather = smnData.data.weather;
       const forecast = smnData.data.forecast;
       const sun = smnData.data.sun;
-      const warningHeat = smnData.data.warning;
-      const warningShortterm = smnData.data.warning;
-      const warningAlert = smnData.data.warning;
+      const warning = smnData.data.warning;
       const georef = smnData.data.georef;
 
       const wmoCode = mapearCodigoSMNaWMO(weather.weather.id);
@@ -1081,7 +1079,12 @@ async function obtenerClima(ciudad) {
             visibilidad: forecast.forecast[0].night.visibility || 'Buena',
             lluvia6h: forecast.forecast[0].night.rain06h || 0
           }] : [])
-        ]
+        ],
+        alertas: warning ? {
+          nivel: warning.level || null,
+          areaId: warning.area_id || null,
+          actualizado: warning.updated || null
+        } : null
       };
 
       climaCiudad = ciudad;
