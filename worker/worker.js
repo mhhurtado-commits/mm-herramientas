@@ -9,7 +9,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, cache-control",
 };
 
-const GEMINI_MODEL     = "gemini-3.1-flash-lite";
+const GEMINI_MODEL     = "gemini-2.0-flash";
 const GEMINI_URL       = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const EDITORIAL_KV_KEY = "config:editorial";
 const WA_PROMPT_KV_KEY = "config:wa_prompt";
@@ -50,7 +50,7 @@ const BROWSER_HEADERS = {
 
 const SMN_KV_TOKEN_KEY = "smn:jwt_token";
 const SMN_API_BASE = "https://ws1.smn.gob.ar/v1";
-const SMN_TOKEN_TTL = 3000; // 50 minutos
+const SMN_TOKEN_TTL = 604800; // 7 días
 
 // Mapeo de ciudades a IDs de ubicación SMN
 const SMN_LOCATION_IDS = {
@@ -3513,8 +3513,6 @@ async function handleProcesarImagenes(request, env) {
     }
     const VISION_MODELS = [
       GEMINI_MODEL,
-      "gemini-3.5-flash",
-      "gemini-2.0-flash",
       "gemini-1.5-flash"
     ];
     const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5, env.GEMINI_API_KEY].filter(Boolean);
