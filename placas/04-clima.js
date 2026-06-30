@@ -956,8 +956,8 @@ async function obtenerClima(ciudad) {
       climaData = {
         ciudad: ciudad,
         actual: {
-          temp: Math.round(weather.temperature * 10) / 10, // 1 decimal como en SMN
-          sensacionTermica: Math.round(weather.feels_like * 10) / 10, // 1 decimal
+          temp: parseFloat(weather.temperature.toFixed(1)), // 1 decimal como en SMN
+          sensacionTermica: parseFloat(weather.feels_like.toFixed(1)), // 1 decimal
           humedad: weather.humidity,
           viento: Math.round(weather.wind.speed),
           vientoDireccion: weather.wind.direction || '',
@@ -979,7 +979,10 @@ async function obtenerClima(ciudad) {
           estacion: weather.station_id || null,
           ubicacion: weather.location?.name || ciudad
         },
-        pronostico: forecast.forecast.slice(0, 7).map((dia, i) => {
+        pronostico: forecast.forecast
+          .filter(dia => dia.temp_max !== null && dia.temp_min !== null) // Filtrar días sin datos
+          .slice(0, 7)
+          .map((dia, i) => {
           const wmoCodePron = mapearCodigoSMNaWMO(dia.weather?.id || dia.night?.weather?.id || dia.afternoon?.weather?.id || 3);
           const wmoInfoPron = WMO_CODES[wmoCodePron] || WMO_CODES[0];
           // Usar el período más representativo del día para el icono
@@ -2105,25 +2108,18 @@ function renderClimaCombinado(W, H) {
   // Fecha y Actualización en una sola línea
   const hoy = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
   const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-  const solStr = actual.amanecer && actual.atardecer ? `☀️ ${actual.amanecer} | 🌅 ${actual.atardecer}` : '';
 
   ctx.font = 'bold 15px Inter, sans-serif';
   ctx.fillStyle = '#ffffff';
   const dateStr = (hoy.charAt(0).toUpperCase() + hoy.slice(1)) + ` | Actualizado: ${hora}`;
-  ctx.fillText(dateStr, W - rightPad, headerH * 0.65);
+  ctx.fillText(dateStr, W - rightPad, headerH * 0.70);
 
-  if (solStr) {
-    ctx.font = 'bold 13px Inter, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.fillText(solStr, W - rightPad, headerH * 0.82);
-  }
-
-  // Alertas meteorológicas
-  if (climaData.alertas && climaData.alertas.nivel > 0) {
+  // Alertas meteorológicas (solo si hay alerta activa)
+  if (climaData.alertas && climaData.alertas.nivel && climaData.alertas.nivel > 0) {
     ctx.font = 'bold 12px Inter, sans-serif';
     ctx.fillStyle = '#ff6b6b';
     const alertaStr = `⚠️ ALERTA NIVEL ${climaData.alertas.nivel}`;
-    ctx.fillText(alertaStr, W - rightPad, headerH * 0.96);
+    ctx.fillText(alertaStr, W - rightPad, headerH * 0.88);
   }
 
   // --- 2. CONTENIDO PRINCIPAL (Clima Actual) ---
@@ -2247,21 +2243,13 @@ function renderClimaCombinado(W, H) {
       ctx.fill();
     });
 
-    // 4. Índice UV
-    dibujarMetrica(panelY + (boxH + boxGap) * 3, 'ÍNDICE UV', `${actual.uv}`, 'UVI', () => {
+    // 4. Amanecer/Atardecer
+    const solStr = actual.amanecer || '--:--';
+    dibujarMetrica(panelY + (boxH + boxGap) * 3, 'SOL', solStr, '', () => {
       ctx.fillStyle = '#fdb813';
       ctx.beginPath();
-      ctx.arc(0, 0, 8, 0, Math.PI * 2);
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#fdb813';
-      ctx.lineWidth = 2;
-      for(let i=0; i<8; i++) {
-        let angle = i * Math.PI / 4;
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(angle)*11, Math.sin(angle)*11);
-        ctx.lineTo(Math.cos(angle)*15, Math.sin(angle)*15);
-        ctx.stroke();
-      }
     });
   }
   
