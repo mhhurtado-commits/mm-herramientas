@@ -298,48 +298,69 @@ function paintClimateCardBackdrop(ctx, x, y, w, h, actual) {
   ctx.roundRect(x, y, w, h, 20);
   ctx.clip();
 
+  const ahora = new Date();
+  const horaActual = ahora.getHours() + ahora.getMinutes() / 60;
+  let nearSunset = false, nearSunrise = false;
+  if (actual.amanecer && actual.atardecer) {
+    const [amH, amM] = actual.amanecer.split(':').map(Number);
+    const [atH, atM] = actual.atardecer.split(':').map(Number);
+    const am = amH + amM / 60, at = atH + atM / 60;
+    nearSunrise = Math.abs(horaActual - am) < 1;
+    nearSunset = Math.abs(horaActual - at) < 1;
+  }
+
   const sky = ctx.createLinearGradient(x, y, x, y + h);
   if (isNight) {
-    sky.addColorStop(0, '#0b1026');
-    sky.addColorStop(0.42, '#1a1240');
-    sky.addColorStop(1, '#07090f');
+    if (nearSunrise) {
+      sky.addColorStop(0, '#0b1026'); sky.addColorStop(0.3, '#1a1240');
+      sky.addColorStop(0.55, '#4a2060'); sky.addColorStop(0.75, '#c06040');
+      sky.addColorStop(1, '#1a0f18');
+    } else {
+      sky.addColorStop(0, '#0b1026'); sky.addColorStop(0.42, '#1a1240');
+      sky.addColorStop(1, '#07090f');
+    }
   } else if (type === 'storm' || type === 'rain-heavy') {
-    sky.addColorStop(0, '#3f5b8e');
-    sky.addColorStop(0.45, '#2a335a');
-    sky.addColorStop(1, '#11131d');
+    sky.addColorStop(0, '#2a3a52'); sky.addColorStop(0.45, '#1e2840');
+    sky.addColorStop(1, '#0f1520');
   } else if (type === 'fog') {
-    sky.addColorStop(0, '#a9bfd2');
-    sky.addColorStop(0.45, '#879eb4');
-    sky.addColorStop(1, '#5e6c79');
+    sky.addColorStop(0, '#8a9db0'); sky.addColorStop(0.45, '#6b8096');
+    sky.addColorStop(1, '#4a5c6a');
   } else if (type === 'snow') {
-    sky.addColorStop(0, '#bed2e8');
-    sky.addColorStop(0.45, '#90a9c2');
+    sky.addColorStop(0, '#c8d8ec'); sky.addColorStop(0.45, '#90a9c2');
     sky.addColorStop(1, '#53637a');
   } else if (type === 'cloud' || type === 'sun-cloud') {
-    sky.addColorStop(0, '#7fb3e8');
-    sky.addColorStop(0.48, '#516f9a');
-    sky.addColorStop(1, '#243044');
+    sky.addColorStop(0, '#6a8db8'); sky.addColorStop(0.48, '#4a6a8a');
+    sky.addColorStop(1, '#2a3a4a');
   } else {
-    sky.addColorStop(0, '#8cc7ff');
-    sky.addColorStop(0.45, '#5387cf');
-    sky.addColorStop(1, '#17233e');
+    sky.addColorStop(0, '#4da6ff'); sky.addColorStop(0.45, '#2277cc');
+    sky.addColorStop(1, '#0d3060');
   }
   ctx.fillStyle = sky;
   ctx.fillRect(x, y, w, h);
 
-  const horizon = ctx.createLinearGradient(x, y + h * 0.55, x, y + h);
+  const horizon = ctx.createLinearGradient(x, y + h * 0.5, x, y + h);
   if (isNight) {
-    horizon.addColorStop(0, 'rgba(199,125,255,0.24)');
-    horizon.addColorStop(0.6, 'rgba(65,37,96,0.22)');
-    horizon.addColorStop(1, 'rgba(0,0,0,0.5)');
+    if (nearSunrise) {
+      horizon.addColorStop(0, 'rgba(200, 120, 60, 0.2)'); horizon.addColorStop(0.5, 'rgba(80, 40, 80, 0.2)');
+      horizon.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+    } else {
+      horizon.addColorStop(0, 'rgba(150, 80, 180, 0.18)'); horizon.addColorStop(0.6, 'rgba(50, 25, 80, 0.2)');
+      horizon.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+    }
   } else if (type === 'storm' || type === 'rain-heavy') {
-    horizon.addColorStop(0, 'rgba(255,255,255,0.05)');
-    horizon.addColorStop(1, 'rgba(0,0,0,0.42)');
+    horizon.addColorStop(0, 'rgba(255,255,255,0.04)'); horizon.addColorStop(1, 'rgba(0,0,0,0.5)');
   } else {
-    horizon.addColorStop(0, 'rgba(255,255,255,0.12)');
-    horizon.addColorStop(1, 'rgba(0,0,0,0.3)');
+    horizon.addColorStop(0, 'rgba(255,255,255,0.1)'); horizon.addColorStop(1, 'rgba(0,0,0,0.35)');
   }
   ctx.fillStyle = horizon;
+  ctx.fillRect(x, y, w, h);
+
+  // Capa glassmorphism: fondo semitransparente con gradiente sutil
+  const glass = ctx.createRadialGradient(x + w * 0.3, y + h * 0.2, 0, x + w * 0.5, y + h * 0.5, Math.max(w, h) * 0.7);
+  glass.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
+  glass.addColorStop(0.5, 'rgba(255, 255, 255, 0.02)');
+  glass.addColorStop(1, 'rgba(0, 0, 0, 0.08)');
+  ctx.fillStyle = glass;
   ctx.fillRect(x, y, w, h);
 
   if (isNight) {
@@ -347,7 +368,7 @@ function paintClimateCardBackdrop(ctx, x, y, w, h, actual) {
     const moonY = y + h * 0.18;
     const moonR = Math.min(w, h) * 0.055;
     const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, moonR * 5);
-    moonGlow.addColorStop(0, 'rgba(230,240,255,0.18)');
+    moonGlow.addColorStop(0, 'rgba(230,240,255,0.2)');
     moonGlow.addColorStop(1, 'rgba(230,240,255,0)');
     ctx.fillStyle = moonGlow;
     ctx.fillRect(x, y, w, h);
@@ -378,8 +399,8 @@ function paintClimateCardBackdrop(ctx, x, y, w, h, actual) {
     const sunY = y + h * 0.2;
     const sunR = Math.min(w, h) * 0.055;
     const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR * 6);
-    sunGlow.addColorStop(0, 'rgba(255,226,120,0.38)');
-    sunGlow.addColorStop(0.35, 'rgba(255,216,100,0.18)');
+    sunGlow.addColorStop(0, 'rgba(255,226,120,0.35)');
+    sunGlow.addColorStop(0.35, 'rgba(255,216,100,0.15)');
     sunGlow.addColorStop(1, 'rgba(255,216,100,0)');
     ctx.fillStyle = sunGlow;
     ctx.fillRect(x, y, w, h);
@@ -389,8 +410,8 @@ function paintClimateCardBackdrop(ctx, x, y, w, h, actual) {
     ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255,216,77,0.85)';
-    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(255,216,77,0.75)';
+    ctx.lineWidth = 2;
     for (let i = 0; i < 8; i++) {
       const angle = i * Math.PI / 4;
       ctx.beginPath();
@@ -405,9 +426,9 @@ function paintClimateCardBackdrop(ctx, x, y, w, h, actual) {
     for (let i = 0; i < cloudCount; i++) {
       const baseX = x + w * (0.08 + rand() * 0.82);
       const baseY = y + h * (0.12 + rand() * 0.28);
-      const cloudW = w * (0.18 + rand() * 0.22);
+      const cloudW = w * (0.2 + rand() * 0.24);
       const cloudH = h * (0.05 + rand() * 0.06);
-      const alpha = type === 'fog' ? 0.12 : type === 'storm' ? 0.16 : 0.1;
+      const alpha = type === 'fog' ? 0.14 : type === 'storm' ? 0.18 : 0.12;
       ctx.fillStyle = isNight ? `rgba(220,230,255,${alpha})` : `rgba(255,255,255,${alpha})`;
       ctx.beginPath();
       ctx.ellipse(baseX, baseY, cloudW * 0.45, cloudH * 0.55, -0.18, 0, Math.PI * 2);
@@ -418,46 +439,52 @@ function paintClimateCardBackdrop(ctx, x, y, w, h, actual) {
   }
 
   if (type === 'rain' || type === 'rain-light' || type === 'rain-heavy' || type === 'storm') {
-    ctx.strokeStyle = type === 'rain-heavy' || type === 'storm' ? 'rgba(160,195,255,0.26)' : 'rgba(160,195,255,0.15)';
+    ctx.strokeStyle = type === 'rain-heavy' || type === 'storm' ? 'rgba(160,195,255,0.24)' : 'rgba(160,195,255,0.14)';
     ctx.lineWidth = type === 'rain-heavy' || type === 'storm' ? 2 : 1;
     const rainCount = type === 'rain-heavy' || type === 'storm' ? 36 : 22;
     for (let i = 0; i < rainCount; i++) {
       const rx = x + rand() * w;
       const ry = y + rand() * h * 0.85;
       const len = 10 + rand() * 24;
+      const tilt = -3 + rand() * 2;
       ctx.beginPath();
       ctx.moveTo(rx, ry);
-      ctx.lineTo(rx - 4, ry + len);
+      ctx.lineTo(rx + tilt, ry + len);
       ctx.stroke();
     }
   }
 
   if (type === 'snow') {
-    ctx.fillStyle = 'rgba(255,255,255,0.38)';
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.4)';
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
     for (let i = 0; i < 36; i++) {
       const sx = x + rand() * w;
       const sy = y + rand() * h * 0.86;
-      const sr = 0.9 + rand() * 2.6;
+      const sr = 0.9 + rand() * 2.8;
       ctx.beginPath();
       ctx.arc(sx, sy, sr, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.shadowBlur = 0;
   }
 
   if (type === 'fog') {
-    const mist = ctx.createLinearGradient(x, y + h * 0.28, x, y + h);
+    const mist = ctx.createLinearGradient(x, y + h * 0.25, x, y + h);
     mist.addColorStop(0, 'rgba(255,255,255,0)');
-    mist.addColorStop(0.55, 'rgba(240,248,255,0.12)');
-    mist.addColorStop(1, 'rgba(230,240,255,0.26)');
+    mist.addColorStop(0.5, 'rgba(240,248,255,0.1)');
+    mist.addColorStop(1, 'rgba(230,240,255,0.22)');
     ctx.fillStyle = mist;
     ctx.fillRect(x, y, w, h);
   }
 
   if (type === 'storm') {
-    ctx.fillStyle = 'rgba(35, 20, 60, 0.18)';
+    ctx.fillStyle = 'rgba(25, 12, 50, 0.2)';
     ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = 'rgba(255, 245, 180, 0.18)';
-    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(255, 245, 180, 0.5)';
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = 'rgba(255, 245, 180, 0.2)';
+    ctx.lineWidth = 2.5;
     for (let i = 0; i < 2; i++) {
       const boltX = x + w * (0.22 + rand() * 0.52);
       ctx.beginPath();
@@ -467,25 +494,26 @@ function paintClimateCardBackdrop(ctx, x, y, w, h, actual) {
       ctx.lineTo(boltX - 8, y + h * 0.4);
       ctx.stroke();
     }
+    ctx.shadowBlur = 0;
   }
 
-  const vignette = ctx.createRadialGradient(x + w * 0.5, y + h * 0.42, Math.min(w, h) * 0.18, x + w * 0.5, y + h * 0.45, Math.max(w, h) * 0.85);
+  const vignette = ctx.createRadialGradient(x + w * 0.5, y + h * 0.42, Math.min(w, h) * 0.22, x + w * 0.5, y + h * 0.45, Math.max(w, h) * 0.85);
   vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(0.7, 'rgba(0,0,0,0.08)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.45)');
+  vignette.addColorStop(0.6, 'rgba(0,0,0,0.06)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vignette;
   ctx.fillRect(x, y, w, h);
 
   const bottomSilhouette = ctx.createLinearGradient(x, y + h * 0.6, x, y + h);
   bottomSilhouette.addColorStop(0, 'rgba(0,0,0,0)');
-  bottomSilhouette.addColorStop(1, 'rgba(0,0,0,0.62)');
+  bottomSilhouette.addColorStop(1, 'rgba(0,0,0,0.58)');
   ctx.fillStyle = bottomSilhouette;
   ctx.fillRect(x, y, w, h);
 
   ctx.restore();
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 20);
@@ -1293,7 +1321,14 @@ function renderClima(W, H) {
     bandaGrad.addColorStop(1, '#c8e87a');
     ctx.fillStyle = bandaGrad;
     ctx.fillRect(0, 0, W, headerH);
-    
+
+    // Sombra sutil bajo el header
+    const headerShadow = ctx.createLinearGradient(0, headerH, 0, headerH + 8);
+    headerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
+    headerShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = headerShadow;
+    ctx.fillRect(0, headerH, W, 8);
+
     // Logo del diario (centrado verticalmente en el header)
     if (S.logoImg && ELS.logo && ELS.logo.visible) {
       const logo = ELS.logo;
@@ -1331,10 +1366,19 @@ function renderClima(W, H) {
     const mainY = headerH + padding;
     const mainH = H - headerH - padding * 2;
     
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    const mainGlass = ctx.createLinearGradient(0, mainY, 0, mainY + mainH);
+    mainGlass.addColorStop(0, 'rgba(0, 0, 0, 0.18)');
+    mainGlass.addColorStop(0.5, 'rgba(0, 0, 0, 0.30)');
+    mainGlass.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
+    ctx.fillStyle = mainGlass;
     ctx.beginPath();
     ctx.roundRect(padding, mainY, W - padding * 2, mainH, 20);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(padding, mainY, W - padding * 2, mainH, 20);
+    ctx.stroke();
     
     ctx.font = 'bold 24px BebasNeue, sans-serif';
     ctx.textAlign = 'center';
@@ -1463,7 +1507,14 @@ function renderClima(W, H) {
     bandaGrad.addColorStop(1, '#c8e87a');
     ctx.fillStyle = bandaGrad;
     ctx.fillRect(0, 0, W, headerH);
-    
+
+    // Sombra sutil bajo el header
+    const headerShadow = ctx.createLinearGradient(0, headerH, 0, headerH + 8);
+    headerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
+    headerShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = headerShadow;
+    ctx.fillRect(0, headerH, W, 8);
+
     // Logo del diario (centrado verticalmente en el header)
     if (S.logoImg && ELS.logo && ELS.logo.visible) {
       const logo = ELS.logo;
@@ -1596,61 +1647,82 @@ function renderClima(W, H) {
       ctx.shadowBlur = 0;
     }
     
-    // PANEL DERECHO (Dashboard de métricas)
+    // PANEL DERECHO (Dashboard de métricas) - Glassmorphism
     if (climaMostrarActual) {
       const boxGap = 15;
       const boxH = (panelH - boxGap * 2) / 3;
       
-      const dibujarMetrica = (y, titulo, valor, unidad, drawIconFunc) => {
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      const dibujarMetrica = (y, titulo, valor, unidad, drawIconFunc, iconColor) => {
+        const glassGrad = ctx.createLinearGradient(rightX, y, rightX + panelW, y);
+        glassGrad.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
+        glassGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.06)');
+        glassGrad.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
+        ctx.fillStyle = glassGrad;
         ctx.beginPath();
         ctx.roundRect(rightX, y, panelW, boxH, 16);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(rightX, y, panelW, boxH, 16);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(rightX + 2, y + 2, panelW - 4, boxH - 4, 14);
+        ctx.stroke();
+
+        const midY = y + boxH / 2;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(rightX + 40, midY, 22, 0, Math.PI * 2);
+        ctx.fillStyle = iconColor || 'rgba(255, 255, 255, 0.06)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.lineWidth = 1;
         ctx.stroke();
-        
-        const midY = y + boxH / 2;
-        
-        // Icono a la izquierda
+        ctx.restore();
+
         ctx.save();
         ctx.translate(rightX + 40, midY);
         drawIconFunc();
         ctx.restore();
-        
-        // Textos
+
         ctx.textAlign = 'left';
-        ctx.font = 'bold 14px Inter, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
-        ctx.fillText(titulo, rightX + 90, midY - 10);
-        
-        ctx.font = 'bold 42px BebasNeue, sans-serif';
+        ctx.font = 'bold 13px Inter, sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillText(titulo, rightX + 70, midY - 12);
+
+        ctx.font = 'bold 40px BebasNeue, sans-serif';
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(valor, rightX + 90, midY + 28);
-        const valWidth = ctx.measureText(valor).width; // Medir usando la fuente grande
-        
-        ctx.font = 'bold 16px Inter, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
-        ctx.fillText(unidad, rightX + 90 + valWidth + 8, midY + 24);
+        ctx.fillText(valor, rightX + 70, midY + 26);
+        const valWidth = ctx.measureText(valor).width;
+
+        ctx.font = 'bold 14px Inter, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillText(unidad, rightX + 70 + valWidth + 8, midY + 22);
       };
       
       // 1. Viento
       dibujarMetrica(panelY, 'VIENTO', `${actual.viento}`, 'km/h', () => {
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
         ctx.beginPath();
-        ctx.moveTo(-15, 5); ctx.lineTo(15, 5); ctx.lineTo(5, -5);
-        ctx.lineTo(15, 5); ctx.lineTo(5, 15); ctx.fill();
-      });
+        ctx.moveTo(-12, 4); ctx.lineTo(12, 4); ctx.lineTo(4, -4);
+        ctx.lineTo(12, 4); ctx.lineTo(4, 12); ctx.fill();
+      }, 'rgba(160, 195, 255, 0.15)');
       
       // 2. Humedad
       dibujarMetrica(panelY + boxH + boxGap, 'HUMEDAD', `${actual.humedad}`, '%', () => {
-        ctx.fillStyle = 'rgba(100,180,255,0.8)';
+        ctx.fillStyle = 'rgba(100, 200, 255, 0.9)';
         ctx.beginPath();
-        ctx.moveTo(0, -10);
-        ctx.bezierCurveTo(-12, 0, -12, 10, 0, 10);
-        ctx.bezierCurveTo(12, 10, 12, 0, 0, -10);
+        ctx.moveTo(0, -8);
+        ctx.bezierCurveTo(-10, 0, -10, 8, 0, 8);
+        ctx.bezierCurveTo(10, 8, 10, 0, 0, -8);
         ctx.fill();
-      });
+      }, 'rgba(100, 200, 255, 0.15)');
       
       // 3. Índice UV
       dibujarMetrica(panelY + (boxH + boxGap) * 2, 'ÍNDICE UV', `${actual.uv}`, 'UVI', () => {
@@ -1667,7 +1739,7 @@ function renderClima(W, H) {
           ctx.lineTo(Math.cos(angle)*15, Math.sin(angle)*15);
           ctx.stroke();
         }
-      });
+      }, 'rgba(253, 184, 19, 0.15)');
     }
     
     // --- 3. PIE DE PLACA (FOOTER) ---
@@ -1683,8 +1755,12 @@ function renderClima(W, H) {
     };
     
     if (climaMostrarPronostico && climaCiudadesMultiples.length === 0) {
-      // Solo pronóstico (ocupa todo el footer)
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      // Solo pronóstico (ocupa todo el footer) - Glassmorphism
+      const pronFooterGrad = ctx.createLinearGradient(0, footerY, 0, footerY + footerH);
+      pronFooterGrad.addColorStop(0, 'rgba(0, 0, 0, 0.18)');
+      pronFooterGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0.30)');
+      pronFooterGrad.addColorStop(1, 'rgba(0, 0, 0, 0.36)');
+      ctx.fillStyle = pronFooterGrad;
       ctx.fillRect(0, footerY, W, footerH);
       drawLine(footerY);
       
@@ -1766,8 +1842,12 @@ function renderClima(W, H) {
         }
       });
       
-      // --- MITAD CIUDADES ---
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      // --- MITAD CIUDADES --- Glassmorphism
+      const citiesGrad = ctx.createLinearGradient(0, ciudadesY, 0, ciudadesY + halfH);
+      citiesGrad.addColorStop(0, 'rgba(0, 0, 0, 0.25)');
+      citiesGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.40)');
+      citiesGrad.addColorStop(1, 'rgba(0, 0, 0, 0.50)');
+      ctx.fillStyle = citiesGrad;
       ctx.fillRect(0, ciudadesY, W, halfH);
       drawLine(ciudadesY);
       
@@ -1808,155 +1888,201 @@ function paintFullClimateBackground(ctx, W, H, actual) {
   const type = getClimateBackdropType(actual.codigo);
   const isNight = !actual.esDia;
 
+  // Determinar proximidad al amanecer/atardecer para colores cálidos
+  const ahora = new Date();
+  const horaActual = ahora.getHours() + ahora.getMinutes() / 60;
+  let nearSunset = false, nearSunrise = false;
+  if (actual.amanecer && actual.atardecer) {
+    const [amH, amM] = actual.amanecer.split(':').map(Number);
+    const [atH, atM] = actual.atardecer.split(':').map(Number);
+    const am = amH + amM / 60, at = atH + atM / 60;
+    nearSunrise = Math.abs(horaActual - am) < 1;
+    nearSunset = Math.abs(horaActual - at) < 1;
+  }
+
   ctx.save();
 
   // ── Gradiente base del cielo ──
   const sky = ctx.createLinearGradient(0, 0, 0, H);
 
   if (isNight) {
-    // Noche: púrpura profundo a negro azulado
-    sky.addColorStop(0, '#0b1026');
-    sky.addColorStop(0.3, '#151030');
-    sky.addColorStop(0.6, '#1a1240');
-    sky.addColorStop(1, '#07090f');
+    if (nearSunrise) {
+      sky.addColorStop(0, '#0b1026'); sky.addColorStop(0.15, '#151030');
+      sky.addColorStop(0.35, '#4a2060'); sky.addColorStop(0.55, '#c06040');
+      sky.addColorStop(0.7, '#e89040'); sky.addColorStop(1, '#1a0f18');
+    } else {
+      sky.addColorStop(0, '#0b1026'); sky.addColorStop(0.25, '#151030');
+      sky.addColorStop(0.55, '#1a1240'); sky.addColorStop(1, '#07090f');
+    }
   } else if (type === 'storm' || type === 'rain-heavy') {
-    // Tormenta: gris oscuro amenazante
-    sky.addColorStop(0, '#2a3a52');
-    sky.addColorStop(0.4, '#1e2840');
+    sky.addColorStop(0, '#2a3a52'); sky.addColorStop(0.15, '#1e2840');
+    sky.addColorStop(0.4, '#253550'); sky.addColorStop(0.7, '#1a2638');
     sky.addColorStop(1, '#0f1520');
   } else if (type === 'fog') {
-    // Niebla: gris suave
-    sky.addColorStop(0, '#8a9db0');
-    sky.addColorStop(0.4, '#6b8096');
+    sky.addColorStop(0, '#8a9db0'); sky.addColorStop(0.15, '#7a8fa4');
+    sky.addColorStop(0.4, '#6b8096'); sky.addColorStop(0.7, '#5a6c7e');
     sky.addColorStop(1, '#4a5c6a');
   } else if (type === 'snow') {
-    // Nieve: blanco azulado
-    sky.addColorStop(0, '#c8d8ec');
-    sky.addColorStop(0.4, '#a0b8cc');
+    sky.addColorStop(0, '#d0dff0'); sky.addColorStop(0.2, '#b8cce0');
+    sky.addColorStop(0.45, '#a0b8cc'); sky.addColorStop(0.7, '#8898a8');
     sky.addColorStop(1, '#708090');
   } else if (type === 'cloud') {
-    // Nublado: azul grisáceo
-    sky.addColorStop(0, '#6a8db8');
-    sky.addColorStop(0.4, '#4a6a8a');
+    sky.addColorStop(0, '#6a8db8'); sky.addColorStop(0.2, '#5a7aa0');
+    sky.addColorStop(0.45, '#4a6a8a'); sky.addColorStop(0.7, '#3a5270');
     sky.addColorStop(1, '#2a3a4a');
   } else if (type === 'sun-cloud') {
-    // Parcialmente nublado: azul con tonos cálidos
-    sky.addColorStop(0, '#7db8e8');
-    sky.addColorStop(0.35, '#5a9acc');
-    sky.addColorStop(0.7, '#3a6a9a');
-    sky.addColorStop(1, '#1a3a5a');
+    if (nearSunset) {
+      sky.addColorStop(0, '#7db8e8'); sky.addColorStop(0.15, '#8a9acc');
+      sky.addColorStop(0.35, '#d09050'); sky.addColorStop(0.55, '#e8a040');
+      sky.addColorStop(0.8, '#c07030'); sky.addColorStop(1, '#1a3a5a');
+    } else {
+      sky.addColorStop(0, '#7db8e8'); sky.addColorStop(0.2, '#5a9acc');
+      sky.addColorStop(0.5, '#4a7aaa'); sky.addColorStop(0.75, '#3a5a8a');
+      sky.addColorStop(1, '#1a3a5a');
+    }
   } else if (type === 'rain' || type === 'rain-light') {
-    // Lluvia: azul gris oscuro
-    sky.addColorStop(0, '#4a6080');
-    sky.addColorStop(0.4, '#304560');
+    sky.addColorStop(0, '#4a6080'); sky.addColorStop(0.15, '#3a5070');
+    sky.addColorStop(0.4, '#304560'); sky.addColorStop(0.7, '#253550');
     sky.addColorStop(1, '#1a2840');
   } else {
-    // Despejado: azul celeste a azul profundo
-    sky.addColorStop(0, '#4da6ff');
-    sky.addColorStop(0.25, '#3399e6');
-    sky.addColorStop(0.5, '#2277cc');
-    sky.addColorStop(0.75, '#1a5a9a');
-    sky.addColorStop(1, '#0d3060');
+    if (nearSunset) {
+      sky.addColorStop(0, '#4da6ff'); sky.addColorStop(0.15, '#6a80cc');
+      sky.addColorStop(0.35, '#d08040'); sky.addColorStop(0.55, '#f0a030');
+      sky.addColorStop(0.75, '#c07030'); sky.addColorStop(1, '#0d3060');
+    } else {
+      sky.addColorStop(0, '#4da6ff'); sky.addColorStop(0.15, '#3a99ee');
+      sky.addColorStop(0.35, '#3388dd'); sky.addColorStop(0.55, '#2277cc');
+      sky.addColorStop(0.75, '#1a5a9a'); sky.addColorStop(1, '#0d3060');
+    }
   }
 
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
 
   // ── Efecto de horizonte (brillo en el horizonte) ──
-  const horizon = ctx.createLinearGradient(0, H * 0.5, 0, H);
+  const horizon = ctx.createLinearGradient(0, H * 0.35, 0, H);
   if (isNight) {
-    // Horizonte nocturno con tonos púrpuras/rosados
-    horizon.addColorStop(0, 'rgba(150, 80, 180, 0.15)');
-    horizon.addColorStop(0.4, 'rgba(80, 40, 100, 0.2)');
-    horizon.addColorStop(1, 'rgba(20, 10, 30, 0.6)');
+    if (nearSunrise) {
+      horizon.addColorStop(0, 'rgba(220, 120, 60, 0.2)');
+      horizon.addColorStop(0.25, 'rgba(180, 80, 40, 0.15)');
+      horizon.addColorStop(0.5, 'rgba(80, 30, 80, 0.2)');
+      horizon.addColorStop(1, 'rgba(10, 5, 20, 0.6)');
+    } else {
+      horizon.addColorStop(0, 'rgba(150, 80, 180, 0.12)');
+      horizon.addColorStop(0.25, 'rgba(80, 40, 100, 0.18)');
+      horizon.addColorStop(0.5, 'rgba(40, 20, 60, 0.25)');
+      horizon.addColorStop(1, 'rgba(10, 5, 20, 0.5)');
+    }
   } else if (type === 'storm') {
-    horizon.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
-    horizon.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+    horizon.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
+    horizon.addColorStop(0.5, 'rgba(100, 80, 120, 0.1)');
+    horizon.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
   } else if (type === 'fog' || type === 'snow') {
-    horizon.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
-    horizon.addColorStop(1, 'rgba(200, 210, 220, 0.3)');
+    horizon.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
+    horizon.addColorStop(0.4, 'rgba(220, 230, 240, 0.15)');
+    horizon.addColorStop(1, 'rgba(180, 190, 200, 0.25)');
   } else {
-    // Horizonte diurno con resplandor
-    const glowColor = type === 'sun' || type === 'sun-cloud' ? 'rgba(255, 220, 100, 0.25)' : 'rgba(255, 255, 255, 0.15)';
+    let glowColor;
+    if (nearSunset) {
+      glowColor = 'rgba(255, 180, 60, 0.35)';
+    } else {
+      glowColor = type === 'sun' || type === 'sun-cloud' ? 'rgba(255, 220, 100, 0.25)' : 'rgba(255, 255, 255, 0.18)';
+    }
     horizon.addColorStop(0, glowColor);
-    horizon.addColorStop(0.5, 'rgba(255, 255, 255, 0.08)');
-    horizon.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
+    horizon.addColorStop(0.3, 'rgba(255, 255, 255, 0.08)');
+    horizon.addColorStop(0.6, 'rgba(255, 255, 255, 0.03)');
+    horizon.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
   }
   ctx.fillStyle = horizon;
   ctx.fillRect(0, 0, W, H);
 
+  // ── Capa atmosférica (neblina tenue en horizonte) ──
+  if (!isNight && type !== 'storm' && type !== 'rain-heavy' && type !== 'fog') {
+    const haze = ctx.createLinearGradient(0, H * 0.35, 0, H * 0.7);
+    const hazeColor = nearSunset ? 'rgba(200, 140, 80, 0.08)' : 'rgba(200, 220, 255, 0.06)';
+    haze.addColorStop(0, hazeColor);
+    haze.addColorStop(1, 'rgba(200, 220, 255, 0)');
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, 0, W, H);
+  }
+
   // ── Sol o Luna ──
   if (isNight) {
-    // Luna con halo
     const moonX = W * 0.82;
     const moonY = H * 0.15;
     const moonR = Math.min(W, H) * 0.06;
 
-    const moonGlow = ctx.createRadialGradient(moonX, moonY, moonR * 0.5, moonX, moonY, moonR * 5);
-    moonGlow.addColorStop(0, 'rgba(240, 245, 255, 0.2)');
-    moonGlow.addColorStop(0.5, 'rgba(200, 210, 240, 0.08)');
+    const moonGlow = ctx.createRadialGradient(moonX, moonY, moonR * 0.5, moonX, moonY, moonR * 6);
+    moonGlow.addColorStop(0, 'rgba(240, 245, 255, 0.25)');
+    moonGlow.addColorStop(0.3, 'rgba(200, 210, 240, 0.12)');
+    moonGlow.addColorStop(0.6, 'rgba(200, 210, 240, 0.04)');
     moonGlow.addColorStop(1, 'rgba(200, 210, 240, 0)');
     ctx.fillStyle = moonGlow;
     ctx.fillRect(0, 0, W, H);
 
-    // Núcleo de la luna
     ctx.fillStyle = '#edf1ff';
     ctx.shadowColor = '#c5cae9';
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 20;
     ctx.beginPath();
     ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Sombra de luna creciente
-    ctx.fillStyle = '#0b1026';
+    ctx.fillStyle = nearSunrise ? '#4a2060' : '#0b1026';
     ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.arc(moonX + moonR * 0.35, moonY - moonR * 0.08, moonR * 0.88, 0, Math.PI * 2);
     ctx.fill();
 
-    // Estrellas
     ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 60; i++) {
       const starX = rand() * W;
       const starY = rand() * H * 0.75;
-      const starR = 0.5 + rand() * 2;
-      ctx.globalAlpha = 0.3 + rand() * 0.7;
+      const starR = 0.5 + rand() * 2.2;
+      ctx.globalAlpha = 0.2 + rand() * 0.8;
       ctx.beginPath();
       ctx.arc(starX, starY, starR, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
   } else if (type !== 'storm' && type !== 'rain-heavy') {
-    // Sol radiante (excepto en tormentas)
-    const sunX = W * 0.78;
-    const sunY = H * 0.18;
-    const sunR = Math.min(W, H) * 0.07;
+    const sunX = nearSunset ? W * 0.22 : W * 0.78;
+    const sunY = nearSunset ? H * 0.65 : H * 0.18;
+    const sunR = Math.min(W, H) * (nearSunset ? 0.08 : 0.07);
 
-    // Halo del sol
-    const sunGlow = ctx.createRadialGradient(sunX, sunY, sunR * 0.5, sunX, sunY, sunR * 5);
-    sunGlow.addColorStop(0, 'rgba(255, 230, 100, 0.35)');
-    sunGlow.addColorStop(0.4, 'rgba(255, 220, 80, 0.15)');
-    sunGlow.addColorStop(1, 'rgba(255, 220, 80, 0)');
+    const glowMultiplier = nearSunset ? 7 : 5;
+    const sunGlow = ctx.createRadialGradient(sunX, sunY, sunR * 0.5, sunX, sunY, sunR * glowMultiplier);
+    if (nearSunset) {
+      sunGlow.addColorStop(0, 'rgba(255, 200, 80, 0.5)');
+      sunGlow.addColorStop(0.3, 'rgba(255, 150, 50, 0.2)');
+      sunGlow.addColorStop(0.6, 'rgba(255, 100, 30, 0.08)');
+      sunGlow.addColorStop(1, 'rgba(255, 100, 30, 0)');
+    } else {
+      sunGlow.addColorStop(0, 'rgba(255, 230, 100, 0.35)');
+      sunGlow.addColorStop(0.3, 'rgba(255, 220, 80, 0.15)');
+      sunGlow.addColorStop(0.6, 'rgba(255, 200, 60, 0.05)');
+      sunGlow.addColorStop(1, 'rgba(255, 200, 60, 0)');
+    }
     ctx.fillStyle = sunGlow;
     ctx.fillRect(0, 0, W, H);
 
-    // Núcleo del sol
-    ctx.fillStyle = '#ffd84d';
-    ctx.shadowColor = '#ffc107';
-    ctx.shadowBlur = 25;
+    const sunColor = nearSunset ? '#ff9944' : '#ffd84d';
+    const shadowColor = nearSunset ? '#ff7722' : '#ffc107';
+    ctx.fillStyle = sunColor;
+    ctx.shadowColor = shadowColor;
+    ctx.shadowBlur = nearSunset ? 35 : 25;
     ctx.beginPath();
     ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Rayos del sol
-    ctx.strokeStyle = 'rgba(255, 220, 80, 0.6)';
+    ctx.strokeStyle = nearSunset ? 'rgba(255, 180, 80, 0.5)' : 'rgba(255, 220, 80, 0.6)';
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
-    for (let i = 0; i < 8; i++) {
-      const angle = i * Math.PI / 4;
+    const rayCount = nearSunset ? 12 : 8;
+    for (let i = 0; i < rayCount; i++) {
+      const angle = i * Math.PI * 2 / rayCount + (nearSunset ? 0.3 : 0);
       ctx.beginPath();
-      ctx.moveTo(sunX + Math.cos(angle) * sunR * 1.3, sunY + Math.sin(angle) * sunR * 1.3);
-      ctx.lineTo(sunX + Math.cos(angle) * sunR * 1.9, sunY + Math.sin(angle) * sunR * 1.9);
+      ctx.moveTo(sunX + Math.cos(angle) * sunR * (nearSunset ? 1.1 : 1.3), sunY + Math.sin(angle) * sunR * (nearSunset ? 1.1 : 1.3));
+      ctx.lineTo(sunX + Math.cos(angle) * sunR * (nearSunset ? 1.5 : 1.9), sunY + Math.sin(angle) * sunR * (nearSunset ? 1.5 : 1.9));
       ctx.stroke();
     }
     ctx.shadowBlur = 0;
@@ -1968,74 +2094,116 @@ function paintFullClimateBackground(ctx, W, H, actual) {
     const cloudCount = type === 'storm' ? 8 : type === 'fog' ? 5 : 4;
     for (let i = 0; i < cloudCount; i++) {
       const baseX = rand() * W * 1.2 - W * 0.1;
-      const baseY = H * (0.08 + rand() * 0.3);
-      const cloudW = W * (0.15 + rand() * 0.25);
-      const cloudH = H * (0.04 + rand() * 0.06);
-      const alpha = type === 'fog' ? 0.15 : type === 'storm' ? 0.2 : 0.12;
+      const baseY = H * (0.08 + rand() * 0.32);
+      const cloudW = W * (0.18 + rand() * 0.28);
+      const cloudH = H * (0.04 + rand() * 0.07);
+      const alpha = type === 'fog' ? 0.18 : type === 'storm' ? 0.22 : 0.14;
 
-      ctx.fillStyle = isNight ? `rgba(200, 210, 230, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
+      const cloudColor = isNight ? `rgba(200, 210, 230, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
+      ctx.fillStyle = cloudColor;
       ctx.beginPath();
-      ctx.ellipse(baseX + cloudW * 0.25, baseY, cloudW * 0.35, cloudH * 0.5, -0.15, 0, Math.PI * 2);
-      ctx.ellipse(baseX + cloudW * 0.55, baseY - cloudH * 0.1, cloudW * 0.4, cloudH * 0.55, -0.15, 0, Math.PI * 2);
-      ctx.ellipse(baseX + cloudW * 0.78, baseY + cloudH * 0.05, cloudW * 0.3, cloudH * 0.45, -0.15, 0, Math.PI * 2);
+      const cx = baseX + cloudW * 0.4, cy = baseY;
+      const cw = cloudW * 0.38, ch = cloudH * 0.5;
+      ctx.ellipse(cx, cy, cw, ch, -0.12, 0, Math.PI * 2);
+      ctx.ellipse(cx + cw * 0.6, cy - ch * 0.15, cw * 0.5, ch * 0.55, -0.12, 0, Math.PI * 2);
+      ctx.ellipse(cx - cw * 0.4, cy + ch * 0.08, cw * 0.35, ch * 0.45, -0.12, 0, Math.PI * 2);
+      ctx.ellipse(cx + cw * 1.0, cy + ch * 0.12, cw * 0.3, ch * 0.4, -0.12, 0, Math.PI * 2);
       ctx.fill();
+
+      if (type !== 'storm') {
+        ctx.fillStyle = isNight ? `rgba(220, 230, 245, ${alpha * 0.6})` : `rgba(255, 255, 255, ${alpha * 0.5})`;
+        ctx.beginPath();
+        ctx.ellipse(cx + cw * 0.2, cy - ch * 0.25, cw * 0.25, ch * 0.3, -0.12, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 
   // ── Efecto de lluvia ──
   if (type === 'rain' || type === 'rain-light' || type === 'rain-heavy' || type === 'storm') {
-    const rainAlpha = type === 'rain-heavy' || type === 'storm' ? 0.18 : 0.12;
-    const rainCount = type === 'rain-heavy' || type === 'storm' ? 50 : 35;
-    ctx.strokeStyle = `rgba(160, 195, 255, ${rainAlpha})`;
-    ctx.lineWidth = type === 'rain-heavy' || type === 'storm' ? 2 : 1.5;
+    const rainAlpha = type === 'rain-heavy' || type === 'storm' ? 0.2 : 0.14;
+    const rainCount = type === 'rain-heavy' || type === 'storm' ? 60 : 40;
+    const lineW = type === 'rain-heavy' || type === 'storm' ? 2 : 1.5;
 
-    for (let i = 0; i < rainCount; i++) {
-      const rx = rand() * W;
-      const ry = rand() * H * 0.9;
-      const len = 12 + rand() * 30;
-      ctx.beginPath();
-      ctx.moveTo(rx, ry);
-      ctx.lineTo(rx - 5, ry + len);
-      ctx.stroke();
+    for (let g = 0; g < 4; g++) {
+      const groupX = g * W / 4;
+      ctx.strokeStyle = `rgba(160, 195, 255, ${rainAlpha * (0.7 + rand() * 0.6)})`;
+      ctx.lineWidth = lineW * (0.8 + rand() * 0.4);
+      const countInGroup = Math.round(rainCount / 4);
+      for (let i = 0; i < countInGroup; i++) {
+        const rx = groupX + rand() * (W / 4);
+        const ry = rand() * H * 0.9;
+        const len = 12 + rand() * 32;
+        const tilt = -4 + rand() * 2;
+        ctx.beginPath();
+        ctx.moveTo(rx, ry);
+        ctx.lineTo(rx + tilt, ry + len);
+        ctx.stroke();
+      }
     }
   }
 
   // ── Copos de nieve ──
   if (type === 'snow') {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    for (let i = 0; i < 45; i++) {
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+    ctx.shadowBlur = 6;
+    for (let i = 0; i < 50; i++) {
       const sx = rand() * W;
       const sy = rand() * H * 0.9;
-      const sr = 1 + rand() * 3;
+      const sr = 1 + rand() * 3.5;
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.25 + rand() * 0.4})`;
       ctx.beginPath();
       ctx.arc(sx, sy, sr, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.shadowBlur = 0;
   }
 
   // ── Tormenta: rayos ──
   if (type === 'storm') {
-    ctx.fillStyle = 'rgba(30, 15, 50, 0.25)';
+    ctx.fillStyle = 'rgba(25, 10, 45, 0.3)';
     ctx.fillRect(0, 0, W, H);
 
-    ctx.strokeStyle = 'rgba(255, 245, 180, 0.15)';
-    ctx.lineWidth = 2.5;
-    for (let i = 0; i < 3; i++) {
-      const boltX = W * (0.15 + rand() * 0.7);
+    for (let i = 0; i < 2; i++) {
+      const boltX = W * (0.12 + rand() * 0.76);
+      ctx.shadowColor = 'rgba(255, 245, 180, 0.6)';
+      ctx.shadowBlur = 20;
+      ctx.strokeStyle = 'rgba(255, 250, 220, 0.4)';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(boltX, H * 0.05);
-      ctx.lineTo(boltX - 20, H * 0.2);
-      ctx.lineTo(boltX + 10, H * 0.2);
-      ctx.lineTo(boltX - 15, H * 0.4);
+      ctx.moveTo(boltX, H * 0.03);
+      const segments = 3 + Math.floor(rand() * 3);
+      let bx = boltX, by = H * 0.03;
+      for (let s = 0; s < segments; s++) {
+        bx += (rand() - 0.5) * 40;
+        by += H * (0.08 + rand() * 0.08);
+        ctx.lineTo(bx, by);
+      }
       ctx.stroke();
+
+      ctx.shadowBlur = 30;
+      ctx.strokeStyle = 'rgba(255, 250, 220, 0.15)';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(boltX, H * 0.03);
+      bx = boltX; by = H * 0.03;
+      for (let s = 0; s < segments; s++) {
+        bx += (rand() - 0.5) * 40;
+        by += H * (0.08 + rand() * 0.08);
+        ctx.lineTo(bx, by);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
     }
   }
 
   // ── Vignette (sombra en bordes) ──
-  const vignette = ctx.createRadialGradient(W * 0.5, H * 0.45, Math.min(W, H) * 0.2, W * 0.5, H * 0.45, Math.max(W, H) * 0.85);
+  const vignette = ctx.createRadialGradient(W * 0.5, H * 0.42, Math.min(W, H) * 0.25, W * 0.5, H * 0.42, Math.max(W, H) * 0.88);
   vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  vignette.addColorStop(0.6, 'rgba(0, 0, 0, 0.08)');
-  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+  vignette.addColorStop(0.5, 'rgba(0, 0, 0, 0.06)');
+  vignette.addColorStop(0.8, 'rgba(0, 0, 0, 0.15)');
+  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, W, H);
 
@@ -2081,7 +2249,14 @@ function renderClimaCombinado(W, H) {
   bandaGrad.addColorStop(1, '#c8e87a');
   ctx.fillStyle = bandaGrad;
   ctx.fillRect(0, 0, W, headerH);
-  
+
+  // Sombra sutil bajo el header
+  const headerShadow = ctx.createLinearGradient(0, headerH, 0, headerH + 8);
+  headerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
+  headerShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = headerShadow;
+  ctx.fillRect(0, headerH, W, 8);
+
   // Logo del diario (centrado verticalmente en el header)
   if (S.logoImg && ELS.logo && ELS.logo.visible) {
     const logo = ELS.logo;
@@ -2182,75 +2357,109 @@ function renderClimaCombinado(W, H) {
     const boxGap = 12;
     const boxH = (panelH - boxGap * 3) / 4; // 4 métricas en lugar de 3
     
-    const dibujarMetrica = (y, titulo, valor, unidad, drawIconFunc) => {
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    const dibujarMetrica = (y, titulo, valor, unidad, drawIconFunc, iconColor) => {
+      // Fondo glassmorphism
+      const glassGrad = ctx.createLinearGradient(rightX, y, rightX + panelW, y);
+      glassGrad.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
+      glassGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.06)');
+      glassGrad.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
+      ctx.fillStyle = glassGrad;
       ctx.beginPath();
       ctx.roundRect(rightX, y, panelW, boxH, 16);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(rightX, y, panelW, boxH, 16);
+      ctx.stroke();
+
+      // Borde interno sutil (efecto glass)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(rightX + 2, y + 2, panelW - 4, boxH - 4, 14);
+      ctx.stroke();
+
+      const midY = y + boxH / 2;
+
+      // Círculo de icono con fondo
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(rightX + 40, midY, 22, 0, Math.PI * 2);
+      ctx.fillStyle = iconColor || 'rgba(255, 255, 255, 0.06)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.lineWidth = 1;
       ctx.stroke();
-      
-      const midY = y + boxH / 2;
-      
-      // Icono a la izquierda
+      ctx.restore();
+
       ctx.save();
       ctx.translate(rightX + 40, midY);
       drawIconFunc();
       ctx.restore();
-      
-      // Textos
+
       ctx.textAlign = 'left';
-      ctx.font = 'bold 14px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.fillText(titulo, rightX + 90, midY - 10);
-      
-      ctx.font = 'bold 42px BebasNeue, sans-serif';
+      ctx.font = 'bold 13px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.fillText(titulo, rightX + 70, midY - 12);
+
+      ctx.font = 'bold 40px BebasNeue, sans-serif';
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(valor, rightX + 90, midY + 28);
-      const valWidth = ctx.measureText(valor).width; // Medir usando la fuente grande
-      
-      ctx.font = 'bold 16px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillText(unidad, rightX + 90 + valWidth + 8, midY + 24);
+      ctx.fillText(valor, rightX + 70, midY + 26);
+      const valWidth = ctx.measureText(valor).width;
+
+      ctx.font = 'bold 14px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillText(unidad, rightX + 70 + valWidth + 8, midY + 22);
     };
-    
+
     // 1. Viento
     const vientoStr = actual.vientoDireccion ? `${actual.viento} (${actual.vientoDireccion})` : `${actual.viento}`;
     dibujarMetrica(panelY, 'VIENTO', vientoStr, 'km/h', () => {
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
       ctx.beginPath();
-      ctx.moveTo(-15, 5); ctx.lineTo(15, 5); ctx.lineTo(5, -5);
-      ctx.lineTo(15, 5); ctx.lineTo(5, 15); ctx.fill();
-    });
+      ctx.moveTo(-12, 4); ctx.lineTo(12, 4); ctx.lineTo(4, -4);
+      ctx.lineTo(12, 4); ctx.lineTo(4, 12); ctx.fill();
+    }, 'rgba(160, 195, 255, 0.15)');
 
     // 2. Humedad
     dibujarMetrica(panelY + boxH + boxGap, 'HUMEDAD', `${actual.humedad}`, '%', () => {
-      ctx.fillStyle = 'rgba(100,180,255,0.8)';
+      ctx.fillStyle = 'rgba(100, 200, 255, 0.9)';
       ctx.beginPath();
-      ctx.moveTo(0, -10);
-      ctx.bezierCurveTo(-12, 0, -12, 10, 0, 10);
-      ctx.bezierCurveTo(12, 10, 12, 0, 0, -10);
+      ctx.moveTo(0, -8);
+      ctx.bezierCurveTo(-10, 0, -10, 8, 0, 8);
+      ctx.bezierCurveTo(10, 8, 10, 0, 0, -8);
       ctx.fill();
-    });
+    }, 'rgba(100, 200, 255, 0.15)');
 
     // 3. Visibilidad
     const visibilidadNum = actual.visibilidadValor || 0;
     dibujarMetrica(panelY + (boxH + boxGap) * 2, 'VISIBILIDAD', `${visibilidadNum}`, 'km', () => {
-      ctx.fillStyle = 'rgba(150,200,150,0.8)';
+      ctx.fillStyle = 'rgba(150, 220, 150, 0.9)';
       ctx.beginPath();
-      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.arc(0, 0, 9, 0, Math.PI * 2);
       ctx.fill();
-    });
+      ctx.strokeStyle = 'rgba(150, 220, 150, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.stroke();
+    }, 'rgba(150, 220, 150, 0.15)');
 
     // 4. Amanecer/Atardecer
-    const solStr = actual.amanecer || '--:--';
+    const solStr = actual.amanecer ? `${actual.amanecer} / ${actual.atardecer || '--:--'}` : '--:--';
     dibujarMetrica(panelY + (boxH + boxGap) * 3, 'SOL', solStr, '', () => {
-      ctx.fillStyle = '#fdb813';
+      ctx.fillStyle = '#ffcc33';
       ctx.beginPath();
-      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.arc(0, 0, 9, 0, Math.PI * 2);
       ctx.fill();
-    });
+      ctx.strokeStyle = 'rgba(255, 204, 51, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.stroke();
+    }, 'rgba(255, 204, 51, 0.15)');
   }
   
   // --- 3. PIE DE PLACA (FOOTER) - Evolución Diaria ---
@@ -2265,10 +2474,17 @@ function renderClimaCombinado(W, H) {
     ctx.fillRect(0, y, W, 4);
   };
   
-  // Evolución Diaria (Madrugada, Mañana, Tarde, Noche)
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  // Evolución Diaria (Madrugada, Mañana, Tarde, Noche) - Glassmorphism
+  const footerGlass = ctx.createLinearGradient(0, footerY, 0, footerY + footerH);
+  footerGlass.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
+  footerGlass.addColorStop(0.5, 'rgba(0, 0, 0, 0.32)');
+  footerGlass.addColorStop(1, 'rgba(0, 0, 0, 0.38)');
+  ctx.fillStyle = footerGlass;
   ctx.fillRect(0, footerY, W, footerH);
   drawLine(footerY);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+  ctx.fillRect(0, footerY + 4, W, 1);
   
   ctx.font = 'bold 20px BebasNeue, sans-serif';
   ctx.textAlign = 'left';
