@@ -961,8 +961,35 @@ async function obtenerClima(ciudad) {
       const weather = smnData.data.weather;
       const forecast = smnData.data.forecast;
       const sun = smnData.data.sun;
-      const warning = smnData.data.warning;
+      const warningAlert = smnData.data.warning_alert;
+      const warningHeat = smnData.data.warning_heat;
       const georef = smnData.data.georef;
+
+      // Extraer texto de alerta desde reports del SMN
+      const warningShortTerm = smnData.data.warning_shortterm;
+      let alertaInfo = '';
+      // Prioridad 1: alerta de corto plazo (nowcast) — más urgente
+      if (warningShortTerm && Array.isArray(warningShortTerm.reports)) {
+        const nowcast = warningShortTerm.reports[0];
+        if (nowcast && nowcast.description) {
+          alertaInfo = nowcast.description;
+        }
+      }
+      // Prioridad 2: alerta meteorológica con reports
+      if (!alertaInfo && warningAlert && Array.isArray(warningAlert.reports)) {
+        const hoyReport = warningAlert.reports[0];
+        if (hoyReport && Array.isArray(hoyReport.levels)) {
+          alertaInfo = hoyReport.levels.map(l => l.description).filter(Boolean).join(' ');
+        }
+      }
+      // Prioridad 3: alerta por calor
+      if (!alertaInfo && warningHeat && warningHeat.level > 0) {
+        alertaInfo = `Alerta por calor nivel ${warningHeat.level}`;
+      }
+      if (alertaInfo) {
+        climaAlerta = alertaInfo;
+        window.climaAlerta = climaAlerta;
+      }
 
       const wmoCode = mapearCodigoSMNaWMO(weather.weather.id);
       const wmoInfo = WMO_CODES[wmoCode] || WMO_CODES[0];
@@ -1021,7 +1048,8 @@ async function obtenerClima(ciudad) {
           const rafagas = periodoIcono.gust_range
             ? Math.round((periodoIcono.gust_range[0] + periodoIcono.gust_range[1]) / 2)
             : null;
-          const fecha = new Date(dia.date);
+          const [aa, mm, dd] = dia.date.split('-').map(Number);
+          const fecha = new Date(aa, mm - 1, dd);
           const hoy = new Date();
           const esHoy = fecha.toDateString() === hoy.toDateString();
           return {
@@ -1112,11 +1140,15 @@ async function obtenerClima(ciudad) {
             lluvia6h: forecast.forecast[0].night.rain06h || 0
           }] : [])
         ],
-        alertas: warning ? {
-          nivel: warning.level || null,
-          areaId: warning.area_id || null,
-          actualizado: warning.updated || null
-        } : null
+        alertas: warningHeat ? {
+          nivel: warningHeat.level || null,
+          areaId: warningHeat.area_id || null,
+          actualizado: warningHeat.updated || null
+        } : null,
+        alertaReportes: warningAlert && Array.isArray(warningAlert.reports) ? warningAlert.reports : null,
+        // Datos de humedad mín/máx del día desde forecast
+        humedadMinDia: forecast.forecast[0]?.humidity_min ?? null,
+        humedadMaxDia: forecast.forecast[0]?.humidity_max ?? null
       };
 
       climaCiudad = ciudad;
@@ -1199,9 +1231,12 @@ async function obtenerClima(ciudad) {
         estacion: null,
         ubicacion: ciudad
       },
-      pronostico: data.daily.time.slice(0, 7).map((fecha, i) => ({
-        fecha: new Date(fecha).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }),
-        fechaCompleta: fecha,
+      pronostico: data.daily.time.slice(0, 7).map((fecha, i) => {
+        const [aa, mm, dd] = fecha.split('-').map(Number);
+        const fechaLocal = new Date(aa, mm - 1, dd);
+        return {
+          fecha: fechaLocal.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }),
+          fechaCompleta: fecha,
         tempMax: Math.round(data.daily.temperature_2m_max[i]),
         tempMin: Math.round(data.daily.temperature_2m_min[i]),
         codigo: data.daily.weather_code[i],
@@ -1214,7 +1249,8 @@ async function obtenerClima(ciudad) {
         humedadMax: null,
         amanecer: new Date(data.daily.sunrise[i]).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
         atardecer: new Date(data.daily.sunset[i]).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-      })),
+      };
+      }),
       diario: [
         { nombre: 'Madrugada', ...getPeriodo(0), vientoDireccion: '', rafagas: null, visibilidad: 'Variable', lluvia6h: 0 },
         { nombre: 'Mañana', ...getPeriodo(6), vientoDireccion: '', rafagas: null, visibilidad: 'Variable', lluvia6h: 0 },

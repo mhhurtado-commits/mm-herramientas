@@ -912,17 +912,23 @@ async function handleSMNWeather(url, env) {
           }
         });
 
+        let key = endpoint.split('/')[0];
+        // warning/shortterm, warning/alert, warning/heat → warning_shortterm, warning_alert, warning_heat
+        if (key === 'warning') {
+          key = 'warning_' + endpoint.split('/')[1];
+        }
+
         if (response.ok) {
           const data = await response.json();
-          // Usar el primer segmento del endpoint como clave (weather, forecast, sun, warning)
-          const key = endpoint.split('/')[0];
           results[key] = data;
         } else {
-          const key = endpoint.split('/')[0];
           results[key] = { error: `HTTP ${response.status}` };
         }
       } catch (e) {
-        const key = endpoint.split('/')[0];
+        let key = endpoint.split('/')[0];
+        if (key === 'warning') {
+          key = 'warning_' + endpoint.split('/')[1];
+        }
         results[key] = { error: e.message };
       }
     }
@@ -935,17 +941,24 @@ async function handleSMNWeather(url, env) {
     const forecast = smnNormalizarPronostico(results.forecast);
     const sunRaw = smnEsRespuestaValida(results.sun) ? results.sun : null;
     const sun = smnAplanarSol(sunRaw);
+    const warningAlert = smnEsRespuestaValida(results.warning_alert) ? results.warning_alert : null;
+    const warningShortTerm = smnEsRespuestaValida(results.warning_shortterm) ? results.warning_shortterm : null;
+    const warningHeat = smnEsRespuestaValida(results.warning_heat) ? results.warning_heat : null;
+    const georef = smnEsRespuestaValida(results.georef) ? results.georef : null;
 
     return jsonOk({
       ciudad,
       locationId,
-      // 04-clima.js lee smnData.sun (raíz) para amanecer/atardecer
+      georef,
       sun,
       data: {
         weather,
         forecast,
         sun: sunRaw,
-        warning: smnEsRespuestaValida(results.warning) ? results.warning : null,
+        warning_alert: warningAlert,
+        warning_shortterm: warningShortTerm,
+        warning_heat: warningHeat,
+        georef,
       },
     });
 
