@@ -956,8 +956,8 @@ async function obtenerClima(ciudad) {
       climaData = {
         ciudad: ciudad,
         actual: {
-          temp: weather.temperature,
-          sensacionTermica: weather.feels_like,
+          temp: Math.round(weather.temperature * 10) / 10, // 1 decimal como en SMN
+          sensacionTermica: Math.round(weather.feels_like * 10) / 10, // 1 decimal
           humedad: weather.humidity,
           viento: Math.round(weather.wind.speed),
           vientoDireccion: weather.wind.direction || '',
@@ -991,7 +991,8 @@ async function obtenerClima(ciudad) {
             ? Math.round((periodoIcono.gust_range[0] + periodoIcono.gust_range[1]) / 2)
             : null;
           const fecha = new Date(dia.date);
-          const esHoy = i === 0;
+          const hoy = new Date();
+          const esHoy = fecha.toDateString() === hoy.toDateString();
           return {
             fecha: esHoy ? 'Hoy' : fecha.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' }),
             fechaCompleta: dia.date,
@@ -1688,10 +1689,10 @@ function renderClima(W, H) {
       ctx.textAlign = 'left';
       ctx.fillStyle = '#a6ce39';
       ctx.letterSpacing = '2px';
-      ctx.fillText('PRONÓSTICO 5 DÍAS', 25, footerY + 35);
+      ctx.fillText('PRONÓSTICO 7 DÍAS', 25, footerY + 35);
       ctx.letterSpacing = '0';
-      
-      const diaWidth = (W - 50) / 5;
+
+      const diaWidth = (W - 50) / 7;
       const itemsY = footerY + (footerH / 2) + 15;
       
       pronostico.forEach((dia, i) => {
@@ -1734,9 +1735,9 @@ function renderClima(W, H) {
       ctx.textAlign = 'left';
       ctx.fillStyle = '#a6ce39';
       ctx.letterSpacing = '1px';
-      ctx.fillText('PRONÓSTICO 5 DÍAS', 25, pronosticoY + 25);
-      
-      const diaWidth = (W - 50) / 5;
+      ctx.fillText('PRONÓSTICO 7 DÍAS', 25, pronosticoY + 25);
+
+      const diaWidth = (W - 50) / 7;
       const pItemsY = pronosticoY + halfH / 2 + 10;
       pronostico.forEach((dia, i) => {
         const centerX = 25 + i * diaWidth + diaWidth / 2;
@@ -2104,11 +2105,26 @@ function renderClimaCombinado(W, H) {
   // Fecha y Actualización en una sola línea
   const hoy = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
   const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-  
+  const solStr = actual.amanecer && actual.atardecer ? `☀️ ${actual.amanecer} | 🌅 ${actual.atardecer}` : '';
+
   ctx.font = 'bold 15px Inter, sans-serif';
   ctx.fillStyle = '#ffffff';
   const dateStr = (hoy.charAt(0).toUpperCase() + hoy.slice(1)) + ` | Actualizado: ${hora}`;
-  ctx.fillText(dateStr, W - rightPad, headerH * 0.75);
+  ctx.fillText(dateStr, W - rightPad, headerH * 0.65);
+
+  if (solStr) {
+    ctx.font = 'bold 13px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillText(solStr, W - rightPad, headerH * 0.82);
+  }
+
+  // Alertas meteorológicas
+  if (climaData.alertas && climaData.alertas.nivel > 0) {
+    ctx.font = 'bold 12px Inter, sans-serif';
+    ctx.fillStyle = '#ff6b6b';
+    const alertaStr = `⚠️ ALERTA NIVEL ${climaData.alertas.nivel}`;
+    ctx.fillText(alertaStr, W - rightPad, headerH * 0.96);
+  }
 
   // --- 2. CONTENIDO PRINCIPAL (Clima Actual) ---
   const padding = 25;
@@ -2159,16 +2175,16 @@ function renderClimaCombinado(W, H) {
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
   ctx.letterSpacing = '0.5px';
   ctx.fillText(actual.descripcion.toUpperCase(), centerX, tempY + 55);
-  
-  const sensacion = actual.temp - Math.round(actual.viento / 10);
+
+  const sensacion = actual.sensacionTermica !== undefined ? actual.sensacionTermica : actual.temp - Math.round(actual.viento / 10);
   ctx.font = '600 15px Inter, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.84)';
   ctx.fillText(`Sensación térmica: ${sensacion}°`, centerX, tempY + 85);
   
   // PANEL DERECHO (Dashboard de métricas)
   if (climaMostrarActual) {
-    const boxGap = 15;
-    const boxH = (panelH - boxGap * 2) / 3;
+    const boxGap = 12;
+    const boxH = (panelH - boxGap * 3) / 4; // 4 métricas en lugar de 3
     
     const dibujarMetrica = (y, titulo, valor, unidad, drawIconFunc) => {
       ctx.fillStyle = 'rgba(0,0,0,0.15)';
@@ -2204,13 +2220,14 @@ function renderClimaCombinado(W, H) {
     };
     
     // 1. Viento
-    dibujarMetrica(panelY, 'VIENTO', `${actual.viento}`, 'km/h', () => {
+    const vientoStr = actual.vientoDireccion ? `${actual.viento} (${actual.vientoDireccion})` : `${actual.viento}`;
+    dibujarMetrica(panelY, 'VIENTO', vientoStr, 'km/h', () => {
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
       ctx.beginPath();
       ctx.moveTo(-15, 5); ctx.lineTo(15, 5); ctx.lineTo(5, -5);
       ctx.lineTo(15, 5); ctx.lineTo(5, 15); ctx.fill();
     });
-    
+
     // 2. Humedad
     dibujarMetrica(panelY + boxH + boxGap, 'HUMEDAD', `${actual.humedad}`, '%', () => {
       ctx.fillStyle = 'rgba(100,180,255,0.8)';
@@ -2220,9 +2237,18 @@ function renderClimaCombinado(W, H) {
       ctx.bezierCurveTo(12, 10, 12, 0, 0, -10);
       ctx.fill();
     });
-    
-    // 3. Índice UV
-    dibujarMetrica(panelY + (boxH + boxGap) * 2, 'ÍNDICE UV', `${actual.uv}`, 'UVI', () => {
+
+    // 3. Visibilidad
+    const visibilidadNum = actual.visibilidadValor || 0;
+    dibujarMetrica(panelY + (boxH + boxGap) * 2, 'VISIBILIDAD', `${visibilidadNum}`, 'km', () => {
+      ctx.fillStyle = 'rgba(150,200,150,0.8)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // 4. Índice UV
+    dibujarMetrica(panelY + (boxH + boxGap) * 3, 'ÍNDICE UV', `${actual.uv}`, 'UVI', () => {
       ctx.fillStyle = '#fdb813';
       ctx.beginPath();
       ctx.arc(0, 0, 8, 0, Math.PI * 2);
