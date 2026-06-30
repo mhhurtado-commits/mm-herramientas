@@ -596,8 +596,10 @@ async function procesarImagenes(){
     bar.style.width='100%';
     if(!data.ok)throw new Error(data.error||'Error procesando');
     if(data.errores&&data.errores.length){
-      status.textContent='⚠ '+data.imagenes_procesadas+' procesada'+(data.imagenes_procesadas!==1?'s':'')+', '+data.errores.length+' error'+(data.errores.length!==1?'es':'');
+      const errMsg=data.errores.slice(0,3).join(' | ');
+      status.textContent='⚠ '+data.imagenes_procesadas+'/'+data.total_imagenes+' ok · '+errMsg;
       console.warn('Errores al procesar imágenes:',data.errores);
+      if(!data.imagenes_procesadas)throw new Error('Ninguna imagen pudo procesarse: '+errMsg);
     }
     if(data.texto){
       const existingTitulo=document.getElementById('ref-titulo-input').value.trim();

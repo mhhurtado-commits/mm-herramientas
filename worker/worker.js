@@ -3512,9 +3512,10 @@ async function handleProcesarImagenes(request, env) {
       return jsonError("No se recibieron imágenes", 400);
     }
     const VISION_MODELS = [
+      GEMINI_MODEL,
+      "gemini-3.5-flash",
       "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-2.0-flash-lite"
+      "gemini-1.5-flash"
     ];
     const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
     if (!keys.length) return jsonError("No hay API keys de Gemini configuradas", 500);
@@ -3524,7 +3525,10 @@ async function handleProcesarImagenes(request, env) {
     for (let i = 0; i < maxImages; i++) {
       const file = imageFiles[i];
       const buffer = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
+      const base64 = btoa(binary);
       const mimeType = file.type;
       const prompt = `Extraé TODO el texto e información visible de esta imagen periodística (placa, banner, flyer, afiche).
 Respondé SOLO con JSON sin backticks:
