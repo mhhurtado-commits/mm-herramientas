@@ -3517,7 +3517,7 @@ async function handleProcesarImagenes(request, env) {
       "gemini-2.0-flash",
       "gemini-1.5-flash"
     ];
-    const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+    const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5, env.GEMINI_API_KEY].filter(Boolean);
     if (!keys.length) return jsonError("No hay API keys de Gemini configuradas", 500);
     const maxImages = Math.min(imageFiles.length, 5);
     const results = [];
