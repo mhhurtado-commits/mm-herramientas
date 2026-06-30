@@ -123,9 +123,7 @@
 .imagen-preview-name{position:absolute;bottom:0;left:0;right:0;font-size:8px;background:rgba(0,0,0,.7);color:var(--white);padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .imagen-progress{width:100%;height:4px;background:var(--line2);border-radius:4px;overflow:hidden;margin-top:8px;display:none}
 .imagen-progress-bar{height:100%;background:var(--v);border-radius:4px;width:0%;transition:width .3s}
-.imagen-section-toggle{font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;border:1px dashed var(--line2);background:transparent;color:var(--dim);cursor:pointer;font-family:var(--font-body);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
-.imagen-section-toggle:hover{border-color:var(--v);color:var(--v);border-style:solid}
-.imagen-section-toggle.active{border-style:solid;background:rgba(166,206,57,0.08);border-color:var(--v);color:var(--v)}
+
 /* Fix: mantener tabs visibles al hacer scroll */
 .red-main {
   display: flex;
@@ -370,35 +368,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
   <!-- TAB REFORMULAR -->
   <div id="tab-reformular" class="red-tab-content" style="display:none">
-    <div style="margin-bottom:14px">
-      <button class="imagen-section-toggle" id="btn-toggle-imagenes" onclick="toggleImagenSection()">📷 Cargar imágenes (placas, banners, flyers)</button>
-    </div>
-    <div id="imagen-section" style="display:none;margin-bottom:14px">
-      <div class="red-panel">
-        <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none;font-size:12px">📷 Imágenes como fuente</div>
-        <div class="imagen-drop-zone" id="imagen-drop-zone" onclick="document.getElementById('imagen-file-input').click()">
-          <div class="imagen-drop-zone-icon">📤</div>
-          <div class="imagen-drop-zone-text">Arrastrá imágenes acá o <strong>hacé clic para seleccionar</strong></div>
-          <div class="imagen-drop-zone-text" style="font-size:10px;color:var(--dim)">Podés cargar 1 o más imágenes (JPG, PNG, WebP)</div>
-        </div>
-        <input type="file" id="imagen-file-input" accept="image/*" multiple style="display:none">
-        <div id="imagen-previews" class="imagen-previews"></div>
-        <div class="imagen-progress" id="imagen-progress"><div class="imagen-progress-bar" id="imagen-progress-bar"></div></div>
-        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
-          <button class="mm-btn mm-btn-primary" id="btn-procesar-imagenes" onclick="procesarImagenes()" disabled>
-            <span class="mm-spinner" id="spin-imagenes"></span>
-            <span id="btn-imagenes-text">Extraer texto de imágenes</span>
-          </button>
-          <span id="imagen-status" style="font-size:11px;color:var(--dim)"></span>
-        </div>
-      </div>
-    </div>
     <div class="red-grid">
       <div class="red-panel accent-red">
         <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">Nota original</div>
         <div class="mm-field"><label class="mm-label">Título del otro medio</label><input type="text" id="ref-titulo-input" class="mm-input" placeholder="Pegá el título original de la nota..."></div>
-        <div class="mm-field"><label class="mm-label">URL de la nota original (opcional)</label><div style="display:flex;gap:8px"><input type="url" id="ref-url-input" class="mm-input" placeholder="https://www.otromedio.com/nota/..."><button class="mm-btn mm-btn-sm" id="btn-scrape" onclick="scrapearNota()"><span class="mm-spinner" id="spin-scrape"></span><span id="btn-scrape-text">Obtener nota</span></button></div><div class="verify-status" id="scrape-status"></div></div>
-        <div class="mm-field"><label class="mm-label">Cuerpo de la nota original</label><textarea id="ref-cuerpo-input" class="mm-textarea" rows="8" placeholder="Pegá el cuerpo completo de la nota, o usá el botón 'Obtener nota' con la URL..."></textarea><div class="text-muted" style="font-size:10px;text-align:right;margin-top:2px" id="char-ref">0 caracteres</div></div>
+        <div class="divider" style="margin:6px 0"></div>
+        <div class="ref-section-label">Fuente de la nota</div>
+        <div class="red-subtabs" style="margin-bottom:12px">
+          <button class="red-subtab active" id="ref-fuente-url" onclick="switchRefFuente('url')">🔗 URL</button>
+          <button class="red-subtab" id="ref-fuente-img" onclick="switchRefFuente('img')">📷 Imágenes</button>
+        </div>
+        <div id="ref-fuente-url-section">
+          <div class="mm-field" style="margin-bottom:0"><label class="mm-label">URL de la nota original</label><div style="display:flex;gap:8px"><input type="url" id="ref-url-input" class="mm-input" placeholder="https://www.otromedio.com/nota/..."><button class="mm-btn mm-btn-sm" id="btn-scrape" onclick="scrapearNota()"><span class="mm-spinner" id="spin-scrape"></span><span id="btn-scrape-text">Obtener nota</span></button></div><div class="verify-status" id="scrape-status"></div></div>
+        </div>
+        <div id="ref-fuente-img-section" style="display:none">
+          <div class="imagen-drop-zone" id="imagen-drop-zone" onclick="document.getElementById('imagen-file-input').click()" style="padding:18px 16px">
+            <div class="imagen-drop-zone-icon" style="font-size:1.4rem">📤</div>
+            <div class="imagen-drop-zone-text" style="font-size:11px">Arrastrá imágenes acá o <strong>hacé clic para seleccionar</strong></div>
+            <div class="imagen-drop-zone-text" style="font-size:9px;color:var(--dim)">1 o más imágenes · JPG, PNG, WebP</div>
+          </div>
+          <input type="file" id="imagen-file-input" accept="image/*" multiple style="display:none">
+          <div id="imagen-previews" class="imagen-previews"></div>
+          <div class="imagen-progress" id="imagen-progress"><div class="imagen-progress-bar" id="imagen-progress-bar"></div></div>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+            <button class="mm-btn mm-btn-primary" id="btn-procesar-imagenes" onclick="procesarImagenes()" disabled style="font-size:11px;padding:7px 14px">
+              <span class="mm-spinner" id="spin-imagenes"></span>
+              <span id="btn-imagenes-text">Extraer texto</span>
+            </button>
+            <span id="imagen-status" style="font-size:10px;color:var(--dim)"></span>
+          </div>
+        </div>
+        <div class="divider" style="margin:10px 0"></div>
+        <div class="mm-field"><label class="mm-label">Cuerpo de la nota original</label><textarea id="ref-cuerpo-input" class="mm-textarea" rows="8" placeholder="Pegá el cuerpo completo de la nota, obtenelo por URL o extraelo de imágenes..."></textarea><div class="text-muted" style="font-size:10px;text-align:right;margin-top:2px" id="char-ref">0 caracteres</div></div>
         <div class="mm-field"><label class="mm-label">Contexto adicional (opcional)</label><textarea id="txt-contexto-r" class="mm-textarea" rows="3" placeholder="Datos extra, antecedentes, nombres, cifras para completar la nota con más información..."></textarea></div>
         <div class="mm-field"><label class="mm-label">Estilo</label><select id="ref-estilo" class="mm-select"><option value="formal">Periodístico formal</option><option value="directo">Directo y conciso</option><option value="ampliado">Con contexto ampliado</option><option value="breaking">Urgente / breaking news</option><option value="cronica">Crónica narrativa</option><option value="deportes">🏅 Deportes</option><option value="espectaculos">🎬 Espectáculos / Cultura</option><option value="redes">Optimizado para redes sociales</option><option value="institucional">Comunicado institucional</option></select></div>
         <button class="mm-btn mm-btn-danger" id="btn-reformular" onclick="reformularNota()" style="background:var(--red);color:var(--white);box-shadow:none"><span class="mm-spinner" id="spin-reformular"></span><span id="btn-reformular-text">Reformular para Media Mendoza</span></button>
@@ -508,17 +509,17 @@ function cargarNotaGuardada(n){window._imagenActual=n.imagen||'';window._notaAct
 function pedirLimpiarReformular(){if(window._notaActual&&window._notaActual.titular){document.getElementById('modal-limpiar').classList.add('open');}else{limpiarReformularReal();}}
 async function guardarYLimpiar(){document.getElementById('modal-limpiar').classList.remove('open');await guardarNotaActual();limpiarReformularReal();}
 function soloLimpiar(){document.getElementById('modal-limpiar').classList.remove('open');limpiarReformularReal();}
-function limpiarReformularReal(){['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value='');document.getElementById('char-ref').textContent='0 caracteres';document.getElementById('results-reformular').innerHTML=placeholderReformular();document.getElementById('badge-reformulada').style.display='none';document.getElementById('btn-limpiar-r').style.display='none';const st=document.getElementById('scrape-status');if(st){st.className='scrape-status';st.textContent='';}const imgSec=document.getElementById('scrape-imagen-section');if(imgSec)imgSec.classList.remove('show');window._notaActual=null;window._imagenActual='';imagenesSeleccionadas=[];renderImagenPreviews();}
+function limpiarReformularReal(){['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value='');switchRefFuente('url');document.getElementById('char-ref').textContent='0 caracteres';document.getElementById('results-reformular').innerHTML=placeholderReformular();document.getElementById('badge-reformulada').style.display='none';document.getElementById('btn-limpiar-r').style.display='none';const st=document.getElementById('scrape-status');if(st){st.className='scrape-status';st.textContent='';}const imgSec=document.getElementById('scrape-imagen-section');if(imgSec)imgSec.classList.remove('show');window._notaActual=null;window._imagenActual='';imagenesSeleccionadas=[];renderImagenPreviews();}
 cargarEditorial();
 
 // ── Manejo de imágenes (placas, banners, flyers) ──
 let imagenesSeleccionadas=[];
 
-function toggleImagenSection(){
-  const sec=document.getElementById('imagen-section');
-  const btn=document.getElementById('btn-toggle-imagenes');
-  sec.style.display=sec.style.display==='none'?'block':'none';
-  btn.classList.toggle('active');
+function switchRefFuente(modo){
+  document.getElementById('ref-fuente-url-section').style.display=modo==='url'?'block':'none';
+  document.getElementById('ref-fuente-img-section').style.display=modo==='img'?'block':'none';
+  document.getElementById('ref-fuente-url').classList.toggle('active',modo==='url');
+  document.getElementById('ref-fuente-img').classList.toggle('active',modo==='img');
 }
 
 document.getElementById('imagen-file-input').addEventListener('change',function(e){
