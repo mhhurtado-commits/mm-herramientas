@@ -110,6 +110,22 @@
 .modal-confirm-desc{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6}
 .modal-confirm-actions{display:flex;gap:8px;justify-content:center}
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.imagen-drop-zone{border:2px dashed var(--line2);border-radius:var(--radius-xl);padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);display:flex;flex-direction:column;align-items:center;gap:8px}
+.imagen-drop-zone:hover{border-color:var(--v);background:rgba(166,206,57,0.04)}
+.imagen-drop-zone.dragover{border-color:var(--v);background:rgba(166,206,57,0.1);transform:scale(1.01)}
+.imagen-drop-zone-icon{font-size:2rem}
+.imagen-drop-zone-text{font-size:12px;color:var(--muted);line-height:1.5}
+.imagen-drop-zone-text strong{color:var(--v);cursor:pointer}
+.imagen-previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.imagen-preview{position:relative;width:100px;height:100px;border-radius:var(--radius);overflow:hidden;border:2px solid var(--line2);background:var(--surface2);flex-shrink:0;animation:fadeIn .2s ease}
+.imagen-preview img{width:100%;height:100%;object-fit:cover}
+.imagen-preview-remove{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);color:var(--white);border:none;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:2}
+.imagen-preview-name{position:absolute;bottom:0;left:0;right:0;font-size:8px;background:rgba(0,0,0,.7);color:var(--white);padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.imagen-progress{width:100%;height:4px;background:var(--line2);border-radius:4px;overflow:hidden;margin-top:8px;display:none}
+.imagen-progress-bar{height:100%;background:var(--v);border-radius:4px;width:0%;transition:width .3s}
+.imagen-section-toggle{font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;border:1px dashed var(--line2);background:transparent;color:var(--dim);cursor:pointer;font-family:var(--font-body);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.imagen-section-toggle:hover{border-color:var(--v);color:var(--v);border-style:solid}
+.imagen-section-toggle.active{border-style:solid;background:rgba(166,206,57,0.08);border-color:var(--v);color:var(--v)}
 /* Fix: mantener tabs visibles al hacer scroll */
 .red-main {
   display: flex;
@@ -354,6 +370,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   <!-- TAB REFORMULAR -->
   <div id="tab-reformular" class="red-tab-content" style="display:none">
+    <div style="margin-bottom:14px">
+      <button class="imagen-section-toggle" id="btn-toggle-imagenes" onclick="toggleImagenSection()">📷 Cargar imágenes (placas, banners, flyers)</button>
+    </div>
+    <div id="imagen-section" style="display:none;margin-bottom:14px">
+      <div class="red-panel">
+        <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none;font-size:12px">📷 Imágenes como fuente</div>
+        <div class="imagen-drop-zone" id="imagen-drop-zone" onclick="document.getElementById('imagen-file-input').click()">
+          <div class="imagen-drop-zone-icon">📤</div>
+          <div class="imagen-drop-zone-text">Arrastrá imágenes acá o <strong>hacé clic para seleccionar</strong></div>
+          <div class="imagen-drop-zone-text" style="font-size:10px;color:var(--dim)">Podés cargar 1 o más imágenes (JPG, PNG, WebP)</div>
+        </div>
+        <input type="file" id="imagen-file-input" accept="image/*" multiple style="display:none">
+        <div id="imagen-previews" class="imagen-previews"></div>
+        <div class="imagen-progress" id="imagen-progress"><div class="imagen-progress-bar" id="imagen-progress-bar"></div></div>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+          <button class="mm-btn mm-btn-primary" id="btn-procesar-imagenes" onclick="procesarImagenes()" disabled>
+            <span class="mm-spinner" id="spin-imagenes"></span>
+            <span id="btn-imagenes-text">Extraer texto de imágenes</span>
+          </button>
+          <span id="imagen-status" style="font-size:11px;color:var(--dim)"></span>
+        </div>
+      </div>
+    </div>
     <div class="red-grid">
       <div class="red-panel accent-red">
         <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">Nota original</div>
@@ -469,8 +508,114 @@ function cargarNotaGuardada(n){window._imagenActual=n.imagen||'';window._notaAct
 function pedirLimpiarReformular(){if(window._notaActual&&window._notaActual.titular){document.getElementById('modal-limpiar').classList.add('open');}else{limpiarReformularReal();}}
 async function guardarYLimpiar(){document.getElementById('modal-limpiar').classList.remove('open');await guardarNotaActual();limpiarReformularReal();}
 function soloLimpiar(){document.getElementById('modal-limpiar').classList.remove('open');limpiarReformularReal();}
-function limpiarReformularReal(){['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value='');document.getElementById('char-ref').textContent='0 caracteres';document.getElementById('results-reformular').innerHTML=placeholderReformular();document.getElementById('badge-reformulada').style.display='none';document.getElementById('btn-limpiar-r').style.display='none';const st=document.getElementById('scrape-status');if(st){st.className='scrape-status';st.textContent='';}const imgSec=document.getElementById('scrape-imagen-section');if(imgSec)imgSec.classList.remove('show');window._notaActual=null;window._imagenActual='';}
+function limpiarReformularReal(){['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value='');document.getElementById('char-ref').textContent='0 caracteres';document.getElementById('results-reformular').innerHTML=placeholderReformular();document.getElementById('badge-reformulada').style.display='none';document.getElementById('btn-limpiar-r').style.display='none';const st=document.getElementById('scrape-status');if(st){st.className='scrape-status';st.textContent='';}const imgSec=document.getElementById('scrape-imagen-section');if(imgSec)imgSec.classList.remove('show');window._notaActual=null;window._imagenActual='';imagenesSeleccionadas=[];renderImagenPreviews();}
 cargarEditorial();
+
+// ── Manejo de imágenes (placas, banners, flyers) ──
+let imagenesSeleccionadas=[];
+
+function toggleImagenSection(){
+  const sec=document.getElementById('imagen-section');
+  const btn=document.getElementById('btn-toggle-imagenes');
+  sec.style.display=sec.style.display==='none'?'block':'none';
+  btn.classList.toggle('active');
+}
+
+document.getElementById('imagen-file-input').addEventListener('change',function(e){
+  const files=Array.from(e.target.files||[]);
+  agregarImagenes(files);
+});
+
+const dropZone=document.getElementById('imagen-drop-zone');
+dropZone.addEventListener('dragover',function(e){e.preventDefault();this.classList.add('dragover');});
+dropZone.addEventListener('dragleave',function(e){e.preventDefault();this.classList.remove('dragover');});
+dropZone.addEventListener('drop',function(e){e.preventDefault();this.classList.remove('dragover');const files=Array.from(e.dataTransfer.files||[]).filter(f=>f.type.startsWith('image/'));agregarImagenes(files);});
+
+function agregarImagenes(files){
+  if(!files.length)return;
+  for(const file of files){
+    if(file.size>10*1024*1024){showToast('⚠ '+file.name+' supera 10MB');continue;}
+    imagenesSeleccionadas.push(file);
+  }
+  renderImagenPreviews();
+}
+
+function eliminarImagen(idx){
+  imagenesSeleccionadas.splice(idx,1);
+  renderImagenPreviews();
+}
+
+function renderImagenPreviews(){
+  const container=document.getElementById('imagen-previews');
+  const btn=document.getElementById('btn-procesar-imagenes');
+  const status=document.getElementById('imagen-status');
+  container.innerHTML='';
+  if(!imagenesSeleccionadas.length){
+    btn.disabled=true;
+    status.textContent='';
+    return;
+  }
+  btn.disabled=false;
+  status.textContent=imagenesSeleccionadas.length+' imagen'+(imagenesSeleccionadas.length!==1?'es':'')+' seleccionada'+(imagenesSeleccionadas.length!==1?'s':'');
+  imagenesSeleccionadas.forEach((file,i)=>{
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const div=document.createElement('div');
+      div.className='imagen-preview';
+      div.innerHTML='<button class="imagen-preview-remove" onclick="eliminarImagen('+i+')">✕</button><img src="'+e.target.result+'" alt="'+esc(file.name)+'"><div class="imagen-preview-name">'+esc(file.name)+'</div>';
+      container.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function procesarImagenes(){
+  if(!imagenesSeleccionadas.length){showToast('⚠ Seleccioná al menos una imagen');return;}
+  const btn=document.getElementById('btn-procesar-imagenes');
+  const spin=document.getElementById('spin-imagenes');
+  const txt=document.getElementById('btn-imagenes-text');
+  const progress=document.getElementById('imagen-progress');
+  const bar=document.getElementById('imagen-progress-bar');
+  const status=document.getElementById('imagen-status');
+  btn.disabled=true;
+  spin.style.display='inline-block';
+  txt.textContent='Procesando...';
+  progress.style.display='block';
+  bar.style.width='0%';
+  status.textContent='Enviando imágenes...';
+  try{
+    const formData=new FormData();
+    for(const file of imagenesSeleccionadas){
+      formData.append('imagenes',file);
+    }
+    bar.style.width='30%';
+    const res=await fetch(WORKER+'/procesar-imagenes',{method:'POST',body:formData});
+    bar.style.width='80%';
+    if(!res.ok){const e=await res.json();throw new Error(e.error||'Error del servidor');}
+    const data=await res.json();
+    bar.style.width='100%';
+    if(!data.ok)throw new Error(data.error||'Error procesando');
+    if(data.texto){
+      const existingTitulo=document.getElementById('ref-titulo-input').value.trim();
+      const existingCuerpo=document.getElementById('ref-cuerpo-input').value.trim();
+      if(!existingTitulo&&data.titulo)document.getElementById('ref-titulo-input').value=data.titulo;
+      if(existingCuerpo)document.getElementById('ref-cuerpo-input').value=existingCuerpo+'\n\n---\n\n'+data.texto;
+      else document.getElementById('ref-cuerpo-input').value=data.texto;
+      document.getElementById('char-ref').textContent=document.getElementById('ref-cuerpo-input').value.length+' caracteres';
+    }
+    status.textContent='✓ '+data.imagenes_procesadas+' imagen'+(data.imagenes_procesadas!==1?'es':'')+' procesada'+(data.imagenes_procesadas!==1?'s':'');
+    showToast('✓ Texto extraído de '+data.imagenes_procesadas+' imagen'+(data.imagenes_procesadas!==1?'es':''));
+  }catch(err){
+    status.textContent='✗ '+err.message;
+    showToast('✗ '+err.message);
+  }finally{
+    setTimeout(()=>{progress.style.display='none';bar.style.width='0%';},1500);
+    btn.disabled=false;
+    spin.style.display='none';
+    txt.textContent='Extraer texto de imágenes';
+  }
+}
+
 </script>
 <!-- TOGGLE CLARO/OSCURO -->
 <div class="theme-toggle" id="themeToggle">

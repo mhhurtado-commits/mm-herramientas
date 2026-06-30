@@ -3496,6 +3496,73 @@ async function handlePlacasAI(request,env,body){
 }
 
 // ============================================================
+// PROCESAR IMÁGENES (placas, banners, flyers) con Gemini Vision
+// ============================================================
+
+async function handleProcesarImagenes(request, env) {
+  try {
+    const formData = await request.formData();
+    const imageFiles = [];
+    for (const [, value] of formData.entries()) {
+      if (value instanceof File && value.type && value.type.startsWith('image/')) {
+        imageFiles.push(value);
+      }
+    }
+    if (imageFiles.length === 0) {
+      return jsonError("No se recibieron imágenes", 400);
+    }
+    const VISION_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+    const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+    if (!keys.length) return jsonError("No hay API keys de Gemini configuradas", 500);
+    const maxImages = Math.min(imageFiles.length, 5);
+    const results = [];
+    for (let i = 0; i < maxImages; i++) {
+      const file = imageFiles[i];
+      const buffer = await file.arrayBuffer();
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      for (let j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
+      const base64 = btoa(binary);
+      const mimeType = file.type;
+      const prompt = `Extraé TODO el texto e información visible de esta imagen periodística (placa, banner, flyer, afiche).
+Respondé SOLO con JSON sin backticks:
+{"texto_extraido": "todo el texto que se ve en la imagen", "descripcion": "qué tipo de imagen es y qué información contiene"}`;
+      const payload = { contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 1024 } };
+      for (const key of keys) {
+        try {
+          const res = await fetch(`${VISION_URL}?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          if (res.ok) {
+            const data = await res.json();
+            const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const match = raw.match(/\{[\s\S]*\}/);
+            if (match) { try { const p = JSON.parse(match[0]); results.push(p); } catch(e) { results.push({ texto_extraido: raw.substring(0, 2000), descripcion: '' }); } }
+            else { results.push({ texto_extraido: raw.substring(0, 2000), descripcion: '' }); }
+            break;
+          } else if (res.status === 429) { await sleep(2000); continue; }
+          else break;
+        } catch(e) { continue; }
+      }
+    }
+    const textos = results.map(r => r.texto_extraido).filter(Boolean);
+    const descripciones = results.map(r => r.descripcion).filter(Boolean);
+    let textoCombinado = textos.join('\n\n---\n\n');
+    let tituloSugerido = '';
+    if (textoCombinado.length > 30) {
+      const tPrompt = `Basado en este texto de una imagen, generá un título corto para nota periodística (máx 10 palabras):\n"""\n${textoCombinado.substring(0, 600)}\n"""\nRespondé SOLO con el título, sin comillas ni JSON.`;
+      for (const key of keys) {
+        try {
+          const res = await fetch(`${GEMINI_URL}?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: tPrompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 50 } }) });
+          if (res.ok) { const d = await res.json(); tituloSugerido = (d?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().replace(/^["']|["']$/g, ''); break; }
+        } catch(e) { continue; }
+      }
+    }
+    return jsonOk({ imagenes_procesadas: results.length, total_imagenes: imageFiles.length, titulo: tituloSugerido, texto: textoCombinado, descripcion: descripciones.join('; ') });
+  } catch (err) {
+    return jsonError("Error procesando imágenes: " + err.message, 500);
+  }
+}
+
+// ============================================================
 // EDITORIAL / FUENTES / NOTAS / CUBIERTAS
 // ============================================================
 
@@ -4556,6 +4623,9 @@ export default {
     }
     if (path === "/api/transcribe") {
       return handleStudioTranscribir(request, env);
+    }
+    if (path === "/procesar-imagenes") {
+      return handleProcesarImagenes(request, env);
     }
 
     // ============================================================
