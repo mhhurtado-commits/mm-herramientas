@@ -1292,588 +1292,358 @@ function renderClima(W, H) {
     // Usar la visualización combinada que muestra actual + evolución diaria
     renderClimaCombinado(W, H);
   } else if (climaTipoPlaca === 'diario') {
-    // Mostrar solo evolución diaria (como estaba previamente)
     if (!climaData) {
       ctx.fillStyle = '#1a1a1a';
       ctx.fillRect(0, 0, W, H);
-      
       ctx.fillStyle = '#a6ce39';
       ctx.font = 'bold 24px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Cargando clima...', W / 2, H / 2);
-      
       ctx.fillStyle = '#888';
       ctx.font = '16px Inter, sans-serif';
       ctx.fillText('Seleccioná una ciudad y hacé clic en "Actualizar"', W / 2, H / 2 + 30);
       return;
     }
-    
-    const { actual, ciudad, diario } = climaData;
 
-    // FONDO DINÁMICO basado en clima y hora del día
+    const { actual, ciudad, diario } = climaData;
     paintFullClimateBackground(ctx, W, H, actual);
 
-    // --- CABECERA (HEADER) ---
-    const headerH = Math.round(H * 0.12);
-    const bandaGrad = ctx.createLinearGradient(0, 0, 0, headerH);
-    bandaGrad.addColorStop(0, '#8fb82d');
-    bandaGrad.addColorStop(0.5, '#a6ce39');
-    bandaGrad.addColorStop(1, '#c8e87a');
-    ctx.fillStyle = bandaGrad;
-    ctx.fillRect(0, 0, W, headerH);
+    const pad = Math.round(Math.min(W, H) * 0.035);
+    const accentH = Math.max(4, Math.round(H * 0.005));
 
-    // Sombra sutil bajo el header
-    const headerShadow = ctx.createLinearGradient(0, headerH, 0, headerH + 8);
-    headerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
-    headerShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = headerShadow;
-    ctx.fillRect(0, headerH, W, 8);
-
-    // Logo del diario (centrado verticalmente en el header)
+    // Header
+    ctx.fillStyle = '#a6ce39';
+    ctx.fillRect(0, 0, W, accentH);
+    const headerH = Math.round(H * 0.095);
     if (S.logoImg && ELS.logo && ELS.logo.visible) {
       const logo = ELS.logo;
-      const logoW = logo.w || Math.round(W * 0.2);
+      const logoW = logo.w || Math.round(W * 0.18);
       const logoH = logo.h || Math.round(logoW * (S.logoImg.height / S.logoImg.width));
-      const logoX = logo.x !== null ? logo.x : 25;
-      const logoY = logo.y !== null ? logo.y : (headerH - logoH) / 2;
+      const logoX = logo.x !== null ? logo.x : pad;
+      const logoY = logo.y !== null ? logo.y : accentH + Math.round((headerH - accentH - logoH) / 2);
       ctx.drawImage(S.logoImg, logoX, logoY, logoW, logoH);
     }
-    
-    // Textos del Header
-    const rightPad = 25;
     ctx.textAlign = 'right';
-    
-    // Ciudad
-    ctx.fillStyle = '#1a1a1a';
-    ctx.font = 'bold 36px BebasNeue, sans-serif';
-    ctx.shadowColor = 'rgba(255,255,255,0.3)';
-    ctx.shadowBlur = 2;
-    const cityY = headerH * 0.45;
-    ctx.fillText(ciudad.toUpperCase(), W - rightPad, cityY);
-    ctx.shadowBlur = 0;
-    
-    // Fecha y Actualización en una sola línea
     const hoy = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
     const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-    
-    ctx.font = 'bold 15px Inter, sans-serif';
+    const dateStr = (hoy.charAt(0).toUpperCase() + hoy.slice(1));
+    ctx.font = 'bold 34px BebasNeue, sans-serif';
     ctx.fillStyle = '#ffffff';
-    const dateStr = (hoy.charAt(0).toUpperCase() + hoy.slice(1)) + ` | Actualizado: ${hora}`;
-    ctx.fillText(dateStr, W - rightPad, headerH * 0.75);
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(ciudad.toUpperCase(), W - pad, accentH + Math.round(headerH * 0.52));
+    ctx.shadowBlur = 0;
+    ctx.font = '500 13px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText(dateStr + ' | ' + hora, W - pad, accentH + Math.round(headerH * 0.82));
 
-    // --- CONTENIDO PRINCIPAL (Evolución Diaria) ---
-    const padding = 25;
-    const mainY = headerH + padding;
-    const mainH = H - headerH - padding * 2;
-    
-    const mainGlass = ctx.createLinearGradient(0, mainY, 0, mainY + mainH);
-    mainGlass.addColorStop(0, 'rgba(0, 0, 0, 0.18)');
-    mainGlass.addColorStop(0.5, 'rgba(0, 0, 0, 0.30)');
-    mainGlass.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
-    ctx.fillStyle = mainGlass;
-    ctx.beginPath();
-    ctx.roundRect(padding, mainY, W - padding * 2, mainH, 20);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(padding, mainY, W - padding * 2, mainH, 20);
-    ctx.stroke();
-    
-    ctx.font = 'bold 24px BebasNeue, sans-serif';
+    // Main content: 4 period cards
+    const mainY = headerH + Math.round(H * 0.04);
+    const mainH = H - mainY - (climaAlerta && climaAlerta.trim() ? Math.round(H * 0.09) : Math.round(H * 0.025));
+
+    ctx.font = `bold ${Math.round(H * 0.026)}px BebasNeue, sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#a6ce39';
-    ctx.fillText('EVOLUCIÓN DIARIA', W / 2, mainY + 40);
-    
-    const periodoWidth = (W - padding * 2 - 20) / 4; // 4 periodos
-    const itemsY = mainY + (mainH / 2) + 15;
-    
-    // Mostrar los 4 periodos del día
+    ctx.letterSpacing = '3px';
+    ctx.fillText('EVOLUCIÓN DIARIA', W / 2, mainY + Math.round(H * 0.04));
+    ctx.letterSpacing = '0';
+
+    const periodW = Math.round((W - pad * 2) / 4);
+    const itemsY = mainY + Math.round(H * 0.08);
+
     diario.forEach((periodo, i) => {
-      const centerX = padding + i * periodoWidth + periodoWidth / 2 + 5;
+      const cx = pad + i * periodW + periodW / 2;
+      const cy = itemsY;
+
+      ctx.font = `bold ${Math.round(H * 0.02)}px Inter, sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
       ctx.textAlign = 'center';
-      
-      ctx.font = 'bold 18px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.fillText(periodo.nombre.toUpperCase(), centerX, itemsY - 60);
-      
-      dibujarIconoClima(ctx, centerX, itemsY - 20, 55, periodo.tipo);
-      
-      ctx.font = 'bold 32px BebasNeue, sans-serif';
+      ctx.fillText(periodo.nombre.toUpperCase(), cx, cy);
+
+      dibujarIconoClima(ctx, cx, cy + Math.round(H * 0.1), Math.round(H * 0.09), periodo.tipo);
+
+      ctx.font = `bold ${Math.round(H * 0.048)}px BebasNeue, sans-serif`;
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(`${periodo.temp}°`, centerX, itemsY + 25);
-      
+      ctx.fillText(`${periodo.temp}°`, cx, cy + Math.round(H * 0.22));
+
       if (periodo.probLluvia > 0) {
+        ctx.font = `${Math.round(H * 0.016)}px Inter, sans-serif`;
         ctx.fillStyle = '#60A5FA';
-        ctx.font = 'bold 14px Inter, sans-serif';
-        ctx.fillText(`💧 ${periodo.probLluvia}%`, centerX, itemsY + 45);
+        ctx.fillText(`${periodo.probLluvia}%`, cx, cy + Math.round(H * 0.28));
       }
     });
-    
-    // Alerta mejorada - MÁS GRANDE
+
+    // Alert
     if (climaAlerta && climaAlerta.trim()) {
-      const alertaW = W - 50;
-      const alertaH = 70;
-      const alertaY = H - alertaH - 10;
-      const padding = 22;
-
-      // Sombra de la alerta (más pronunciada)
-      ctx.shadowColor = 'rgba(220, 53, 69, 0.7)';
-      ctx.shadowBlur = 20;
-      ctx.shadowOffsetY = 6;
-
-      // Fondo rojo brillante con gradiente
-      const alertaGrad = ctx.createLinearGradient(25, alertaY, 25, alertaY + alertaH);
+      const alertaH = Math.round(H * 0.07);
+      const alertaY = H - alertaH - Math.round(H * 0.015);
+      const alertaPad = Math.round(H * 0.02);
+      ctx.save();
+      ctx.shadowColor = 'rgba(220, 53, 69, 0.6)';
+      ctx.shadowBlur = 15;
+      ctx.shadowOffsetY = 4;
+      const alertaGrad = ctx.createLinearGradient(pad, alertaY, pad, alertaY + alertaH);
       alertaGrad.addColorStop(0, '#DC3545');
       alertaGrad.addColorStop(0.5, '#E63946');
       alertaGrad.addColorStop(1, '#DC3545');
       ctx.fillStyle = alertaGrad;
       ctx.beginPath();
-      ctx.roundRect(25, alertaY, alertaW, alertaH, 14);
+      ctx.roundRect(pad, alertaY, W - pad * 2, alertaH, 10);
       ctx.fill();
-
-      // Borde blanco brillante
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-
-      // Icono de advertencia (más grande)
-      const iconX = 25 + padding + 22;
-      const iconY = alertaY + alertaH / 2;
-
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 32px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('⚠️', iconX, iconY + 10);
-
-      // Texto de la alerta (más grande)
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 22px Inter, sans-serif';
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
       ctx.textAlign = 'left';
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-      ctx.shadowBlur = 4;
-      let alertaTexto = climaAlerta.toUpperCase();
-
-      // Calcular el ancho disponible para el texto
-      const textoX = iconX + 40;
-      const maxTextoAncho = alertaW - (textoX - 25) - padding;
-
-      // Ajustar tamaño de fuente si el texto es largo
-      let fontSize = 22;
-      ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-      while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 14) {
-        fontSize--;
-        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-      }
-
-      ctx.fillText(alertaTexto, textoX, iconY + 8);
+      ctx.font = `bold ${Math.round(H * 0.02)}px Inter, sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 3;
+      const alertaTexto = climaAlerta.toUpperCase();
+      const maxW = (W - pad * 2) - alertaPad * 2;
+      let fs = Math.round(H * 0.02);
+      ctx.font = `bold ${fs}px Inter, sans-serif`;
+      while (ctx.measureText(alertaTexto).width > maxW && fs > Math.round(H * 0.014)) { fs--; ctx.font = `bold ${fs}px Inter, sans-serif`; }
+      ctx.fillText('⚠️  ' + alertaTexto, pad + alertaPad, alertaY + Math.round(alertaH * 0.62));
       ctx.shadowBlur = 0;
     }
   } else {
-    // Mantener la funcionalidad original para 'extendido' (pronóstico 5 días)
     if (!climaData) {
-      // Mostrar mensaje para cargar datos
       ctx.fillStyle = '#1a1a1a';
       ctx.fillRect(0, 0, W, H);
-      
       ctx.fillStyle = '#a6ce39';
       ctx.font = 'bold 24px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Cargando clima...', W / 2, H / 2);
-      
       ctx.fillStyle = '#888';
       ctx.font = '16px Inter, sans-serif';
       ctx.fillText('Seleccioná una ciudad y hacé clic en "Actualizar"', W / 2, H / 2 + 30);
       return;
     }
-    
-    const { actual, pronostico, ciudad } = climaData;
 
-    // FONDO DINÁMICO basado en clima y hora del día
+    const { actual, pronostico, ciudad } = climaData;
     paintFullClimateBackground(ctx, W, H, actual);
 
-    // --- SECCIONES PROPORCIONALES ---
-    const headerH = Math.round(H * 0.12);
-    const footerH = Math.round(H * 0.35);
-    const mainY = headerH;
-    const mainH = H - headerH - footerH;
+    const pad = Math.round(Math.min(W, H) * 0.035);
+    const accentH = Math.max(4, Math.round(H * 0.005));
 
-    // --- 1. CABECERA (HEADER) ---
-    const bandaGrad = ctx.createLinearGradient(0, 0, 0, headerH);
-    bandaGrad.addColorStop(0, '#8fb82d');
-    bandaGrad.addColorStop(0.5, '#a6ce39');
-    bandaGrad.addColorStop(1, '#c8e87a');
-    ctx.fillStyle = bandaGrad;
-    ctx.fillRect(0, 0, W, headerH);
-
-    // Sombra sutil bajo el header
-    const headerShadow = ctx.createLinearGradient(0, headerH, 0, headerH + 8);
-    headerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
-    headerShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = headerShadow;
-    ctx.fillRect(0, headerH, W, 8);
-
-    // Logo del diario (centrado verticalmente en el header)
+    // Header
+    ctx.fillStyle = '#a6ce39';
+    ctx.fillRect(0, 0, W, accentH);
+    const headerH = Math.round(H * 0.095);
     if (S.logoImg && ELS.logo && ELS.logo.visible) {
       const logo = ELS.logo;
-      const logoW = logo.w || Math.round(W * 0.2);
+      const logoW = logo.w || Math.round(W * 0.18);
       const logoH = logo.h || Math.round(logoW * (S.logoImg.height / S.logoImg.width));
-      const logoX = logo.x !== null ? logo.x : 25;
-      const logoY = logo.y !== null ? logo.y : (headerH - logoH) / 2;
+      const logoX = logo.x !== null ? logo.x : pad;
+      const logoY = logo.y !== null ? logo.y : accentH + Math.round((headerH - accentH - logoH) / 2);
       ctx.drawImage(S.logoImg, logoX, logoY, logoW, logoH);
     }
-    
-    // Textos del Header
-    const rightPad = 25;
     ctx.textAlign = 'right';
-    
-    // Ciudad
-    ctx.fillStyle = '#1a1a1a';
-    ctx.font = 'bold 36px BebasNeue, sans-serif';
-    ctx.shadowColor = 'rgba(255,255,255,0.3)';
-    ctx.shadowBlur = 2;
-    const cityY = headerH * 0.45;
-    ctx.fillText(ciudad.toUpperCase(), W - rightPad, cityY);
-    ctx.shadowBlur = 0;
-    
-    // Fecha y Actualización en una sola línea
     const hoy = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
     const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-    
-    ctx.font = 'bold 15px Inter, sans-serif';
+    const dateStr = (hoy.charAt(0).toUpperCase() + hoy.slice(1));
+    ctx.font = 'bold 34px BebasNeue, sans-serif';
     ctx.fillStyle = '#ffffff';
-    const dateStr = (hoy.charAt(0).toUpperCase() + hoy.slice(1)) + ` | Actualizado: ${hora}`;
-    ctx.fillText(dateStr, W - rightPad, headerH * 0.75);
-
-    // --- 2. CONTENIDO PRINCIPAL ---
-    const padding = 25;
-    const panelW = (W - padding * 3) / 2; // Dos columnas
-    const leftX = padding;
-    const rightX = leftX + panelW + padding;
-    const panelY = mainY + 20;
-    const panelH = mainH - 40;
-
-    // TARJETA IZQUIERDA (Clima Actual) - Fondo procedimental
-    paintClimateCardBackdrop(ctx, leftX, panelY, panelW, panelH, actual);
-    
-    const centerX = leftX + panelW / 2;
-    
-    // Distribuir elementos verticalmente
-    const iconY = panelY + panelH * 0.28;
-    const tempY = panelY + panelH * 0.60;
-    
-    dibujarIconoClima(ctx, centerX, iconY, 110, actual.tipo);
-    
-    ctx.font = 'bold 120px BebasNeue, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 10;
-    ctx.fillText(`${actual.temp}°`, centerX, tempY);
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(ciudad.toUpperCase(), W - pad, accentH + Math.round(headerH * 0.52));
     ctx.shadowBlur = 0;
-    
-    ctx.font = 'bold 26px BebasNeue, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.letterSpacing = '1px';
-    ctx.fillText(actual.descripcion.toUpperCase(), centerX, tempY + 55);
-    ctx.letterSpacing = '0';
-    
-    const sensacion = actual.temp - Math.round(actual.viento / 10);
-    ctx.font = 'bold 16px Inter, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.fillText(`Sensación térmica: ${sensacion}°`, centerX, tempY + 85);
-    
-    // Alerta mejorada - MÁS GRANDE
-    if (climaAlerta && climaAlerta.trim()) {
-      const alertaW = panelW - 30;
-      const alertaH = 65;
-      const alertaY = panelY + panelH - alertaH - 18;
-      const padding = 18;
+    ctx.font = '500 13px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText(dateStr + ' | ' + hora, W - pad, accentH + Math.round(headerH * 0.82));
 
-      // Sombra de la alerta (más pronunciada)
-      ctx.shadowColor = 'rgba(220, 53, 69, 0.7)';
-      ctx.shadowBlur = 20;
-      ctx.shadowOffsetY = 6;
+    // Hero section
+    const heroY = headerH + Math.round(H * 0.025);
+    const heroH = Math.round(H * 0.28);
+    const iconSize = Math.round(Math.min(W, H) * 0.14);
+    const iconX = Math.round(W / 2);
+    const iconY = heroY + Math.round(heroH * 0.3);
+    dibujarIconoClima(ctx, iconX, iconY, iconSize, actual.tipo);
 
-      // Fondo rojo brillante con gradiente
-      const alertaGrad = ctx.createLinearGradient(centerX - alertaW/2, alertaY, centerX - alertaW/2, alertaY + alertaH);
-      alertaGrad.addColorStop(0, '#DC3545');
-      alertaGrad.addColorStop(0.5, '#E63946');
-      alertaGrad.addColorStop(1, '#DC3545');
-      ctx.fillStyle = alertaGrad;
+    const tempSize = Math.round(Math.min(W, H) * 0.15);
+    ctx.font = `bold ${tempSize}px BebasNeue, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 12;
+    const tempY = iconY + Math.round(iconSize * 0.65);
+    ctx.fillText(`${actual.temp}°`, iconX, tempY);
+    ctx.shadowBlur = 0;
+
+    const sensacion = actual.sensacionTermica !== undefined ? actual.sensacionTermica : actual.temp - Math.round(actual.viento / 10);
+    ctx.font = `${Math.round(H * 0.016)}px Inter, sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText(`Sensación térmica ${sensacion}°`, iconX, tempY + Math.round(H * 0.04));
+
+    // Metrics row
+    const metricsY = heroY + heroH + Math.round(H * 0.015);
+    const metricsH = Math.round(H * 0.12);
+    const cardGap = Math.round(W * 0.015);
+    const cardW = Math.round((W - pad * 2 - cardGap * 3) / 4);
+
+    const metricas = [
+      { label: 'VIENTO', value: `${actual.viento}`, unit: ' km/h', icon: (c, x, y) => {
+        c.fillStyle = 'rgba(200, 220, 255, 0.9)';
+        c.beginPath(); c.moveTo(x-10, y+4); c.lineTo(x+10, y+4); c.lineTo(x+3, y-4);
+        c.lineTo(x+10, y+4); c.lineTo(x+3, y+10); c.fill();
+      }, color: 'rgba(160, 195, 255, 0.15)' },
+      { label: 'HUMEDAD', value: `${actual.humedad}`, unit: '%', icon: (c, x, y) => {
+        c.fillStyle = 'rgba(100, 200, 255, 0.9)';
+        c.beginPath(); c.moveTo(x, y-8); c.bezierCurveTo(x-10, y, x-10, y+8, x, y+8);
+        c.bezierCurveTo(x+10, y+8, x+10, y, x, y-8); c.fill();
+      }, color: 'rgba(100, 200, 255, 0.15)' },
+      { label: 'VISIBILIDAD', value: `${actual.visibilidadValor || 0}`, unit: ' km', icon: (c, x, y) => {
+        c.fillStyle = 'rgba(150, 220, 150, 0.9)';
+        c.beginPath(); c.arc(x, y, 8, 0, Math.PI*2); c.fill();
+        c.strokeStyle = 'rgba(150, 220, 150, 0.4)'; c.lineWidth = 2;
+        c.beginPath(); c.arc(x, y, 13, 0, Math.PI*2); c.stroke();
+      }, color: 'rgba(150, 220, 150, 0.15)' },
+      { label: 'SOL', value: actual.amanecer || '--:--', unit: '', icon: (c, x, y) => {
+        c.fillStyle = '#ffcc33';
+        c.beginPath(); c.arc(x, y, 8, 0, Math.PI*2); c.fill();
+        c.strokeStyle = 'rgba(255, 204, 51, 0.5)'; c.lineWidth = 2;
+        c.beginPath(); c.arc(x, y, 13, 0, Math.PI*2); c.stroke();
+      }, color: 'rgba(255, 204, 51, 0.15)' },
+    ];
+
+    const iconCircleR = Math.round(cardH * 0.32);
+    metricas.forEach((m, i) => {
+      const cx = pad + i * (cardW + cardGap) + cardW / 2;
+      const cy = metricsY + metricsH / 2;
+      ctx.save();
       ctx.beginPath();
-      ctx.roundRect(centerX - alertaW/2, alertaY, alertaW, alertaH, 12);
-      ctx.fill();
+      ctx.roundRect(cx - cardW / 2, metricsY, cardW, metricsH, 12);
+      const glass = ctx.createLinearGradient(cx - cardW / 2, metricsY, cx + cardW / 2, metricsY);
+      glass.addColorStop(0, 'rgba(255,255,255,0.03)');
+      glass.addColorStop(0.5, 'rgba(255,255,255,0.06)');
+      glass.addColorStop(1, 'rgba(255,255,255,0.03)');
+      ctx.fillStyle = glass; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy - iconCircleR * 0.3, iconCircleR, 0, Math.PI * 2);
+      ctx.fillStyle = m.color; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+      m.icon(ctx, cx, cy - iconCircleR * 0.3);
+      ctx.font = `bold ${Math.round(H * 0.03)}px BebasNeue, sans-serif`;
+      ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center';
+      ctx.fillText(m.value + m.unit, cx, cy + iconCircleR * 0.4);
+      ctx.font = `${Math.round(H * 0.013)}px Inter, sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillText(m.label, cx, cy + iconCircleR * 1.1);
+    });
 
-      // Borde blanco brillante
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
+    // Footer section
+    const footerY = metricsY + metricsH + Math.round(H * 0.025);
+    const footerH = H - footerY - (climaAlerta && climaAlerta.trim() ? Math.round(H * 0.09) : Math.round(H * 0.015));
 
-      // Icono de advertencia (más grande)
-      const iconX = centerX - alertaW/2 + padding + 18;
-      const iconY = alertaY + alertaH / 2;
-
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 28px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('⚠️', iconX, iconY + 9);
-
-      // Texto de la alerta (más grande)
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 20px Inter, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-      ctx.shadowBlur = 4;
-      let alertaTexto = climaAlerta.toUpperCase();
-
-      // Calcular el ancho disponible para el texto
-      const textoX = iconX + 35;
-      const maxTextoAncho = alertaW - (textoX - (centerX - alertaW/2)) - padding;
-
-      // Ajustar tamaño de fuente si el texto es largo
-      let fontSize = 20;
-      ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-      while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 13) {
-        fontSize--;
-        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-      }
-
-      ctx.fillText(alertaTexto, textoX, iconY + 7);
-      ctx.shadowBlur = 0;
-    }
-    
-    // PANEL DERECHO (Dashboard de métricas) - Glassmorphism
-    if (climaMostrarActual) {
-      const boxGap = 15;
-      const boxH = (panelH - boxGap * 2) / 3;
-      
-      const dibujarMetrica = (y, titulo, valor, unidad, drawIconFunc, iconColor) => {
-        const glassGrad = ctx.createLinearGradient(rightX, y, rightX + panelW, y);
-        glassGrad.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
-        glassGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.06)');
-        glassGrad.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
-        ctx.fillStyle = glassGrad;
-        ctx.beginPath();
-        ctx.roundRect(rightX, y, panelW, boxH, 16);
-        ctx.fill();
-
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(rightX, y, panelW, boxH, 16);
-        ctx.stroke();
-
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(rightX + 2, y + 2, panelW - 4, boxH - 4, 14);
-        ctx.stroke();
-
-        const midY = y + boxH / 2;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(rightX + 40, midY, 22, 0, Math.PI * 2);
-        ctx.fillStyle = iconColor || 'rgba(255, 255, 255, 0.06)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.restore();
-
-        ctx.save();
-        ctx.translate(rightX + 40, midY);
-        drawIconFunc();
-        ctx.restore();
-
-        ctx.textAlign = 'left';
-        ctx.font = 'bold 13px Inter, sans-serif';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.fillText(titulo, rightX + 70, midY - 12);
-
-        ctx.font = 'bold 40px BebasNeue, sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(valor, rightX + 70, midY + 26);
-        const valWidth = ctx.measureText(valor).width;
-
-        ctx.font = 'bold 14px Inter, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.fillText(unidad, rightX + 70 + valWidth + 8, midY + 22);
-      };
-      
-      // 1. Viento
-      dibujarMetrica(panelY, 'VIENTO', `${actual.viento}`, 'km/h', () => {
-        ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
-        ctx.beginPath();
-        ctx.moveTo(-12, 4); ctx.lineTo(12, 4); ctx.lineTo(4, -4);
-        ctx.lineTo(12, 4); ctx.lineTo(4, 12); ctx.fill();
-      }, 'rgba(160, 195, 255, 0.15)');
-      
-      // 2. Humedad
-      dibujarMetrica(panelY + boxH + boxGap, 'HUMEDAD', `${actual.humedad}`, '%', () => {
-        ctx.fillStyle = 'rgba(100, 200, 255, 0.9)';
-        ctx.beginPath();
-        ctx.moveTo(0, -8);
-        ctx.bezierCurveTo(-10, 0, -10, 8, 0, 8);
-        ctx.bezierCurveTo(10, 8, 10, 0, 0, -8);
-        ctx.fill();
-      }, 'rgba(100, 200, 255, 0.15)');
-      
-      // 3. Índice UV
-      dibujarMetrica(panelY + (boxH + boxGap) * 2, 'ÍNDICE UV', `${actual.uv}`, 'UVI', () => {
-        ctx.fillStyle = '#fdb813';
-        ctx.beginPath();
-        ctx.arc(0, 0, 8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#fdb813';
-        ctx.lineWidth = 2;
-        for(let i=0; i<8; i++) {
-          let angle = i * Math.PI / 4;
-          ctx.beginPath();
-          ctx.moveTo(Math.cos(angle)*11, Math.sin(angle)*11);
-          ctx.lineTo(Math.cos(angle)*15, Math.sin(angle)*15);
-          ctx.stroke();
-        }
-      }, 'rgba(253, 184, 19, 0.15)');
-    }
-    
-    // --- 3. PIE DE PLACA (FOOTER) ---
-    const footerY = H - footerH;
-    
-    const drawLine = (y) => {
-      const lineaGrad = ctx.createLinearGradient(0, y, W, y);
-      lineaGrad.addColorStop(0, '#8fb82d');
-      lineaGrad.addColorStop(0.5, '#a6ce39');
-      lineaGrad.addColorStop(1, '#c8e87a');
-      ctx.fillStyle = lineaGrad;
-      ctx.fillRect(0, y, W, 4);
-    };
-    
     if (climaMostrarPronostico && climaCiudadesMultiples.length === 0) {
-      // Solo pronóstico (ocupa todo el footer) - Glassmorphism
-      const pronFooterGrad = ctx.createLinearGradient(0, footerY, 0, footerY + footerH);
-      pronFooterGrad.addColorStop(0, 'rgba(0, 0, 0, 0.18)');
-      pronFooterGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0.30)');
-      pronFooterGrad.addColorStop(1, 'rgba(0, 0, 0, 0.36)');
-      ctx.fillStyle = pronFooterGrad;
-      ctx.fillRect(0, footerY, W, footerH);
-      drawLine(footerY);
-      
-      ctx.font = 'bold 20px BebasNeue, sans-serif';
-      ctx.textAlign = 'left';
+      ctx.font = `bold ${Math.round(H * 0.02)}px BebasNeue, sans-serif`;
+      ctx.textAlign = 'center';
       ctx.fillStyle = '#a6ce39';
-      ctx.letterSpacing = '2px';
-      ctx.fillText('PRONÓSTICO 7 DÍAS', 25, footerY + 35);
+      ctx.letterSpacing = '3px';
+      ctx.fillText('PRONÓSTICO 7 DÍAS', W / 2, footerY + Math.round(H * 0.035));
       ctx.letterSpacing = '0';
 
-      const diaWidth = (W - 50) / 7;
-      const itemsY = footerY + (footerH / 2) + 15;
-      
-      pronostico.forEach((dia, i) => {
-        const centerX = 25 + i * diaWidth + diaWidth / 2;
-        ctx.textAlign = 'center';
-        
-        ctx.font = 'bold 16px Inter, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.fillText(dia.fecha.toUpperCase(), centerX, itemsY - 50);
-        
-        dibujarIconoClima(ctx, centerX, itemsY - 15, 45, dia.tipo);
-        
-        ctx.font = 'bold 24px BebasNeue, sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(`${dia.tempMax}°`, centerX, itemsY + 20);
-        
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.font = 'bold 14px Inter, sans-serif';
-        ctx.fillText(`${dia.tempMin}°`, centerX, itemsY + 38);
-        
-        if (dia.probLluvia > 0) {
-          ctx.fillStyle = '#60A5FA';
-          ctx.font = 'bold 12px Inter, sans-serif';
-          ctx.fillText(`💧 ${dia.probLluvia}%`, centerX, itemsY + 56);
-        }
-      });
-      
-    } else if (climaCiudadesMultiples.length > 0) {
-      // Dividir footer en dos: Pronóstico arriba, Ciudades abajo
-      const halfH = footerH / 2;
-      const pronosticoY = footerY;
-      const ciudadesY = footerY + halfH;
-      
-      // --- MITAD PRONÓSTICO ---
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.fillRect(0, pronosticoY, W, halfH);
-      drawLine(pronosticoY);
-      
-      ctx.font = 'bold 16px BebasNeue, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#a6ce39';
-      ctx.letterSpacing = '1px';
-      ctx.fillText('PRONÓSTICO 7 DÍAS', 25, pronosticoY + 25);
+      const diaWidth = Math.round((W - pad * 2) / 7);
+      const itemsY = footerY + Math.round(H * 0.06);
 
-      const diaWidth = (W - 50) / 7;
-      const pItemsY = pronosticoY + halfH / 2 + 10;
       pronostico.forEach((dia, i) => {
-        const centerX = 25 + i * diaWidth + diaWidth / 2;
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 13px Inter, sans-serif';
+        const cx = pad + i * diaWidth + diaWidth / 2;
+        ctx.font = `bold ${Math.round(H * 0.015)}px Inter, sans-serif`;
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.fillText(dia.fecha.toUpperCase(), centerX, pItemsY - 20);
-        
-        dibujarIconoClima(ctx, centerX - 25, pItemsY + 10, 30, dia.tipo);
-        
-        ctx.textAlign = 'left';
-        ctx.font = 'bold 20px BebasNeue, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(dia.fecha.toUpperCase(), cx, itemsY);
+        dibujarIconoClima(ctx, cx, itemsY + Math.round(H * 0.07), Math.round(H * 0.055), dia.tipo);
+        ctx.font = `bold ${Math.round(H * 0.028)}px BebasNeue, sans-serif`;
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(`${dia.tempMax}°`, centerX + 5, pItemsY + 5);
+        ctx.fillText(`${dia.tempMax}°`, cx, itemsY + Math.round(H * 0.14));
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.font = 'bold 12px Inter, sans-serif';
-        ctx.fillText(`${dia.tempMin}°`, centerX + 5, pItemsY + 20);
-        
+        ctx.font = `bold ${Math.round(H * 0.015)}px Inter, sans-serif`;
+        ctx.fillText(`${dia.tempMin}°`, cx, itemsY + Math.round(H * 0.18));
         if (dia.probLluvia > 0) {
           ctx.fillStyle = '#60A5FA';
-          ctx.font = 'bold 10px Inter, sans-serif';
-          ctx.fillText(`💧 ${dia.probLluvia}%`, centerX + 5, pItemsY + 35);
+          ctx.font = `${Math.round(H * 0.013)}px Inter, sans-serif`;
+          ctx.fillText(`${dia.probLluvia}%`, cx, itemsY + Math.round(H * 0.22));
         }
       });
-      
-      // --- MITAD CIUDADES --- Glassmorphism
-      const citiesGrad = ctx.createLinearGradient(0, ciudadesY, 0, ciudadesY + halfH);
-      citiesGrad.addColorStop(0, 'rgba(0, 0, 0, 0.25)');
-      citiesGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.40)');
-      citiesGrad.addColorStop(1, 'rgba(0, 0, 0, 0.50)');
-      ctx.fillStyle = citiesGrad;
-      ctx.fillRect(0, ciudadesY, W, halfH);
-      drawLine(ciudadesY);
-      
-      ctx.font = 'bold 16px BebasNeue, sans-serif';
-      ctx.textAlign = 'left';
+    } else if (climaCiudadesMultiples.length > 0) {
+      const halfH = Math.round(footerH / 2);
+      const fcY1 = footerY;
+      const fcY2 = footerY + halfH;
+
+      ctx.font = `bold ${Math.round(H * 0.017)}px BebasNeue, sans-serif`;
+      ctx.textAlign = 'center';
       ctx.fillStyle = '#a6ce39';
-      ctx.letterSpacing = '1px';
-      ctx.fillText('OTRAS CIUDADES', 25, ciudadesY + 25);
-      
-      const ciudadWidth = (W - 50) / climaCiudadesMultiples.length;
-      const cItemsY = ciudadesY + halfH / 2 + 10;
-      climaCiudadesMultiples.forEach((c, i) => {
-        const centerX = 25 + i * ciudadWidth + ciudadWidth / 2;
+      ctx.letterSpacing = '2px';
+      ctx.fillText('PRONÓSTICO 7 DÍAS', W / 2, fcY1 + Math.round(H * 0.03));
+      ctx.letterSpacing = '0';
+
+      const diaWidth = Math.round((W - pad * 2) / 7);
+      const pItemsY = fcY1 + Math.round(H * 0.05);
+      pronostico.forEach((dia, i) => {
+        const cx = pad + i * diaWidth + diaWidth / 2;
+        ctx.font = `bold ${Math.round(H * 0.013)}px Inter, sans-serif`;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.textAlign = 'center';
-        
-        ctx.font = 'bold 13px Inter, sans-serif';
+        ctx.fillText(dia.fecha.toUpperCase(), cx, pItemsY);
+        dibujarIconoClima(ctx, cx, pItemsY + Math.round(H * 0.05), Math.round(H * 0.04), dia.tipo);
+        ctx.font = `bold ${Math.round(H * 0.022)}px BebasNeue, sans-serif`;
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(c.nombre.toUpperCase(), centerX, cItemsY - 20);
-        
-        dibujarIconoClima(ctx, centerX - 25, cItemsY + 10, 30, c.actual.tipo);
-        
-        ctx.textAlign = 'left';
-        ctx.font = 'bold 24px BebasNeue, sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(`${c.actual.temp}°`, centerX + 5, cItemsY + 15);
+        ctx.fillText(`${dia.tempMax}°`, cx, pItemsY + Math.round(H * 0.1));
       });
+
+      ctx.font = `bold ${Math.round(H * 0.017)}px BebasNeue, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#a6ce39';
+      ctx.letterSpacing = '2px';
+      ctx.fillText('OTRAS CIUDADES', W / 2, fcY2 + Math.round(H * 0.03));
+      ctx.letterSpacing = '0';
+
+      const cWidth = Math.round((W - pad * 2) / climaCiudadesMultiples.length);
+      const cItemsY = fcY2 + Math.round(H * 0.05);
+      climaCiudadesMultiples.forEach((c, i) => {
+        const cx = pad + i * cWidth + cWidth / 2;
+        ctx.font = `bold ${Math.round(H * 0.014)}px Inter, sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(c.nombre.toUpperCase(), cx, cItemsY);
+        dibujarIconoClima(ctx, cx, cItemsY + Math.round(H * 0.05), Math.round(H * 0.04), c.actual.tipo);
+        ctx.font = `bold ${Math.round(H * 0.026)}px BebasNeue, sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(`${c.actual.temp}°`, cx, cItemsY + Math.round(H * 0.11));
+      });
+    }
+
+    // Alert
+    if (climaAlerta && climaAlerta.trim()) {
+      const alertaH = Math.round(H * 0.07);
+      const alertaY = H - alertaH - Math.round(H * 0.015);
+      const alertaPad = Math.round(H * 0.02);
+      ctx.save();
+      ctx.shadowColor = 'rgba(220, 53, 69, 0.6)';
+      ctx.shadowBlur = 15; ctx.shadowOffsetY = 4;
+      const alertaGrad = ctx.createLinearGradient(pad, alertaY, pad, alertaY + alertaH);
+      alertaGrad.addColorStop(0, '#DC3545'); alertaGrad.addColorStop(0.5, '#E63946'); alertaGrad.addColorStop(1, '#DC3545');
+      ctx.fillStyle = alertaGrad;
+      ctx.beginPath();
+      ctx.roundRect(pad, alertaY, W - pad * 2, alertaH, 10);
+      ctx.fill();
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
+      ctx.textAlign = 'left';
+      ctx.font = `bold ${Math.round(H * 0.02)}px Inter, sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 3;
+      const alertaTexto = climaAlerta.toUpperCase();
+      const maxW = (W - pad * 2) - alertaPad * 2;
+      let fs = Math.round(H * 0.02);
+      ctx.font = `bold ${fs}px Inter, sans-serif`;
+      while (ctx.measureText(alertaTexto).width > maxW && fs > Math.round(H * 0.014)) { fs--; ctx.font = `bold ${fs}px Inter, sans-serif`; }
+      ctx.fillText('⚠️  ' + alertaTexto, pad + alertaPad, alertaY + Math.round(alertaH * 0.62));
+      ctx.shadowBlur = 0;
     }
   }
 }
@@ -2216,367 +1986,264 @@ function paintFullClimateBackground(ctx, W, H, actual) {
 
 function renderClimaCombinado(W, H) {
   if (!climaData) {
-    // Mostrar mensaje para cargar datos
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, W, H);
-    
     ctx.fillStyle = '#a6ce39';
     ctx.font = 'bold 24px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Cargando clima...', W / 2, H / 2);
-    
     ctx.fillStyle = '#888';
     ctx.font = '16px Inter, sans-serif';
     ctx.fillText('Seleccioná una ciudad y hacé clic en "Actualizar"', W / 2, H / 2 + 30);
     return;
   }
-  
+
   const { actual, ciudad, diario } = climaData;
 
-  // FONDO DINÁMICO basado en clima y hora del día
+  // Fondo dinámico
   paintFullClimateBackground(ctx, W, H, actual);
 
-  // --- SECCIONES PROPORCIONALES ---
-  const headerH = Math.round(H * 0.12);
-  const footerH = Math.round(H * 0.40); // Más espacio para mostrar evolución diaria
-  const mainY = headerH;
-  const mainH = H - headerH - footerH;
+  const pad = Math.round(Math.min(W, H) * 0.035);
+  const accentH = Math.max(4, Math.round(H * 0.005));
 
-  // --- 1. CABECERA (HEADER) ---
-  const bandaGrad = ctx.createLinearGradient(0, 0, 0, headerH);
-  bandaGrad.addColorStop(0, '#8fb82d');
-  bandaGrad.addColorStop(0.5, '#a6ce39');
-  bandaGrad.addColorStop(1, '#c8e87a');
-  ctx.fillStyle = bandaGrad;
-  ctx.fillRect(0, 0, W, headerH);
+  // ═══ 1. HEADER — acento verde + logo + ciudad/fecha ═══
+  const headerH = Math.round(H * 0.095);
 
-  // Sombra sutil bajo el header
-  const headerShadow = ctx.createLinearGradient(0, headerH, 0, headerH + 8);
-  headerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
-  headerShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = headerShadow;
-  ctx.fillRect(0, headerH, W, 8);
+  // Línea de acento verde superior
+  ctx.fillStyle = '#a6ce39';
+  ctx.fillRect(0, 0, W, accentH);
 
-  // Logo del diario (centrado verticalmente en el header)
+  // Logo
   if (S.logoImg && ELS.logo && ELS.logo.visible) {
     const logo = ELS.logo;
-    const logoW = logo.w || Math.round(W * 0.2);
+    const logoW = logo.w || Math.round(W * 0.18);
     const logoH = logo.h || Math.round(logoW * (S.logoImg.height / S.logoImg.width));
-    const logoX = logo.x !== null ? logo.x : 25;
-    const logoY = logo.y !== null ? logo.y : (headerH - logoH) / 2;
+    const logoX = logo.x !== null ? logo.x : pad;
+    const logoY = logo.y !== null ? logo.y : accentH + Math.round((headerH - accentH - logoH) / 2);
     ctx.drawImage(S.logoImg, logoX, logoY, logoW, logoH);
   }
-  
-  // Textos del Header
-  const rightPad = 25;
+
+  // Ciudad + fecha
   ctx.textAlign = 'right';
-  
-  // Ciudad
-  ctx.fillStyle = '#1a1a1a';
-  ctx.font = 'bold 36px BebasNeue, sans-serif';
-  ctx.shadowColor = 'rgba(255,255,255,0.3)';
-  ctx.shadowBlur = 2;
-  const cityY = headerH * 0.45;
-  ctx.fillText(ciudad.toUpperCase(), W - rightPad, cityY);
-  ctx.shadowBlur = 0;
-  
-  // Fecha y Actualización en una sola línea
   const hoy = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
   const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = (hoy.charAt(0).toUpperCase() + hoy.slice(1));
 
-  ctx.font = 'bold 15px Inter, sans-serif';
+  ctx.font = 'bold 34px BebasNeue, sans-serif';
   ctx.fillStyle = '#ffffff';
-  const dateStr = (hoy.charAt(0).toUpperCase() + hoy.slice(1)) + ` | Actualizado: ${hora}`;
-  ctx.fillText(dateStr, W - rightPad, headerH * 0.70);
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur = 4;
+  ctx.fillText(ciudad.toUpperCase(), W - pad, accentH + Math.round(headerH * 0.52));
+  ctx.shadowBlur = 0;
 
-  // Alertas meteorológicas (solo si hay alerta activa)
-  if (climaData.alertas && climaData.alertas.nivel && climaData.alertas.nivel > 0) {
-    ctx.font = 'bold 12px Inter, sans-serif';
-    ctx.fillStyle = '#ff6b6b';
-    const alertaStr = `⚠️ ALERTA NIVEL ${climaData.alertas.nivel}`;
-    ctx.fillText(alertaStr, W - rightPad, headerH * 0.88);
-  }
+  ctx.font = '500 13px Inter, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillText(dateStr + ' | ' + hora, W - pad, accentH + Math.round(headerH * 0.82));
 
-  // --- 2. CONTENIDO PRINCIPAL (Clima Actual) ---
-  const padding = 25;
-  const panelW = (W - padding * 3) / 2; // Dos columnas
-  const leftX = padding;
-  const rightX = leftX + panelW + padding;
-  const panelY = mainY + 20;
-  const panelH = mainH - 40;
+  // ═══ 2. HERO — temperatura + icono + descripción ═══
+  const heroY = headerH + Math.round(H * 0.025);
+  const heroH = Math.round(H * 0.36);
 
-  // TARJETA IZQUIERDA (Clima Actual) - Fondo procedimental
-  paintClimateCardBackdrop(ctx, leftX, panelY, panelW, panelH, actual);
-  
-  const centerX = leftX + panelW / 2;
-  
-  // Distribuir elementos verticalmente
-  const iconY = panelY + panelH * 0.24;
-  const tempY = panelY + panelH * 0.60;
-  
-  dibujarIconoClima(ctx, centerX, iconY, 110, actual.tipo);
+  // Icono grande
+  const iconSize = Math.round(Math.min(W, H) * 0.16);
+  const iconX = Math.round(W / 2);
+  const iconY = heroY + Math.round(heroH * 0.28);
+  dibujarIconoClima(ctx, iconX, iconY, iconSize, actual.tipo);
 
-  const chipW = 156;
-  const chipH = 34;
-  const chipX = leftX + 22;
-  const chipY = panelY + 22;
+  // Temperatura
+  const tempSize = Math.round(Math.min(W, H) * 0.18);
+  ctx.font = `bold ${tempSize}px BebasNeue, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 12;
+  const tempY = iconY + Math.round(iconSize * 0.65);
+  ctx.fillText(`${actual.temp}°`, iconX, tempY);
+  ctx.shadowBlur = 0;
+
+  // Description pill
+  const descPillW = Math.round(W * 0.32);
+  const descPillH = Math.round(H * 0.032);
+  const descPillX = iconX - descPillW / 2;
+  const descPillY = tempY + Math.round(H * 0.04);
   ctx.save();
-  ctx.fillStyle = 'rgba(13, 16, 34, 0.42)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
   ctx.beginPath();
-  ctx.roundRect(chipX, chipY, chipW, chipH, 999);
+  ctx.roundRect(descPillX, descPillY, descPillW, descPillH, 999);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.lineWidth = 1;
   ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.font = 'bold 13px Inter, sans-serif';
+  ctx.font = `bold ${Math.round(H * 0.018)}px Inter, sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText(actual.descripcion.toUpperCase(), chipX + chipW / 2, chipY + 22);
+  ctx.fillText(actual.descripcion.toUpperCase(), iconX, descPillY + Math.round(descPillH * 0.68));
   ctx.restore();
-  
-  ctx.font = 'bold 126px BebasNeue, sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.shadowColor = 'rgba(0,0,0,0.5)';
-  ctx.shadowBlur = 10;
-  ctx.fillText(`${actual.temp}°`, centerX, tempY);
-  ctx.shadowBlur = 0;
-  
-  ctx.font = 'bold 24px Inter, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ctx.letterSpacing = '0.5px';
-  ctx.fillText(actual.descripcion.toUpperCase(), centerX, tempY + 55);
 
+  // Sensación térmica
   const sensacion = actual.sensacionTermica !== undefined ? actual.sensacionTermica : actual.temp - Math.round(actual.viento / 10);
-  ctx.font = '600 15px Inter, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.84)';
-  ctx.fillText(`Sensación térmica: ${sensacion}°`, centerX, tempY + 85);
-  
-  // PANEL DERECHO (Dashboard de métricas)
-  if (climaMostrarActual) {
-    const boxGap = 12;
-    const boxH = (panelH - boxGap * 3) / 4; // 4 métricas en lugar de 3
-    
-    const dibujarMetrica = (y, titulo, valor, unidad, drawIconFunc, iconColor) => {
-      // Fondo glassmorphism
-      const glassGrad = ctx.createLinearGradient(rightX, y, rightX + panelW, y);
-      glassGrad.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
-      glassGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.06)');
-      glassGrad.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
-      ctx.fillStyle = glassGrad;
-      ctx.beginPath();
-      ctx.roundRect(rightX, y, panelW, boxH, 16);
-      ctx.fill();
+  ctx.font = `${Math.round(H * 0.018)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.textAlign = 'center';
+  ctx.fillText(`Sensación térmica ${sensacion}°`, iconX, descPillY + descPillH + Math.round(H * 0.03));
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(rightX, y, panelW, boxH, 16);
-      ctx.stroke();
+  // ═══ 3. MÉTRICAS — 4 cards horizontales ═══
+  const metricsY = heroY + heroH + Math.round(H * 0.015);
+  const metricsH = Math.round(H * 0.14);
+  const cardGap = Math.round(W * 0.015);
+  const cardW = Math.round((W - pad * 2 - cardGap * 3) / 4);
 
-      // Borde interno sutil (efecto glass)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(rightX + 2, y + 2, panelW - 4, boxH - 4, 14);
-      ctx.stroke();
-
-      const midY = y + boxH / 2;
-
-      // Círculo de icono con fondo
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(rightX + 40, midY, 22, 0, Math.PI * 2);
-      ctx.fillStyle = iconColor || 'rgba(255, 255, 255, 0.06)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.restore();
-
-      ctx.save();
-      ctx.translate(rightX + 40, midY);
-      drawIconFunc();
-      ctx.restore();
-
-      ctx.textAlign = 'left';
-      ctx.font = 'bold 13px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.fillText(titulo, rightX + 70, midY - 12);
-
-      ctx.font = 'bold 40px BebasNeue, sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(valor, rightX + 70, midY + 26);
-      const valWidth = ctx.measureText(valor).width;
-
-      ctx.font = 'bold 14px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fillText(unidad, rightX + 70 + valWidth + 8, midY + 22);
-    };
-
-    // 1. Viento
-    const vientoStr = actual.vientoDireccion ? `${actual.viento} (${actual.vientoDireccion})` : `${actual.viento}`;
-    dibujarMetrica(panelY, 'VIENTO', vientoStr, 'km/h', () => {
+  const metricas = [
+    { label: 'VIENTO', value: `${actual.viento}`, unit: 'km/h', icon: (ctx, x, y) => {
       ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
-      ctx.beginPath();
-      ctx.moveTo(-12, 4); ctx.lineTo(12, 4); ctx.lineTo(4, -4);
-      ctx.lineTo(12, 4); ctx.lineTo(4, 12); ctx.fill();
-    }, 'rgba(160, 195, 255, 0.15)');
-
-    // 2. Humedad
-    dibujarMetrica(panelY + boxH + boxGap, 'HUMEDAD', `${actual.humedad}`, '%', () => {
+      ctx.beginPath(); ctx.moveTo(x-10, y+4); ctx.lineTo(x+10, y+4); ctx.lineTo(x+3, y-4);
+      ctx.lineTo(x+10, y+4); ctx.lineTo(x+3, y+10); ctx.fill();
+    }, color: 'rgba(160, 195, 255, 0.15)' },
+    { label: 'HUMEDAD', value: `${actual.humedad}`, unit: '%', icon: (ctx, x, y) => {
       ctx.fillStyle = 'rgba(100, 200, 255, 0.9)';
-      ctx.beginPath();
-      ctx.moveTo(0, -8);
-      ctx.bezierCurveTo(-10, 0, -10, 8, 0, 8);
-      ctx.bezierCurveTo(10, 8, 10, 0, 0, -8);
-      ctx.fill();
-    }, 'rgba(100, 200, 255, 0.15)');
-
-    // 3. Visibilidad
-    const visibilidadNum = actual.visibilidadValor || 0;
-    dibujarMetrica(panelY + (boxH + boxGap) * 2, 'VISIBILIDAD', `${visibilidadNum}`, 'km', () => {
+      ctx.beginPath(); ctx.moveTo(x, y-8);
+      ctx.bezierCurveTo(x-10, y, x-10, y+8, x, y+8);
+      ctx.bezierCurveTo(x+10, y+8, x+10, y, x, y-8); ctx.fill();
+    }, color: 'rgba(100, 200, 255, 0.15)' },
+    { label: 'VISIBILIDAD', value: `${actual.visibilidadValor || 0}`, unit: 'km', icon: (ctx, x, y) => {
       ctx.fillStyle = 'rgba(150, 220, 150, 0.9)';
-      ctx.beginPath();
-      ctx.arc(0, 0, 9, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(150, 220, 150, 0.4)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, 14, 0, Math.PI * 2);
-      ctx.stroke();
-    }, 'rgba(150, 220, 150, 0.15)');
-
-    // 4. Amanecer/Atardecer
-    const solStr = actual.amanecer ? `${actual.amanecer} / ${actual.atardecer || '--:--'}` : '--:--';
-    dibujarMetrica(panelY + (boxH + boxGap) * 3, 'SOL', solStr, '', () => {
+      ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(150, 220, 150, 0.4)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 13, 0, Math.PI*2); ctx.stroke();
+    }, color: 'rgba(150, 220, 150, 0.15)' },
+    { label: 'SOL', value: actual.amanecer || '--:--', unit: '', icon: (ctx, x, y) => {
       ctx.fillStyle = '#ffcc33';
-      ctx.beginPath();
-      ctx.arc(0, 0, 9, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 204, 51, 0.5)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, 14, 0, Math.PI * 2);
-      ctx.stroke();
-    }, 'rgba(255, 204, 51, 0.15)');
-  }
-  
-  // --- 3. PIE DE PLACA (FOOTER) - Evolución Diaria ---
-  const footerY = H - footerH;
-  
-  const drawLine = (y) => {
-    const lineaGrad = ctx.createLinearGradient(0, y, W, y);
-    lineaGrad.addColorStop(0, '#8fb82d');
-    lineaGrad.addColorStop(0.5, '#a6ce39');
-    lineaGrad.addColorStop(1, '#c8e87a');
-    ctx.fillStyle = lineaGrad;
-    ctx.fillRect(0, y, W, 4);
-  };
-  
-  // Evolución Diaria (Madrugada, Mañana, Tarde, Noche) - Glassmorphism
-  const footerGlass = ctx.createLinearGradient(0, footerY, 0, footerY + footerH);
-  footerGlass.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
-  footerGlass.addColorStop(0.5, 'rgba(0, 0, 0, 0.32)');
-  footerGlass.addColorStop(1, 'rgba(0, 0, 0, 0.38)');
-  ctx.fillStyle = footerGlass;
-  ctx.fillRect(0, footerY, W, footerH);
-  drawLine(footerY);
+      ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 204, 51, 0.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 13, 0, Math.PI*2); ctx.stroke();
+    }, color: 'rgba(255, 204, 51, 0.15)' },
+  ];
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-  ctx.fillRect(0, footerY + 4, W, 1);
-  
-  ctx.font = 'bold 20px BebasNeue, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#a6ce39';
-  ctx.letterSpacing = '2px';
-  ctx.fillText('EVOLUCIÓN DIARIA', 25, footerY + 35);
-  ctx.letterSpacing = '0';
-  
-  const periodoWidth = (W - 50) / 4;
-  const itemsY = footerY + (footerH / 2) + 15;
-  
-  // Mostrar los 4 periodos del día
-  diario.forEach((periodo, i) => {
-    const centerX = 25 + i * periodoWidth + periodoWidth / 2;
-    ctx.textAlign = 'center';
-    
-    ctx.font = 'bold 16px Inter, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.fillText(periodo.nombre.toUpperCase(), centerX, itemsY - 50);
-    
-    dibujarIconoClima(ctx, centerX, itemsY - 15, 45, periodo.tipo);
-    
-    ctx.font = 'bold 24px BebasNeue, sans-serif';
+  const iconCircleR = Math.round(cardH * 0.3);
+  metricas.forEach((m, i) => {
+    const cx = pad + i * (cardW + cardGap) + cardW / 2;
+    const cy = metricsY + metricsH / 2;
+
+    // Glass card
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(cx - cardW / 2, metricsY, cardW, metricsH, 12);
+    const glass = ctx.createLinearGradient(cx - cardW / 2, metricsY, cx + cardW / 2, metricsY);
+    glass.addColorStop(0, 'rgba(255,255,255,0.03)');
+    glass.addColorStop(0.5, 'rgba(255,255,255,0.06)');
+    glass.addColorStop(1, 'rgba(255,255,255,0.03)');
+    ctx.fillStyle = glass;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+
+    // Icon circle
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy - iconCircleR * 0.3, iconCircleR, 0, Math.PI * 2);
+    ctx.fillStyle = m.color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+    m.icon(ctx, cx, cy - iconCircleR * 0.3);
+
+    // Value
+    ctx.font = `bold ${Math.round(H * 0.036)}px BebasNeue, sans-serif`;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(`${periodo.temp}°`, centerX, itemsY + 20);
-    
+    ctx.textAlign = 'center';
+    ctx.fillText(m.value + m.unit, cx, cy + iconCircleR * 0.4);
+
+    // Label
+    ctx.font = `${Math.round(H * 0.014)}px Inter, sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText(m.label, cx, cy + iconCircleR * 1.1);
+  });
+
+  // ═══ 4. DIVISOR con "EVOLUCIÓN DIARIA" ═══
+  const divY = metricsY + metricsH + Math.round(H * 0.02);
+  ctx.fillStyle = 'rgba(166, 206, 57, 0.4)';
+  ctx.fillRect(pad, divY, W - pad * 2, 1);
+
+  ctx.font = `bold ${Math.round(H * 0.022)}px BebasNeue, sans-serif`;
+  ctx.fillStyle = '#a6ce39';
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '3px';
+  ctx.fillText('EVOLUCIÓN DIARIA', W / 2, divY + Math.round(H * 0.045));
+  ctx.letterSpacing = '0';
+
+  // ═══ 5. PRONÓSTICO — 4 periodos ═══
+  const fcY = divY + Math.round(H * 0.06);
+  const fcH = H - fcY - (climaAlerta && climaAlerta.trim() ? Math.round(H * 0.1) : Math.round(H * 0.015));
+  const periodW = Math.round((W - pad * 2) / 4);
+
+  diario.forEach((periodo, i) => {
+    const cx = pad + i * periodW + periodW / 2;
+    const cy = fcY + fcH / 2;
+
+    // Period name
+    ctx.font = `bold ${Math.round(H * 0.02)}px Inter, sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.textAlign = 'center';
+    ctx.fillText(periodo.nombre.toUpperCase(), cx, cy - fcH * 0.25);
+
+    // Icon
+    dibujarIconoClima(ctx, cx, cy - fcH * 0.02, Math.round(fcH * 0.35), periodo.tipo);
+
+    // Temperature
+    ctx.font = `bold ${Math.round(H * 0.042)}px BebasNeue, sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`${periodo.temp}°`, cx, cy + fcH * 0.3);
+
+    // Rain probability
     if (periodo.probLluvia > 0) {
+      ctx.font = `${Math.round(H * 0.016)}px Inter, sans-serif`;
       ctx.fillStyle = '#60A5FA';
-      ctx.font = 'bold 12px Inter, sans-serif';
-      ctx.fillText(`💧 ${periodo.probLluvia}%`, centerX, itemsY + 38);
+      ctx.fillText(`${periodo.probLluvia}%`, cx, cy + fcH * 0.42);
     }
   });
-  
-  // Alerta si existe - MÁS GRANDE Y LLAMATIVA
+
+  // ═══ 6. ALERTA ═══
   if (climaAlerta && climaAlerta.trim()) {
-    const alertaW = W - 50;
-    const alertaH = 72; // Más grande que antes (era 55)
-    const alertaY = footerY + footerH - alertaH - 10;
-    const padding = 22;
+    const alertaH = Math.round(H * 0.07);
+    const alertaY = H - alertaH - Math.round(H * 0.015);
+    const alertaPad = Math.round(H * 0.02);
 
-    // Sombra de la alerta (más pronunciada)
-    ctx.shadowColor = 'rgba(220, 53, 69, 0.7)';
-    ctx.shadowBlur = 20;
-    ctx.shadowOffsetY = 6;
-
-    // Fondo rojo brillante con gradiente
-    const alertaGrad = ctx.createLinearGradient(25, alertaY, 25, alertaY + alertaH);
+    ctx.save();
+    ctx.shadowColor = 'rgba(220, 53, 69, 0.6)';
+    ctx.shadowBlur = 15;
+    ctx.shadowOffsetY = 4;
+    const alertaGrad = ctx.createLinearGradient(pad, alertaY, pad, alertaY + alertaH);
     alertaGrad.addColorStop(0, '#DC3545');
     alertaGrad.addColorStop(0.5, '#E63946');
     alertaGrad.addColorStop(1, '#DC3545');
     ctx.fillStyle = alertaGrad;
     ctx.beginPath();
-    ctx.roundRect(25, alertaY, alertaW, alertaH, 14);
+    ctx.roundRect(pad, alertaY, W - pad * 2, alertaH, 10);
     ctx.fill();
-
-    // Borde blanco brillante
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
+    ctx.restore();
 
-    // Icono de advertencia (más grande)
-    const iconX = 25 + padding + 22;
-    const iconY = alertaY + alertaH / 2;
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 32px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('⚠️', iconX, iconY + 10);
-
-    // Texto de la alerta (más grande)
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 22px Inter, sans-serif';
     ctx.textAlign = 'left';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    ctx.shadowBlur = 4;
-    let alertaTexto = climaAlerta.toUpperCase();
-
-    // Calcular el ancho disponible para el texto
-    const textoX = iconX + 40;
-    const maxTextoAncho = alertaW - (textoX - 25) - padding;
-
-    // Ajustar tamaño de fuente si el texto es largo
-    let fontSize = 22;
-    ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-    while (ctx.measureText(alertaTexto).width > maxTextoAncho && fontSize > 14) {
-      fontSize--;
-      ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+    ctx.font = `bold ${Math.round(H * 0.02)}px Inter, sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 3;
+    const alertaTexto = climaAlerta.toUpperCase();
+    const maxW = (W - pad * 2) - alertaPad * 2;
+    let fs = Math.round(H * 0.02);
+    ctx.font = `bold ${fs}px Inter, sans-serif`;
+    while (ctx.measureText(alertaTexto).width > maxW && fs > Math.round(H * 0.014)) {
+      fs--; ctx.font = `bold ${fs}px Inter, sans-serif`;
     }
-
-    ctx.fillText(alertaTexto, textoX, iconY + 8);
+    ctx.fillText('⚠️  ' + alertaTexto, pad + alertaPad, alertaY + Math.round(alertaH * 0.62));
     ctx.shadowBlur = 0;
   }
 }
