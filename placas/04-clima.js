@@ -1505,7 +1505,7 @@ function renderClima(W, H) {
       }, color: 'rgba(255, 204, 51, 0.15)' },
     ];
 
-    const iconCircleR = Math.round(cardH * 0.32);
+    const iconCircleR = Math.round(metricsH * 0.32);
     metricas.forEach((m, i) => {
       const cx = pad + i * (cardW + cardGap) + cardW / 2;
       const cy = metricsY + metricsH / 2;
@@ -2119,12 +2119,11 @@ function renderClimaCombinado(W, H) {
     }, color: 'rgba(255, 204, 51, 0.15)' },
   ];
 
-  const iconCircleR = Math.round(cardH * 0.3);
+  const iconCircleR = Math.round(metricsH * 0.3);
   metricas.forEach((m, i) => {
     const cx = pad + i * (cardW + cardGap) + cardW / 2;
     const cy = metricsY + metricsH / 2;
 
-    // Glass card
     ctx.save();
     ctx.beginPath();
     ctx.roundRect(cx - cardW / 2, metricsY, cardW, metricsH, 12);
@@ -2139,7 +2138,7 @@ function renderClimaCombinado(W, H) {
     ctx.stroke();
     ctx.restore();
 
-    // Icon circle
+    ctx.save();
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy - iconCircleR * 0.3, iconCircleR, 0, Math.PI * 2);
