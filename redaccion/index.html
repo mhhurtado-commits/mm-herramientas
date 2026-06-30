@@ -595,6 +595,10 @@ async function procesarImagenes(){
     const data=await res.json();
     bar.style.width='100%';
     if(!data.ok)throw new Error(data.error||'Error procesando');
+    if(data.errores&&data.errores.length){
+      status.textContent='⚠ '+data.imagenes_procesadas+' procesada'+(data.imagenes_procesadas!==1?'s':'')+', '+data.errores.length+' error'+(data.errores.length!==1?'es':'');
+      console.warn('Errores al procesar imágenes:',data.errores);
+    }
     if(data.texto){
       const existingTitulo=document.getElementById('ref-titulo-input').value.trim();
       const existingCuerpo=document.getElementById('ref-cuerpo-input').value.trim();
