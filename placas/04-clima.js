@@ -716,7 +716,7 @@ function dibujarAlerta(ctx, W, H, pad, alertaY) {
 const smnIconCache = {};
 
 function getSmnIconUrl(smnCode) {
-  return smnCode ? `https://mm-herramientas-worker.mhhurtado.workers.dev/smn/icon?code=${smnCode}` : null;
+  return smnCode ? `icons/${smnCode}.png` : null;
 }
 
 function preloadSmnIcon(smnCode) {
