@@ -827,8 +827,11 @@ function smnNormalizarDiaPronostico(dia) {
     night: smnNormalizarPeriodo(dia.night),
   };
 
-  const periodoRef = smnElegirPeriodoRepresentativo(normalizado);
-  normalizado.weather = periodoRef?.weather || { id: 3, description: "Nublado" };
+  // Preservar weather original del día si existe; si no, usar período representativo
+  if (!normalizado.weather || !normalizado.weather.id) {
+    const periodoRef = smnElegirPeriodoRepresentativo(normalizado);
+    normalizado.weather = periodoRef?.weather || { id: 3, description: "Nublado" };
+  }
 
   return normalizado;
 }

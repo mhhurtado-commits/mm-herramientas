@@ -612,22 +612,94 @@ function esDeDia(amanecer, atardecer) {
 
 // Mapeo de códigos SMN a códigos WMO equivalentes
 const SMN_TO_WMO = {
+  0: 0,    // Sin dato / No informado
+  1: 0,    // Despejado
   3: 0,    // Despejado
+  4: 0,    // Despejado
+  5: 1,    // Mayormente despejado
+  6: 2,    // Algo nublado (otra variante)
+  7: 3,    // Nublado
+  8: 3,    // Muy nublado
   19: 2,   // Algo nublado
   25: 2,   // Parcialmente nublado
   37: 3,   // Mayormente nublado
   43: 3,   // Nublado
+  45: 45,  // Niebla
+  48: 48,  // Niebla escarchada
+  51: 51,  // Llovizna ligera
+  53: 53,  // Llovizna moderada
+  55: 55,  // Llovizna densa
+  61: 61,  // Lluvia ligera
+  63: 63,  // Lluvia moderada
+  65: 65,  // Lluvia fuerte
+  71: 73,  // Nevada moderada
+  72: 73,  // Nevada
+  73: 73,  // Nieve moderada
   74: 81,  // Chaparrones
+  75: 75,  // Nieve fuerte
+  76: 75,  // Nevada intensa
   77: 71,  // Lluvias y nevadas
   79: 75,  // Nevadas
+  80: 80,  // Chubascos ligeros
+  81: 81,  // Chubascos moderados
+  82: 82,  // Chubascos violentos (tormenta)
+  87: 96,  // Chubascos de nieve/granizo
+  89: 96,  // Chubascos de granizo
+  91: 95,  // Lluvia y tormenta
+  92: 95,  // Lluvia y tormenta
+  93: 96,  // Tormenta con granizo
+  94: 99,  // Tormenta severa
   95: 95,  // Tormenta
-  96: 96,  // Tormenta con granizo
+  96: 96,  // Tormenta con granizo ligero
+  97: 99,  // Tormenta severa
+  98: 99,  // Tormenta severa con granizo
   99: 99   // Tormenta severa
 };
 
 // Función para convertir código SMN a WMO
 function mapearCodigoSMNaWMO(smnCode) {
   return SMN_TO_WMO[smnCode] || 0; // Default a despejado si no está mapeado
+}
+
+// Función reutilizable para dibujar la barra de alerta en una posición dada
+function dibujarAlerta(ctx, W, H, pad, alertaY) {
+  const alertaH = Math.round(H * 0.072);
+  const alertaPad = Math.round(H * 0.02);
+  const alertaTexto = climaAlerta.toUpperCase();
+  const maxW = (W - pad * 2) - alertaPad * 2;
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(220, 53, 69, 0.6)';
+  ctx.shadowBlur = 15;
+  ctx.shadowOffsetY = 4;
+  const alertaGrad = ctx.createLinearGradient(pad, alertaY, pad, alertaY + alertaH);
+  alertaGrad.addColorStop(0, '#DC3545');
+  alertaGrad.addColorStop(0.5, '#E63946');
+  alertaGrad.addColorStop(1, '#DC3545');
+  ctx.fillStyle = alertaGrad;
+  ctx.beginPath();
+  ctx.roundRect(pad, alertaY, W - pad * 2, alertaH, 10);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 3;
+  let fs = Math.round(H * 0.024);
+  ctx.font = `bold ${fs}px Inter, sans-serif`;
+  while (ctx.measureText('⚠️  ' + alertaTexto).width > maxW && fs > Math.round(H * 0.016)) {
+    fs--; ctx.font = `bold ${fs}px Inter, sans-serif`;
+  }
+  ctx.fillText('⚠️  ' + alertaTexto, pad + alertaPad, alertaY + Math.round(alertaH * 0.62));
+  ctx.shadowBlur = 0;
+
+  return alertaH;
 }
 
 // Dibujar iconos de clima profesionales en el canvas
@@ -1032,7 +1104,10 @@ async function obtenerClima(ciudad) {
           atardecer: atardecer,
           // Datos de estación
           estacion: weather.station_id || null,
-          ubicacion: weather.location?.name || ciudad
+          ubicacion: weather.location?.name || ciudad,
+          // Datos SMN originales (para iconos)
+          smnIcon: weather.weather?.icon || null,
+          smnCode: weather.weather?.id || null
         },
         pronostico: forecast.forecast
           .filter(dia => dia.temp_max !== null && dia.temp_min !== null) // Filtrar días sin datos
@@ -1373,9 +1448,16 @@ function renderClima(W, H) {
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.fillText(dateStr + ' | ' + hora, W - pad, accentH + Math.round(headerH * 0.82));
 
+    // Alert (entre header y contenido)
+    const alertaY = headerH + Math.round(H * 0.015);
+    let alertaH = 0;
+    if (climaAlerta && climaAlerta.trim()) {
+      alertaH = dibujarAlerta(ctx, W, H, pad, alertaY);
+    }
+
     // Main content: 4 period cards
-    const mainY = headerH + Math.round(H * 0.04);
-    const mainH = H - mainY - (climaAlerta && climaAlerta.trim() ? Math.round(H * 0.09) : Math.round(H * 0.025));
+    const mainY = headerH + alertaH + Math.round(H * 0.04);
+    const mainH = H - mainY - Math.round(H * 0.025);
 
     ctx.font = `bold ${Math.round(H * 0.026)}px BebasNeue, sans-serif`;
     ctx.textAlign = 'center';
@@ -1409,38 +1491,6 @@ function renderClima(W, H) {
       }
     });
 
-    // Alert
-    if (climaAlerta && climaAlerta.trim()) {
-      const alertaH = Math.round(H * 0.07);
-      const alertaY = H - alertaH - Math.round(H * 0.015);
-      const alertaPad = Math.round(H * 0.02);
-      ctx.save();
-      ctx.shadowColor = 'rgba(220, 53, 69, 0.6)';
-      ctx.shadowBlur = 15;
-      ctx.shadowOffsetY = 4;
-      const alertaGrad = ctx.createLinearGradient(pad, alertaY, pad, alertaY + alertaH);
-      alertaGrad.addColorStop(0, '#DC3545');
-      alertaGrad.addColorStop(0.5, '#E63946');
-      alertaGrad.addColorStop(1, '#DC3545');
-      ctx.fillStyle = alertaGrad;
-      ctx.beginPath();
-      ctx.roundRect(pad, alertaY, W - pad * 2, alertaH, 10);
-      ctx.fill();
-      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.restore();
-      ctx.textAlign = 'left';
-      ctx.font = `bold ${Math.round(H * 0.02)}px Inter, sans-serif`;
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 3;
-      const alertaTexto = climaAlerta.toUpperCase();
-      const maxW = (W - pad * 2) - alertaPad * 2;
-      let fs = Math.round(H * 0.02);
-      ctx.font = `bold ${fs}px Inter, sans-serif`;
-      while (ctx.measureText(alertaTexto).width > maxW && fs > Math.round(H * 0.014)) { fs--; ctx.font = `bold ${fs}px Inter, sans-serif`; }
-      ctx.fillText('⚠️  ' + alertaTexto, pad + alertaPad, alertaY + Math.round(alertaH * 0.62));
-      ctx.shadowBlur = 0;
-    }
   } else {
     if (!climaData) {
       ctx.fillStyle = '#1a1a1a';
@@ -1487,8 +1537,15 @@ function renderClima(W, H) {
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.fillText(dateStr + ' | ' + hora, W - pad, accentH + Math.round(headerH * 0.82));
 
+    // Alert (entre header y hero)
+    const alertaY = headerH + Math.round(H * 0.015);
+    let alertaH = 0;
+    if (climaAlerta && climaAlerta.trim()) {
+      alertaH = dibujarAlerta(ctx, W, H, pad, alertaY);
+    }
+
     // Hero section
-    const heroY = headerH + Math.round(H * 0.025);
+    const heroY = headerH + alertaH + Math.round(H * 0.025);
     const heroH = Math.round(H * 0.28);
     const iconSize = Math.round(Math.min(W, H) * 0.14);
     const iconX = Math.round(W / 2);
@@ -1572,7 +1629,7 @@ function renderClima(W, H) {
 
     // Footer section
     const footerY = metricsY + metricsH + Math.round(H * 0.025);
-    const footerH = H - footerY - (climaAlerta && climaAlerta.trim() ? Math.round(H * 0.09) : Math.round(H * 0.015));
+    const footerH = H - footerY - Math.round(H * 0.015);
 
     if (climaMostrarPronostico && climaCiudadesMultiples.length === 0) {
       ctx.font = `bold ${Math.round(H * 0.02)}px BebasNeue, sans-serif`;
@@ -1652,38 +1709,8 @@ function renderClima(W, H) {
       });
     }
 
-    // Alert
-    if (climaAlerta && climaAlerta.trim()) {
-      const alertaH = Math.round(H * 0.07);
-      const alertaY = H - alertaH - Math.round(H * 0.015);
-      const alertaPad = Math.round(H * 0.02);
-      ctx.save();
-      ctx.shadowColor = 'rgba(220, 53, 69, 0.6)';
-      ctx.shadowBlur = 15; ctx.shadowOffsetY = 4;
-      const alertaGrad = ctx.createLinearGradient(pad, alertaY, pad, alertaY + alertaH);
-      alertaGrad.addColorStop(0, '#DC3545'); alertaGrad.addColorStop(0.5, '#E63946'); alertaGrad.addColorStop(1, '#DC3545');
-      ctx.fillStyle = alertaGrad;
-      ctx.beginPath();
-      ctx.roundRect(pad, alertaY, W - pad * 2, alertaH, 10);
-      ctx.fill();
-      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.restore();
-      ctx.textAlign = 'left';
-      ctx.font = `bold ${Math.round(H * 0.02)}px Inter, sans-serif`;
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 3;
-      const alertaTexto = climaAlerta.toUpperCase();
-      const maxW = (W - pad * 2) - alertaPad * 2;
-      let fs = Math.round(H * 0.02);
-      ctx.font = `bold ${fs}px Inter, sans-serif`;
-      while (ctx.measureText(alertaTexto).width > maxW && fs > Math.round(H * 0.014)) { fs--; ctx.font = `bold ${fs}px Inter, sans-serif`; }
-      ctx.fillText('⚠️  ' + alertaTexto, pad + alertaPad, alertaY + Math.round(alertaH * 0.62));
-      ctx.shadowBlur = 0;
-    }
   }
 }
-
 // ════════════════════════════════════════════════════════════════════
 // FONDO DINÁMICO COMPLETO PARA LA PLACA DE CLIMA
 // Aplica efectos visuales según día/noche y tipo de clima
@@ -2076,9 +2103,16 @@ function renderClimaCombinado(W, H) {
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
   ctx.fillText(dateStr + ' | ' + hora, W - pad, accentH + Math.round(headerH * 0.82));
 
-  // ═══ 2. HERO — temperatura + icono + descripción ═══
-  const heroY = headerH + Math.round(H * 0.025);
-  const heroH = Math.round(H * 0.36);
+  // ═══ 2. ALERTA (opcional) — entre header y hero ═══
+  const alertaY = headerH + Math.round(H * 0.015);
+  let alertaH = 0;
+  if (climaAlerta && climaAlerta.trim()) {
+    alertaH = dibujarAlerta(ctx, W, H, pad, alertaY);
+  }
+
+  // ═══ 3. HERO — temperatura + icono + descripción ═══
+  const heroY = alertaY + alertaH + Math.round(H * 0.02);
+  const heroH = Math.round(H * 0.34);
 
   // Icono grande
   const iconSize = Math.round(Math.min(W, H) * 0.16);
@@ -2212,7 +2246,7 @@ function renderClimaCombinado(W, H) {
 
   // ═══ 5. PRONÓSTICO — 4 periodos ═══
   const fcY = divY + Math.round(H * 0.06);
-  const fcH = H - fcY - (climaAlerta && climaAlerta.trim() ? Math.round(H * 0.1) : Math.round(H * 0.015));
+  const fcH = H - fcY - Math.round(H * 0.015);
   const periodW = Math.round((W - pad * 2) / 4);
 
   diario.forEach((periodo, i) => {
@@ -2241,46 +2275,6 @@ function renderClimaCombinado(W, H) {
     }
   });
 
-  // ═══ 6. ALERTA ═══
-  if (climaAlerta && climaAlerta.trim()) {
-    const alertaH = Math.round(H * 0.07);
-    const alertaY = H - alertaH - Math.round(H * 0.015);
-    const alertaPad = Math.round(H * 0.02);
-
-    ctx.save();
-    ctx.shadowColor = 'rgba(220, 53, 69, 0.6)';
-    ctx.shadowBlur = 15;
-    ctx.shadowOffsetY = 4;
-    const alertaGrad = ctx.createLinearGradient(pad, alertaY, pad, alertaY + alertaH);
-    alertaGrad.addColorStop(0, '#DC3545');
-    alertaGrad.addColorStop(0.5, '#E63946');
-    alertaGrad.addColorStop(1, '#DC3545');
-    ctx.fillStyle = alertaGrad;
-    ctx.beginPath();
-    ctx.roundRect(pad, alertaY, W - pad * 2, alertaH, 10);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 0;
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.textAlign = 'left';
-    ctx.font = `bold ${Math.round(H * 0.02)}px Inter, sans-serif`;
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-    ctx.shadowBlur = 3;
-    const alertaTexto = climaAlerta.toUpperCase();
-    const maxW = (W - pad * 2) - alertaPad * 2;
-    let fs = Math.round(H * 0.02);
-    ctx.font = `bold ${fs}px Inter, sans-serif`;
-    while (ctx.measureText(alertaTexto).width > maxW && fs > Math.round(H * 0.014)) {
-      fs--; ctx.font = `bold ${fs}px Inter, sans-serif`;
-    }
-    ctx.fillText('⚠️  ' + alertaTexto, pad + alertaPad, alertaY + Math.round(alertaH * 0.62));
-    ctx.shadowBlur = 0;
-  }
 }
 
 // Inicializar el módulo
