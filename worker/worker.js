@@ -1011,11 +1011,6 @@ async function handleSMNIcon(url, env) {
 }
 
 async function handleSMNUploadIcon(request, env) {
-  // Verificar API key
-  const auth = request.headers.get('Authorization') || '';
-  if (auth !== `Bearer ${env.SMN_API_KEY || ''}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
   try {
     const body = await request.json();
     const { code, data } = body;
