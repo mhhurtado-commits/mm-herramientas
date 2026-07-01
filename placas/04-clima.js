@@ -702,8 +702,35 @@ function dibujarAlerta(ctx, W, H, pad, alertaY) {
   return alertaH;
 }
 
+// Cache de iconos del SMN
+const smnIconCache = {};
+
+function getSmnIconUrl(smnCode) {
+  return smnCode ? `https://www.smn.gob.ar/sites/all/themes/smn/img/weather-icons/${smnCode}.png` : null;
+}
+
+function preloadSmnIcon(smnCode) {
+  if (!smnCode || smnIconCache[smnCode]) return;
+  const img = new Image();
+  img.onload = () => { smnIconCache[smnCode] = img; };
+  img.onerror = () => { smnIconCache[smnCode] = null; };
+  img.src = getSmnIconUrl(smnCode);
+}
+
 // Dibujar iconos de clima profesionales en el canvas
-function dibujarIconoClima(ctx, x, y, size, type) {
+function dibujarIconoClima(ctx, x, y, size, type, smnCode) {
+  // Intentar usar icono SMN si está cacheado
+  if (smnCode && smnIconCache[smnCode]) {
+    const img = smnIconCache[smnCode];
+    const s = size * 1.5;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 8;
+    ctx.drawImage(img, x - s / 2, y - s / 2, s, s);
+    ctx.restore();
+    return;
+  }
+
   ctx.save();
   ctx.translate(x, y);
   const scale = size / 100;
@@ -1066,6 +1093,17 @@ async function obtenerClima(ciudad) {
       const wmoCode = mapearCodigoSMNaWMO(weather.weather.id);
       const wmoInfo = WMO_CODES[wmoCode] || WMO_CODES[0];
 
+      // Precargar iconos SMN
+      const smnCodesToPreload = new Set();
+      smnCodesToPreload.add(weather.weather?.id);
+      forecast.forecast.forEach(d => {
+        smnCodesToPreload.add(d.weather?.id);
+        [d.early_morning, d.morning, d.afternoon, d.night].forEach(p => {
+          if (p?.weather?.id) smnCodesToPreload.add(p.weather.id);
+        });
+      });
+      smnCodesToPreload.forEach(c => { if (c) preloadSmnIcon(c); });
+
       // Datos del sol (amanecer/atardecer)
       const solData = smnData.sun || {};
       const amanecer = solData.sunrise || '06:00';
@@ -1113,7 +1151,8 @@ async function obtenerClima(ciudad) {
           .filter(dia => dia.temp_max !== null && dia.temp_min !== null) // Filtrar días sin datos
           .slice(0, 7)
           .map((dia, i) => {
-          const wmoCodePron = mapearCodigoSMNaWMO(dia.weather?.id || dia.night?.weather?.id || dia.afternoon?.weather?.id || 3);
+          const smnCodePron = dia.weather?.id || dia.night?.weather?.id || dia.afternoon?.weather?.id || 3;
+          const wmoCodePron = mapearCodigoSMNaWMO(smnCodePron);
           const wmoInfoPron = WMO_CODES[wmoCodePron] || WMO_CODES[0];
           // Usar el período más representativo del día para el icono
           const periodoIcono = dia.afternoon || dia.night || dia.morning || dia;
@@ -1141,7 +1180,8 @@ async function obtenerClima(ciudad) {
             humedadMin: dia.humidity_min,
             humedadMax: dia.humidity_max,
             amanecer: amanecer,
-            atardecer: atardecer
+            atardecer: atardecer,
+            smnCode: smnCodePron
           };
         }),
         diario: [
@@ -1161,7 +1201,8 @@ async function obtenerClima(ciudad) {
               ? Math.round((forecast.forecast[0].early_morning.gust_range[0] + forecast.forecast[0].early_morning.gust_range[1]) / 2)
               : null,
             visibilidad: forecast.forecast[0].early_morning.visibility || 'Buena',
-            lluvia6h: forecast.forecast[0].early_morning.rain06h || 0
+            lluvia6h: forecast.forecast[0].early_morning.rain06h || 0,
+            smnCode: forecast.forecast[0].early_morning.weather?.id || 3
           }] : []),
           ...(forecast.forecast[0]?.morning ? [{
             nombre: 'Mañana',
@@ -1178,7 +1219,8 @@ async function obtenerClima(ciudad) {
               ? Math.round((forecast.forecast[0].morning.gust_range[0] + forecast.forecast[0].morning.gust_range[1]) / 2)
               : null,
             visibilidad: forecast.forecast[0].morning.visibility || 'Buena',
-            lluvia6h: forecast.forecast[0].morning.rain06h || 0
+            lluvia6h: forecast.forecast[0].morning.rain06h || 0,
+            smnCode: forecast.forecast[0].morning.weather?.id || 3
           }] : []),
           ...(forecast.forecast[0]?.afternoon ? [{
             nombre: 'Tarde',
@@ -1195,7 +1237,8 @@ async function obtenerClima(ciudad) {
               ? Math.round((forecast.forecast[0].afternoon.gust_range[0] + forecast.forecast[0].afternoon.gust_range[1]) / 2)
               : null,
             visibilidad: forecast.forecast[0].afternoon.visibility || 'Buena',
-            lluvia6h: forecast.forecast[0].afternoon.rain06h || 0
+            lluvia6h: forecast.forecast[0].afternoon.rain06h || 0,
+            smnCode: forecast.forecast[0].afternoon.weather?.id || 3
           }] : []),
           ...(forecast.forecast[0]?.night ? [{
             nombre: 'Noche',
@@ -1212,7 +1255,8 @@ async function obtenerClima(ciudad) {
               ? Math.round((forecast.forecast[0].night.gust_range[0] + forecast.forecast[0].night.gust_range[1]) / 2)
               : null,
             visibilidad: forecast.forecast[0].night.visibility || 'Buena',
-            lluvia6h: forecast.forecast[0].night.rain06h || 0
+            lluvia6h: forecast.forecast[0].night.rain06h || 0,
+            smnCode: forecast.forecast[0].night.weather?.id || 3
           }] : [])
         ],
         alertas: warningHeat ? {
@@ -1478,7 +1522,7 @@ function renderClima(W, H) {
       ctx.textAlign = 'center';
       ctx.fillText(periodo.nombre.toUpperCase(), cx, cy);
 
-      dibujarIconoClima(ctx, cx, cy + Math.round(H * 0.1), Math.round(H * 0.09), periodo.tipo);
+      dibujarIconoClima(ctx, cx, cy + Math.round(H * 0.1), Math.round(H * 0.09), periodo.tipo, periodo.smnCode);
 
       ctx.font = `bold ${Math.round(H * 0.048)}px BebasNeue, sans-serif`;
       ctx.fillStyle = '#ffffff';
@@ -1550,7 +1594,7 @@ function renderClima(W, H) {
     const iconSize = Math.round(Math.min(W, H) * 0.14);
     const iconX = Math.round(W / 2);
     const iconY = heroY + Math.round(heroH * 0.3);
-    dibujarIconoClima(ctx, iconX, iconY, iconSize, actual.tipo);
+    dibujarIconoClima(ctx, iconX, iconY, iconSize, actual.tipo, actual.smnCode || undefined);
 
     const tempSize = Math.round(Math.min(W, H) * 0.15);
     ctx.font = `bold ${tempSize}px BebasNeue, sans-serif`;
@@ -1648,7 +1692,7 @@ function renderClima(W, H) {
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.textAlign = 'center';
         ctx.fillText(dia.fecha.toUpperCase(), cx, itemsY);
-        dibujarIconoClima(ctx, cx, itemsY + Math.round(H * 0.07), Math.round(H * 0.055), dia.tipo);
+        dibujarIconoClima(ctx, cx, itemsY + Math.round(H * 0.07), Math.round(H * 0.055), dia.tipo, dia.smnCode);
         ctx.font = `bold ${Math.round(H * 0.028)}px BebasNeue, sans-serif`;
         ctx.fillStyle = '#ffffff';
         ctx.fillText(`${dia.tempMax}°`, cx, itemsY + Math.round(H * 0.14));
@@ -1681,7 +1725,7 @@ function renderClima(W, H) {
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.textAlign = 'center';
         ctx.fillText(dia.fecha.toUpperCase(), cx, pItemsY);
-        dibujarIconoClima(ctx, cx, pItemsY + Math.round(H * 0.05), Math.round(H * 0.04), dia.tipo);
+        dibujarIconoClima(ctx, cx, pItemsY + Math.round(H * 0.05), Math.round(H * 0.04), dia.tipo, dia.smnCode);
         ctx.font = `bold ${Math.round(H * 0.022)}px BebasNeue, sans-serif`;
         ctx.fillStyle = '#ffffff';
         ctx.fillText(`${dia.tempMax}°`, cx, pItemsY + Math.round(H * 0.1));
@@ -1702,7 +1746,7 @@ function renderClima(W, H) {
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.fillText(c.nombre.toUpperCase(), cx, cItemsY);
-        dibujarIconoClima(ctx, cx, cItemsY + Math.round(H * 0.05), Math.round(H * 0.04), c.actual.tipo);
+        dibujarIconoClima(ctx, cx, cItemsY + Math.round(H * 0.05), Math.round(H * 0.04), c.actual.tipo, c.actual.smnCode || undefined);
         ctx.font = `bold ${Math.round(H * 0.026)}px BebasNeue, sans-serif`;
         ctx.fillStyle = '#ffffff';
         ctx.fillText(`${c.actual.temp}°`, cx, cItemsY + Math.round(H * 0.11));
@@ -2118,7 +2162,7 @@ function renderClimaCombinado(W, H) {
   const iconSize = Math.round(Math.min(W, H) * 0.16);
   const iconX = Math.round(W / 2);
   const iconY = heroY + Math.round(heroH * 0.28);
-  dibujarIconoClima(ctx, iconX, iconY, iconSize, actual.tipo);
+  dibujarIconoClima(ctx, iconX, iconY, iconSize, actual.tipo, actual.smnCode || undefined);
 
   // Temperatura
   const tempSize = Math.round(Math.min(W, H) * 0.18);
@@ -2260,7 +2304,7 @@ function renderClimaCombinado(W, H) {
     ctx.fillText(periodo.nombre.toUpperCase(), cx, cy - fcH * 0.25);
 
     // Icon
-    dibujarIconoClima(ctx, cx, cy - fcH * 0.02, Math.round(fcH * 0.35), periodo.tipo);
+    dibujarIconoClima(ctx, cx, cy - fcH * 0.02, Math.round(fcH * 0.35), periodo.tipo, periodo.smnCode);
 
     // Temperature
     ctx.font = `bold ${Math.round(H * 0.042)}px BebasNeue, sans-serif`;
