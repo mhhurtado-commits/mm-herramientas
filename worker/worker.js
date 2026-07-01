@@ -975,9 +975,27 @@ async function handleSMNIcon(url, env) {
   const code = url.searchParams.get('code');
   if (!code) return new Response('Missing code', { status: 400 });
   try {
+    // Intentar desde KV primero
+    if (env.KV) {
+      const cached = await env.KV.get(`smn:icon:${code}`, { type: 'text' });
+      if (cached) {
+        const binary = Uint8Array.from(atob(cached), c => c.charCodeAt(0));
+        return new Response(binary, {
+          headers: { ...CORS_HEADERS, 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' },
+        });
+      }
+    }
+    // Fallback: fetch desde SMN y cachear en KV
     const resp = await fetch(`https://www.smn.gob.ar/sites/all/themes/smn/img/weather-icons/${code}.png`);
     if (!resp.ok) return new Response('Icon not found', { status: 404 });
-    const blob = await resp.blob();
+    const blob = await resp.arrayBuffer();
+    // Cachear en KV si está disponible
+    if (env.KV) {
+      try {
+        const b64 = btoa(String.fromCharCode(...new Uint8Array(blob)));
+        await env.KV.put(`smn:icon:${code}`, b64, { expirationTtl: 2592000 });
+      } catch (e) { /* ignore KV errors */ }
+    }
     return new Response(blob, {
       headers: {
         ...CORS_HEADERS,
@@ -987,6 +1005,23 @@ async function handleSMNIcon(url, env) {
     });
   } catch (e) {
     return new Response('Proxy error', { status: 502 });
+  }
+}
+
+async function handleSMNUploadIcon(request, env) {
+  // Verificar API key
+  const auth = request.headers.get('Authorization') || '';
+  if (auth !== `Bearer ${env.SMN_API_KEY || ''}`) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+  try {
+    const body = await request.json();
+    const { code, data } = body;
+    if (!code || !data) return new Response('Missing code or data', { status: 400 });
+    await env.KV.put(`smn:icon:${code}`, data, { expirationTtl: 2592000 });
+    return new Response(JSON.stringify({ ok: true }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+  } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   }
 }
 
@@ -4725,6 +4760,7 @@ export default {
     if(path==="/api/suggest-cuts")                   return handleVideoEditorSuggestCuts(body, env);
     if(path==="/api/generate-headline")              return handleGenerateHeadline(request, env);
     if(path==="/smn/update-token")                   return handleSMNUpdateToken(body, env);
+    if(path==="/smn/upload-icon")                    return handleSMNUploadIcon(request, env);
 
     return jsonError("Ruta no encontrada",404);
   },
