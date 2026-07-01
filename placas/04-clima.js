@@ -715,20 +715,20 @@ function dibujarAlerta(ctx, W, H, pad, alertaY) {
 // Cache de iconos del SMN
 const smnIconCache = {};
 
-function getSmnIconUrl(smnCode) {
-  return smnCode ? `icons/${smnCode}.png` : null;
-}
-
 function preloadSmnIcon(smnCode) {
   if (!smnCode || smnIconCache[smnCode]) return;
   const img = new Image();
-  img.onload = () => {
-    smnIconCache[smnCode] = img;
-  };
+  let triedWebp = false;
+  img.onload = () => { smnIconCache[smnCode] = img; };
   img.onerror = () => {
-    smnIconCache[smnCode] = null;
+    if (!triedWebp) {
+      triedWebp = true;
+      img.src = `icons/${smnCode}.webp`;
+    } else {
+      smnIconCache[smnCode] = null;
+    }
   };
-  img.src = getSmnIconUrl(smnCode);
+  img.src = `icons/${smnCode}.png`;
 }
 
 // Dibujar iconos de clima profesionales en el canvas
