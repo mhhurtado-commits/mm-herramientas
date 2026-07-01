@@ -986,8 +986,12 @@ async function handleSMNIcon(url, env) {
       }
     }
     // Fallback: fetch desde SMN y cachear en KV
+    const token = env.KV ? await env.KV.get(SMN_KV_TOKEN_KEY) : null;
     const resp = await fetch(`https://www.smn.gob.ar/sites/all/themes/smn/img/weather-icons/${code}.png`, {
-      headers: { 'User-Agent': BROWSER_HEADERS['User-Agent'] },
+      headers: {
+        'User-Agent': BROWSER_HEADERS['User-Agent'],
+        ...(token ? { 'Authorization': `JWT ${token}` } : {}),
+      },
     });
     if (!resp.ok) return new Response('Icon not found', { status: 404 });
     const blob = await resp.arrayBuffer();
