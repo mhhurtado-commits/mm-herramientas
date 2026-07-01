@@ -620,18 +620,20 @@ const SMN_TO_WMO = {
   6: 2,    // Algo nublado (otra variante)
   7: 3,    // Nublado
   8: 3,    // Muy nublado
+  13: 2,   // Ligeramente nublado
   19: 2,   // Algo nublado
   25: 2,   // Parcialmente nublado
   37: 3,   // Mayormente nublado
   43: 3,   // Nublado
   45: 45,  // Niebla
   48: 48,  // Niebla escarchada
-  51: 51,  // Llovizna ligera
+  51: 51,  // Ventoso / Llovizna ligera
   53: 53,  // Llovizna moderada
   55: 55,  // Llovizna densa
   61: 61,  // Lluvia ligera
   63: 63,  // Lluvia moderada
   65: 65,  // Lluvia fuerte
+  69: 48,  // Niebla helada
   71: 73,  // Nevada moderada
   72: 73,  // Nevada
   73: 73,  // Nieve moderada
@@ -643,6 +645,7 @@ const SMN_TO_WMO = {
   80: 80,  // Chubascos ligeros
   81: 81,  // Chubascos moderados
   82: 82,  // Chubascos violentos (tormenta)
+  85: 75,  // Nevadas fuertes
   87: 96,  // Chubascos de nieve/granizo
   89: 96,  // Chubascos de granizo
   91: 95,  // Lluvia y tormenta
@@ -1166,8 +1169,15 @@ async function obtenerClima(ciudad) {
           .filter(dia => dia.temp_max !== null && dia.temp_min !== null) // Filtrar días sin datos
           .slice(0, 7)
           .map((dia, i) => {
-          const smnCodePron = dia.weather?.id || dia.night?.weather?.id || dia.afternoon?.weather?.id || 3;
-          const wmoCodePron = mapearCodigoSMNaWMO(smnCodePron);
+          const smnCodePron = (dia.weather?.id || 
+            dia.afternoon?.weather?.id || 
+            dia.morning?.weather?.id || 
+            dia.night?.weather?.id || 
+            dia.early_morning?.weather?.id || 3);
+          // Buscar el código más representativo (más severo) entre todos los períodos
+          const allCodes = [dia.weather?.id, dia.afternoon?.weather?.id, dia.morning?.weather?.id, dia.night?.weather?.id, dia.early_morning?.weather?.id].filter(Boolean);
+          const bestSmnCode = allCodes.length ? allCodes.reduce((a, b) => Math.max(a, b)) : smnCodePron;
+          const wmoCodePron = mapearCodigoSMNaWMO(bestSmnCode);
           const wmoInfoPron = WMO_CODES[wmoCodePron] || WMO_CODES[0];
           // Usar el período más representativo del día para el icono
           const periodoIcono = dia.afternoon || dia.night || dia.morning || dia;
@@ -1196,7 +1206,7 @@ async function obtenerClima(ciudad) {
             humedadMax: dia.humidity_max,
             amanecer: amanecer,
             atardecer: atardecer,
-            smnCode: smnCodePron
+            smnCode: bestSmnCode
           };
         }),
         diario: [
