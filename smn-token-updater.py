@@ -89,6 +89,7 @@ def download_and_upload_icons():
     """Descarga los iconos meteorológicos de SMN y los sube al KV del Worker"""
     print(f"[{datetime.now()}] 🖼️ Descargando iconos SMN...")
     
+    scraper = cloudscraper.create_scraper()
     headers = {
         "Authorization": f"Bearer {WORKER_API_KEY}",
         "Content-Type": "application/json"
@@ -100,7 +101,7 @@ def download_and_upload_icons():
     for code in SMN_ICON_CODES:
         url = f"https://www.smn.gob.ar/sites/all/themes/smn/img/weather-icons/{code}.png"
         try:
-            resp = requests.get(url, timeout=15)
+            resp = scraper.get(url, timeout=15)
             if resp.status_code == 200:
                 b64_data = base64.b64encode(resp.content).decode('ascii')
                 upload_resp = requests.post(
@@ -124,6 +125,7 @@ def download_and_upload_icons():
             failed += 1
     
     print(f"[{datetime.now()}] {'✅' if failed == 0 else '⚠️'} Iconos: {success} subidos, {failed} fallidos")
+    return failed == 0
     return failed == 0
 
 def main():

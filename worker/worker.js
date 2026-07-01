@@ -986,7 +986,9 @@ async function handleSMNIcon(url, env) {
       }
     }
     // Fallback: fetch desde SMN y cachear en KV
-    const resp = await fetch(`https://www.smn.gob.ar/sites/all/themes/smn/img/weather-icons/${code}.png`);
+    const resp = await fetch(`https://www.smn.gob.ar/sites/all/themes/smn/img/weather-icons/${code}.png`, {
+      headers: { 'User-Agent': BROWSER_HEADERS['User-Agent'] },
+    });
     if (!resp.ok) return new Response('Icon not found', { status: 404 });
     const blob = await resp.arrayBuffer();
     // Cachear en KV si está disponible
