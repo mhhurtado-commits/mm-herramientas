@@ -1634,7 +1634,7 @@ function renderClima(W, H) {
     ctx.fillText(`${actual.temp}°`, iconX, tempY);
     ctx.shadowBlur = 0;
 
-    const sensacion = actual.sensacionTermica !== undefined ? actual.sensacionTermica : actual.temp - Math.round(actual.viento / 10);
+    const sensacion = actual.sensacionTermica ?? actual.temp - Math.round(actual.viento / 10);
     ctx.font = `${Math.round(H * 0.016)}px Inter, sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.fillText(`Sensación térmica ${sensacion}°`, iconX, tempY + Math.round(H * 0.04));
@@ -2223,7 +2223,7 @@ function renderClimaCombinado(W, H) {
   ctx.restore();
 
   // Sensación térmica
-  const sensacion = actual.sensacionTermica !== undefined ? actual.sensacionTermica : actual.temp - Math.round(actual.viento / 10);
+  const sensacion = actual.sensacionTermica ?? actual.temp - Math.round(actual.viento / 10);
   ctx.font = `${Math.round(H * 0.018)}px Inter, sans-serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
   ctx.textAlign = 'center';
