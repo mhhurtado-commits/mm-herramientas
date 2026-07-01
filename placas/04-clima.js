@@ -716,7 +716,7 @@ function dibujarAlerta(ctx, W, H, pad, alertaY) {
 const smnIconCache = {};
 
 function getSmnIconUrl(smnCode) {
-  return smnCode ? `https://www.smn.gob.ar/sites/all/themes/smn/img/weather-icons/${smnCode}.png` : null;
+  return smnCode ? `https://mm-herramientas-worker.mhhurtado.workers.dev/smn/icon?code=${smnCode}` : null;
 }
 
 function preloadSmnIcon(smnCode) {
@@ -1318,7 +1318,8 @@ async function obtenerClima(ciudad) {
       return;
     }
   } catch (e) {
-    console.log('SMN no disponible, usando Open-Meteo fallback:', e);
+    console.error('SMN ERROR:', e.name, e.message, e.stack?.split('\n').slice(0,3).join(' '));
+    console.log('SMN no disponible, usando Open-Meteo fallback');
   }
 
   // Fallback a Open-Meteo si SMN falla

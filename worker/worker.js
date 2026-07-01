@@ -971,6 +971,25 @@ async function handleSMNWeather(url, env) {
   }
 }
 
+async function handleSMNIcon(url, env) {
+  const code = url.searchParams.get('code');
+  if (!code) return new Response('Missing code', { status: 400 });
+  try {
+    const resp = await fetch(`https://www.smn.gob.ar/sites/all/themes/smn/img/weather-icons/${code}.png`);
+    if (!resp.ok) return new Response('Icon not found', { status: 404 });
+    const blob = await resp.blob();
+    return new Response(blob, {
+      headers: {
+        ...CORS_HEADERS,
+        'Content-Type': resp.headers.get('Content-Type') || 'image/png',
+        'Cache-Control': 'public, max-age=86400',
+      },
+    });
+  } catch (e) {
+    return new Response('Proxy error', { status: 502 });
+  }
+}
+
 // ============================================================
 // BLOQUE 1️⃣: CONFIGURACIÓN Y HELPERS DEL MUNDIAL
 // ============================================================
@@ -4185,6 +4204,7 @@ export default {
       if(path==="/music/preview")                    return handleMusicPreview(url, env);
       if(path==="/test-ai")                          return handleTestAI(env);
       if(path==="/smn/weather")                      return handleSMNWeather(url, env);
+      if(path==="/smn/icon")                         return handleSMNIcon(url, env);
       if(path==="/mundo/placa-manana")               return handleMundialManana(env);
       if(path==="/mundo/placa-noche")                return handleMundialNoche(env);
       if(path==="/mundo/partidos") {
