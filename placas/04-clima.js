@@ -1141,8 +1141,8 @@ async function obtenerClima(ciudad) {
       climaData = {
         ciudad: ciudad,
         actual: {
-          temp: parseFloat(weather.temperature.toFixed(1)), // 1 decimal como en SMN
-          sensacionTermica: parseFloat(weather.feels_like.toFixed(1)), // 1 decimal
+          temp: weather.temperature != null ? parseFloat(weather.temperature.toFixed(1)) : null,
+          sensacionTermica: weather.feels_like != null ? parseFloat(weather.feels_like.toFixed(1)) : null,
           humedad: weather.humidity,
           viento: Math.round(weather.wind.speed),
           vientoDireccion: weather.wind.direction || '',
