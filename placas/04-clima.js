@@ -1067,7 +1067,12 @@ async function obtenerClima(ciudad) {
     // Intentar obtener datos del Worker SMN primero
     const workerUrl = 'https://mm-herramientas-worker.mhhurtado.workers.dev/smn/weather?ciudad=' + encodeURIComponent(ciudad);
     const smnResponse = await fetch(workerUrl);
+    if (!smnResponse.ok) {
+      console.warn('SMN worker returned status', smnResponse.status);
+      throw new Error('Worker status ' + smnResponse.status);
+    }
     const smnData = await smnResponse.json();
+    console.log('smnData keys:', Object.keys(smnData), 'ok:', smnData.ok, 'has data:', !!smnData.data, 'has weather:', !!(smnData.data && smnData.data.weather), 'weather is null?', smnData.data && smnData.data.weather === null);
 
     if (smnData.ok && smnData.data && smnData.data.weather) {
       // Procesar datos SMN
@@ -1104,7 +1109,7 @@ async function obtenerClima(ciudad) {
         window.climaAlerta = climaAlerta;
       }
 
-      const wmoCode = mapearCodigoSMNaWMO(weather.weather.id);
+      const wmoCode = mapearCodigoSMNaWMO(weather.weather?.id ?? 3);
       const wmoInfo = WMO_CODES[wmoCode] || WMO_CODES[0];
 
       // Precargar iconos SMN
