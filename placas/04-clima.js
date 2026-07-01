@@ -692,11 +692,18 @@ function dibujarAlerta(ctx, W, H, pad, alertaY) {
   ctx.shadowColor = 'rgba(0,0,0,0.3)';
   ctx.shadowBlur = 3;
   let fs = Math.round(H * 0.024);
+  let displayText = '⚠️  ' + alertaTexto;
   ctx.font = `bold ${fs}px Inter, sans-serif`;
-  while (ctx.measureText('⚠️  ' + alertaTexto).width > maxW && fs > Math.round(H * 0.016)) {
+  while (ctx.measureText(displayText).width > maxW && fs > Math.round(H * 0.016)) {
     fs--; ctx.font = `bold ${fs}px Inter, sans-serif`;
   }
-  ctx.fillText('⚠️  ' + alertaTexto, pad + alertaPad, alertaY + Math.round(alertaH * 0.62));
+  if (ctx.measureText(displayText).width > maxW) {
+    while (ctx.measureText(displayText + '…').width > maxW && displayText.length > 5) {
+      displayText = displayText.slice(0, -1);
+    }
+    displayText = displayText.slice(0, -1) + '…';
+  }
+  ctx.fillText(displayText, pad + alertaPad, alertaY + Math.round(alertaH * 0.62));
   ctx.shadowBlur = 0;
 
   return alertaH;
@@ -712,8 +719,15 @@ function getSmnIconUrl(smnCode) {
 function preloadSmnIcon(smnCode) {
   if (!smnCode || smnIconCache[smnCode]) return;
   const img = new Image();
-  img.onload = () => { smnIconCache[smnCode] = img; };
-  img.onerror = () => { smnIconCache[smnCode] = null; };
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    smnIconCache[smnCode] = img;
+    console.log(`SMN icon loaded: ${smnCode}`);
+  };
+  img.onerror = () => {
+    smnIconCache[smnCode] = null;
+    console.warn(`SMN icon failed: ${smnCode} (CORS or 404)`);
+  };
   img.src = getSmnIconUrl(smnCode);
 }
 
@@ -1095,13 +1109,14 @@ async function obtenerClima(ciudad) {
 
       // Precargar iconos SMN
       const smnCodesToPreload = new Set();
-      smnCodesToPreload.add(weather.weather?.id);
+      if (weather.weather?.id) smnCodesToPreload.add(weather.weather.id);
       forecast.forecast.forEach(d => {
-        smnCodesToPreload.add(d.weather?.id);
+        if (d.weather?.id) smnCodesToPreload.add(d.weather.id);
         [d.early_morning, d.morning, d.afternoon, d.night].forEach(p => {
           if (p?.weather?.id) smnCodesToPreload.add(p.weather.id);
         });
       });
+      console.log('SMN codes to preload:', [...smnCodesToPreload]);
       smnCodesToPreload.forEach(c => { if (c) preloadSmnIcon(c); });
 
       // Datos del sol (amanecer/atardecer)
