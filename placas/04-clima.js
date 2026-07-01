@@ -722,14 +722,11 @@ function getSmnIconUrl(smnCode) {
 function preloadSmnIcon(smnCode) {
   if (!smnCode || smnIconCache[smnCode]) return;
   const img = new Image();
-  img.crossOrigin = 'anonymous';
   img.onload = () => {
     smnIconCache[smnCode] = img;
-    console.log(`SMN icon loaded: ${smnCode}`);
   };
   img.onerror = () => {
     smnIconCache[smnCode] = null;
-    console.warn(`SMN icon failed: ${smnCode} (CORS or 404)`);
   };
   img.src = getSmnIconUrl(smnCode);
 }
