@@ -526,6 +526,7 @@ let climaData = null;
 let climaCiudad = 'San Rafael'; // Ciudad por defecto
 let climaLoading = false;
 let climaAlerta = ''; // Alerta manual
+let climaMostrarAlertas = false; // Mostrar alertas
 let climaMostrarActual = true; // Mostrar datos actuales
 let climaMostrarPronostico = true; // Mostrar pronóstico extendido
 let climaCiudadesMultiples = []; // Para múltiples ciudades [{nombre, data}, ...]
@@ -535,6 +536,7 @@ let climaTipoPlaca = 'combinado'; // 'combinado' (nuevo), 'extendido' o 'diario'
 window.climaTipoPlaca = climaTipoPlaca;
 window.climaCiudad = climaCiudad;
 window.climaAlerta = climaAlerta;
+window.climaMostrarAlertas = climaMostrarAlertas;
 window.climaMostrarActual = climaMostrarActual;
 window.climaMostrarPronostico = climaMostrarPronostico;
 window.climaCiudadesMultiples = climaCiudadesMultiples;
@@ -1102,11 +1104,13 @@ async function obtenerClima(ciudad) {
           alertaInfo = hoyReport.levels.map(l => l.description).filter(Boolean).join(' ');
         }
       }
-      // Prioridad 3: alerta por calor
-      if (!alertaInfo && warningHeat && warningHeat.level > 0) {
-        alertaInfo = `Alerta por calor nivel ${warningHeat.level}`;
+      // Prioridad 3: alerta por calor (solo si temp >= 25°C)
+      if (!alertaInfo && warningHeat && typeof warningHeat.level === 'number' && warningHeat.level > 0) {
+        if (weather.temperature != null && weather.temperature >= 25) {
+          alertaInfo = `Alerta por calor nivel ${warningHeat.level}`;
+        }
       }
-      if (alertaInfo) {
+      if (alertaInfo && window.climaMostrarAlertas) {
         climaAlerta = alertaInfo;
         window.climaAlerta = climaAlerta;
       }
@@ -1471,6 +1475,7 @@ function renderClima(W, H) {
   climaTipoPlaca = window.climaTipoPlaca || climaTipoPlaca;
   climaCiudad = window.climaCiudad || climaCiudad;
   climaAlerta = window.climaAlerta || climaAlerta;
+  climaMostrarAlertas = window.climaMostrarAlertas !== undefined ? window.climaMostrarAlertas : climaMostrarAlertas;
   climaMostrarActual = window.climaMostrarActual !== undefined ? window.climaMostrarActual : climaMostrarActual;
   climaMostrarPronostico = window.climaMostrarPronostico !== undefined ? window.climaMostrarPronostico : climaMostrarPronostico;
   climaCiudadesMultiples = window.climaCiudadesMultiples || climaCiudadesMultiples;
@@ -1530,7 +1535,7 @@ function renderClima(W, H) {
     // Alert (entre header y contenido)
     const alertaY = headerH + Math.round(H * 0.015);
     let alertaH = 0;
-    if (climaAlerta && climaAlerta.trim()) {
+    if (climaMostrarAlertas && climaAlerta && climaAlerta.trim()) {
       alertaH = dibujarAlerta(ctx, W, H, pad, alertaY);
     }
 
@@ -1619,7 +1624,7 @@ function renderClima(W, H) {
     // Alert (entre header y hero)
     const alertaY = headerH + Math.round(H * 0.015);
     let alertaH = 0;
-    if (climaAlerta && climaAlerta.trim()) {
+    if (climaMostrarAlertas && climaAlerta && climaAlerta.trim()) {
       alertaH = dibujarAlerta(ctx, W, H, pad, alertaY);
     }
 
@@ -2261,7 +2266,7 @@ function renderClimaCombinado(W, H) {
   // ═══ 2. ALERTA (opcional) — entre header y hero ═══
   const alertaY = headerH + Math.round(H * 0.015);
   let alertaH = 0;
-  if (climaAlerta && climaAlerta.trim()) {
+  if (climaMostrarAlertas && climaAlerta && climaAlerta.trim()) {
     alertaH = dibujarAlerta(ctx, W, H, pad, alertaY);
   }
 
@@ -2424,6 +2429,7 @@ function initClimaModule() {
   window.climaTipoPlaca = window.climaTipoPlaca || climaTipoPlaca;
   window.climaCiudad = window.climaCiudad || climaCiudad;
   window.climaAlerta = window.climaAlerta || climaAlerta;
+  window.climaMostrarAlertas = window.climaMostrarAlertas !== undefined ? window.climaMostrarAlertas : climaMostrarAlertas;
   window.climaMostrarActual = window.climaMostrarActual !== undefined ? window.climaMostrarActual : climaMostrarActual;
   window.climaMostrarPronostico = window.climaMostrarPronostico !== undefined ? window.climaMostrarPronostico : climaMostrarPronostico;
   window.climaCiudadesMultiples = window.climaCiudadesMultiples || climaCiudadesMultiples;
@@ -2445,5 +2451,6 @@ window.eliminarCiudadExtra = eliminarCiudadExtra;
 window.climaTipoPlaca = climaTipoPlaca;
 window.climaCiudad = climaCiudad;
 window.climaAlerta = climaAlerta;
+window.climaMostrarAlertas = climaMostrarAlertas;
 window.climaMostrarActual = climaMostrarActual;
 window.climaMostrarPronostico = climaMostrarPronostico;
