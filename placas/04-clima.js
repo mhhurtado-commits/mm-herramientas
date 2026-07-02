@@ -1977,8 +1977,8 @@ function paintFullClimateBackground(ctx, W, H, actual) {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // ── Sol o Luna ──
-  if (isNight) {
+  // ── Sol o Luna (solo visible en cielos despejados o parcialmente nublados) ──
+  if (isNight && (type === 'sun' || type === 'sun-cloud')) {
     const moonX = W * 0.82;
     const moonY = H * 0.15;
     const moonR = Math.min(W, H) * 0.06;
@@ -2015,7 +2015,7 @@ function paintFullClimateBackground(ctx, W, H, actual) {
       ctx.fill();
     }
     ctx.globalAlpha = 1;
-  } else if (type !== 'storm' && type !== 'rain-heavy') {
+  } else if (!isNight && (type === 'sun' || type === 'sun-cloud')) {
     const sunX = nearSunset ? W * 0.22 : W * 0.78;
     const sunY = nearSunset ? H * 0.65 : H * 0.18;
     const sunR = Math.min(W, H) * (nearSunset ? 0.08 : 0.07);
