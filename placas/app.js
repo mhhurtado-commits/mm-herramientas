@@ -2412,6 +2412,402 @@ function drawMundialBracket(W, H) {
     return iso ? (cAbbr[iso] || iso.toUpperCase()) : '';
   }
 
+  if (selectedEtapa === 'all') {
+    drawWC26AllStages(etapas, mel, W, H, cAbbr, pad);
+  } else {
+    drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BRACKET / ELIMINATORIAS - CORREGIDO CON CONEXIONES PROPIAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Draw correct bracket layout for WC26 style
+function drawWC26AllStages(etapas, mel, W, H, cAbbr, pad) {
+  const stageSpacing = Math.round(W * 0.18);
+  const stageSpacingH = Math.round(H * 0.08);
+
+  etapas.forEach(([stageName, matches], stageIdx) => {
+    const stageX = mel.x + stageSpacing * stageIdx;
+    const stageY = mel.y + Math.round(mel.h * 0.15);
+
+    // Stage label with correct colors
+    ctx.save();
+    ctx.font = wc26Active() ? wc26Font('700', Math.round(W * 0.022)) : `700 ${Math.round(W * 0.022)}px 'BebasNeue',sans-serif`;
+    ctx.fillStyle = stageIdx === 0 ? WC26C.coral : (stageIdx === etapas.length - 1 ? WC26C.lime : WC26C.turquoise);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(stageName.toUpperCase(), stageX, stageY - stageSpacingH * 0.5);
+    ctx.restore();
+
+    if (!matches || matches.length === 0) return;
+
+    // Calculate proper tournament positioning
+    const numRounds = Math.ceil(Math.log2(matches.length));
+    const rounds = splitIntoRoundsCorrect(matches, numRounds);
+
+    // Draw tournament tree
+    const treeH = mel.h - stageSpacingH * 0.5;
+    const treeW = stageSpacing * 0.9;
+
+    if (stageName === 'Octavos de final') {
+      drawWC16MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+    } else if (stageName === 'Cuartos de final') {
+      drawWC8MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+    } else if (stageName === 'Semifinal') {
+      drawWC4MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+    } else if (stageName === 'Tercer puesto') {
+      drawWC2MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+    } else if (stageName === 'Final') {
+      drawWC2FinalCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+    }
+  });
+}
+
+// Split matches into correct tournament rounds
+function splitIntoRoundsCorrect(matches, numRounds) {
+  const rounds = [];
+
+  for (let r = 0; r < numRounds; r++) {
+    const roundMatches = [];
+    for (let i = 0; i < matches.length; i++) {
+      if (i % Math.pow(2, r) === 0) {
+        const roundIndex = Math.floor(i / Math.pow(2, r));
+        while (roundIndex >= rounds.length) {
+          rounds.push([]);
+        }
+        rounds[roundIndex].push(matches[i]);
+      }
+    }
+  }
+
+  return rounds.filter(r => r.length > 0);
+}
+
+// Draw WC16 (Round of 16) matches with correct connections
+function drawWC16MatchesCorrect(x, y, rounds, containerH, containerW, cAbbr) {
+  const numMatches = rounds[0]?.length || 0;
+  if (numMatches === 16) {
+    // 16 matches in 2 columns
+    const colSpacing = Math.round(containerW * 0.05);
+    const colWidth = Math.round((containerW - colSpacing) / 2);
+
+    const leftMatches = rounds[0]?.slice(0, 8) || [];
+    const rightMatches = rounds[0]?.slice(8) || [];
+
+    // Draw left column
+    drawWCColumnCorrect(x, y, colWidth, leftMatches, containerH, colSpacing, cAbbr, true);
+
+    // Draw right column
+    drawWCColumnCorrect(x + colWidth + colSpacing, y, colWidth, rightMatches, containerH, colSpacing, cAbbr, false);
+
+    // Draw connections from round of 16 to quarterfinals
+    drawWC16ConnectionsCorrect(x, y, containerH, containerW, rounds);
+  }
+}
+
+// Draw WC8 (Quarterfinals)
+function drawWC8MatchesCorrect(x, y, rounds, containerH, containerW, cAbbr) {
+  const numMatches = rounds[0]?.length || 0;
+  if (numMatches === 8) {
+    const colWidth = Math.round(containerWidth * 0.3);
+    const gap = Math.round(containerW * 0.04);
+
+    rounds[0].forEach((match, i) => {
+      const mx = x;
+      const my = y + i * (Math.round(containerH * 0.8) + gap);
+      drawWC26MatchBoxCorrect(mx, my, colWidth, Math.round(containerH * 0.8), match, cAbbr);
+    });
+  }
+}
+
+// Draw WC4 (Semifinals/Finals)
+function drawWC4MatchesCorrect(x, y, rounds, containerH, containerW, cAbbr) {
+  const numMatches = rounds[0]?.length || 0;
+  if (numMatches === 4) {
+    const colWidth = Math.round(containerW * 0.35);
+
+    rounds[0].forEach((match, i) => {
+      const mx = x;
+      const my = y + i * (Math.round(containerH * 0.9));
+      drawWC26MatchBoxCorrect(mx, my, colWidth, Math.round(containerH * 0.9), match, cAbbr);
+    });
+  }
+}
+
+// Draw WC2 (Final)
+function drawWC2FinalCorrect(x, y, rounds, containerH, containerW, cAbbr) {
+  const numMatches = rounds[0]?.length || 0;
+  if (numMatches === 2) {
+    const colWidth = Math.round(containerW * 0.4);
+
+    rounds[0].forEach((match, i) => {
+      const mx = x;
+      const my = y + i * (Math.round(containerH * 1.0));
+      drawWC26MatchBoxFinalCorrect(mx, my, colWidth, Math.round(containerH * 1.0), match, cAbbr, i);
+    });
+  }
+}
+
+// Draw WC column with proper match boxes
+function drawWCColumnCorrect(x, y, w, matches, h, gapW, cAbbr, isLeft) {
+  const rowH = Math.round((h - matches.length * Math.round(h * 0.05)) / matches.length);
+
+  matches.forEach((match, i) => {
+    const my = y + i * (rowH + Math.round(h * 0.02));
+    const mw = Math.round(w * 0.9);
+    const mh = Math.round(rowH * 0.8);
+
+    drawWC26MatchBoxCorrect(x, my, mw, mh, match, cAbbr);
+  });
+}
+
+// Draw match box for WC26 style
+function drawWC26MatchBoxCorrect(x, y, w, h, match, cAbbr) {
+  const hasScore = match.golesLocal !== null && match.golesLocal !== undefined;
+
+  // Draw match background
+  ctx.save();
+  const grad = ctx.createLinearGradient(x, y, x + w, y);
+  grad.addColorStop(0, WC26C.barLocal);
+  grad.addColorStop(0.35, WC26C.barLocal);
+  grad.addColorStop(0.42, WC26C.barScore);
+  grad.addColorStop(0.58, WC26C.barScore);
+  grad.addColorStop(0.65, WC26C.barVisitor);
+  grad.addColorStop(1, WC26C.barVisitor);
+  ctx.fillStyle = grad;
+  roundRect(ctx, x, y, w, h, Math.round(h * 0.05));
+  ctx.fill();
+  ctx.restore();
+
+  // Black interior
+  ctx.save();
+  ctx.fillStyle = WC26C.barBlack;
+  roundRect(ctx, x + 2, y + 2, w - 4, h - 2, Math.round(h * 0.05) - 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Draw teams
+  const teamAreaH = h * 0.35;
+  const teamFontSize = Math.round(w * 0.05);
+  const scoreFontSize = Math.round(w * 0.08);
+
+  // Local team
+  ctx.save();
+  ctx.font = wc26Active() ? wc26Font('700', teamFontSize) : `700 ${teamFontSize}px 'BebasNeue',sans-serif`;
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  const localX = x + w * 0.25;
+  const localY = y + teamAreaH * 0.3;
+  ctx.fillText(match.local?.toUpperCase() || 'TBD', localX, localY);
+
+  // Score if available
+  if (hasScore) {
+    ctx.font = wc26Active() ? wc26Font('700', scoreFontSize) : `700 ${scoreFontSize}px 'BebasNeue',sans-serif`;
+    ctx.fillText(`${match.golesLocal} - ${match.golesVisitante}`, localX, y + h * 0.5);
+  }
+  ctx.restore();
+
+  // Visitor team
+  ctx.save();
+  ctx.font = wc26Active() ? wc26Font('700', teamFontSize) : `700 ${teamFontSize}px 'BebasNeue',sans-serif`;
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  const visX = x + w * 0.75;
+  const visY = y + teamAreaH * 0.7;
+  ctx.fillText(match.visitante?.toUpperCase() || 'TBD', visX, visY);
+  ctx.restore();
+}
+
+// Draw final match box with special styling
+function drawWC26MatchBoxFinalCorrect(x, y, w, h, match, cAbbr, index) {
+  const hasScore = match.golesLocal !== null && match.golesLocal !== undefined;
+
+  // Draw special final match background
+  ctx.save();
+  const grad = ctx.createLinearGradient(x, y, x + w, y);
+  grad.addColorStop(0, WC26C.lime);
+  grad.addColorStop(0.5, WC26C.lime);
+  grad.addColorStop(1, WC26C.coral);
+  ctx.fillStyle = grad;
+  roundRect(ctx, x, y, w, h, Math.round(h * 0.05));
+  ctx.fill();
+  ctx.restore();
+
+  // Black interior
+  ctx.save();
+  ctx.fillStyle = WC26C.barBlack;
+  roundRect(ctx, x + 3, y + 3, w - 6, h - 3, Math.round(h * 0.05) - 3);
+  ctx.fill();
+  ctx.restore();
+
+  // Draw teams
+  const teamAreaH = h * 0.35;
+  const teamFontSize = Math.round(w * 0.06);
+  const scoreFontSize = Math.round(w * 0.1);
+
+  // Local team
+  ctx.save();
+  ctx.font = wc26Active() ? wc26Font('700', teamFontSize) : `700 ${teamFontSize}px 'BebasNeue',sans-serif`;
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  const localX = x + w * 0.3;
+  const localY = y + teamAreaH * 0.3;
+  ctx.fillText(match.local?.toUpperCase() || 'TBD', localX, localY);
+
+  // Score if available
+  if (hasScore) {
+    ctx.font = wc26Active() ? wc26Font('700', scoreFontSize) : `700 ${scoreFontSize}px 'BebasNeue',sans-serif`;
+    ctx.fillText(`${match.golesLocal} - ${match.golesVisitante}`, localX, y + h * 0.5);
+  }
+  ctx.restore();
+
+  // Visitor team
+  ctx.save();
+  ctx.font = wc26Active() ? wc26Font('700', teamFontSize) : `700 ${teamFontSize}px 'BebasNeue',sans-serif`;
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  const visX = x + w * 0.7;
+  const visY = y + teamAreaH * 0.7;
+  ctx.fillText(match.visitante?.toUpperCase() || 'TBD', visX, visY);
+  ctx.restore();
+
+  // Add winner indicator if there's a score
+  if (hasScore) {
+    const winner = match.golesLocal > match.golesVisitante ? match.local : match.visitante;
+    ctx.save();
+    ctx.font = wc26Active() ? wc26Font('700', Math.round(w * 0.03)) : `700 ${Math.round(w * 0.03)}px 'BebasNeue',sans-serif`;
+    ctx.fillStyle = WC26C.lime;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText('CAMPEÓN', x + w/2, y + h - Math.round(h * 0.15));
+    ctx.restore();
+  }
+}
+
+// Draw WC16 connections to quarterfinals
+function drawWC16ConnectionsCorrect(x, y, containerH, containerW, rounds) {
+  ctx.save();
+  ctx.strokeStyle = WC26C.turquoise + '55';
+  ctx.lineWidth = Math.max(1, Math.round(W * 0.001));
+
+  // Connect each pair of matches
+  const numPairs = Math.floor((rounds[0]?.length || 0) / 2);
+
+  for (let i = 0; i < numPairs; i++) {
+    const leftMatchIndex = i * 2;
+    const rightMatchIndex = i * 2 + 1;
+
+    // Calculate positions
+    const leftY = y + (leftMatchIndex * (Math.round(containerH * 0.8) + Math.round(containerH * 0.02)));
+    const rightY = y + (rightMatchIndex * (Math.round(containerH * 0.8) + Math.round(containerH * 0.02)));
+
+    // Calculate center of pair
+    const centerY = (leftY + rightY) / 2;
+
+    // Draw connecting line
+    ctx.beginPath();
+    ctx.moveTo(x + containerW, centerY);
+
+    // Draw curve to center
+    const controlX = x + containerW + Math.round(containerW * 0.15);
+    const controlY = centerY;
+
+    ctx.quadraticCurveTo(controlX, controlY, x + containerW + Math.round(containerW * 0.3), centerY - Math.round(containerH * 0.15));
+    ctx.stroke();
+
+    // Connect to quarterfinal match
+    ctx.beginPath();
+    ctx.moveTo(x + containerW + Math.round(containerW * 0.3), centerY - Math.round(containerH * 0.15));
+
+    // Small curve
+    ctx.lineTo(x + containerW + Math.round(containerW * 0.3), centerY - Math.round(containerH * 0.15) - Math.round(containerH * 0.2));
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// Actualizar función para etapa única
+function drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad) {
+  const selectedEtapa = S.bracketEtapa || 'all';
+  const stageIdx = etapas.findIndex(([name]) => name === selectedEtapa);
+
+  if (stageIdx === -1) return;
+
+  const [stageName, matches] = etapas[stageIdx];
+  const treeH = mel.h * 0.9;
+  const treeW = mel.w * 0.9;
+
+  const stageX = mel.x + Math.round(mel.w * 0.05);
+  const stageY = mel.y + Math.round(mel.h * 0.15);
+
+  // Etiqueta de etapa con color específico
+  ctx.save();
+  ctx.font = wc26Active() ? wc26Font('700', Math.round(W * 0.022)) : `700 ${Math.round(W * 0.022)}px 'BebasNeue',sans-serif`;
+  ctx.fillStyle = WC26C.turquoise + 'CC';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText(stageName.toUpperCase(), stageX, stageY - Math.round(H * 0.05));
+  ctx.restore();
+
+  // Calcular rondas apropiadas
+  const numRounds = Math.ceil(Math.log2(matches.length));
+  const rounds = splitIntoRoundsCorrect([matches], numRounds);
+
+  if (stageName === 'Octavos de final') {
+    drawWC16MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+  } else if (stageName === 'Cuartos de final') {
+    drawWC8MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+  } else if (stageName === 'Semifinal') {
+    drawWC4MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+  } else if (stageName === 'Tercer puesto') {
+    drawWC2MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+  } else if (stageName === 'Final') {
+    drawWC2FinalCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+  }
+}
+
+  // ── Country abbreviations ──
+  const cAbbr = {
+    'ar':'ARG','br':'BRA','fr':'FRA','de':'GER','es':'ESP','gb-eng':'ENG',
+    'pt':'POR','nl':'NED','be':'BEL','hr':'CRO','uy':'URU','mx':'MEX',
+    'co':'COL','cl':'CHI','pe':'PER','ec':'ECU','py':'PAR','ve':'VEN',
+    'ch':'SUI','at':'AUT','dk':'DEN','se':'SWE','no':'NOR','jp':'JPN',
+    'kr':'KOR','au':'AUS','ma':'MAR','eg':'EGY','ng':'NGA','sn':'SEN',
+    'gh':'GHA','cm':'CMR','dz':'ALG','sa':'KSA','ir':'IRN','iq':'IRQ',
+    'ca':'CAN','us':'USA','tn':'TUN','cr':'CRC','pa':'PAN','hn':'HON',
+    'jm':'JAM','rs':'SRB','pl':'POL','cz':'CZE','sk':'SVK','ua':'UKR',
+    'ru':'RUS','tr':'TUR','gb-wls':'WAL','gb-sct':'SCO','ci':'CIV',
+    'za':'RSA','al':'ALB','mk':'MKD','ps':'PLE','jo':'JOR','qa':'QAT',
+    'ae':'UAE','cn':'CHN','in':'IND','id':'IDN','th':'THA','nz':'NZL',
+    'is':'ISL','fi':'FIN','hu':'HUN','ro':'ROU','ba':'BIH','ge':'GEO',
+    'si':'SVN','xk':'KOS','sv':'SLV','cw':'CUW','sr':'SUR','ht':'HAI',
+    'cu':'CUB','bo':'BOL','tt':'TRI','cd':'COD','cv':'CPV','gr':'GRE',
+    'il':'ISR','gb-nir':'NIR',
+  };
+
+  const etapas = Object.entries(bracket);
+  const selectedEtapa = S.bracketEtapa || 'all';
+  const pad = Math.round(W * 0.025);
+
+  // ── Helpers ──
+  function resolveTeam(name) {
+    if (!name || name === 'TBD') return { display: 'TBD', isTBD: true };
+    // W73, L101 = Winner/Loser of match X
+    const wMatch = name.match(/^[WL](\d+)$/i);
+    if (wMatch) return { display: `${name[0].toUpperCase()}${name.slice(1).toLowerCase()}`, isTBD: true, matchRef: wMatch[1] };
+    const translated = (typeof traducirPais === 'function' ? traducirPais(name) : name);
+    return { display: translated, isTBD: false };
+  }
+
+  function getAbbr(name) {
+    const iso = flagIso(name);
+    return iso ? (cAbbr[iso] || iso.toUpperCase()) : '';
+  }
+
 
   // ── SINGLE STAGE VIEW (llave visual 3 columnas) ──
   if (selectedEtapa !== 'all') {
