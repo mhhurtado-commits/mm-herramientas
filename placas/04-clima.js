@@ -676,24 +676,11 @@ function dibujarAlerta(ctx, W, H, pad, alertaY) {
   const alertaTexto = climaAlerta.toUpperCase();
   const maxW = (W - pad * 2) - alertaPad * 2;
 
-  // Calcular font size que entre en el ancho
-  let fs = Math.round(H * 0.022);
-  let displayText = '⚠ ' + alertaTexto;
+  const fs = Math.round(H * 0.02);
   ctx.font = `bold ${fs}px Inter, sans-serif`;
-  while (ctx.measureText(displayText).width > maxW && fs > Math.round(H * 0.014)) {
-    fs--; ctx.font = `bold ${fs}px Inter, sans-serif`;
-  }
-  // Truncar con … si aún no entra
-  if (ctx.measureText(displayText).width > maxW) {
-    while (ctx.measureText(displayText + '…').width > maxW && displayText.length > 5) {
-      displayText = displayText.slice(0, -1);
-    }
-    displayText = displayText.slice(0, -1) + '…';
-  }
-
-  // Altura dinámica: texto + padding mínimo
+  const lines = wrapText(ctx, '⚠ ' + alertaTexto, maxW);
   const lineH = Math.round(fs * 1.35);
-  const alertaH = lineH + alertaPad * 2;
+  const alertaH = lines.length * lineH + alertaPad * 2;
 
   ctx.save();
   const alertaGrad = ctx.createLinearGradient(pad, alertaY, pad, alertaY + alertaH);
@@ -719,7 +706,9 @@ function dibujarAlerta(ctx, W, H, pad, alertaY) {
   ctx.font = `bold ${fs}px Inter, sans-serif`;
   ctx.shadowColor = 'rgba(0,0,0,0.3)';
   ctx.shadowBlur = 2;
-  ctx.fillText(displayText, pad + alertaPad, alertaY + lineH);
+  lines.forEach((line, i) => {
+    ctx.fillText(line, pad + alertaPad, alertaY + alertaPad + lineH * (i + 1) - Math.round(lineH * 0.25));
+  });
   ctx.shadowBlur = 0;
 
   return alertaH;
@@ -1637,25 +1626,34 @@ function renderClima(W, H) {
     // Hero section
     const heroY = headerH + alertaH + Math.round(H * 0.025);
     const heroH = Math.round(H * 0.28);
-    const iconSize = Math.round(Math.min(W, H) * 0.14);
-    const iconX = Math.round(W / 2);
-    const iconY = heroY + Math.round(heroH * 0.3);
-    dibujarIconoClima(ctx, iconX, iconY, iconSize, actual.tipo, actual.smnCode || undefined);
 
-    const tempSize = Math.round(Math.min(W, H) * 0.15);
+    // Izquierda: icono + descripción
+    const heroCenter = Math.round(W / 2);
+    const heroLeftX = Math.round(W * 0.22);
+    const iconSize = Math.round(Math.min(W, H) * 0.12);
+    const iconY = heroY + Math.round(heroH * 0.35);
+    dibujarIconoClima(ctx, heroLeftX, iconY, iconSize, actual.tipo, actual.smnCode || undefined);
+    ctx.font = `${Math.round(H * 0.017)}px Inter, sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.textAlign = 'center';
+    ctx.fillText(actual.descripcion, heroLeftX, iconY + Math.round(iconSize * 0.55));
+
+    // Derecha: temperatura + sensación
+    const heroRightX = Math.round(W * 0.7);
+    const tempSize = Math.round(Math.min(W, H) * 0.18);
     ctx.font = `bold ${tempSize}px BebasNeue, sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
     ctx.shadowBlur = 12;
-    const tempY = iconY + Math.round(iconSize * 0.65);
-    ctx.fillText(`${actual.temp}°`, iconX, tempY);
+    const tempY = heroY + Math.round(heroH * 0.5);
+    ctx.fillText(`${actual.temp}°`, heroRightX, tempY);
     ctx.shadowBlur = 0;
 
     const sensacion = actual.sensacionTermica ?? actual.temp - Math.round(actual.viento / 10);
     ctx.font = `${Math.round(H * 0.016)}px Inter, sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText(`Sensación térmica ${sensacion}°`, iconX, tempY + Math.round(H * 0.04));
+    ctx.fillText(`Sensación térmica ${sensacion}°`, heroRightX, tempY + Math.round(H * 0.035));
 
     // Metrics row
     const metricsY = heroY + heroH + Math.round(H * 0.015);
@@ -1735,53 +1733,60 @@ function renderClima(W, H) {
 
       pronostico.forEach((dia, i) => {
         const cx = pad + i * diaWidth + diaWidth / 2;
-        const halfW = Math.round(diaWidth * 0.4);
-        // Fecha
-        ctx.font = `bold ${Math.round(H * 0.015)}px Inter, sans-serif`;
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        const cardW = diaWidth - Math.round(diaWidth * 0.12);
+        const cardX = cx - cardW / 2;
+        const cardH = Math.round(H * 0.16);
+        const cardY = itemsY;
+
+        // Fondo de tarjeta
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, 6);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+
+        // Título: día
+        ctx.font = `bold ${Math.round(H * 0.013)}px Inter, sans-serif`;
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
         ctx.textAlign = 'center';
-        ctx.fillText(dia.fecha.toUpperCase(), cx, itemsY);
+        ctx.fillText(dia.fecha.toUpperCase(), cx, cardY + Math.round(H * 0.022));
 
-        const iconSize = Math.round(H * 0.045);
-        const iconY = itemsY + Math.round(H * 0.06);
-
-        // Mañana (izquierda)
+        const iconS = Math.round(H * 0.035);
+        const tempS = Math.round(H * 0.02);
+        const midY = cardY + Math.round(cardH * 0.5);
         const am = dia.morning;
-        if (am) {
-          dibujarIconoClima(ctx, cx - halfW, iconY, iconSize, am.tipo, am.smnCode);
-          ctx.font = `${Math.round(H * 0.011)}px Inter, sans-serif`;
-          ctx.fillStyle = 'rgba(255,255,255,0.5)';
-          ctx.textAlign = 'center';
-          if (am.probLluvia > 0) {
-            ctx.fillStyle = '#60A5FA';
-            ctx.fillText(`${am.probLluvia}%`, cx - halfW, iconY + Math.round(H * 0.04));
-          }
-        }
-
-        // Tarde (derecha)
         const pm = dia.afternoon;
-        if (pm) {
-          dibujarIconoClima(ctx, cx + halfW, iconY, iconSize, pm.tipo, pm.smnCode);
-          ctx.font = `${Math.round(H * 0.011)}px Inter, sans-serif`;
-          ctx.textAlign = 'center';
-          if (pm.probLluvia > 0) {
-            ctx.fillStyle = '#60A5FA';
-            ctx.fillText(`${pm.probLluvia}%`, cx + halfW, iconY + Math.round(H * 0.04));
-          }
+
+        // Mañana (mitad superior)
+        if (am) {
+          dibujarIconoClima(ctx, cx - Math.round(cardW * 0.2), cardY + Math.round(H * 0.048), iconS, am.tipo, am.smnCode);
+          ctx.font = `bold ${tempS}px BebasNeue, sans-serif`;
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'left';
+          ctx.fillText(`${dia.tempMin}°`, cx - Math.round(cardW * 0.2) + Math.round(H * 0.028), cardY + Math.round(H * 0.062));
         }
 
-        // Temperaturas
-        ctx.font = `bold ${Math.round(H * 0.024)}px BebasNeue, sans-serif`;
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${dia.tempMin}°`, cx - halfW, iconY + Math.round(H * 0.09));
-        ctx.fillText(`${dia.tempMax}°`, cx + halfW, iconY + Math.round(H * 0.09));
+        // Tarde (mitad inferior)
+        if (pm) {
+          dibujarIconoClima(ctx, cx - Math.round(cardW * 0.2), midY + Math.round(H * 0.01), iconS, pm.tipo, pm.smnCode);
+          ctx.font = `bold ${tempS}px BebasNeue, sans-serif`;
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'left';
+          ctx.fillText(`${dia.tempMax}°`, cx - Math.round(cardW * 0.2) + Math.round(H * 0.028), midY + Math.round(H * 0.025));
+        }
 
-        // Etiquetas mañana/tarde
-        ctx.font = `${Math.round(H * 0.01)}px Inter, sans-serif`;
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        ctx.fillText('MAÑANA', cx - halfW, iconY + Math.round(H * 0.12));
-        ctx.fillText('TARDE', cx + halfW, iconY + Math.round(H * 0.12));
+        // Probabilidad de lluvia debajo de la tarjeta
+        const maxProb = Math.max(am?.probLluvia || 0, pm?.probLluvia || 0);
+        if (maxProb > 0) {
+          ctx.font = `${Math.round(H * 0.012)}px Inter, sans-serif`;
+          ctx.fillStyle = '#60A5FA';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${maxProb}%`, cx, cardY + cardH + Math.round(H * 0.018));
+        }
       });
     } else if (climaCiudadesMultiples.length > 0) {
       const halfH = Math.round(footerH / 2);
@@ -2237,48 +2242,33 @@ function renderClimaCombinado(W, H) {
   const heroY = alertaY + alertaH + Math.round(H * 0.02);
   const heroH = Math.round(H * 0.34);
 
-  // Icono grande
-  const iconSize = Math.round(Math.min(W, H) * 0.16);
-  const iconX = Math.round(W / 2);
-  const iconY = heroY + Math.round(heroH * 0.28);
-  dibujarIconoClima(ctx, iconX, iconY, iconSize, actual.tipo, actual.smnCode || undefined);
+  // Izquierda: icono + descripción
+  const heroLeftX = Math.round(W * 0.22);
+  const iconSize = Math.round(Math.min(W, H) * 0.14);
+  const iconY = heroY + Math.round(heroH * 0.38);
+  dibujarIconoClima(ctx, heroLeftX, iconY, iconSize, actual.tipo, actual.smnCode || undefined);
+  ctx.font = `${Math.round(H * 0.018)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.textAlign = 'center';
+  ctx.fillText(actual.descripcion, heroLeftX, iconY + Math.round(iconSize * 0.55));
 
-  // Temperatura
-  const tempSize = Math.round(Math.min(W, H) * 0.18);
+  // Derecha: temperatura + sensación
+  const heroRightX = Math.round(W * 0.7);
+  const tempSize = Math.round(Math.min(W, H) * 0.2);
   ctx.font = `bold ${tempSize}px BebasNeue, sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
   ctx.shadowBlur = 12;
-  const tempY = iconY + Math.round(iconSize * 0.65);
-  ctx.fillText(`${actual.temp}°`, iconX, tempY);
+  const tempY = heroY + Math.round(heroH * 0.52);
+  ctx.fillText(`${actual.temp}°`, heroRightX, tempY);
   ctx.shadowBlur = 0;
 
-  // Description pill
-  const descPillW = Math.round(W * 0.32);
-  const descPillH = Math.round(H * 0.032);
-  const descPillX = iconX - descPillW / 2;
-  const descPillY = tempY + Math.round(H * 0.04);
-  ctx.save();
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-  ctx.beginPath();
-  ctx.roundRect(descPillX, descPillY, descPillW, descPillH, 999);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.font = `bold ${Math.round(H * 0.018)}px Inter, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText(actual.descripcion.toUpperCase(), iconX, descPillY + Math.round(descPillH * 0.68));
-  ctx.restore();
-
-  // Sensación térmica
   const sensacion = actual.sensacionTermica ?? actual.temp - Math.round(actual.viento / 10);
   ctx.font = `${Math.round(H * 0.018)}px Inter, sans-serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
   ctx.textAlign = 'center';
-  ctx.fillText(`Sensación térmica ${sensacion}°`, iconX, descPillY + descPillH + Math.round(H * 0.03));
+  ctx.fillText(`Sensación térmica ${sensacion}°`, heroRightX, tempY + Math.round(H * 0.04));
 
   // ═══ 3. MÉTRICAS — 4 cards horizontales ═══
   const metricsY = heroY + heroH + Math.round(H * 0.015);
