@@ -8,7 +8,6 @@ import cloudscraper
 import requests
 import time
 import re
-import base64
 from datetime import datetime
 
 # ============================================================
@@ -25,9 +24,6 @@ WORKER_API_KEY = "tomyjerry2008"
 # Intervalo de actualización en segundos (50 minutos = 3000 segundos)
 # El token dura 1 hora, renovamos 10 min antes por seguridad
 TOKEN_UPDATE_INTERVAL = 3000
-
-# Códigos de iconos SMN a scrapear (tomados del mapping SMN_TO_WMO en 04-clima.js)
-SMN_ICON_CODES = [0,1,3,4,5,6,7,8,13,19,25,37,43,45,48,51,53,55,61,63,65,69,71,72,73,74,75,76,77,79,80,81,82,85,87,89,91,92,93,94,95,96,97,98,99]
 
 # ============================================================
 # FUNCIONES
@@ -85,49 +81,6 @@ def upload_token_to_worker(token):
         print(f"[{datetime.now()}] ❌ Error subiendo token al Worker: {e}")
         return False
 
-def download_and_upload_icons():
-    """Descarga los iconos meteorológicos de SMN y los sube al KV del Worker"""
-    print(f"[{datetime.now()}] 🖼️ Descargando iconos SMN...")
-    
-    scraper = cloudscraper.create_scraper()
-    headers = {
-        "Authorization": f"Bearer {WORKER_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    success = 0
-    failed = 0
-    
-    for code in SMN_ICON_CODES:
-        url = f"https://www.smn.gob.ar/sites/all/themes/smn/img/weather-icons/{code}.png"
-        try:
-            resp = scraper.get(url, timeout=15)
-            if resp.status_code == 200:
-                b64_data = base64.b64encode(resp.content).decode('ascii')
-                upload_resp = requests.post(
-                    f"{WORKER_URL}/smn/upload-icon",
-                    headers=headers,
-                    json={"code": str(code), "data": b64_data},
-                    timeout=15
-                )
-                if upload_resp.status_code == 200:
-                    success += 1
-                else:
-                    print(f"[{datetime.now()}]   ⚠️ Icono {code}: upload failed ({upload_resp.status_code})")
-                    failed += 1
-            else:
-                print(f"[{datetime.now()}]   ⚠️ Icono {code}: HTTP {resp.status_code}")
-                failed += 1
-            # Pequeña pausa para no saturar
-            time.sleep(0.1)
-        except Exception as e:
-            print(f"[{datetime.now()}]   ❌ Icono {code}: {e}")
-            failed += 1
-    
-    print(f"[{datetime.now()}] {'✅' if failed == 0 else '⚠️'} Iconos: {success} subidos, {failed} fallidos")
-    return failed == 0
-    return failed == 0
-
 def main():
     print("=" * 60)
     print("🚀 Actualizador de Token SMN para Cloudflare Worker")
@@ -144,8 +97,6 @@ def main():
         print("   Generá una clave segura y usá la misma en worker.js")
         return
     
-    icons_uploaded = False
-    
     while True:
         try:
             # Obtener token
@@ -155,9 +106,6 @@ def main():
                 # Subir al Worker
                 if upload_token_to_worker(token):
                     print(f"[{datetime.now()}] ✅ Ciclo completado exitosamente")
-                    # Descargar y subir iconos solo una vez
-                    if not icons_uploaded:
-                        icons_uploaded = download_and_upload_icons()
                 else:
                     print(f"[{datetime.now()}] ⚠️ No se pudo subir el token, reintentando en 1 min...")
                     time.sleep(60)
