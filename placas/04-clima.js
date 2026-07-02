@@ -1726,7 +1726,7 @@ function renderClima(W, H) {
     const footerY = metricsY + metricsH + Math.round(H * 0.025);
     const footerH = H - footerY - Math.round(H * 0.015);
 
-    if (climaMostrarPronostico && climaCiudadesMultiples.length === 0) {
+    if (climaMostrarPronostico) {
       ctx.font = `bold ${Math.round(H * 0.02)}px BebasNeue, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#a6ce39';
@@ -1820,42 +1820,20 @@ function renderClima(W, H) {
           ctx.fillText(`${maxProb}%`, dropX + Math.round(H * 0.015), rainY + Math.round(H * 0.004));
         }
       });
-    } else if (climaCiudadesMultiples.length > 0) {
-      const halfH = Math.round(footerH / 2);
-      const fcY1 = footerY;
-      const fcY2 = footerY + halfH;
+    }
+
+    if (climaCiudadesMultiples.length > 0) {
+      const otherY = footerY + Math.round(H * 0.19) + (climaMostrarPronostico ? Math.round(H * 0.02) : 0);
 
       ctx.font = `bold ${Math.round(H * 0.017)}px BebasNeue, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#a6ce39';
       ctx.letterSpacing = '2px';
-      ctx.fillText('PRONÓSTICO 7 DÍAS', W / 2, fcY1 + Math.round(H * 0.03));
-      ctx.letterSpacing = '0';
-
-      const diaWidth = Math.round((W - pad * 2) / 7);
-      const pItemsY = fcY1 + Math.round(H * 0.05);
-      pronostico.forEach((dia, i) => {
-        const cx = pad + i * diaWidth + diaWidth / 2;
-        const pm = dia.afternoon || dia.morning || {};
-        ctx.font = `bold ${Math.round(H * 0.013)}px Inter, sans-serif`;
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.textAlign = 'center';
-        ctx.fillText(dia.fecha.toUpperCase(), cx, pItemsY);
-        dibujarIconoClima(ctx, cx, pItemsY + Math.round(H * 0.05), Math.round(H * 0.04), pm.tipo, pm.smnCode);
-        ctx.font = `bold ${Math.round(H * 0.022)}px BebasNeue, sans-serif`;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(`${dia.tempMax}°`, cx, pItemsY + Math.round(H * 0.1));
-      });
-
-      ctx.font = `bold ${Math.round(H * 0.017)}px BebasNeue, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#a6ce39';
-      ctx.letterSpacing = '2px';
-      ctx.fillText('OTRAS CIUDADES', W / 2, fcY2 + Math.round(H * 0.03));
+      ctx.fillText('OTRAS CIUDADES', W / 2, otherY + Math.round(H * 0.03));
       ctx.letterSpacing = '0';
 
       const cWidth = Math.round((W - pad * 2) / climaCiudadesMultiples.length);
-      const cItemsY = fcY2 + Math.round(H * 0.05);
+      const cItemsY = otherY + Math.round(H * 0.05);
       climaCiudadesMultiples.forEach((c, i) => {
         const cx = pad + i * cWidth + cWidth / 2;
         ctx.font = `bold ${Math.round(H * 0.014)}px Inter, sans-serif`;
