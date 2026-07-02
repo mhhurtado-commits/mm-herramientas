@@ -2538,7 +2538,7 @@ function drawMundialBracket(W, H) {
     }
   }
 
-  // ── SINGLE STAGE VIEW (llave visual 3 columnas) ──
+  // ── SINGLE STAGE VIEW (árbol bracket 2 columnas) ──
   if (selectedEtapa !== 'all') {
     const stageIdx = etapas.findIndex(([name]) => name === selectedEtapa);
     if (stageIdx === -1) {
@@ -2554,7 +2554,7 @@ function drawMundialBracket(W, H) {
     const [stageName, stageMatches] = etapas[stageIdx];
     const nextStage = stageIdx + 1 < etapas.length ? etapas[stageIdx + 1] : null;
     const numMatches = stageMatches.length;
-    const hasCenter = nextStage && nextStage[1].length > 0 && numMatches >= 4;
+    const hasNext = nextStage && nextStage[1].length > 0 && numMatches >= 2;
 
     const innerPadX = pad;
     const innerPadY = Math.round(mel.h * 0.065);
@@ -2562,28 +2562,14 @@ function drawMundialBracket(W, H) {
     const contentTopY = mel.y + innerPadY + labelH;
     const contentH = mel.h - innerPadY * 2 - labelH;
 
-    const halfCount = Math.ceil(numMatches / 2);
-    const leftMatches = stageMatches.slice(0, halfCount);
-    const rightMatches = stageMatches.slice(halfCount);
-
-    const gapW = hasCenter ? Math.round(mel.w * 0.05) : 0;
-    let sideW, centerW;
-    if (hasCenter) {
-      const totalW = mel.w - innerPadX * 2 - gapW * 2;
-      sideW = Math.round(totalW * 0.37);
-      centerW = totalW - sideW * 2;
-    } else {
-      sideW = Math.round((mel.w - innerPadX * 2) * 0.48);
-      centerW = 0;
-    }
-
+    const gapW = Math.round(mel.w * 0.035);
+    const sideW = hasNext ? Math.round((mel.w - innerPadX * 2 - gapW) * 0.45) : Math.round((mel.w - innerPadX * 2) * 0.6);
+    const nextW = hasNext ? mel.w - innerPadX * 2 - gapW - sideW : 0;
     const leftX = mel.x + innerPadX;
-    const centerX = hasCenter ? leftX + sideW + gapW : 0;
-    const rightX = hasCenter ? centerX + centerW + gapW : leftX + sideW + Math.round(mel.w * 0.04);
+    const rightX = hasNext ? leftX + sideW + gapW : 0;
 
-    const rowsPerSide = Math.max(leftMatches.length, rightMatches.length || 1);
-    const rowH = Math.round(contentH / rowsPerSide);
-    const matchBoxH = Math.round(rowH * 0.9);
+    const rowH = Math.round(contentH / Math.max(numMatches, 1));
+    const matchBoxH = Math.round(rowH * 0.88);
 
     // Stage label
     ctx.save();
@@ -2603,145 +2589,72 @@ function drawMundialBracket(W, H) {
     }
     ctx.restore();
 
-    // Left column
+    // ── LEFT column: all current stage matches ──
     const leftBoxes = [];
-    for (let i = 0; i < leftMatches.length; i++) {
+    for (let i = 0; i < numMatches; i++) {
       const my = contentTopY + i * rowH + Math.round((rowH - matchBoxH) / 2);
       leftBoxes.push({ x: leftX, y: my, w: sideW, h: matchBoxH });
-      drawMatchBox(leftX, my, sideW, matchBoxH, leftMatches[i], { showInfo: true });
+      drawMatchBox(leftX, my, sideW, matchBoxH, stageMatches[i], { showInfo: true });
     }
 
-    // Right column
-    const rightBoxes = [];
-    if (rightMatches.length > 0) {
-      if (!hasCenter) {
-        ctx.save();
-        ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.014)) : `700 ${Math.round(W*0.014)}px 'BebasNeue',sans-serif`;
-        ctx.fillStyle = wc26Active() ? WC26C.turquoise + 'AA' : 'rgba(166,206,57,0.6)';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-        ctx.fillText(`${stageName.toUpperCase()} (cont.)`, rightX + sideW/2, contentTopY - Math.round(labelH * 0.4));
-        ctx.restore();
-      }
-      for (let i = 0; i < rightMatches.length; i++) {
-        const my = contentTopY + i * rowH + Math.round((rowH - matchBoxH) / 2);
-        rightBoxes.push({ x: rightX, y: my, w: sideW, h: matchBoxH });
-        drawMatchBox(rightX, my, sideW, matchBoxH, rightMatches[i], { showInfo: true });
-      }
-    }
-
-    // ── Center column = next stage, with connecting lines ──
-    if (hasCenter && nextStage) {
+    // ── RIGHT column: next stage matches, positioned between pairs ──
+    if (hasNext && nextStage) {
       const [nextName, nextMatches] = nextStage;
-      const totalCenter = nextMatches.length;
+      const totalNext = nextMatches.length;
 
       ctx.save();
       ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.015)) : `700 ${Math.round(W*0.015)}px 'BebasNeue',sans-serif`;
       ctx.fillStyle = wc26Active() ? WC26C.turquoise + 'AA' : 'rgba(166,206,57,0.6)';
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText(nextName.toUpperCase(), centerX + centerW/2, contentTopY - Math.round(labelH * 0.4));
+      ctx.fillText(nextName.toUpperCase(), rightX + nextW/2, contentTopY - Math.round(labelH * 0.4));
       ctx.restore();
 
-      // Left side feeds first half of center, right side feeds second half
-      const leftPairs = Math.floor(leftMatches.length / 2);
-      const rightPairs = Math.floor(rightMatches.length / 2);
-      const leftCenterCount = Math.min(leftPairs, totalCenter);
-      const rightCenterCount = Math.min(rightPairs, totalCenter - leftCenterCount);
-
-      const centerBoxes = [];
-      for (let i = 0; i < totalCenter; i++) {
-        let pairTop, pairBottom;
-        if (i < leftCenterCount) {
-          const li1 = i * 2;
-          const li2 = i * 2 + 1;
-          if (li1 < leftBoxes.length) {
-            pairTop = leftBoxes[li1].y;
-            pairBottom = (li2 < leftBoxes.length) ? (leftBoxes[li2].y + leftBoxes[li2].h) : (leftBoxes[li1].y + leftBoxes[li1].h);
-          } else {
-            pairTop = contentTopY + i * 2 * rowH;
-            pairBottom = pairTop + rowH * 2;
-          }
-        } else {
-          const ri = i - leftCenterCount;
-          const ri1 = ri * 2;
-          const ri2 = ri * 2 + 1;
-          if (ri1 < rightBoxes.length) {
-            pairTop = rightBoxes[ri1].y;
-            pairBottom = (ri2 < rightBoxes.length) ? (rightBoxes[ri2].y + rightBoxes[ri2].h) : (rightBoxes[ri1].y + rightBoxes[ri1].h);
-          } else {
-            pairTop = contentTopY + (leftMatches.length + ri * 2) * rowH;
-            pairBottom = pairTop + rowH * 2;
-          }
-        }
+      const rightBoxes = [];
+      for (let i = 0; i < totalNext; i++) {
+        const li1 = Math.min(i * 2, leftBoxes.length - 1);
+        const li2 = Math.min(i * 2 + 1, leftBoxes.length - 1);
+        const pairTop = leftBoxes[li1].y;
+        const pairBottom = leftBoxes[li2].y + leftBoxes[li2].h;
         const spanH = pairBottom - pairTop;
-        const centerBoxH = Math.round(spanH * 0.88);
-        const my = pairTop + Math.round((spanH - centerBoxH) / 2);
-        centerBoxes.push({ x: centerX, y: my, w: centerW, h: centerBoxH });
-        drawMatchBox(centerX, my, centerW, centerBoxH, nextMatches[i], { isCenter: true, showInfo: false });
+        const rightBoxH = Math.round(spanH * 0.85);
+        const my = pairTop + Math.round((spanH - rightBoxH) / 2);
+        rightBoxes.push({ x: rightX, y: my, w: nextW, h: rightBoxH });
+        drawMatchBox(rightX, my, nextW, rightBoxH, nextMatches[i], { isCenter: true, showInfo: false });
       }
 
-      // ── Draw connecting lines ──
+      // ── Draw bracket tree connection lines ──
       ctx.save();
       ctx.strokeStyle = wc26Active() ? WC26C.turquoise + '55' : 'rgba(166,206,57,0.3)';
       ctx.lineWidth = Math.max(1, Math.round(W * 0.0015));
 
-      const gapMidXL = leftBoxes[0] ? leftBoxes[0].x + sideW + Math.round(gapW * 0.5) : 0;
+      const gapMidX = leftX + sideW + Math.round(gapW * 0.5);
 
-      // Left pairs → first leftCenterCount center boxes
-      for (let i = 0; i < leftCenterCount; i++) {
+      for (let i = 0; i < totalNext; i++) {
         const li1 = i * 2;
         const li2 = i * 2 + 1;
-        const cBox = centerBoxes[i];
-        const cMidY = cBox.y + cBox.h * 0.5;
+
+        const rBox = rightBoxes[i];
+        const rMidY = rBox.y + rBox.h * 0.5;
 
         if (li1 < leftBoxes.length) {
           const l = leftBoxes[li1];
           const lMidY = l.y + l.h * 0.5;
           ctx.beginPath();
           ctx.moveTo(l.x + l.w, lMidY);
-          ctx.lineTo(gapMidXL, lMidY);
-          ctx.lineTo(gapMidXL, cMidY - Math.round(cBox.h * 0.15));
-          ctx.lineTo(cBox.x, cMidY - Math.round(cBox.h * 0.15));
+          ctx.lineTo(gapMidX, lMidY);
+          ctx.lineTo(gapMidX, rMidY - Math.round(rBox.h * 0.12));
+          ctx.lineTo(rBox.x, rMidY - Math.round(rBox.h * 0.12));
           ctx.stroke();
         }
+
         if (li2 < leftBoxes.length) {
           const l = leftBoxes[li2];
           const lMidY = l.y + l.h * 0.5;
           ctx.beginPath();
           ctx.moveTo(l.x + l.w, lMidY);
-          ctx.lineTo(gapMidXL, lMidY);
-          ctx.lineTo(gapMidXL, cMidY + Math.round(cBox.h * 0.15));
-          ctx.lineTo(cBox.x, cMidY + Math.round(cBox.h * 0.15));
-          ctx.stroke();
-        }
-      }
-
-      // Right pairs → last rightCenterCount center boxes
-      for (let i = 0; i < rightCenterCount; i++) {
-        const ri1 = i * 2;
-        const ri2 = i * 2 + 1;
-        const cIdx = leftCenterCount + i;
-        const cBox = centerBoxes[cIdx];
-        const cMidY = cBox.y + cBox.h * 0.5;
-        const gapMidXR = cBox.x + cBox.w + Math.round(gapW * 0.5);
-
-        if (ri1 < rightBoxes.length) {
-          const r = rightBoxes[ri1];
-          const rMidY = r.y + r.h * 0.5;
-          ctx.beginPath();
-          ctx.moveTo(r.x, rMidY);
-          ctx.lineTo(gapMidXR, rMidY);
-          ctx.lineTo(gapMidXR, cMidY - Math.round(cBox.h * 0.15));
-          ctx.lineTo(cBox.x + cBox.w, cMidY - Math.round(cBox.h * 0.15));
-          ctx.stroke();
-        }
-        if (ri2 < rightBoxes.length) {
-          const r = rightBoxes[ri2];
-          const rMidY = r.y + r.h * 0.5;
-          ctx.beginPath();
-          ctx.moveTo(r.x, rMidY);
-          ctx.lineTo(gapMidXR, rMidY);
-          ctx.lineTo(gapMidXR, cMidY + Math.round(cBox.h * 0.15));
-          ctx.lineTo(cBox.x + cBox.w, cMidY + Math.round(cBox.h * 0.15));
+          ctx.lineTo(gapMidX, lMidY);
+          ctx.lineTo(gapMidX, rMidY + Math.round(rBox.h * 0.12));
+          ctx.lineTo(rBox.x, rMidY + Math.round(rBox.h * 0.12));
           ctx.stroke();
         }
       }
