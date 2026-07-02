@@ -2374,440 +2374,169 @@ function drawMundialBracket(W, H) {
     ctx.fill();
   }
 
-  // ── Country abbreviations ──
-  const cAbbr = {
-    'ar':'ARG','br':'BRA','fr':'FRA','de':'GER','es':'ESP','gb-eng':'ENG',
-    'pt':'POR','nl':'NED','be':'BEL','hr':'CRO','uy':'URU','mx':'MEX',
-    'co':'COL','cl':'CHI','pe':'PER','ec':'ECU','py':'PAR','ve':'VEN',
-    'ch':'SUI','at':'AUT','dk':'DEN','se':'SWE','no':'NOR','jp':'JPN',
-    'kr':'KOR','au':'AUS','ma':'MAR','eg':'EGY','ng':'NGA','sn':'SEN',
-    'gh':'GHA','cm':'CMR','dz':'ALG','sa':'KSA','ir':'IRN','iq':'IRQ',
-    'ca':'CAN','us':'USA','tn':'TUN','cr':'CRC','pa':'PAN','hn':'HON',
-    'jm':'JAM','rs':'SRB','pl':'POL','cz':'CZE','sk':'SVK','ua':'UKR',
-    'ru':'RUS','tr':'TUR','gb-wls':'WAL','gb-sct':'SCO','ci':'CIV',
-    'za':'RSA','al':'ALB','mk':'MKD','ps':'PLE','jo':'JOR','qa':'QAT',
-    'ae':'UAE','cn':'CHN','in':'IND','id':'IDN','th':'THA','nz':'NZL',
-    'is':'ISL','fi':'FIN','hu':'HUN','ro':'ROU','ba':'BIH','ge':'GEO',
-    'si':'SVN','xk':'KOS','sv':'SLV','cw':'CUW','sr':'SUR','ht':'HAI',
-    'cu':'CUB','bo':'BOL','tt':'TRI','cd':'COD','cv':'CPV','gr':'GRE',
-    'il':'ISR','gb-nir':'NIR',
-  };
-
   const etapas = Object.entries(bracket);
   const selectedEtapa = S.bracketEtapa || 'all';
   const pad = Math.round(W * 0.025);
 
-  // ── Helpers ──
   function resolveTeam(name) {
     if (!name || name === 'TBD') return { display: 'TBD', isTBD: true };
-    // W73, L101 = Winner/Loser of match X
     const wMatch = name.match(/^[WL](\d+)$/i);
     if (wMatch) return { display: `${name[0].toUpperCase()}${name.slice(1).toLowerCase()}`, isTBD: true, matchRef: wMatch[1] };
     const translated = (typeof traducirPais === 'function' ? traducirPais(name) : name);
     return { display: translated, isTBD: false };
   }
 
-  function getAbbr(name) {
-    const iso = flagIso(name);
-    return iso ? (cAbbr[iso] || iso.toUpperCase()) : '';
+  function formatMatchInfo(m) {
+    if (!m.horaUTC) return '';
+    try {
+      const d = new Date(m.horaUTC);
+      const day = d.getUTCDate();
+      const hour = d.getUTCHours();
+      const min = d.getUTCMinutes();
+      const meses = ['','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+      const timeStr = `${String(hour).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+      let info = `${day} ${meses[d.getUTCMonth()+1]||''} • ${timeStr} hs`;
+      if (m.estadio && m.estadio !== 'TBD') {
+        const shortEstadio = m.estadio.length > 25 ? m.estadio.substring(0, 22) + '...' : m.estadio;
+        info += ` • ${shortEstadio}`;
+      }
+      return info;
+    } catch(e) { return ''; }
   }
 
-  if (selectedEtapa === 'all') {
-    drawWC26AllStages(etapas, mel, W, H, cAbbr, pad);
-  } else {
-    drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad);
-  }
-}
+  // ── Match box (TV scoreboard style, sin abreviaturas) ──
+  function drawMatchBox(x, y, w, h, match, opts = {}) {
+    const hasScore = match.golesLocal !== null && match.golesLocal !== undefined;
+    const local = resolveTeam(match.local);
+    const vis = resolveTeam(match.visitante);
+    const localWon = hasScore && match.golesLocal > match.golesVisitante;
+    const visWon = hasScore && match.golesVisitante > match.golesLocal;
+    const showInfo = opts.showInfo && h > 60;
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// BRACKET / ELIMINATORIAS - CORREGIDO CON CONEXIONES PROPIAS
-// ═══════════════════════════════════════════════════════════════════════════════
+    const infoLineH = showInfo ? Math.round(h * 0.14) : 0;
+    const teamsH = h - infoLineH;
+    const r = Math.round(h * 0.05);
 
-// Draw correct bracket layout for WC26 style
-function drawWC26AllStages(etapas, mel, W, H, cAbbr, pad) {
-  const stageSpacing = Math.round(W * 0.18);
-  const stageSpacingH = Math.round(H * 0.08);
+    if (wc26Active()) {
+      const frameInset = Math.max(2, Math.round(h * 0.008));
+      if (opts.isCenter) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,191,166,0.12)';
+        roundRect(ctx, x, y, w, teamsH, r);
+        ctx.fill();
+        ctx.strokeStyle = WC26C.turquoise + '66';
+        ctx.lineWidth = Math.max(1, Math.round(h * 0.01));
+        roundRect(ctx, x, y, w, teamsH, r);
+        ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.fillStyle = 'rgba(5,15,20,0.9)';
+        roundRect(ctx, x + frameInset, y + frameInset, w - frameInset * 2, teamsH - frameInset * 2, Math.max(2, r - frameInset));
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.save();
+        const grad = ctx.createLinearGradient(x, y, x + w, y);
+        grad.addColorStop(0, WC26C.barLocal);
+        grad.addColorStop(0.35, WC26C.barLocal);
+        grad.addColorStop(0.42, WC26C.barScore);
+        grad.addColorStop(0.58, WC26C.barScore);
+        grad.addColorStop(0.65, WC26C.barVisitor);
+        grad.addColorStop(1, WC26C.barVisitor);
+        ctx.fillStyle = grad;
+        roundRect(ctx, x, y, w, teamsH, r);
+        ctx.fill();
+        ctx.restore();
+        ctx.save();
+        ctx.fillStyle = opts.bg || WC26C.barBlack;
+        roundRect(ctx, x + frameInset, y + frameInset, w - frameInset * 2, teamsH - frameInset * 2, Math.max(2, r - frameInset));
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      ctx.save();
+      ctx.fillStyle = opts.bg || 'rgba(255,255,255,0.06)';
+      roundRect(ctx, x, y, w, teamsH, r);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      roundRect(ctx, x, y, w, teamsH, r);
+      ctx.stroke();
+      ctx.restore();
+    }
 
-  etapas.forEach(([stageName, matches], stageIdx) => {
-    const stageX = mel.x + stageSpacing * stageIdx;
-    const stageY = mel.y + Math.round(mel.h * 0.15);
+    if (showInfo) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(x, y + teamsH, w, infoLineH);
+      ctx.restore();
+    }
 
-    // Stage label with correct colors
+    const midY = y + Math.round(teamsH * 0.5);
     ctx.save();
-    ctx.font = wc26Active() ? wc26Font('700', Math.round(W * 0.022)) : `700 ${Math.round(W * 0.022)}px 'BebasNeue',sans-serif`;
-    ctx.fillStyle = stageIdx === 0 ? WC26C.coral : (stageIdx === etapas.length - 1 ? WC26C.lime : WC26C.turquoise);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText(stageName.toUpperCase(), stageX, stageY - stageSpacingH * 0.5);
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.round(w * 0.02), midY);
+    ctx.lineTo(x + w - Math.round(w * 0.02), midY);
+    ctx.stroke();
     ctx.restore();
 
-    if (!matches || matches.length === 0) return;
+    const flagW = Math.round(w * 0.08);
+    const flagH = Math.round(flagW * 0.68);
+    const flagX = x + Math.round(w * 0.03);
+    const nameX = flagX + flagW + Math.round(w * 0.015);
+    const scoreX = x + w - Math.round(w * 0.1);
+    const nameMaxW = scoreX - nameX - Math.round(w * 0.01);
+    const teamAreaH = teamsH * 0.5;
+    const fontSize = Math.min(Math.round(teamAreaH * 0.55), Math.round(w * 0.06));
 
-    // Calculate proper tournament positioning
-    const numRounds = Math.ceil(Math.log2(matches.length));
-    const rounds = splitIntoRoundsCorrect(matches, numRounds);
-
-    // Draw tournament tree
-    const treeH = mel.h - stageSpacingH * 0.5;
-    const treeW = stageSpacing * 0.9;
-
-    if (stageName === 'Octavos de final') {
-      drawWC16MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
-    } else if (stageName === 'Cuartos de final') {
-      drawWC8MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
-    } else if (stageName === 'Semifinal') {
-      drawWC4MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
-    } else if (stageName === 'Tercer puesto') {
-      drawWC2MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
-    } else if (stageName === 'Final') {
-      drawWC2FinalCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
+    function drawTeamLine(teamName, rowTop, isWinner, isLoser) {
+      const cy = rowTop + Math.round(teamAreaH * 0.5);
+      if (!teamName.isTBD) {
+        drawFlagRect(ctx, teamName.display, flagX, cy - Math.round(flagH * 0.5), flagW, flagH);
+      } else {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        roundRect(ctx, flagX, cy - Math.round(flagH * 0.5), flagW, flagH, 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.save();
+      ctx.font = wc26Active() ? wc26Font('400', fontSize) : `400 ${fontSize}px 'BebasNeue',sans-serif`;
+      ctx.fillStyle = teamName.isTBD ? 'rgba(255,255,255,0.4)' : (isWinner ? '#fff' : (isLoser ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.85)'));
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      let dn = teamName.display.toUpperCase();
+      while (ctx.measureText(dn).width > nameMaxW && dn.length > 3) dn = dn.slice(0, -1);
+      ctx.fillText(dn, nameX, cy);
+      ctx.restore();
+      if (hasScore) {
+        ctx.save();
+        ctx.font = wc26Active() ? wc26Font('700', fontSize) : `700 ${fontSize}px 'BebasNeue',sans-serif`;
+        ctx.fillStyle = isWinner ? WC26C.lime : 'rgba(255,255,255,0.5)';
+        ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        const score = rowTop === y ? match.golesLocal : match.golesVisitante;
+        ctx.fillText(String(score), x + w - Math.round(w * 0.03), cy);
+        ctx.restore();
+      }
     }
-  });
-}
 
-// Split matches into correct tournament rounds
-function splitIntoRoundsCorrect(matches, numRounds) {
-  const rounds = [];
+    drawTeamLine(local, y, localWon, !localWon && hasScore);
+    drawTeamLine(vis, midY, visWon, !visWon && hasScore);
 
-  for (let r = 0; r < numRounds; r++) {
-    const roundMatches = [];
-    for (let i = 0; i < matches.length; i++) {
-      if (i % Math.pow(2, r) === 0) {
-        const roundIndex = Math.floor(i / Math.pow(2, r));
-        while (roundIndex >= rounds.length) {
-          rounds.push([]);
-        }
-        rounds[roundIndex].push(matches[i]);
+    if (showInfo) {
+      const infoText = formatMatchInfo(match);
+      if (infoText) {
+        ctx.save();
+        const infoFontSize = Math.min(Math.round(h * 0.1), Math.round(w * 0.032));
+        ctx.font = `400 ${infoFontSize}px 'Economica',sans-serif`;
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillText(infoText, x + w/2, y + teamsH + Math.round(infoLineH * 0.15));
+        ctx.restore();
       }
     }
   }
-
-  return rounds.filter(r => r.length > 0);
-}
-
-// Draw WC16 (Round of 16) matches with correct connections
-function drawWC16MatchesCorrect(x, y, rounds, containerH, containerW, cAbbr) {
-  const numMatches = rounds[0]?.length || 0;
-  if (numMatches === 16) {
-    // 16 matches in 2 columns
-    const colSpacing = Math.round(containerW * 0.05);
-    const colWidth = Math.round((containerW - colSpacing) / 2);
-
-    const leftMatches = rounds[0]?.slice(0, 8) || [];
-    const rightMatches = rounds[0]?.slice(8) || [];
-
-    // Draw left column
-    drawWCColumnCorrect(x, y, colWidth, leftMatches, containerH, colSpacing, cAbbr, true);
-
-    // Draw right column
-    drawWCColumnCorrect(x + colWidth + colSpacing, y, colWidth, rightMatches, containerH, colSpacing, cAbbr, false);
-
-    // Draw connections from round of 16 to quarterfinals
-    drawWC16ConnectionsCorrect(x, y, containerH, containerW, rounds);
-  }
-}
-
-// Draw WC8 (Quarterfinals)
-function drawWC8MatchesCorrect(x, y, rounds, containerH, containerW, cAbbr) {
-  const numMatches = rounds[0]?.length || 0;
-  if (numMatches === 8) {
-    const colWidth = Math.round(containerWidth * 0.3);
-    const gap = Math.round(containerW * 0.04);
-
-    rounds[0].forEach((match, i) => {
-      const mx = x;
-      const my = y + i * (Math.round(containerH * 0.8) + gap);
-      drawWC26MatchBoxCorrect(mx, my, colWidth, Math.round(containerH * 0.8), match, cAbbr);
-    });
-  }
-}
-
-// Draw WC4 (Semifinals/Finals)
-function drawWC4MatchesCorrect(x, y, rounds, containerH, containerW, cAbbr) {
-  const numMatches = rounds[0]?.length || 0;
-  if (numMatches === 4) {
-    const colWidth = Math.round(containerW * 0.35);
-
-    rounds[0].forEach((match, i) => {
-      const mx = x;
-      const my = y + i * (Math.round(containerH * 0.9));
-      drawWC26MatchBoxCorrect(mx, my, colWidth, Math.round(containerH * 0.9), match, cAbbr);
-    });
-  }
-}
-
-// Draw WC2 (Final)
-function drawWC2FinalCorrect(x, y, rounds, containerH, containerW, cAbbr) {
-  const numMatches = rounds[0]?.length || 0;
-  if (numMatches === 2) {
-    const colWidth = Math.round(containerW * 0.4);
-
-    rounds[0].forEach((match, i) => {
-      const mx = x;
-      const my = y + i * (Math.round(containerH * 1.0));
-      drawWC26MatchBoxFinalCorrect(mx, my, colWidth, Math.round(containerH * 1.0), match, cAbbr, i);
-    });
-  }
-}
-
-// Draw WC column with proper match boxes
-function drawWCColumnCorrect(x, y, w, matches, h, gapW, cAbbr, isLeft) {
-  const rowH = Math.round((h - matches.length * Math.round(h * 0.05)) / matches.length);
-
-  matches.forEach((match, i) => {
-    const my = y + i * (rowH + Math.round(h * 0.02));
-    const mw = Math.round(w * 0.9);
-    const mh = Math.round(rowH * 0.8);
-
-    drawWC26MatchBoxCorrect(x, my, mw, mh, match, cAbbr);
-  });
-}
-
-// Draw match box for WC26 style
-function drawWC26MatchBoxCorrect(x, y, w, h, match, cAbbr) {
-  const hasScore = match.golesLocal !== null && match.golesLocal !== undefined;
-
-  // Draw match background
-  ctx.save();
-  const grad = ctx.createLinearGradient(x, y, x + w, y);
-  grad.addColorStop(0, WC26C.barLocal);
-  grad.addColorStop(0.35, WC26C.barLocal);
-  grad.addColorStop(0.42, WC26C.barScore);
-  grad.addColorStop(0.58, WC26C.barScore);
-  grad.addColorStop(0.65, WC26C.barVisitor);
-  grad.addColorStop(1, WC26C.barVisitor);
-  ctx.fillStyle = grad;
-  roundRect(ctx, x, y, w, h, Math.round(h * 0.05));
-  ctx.fill();
-  ctx.restore();
-
-  // Black interior
-  ctx.save();
-  ctx.fillStyle = WC26C.barBlack;
-  roundRect(ctx, x + 2, y + 2, w - 4, h - 2, Math.round(h * 0.05) - 2);
-  ctx.fill();
-  ctx.restore();
-
-  // Draw teams
-  const teamAreaH = h * 0.35;
-  const teamFontSize = Math.round(w * 0.05);
-  const scoreFontSize = Math.round(w * 0.08);
-
-  // Local team
-  ctx.save();
-  ctx.font = wc26Active() ? wc26Font('700', teamFontSize) : `700 ${teamFontSize}px 'BebasNeue',sans-serif`;
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-
-  const localX = x + w * 0.25;
-  const localY = y + teamAreaH * 0.3;
-  ctx.fillText(match.local?.toUpperCase() || 'TBD', localX, localY);
-
-  // Score if available
-  if (hasScore) {
-    ctx.font = wc26Active() ? wc26Font('700', scoreFontSize) : `700 ${scoreFontSize}px 'BebasNeue',sans-serif`;
-    ctx.fillText(`${match.golesLocal} - ${match.golesVisitante}`, localX, y + h * 0.5);
-  }
-  ctx.restore();
-
-  // Visitor team
-  ctx.save();
-  ctx.font = wc26Active() ? wc26Font('700', teamFontSize) : `700 ${teamFontSize}px 'BebasNeue',sans-serif`;
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-
-  const visX = x + w * 0.75;
-  const visY = y + teamAreaH * 0.7;
-  ctx.fillText(match.visitante?.toUpperCase() || 'TBD', visX, visY);
-  ctx.restore();
-}
-
-// Draw final match box with special styling
-function drawWC26MatchBoxFinalCorrect(x, y, w, h, match, cAbbr, index) {
-  const hasScore = match.golesLocal !== null && match.golesLocal !== undefined;
-
-  // Draw special final match background
-  ctx.save();
-  const grad = ctx.createLinearGradient(x, y, x + w, y);
-  grad.addColorStop(0, WC26C.lime);
-  grad.addColorStop(0.5, WC26C.lime);
-  grad.addColorStop(1, WC26C.coral);
-  ctx.fillStyle = grad;
-  roundRect(ctx, x, y, w, h, Math.round(h * 0.05));
-  ctx.fill();
-  ctx.restore();
-
-  // Black interior
-  ctx.save();
-  ctx.fillStyle = WC26C.barBlack;
-  roundRect(ctx, x + 3, y + 3, w - 6, h - 3, Math.round(h * 0.05) - 3);
-  ctx.fill();
-  ctx.restore();
-
-  // Draw teams
-  const teamAreaH = h * 0.35;
-  const teamFontSize = Math.round(w * 0.06);
-  const scoreFontSize = Math.round(w * 0.1);
-
-  // Local team
-  ctx.save();
-  ctx.font = wc26Active() ? wc26Font('700', teamFontSize) : `700 ${teamFontSize}px 'BebasNeue',sans-serif`;
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-
-  const localX = x + w * 0.3;
-  const localY = y + teamAreaH * 0.3;
-  ctx.fillText(match.local?.toUpperCase() || 'TBD', localX, localY);
-
-  // Score if available
-  if (hasScore) {
-    ctx.font = wc26Active() ? wc26Font('700', scoreFontSize) : `700 ${scoreFontSize}px 'BebasNeue',sans-serif`;
-    ctx.fillText(`${match.golesLocal} - ${match.golesVisitante}`, localX, y + h * 0.5);
-  }
-  ctx.restore();
-
-  // Visitor team
-  ctx.save();
-  ctx.font = wc26Active() ? wc26Font('700', teamFontSize) : `700 ${teamFontSize}px 'BebasNeue',sans-serif`;
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-
-  const visX = x + w * 0.7;
-  const visY = y + teamAreaH * 0.7;
-  ctx.fillText(match.visitante?.toUpperCase() || 'TBD', visX, visY);
-  ctx.restore();
-
-  // Add winner indicator if there's a score
-  if (hasScore) {
-    const winner = match.golesLocal > match.golesVisitante ? match.local : match.visitante;
-    ctx.save();
-    ctx.font = wc26Active() ? wc26Font('700', Math.round(w * 0.03)) : `700 ${Math.round(w * 0.03)}px 'BebasNeue',sans-serif`;
-    ctx.fillStyle = WC26C.lime;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText('CAMPEÓN', x + w/2, y + h - Math.round(h * 0.15));
-    ctx.restore();
-  }
-}
-
-// Draw WC16 connections to quarterfinals
-function drawWC16ConnectionsCorrect(x, y, containerH, containerW, rounds) {
-  ctx.save();
-  ctx.strokeStyle = WC26C.turquoise + '55';
-  ctx.lineWidth = Math.max(1, Math.round(W * 0.001));
-
-  // Connect each pair of matches
-  const numPairs = Math.floor((rounds[0]?.length || 0) / 2);
-
-  for (let i = 0; i < numPairs; i++) {
-    const leftMatchIndex = i * 2;
-    const rightMatchIndex = i * 2 + 1;
-
-    // Calculate positions
-    const leftY = y + (leftMatchIndex * (Math.round(containerH * 0.8) + Math.round(containerH * 0.02)));
-    const rightY = y + (rightMatchIndex * (Math.round(containerH * 0.8) + Math.round(containerH * 0.02)));
-
-    // Calculate center of pair
-    const centerY = (leftY + rightY) / 2;
-
-    // Draw connecting line
-    ctx.beginPath();
-    ctx.moveTo(x + containerW, centerY);
-
-    // Draw curve to center
-    const controlX = x + containerW + Math.round(containerW * 0.15);
-    const controlY = centerY;
-
-    ctx.quadraticCurveTo(controlX, controlY, x + containerW + Math.round(containerW * 0.3), centerY - Math.round(containerH * 0.15));
-    ctx.stroke();
-
-    // Connect to quarterfinal match
-    ctx.beginPath();
-    ctx.moveTo(x + containerW + Math.round(containerW * 0.3), centerY - Math.round(containerH * 0.15));
-
-    // Small curve
-    ctx.lineTo(x + containerW + Math.round(containerW * 0.3), centerY - Math.round(containerH * 0.15) - Math.round(containerH * 0.2));
-    ctx.stroke();
-  }
-
-  ctx.restore();
-}
-
-// Actualizar función para etapa única
-function drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad) {
-  const selectedEtapa = S.bracketEtapa || 'all';
-  const stageIdx = etapas.findIndex(([name]) => name === selectedEtapa);
-
-  if (stageIdx === -1) return;
-
-  const [stageName, matches] = etapas[stageIdx];
-  const treeH = mel.h * 0.9;
-  const treeW = mel.w * 0.9;
-
-  const stageX = mel.x + Math.round(mel.w * 0.05);
-  const stageY = mel.y + Math.round(mel.h * 0.15);
-
-  // Etiqueta de etapa con color específico
-  ctx.save();
-  ctx.font = wc26Active() ? wc26Font('700', Math.round(W * 0.022)) : `700 ${Math.round(W * 0.022)}px 'BebasNeue',sans-serif`;
-  ctx.fillStyle = WC26C.turquoise + 'CC';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  ctx.fillText(stageName.toUpperCase(), stageX, stageY - Math.round(H * 0.05));
-  ctx.restore();
-
-  // Calcular rondas apropiadas
-  const numRounds = Math.ceil(Math.log2(matches.length));
-  const rounds = splitIntoRoundsCorrect([matches], numRounds);
-
-  if (stageName === 'Octavos de final') {
-    drawWC16MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
-  } else if (stageName === 'Cuartos de final') {
-    drawWC8MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
-  } else if (stageName === 'Semifinal') {
-    drawWC4MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
-  } else if (stageName === 'Tercer puesto') {
-    drawWC2MatchesCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
-  } else if (stageName === 'Final') {
-    drawWC2FinalCorrect(stageX, stageY, rounds, treeH, treeW, cAbbr);
-  }
-}
-
-  // ── Country abbreviations ──
-  const cAbbr = {
-    'ar':'ARG','br':'BRA','fr':'FRA','de':'GER','es':'ESP','gb-eng':'ENG',
-    'pt':'POR','nl':'NED','be':'BEL','hr':'CRO','uy':'URU','mx':'MEX',
-    'co':'COL','cl':'CHI','pe':'PER','ec':'ECU','py':'PAR','ve':'VEN',
-    'ch':'SUI','at':'AUT','dk':'DEN','se':'SWE','no':'NOR','jp':'JPN',
-    'kr':'KOR','au':'AUS','ma':'MAR','eg':'EGY','ng':'NGA','sn':'SEN',
-    'gh':'GHA','cm':'CMR','dz':'ALG','sa':'KSA','ir':'IRN','iq':'IRQ',
-    'ca':'CAN','us':'USA','tn':'TUN','cr':'CRC','pa':'PAN','hn':'HON',
-    'jm':'JAM','rs':'SRB','pl':'POL','cz':'CZE','sk':'SVK','ua':'UKR',
-    'ru':'RUS','tr':'TUR','gb-wls':'WAL','gb-sct':'SCO','ci':'CIV',
-    'za':'RSA','al':'ALB','mk':'MKD','ps':'PLE','jo':'JOR','qa':'QAT',
-    'ae':'UAE','cn':'CHN','in':'IND','id':'IDN','th':'THA','nz':'NZL',
-    'is':'ISL','fi':'FIN','hu':'HUN','ro':'ROU','ba':'BIH','ge':'GEO',
-    'si':'SVN','xk':'KOS','sv':'SLV','cw':'CUW','sr':'SUR','ht':'HAI',
-    'cu':'CUB','bo':'BOL','tt':'TRI','cd':'COD','cv':'CPV','gr':'GRE',
-    'il':'ISR','gb-nir':'NIR',
-  };
-
-  const etapas = Object.entries(bracket);
-  const selectedEtapa = S.bracketEtapa || 'all';
-  const pad = Math.round(W * 0.025);
-
-  // ── Helpers ──
-  function resolveTeam(name) {
-    if (!name || name === 'TBD') return { display: 'TBD', isTBD: true };
-    // W73, L101 = Winner/Loser of match X
-    const wMatch = name.match(/^[WL](\d+)$/i);
-    if (wMatch) return { display: `${name[0].toUpperCase()}${name.slice(1).toLowerCase()}`, isTBD: true, matchRef: wMatch[1] };
-    const translated = (typeof traducirPais === 'function' ? traducirPais(name) : name);
-    return { display: translated, isTBD: false };
-  }
-
-  function getAbbr(name) {
-    const iso = flagIso(name);
-    return iso ? (cAbbr[iso] || iso.toUpperCase()) : '';
-  }
-
 
   // ── SINGLE STAGE VIEW (llave visual 3 columnas) ──
   if (selectedEtapa !== 'all') {
@@ -2827,19 +2556,16 @@ function drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad) {
     const numMatches = stageMatches.length;
     const hasCenter = nextStage && nextStage[1].length > 0 && numMatches >= 4;
 
-    // ── Layout: split matches into left half + right half, center = next stage ──
     const innerPadX = pad;
     const innerPadY = Math.round(mel.h * 0.065);
     const labelH = Math.round(mel.h * 0.055);
     const contentTopY = mel.y + innerPadY + labelH;
     const contentH = mel.h - innerPadY * 2 - labelH;
 
-    // Split: left = first half, right = second half
     const halfCount = Math.ceil(numMatches / 2);
     const leftMatches = stageMatches.slice(0, halfCount);
     const rightMatches = stageMatches.slice(halfCount);
 
-    // Column widths
     const gapW = hasCenter ? Math.round(mel.w * 0.05) : 0;
     let sideW, centerW;
     if (hasCenter) {
@@ -2847,7 +2573,6 @@ function drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad) {
       sideW = Math.round(totalW * 0.37);
       centerW = totalW - sideW * 2;
     } else {
-      // No center: single column
       sideW = Math.round((mel.w - innerPadX * 2) * 0.48);
       centerW = 0;
     }
@@ -2856,197 +2581,16 @@ function drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad) {
     const centerX = hasCenter ? leftX + sideW + gapW : 0;
     const rightX = hasCenter ? centerX + centerW + gapW : leftX + sideW + Math.round(mel.w * 0.04);
 
-    // Row height based on number of matches per column
     const rowsPerSide = Math.max(leftMatches.length, rightMatches.length || 1);
     const rowH = Math.round(contentH / rowsPerSide);
     const matchBoxH = Math.round(rowH * 0.9);
 
-    // ── Helper: format date/time ──
-    function formatMatchInfo(m) {
-      if (!m.horaUTC) return '';
-      try {
-        const d = new Date(m.horaUTC);
-        const day = d.getUTCDate();
-        const hour = d.getUTCHours();
-        const min = d.getUTCMinutes();
-        const meses = ['','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-        const timeStr = `${String(hour).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
-        let info = `${day} ${meses[d.getUTCMonth()+1]||''} • ${timeStr} hs`;
-        if (m.estadio && m.estadio !== 'TBD') {
-          const shortEstadio = m.estadio.length > 25 ? m.estadio.substring(0, 22) + '...' : m.estadio;
-          info += ` • ${shortEstadio}`;
-        }
-        return info;
-      } catch(e) { return ''; }
-    }
-
-    // ── Enhanced match box (TV scoreboard style + info line) ──
-    function drawMatchBoxEnhanced(x, y, w, h, match, opts = {}) {
-      const hasScore = match.golesLocal !== null && match.golesLocal !== undefined;
-      const local = resolveTeam(match.local);
-      const vis = resolveTeam(match.visitante);
-      const localWon = hasScore && match.golesLocal > match.golesVisitante;
-      const visWon = hasScore && match.golesVisitante > match.golesLocal;
-      const showInfo = opts.showInfo && h > 60;
-
-      // Reserve space for info line
-      const infoLineH = showInfo ? Math.round(h * 0.14) : 0;
-      const teamsH = h - infoLineH;
-      const r = Math.round(h * 0.05);
-
-      // TV scoreboard: gradient border + black interior
-      if (wc26Active()) {
-        const frameInset = Math.max(2, Math.round(h * 0.008));
-        if (opts.isCenter) {
-          // Center column: subtle dark card with turquoise accent border
-          ctx.save();
-          ctx.fillStyle = 'rgba(0,191,166,0.12)';
-          roundRect(ctx, x, y, w, teamsH, r);
-          ctx.fill();
-          ctx.strokeStyle = WC26C.turquoise + '66';
-          ctx.lineWidth = Math.max(1, Math.round(h * 0.01));
-          roundRect(ctx, x, y, w, teamsH, r);
-          ctx.stroke();
-          ctx.restore();
-          ctx.save();
-          ctx.fillStyle = 'rgba(5,15,20,0.9)';
-          roundRect(ctx, x + frameInset, y + frameInset, w - frameInset * 2, teamsH - frameInset * 2, Math.max(2, r - frameInset));
-          ctx.fill();
-          ctx.restore();
-        } else {
-          ctx.save();
-          const grad = ctx.createLinearGradient(x, y, x + w, y);
-          grad.addColorStop(0, WC26C.barLocal);
-          grad.addColorStop(0.35, WC26C.barLocal);
-          grad.addColorStop(0.42, WC26C.barScore);
-          grad.addColorStop(0.58, WC26C.barScore);
-          grad.addColorStop(0.65, WC26C.barVisitor);
-          grad.addColorStop(1, WC26C.barVisitor);
-          ctx.fillStyle = grad;
-          roundRect(ctx, x, y, w, teamsH, r);
-          ctx.fill();
-          ctx.restore();
-          // Interior negro
-          ctx.save();
-          ctx.fillStyle = opts.bg || WC26C.barBlack;
-          roundRect(ctx, x + frameInset, y + frameInset, w - frameInset * 2, teamsH - frameInset * 2, Math.max(2, r - frameInset));
-          ctx.fill();
-          ctx.restore();
-        }
-      } else {
-        // Simple card
-        ctx.save();
-        ctx.fillStyle = opts.bg || 'rgba(255,255,255,0.06)';
-        roundRect(ctx, x, y, w, teamsH, r);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-        ctx.lineWidth = 1;
-        roundRect(ctx, x, y, w, teamsH, r);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Info line background (below the TV bar)
-      if (showInfo) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(x, y + teamsH, w, infoLineH);
-        ctx.restore();
-      }
-
-      // Divider between teams
-      const midY = y + Math.round(teamsH * 0.5);
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x + Math.round(w * 0.02), midY);
-      ctx.lineTo(x + w - Math.round(w * 0.02), midY);
-      ctx.stroke();
-      ctx.restore();
-
-      // Layout
-      const flagW = Math.round(w * 0.08);
-      const flagH = Math.round(flagW * 0.68);
-      const flagX = x + Math.round(w * 0.03);
-      const nameX = flagX + flagW + Math.round(w * 0.015);
-      const scoreX = x + w - Math.round(w * 0.1);
-      const nameMaxW = scoreX - nameX - Math.round(w * 0.01);
-      const teamAreaH = teamsH * 0.5;
-      const fontSize = Math.min(Math.round(teamAreaH * 0.55), Math.round(w * 0.06));
-      const abbrFontSize = Math.min(Math.round(teamAreaH * 0.4), Math.round(w * 0.042));
-
-      function drawTeamLine(teamName, rowTop, isWinner, isLoser) {
-        const cy = rowTop + Math.round(teamAreaH * 0.5);
-        // Flag
-        if (!teamName.isTBD) {
-          drawFlagRect(ctx, teamName.display, flagX, cy - Math.round(flagH * 0.5), flagW, flagH);
-        } else {
-          ctx.save();
-          ctx.fillStyle = 'rgba(255,255,255,0.1)';
-          roundRect(ctx, flagX, cy - Math.round(flagH * 0.5), flagW, flagH, 2);
-          ctx.fill();
-          ctx.restore();
-        }
-        // Abbreviation
-        const abbr = getAbbr(teamName.display);
-        if (abbr) {
-          ctx.save();
-          ctx.font = wc26Active() ? wc26Font('700', abbrFontSize) : `700 ${abbrFontSize}px 'BebasNeue',sans-serif`;
-          ctx.fillStyle = 'rgba(255,255,255,0.4)';
-          ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-          ctx.fillText(abbr, flagX + flagW + Math.round(w * 0.008), cy);
-          ctx.restore();
-        }
-        // Name
-        const abbrW = abbr ? Math.round(w * 0.055) : 0;
-        ctx.save();
-        ctx.font = wc26Active() ? wc26Font('400', fontSize) : `400 ${fontSize}px 'BebasNeue',sans-serif`;
-        ctx.fillStyle = teamName.isTBD ? 'rgba(255,255,255,0.4)' : (isWinner ? '#fff' : (isLoser ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.85)'));
-        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        const nameTextX = nameX + abbrW;
-        const availW = nameMaxW - abbrW;
-        let dn = teamName.display.toUpperCase();
-        while (ctx.measureText(dn).width > availW && dn.length > 3) dn = dn.slice(0, -1);
-        ctx.fillText(dn, nameTextX, cy);
-        ctx.restore();
-        // Score
-        if (hasScore) {
-          ctx.save();
-          ctx.font = wc26Active() ? wc26Font('700', fontSize) : `700 ${fontSize}px 'BebasNeue',sans-serif`;
-          ctx.fillStyle = isWinner ? WC26C.lime : 'rgba(255,255,255,0.5)';
-          ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-          const score = rowTop === y ? match.golesLocal : match.golesVisitante;
-          ctx.fillText(String(score), x + w - Math.round(w * 0.03), cy);
-          ctx.restore();
-        }
-      }
-
-      drawTeamLine(local, y, localWon, !localWon && hasScore);
-      drawTeamLine(vis, midY, visWon, !visWon && hasScore);
-
-      // Info line (date/time/stadium)
-      if (showInfo) {
-        const infoText = formatMatchInfo(match);
-        if (infoText) {
-          ctx.save();
-          const infoFontSize = Math.min(Math.round(h * 0.1), Math.round(w * 0.032));
-          ctx.font = `400 ${infoFontSize}px 'Economica',sans-serif`;
-          ctx.fillStyle = 'rgba(255,255,255,0.3)';
-          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-          ctx.fillText(infoText, x + w/2, y + teamsH + Math.round(infoLineH * 0.15));
-          ctx.restore();
-        }
-      }
-    }
-
-    // ── Stage label (centered, with multicolor underline) ──
+    // Stage label
     ctx.save();
     ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.022)) : `700 ${Math.round(W*0.022)}px 'BebasNeue',sans-serif`;
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     ctx.fillText(stageName.toUpperCase(), melCX, mel.y + innerPadY);
-    // Multicolor underline
     if (wc26Active()) {
       const ulineW = Math.round(W * 0.15);
       const ulineY = mel.y + innerPadY + Math.round(labelH * 0.65);
@@ -3059,18 +2603,17 @@ function drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad) {
     }
     ctx.restore();
 
-    // ── Draw left column matches ──
+    // Left column
     const leftBoxes = [];
     for (let i = 0; i < leftMatches.length; i++) {
       const my = contentTopY + i * rowH + Math.round((rowH - matchBoxH) / 2);
       leftBoxes.push({ x: leftX, y: my, w: sideW, h: matchBoxH });
-      drawMatchBoxEnhanced(leftX, my, sideW, matchBoxH, leftMatches[i], { showInfo: true });
+      drawMatchBox(leftX, my, sideW, matchBoxH, leftMatches[i], { showInfo: true });
     }
 
-    // ── Draw right column matches ──
+    // Right column
     const rightBoxes = [];
     if (rightMatches.length > 0) {
-      // Right column label
       if (!hasCenter) {
         ctx.save();
         ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.014)) : `700 ${Math.round(W*0.014)}px 'BebasNeue',sans-serif`;
@@ -3082,16 +2625,15 @@ function drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad) {
       for (let i = 0; i < rightMatches.length; i++) {
         const my = contentTopY + i * rowH + Math.round((rowH - matchBoxH) / 2);
         rightBoxes.push({ x: rightX, y: my, w: sideW, h: matchBoxH });
-        drawMatchBoxEnhanced(rightX, my, sideW, matchBoxH, rightMatches[i], { showInfo: true });
+        drawMatchBox(rightX, my, sideW, matchBoxH, rightMatches[i], { showInfo: true });
       }
     }
 
-    // ── Center column (next stage) ──
-    if (hasCenter) {
+    // ── Center column = next stage, with connecting lines ──
+    if (hasCenter && nextStage) {
       const [nextName, nextMatches] = nextStage;
-      const maxCenter = Math.min(nextMatches.length, Math.floor(leftMatches.length / 2));
+      const totalCenter = nextMatches.length;
 
-      // Center label
       ctx.save();
       ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.015)) : `700 ${Math.round(W*0.015)}px 'BebasNeue',sans-serif`;
       ctx.fillStyle = wc26Active() ? WC26C.turquoise + 'AA' : 'rgba(166,206,57,0.6)';
@@ -3099,84 +2641,106 @@ function drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad) {
       ctx.fillText(nextName.toUpperCase(), centerX + centerW/2, contentTopY - Math.round(labelH * 0.4));
       ctx.restore();
 
+      // Left side feeds first half of center, right side feeds second half
+      const leftPairs = Math.floor(leftMatches.length / 2);
+      const rightPairs = Math.floor(rightMatches.length / 2);
+      const leftCenterCount = Math.min(leftPairs, totalCenter);
+      const rightCenterCount = Math.min(rightPairs, totalCenter - leftCenterCount);
+
       const centerBoxes = [];
-      for (let i = 0; i < maxCenter; i++) {
-        // Span from top of first match to bottom of second match in the pair
-        const li1 = i * 2;
-        const li2 = i * 2 + 1;
+      for (let i = 0; i < totalCenter; i++) {
         let pairTop, pairBottom;
-        if (li1 < leftBoxes.length) {
-          pairTop = leftBoxes[li1].y;
-          pairBottom = (li2 < leftBoxes.length) ? (leftBoxes[li2].y + leftBoxes[li2].h) : (leftBoxes[li1].y + leftBoxes[li1].h);
+        if (i < leftCenterCount) {
+          const li1 = i * 2;
+          const li2 = i * 2 + 1;
+          if (li1 < leftBoxes.length) {
+            pairTop = leftBoxes[li1].y;
+            pairBottom = (li2 < leftBoxes.length) ? (leftBoxes[li2].y + leftBoxes[li2].h) : (leftBoxes[li1].y + leftBoxes[li1].h);
+          } else {
+            pairTop = contentTopY + i * 2 * rowH;
+            pairBottom = pairTop + rowH * 2;
+          }
         } else {
-          // Fallback
-          pairTop = contentTopY + i * 2 * rowH;
-          pairBottom = pairTop + rowH * 2;
+          const ri = i - leftCenterCount;
+          const ri1 = ri * 2;
+          const ri2 = ri * 2 + 1;
+          if (ri1 < rightBoxes.length) {
+            pairTop = rightBoxes[ri1].y;
+            pairBottom = (ri2 < rightBoxes.length) ? (rightBoxes[ri2].y + rightBoxes[ri2].h) : (rightBoxes[ri1].y + rightBoxes[ri1].h);
+          } else {
+            pairTop = contentTopY + (leftMatches.length + ri * 2) * rowH;
+            pairBottom = pairTop + rowH * 2;
+          }
         }
         const spanH = pairBottom - pairTop;
         const centerBoxH = Math.round(spanH * 0.88);
         const my = pairTop + Math.round((spanH - centerBoxH) / 2);
         centerBoxes.push({ x: centerX, y: my, w: centerW, h: centerBoxH });
-        drawMatchBoxEnhanced(centerX, my, centerW, centerBoxH, nextMatches[i], { isCenter: true, showInfo: false });
+        drawMatchBox(centerX, my, centerW, centerBoxH, nextMatches[i], { isCenter: true, showInfo: false });
       }
 
-      // ── Connecting lines: left pair → center ──
+      // ── Draw connecting lines ──
       ctx.save();
       ctx.strokeStyle = wc26Active() ? WC26C.turquoise + '55' : 'rgba(166,206,57,0.3)';
       ctx.lineWidth = Math.max(1, Math.round(W * 0.0015));
 
-      for (let i = 0; i < maxCenter; i++) {
+      const gapMidXL = leftBoxes[0] ? leftBoxes[0].x + sideW + Math.round(gapW * 0.5) : 0;
+
+      // Left pairs → first leftCenterCount center boxes
+      for (let i = 0; i < leftCenterCount; i++) {
         const li1 = i * 2;
         const li2 = i * 2 + 1;
         const cBox = centerBoxes[i];
         const cMidY = cBox.y + cBox.h * 0.5;
 
-        // Left connectors
         if (li1 < leftBoxes.length) {
           const l = leftBoxes[li1];
           const lMidY = l.y + l.h * 0.5;
-          const gapMidX = l.x + l.w + Math.round(gapW * 0.5);
           ctx.beginPath();
           ctx.moveTo(l.x + l.w, lMidY);
-          ctx.lineTo(gapMidX, lMidY);
-          ctx.lineTo(gapMidX, cMidY - Math.round(cBox.h * 0.15));
+          ctx.lineTo(gapMidXL, lMidY);
+          ctx.lineTo(gapMidXL, cMidY - Math.round(cBox.h * 0.15));
           ctx.lineTo(cBox.x, cMidY - Math.round(cBox.h * 0.15));
           ctx.stroke();
         }
         if (li2 < leftBoxes.length) {
           const l = leftBoxes[li2];
           const lMidY = l.y + l.h * 0.5;
-          const gapMidX = l.x + l.w + Math.round(gapW * 0.5);
           ctx.beginPath();
           ctx.moveTo(l.x + l.w, lMidY);
-          ctx.lineTo(gapMidX, lMidY);
-          ctx.lineTo(gapMidX, cMidY + Math.round(cBox.h * 0.15));
+          ctx.lineTo(gapMidXL, lMidY);
+          ctx.lineTo(gapMidXL, cMidY + Math.round(cBox.h * 0.15));
           ctx.lineTo(cBox.x, cMidY + Math.round(cBox.h * 0.15));
           ctx.stroke();
         }
+      }
 
-        // Right connectors (mirror)
+      // Right pairs → last rightCenterCount center boxes
+      for (let i = 0; i < rightCenterCount; i++) {
         const ri1 = i * 2;
         const ri2 = i * 2 + 1;
+        const cIdx = leftCenterCount + i;
+        const cBox = centerBoxes[cIdx];
+        const cMidY = cBox.y + cBox.h * 0.5;
+        const gapMidXR = cBox.x + cBox.w + Math.round(gapW * 0.5);
+
         if (ri1 < rightBoxes.length) {
           const r = rightBoxes[ri1];
           const rMidY = r.y + r.h * 0.5;
-          const gapMidX = cBox.x + cBox.w + Math.round(gapW * 0.5);
           ctx.beginPath();
           ctx.moveTo(r.x, rMidY);
-          ctx.lineTo(gapMidX, rMidY);
-          ctx.lineTo(gapMidX, cMidY - Math.round(cBox.h * 0.15));
+          ctx.lineTo(gapMidXR, rMidY);
+          ctx.lineTo(gapMidXR, cMidY - Math.round(cBox.h * 0.15));
           ctx.lineTo(cBox.x + cBox.w, cMidY - Math.round(cBox.h * 0.15));
           ctx.stroke();
         }
         if (ri2 < rightBoxes.length) {
           const r = rightBoxes[ri2];
           const rMidY = r.y + r.h * 0.5;
-          const gapMidX = cBox.x + cBox.w + Math.round(gapW * 0.5);
           ctx.beginPath();
           ctx.moveTo(r.x, rMidY);
-          ctx.lineTo(gapMidX, rMidY);
-          ctx.lineTo(gapMidX, cMidY + Math.round(cBox.h * 0.15));
+          ctx.lineTo(gapMidXR, rMidY);
+          ctx.lineTo(gapMidXR, cMidY + Math.round(cBox.h * 0.15));
           ctx.lineTo(cBox.x + cBox.w, cMidY + Math.round(cBox.h * 0.15));
           ctx.stroke();
         }
@@ -3192,7 +2756,6 @@ function drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad) {
     etapas.forEach(([stageName, matches], stageIdx) => {
       const sy = mel.y + innerPadY + stageIdx * stageH;
 
-      // Stage label
       ctx.save();
       ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.018)) : `700 ${Math.round(W*0.018)}px 'BebasNeue',sans-serif`;
       ctx.fillStyle = wc26Active() ? WC26C.turquoise + 'CC' : 'rgba(166,206,57,0.8)';
@@ -3267,6 +2830,7 @@ function drawWC26SingleStage(etapas, mel, W, H, cAbbr, pad) {
     ctx.restore();
   }
 }
+
 
 function render(){
   const fmt=FMTS[S.fmt];const W=fmt.w,H=fmt.h;
