@@ -2538,7 +2538,7 @@ function drawMundialBracket(W, H) {
     }
   }
 
-  // ── SINGLE STAGE VIEW (árbol bracket 2 columnas) ──
+  // ── SINGLE STAGE VIEW (bracket tree, izquierda/derecha como TyC) ──
   if (selectedEtapa !== 'all') {
     const stageIdx = etapas.findIndex(([name]) => name === selectedEtapa);
     if (stageIdx === -1) {
@@ -2552,26 +2552,48 @@ function drawMundialBracket(W, H) {
     }
 
     const [stageName, stageMatches] = etapas[stageIdx];
-    const nextStage = stageIdx + 1 < etapas.length ? etapas[stageIdx + 1] : null;
     const numMatches = stageMatches.length;
-    const hasNext = nextStage && nextStage[1].length > 0 && numMatches >= 2;
+    const nextStage = stageIdx + 1 < etapas.length ? etapas[stageIdx + 1] : null;
 
+    // Resolver pares reales desde la siguiente etapa (matchRef / ganador)
+    let pairs = [];
+    if (nextStage && nextStage[1].length > 0) {
+      for (const nm of nextStage[1]) {
+        const lRef = nm.local ? nm.local.match(/^[WL](\d+)$/i) : null;
+        const vRef = nm.visitante ? nm.visitante.match(/^[WL](\d+)$/i) : null;
+        let i1 = -1, i2 = -1;
+        if (lRef) i1 = stageMatches.findIndex(m => m.id === parseInt(lRef[1]));
+        else if (nm.local && nm.local !== 'TBD') i1 = stageMatches.findIndex(m => m.ganador === nm.local);
+        if (vRef) i2 = stageMatches.findIndex(m => m.id === parseInt(vRef[1]));
+        else if (nm.visitante && nm.visitante !== 'TBD') i2 = stageMatches.findIndex(m => m.ganador === nm.visitante);
+        if (i1 !== -1 && i2 !== -1) { if (i1 > i2) [i1, i2] = [i2, i1]; pairs.push([i1, i2]); }
+      }
+    }
+    if (pairs.length < numMatches / 2) {
+      pairs = [];
+      for (let i = 0; i < numMatches; i += 2) pairs.push([i, Math.min(i + 1, numMatches - 1)]);
+    }
+
+    // Dividir pares: mitad izquierda, mitad derecha
+    const halfP = Math.ceil(pairs.length / 2);
+    const leftPairs = pairs.slice(0, halfP);
+    const rightPairs = pairs.slice(halfP);
+
+    // Layout
     const innerPadX = pad;
     const innerPadY = Math.round(mel.h * 0.065);
     const labelH = Math.round(mel.h * 0.055);
     const contentTopY = mel.y + innerPadY + labelH;
     const contentH = mel.h - innerPadY * 2 - labelH;
-
-    const gapW = Math.round(mel.w * 0.035);
-    const sideW = hasNext ? Math.round((mel.w - innerPadX * 2 - gapW) * 0.45) : Math.round((mel.w - innerPadX * 2) * 0.6);
-    const nextW = hasNext ? mel.w - innerPadX * 2 - gapW - sideW : 0;
+    const gapW = Math.round(mel.w * 0.04);
+    const halfW = Math.round((mel.w - innerPadX * 2 - gapW) * 0.5);
     const leftX = mel.x + innerPadX;
-    const rightX = hasNext ? leftX + sideW + gapW : 0;
-
-    const rowH = Math.round(contentH / Math.max(numMatches, 1));
+    const rightX = leftX + halfW + gapW;
+    const maxCount = Math.max(leftPairs.length, rightPairs.length, 1) * 2;
+    const rowH = Math.round(contentH / maxCount);
     const matchBoxH = Math.round(rowH * 0.88);
 
-    // Stage label
+    // Título
     ctx.save();
     ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.022)) : `700 ${Math.round(W*0.022)}px 'BebasNeue',sans-serif`;
     ctx.fillStyle = '#fff';
@@ -2583,103 +2605,54 @@ function drawMundialBracket(W, H) {
       const segW = Math.round(ulineW / 4);
       const ulineX = melCX - ulineW/2;
       [WC26C.coral, WC26C.turquoise, WC26C.purple, WC26C.lime].forEach((c, ci) => {
-        ctx.fillStyle = c;
-        ctx.fillRect(ulineX + ci * segW, ulineY, segW + 1, Math.round(labelH * 0.08));
+        ctx.fillStyle = c; ctx.fillRect(ulineX + ci * segW, ulineY, segW + 1, Math.round(labelH * 0.08));
       });
     }
     ctx.restore();
 
-    // ── LEFT column: all current stage matches ──
+    // ── LADO IZQUIERDO ──
     const leftBoxes = [];
-    for (let i = 0; i < numMatches; i++) {
-      const my = contentTopY + i * rowH + Math.round((rowH - matchBoxH) / 2);
-      leftBoxes.push({ x: leftX, y: my, w: sideW, h: matchBoxH });
-      drawMatchBox(leftX, my, sideW, matchBoxH, stageMatches[i], { showInfo: true });
+    leftPairs.forEach((pair, pi) => {
+      pair.forEach((mi, ai) => {
+        const my = contentTopY + (pi * 2 + ai) * rowH + Math.round((rowH - matchBoxH) / 2);
+        leftBoxes.push({ x: leftX, y: my, w: halfW, h: matchBoxH });
+        drawMatchBox(leftX, my, halfW, matchBoxH, stageMatches[mi], { showInfo: true });
+      });
+    });
+    ctx.save();
+    ctx.strokeStyle = wc26Active() ? WC26C.turquoise + '55' : 'rgba(166,206,57,0.3)';
+    ctx.lineWidth = Math.max(1, Math.round(W * 0.0015));
+    for (let pi = 0; pi < leftPairs.length; pi++) {
+      const b1 = leftBoxes[pi * 2], b2 = leftBoxes[pi * 2 + 1];
+      if (!b1 || !b2) continue;
+      const midY = (b1.y + b1.h / 2 + b2.y + b2.h / 2) / 2;
+      const sx = b1.x + b1.w, ex = sx + Math.round(gapW * 0.5);
+      ctx.beginPath(); ctx.moveTo(sx, b1.y + b1.h / 2); ctx.lineTo(ex, b1.y + b1.h / 2); ctx.lineTo(ex, midY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx, b2.y + b2.h / 2); ctx.lineTo(ex, b2.y + b2.h / 2); ctx.lineTo(ex, midY); ctx.stroke();
     }
+    ctx.restore();
 
-    // ── RIGHT column: next stage, positioned by actual bracket pairings ──
-    if (hasNext && nextStage) {
-      const [nextName, nextMatches] = nextStage;
-      const totalNext = nextMatches.length;
-
-      // Resolver índices reales de alimentación según matchRef o ganador
-      const feederPairs = [];
-      for (let i = 0; i < totalNext; i++) {
-        const nm = nextMatches[i];
-        const localRef = nm.local ? nm.local.match(/^[WL](\d+)$/i) : null;
-        const visRef = nm.visitante ? nm.visitante.match(/^[WL](\d+)$/i) : null;
-        let li1 = -1, li2 = -1;
-        if (localRef) {
-          li1 = stageMatches.findIndex(m => m.id === parseInt(localRef[1]));
-        } else if (nm.local && !nm.local.match(/^TBD$/i)) {
-          li1 = stageMatches.findIndex(m => m.ganador === nm.local);
-        }
-        if (visRef) {
-          li2 = stageMatches.findIndex(m => m.id === parseInt(visRef[1]));
-        } else if (nm.visitante && !nm.visitante.match(/^TBD$/i)) {
-          li2 = stageMatches.findIndex(m => m.ganador === nm.visitante);
-        }
-        if (li1 === -1) li1 = Math.min(i * 2, leftBoxes.length - 1);
-        if (li2 === -1) li2 = Math.min(i * 2 + 1, leftBoxes.length - 1);
-        if (li1 > li2) { const t = li1; li1 = li2; li2 = t; }
-        feederPairs.push([li1, li2]);
-      }
-
-      ctx.save();
-      ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.015)) : `700 ${Math.round(W*0.015)}px 'BebasNeue',sans-serif`;
-      ctx.fillStyle = wc26Active() ? WC26C.turquoise + 'AA' : 'rgba(166,206,57,0.6)';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText(nextName.toUpperCase(), rightX + nextW/2, contentTopY - Math.round(labelH * 0.4));
-      ctx.restore();
-
-      const rightBoxes = [];
-      for (let i = 0; i < totalNext; i++) {
-        const [fi1, fi2] = feederPairs[i];
-        const pairTop = leftBoxes[fi1].y;
-        const pairBottom = leftBoxes[fi2].y + leftBoxes[fi2].h;
-        const spanH = pairBottom - pairTop;
-        const rightBoxH = Math.round(spanH * 0.85);
-        const my = pairTop + Math.round((spanH - rightBoxH) / 2);
-        rightBoxes.push({ x: rightX, y: my, w: nextW, h: rightBoxH });
-        drawMatchBox(rightX, my, nextW, rightBoxH, nextMatches[i], { isCenter: true, showInfo: false });
-      }
-
-      // ── Draw bracket tree connection lines ──
-      ctx.save();
-      ctx.strokeStyle = wc26Active() ? WC26C.turquoise + '55' : 'rgba(166,206,57,0.3)';
-      ctx.lineWidth = Math.max(1, Math.round(W * 0.0015));
-
-      const gapMidX = leftX + sideW + Math.round(gapW * 0.5);
-
-      for (let i = 0; i < totalNext; i++) {
-        const [fi1, fi2] = feederPairs[i];
-        const rBox = rightBoxes[i];
-        const rMidY = rBox.y + rBox.h * 0.5;
-
-        if (fi1 < leftBoxes.length) {
-          const l = leftBoxes[fi1];
-          const lMidY = l.y + l.h * 0.5;
-          ctx.beginPath();
-          ctx.moveTo(l.x + l.w, lMidY);
-          ctx.lineTo(gapMidX, lMidY);
-          ctx.lineTo(gapMidX, rMidY - Math.round(rBox.h * 0.12));
-          ctx.lineTo(rBox.x, rMidY - Math.round(rBox.h * 0.12));
-          ctx.stroke();
-        }
-
-        if (fi2 < leftBoxes.length && fi2 !== fi1) {
-          const l = leftBoxes[fi2];
-          const lMidY = l.y + l.h * 0.5;
-          ctx.beginPath();
-          ctx.moveTo(l.x + l.w, lMidY);
-          ctx.lineTo(gapMidX, lMidY);
-          ctx.lineTo(gapMidX, rMidY + Math.round(rBox.h * 0.12));
-          ctx.lineTo(rBox.x, rMidY + Math.round(rBox.h * 0.12));
-          ctx.stroke();
-        }
-      }
-      ctx.restore();
+    // ── LADO DERECHO (espejo) ──
+    const rightBoxes = [];
+    rightPairs.forEach((pair, pi) => {
+      pair.forEach((mi, ai) => {
+        const my = contentTopY + (pi * 2 + ai) * rowH + Math.round((rowH - matchBoxH) / 2);
+        rightBoxes.push({ x: rightX, y: my, w: halfW, h: matchBoxH });
+        drawMatchBox(rightX, my, halfW, matchBoxH, stageMatches[mi], { showInfo: true });
+      });
+    });
+    ctx.save();
+    ctx.strokeStyle = wc26Active() ? WC26C.turquoise + '55' : 'rgba(166,206,57,0.3)';
+    ctx.lineWidth = Math.max(1, Math.round(W * 0.0015));
+    for (let pi = 0; pi < rightPairs.length; pi++) {
+      const b1 = rightBoxes[pi * 2], b2 = rightBoxes[pi * 2 + 1];
+      if (!b1 || !b2) continue;
+      const midY = (b1.y + b1.h / 2 + b2.y + b2.h / 2) / 2;
+      const sx = b1.x, ex = sx - Math.round(gapW * 0.5);
+      ctx.beginPath(); ctx.moveTo(sx, b1.y + b1.h / 2); ctx.lineTo(ex, b1.y + b1.h / 2); ctx.lineTo(ex, midY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx, b2.y + b2.h / 2); ctx.lineTo(ex, b2.y + b2.h / 2); ctx.lineTo(ex, midY); ctx.stroke();
     }
+    ctx.restore();
   } else {
     // ── ALL STAGES VIEW (compacta) ──
     const numStages = etapas.length;
