@@ -2597,10 +2597,33 @@ function drawMundialBracket(W, H) {
       drawMatchBox(leftX, my, sideW, matchBoxH, stageMatches[i], { showInfo: true });
     }
 
-    // ── RIGHT column: next stage matches, positioned between pairs ──
+    // ── RIGHT column: next stage, positioned by actual bracket pairings ──
     if (hasNext && nextStage) {
       const [nextName, nextMatches] = nextStage;
       const totalNext = nextMatches.length;
+
+      // Resolver índices reales de alimentación según matchRef o ganador
+      const feederPairs = [];
+      for (let i = 0; i < totalNext; i++) {
+        const nm = nextMatches[i];
+        const localRef = nm.local ? nm.local.match(/^[WL](\d+)$/i) : null;
+        const visRef = nm.visitante ? nm.visitante.match(/^[WL](\d+)$/i) : null;
+        let li1 = -1, li2 = -1;
+        if (localRef) {
+          li1 = stageMatches.findIndex(m => m.id === parseInt(localRef[1]));
+        } else if (nm.local && !nm.local.match(/^TBD$/i)) {
+          li1 = stageMatches.findIndex(m => m.ganador === nm.local);
+        }
+        if (visRef) {
+          li2 = stageMatches.findIndex(m => m.id === parseInt(visRef[1]));
+        } else if (nm.visitante && !nm.visitante.match(/^TBD$/i)) {
+          li2 = stageMatches.findIndex(m => m.ganador === nm.visitante);
+        }
+        if (li1 === -1) li1 = Math.min(i * 2, leftBoxes.length - 1);
+        if (li2 === -1) li2 = Math.min(i * 2 + 1, leftBoxes.length - 1);
+        if (li1 > li2) { const t = li1; li1 = li2; li2 = t; }
+        feederPairs.push([li1, li2]);
+      }
 
       ctx.save();
       ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.015)) : `700 ${Math.round(W*0.015)}px 'BebasNeue',sans-serif`;
@@ -2611,10 +2634,9 @@ function drawMundialBracket(W, H) {
 
       const rightBoxes = [];
       for (let i = 0; i < totalNext; i++) {
-        const li1 = Math.min(i * 2, leftBoxes.length - 1);
-        const li2 = Math.min(i * 2 + 1, leftBoxes.length - 1);
-        const pairTop = leftBoxes[li1].y;
-        const pairBottom = leftBoxes[li2].y + leftBoxes[li2].h;
+        const [fi1, fi2] = feederPairs[i];
+        const pairTop = leftBoxes[fi1].y;
+        const pairBottom = leftBoxes[fi2].y + leftBoxes[fi2].h;
         const spanH = pairBottom - pairTop;
         const rightBoxH = Math.round(spanH * 0.85);
         const my = pairTop + Math.round((spanH - rightBoxH) / 2);
@@ -2630,14 +2652,12 @@ function drawMundialBracket(W, H) {
       const gapMidX = leftX + sideW + Math.round(gapW * 0.5);
 
       for (let i = 0; i < totalNext; i++) {
-        const li1 = i * 2;
-        const li2 = i * 2 + 1;
-
+        const [fi1, fi2] = feederPairs[i];
         const rBox = rightBoxes[i];
         const rMidY = rBox.y + rBox.h * 0.5;
 
-        if (li1 < leftBoxes.length) {
-          const l = leftBoxes[li1];
+        if (fi1 < leftBoxes.length) {
+          const l = leftBoxes[fi1];
           const lMidY = l.y + l.h * 0.5;
           ctx.beginPath();
           ctx.moveTo(l.x + l.w, lMidY);
@@ -2647,8 +2667,8 @@ function drawMundialBracket(W, H) {
           ctx.stroke();
         }
 
-        if (li2 < leftBoxes.length) {
-          const l = leftBoxes[li2];
+        if (fi2 < leftBoxes.length && fi2 !== fi1) {
+          const l = leftBoxes[fi2];
           const lMidY = l.y + l.h * 0.5;
           ctx.beginPath();
           ctx.moveTo(l.x + l.w, lMidY);
