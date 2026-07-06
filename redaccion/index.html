@@ -416,6 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="red-subtabs" style="margin-bottom:10px">
           <button class="red-subtab active" id="img-tab-scrape" onclick="switchImgTab('scrape')">🖼 Original</button>
           <button class="red-subtab" id="img-tab-ia" onclick="switchImgTab('ia')">✨ Generar con IA</button>
+          <button class="red-subtab" id="img-tab-prompts" onclick="switchImgTab('prompts')">⚙ Prompts</button>
         </div>
         <div id="img-content-scrape"><div id="ref-img-scrape-wrapper" style="border-radius:6px;overflow:hidden;border:1px solid var(--line2);margin-bottom:8px;min-height:80px;display:flex;align-items:center;justify-content:center;background:var(--surface2)"><span style="font-size:11px;color:var(--muted)">Sin imagen original</span></div></div>
         <div id="img-content-ia" style="display:none">
@@ -433,6 +434,15 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="mm-btn mm-btn-primary" id="btn-gen-img" onclick="generarImagenIA()" style="font-size:11px;padding:7px 14px;white-space:nowrap"><span class="mm-spinner" id="spin-gen-img" style="display:none"></span><span id="btn-gen-img-text">Generar</span></button>
           </div>
           <div id="ref-img-preview" style="border-radius:6px;overflow:hidden;border:1px solid var(--line2);min-height:80px;display:flex;align-items:center;justify-content:center;background:var(--surface2)"><span style="font-size:11px;color:var(--muted)">Generá una imagen con IA</span></div>
+        </div>
+        <div id="img-content-prompts" style="display:none">
+          <div class="text-muted" style="font-size:11px;margin-bottom:10px;line-height:1.5">Personalizá los prompts de cada estilo. Usá <code>{titulo}</code>, <code>{contenido}</code> y <code>{contexto}</code> como variables.</div>
+          <div id="prompts-list" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+            <button class="mm-btn mm-btn-primary" id="btn-guardar-prompts" onclick="guardarPrompts()" style="font-size:11px;padding:7px 18px"><span class="mm-spinner" id="spin-prompts" style="display:none"></span><span id="btn-prompts-text">Guardar prompts</span></button>
+            <button class="mm-btn mm-btn-sm" onclick="restaurarPrompts()" style="font-size:10px">Restaurar defaults</button>
+            <span class="mm-badge mm-badge-green" id="prompts-saved" style="opacity:0;transition:opacity 0.3s">✓ Guardado</span>
+          </div>
         </div>
         <div class="ref-section-label" style="font-size:12px;margin:12px 0 6px 0">Composición final</div>
         <div class="ref-canvas-wrap" style="position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--line2);background:#000"><canvas id="ref-canvas" width="1200" height="630" style="display:block;width:100%;height:auto;cursor:grab"></canvas></div>
@@ -703,8 +713,11 @@ const CW=1200,CH=630;
 function switchImgTab(tab){
   document.getElementById('img-tab-scrape').classList.toggle('active',tab==='scrape');
   document.getElementById('img-tab-ia').classList.toggle('active',tab==='ia');
+  document.getElementById('img-tab-prompts').classList.toggle('active',tab==='prompts');
   document.getElementById('img-content-scrape').style.display=tab==='scrape'?'block':'none';
   document.getElementById('img-content-ia').style.display=tab==='ia'?'block':'none';
+  document.getElementById('img-content-prompts').style.display=tab==='prompts'?'block':'none';
+  if(tab==='prompts')cargarPrompts();
 }
 
 function initCanvasCompositor(imgUrl){
@@ -790,8 +803,7 @@ async function generarImagenIA(){
     const res=await fetch(WORKER+'/generar-imagen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:titular,contenido:cuerpo,estilo})});
     const data=await res.json();if(!data.ok)throw new Error(data.error);
     _imgGeneradaB64='data:image/jpeg;base64,'+data.imagen;
-    document.getElementById('img-content-scrape').style.display='none';document.getElementById('img-content-ia').style.display='block';
-    document.getElementById('img-tab-scrape').classList.remove('active');document.getElementById('img-tab-ia').classList.add('active');
+    switchImgTab('ia');
     document.getElementById('ref-img-preview').innerHTML='<img src="'+_imgGeneradaB64+'" style="width:100%;display:block">';
     document.querySelector('.ref-canvas-wrap').style.display='block';
     const img=new Image();
@@ -800,6 +812,73 @@ async function generarImagenIA(){
     showToast('✓ Imagen generada');
   }catch(err){document.getElementById('ref-img-preview').innerHTML='<span style="font-size:11px;color:var(--red);padding:20px">✗ '+esc(err.message)+'</span>';showToast('✗ '+err.message)}
   finally{btn.disabled=false;spin.style.display='none';txt.textContent='Generar'}
+}
+
+// ── Prompts configurables para generación de imágenes ──
+const PROMPTS_ESTILOS=[
+  {key:"realista",label:"📸 Realista"},
+  {key:"dibujo",label:"🎨 Dibujo"},
+  {key:"infografia",label:"📊 Infografía"},
+  {key:"blanco-y-negro",label:"⚫ Blanco y negro"},
+  {key:"acuarela",label:"🖌 Acuarela"},
+  {key:"vintage",label:"📜 Vintage"},
+  {key:"collage-digital",label:"✂️ Collage digital"},
+  {key:"minimalista",label:"◆ Minimalista"}
+];
+
+async function cargarPrompts(){
+  const lista=document.getElementById('prompts-list');
+  lista.innerHTML='<span style="font-size:12px;color:var(--muted)">Cargando...</span>';
+  try{
+    const res=await fetch(WORKER+'/img-prompts');
+    const data=await res.json();
+    if(!data.ok)throw new Error(data.error);
+    renderPromptsEditor(data.prompts);
+  }catch(e){
+    lista.innerHTML='<span style="font-size:12px;color:var(--red)">Error: '+esc(e.message)+'</span>';
+  }
+}
+
+function renderPromptsEditor(prompts){
+  const lista=document.getElementById('prompts-list');
+  lista.innerHTML='';
+  const fields={};
+  PROMPTS_ESTILOS.forEach(pe=>{
+    const div=document.createElement('div');
+    div.style.cssText='background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:8px';
+    div.innerHTML='<div style="font-size:11px;font-weight:600;color:var(--white);margin-bottom:4px">'+pe.label+'</div><textarea id="prompt-'+pe.key+'" class="mm-textarea" rows="2" style="font-size:10px;padding:6px;min-height:50px;resize:vertical">'+esc(prompts[pe.key]||'')+'</textarea>';
+    lista.appendChild(div);
+    fields[pe.key]=div.querySelector('textarea');
+  });
+}
+
+async function guardarPrompts(){
+  const body={};
+  PROMPTS_ESTILOS.forEach(pe=>{body[pe.key]=document.getElementById('prompt-'+pe.key).value.trim()});
+  const btn=document.getElementById('btn-guardar-prompts');
+  const spin=document.getElementById('spin-prompts');
+  const txt=document.getElementById('btn-prompts-text');
+  btn.disabled=true;spin.style.display='inline-block';txt.textContent='Guardando...';
+  try{
+    const res=await fetch(WORKER+'/img-prompts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json();
+    if(!data.ok)throw new Error(data.error);
+    const badge=document.getElementById('prompts-saved');
+    badge.style.opacity='1';setTimeout(()=>badge.style.opacity='0',3000);
+    showToast('✓ Prompts guardados');
+  }catch(e){showToast('✗ Error: '+e.message)}
+  finally{btn.disabled=false;spin.style.display='none';txt.textContent='Guardar prompts'}
+}
+
+async function restaurarPrompts(){
+  if(!confirm('¿Restaurar prompts por defecto? Se perderán las personalizaciones.'))return;
+  try{
+    const res=await fetch(WORKER+'/img-prompts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+    const data=await res.json();
+    if(!data.ok)throw new Error(data.error);
+    showToast('✓ Prompts restaurados');
+    cargarPrompts();
+  }catch(e){showToast('✗ Error: '+e.message)}
 }
 </script>
 </body>

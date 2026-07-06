@@ -16,6 +16,7 @@ const WA_PROMPT_KV_KEY = "config:wa_prompt";
 const WA_LINKS_KV_KEY  = "config:wa_links";
 const REEL_PROMPT_KEY  = "config:reel:prompt";
 const REEL_VOCES_KEY   = "config:reel:voces";
+const IMG_PROMPTS_KV_KEY = "config:img_prompts";
 const MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024;
 const WHATSAPP_PREFIX  = "whatsapp:programado:";
 const AGENDA_EV_PREFIX = "agenda:evento:";
@@ -3427,16 +3428,40 @@ const ESTILOS_DESC={
   institucional:`FORMATO — Comunicado:\n- Titular formal. Hecho→justificación→declaración→datos. 4 párrafos.`
 };
 
-const ESTILOS_IMAGEN={
-  realista:"Fotografía periodística real, iluminación natural, alta calidad, 4k, nitidez profesional",
-  dibujo:"Ilustración digital estilo viñeta periodística, colores planos, trazos definidos, estilo cartoon editorial",
-  infografia:"Estilo infografía limpia, visualización de datos, fondo claro, elementos gráficos modernos",
-  "blanco-y-negro":"Fotografía en blanco y negro, alto contraste, dramática, textura granulado fino",
-  acuarela:"Pintura en acuarela, trazos suaves, colores pastel, textura de papel, estilo artístico",
-  vintage:"Fotografía vintage, tonos sepia, estilo archival, granulado, bordes desgastados, estética retro",
-  "collage-digital":"Collage digital multimedia, texturas mixtas, capas, estilo moderno, composición dinámica",
-  minimalista:"Composición minimalista, pocos elementos, mucho espacio negativo, líneas limpias, estilo moderno"
+const IMG_PROMPTS_DEFAULTS={
+  realista:"Fotografía periodística real de: {titulo}. Basado en hechos reales: {contexto}. {contenido}. Iluminación natural, alta calidad, 4k, nitidez profesional, composición equilibrada",
+  dibujo:"Ilustración editorial digital de: {titulo}. Basado en hechos reales: {contexto}. Estilo viñeta periodística, colores planos, trazos definidos, estilo cartoon editorial",
+  infografia:"Infografía visual de: {titulo}. Datos reales: {contexto}. Gráficos de barras, líneas de tiempo, estadísticas visuales, diagramas, fondo claro, estilo moderno, elementos gráficos profesionales",
+  "blanco-y-negro":"Fotografía en blanco y negro de: {titulo}. Contexto real: {contexto}. Alto contraste, dramática, textura granulado fino, iluminación expresiva",
+  acuarela:"Pintura en acuarela de: {titulo}. Basado en: {contexto}. Trazos suaves, colores pastel, textura de papel, estilo artístico",
+  vintage:"Fotografía vintage de: {titulo}. Contexto: {contexto}. Tonos sepia, estilo archival, granulado, bordes desgastados, estética retro",
+  "collage-digital":"Collage digital multimedia de: {titulo}. Basado en: {contexto}. Texturas mixtas, capas, estilo moderno, composición dinámica",
+  minimalista:"Composición minimalista sobre: {titulo}. Contexto: {contexto}. Pocos elementos, mucho espacio negativo, líneas limpias, estilo moderno"
 };
+
+async function getImgPrompts(env){
+  try{const v=await env.KV.get(IMG_PROMPTS_KV_KEY,"json");return v||{...IMG_PROMPTS_DEFAULTS}}catch(e){return{...IMG_PROMPTS_DEFAULTS}}
+}
+
+async function buscarContextoWeb(query){
+  try{
+    const res=await fetch("https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar",{headers:{"User-Agent":"Mozilla/5.0","Accept":"text/html"},redirect:"follow"});
+    if(!res.ok) return "";
+    const html=await res.text();
+    const links=[...html.matchAll(/class="result__a"[^>]*href="[^"]*uddg=([^"&]+)/g)].slice(0,3).map(m=>decodeURIComponent(m[1]));
+    let ctx="";
+    for(const url of links.slice(0,2)){
+      try{
+        const r=await fetch(url,{headers:{"User-Agent":"Mozilla/5.0"},redirect:"follow",signal:AbortSignal.timeout(5000)});
+        if(!r.ok) continue;
+        const t=await r.text();
+        const m=t.match(/<p[^>]*>([^<]{50,400})<\/p>/g);
+        if(m) ctx+=m.slice(0,3).map(p=>p.replace(/<[^>]*>/g,"").trim()).filter(Boolean).join(". ")+". ";
+      }catch(e){}
+    }
+    return ctx.substring(0,1000);
+  }catch(e){return ""}
+}
 
 function comprimirEditorial(texto){
   if(!texto) return null;
@@ -3470,8 +3495,10 @@ async function handleReformular(body,env){
 async function handleGenerarImagen(body,env){
   const{titulo,contenido,estilo="realista"}=body;
   if(!titulo||!contenido) return jsonError("Faltan campos",400);
-  const estiloDesc=ESTILOS_IMAGEN[estilo]||ESTILOS_IMAGEN.realista;
-  const promptText=`${titulo}. ${contenido.substring(0,400)}. ${estiloDesc}`;
+  const prompts=await getImgPrompts(env);
+  const template=prompts[estilo]||IMG_PROMPTS_DEFAULTS.realista;
+  const contexto=await buscarContextoWeb(titulo+" "+contenido.substring(0,200));
+  const promptText=template.replace(/\{titulo\}/g,titulo).replace(/\{contenido\}/g,contenido.substring(0,400)).replace(/\{contexto\}/g,contexto||"noticia actual");
   let bytes=null;
   if(env.AI){
     try{
@@ -3490,6 +3517,22 @@ async function handleGenerarImagen(body,env){
   if(!bytes) return jsonError("No se pudo generar la imagen",502);
   let binary='';for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
   return jsonOk({imagen:btoa(binary),formato:"image/jpeg",estilo_usado:estilo});
+}
+
+async function handleGetImgPrompts(env){
+  const prompts=await getImgPrompts(env);
+  return jsonOk({prompts});
+}
+
+async function handlePostImgPrompts(body,env){
+  const{realista,dibujo,infografia,"blanco-y-negro":byb,acuarela,vintage,"collage-digital":cd,minimalista}=body;
+  const prompts={realista,dibujo,infografia,"blanco-y-negro":byb,acuarela,vintage,"collage-digital":cd,minimalista};
+  const hasAny=Object.values(prompts).some(v=>v&&typeof v==="string"&&v.length>10);
+  if(!hasAny){try{await env.KV.delete(IMG_PROMPTS_KV_KEY);return jsonOk({restaurado:true})}catch(e){return jsonError("Error: "+e.message,500)}}
+  const valid=Object.values(prompts).every(v=>v&&typeof v==="string"&&v.length>10);
+  if(!valid) return jsonError("Todos los estilos deben tener un prompt válido",400);
+  try{await env.KV.put(IMG_PROMPTS_KV_KEY,JSON.stringify(prompts));return jsonOk({guardado:true})}
+  catch(e){return jsonError("Error guardando: "+e.message,500)}
 }
 async function handleRedactar(body,env){
   const{ideas,buscarWeb=false}=body;
@@ -4258,6 +4301,7 @@ export default {
       if(path==="/scrape")                           return handleScrape(url);
       if(path==="/fuentes")                          return handleGetFuentes(env);
       if(path==="/editorial")                        return handleGetEditorial(env);
+      if(path==="/img-prompts")                      return handleGetImgPrompts(env);
       if(path==="/cubiertas")                        return handleGetCubiertas(env);
       if(path==="/notas")                            return handleGetNotas(env);
       if(path==="/whatsapp/programados")             return handleGetWhatsappProgramados(env);
@@ -4770,6 +4814,7 @@ export default {
     if(path==="/titulares")                          return handleTitulares(body,env);
     if(path==="/reformular")                         return handleReformular(body,env);
     if(path==="/generar-imagen")                     return handleGenerarImagen(body,env);
+    if(path==="/img-prompts")                        return handlePostImgPrompts(body,env);
     if(path==="/fuentes")                            return handlePostFuente(body,env);
     if(path==="/editorial")                          return handlePostEditorial(body,env);
     if(path==="/cubiertas")                          return handlePostCubierta(body,env);
