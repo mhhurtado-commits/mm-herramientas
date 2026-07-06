@@ -3429,14 +3429,14 @@ const ESTILOS_DESC={
 };
 
 const IMG_PROMPTS_DEFAULTS={
-  realista:"Fotografía periodística real de: {titulo}. Basado en hechos reales: {contexto}. {contenido}. Iluminación natural, alta calidad, 4k, nitidez profesional, composición equilibrada",
-  dibujo:"Ilustración editorial digital de: {titulo}. Basado en hechos reales: {contexto}. Estilo viñeta periodística, colores planos, trazos definidos, estilo cartoon editorial",
-  infografia:"Infografía visual de: {titulo}. Datos reales: {contexto}. Gráficos de barras, líneas de tiempo, estadísticas visuales, diagramas, fondo claro, estilo moderno, elementos gráficos profesionales",
-  "blanco-y-negro":"Fotografía en blanco y negro de: {titulo}. Contexto real: {contexto}. Alto contraste, dramática, textura granulado fino, iluminación expresiva",
-  acuarela:"Pintura en acuarela de: {titulo}. Basado en: {contexto}. Trazos suaves, colores pastel, textura de papel, estilo artístico",
-  vintage:"Fotografía vintage de: {titulo}. Contexto: {contexto}. Tonos sepia, estilo archival, granulado, bordes desgastados, estética retro",
-  "collage-digital":"Collage digital multimedia de: {titulo}. Basado en: {contexto}. Texturas mixtas, capas, estilo moderno, composición dinámica",
-  minimalista:"Composición minimalista sobre: {titulo}. Contexto: {contexto}. Pocos elementos, mucho espacio negativo, líneas limpias, estilo moderno"
+  realista:"Fotografía periodística profesional de: {titulo}. Hechos: {contexto}. {contenido}. Iluminación natural, altísimo detalle, textura de piel realista, composición equilibrada, profundidad de campo, calidad publicación impresa",
+  dibujo:"Ilustración editorial de alta calidad sobre: {titulo}. Basado en: {contexto}. Estilo viñeta periodística, colores planos vibrantes, trazos definidos, composición dinámica, estilo cartoon editorial premium",
+  infografia:"Infografía profesional de periódico sobre: {titulo}. Datos reales: {contexto}. Gráficos de barras precisos, diagramas de líneas, estadísticas visuales, tablas de datos, indicadores numéricos, visualización de datos moderna, fondo blanco limpio, estilo Bloomberg/Financial Times, tipografía clara, iconos minimalistas, calidad publicación",
+  "blanco-y-negro":"Fotografía en blanco y negro de: {titulo}. Contexto: {contexto}. Alto contraste, granulado fino, iluminación dramática, textura detallada, estilo documental, composición artística",
+  acuarela:"Pintura en acuarela de: {titulo}. Inspirado en: {contexto}. Trazos suaves y fluidos, colores pastel, textura de papel acuarela, luminosidad, estilo artístico contemporáneo",
+  vintage:"Fotografía vintage de: {titulo}. Contexto histórico: {contexto}. Tonos sepia, granulado, bordes viñeta, estilo archival, estética retro años 70, textura de película",
+  "collage-digital":"Collage digital periodístico de: {titulo}. Basado en: {contexto}. Capas, texturas mixtas, composición dinámica, estilo moderno editorial, elementos gráficos superpuestos",
+  minimalista:"Composición minimalista sobre: {titulo}. Esencia: {contexto}. Máximo espacio negativo, líneas limpias, un solo elemento focal, paleta reducida, estilo moderno premium"
 };
 
 async function getImgPrompts(env){
@@ -3493,30 +3493,31 @@ async function handleReformular(body,env){
   return jsonOk(r.data);
 }
 async function handleGenerarImagen(body,env){
-  const{titulo,contenido,estilo="realista"}=body;
+  const{titulo,contenido,estilo="realista",modelo=""}=body;
   if(!titulo||!contenido) return jsonError("Faltan campos",400);
   const prompts=await getImgPrompts(env);
   const template=prompts[estilo]||IMG_PROMPTS_DEFAULTS.realista;
   const contexto=await buscarContextoWeb(titulo+" "+contenido.substring(0,200));
   const promptText=template.replace(/\{titulo\}/g,titulo).replace(/\{contenido\}/g,contenido.substring(0,400)).replace(/\{contexto\}/g,contexto||"noticia actual");
-  let bytes=null;
-  if(env.AI){
+  const modelosImg=modelo?[modelo]:["klein","gptimage-large","nova-canvas","flux","zimage","gptimage"];
+  let bytes=null,modeloUsado="";
+  for(const m of modelosImg){
     try{
-      const result=await env.AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0',{prompt:promptText,negative_prompt:"text, words, letters, signatures, watermarks, low quality, blurry, distorted",steps:20});
-      if(result instanceof ArrayBuffer){bytes=new Uint8Array(result)}
-      else if(result instanceof ReadableStream){bytes=new Uint8Array(await new Response(result).arrayBuffer())}
-      else if(result&&result.body){bytes=new Uint8Array(await new Response(result.body).arrayBuffer())}
+      const res=await fetch(`https://image.pollinations.ai/prompt/${encodeURIComponent(promptText)}?width=1200&height=630&model=${m}&nologo=true`);
+      if(res.ok){bytes=new Uint8Array(await res.arrayBuffer());modeloUsado=m;break}
     }catch(e){}
   }
-  if(!bytes){
+  if(!bytes&&env.AI){
     try{
-      const res=await fetch(`https://image.pollinations.ai/prompt/${encodeURIComponent(promptText)}?width=1200&height=630&nologo=true`);
-      if(res.ok){const buf=await res.arrayBuffer();bytes=new Uint8Array(buf)}
+      const result=await env.AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0',{prompt:promptText,negative_prompt:"text, words, letters, signatures, watermarks, low quality, blurry, distorted",steps:20});
+      if(result instanceof ArrayBuffer){bytes=new Uint8Array(result);modeloUsado="sdxl-cf"}
+      else if(result instanceof ReadableStream){bytes=new Uint8Array(await new Response(result).arrayBuffer());modeloUsado="sdxl-cf"}
+      else if(result&&result.body){bytes=new Uint8Array(await new Response(result.body).arrayBuffer());modeloUsado="sdxl-cf"}
     }catch(e){}
   }
   if(!bytes) return jsonError("No se pudo generar la imagen",502);
   let binary='';for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
-  return jsonOk({imagen:btoa(binary),formato:"image/jpeg",estilo_usado:estilo});
+  return jsonOk({imagen:btoa(binary),formato:"image/jpeg",estilo_usado:estilo,modelo:modeloUsado});
 }
 
 async function handleGetImgPrompts(env){
