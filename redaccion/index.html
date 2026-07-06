@@ -409,6 +409,40 @@ document.addEventListener('DOMContentLoaded', () => {
         <div id="results-reformular"><div class="monitor-empty"><span style="font-size:2rem">📄</span><p>La nota reformulada<br>aparecerá aquí.</p></div></div>
       </div>
     </div>
+    <div id="ref-imagen-section" class="ref-imagen-section" style="display:none;margin-top:16px;padding:0 4px">
+      <div class="divider" style="margin:0 0 10px 0"></div>
+      <div class="ref-section-label" style="font-size:13px;margin-bottom:8px;padding:0 8px">🖼 Imagen de portada</div>
+      <div class="red-panel" style="padding:12px">
+        <div class="red-subtabs" style="margin-bottom:10px">
+          <button class="red-subtab active" id="img-tab-scrape" onclick="switchImgTab('scrape')">🖼 Original</button>
+          <button class="red-subtab" id="img-tab-ia" onclick="switchImgTab('ia')">✨ Generar con IA</button>
+        </div>
+        <div id="img-content-scrape"><div id="ref-img-scrape-wrapper" style="border-radius:6px;overflow:hidden;border:1px solid var(--line2);margin-bottom:8px;min-height:80px;display:flex;align-items:center;justify-content:center;background:var(--surface2)"><span style="font-size:11px;color:var(--muted)">Sin imagen original</span></div></div>
+        <div id="img-content-ia" style="display:none">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <select id="img-estilo" class="mm-select" style="flex:1;font-size:11px;padding:7px 10px">
+              <option value="realista">📸 Realista</option>
+              <option value="dibujo">🎨 Dibujo</option>
+              <option value="infografia">📊 Infografía</option>
+              <option value="blanco-y-negro">⚫ Blanco y negro</option>
+              <option value="acuarela">🖌 Acuarela</option>
+              <option value="vintage">📜 Vintage</option>
+              <option value="collage-digital">✂️ Collage digital</option>
+              <option value="minimalista">◆ Minimalista</option>
+            </select>
+            <button class="mm-btn mm-btn-primary" id="btn-gen-img" onclick="generarImagenIA()" style="font-size:11px;padding:7px 14px;white-space:nowrap"><span class="mm-spinner" id="spin-gen-img" style="display:none"></span><span id="btn-gen-img-text">Generar</span></button>
+          </div>
+          <div id="ref-img-preview" style="border-radius:6px;overflow:hidden;border:1px solid var(--line2);min-height:80px;display:flex;align-items:center;justify-content:center;background:var(--surface2)"><span style="font-size:11px;color:var(--muted)">Generá una imagen con IA</span></div>
+        </div>
+        <div class="ref-section-label" style="font-size:12px;margin:12px 0 6px 0">Composición final</div>
+        <div class="ref-canvas-wrap" style="position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--line2);background:#000"><canvas id="ref-canvas" width="1200" height="630" style="display:block;width:100%;height:auto;cursor:grab"></canvas></div>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer"><input type="checkbox" id="chk-logo" checked onchange="toggleLogoCanvas()"> Mostrar logo</label>
+          <button class="mm-btn mm-btn-sm" onclick="resetLogoPos()" style="font-size:10px">↺ Reset logo</button>
+          <button class="mm-btn mm-btn-danger" onclick="descargarImagenFinal()" style="font-size:11px;margin-left:auto">⬇ Descargar</button>
+        </div>
+      </div>
+    </div>
     <div id="notas-guardadas-section" style="display:none"><div class="notas-panel"><div class="notas-panel-header"><span class="mm-panel-header" style="margin-bottom:0;padding-bottom:0">Notas guardadas</span><button class="mm-btn mm-btn-sm" onclick="toggleNotasGuardadas()">✕ Cerrar</button></div><div class="notas-lista" id="notas-lista"><span class="text-muted" style="font-size:12px">Cargando...</span></div></div></div>
   </div>
 
@@ -466,7 +500,7 @@ function placeholderReformular(){return'<div class="monitor-empty"><span style="
 async function generarTitulares(){const contenido=modoActual==='nota'?document.getElementById('txt-nota').value.trim():document.getElementById('txt-tema').value.trim();const contexto=document.getElementById('txt-contexto-t').value.trim();if(!contenido){showToast('⚠ Ingresá el contenido primero');return;}setLoading('btn-generar','spin-titulares','btn-titulares-text',true,'Generar titulares');try{const res=await fetch(WORKER+'/titulares',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({modo:modoActual,contenido,contexto,tono:document.getElementById('sel-tono').value,cantidad:parseInt(document.getElementById('sel-cantidad').value)})});const data=await res.json();if(!data.ok)throw new Error(data.error);renderTitulares(data);}catch(err){showToast('✗ '+err.message);}finally{setLoading('btn-generar','spin-titulares','btn-titulares-text',false,'Generar titulares');}}
 function renderTitulares(data){document.getElementById('badge-titulares').textContent=data.titulares.length+' opciones';document.getElementById('badge-titulares').style.display='inline-block';document.getElementById('btn-limpiar-t').style.display='inline-block';let html='<div style="display:flex;flex-direction:column;gap:10px">';data.titulares.forEach((t,i)=>{const tEsc=esc(t);const tJson=JSON.stringify(t);html+=`<div class="result-card"><div class="result-num">Titular ${i+1}</div><div class="result-text">${tEsc}</div><div class="result-actions"><button class="pill accent" onclick='copiarTexto(${tJson})'>Copiar</button><button class="pill" onclick='usarEnPlaca(${tJson})'>Usar en placa ↗</button></div></div>`;});if(data.angulos&&data.angulos.length){html+='<div class="divider"></div><div class="section-label">Ángulos identificados</div>';data.angulos.forEach(a=>{html+=`<div class="angulo-item"><div class="angulo-nombre">${esc(a.nombre)}</div><div class="angulo-desc">${esc(a.descripcion)}</div></div>`;});}html+='</div>';document.getElementById('results-titulares').innerHTML=html;}
 async function reformularNota(){const titulo=document.getElementById('ref-titulo-input').value.trim();const contenido=document.getElementById('ref-cuerpo-input').value.trim();const contexto=document.getElementById('txt-contexto-r').value.trim();if(!titulo||!contenido){showToast('⚠ Completá título y cuerpo');return;}setLoading('btn-reformular','spin-reformular','btn-reformular-text',true,'Reformular para Media Mendoza');try{const res=await fetch(WORKER+'/reformular',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo,contenido,contexto,estilo:document.getElementById('ref-estilo').value})});const data=await res.json();if(!data.ok)throw new Error(data.error);renderReformulada(data);}catch(err){showToast('✗ '+err.message);}finally{setLoading('btn-reformular','spin-reformular','btn-reformular-text',false,'Reformular para Media Mendoza');}}
-function renderReformulada(data){const imgUrl=window._imagenActual||'';document.getElementById('badge-reformulada').style.display='inline-block';document.getElementById('btn-limpiar-r').style.display='inline-block';const titularVal=data.titular||'';const cuerpoVal=data.cuerpo||'';const hashtags=data.hashtags||[];const hashtagsHtml=hashtags.length?'<div><div class="ref-section-label">Hashtags sugeridos</div><div class="hashtags-row" id="hashtags-row-ref"></div><div style="margin-top:6px"><button class="pill" id="btn-copy-hashtags">Copiar todos los hashtags</button></div></div>':'';const imgHtml=imgUrl?'<div style="margin-top:10px"><img src="'+imgUrl+'" alt="Imagen de la nota" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;border:1px solid var(--line2)"><div style="display:flex;gap:5px;margin-top:5px"><a href="'+imgUrl+'" target="_blank" class="pill accent">Ver imagen</a><button class="pill" onclick="copiarTexto(this.dataset.url)" data-url="'+imgUrl+'">Copiar link</button></div></div>':'';window._notaActual={titular:titularVal,cuerpo:cuerpoVal,categoria:data.categoria_sugerida||'',hashtags,imagen:imgUrl};document.getElementById('results-reformular').innerHTML='<div class="ref-box"><div class="ref-ia-badge">✦ Reformulada por IA</div><div><div class="ref-section-label">Categoría sugerida</div><span class="ref-categoria">'+esc(data.categoria_sugerida||'—')+'</span></div><div><div class="ref-section-label">Titular</div><div class="ref-titulo">'+esc(titularVal)+'</div></div><div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">'+esc(cuerpoVal)+'</div></div>'+hashtagsHtml+'</div>'+imgHtml+'<div class="ref-actions" style="margin-top:12px" id="ref-actions-btns"></div>';if(hashtags.length){const hr=document.getElementById('hashtags-row-ref');if(hr){hashtags.forEach(h=>{const s=document.createElement('span');s.className='hashtag';s.textContent=h;s.onclick=()=>copiarTexto(h);hr.appendChild(s);});}const bh=document.getElementById('btn-copy-hashtags');if(bh)bh.onclick=()=>copiarTexto(hashtags.join(' '));}const ra=document.getElementById('ref-actions-btns');const b1=document.createElement('button');b1.className='pill accent';b1.textContent='Copiar titular';b1.onclick=()=>copiarTexto(titularVal);ra.appendChild(b1);const b2=document.createElement('button');b2.className='pill accent';b2.textContent='Copiar cuerpo';b2.onclick=()=>copiarTexto(cuerpoVal);ra.appendChild(b2);const b3=document.createElement('button');b3.className='pill';b3.textContent='Copiar todo';b3.onclick=()=>copiarTexto(titularVal+'\n\n'+cuerpoVal);ra.appendChild(b3);const b4=document.createElement('button');b4.className='pill';b4.textContent='Usar en placa ↗';b4.onclick=()=>usarEnPlaca(titularVal);ra.appendChild(b4);const b5=document.createElement('button');b5.className='pill';b5.style.cssText='border-color:var(--v);color:var(--v)';b5.textContent='★ Guardar nota';b5.onclick=guardarNotaActual;ra.appendChild(b5);}
+function renderReformulada(data){const imgUrl=window._imagenActual||'';document.getElementById('badge-reformulada').style.display='inline-block';document.getElementById('btn-limpiar-r').style.display='inline-block';const titularVal=data.titular||'';const cuerpoVal=data.cuerpo||'';const hashtags=data.hashtags||[];const hashtagsHtml=hashtags.length?'<div><div class="ref-section-label">Hashtags sugeridos</div><div class="hashtags-row" id="hashtags-row-ref"></div><div style="margin-top:6px"><button class="pill" id="btn-copy-hashtags">Copiar todos los hashtags</button></div></div>':'';const imgHtml=imgUrl?'<div style="margin-top:10px"><img src="'+imgUrl+'" alt="Imagen de la nota" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;border:1px solid var(--line2)"><div style="display:flex;gap:5px;margin-top:5px"><a href="'+imgUrl+'" target="_blank" class="pill accent">Ver imagen</a><button class="pill" onclick="copiarTexto(this.dataset.url)" data-url="'+imgUrl+'">Copiar link</button></div></div>':'';window._notaActual={titular:titularVal,cuerpo:cuerpoVal,categoria:data.categoria_sugerida||'',hashtags,imagen:imgUrl};document.getElementById('results-reformular').innerHTML='<div class="ref-box"><div class="ref-ia-badge">✦ Reformulada por IA</div><div><div class="ref-section-label">Categoría sugerida</div><span class="ref-categoria">'+esc(data.categoria_sugerida||'—')+'</span></div><div><div class="ref-section-label">Titular</div><div class="ref-titulo">'+esc(titularVal)+'</div></div><div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo">'+esc(cuerpoVal)+'</div></div>'+hashtagsHtml+'</div>'+imgHtml+'<div class="ref-actions" style="margin-top:12px" id="ref-actions-btns"></div>';if(hashtags.length){const hr=document.getElementById('hashtags-row-ref');if(hr){hashtags.forEach(h=>{const s=document.createElement('span');s.className='hashtag';s.textContent=h;s.onclick=()=>copiarTexto(h);hr.appendChild(s);});}const bh=document.getElementById('btn-copy-hashtags');if(bh)bh.onclick=()=>copiarTexto(hashtags.join(' '));}const ra=document.getElementById('ref-actions-btns');const b1=document.createElement('button');b1.className='pill accent';b1.textContent='Copiar titular';b1.onclick=()=>copiarTexto(titularVal);ra.appendChild(b1);const b2=document.createElement('button');b2.className='pill accent';b2.textContent='Copiar cuerpo';b2.onclick=()=>copiarTexto(cuerpoVal);ra.appendChild(b2);const b3=document.createElement('button');b3.className='pill';b3.textContent='Copiar todo';b3.onclick=()=>copiarTexto(titularVal+'\n\n'+cuerpoVal);ra.appendChild(b3);const b4=document.createElement('button');b4.className='pill';b4.textContent='Usar en placa ↗';b4.onclick=()=>usarEnPlaca(titularVal);ra.appendChild(b4);const b5=document.createElement('button');b5.className='pill';b5.style.cssText='border-color:var(--v);color:var(--v)';b5.textContent='★ Guardar nota';b5.onclick=guardarNotaActual;ra.appendChild(b5);_fondoImg=null;_imgGeneradaB64=null;const sec=document.getElementById('ref-imagen-section');sec.style.display='block';if(imgUrl){document.getElementById('ref-img-scrape-wrapper').innerHTML='<img src="'+esc(imgUrl)+'" style="width:100%;display:block">';document.querySelector('.ref-canvas-wrap').style.display='block';initCanvasCompositor(imgUrl)}else{document.getElementById('ref-img-scrape-wrapper').innerHTML='<span style="font-size:11px;color:var(--muted);padding:30px;text-align:center">Sin imagen original. Usá la pestaña "Generar con IA".</span>';document.querySelector('.ref-canvas-wrap').style.display='none'}switchImgTab('scrape');}
 let fuentes=[],fuentesActivas=new Set(),noticiasCache=[],autoInterval=null,feedVerificado=false,feedVerificadoNombre='';
 async function cargarFuentes(){try{const res=await fetch(WORKER+'/fuentes');const data=await res.json();if(data.ok){fuentes=data.fuentes||[];fuentes.forEach(f=>fuentesActivas.add(f.id));renderFuentes();actualizarFiltroFuentes();}}catch(e){document.getElementById('fuentes-list').innerHTML='<span style="font-size:12px;color:var(--red)">Error cargando fuentes</span>';}}
 function renderFuentes(){const list=document.getElementById('fuentes-list');const count=document.getElementById('fuentes-count');if(!fuentes.length){list.innerHTML='<span style="font-size:12px;color:var(--dim)">Sin fuentes. Agregá una con el botón +</span>';if(count)count.textContent='';return;}if(count)count.textContent=fuentes.length+' fuente'+(fuentes.length!==1?'s':'');list.innerHTML='';fuentes.forEach(f=>{const row=document.createElement('div');row.className='fuente-row';const active=fuentesActivas.has(f.id);row.innerHTML=`<div style="flex:1;min-width:0"><div class="fuente-row-name">${esc(f.nombre)}</div><div class="fuente-row-url">${esc(f.url)}</div></div><div class="fuente-row-actions"><button class="mm-btn mm-btn-sm" style="${active?'background:rgba(166,206,57,0.12);border-color:var(--v);color:var(--v)':''}" onclick="toggleFuenteById('${f.id}',this)">${active?'Activa':'Inactiva'}</button><button class="mm-btn mm-btn-sm mm-btn-danger" onclick="eliminarFuente('${f.id}','${esc(f.nombre)}')">Eliminar</button></div>`;list.appendChild(row);});}
@@ -509,7 +543,7 @@ function cargarNotaGuardada(n){window._imagenActual=n.imagen||'';window._notaAct
 function pedirLimpiarReformular(){if(window._notaActual&&window._notaActual.titular){document.getElementById('modal-limpiar').classList.add('open');}else{limpiarReformularReal();}}
 async function guardarYLimpiar(){document.getElementById('modal-limpiar').classList.remove('open');await guardarNotaActual();limpiarReformularReal();}
 function soloLimpiar(){document.getElementById('modal-limpiar').classList.remove('open');limpiarReformularReal();}
-function limpiarReformularReal(){['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value='');switchRefFuente('url');document.getElementById('char-ref').textContent='0 caracteres';document.getElementById('results-reformular').innerHTML=placeholderReformular();document.getElementById('badge-reformulada').style.display='none';document.getElementById('btn-limpiar-r').style.display='none';const st=document.getElementById('scrape-status');if(st){st.className='scrape-status';st.textContent='';}const imgSec=document.getElementById('scrape-imagen-section');if(imgSec)imgSec.classList.remove('show');window._notaActual=null;window._imagenActual='';imagenesSeleccionadas=[];renderImagenPreviews();}
+function limpiarReformularReal(){['ref-titulo-input','ref-cuerpo-input','txt-contexto-r','ref-url-input'].forEach(id=>document.getElementById(id).value='');switchRefFuente('url');document.getElementById('char-ref').textContent='0 caracteres';document.getElementById('results-reformular').innerHTML=placeholderReformular();document.getElementById('badge-reformulada').style.display='none';document.getElementById('btn-limpiar-r').style.display='none';const st=document.getElementById('scrape-status');if(st){st.className='scrape-status';st.textContent='';}const imgSec=document.getElementById('scrape-imagen-section');if(imgSec)imgSec.classList.remove('show');window._notaActual=null;window._imagenActual='';imagenesSeleccionadas=[];renderImagenPreviews();_fondoImg=null;_imgGeneradaB64=null;_logoRect={x:null,y:null,w:null,h:null};const sec=document.getElementById('ref-imagen-section');if(sec)sec.style.display='none';}
 cargarEditorial();
 
 // ── Manejo de imágenes (placas, banners, flyers) ──
@@ -659,6 +693,114 @@ async function procesarImagenes(){
   }
   
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+// ── Canvas compositor para imagen reformular ──
+let _fondoImg=null,_logoCanvasImg=null,_imgGeneradaB64=null;
+let _logoRect={x:null,y:null,w:null,h:null};
+let _logoDrag=null,_logoSizing=null,_logoVisible=true;
+const CW=1200,CH=630;
+
+function switchImgTab(tab){
+  document.getElementById('img-tab-scrape').classList.toggle('active',tab==='scrape');
+  document.getElementById('img-tab-ia').classList.toggle('active',tab==='ia');
+  document.getElementById('img-content-scrape').style.display=tab==='scrape'?'block':'none';
+  document.getElementById('img-content-ia').style.display=tab==='ia'?'block':'none';
+}
+
+function initCanvasCompositor(imgUrl){
+  const canvas=document.getElementById('ref-canvas');
+  canvas.width=CW;canvas.height=CH;
+  const img=new Image();
+  img.onload=()=>{_fondoImg=img;cargarLogoCanvas();drawCanvas();};
+  img.src=imgUrl;
+}
+
+function cargarLogoCanvas(){
+  if(_logoCanvasImg)return;
+  const img=new Image();
+  img.onload=()=>{_logoCanvasImg=img;_logoRect={x:null,y:null,w:null,h:null};setupCanvasEvents();drawCanvas();};
+  img.src='../assets/logo.png';
+}
+
+function drawCanvas(){
+  const ctx=document.getElementById('ref-canvas').getContext('2d');
+  if(!ctx||!_fondoImg)return;
+  ctx.clearRect(0,0,CW,CH);
+  ctx.fillStyle='#000';ctx.fillRect(0,0,CW,CH);
+  const ir=_fondoImg.width/_fondoImg.height,cr=CW/CH;
+  let sx,sy,sw,sh;
+  if(ir>cr){sh=_fondoImg.height;sw=sh*cr;sx=(_fondoImg.width-sw)/2;sy=0;}
+  else{sw=_fondoImg.width;sh=sw/cr;sx=0;sy=(_fondoImg.height-sh)/2;}
+  ctx.drawImage(_fondoImg,sx,sy,sw,sh,0,0,CW,CH);
+  if(!_logoVisible||!_logoCanvasImg)return;
+  if(_logoRect.x===null){const lw=Math.round(CW*0.28);const lh=Math.round(lw*(_logoCanvasImg.height/_logoCanvasImg.width));_logoRect={x:CW-lw-20,y:CH-lh-20,w:lw,h:lh};}
+  ctx.drawImage(_logoCanvasImg,_logoRect.x,_logoRect.y,_logoRect.w,_logoRect.h);
+  if(!_logoDrag&&!_logoSizing)return;
+  ctx.strokeStyle='rgba(166,206,57,0.9)';ctx.lineWidth=2;ctx.strokeRect(_logoRect.x,_logoRect.y,_logoRect.w,_logoRect.h);
+  const hs=8;[[_logoRect.x,_logoRect.y],[_logoRect.x+_logoRect.w,_logoRect.y],[_logoRect.x,_logoRect.y+_logoRect.h],[_logoRect.x+_logoRect.w,_logoRect.y+_logoRect.h]].forEach(p=>{ctx.fillStyle='#fff';ctx.strokeStyle='#a6ce39';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p[0],p[1],hs,0,Math.PI*2);ctx.fill();ctx.stroke();});
+}
+
+function setupCanvasEvents(){
+  const c=document.getElementById('ref-canvas');
+  function gp(e){const r=c.getBoundingClientRect(),t=e.touches?e.touches[0]:e,s=CW/r.width;return{x:(t.clientX-r.left)*s,y:(t.clientY-r.top)*s};}
+  function hl(p){
+    if(!_logoVisible||!_logoCanvasImg||_logoRect.x===null)return null;
+    const r=_logoRect,hs=12;
+    const hh=[[r.x,r.y,'nw'],[r.x+r.w,r.y,'ne'],[r.x,r.y+r.h,'sw'],[r.x+r.w,r.y+r.h,'se']];
+    for(const h of hh){if(Math.abs(p.x-h[0])<hs&&Math.abs(p.y-h[1])<hs)return{type:'resize',corner:h[2]};}
+    if(p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h)return{type:'drag'};
+    return null;
+  }
+  function od(e){if(e.touches)e.preventDefault();const p=gp(e),h=hl(p);if(!h){c.style.cursor='default';return}if(h.type==='drag'){_logoDrag={ox:p.x-_logoRect.x,oy:p.y-_logoRect.y};c.style.cursor='grabbing'}else{_logoSizing={corner:h.corner,sx:p.x,sy:p.y,sr:{..._logoRect}};c.style.cursor='se-resize'}}
+  function om(e){if(e.touches)e.preventDefault();const p=gp(e);
+    if(_logoDrag){_logoRect.x=p.x-_logoDrag.ox;_logoRect.y=p.y-_logoDrag.oy;drawCanvas();return}
+    if(_logoSizing){const s=_logoSizing,dx=p.x-s.sx,dy=p.y-s.sy,ar=_logoCanvasImg.width/_logoCanvasImg.height,MIN=30;
+      if(s.corner==='se'){_logoRect.w=Math.max(MIN,s.sr.w+dx);_logoRect.h=_logoRect.w/ar}
+      else if(s.corner==='sw'){const nw=Math.max(MIN,s.sr.w-dx);_logoRect.x=s.sr.x+s.sr.w-nw;_logoRect.w=nw;_logoRect.h=_logoRect.w/ar}
+      else if(s.corner==='ne'){_logoRect.w=Math.max(MIN,s.sr.w+dx);_logoRect.h=_logoRect.w/ar;_logoRect.y=s.sr.y+s.sr.h-_logoRect.h}
+      else if(s.corner==='nw'){const nw=Math.max(MIN,s.sr.w-dx);_logoRect.x=s.sr.x+s.sr.w-nw;_logoRect.w=nw;_logoRect.h=_logoRect.w/ar;_logoRect.y=s.sr.y+s.sr.h-_logoRect.h}
+      drawCanvas();return}
+    c.style.cursor=hl(p)?'grab':'default';
+  }
+  function ou(){if(_logoDrag||_logoSizing){_logoDrag=null;_logoSizing=null;drawCanvas()}c.style.cursor='default'}
+  c.onmousedown=od;c.onmousemove=om;c.onmouseup=ou;c.onmouseleave=ou;c.ontouchstart=od;c.ontouchmove=om;c.ontouchend=ou;
+}
+
+function toggleLogoCanvas(){_logoVisible=document.getElementById('chk-logo').checked;drawCanvas();}
+function resetLogoPos(){_logoRect={x:null,y:null,w:null,h:null};drawCanvas();}
+
+function descargarImagenFinal(){
+  if(!_fondoImg){showToast('⚠ No hay imagen para descargar');return}
+  const prevDrag=_logoDrag,_prevSizing=_logoSizing;_logoDrag=null;_logoSizing=null;drawCanvas();
+  requestAnimationFrame(()=>{
+    const c=document.getElementById('ref-canvas');
+    c.toBlob(b=>{const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`mediamendoza-${Date.now()}.jpg`;document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(u)},1e3);showToast('✅ Imagen descargada');_logoDrag=prevDrag;_logoSizing=_prevSizing;},'image/jpeg',0.93);
+  });
+}
+
+async function generarImagenIA(){
+  const titular=(window._notaActual&&window._notaActual.titular)||document.getElementById('ref-titulo-input').value.trim();
+  const cuerpo=(window._notaActual&&window._notaActual.cuerpo)||document.getElementById('ref-cuerpo-input').value.trim();
+  if(!titular||!cuerpo){showToast('⚠ Reformulá la nota primero');return}
+  const estilo=document.getElementById('img-estilo').value;
+  const btn=document.getElementById('btn-gen-img'),spin=document.getElementById('spin-gen-img'),txt=document.getElementById('btn-gen-img-text');
+  btn.disabled=true;spin.style.display='inline-block';txt.textContent='Generando...';
+  document.getElementById('ref-img-preview').innerHTML='<div style="padding:30px;text-align:center"><span class="mm-spinner" style="display:inline-block"></span><p style="font-size:12px;color:var(--muted);margin-top:10px">Generando imagen con IA...</p></div>';
+  try{
+    const res=await fetch(WORKER+'/generar-imagen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:titular,contenido:cuerpo,estilo})});
+    const data=await res.json();if(!data.ok)throw new Error(data.error);
+    _imgGeneradaB64='data:image/jpeg;base64,'+data.imagen;
+    document.getElementById('img-content-scrape').style.display='none';document.getElementById('img-content-ia').style.display='block';
+    document.getElementById('img-tab-scrape').classList.remove('active');document.getElementById('img-tab-ia').classList.add('active');
+    document.getElementById('ref-img-preview').innerHTML='<img src="'+_imgGeneradaB64+'" style="width:100%;display:block">';
+    document.querySelector('.ref-canvas-wrap').style.display='block';
+    const img=new Image();
+    img.onload=()=>{_fondoImg=img;drawCanvas();};
+    img.src=_imgGeneradaB64;
+    showToast('✓ Imagen generada');
+  }catch(err){document.getElementById('ref-img-preview').innerHTML='<span style="font-size:11px;color:var(--red);padding:20px">✗ '+esc(err.message)+'</span>';showToast('✗ '+err.message)}
+  finally{btn.disabled=false;spin.style.display='none';txt.textContent='Generar'}
+}
 </script>
 </body>
 </html>

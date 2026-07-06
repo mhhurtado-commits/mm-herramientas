@@ -3427,6 +3427,17 @@ const ESTILOS_DESC={
   institucional:`FORMATO — Comunicado:\n- Titular formal. Hecho→justificación→declaración→datos. 4 párrafos.`
 };
 
+const ESTILOS_IMAGEN={
+  realista:"Fotografía periodística real, iluminación natural, alta calidad, 4k, nitidez profesional",
+  dibujo:"Ilustración digital estilo viñeta periodística, colores planos, trazos definidos, estilo cartoon editorial",
+  infografia:"Estilo infografía limpia, visualización de datos, fondo claro, elementos gráficos modernos",
+  "blanco-y-negro":"Fotografía en blanco y negro, alto contraste, dramática, textura granulado fino",
+  acuarela:"Pintura en acuarela, trazos suaves, colores pastel, textura de papel, estilo artístico",
+  vintage:"Fotografía vintage, tonos sepia, estilo archival, granulado, bordes desgastados, estética retro",
+  "collage-digital":"Collage digital multimedia, texturas mixtas, capas, estilo moderno, composición dinámica",
+  minimalista:"Composición minimalista, pocos elementos, mucho espacio negativo, líneas limpias, estilo moderno"
+};
+
 function comprimirEditorial(texto){
   if(!texto) return null;
   const lineas=texto.split('\n').map(l=>l.trim()).filter(l=>l.length>5)
@@ -3455,6 +3466,30 @@ async function handleReformular(body,env){
   const r=await callGemini(prompt,env);
   if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
+}
+async function handleGenerarImagen(body,env){
+  const{titulo,contenido,estilo="realista"}=body;
+  if(!titulo||!contenido) return jsonError("Faltan campos",400);
+  const estiloDesc=ESTILOS_IMAGEN[estilo]||ESTILOS_IMAGEN.realista;
+  const promptText=`${titulo}. ${contenido.substring(0,400)}. ${estiloDesc}`;
+  let bytes=null;
+  if(env.AI){
+    try{
+      const result=await env.AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0',{prompt:promptText,negative_prompt:"text, words, letters, signatures, watermarks, low quality, blurry, distorted",steps:20});
+      if(result instanceof ArrayBuffer){bytes=new Uint8Array(result)}
+      else if(result instanceof ReadableStream){bytes=new Uint8Array(await new Response(result).arrayBuffer())}
+      else if(result&&result.body){bytes=new Uint8Array(await new Response(result.body).arrayBuffer())}
+    }catch(e){}
+  }
+  if(!bytes){
+    try{
+      const res=await fetch(`https://image.pollinations.ai/prompt/${encodeURIComponent(promptText)}?width=1200&height=630&nologo=true`);
+      if(res.ok){const buf=await res.arrayBuffer();bytes=new Uint8Array(buf)}
+    }catch(e){}
+  }
+  if(!bytes) return jsonError("No se pudo generar la imagen",502);
+  let binary='';for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
+  return jsonOk({imagen:btoa(binary),formato:"image/jpeg",estilo_usado:estilo});
 }
 async function handleRedactar(body,env){
   const{ideas,buscarWeb=false}=body;
@@ -4734,6 +4769,7 @@ export default {
     if(path==="/"&&url.searchParams.get("ai")==="1") return handlePlacasAI(request,env,body);
     if(path==="/titulares")                          return handleTitulares(body,env);
     if(path==="/reformular")                         return handleReformular(body,env);
+    if(path==="/generar-imagen")                     return handleGenerarImagen(body,env);
     if(path==="/fuentes")                            return handlePostFuente(body,env);
     if(path==="/editorial")                          return handlePostEditorial(body,env);
     if(path==="/cubiertas")                          return handlePostCubierta(body,env);
