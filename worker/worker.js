@@ -3429,18 +3429,58 @@ const ESTILOS_DESC={
 };
 
 const IMG_PROMPTS_DEFAULTS={
-  realista:"Fotografía periodística profesional de: {titulo}. Hechos: {contexto}. {contenido}. Iluminación natural, altísimo detalle, textura de piel realista, composición equilibrada, profundidad de campo, calidad publicación impresa",
-  dibujo:"Ilustración editorial de alta calidad sobre: {titulo}. Basado en: {contexto}. Estilo viñeta periodística, colores planos vibrantes, trazos definidos, composición dinámica, estilo cartoon editorial premium",
-  infografia:"Infografía profesional de periódico sobre: {titulo}. Datos reales: {contexto}. Gráficos de barras precisos, diagramas de líneas, estadísticas visuales, tablas de datos, indicadores numéricos, visualización de datos moderna, fondo blanco limpio, estilo Bloomberg/Financial Times, tipografía clara, iconos minimalistas, calidad publicación",
-  "blanco-y-negro":"Fotografía en blanco y negro de: {titulo}. Contexto: {contexto}. Alto contraste, granulado fino, iluminación dramática, textura detallada, estilo documental, composición artística",
-  acuarela:"Pintura en acuarela de: {titulo}. Inspirado en: {contexto}. Trazos suaves y fluidos, colores pastel, textura de papel acuarela, luminosidad, estilo artístico contemporáneo",
-  vintage:"Fotografía vintage de: {titulo}. Contexto histórico: {contexto}. Tonos sepia, granulado, bordes viñeta, estilo archival, estética retro años 70, textura de película",
-  "collage-digital":"Collage digital periodístico de: {titulo}. Basado en: {contexto}. Capas, texturas mixtas, composición dinámica, estilo moderno editorial, elementos gráficos superpuestos",
-  minimalista:"Composición minimalista sobre: {titulo}. Esencia: {contexto}. Máximo espacio negativo, líneas limpias, un solo elemento focal, paleta reducida, estilo moderno premium"
+  // Plantillas en inglés con keywords de realismo editorial. Variables: {titulo} {contenido} {contexto}
+  // Se usan como GUÍA DE ESTILO para que Gemini construya el prompt visual concreto de la escena.
+  realista:"Professional photojournalism, editorial photography. Scene derived from the news headline: {titulo}. Factual context: {contexto}. {contenido}. Shot on Canon EOS R5, 50mm f/1.8, natural daylight, shallow depth of field, realistic skin texture, candid moment, balanced composition, sharp focus, high dynamic range, print-quality detail",
+  dibujo:"High-quality editorial illustration, premium cartoon style. Concept from: {titulo}. Context: {contexto}. {contenido}. Vibrant flat colors, clean confident linework, dynamic composition, expressive characters, contemporary editorial illustration, The New Yorker / The Economist style",
+  infografia:"Professional newspaper infographic about: {titulo}. Real data: {contexto}. {contenido}. Precise bar charts, clean line graphs, statistical visualizations, data tables, numeric indicators, modern data visualization, clean white background, Bloomberg / Financial Times style, clear typography, minimalist icons, publication quality",
+  "blanco-y-negro":"Black and white documentary photography of: {titulo}. Context: {contexto}. {contenido}. High contrast, fine film grain, dramatic lighting, detailed texture, shot on Leica M6, 35mm f/2, Kodak Tri-X 400, archival documentary style, artistic composition",
+  acuarela:"Watercolor painting of: {titulo}. Inspired by: {contexto}. {contenido}. Soft fluid brushstrokes, pastel palette, cold-pressed paper texture, luminous washes, contemporary fine-art watercolor, delicate edges",
+  vintage:"Vintage photograph of: {titulo}. Historical context: {contexto}. {contenido}. Sepia tones, coarse grain, vignette edges, archival aesthetic, 1970s retro look, Kodak Portra 400 film texture, faded colors",
+  "collage-digital":"Editorial digital collage of: {titulo}. Based on: {contexto}. {contenido}. Layered mixed textures, dynamic composition, modern magazine collage style, overlapping graphic elements, torn-paper effect, contemporary editorial design",
+  minimalista:"Minimalist composition about: {titulo}. Essence: {contexto}. {contenido}. Maximum negative space, clean lines, single focal point, reduced color palette, modern premium aesthetic, Swiss design influence"
 };
 
 async function getImgPrompts(env){
   try{const v=await env.KV.get(IMG_PROMPTS_KV_KEY,"json");return v||{...IMG_PROMPTS_DEFAULTS}}catch(e){return{...IMG_PROMPTS_DEFAULTS}}
+}
+
+// ============================================================
+// PROMPT VISUAL CON GEMINI
+// Convierte una nota periodística (titular + cuerpo + contexto) en un prompt
+// visual concreto en INGLÉS para el modelo de difusión. Devuelve
+// {prompt, negative_prompt} o {error} si Gemini no responde JSON válido.
+// ============================================================
+async function construirPromptVisualGemini(titulo,contenido,contexto,estiloGuia,env){
+  const ed=comprimirEditorial(await getEditorial(env));
+  const prompt=`You are a world-class prompt engineer for AI image generation models (FLUX, SDXL).
+Your job: turn a NEWS ARTICLE into a precise, vivid IMAGE GENERATION PROMPT in English.
+
+NEWS HEADLINE: ${titulo}
+ARTICLE BODY (excerpt, max 400 chars): ${contenido.substring(0,400)}
+ADDITIONAL CONTEXT: ${contexto||"none"}
+EDITORIAL STYLE GUIDE (use this to set the visual tone): ${estiloGuia}
+
+RULES:
+- Describe a CONCRETE, JOURNALISTICALLY PLAUSIBLE scene that illustrates the news. Name the subjects, the action, the setting, the mood.
+- Do NOT invent fake quotes, fake captions or fake UI text to render inside the image.
+- If the news involves real public figures, describe them generically (e.g. "a South American president in a dark suit") — never request identifiable faces or likenesses.
+- Write the final image prompt in ENGLISH, one flowing paragraph, 60-120 words.
+- Include photography/art direction cues ONLY when the style guide implies realism (lens, lighting, film stock, depth of field). For illustration styles, describe art technique instead.
+- NEVER include text, words, letters, watermarks or signatures in the image — put those exclusions in negative_prompt.
+
+Respond with ONLY valid JSON (no markdown, no backticks):
+{"prompt":"the full image prompt in English","negative_prompt":"blurry, low quality, distorted, deformed hands, extra fingers, text, words, letters, signatures, watermarks, logos, ugly"}`;
+
+  const r=await callGemini(prompt,env);
+  if(r.error||!r.data||!r.data.prompt) return {error: r.error||"Gemini no devolvió un prompt válido"};
+  // Mezclar negative_prompt por defecto con el que devuelva Gemini (defensivo)
+  const neg=(r.data.negative_prompt||"").trim();
+  const baseNeg="blurry, low quality, distorted, deformed hands, extra fingers, text, words, letters, signatures, watermarks, logos";
+  const negative_prompt=neg?`${neg}, ${baseNeg}`:baseNeg;
+  let promptText=String(r.data.prompt).trim();
+  if(ed) promptText+=`\n\nEditorial tone: ${ed.substring(0,300)}`;
+  return {prompt:promptText,negative_prompt};
 }
 
 async function buscarContextoWeb(query){
@@ -3497,27 +3537,73 @@ async function handleGenerarImagen(body,env){
   if(!titulo||!contenido) return jsonError("Faltan campos",400);
   const prompts=await getImgPrompts(env);
   const template=prompts[estilo]||IMG_PROMPTS_DEFAULTS.realista;
+
+  // ── 1) Pre-procesar con Gemini: descripción visual concreta en inglés ──
+  // Si Gemini falla, cae a template + reemplazo de variables (comportamiento anterior).
   const contexto=await buscarContextoWeb(titulo+" "+contenido.substring(0,200));
-  const promptText=template.replace(/\{titulo\}/g,titulo).replace(/\{contenido\}/g,contenido.substring(0,400)).replace(/\{contexto\}/g,contexto||"noticia actual");
-  const modelosImg=modelo?[modelo]:["klein","gptimage-large","nova-canvas","flux","zimage","gptimage"];
-  let bytes=null,modeloUsado="";
-  for(const m of modelosImg){
+  const fallbackPrompt=template.replace(/\{titulo\}/g,titulo).replace(/\{contenido\}/g,contenido.substring(0,400)).replace(/\{contexto\}/g,contexto||"current news");
+  const gp=await construirPromptVisualGemini(titulo,contenido,contexto,template,env);
+  const promptText=gp.error?fallbackPrompt:gp.prompt;
+  const negativePrompt=gp.error?"text, words, letters, signatures, watermarks, low quality, blurry, distorted, deformed":gp.negative_prompt;
+  const seed=Math.floor(Math.random()*1000000);
+
+  // ── 2) Extraer bytes de la respuesta de env.AI.run (formato varía entre modelos) ──
+  async function extraerBytesCF(result){
+    if(result instanceof ArrayBuffer) return new Uint8Array(result);
+    if(result instanceof ReadableStream) return new Uint8Array(await new Response(result).arrayBuffer());
+    if(result&&result.body) return new Uint8Array(await new Response(result.body).arrayBuffer());
+    if(result&&typeof result.image==="string"&&result.image.length>100){
+      // FLUX en Workers AI devuelve {image: "<base64>"}
+      const bin=atob(result.image);const u=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;
+    }
+    return null;
+  }
+
+  let bytes=null,modeloUsado="",motorUsado="";
+
+  // ── MOTOR 1: FLUX-1-schnell en Cloudflare Workers AI (primario, mejor fotorrealismo, gratis) ──
+  if(!bytes&&env.AI&&!modelo){
     try{
-      const res=await fetch(`https://image.pollinations.ai/prompt/${encodeURIComponent(promptText)}?width=1200&height=630&model=${m}&nologo=true`);
-      if(res.ok){bytes=new Uint8Array(await res.arrayBuffer());modeloUsado=m;break}
+      const result=await env.AI.run('@cf/black-forest-labs/flux-1-schnell',{prompt:promptText,steps:8,seed});
+      bytes=await extraerBytesCF(result);
+      if(bytes){modeloUsado="flux-1-schnell";motorUsado="Cloudflare AI";}
     }catch(e){}
   }
+
+  // ── MOTOR 2: Pollinations (secundario). 'flux' es el único modelo fiable hoy en el endpoint legacy. ──
+  if(!bytes){
+    const modelosPoll=modelo?[modelo]:["flux","zimage"];
+    for(const m of modelosPoll){
+      try{
+        const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(promptText)}?width=1200&height=630&model=${m}&nologo=true&seed=${seed}&negative_prompt=${encodeURIComponent(negativePrompt)}`;
+        const res=await fetch(url,{signal:AbortSignal.timeout(45000)});
+        if(res.ok){bytes=new Uint8Array(await res.arrayBuffer());modeloUsado=m;motorUsado="Pollinations";break}
+      }catch(e){}
+    }
+  }
+
+  // ── MOTOR 3: DreamShaper-8 en CF (fine-tuneado para fotorrealismo, soporta negative_prompt) ──
+  if(!bytes&&env.AI&&!modelo){
+    try{
+      const result=await env.AI.run('@cf/lykon/dreamshaper-8',{prompt:promptText,negative_prompt:negativePrompt,steps:30,guidance:7});
+      bytes=await extraerBytesCF(result);
+      if(bytes){modeloUsado="dreamshaper-8";motorUsado="Cloudflare AI";}
+    }catch(e){}
+  }
+
+  // ── MOTOR 4: SDXL-base en CF (último recurso) ──
   if(!bytes&&env.AI){
     try{
-      const result=await env.AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0',{prompt:promptText,negative_prompt:"text, words, letters, signatures, watermarks, low quality, blurry, distorted",steps:20});
-      if(result instanceof ArrayBuffer){bytes=new Uint8Array(result);modeloUsado="sdxl-cf"}
-      else if(result instanceof ReadableStream){bytes=new Uint8Array(await new Response(result).arrayBuffer());modeloUsado="sdxl-cf"}
-      else if(result&&result.body){bytes=new Uint8Array(await new Response(result.body).arrayBuffer());modeloUsado="sdxl-cf"}
+      const result=await env.AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0',{prompt:promptText,negative_prompt:negativePrompt,steps:20});
+      bytes=await extraerBytesCF(result);
+      if(bytes){modeloUsado="sdxl-cf";motorUsado="Cloudflare AI";}
     }catch(e){}
   }
-  if(!bytes) return jsonError("No se pudo generar la imagen",502);
+
+  if(!bytes) return jsonError("No se pudo generar la imagen con ningún motor disponible",502);
   let binary='';for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
-  return jsonOk({imagen:btoa(binary),formato:"image/jpeg",estilo_usado:estilo,modelo:modeloUsado});
+  return jsonOk({imagen:btoa(binary),formato:"image/jpeg",estilo_usado:estilo,modelo:modeloUsado,motor:motorUsado,prompt_gemini:gp.error?false:true});
 }
 
 async function handleGetImgPrompts(env){
