@@ -3499,7 +3499,7 @@ async function handleGenerarImagen(body,env){
   const template=prompts[estilo]||IMG_PROMPTS_DEFAULTS.realista;
   const contexto=await buscarContextoWeb(titulo+" "+contenido.substring(0,200));
   const promptText=template.replace(/\{titulo\}/g,titulo).replace(/\{contenido\}/g,contenido.substring(0,400)).replace(/\{contexto\}/g,contexto||"noticia actual");
-  const modelosImg=modelo?[modelo]:["klein","gptimage-large","nova-canvas","flux","zimage","gptimage"];
+  const modelosImg=modelo?[modelo]:["flux-2-dev","imagen-4","kontext","gptimage-large","qwen-image","gpt-image-2","wan-image","flux","zimage","klein","gptimage"];
   let bytes=null,modeloUsado="";
   for(const m of modelosImg){
     try{
