@@ -4105,16 +4105,28 @@ async function getEditorial(env){
   return null;
 }
 async function callGeminiConBusqueda(prompt,env,searchQuery){
-  const fuentes=await buscarWikipedia(searchQuery||prompt.substring(0,200));
-  let ctx="";const fv=[];
-  for(const f of fuentes.slice(0,3)){
-    ctx+="\nFUENTE: "+f.titulo+" ("+f.url+")\n"+f.texto+"\n---";
-    fv.push({titulo:f.titulo,url:f.url,imagen:''});
+  // Gemini con Google Search Grounding - busca resultados reales en Google automáticamente
+  const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
+  if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
+  for(let i=0;i<keys.length;i++){
+    for(let intento=1;intento<=2;intento++){
+      try{
+        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(searchQuery?"\n\nBuscá información actualizada en Google sobre: "+searchQuery:"")}]}],tools:[{googleSearchRetrieval:{}}],generationConfig:{temperature:0.3,maxOutputTokens:3000}})});
+        if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
+        if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
+        if(!res.ok) break;
+        const data=await res.json();
+        const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||"";
+        const grounding=data?.candidates?.[0]?.groundingMetadata||{};
+        const fuentes=(grounding?.groundingChunks||[]).map(c=>({titulo:c?.web?.title||"",url:c?.web?.uri||""})).filter(f=>f.url);
+        const match=raw.match(/\{[\s\S]*\}/);if(!match) break;
+        let parsed;try{parsed=JSON.parse(match[0])}catch{break}
+        if(fuentes.length) parsed.fuentes=fuentes;
+        return {data:parsed};
+      }catch(err){if(intento<2) await sleep(3000)}
+    }
   }
-  const r=await callGemini(prompt+(ctx?"\n\nCONTENIDO WEB:\n"+ctx:""),env);
-  if(r.error) return r;
-  if(fv.length) r.data.fuentes=fv;
-  return r;
+  return {error:"Todas las API keys de Gemini están agotadas."};
 }
 async function buscarWikipedia(query){
   try{
@@ -5091,23 +5103,22 @@ async function handleVisualTimeline(body, env) {
   const desde = String(body.desde || "").trim();
   if (!tema) return jsonError("Falta tema", 400);
 
-  // Primer intento: búsqueda web + Gemini
   const promptWeb = `Sos un cronista de Media Mendoza, diario del sur de Mendoza, Argentina.
-Generá una línea de tiempo periodística sobre: "${tema}"
+Generá una línea de tiempo periodística con EVENTOS REALES sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-Usá los datos del CONTENIDO WEB que se te proporciona abajo como fuente principal.
-Si el contenido web no tiene suficiente información, usá tu conocimiento pero INDICÁ con (fuente: conocimiento interno) en la descripción.
+Usá Google Search (arriba) para encontrar datos actualizados y reales.
+No inventes fechas ni eventos. Si un dato no está confirmado, no lo incluyas.
 
 Cada evento debe tener:
-- Fecha (YYYY-MM-DD). Si solo hay mes/año, usá el primer día del mes.
-- Título del evento
+- Fecha (YYYY-MM-DD)
+- Título corto
 - Descripción breve
 
 Respondé SOLO con JSON sin backticks:
 {"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}
 
-Mínimo 2 eventos. Si no hay información, usá tu conocimiento.`;
+Mínimo 2 eventos. Si no hay suficiente información, respondé {"eventos": []}.`;
 
   const r1 = await callGeminiConBusqueda(promptWeb, env, tema);
   if (r1.data?.eventos?.length >= 2) {
@@ -5115,18 +5126,13 @@ Mínimo 2 eventos. Si no hay información, usá tu conocimiento.`;
     return jsonOk({ texto: raw, fuentes: r1.data?.fuentes || [], modo: 'web' });
   }
 
-  // Fallback: solo Gemini (sin web)
-  const promptFallback = `Sos un cronista de Media Mendoza, diario del sur de Mendoza, Argentina.
-Generá una línea de tiempo periodística con eventos reales sobre: "${tema}"
+  // Fallback: Gemini sin grounding
+  const promptFallback = `Sos un cronista de Media Mendoza.
+Generá una línea de tiempo con eventos reales sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-IMPORTANTE: Solo incluí eventos que sean hechos reales y verificables. No inventes.
-Si no conocés eventos reales sobre este tema, respondé {"eventos": []}.
-
-Cada evento debe tener:
-- Fecha (YYYY-MM-DD)
-- Título corto
-- Descripción breve
+IMPORTANTE: Solo incluí eventos reales y verificables. No inventes nada.
+Si no conocés datos reales, respondé {"eventos": []}.
 
 Respondé SOLO con JSON:
 {"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}`;
