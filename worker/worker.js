@@ -4105,20 +4105,31 @@ async function getEditorial(env){
   return null;
 }
 async function callGeminiConBusqueda(prompt,env,searchQuery){
-  // Gemini con Google Search Grounding - busca resultados reales en Google automáticamente
+  // 1) Buscar en Google News RSS + Wikipedia en paralelo
+  const [news, wiki] = await Promise.all([
+    buscarGoogleNews(searchQuery),
+    buscarWikipedia(searchQuery)
+  ]);
+  // 2) Juntar y limitar fuentes
+  const fuentes = [];
+  const ctxParts = [];
+  for (const f of [...news, ...wiki].slice(0, 3)) {
+    ctxParts.push("\nFUENTE: " + f.titulo + " (" + f.url + ")\n" + f.texto + "\n---");
+    fuentes.push({ titulo: f.titulo, url: f.url, imagen: '' });
+  }
+  // 3) Llamar Gemini con el contexto web
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
+  const ctx=ctxParts.join("");
   for(let i=0;i<keys.length;i++){
     for(let intento=1;intento<=2;intento++){
       try{
-        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(searchQuery?"\n\nBuscá información actualizada en Google sobre: "+searchQuery:"")}]}],tools:[{googleSearchRetrieval:{}}],generationConfig:{temperature:0.3,maxOutputTokens:3000}})});
+        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO WEB:\n"+ctx:"")}]}],generationConfig:{temperature:0.3,maxOutputTokens:3000}})});
         if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
         if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
         if(!res.ok) break;
         const data=await res.json();
         const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||"";
-        const grounding=data?.candidates?.[0]?.groundingMetadata||{};
-        const fuentes=(grounding?.groundingChunks||[]).map(c=>({titulo:c?.web?.title||"",url:c?.web?.uri||""})).filter(f=>f.url);
         const match=raw.match(/\{[\s\S]*\}/);if(!match) break;
         let parsed;try{parsed=JSON.parse(match[0])}catch{break}
         if(fuentes.length) parsed.fuentes=fuentes;
@@ -4128,6 +4139,24 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
   }
   return {error:"Todas las API keys de Gemini están agotadas."};
 }
+async function buscarGoogleNews(query){
+  try{
+    const res=await fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=es&gl=AR&num=5`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
+    if(!res.ok) return [];
+    const xml=await res.text();
+    const items=xml.match(/<item>[\s\S]*?<\/item>/g)||[];
+    const resultados=[];
+    for(const item of items.slice(0,4)){
+      const title=item.match(/<title><!\[CDATA\[([^\]]+)\]\]><\/title>/)?.[1]||item.match(/<title>([^<]+)<\/title>/)?.[1]||'';
+      const link=item.match(/<link>([^<]+)<\/link>/)?.[1]||'';
+      const desc=item.match(/<description><!\[CDATA\[([^\]]+)\]\]><\/description>/)?.[1]||item.match(/<description>([^<]+)<\/description>/)?.[1]||'';
+      const pubDate=item.match(/<pubDate>([^<]+)<\/pubDate>/)?.[1]||'';
+      if(title&&link) resultados.push({titulo:title,url:link,texto:desc+'\nPublicado: '+pubDate});
+    }
+    return resultados;
+  }catch(e){return []}
+}
+
 async function buscarWikipedia(query){
   try{
     const idiomas=['es','en'];
@@ -4140,14 +4169,14 @@ async function buscarWikipedia(query){
       const resultados=[];
       for(const p of pages.slice(0,2)){
         const title=encodeURIComponent(p.title);
-        const contentRes=await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext&titles=${title}&format=json&origin=*&exchars=5000`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
+        // Usar action=parse para obtener TODO el artículo como texto plano
+        const contentRes=await fetch(`https://${lang}.wikipedia.org/w/api.php?action=parse&page=${title}&prop=text&format=json&origin=*`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
         if(!contentRes.ok) continue;
         const data=await contentRes.json();
-        const pagesData=data?.query?.pages||{};
-        const pageId=Object.keys(pagesData)[0];
-        const extract=pagesData[pageId]?.extract||"";
-        if(extract.length>100){
-          resultados.push({titulo:`${p.title} (${lang})`,url:`https://${lang}.wikipedia.org/wiki/${title}`,texto:extract.substring(0,5000)});
+        const html=data?.parse?.text?.['*']||"";
+        const text=html.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
+        if(text.length>200){
+          resultados.push({titulo:`${p.title} (${lang})`,url:`https://${lang}.wikipedia.org/wiki/${title}`,texto:text.substring(0,8000)});
         }
       }
       if(resultados.length>0) return resultados;
