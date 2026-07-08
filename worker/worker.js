@@ -3747,7 +3747,7 @@ async function handleRedactar(body,env){
   const ed=comprimirEditorial(await getEditorial(env));
   const prompt=`Sos redactor de Media Mendoza.\nRedactá una nota periodística.\n\nCONTENIDO:\n${ideas}\n\n${buscarWeb?"Buscá contexto en la web.":"Solo usá la info provista."}\n${ed?`\nREGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titular":"","bajada":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}`;
   const fn=buscarWeb?callGeminiConBusqueda:callGemini;
-  const r=await fn(prompt,env);
+  const r=await fn(prompt,env,ideas);
   if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
 }
@@ -4104,8 +4104,8 @@ async function getEditorial(env){
   try{const v=await env.KV.get(EDITORIAL_KV_KEY,"json");if(v&&v.activo&&v.prompt) return v.prompt}catch(e){}
   return null;
 }
-async function callGeminiConBusqueda(prompt,env){
-  const fuentes=await buscarWikipedia(prompt.substring(0,200));
+async function callGeminiConBusqueda(prompt,env,searchQuery){
+  const fuentes=await buscarWikipedia(searchQuery||prompt.substring(0,200));
   let ctx="";const fv=[];
   for(const f of fuentes.slice(0,3)){
     ctx+="\nFUENTE: "+f.titulo+" ("+f.url+")\n"+f.texto+"\n---";
@@ -4118,25 +4118,29 @@ async function callGeminiConBusqueda(prompt,env){
 }
 async function buscarWikipedia(query){
   try{
-    const q=encodeURIComponent(query);
-    const buscaRes=await fetch(`https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=3&origin=*`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
-    if(!buscaRes.ok) return [];
-    const busca=await buscaRes.json();
-    const pages=busca?.query?.search||[];
-    const resultados=[];
-    for(const p of pages.slice(0,2)){
-      const title=encodeURIComponent(p.title);
-      const contentRes=await fetch(`https://es.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${title}&format=json&origin=*`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
-      if(!contentRes.ok) continue;
-      const data=await contentRes.json();
-      const pagesData=data?.query?.pages||{};
-      const pageId=Object.keys(pagesData)[0];
-      const extract=pagesData[pageId]?.extract||"";
-      if(extract.length>100){
-        resultados.push({titulo:p.title,url:`https://es.wikipedia.org/wiki/${title}`,texto:extract.substring(0,2000)});
+    const idiomas=['es','en'];
+    for(const lang of idiomas){
+      const q=encodeURIComponent(query);
+      const buscaRes=await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=3&origin=*`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
+      if(!buscaRes.ok) continue;
+      const busca=await buscaRes.json();
+      const pages=busca?.query?.search||[];
+      const resultados=[];
+      for(const p of pages.slice(0,2)){
+        const title=encodeURIComponent(p.title);
+        const contentRes=await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext&titles=${title}&format=json&origin=*&exchars=5000`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
+        if(!contentRes.ok) continue;
+        const data=await contentRes.json();
+        const pagesData=data?.query?.pages||{};
+        const pageId=Object.keys(pagesData)[0];
+        const extract=pagesData[pageId]?.extract||"";
+        if(extract.length>100){
+          resultados.push({titulo:`${p.title} (${lang})`,url:`https://${lang}.wikipedia.org/wiki/${title}`,texto:extract.substring(0,5000)});
+        }
       }
+      if(resultados.length>0) return resultados;
     }
-    return resultados;
+    return [];
   }catch(e){return []}
 }
 async function callGemini(prompt,env){
@@ -5105,7 +5109,7 @@ Respondé SOLO con JSON sin backticks:
 
 Mínimo 2 eventos. Si no hay información, usá tu conocimiento.`;
 
-  const r1 = await callGeminiConBusqueda(promptWeb, env);
+  const r1 = await callGeminiConBusqueda(promptWeb, env, tema);
   if (r1.data?.eventos?.length >= 2) {
     const raw = JSON.stringify(r1.data);
     return jsonOk({ texto: raw, fuentes: r1.data?.fuentes || [], modo: 'web' });
