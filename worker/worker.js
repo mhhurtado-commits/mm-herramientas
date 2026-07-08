@@ -5136,7 +5136,7 @@ async function handleVisualTimeline(body, env) {
 Generá una línea de tiempo periodística con EVENTOS REALES sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-Usá Google Search (arriba) para encontrar datos actualizados y reales.
+Usá el CONTENIDO WEB que se te proporciona abajo como fuente principal.
 No inventes fechas ni eventos. Si un dato no está confirmado, no lo incluyas.
 
 Cada evento debe tener:
@@ -5150,12 +5150,14 @@ Respondé SOLO con JSON sin backticks:
 Mínimo 2 eventos. Si no hay suficiente información, respondé {"eventos": []}.`;
 
   const r1 = await callGeminiConBusqueda(promptWeb, env, tema);
+  const debug = { intento1_fuentes: r1.data?.fuentes?.length || 0, intento1_eventos: r1.data?.eventos?.length || 0, error: r1.error || null };
+
   if (r1.data?.eventos?.length >= 2) {
     const raw = JSON.stringify(r1.data);
-    return jsonOk({ texto: raw, fuentes: r1.data?.fuentes || [], modo: 'web' });
+    return jsonOk({ texto: raw, fuentes: r1.data?.fuentes || [], modo: 'web', debug });
   }
 
-  // Fallback: Gemini sin grounding
+  // Fallback: solo Gemini (conocimiento interno)
   const promptFallback = `Sos un cronista de Media Mendoza.
 Generá una línea de tiempo con eventos reales sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
@@ -5167,7 +5169,9 @@ Respondé SOLO con JSON:
 {"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}`;
 
   const r2 = await callGemini(promptFallback, env);
+  debug.intento2_error = r2.error || null;
+  debug.intento2_eventos = r2.data?.eventos?.length || 0;
   if (r2.error) return jsonError(r2.error, 500);
   const raw = r2.data ? JSON.stringify(r2.data) : "{}";
-  return jsonOk({ texto: raw, fuentes: [], modo: 'gemini' });
+  return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
 }
