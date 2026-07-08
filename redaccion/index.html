@@ -433,7 +433,20 @@ document.addEventListener('DOMContentLoaded', () => {
             </select>
             <button class="mm-btn mm-btn-primary" id="btn-gen-img" onclick="generarImagenIA()" style="font-size:11px;padding:7px 14px;white-space:nowrap"><span class="mm-spinner" id="spin-gen-img" style="display:none"></span><span id="btn-gen-img-text">Generar</span></button>
           </div>
+          <div style="margin-bottom:8px">
+            <div class="ref-section-label">Contexto visual <span style="opacity:.6;font-weight:400">(opcional)</span></div>
+            <textarea id="img-contexto-extra" class="mm-textarea" rows="2" style="font-size:11px;padding:7px 10px;min-height:44px;resize:vertical" placeholder="Ej: mostrar de noche con luces de la ciudad, tonos cálidos de atardecer, ángulo cenital..."></textarea>
+          </div>
           <div id="ref-img-preview" style="border-radius:6px;overflow:hidden;border:1px solid var(--line2);min-height:80px;display:flex;align-items:center;justify-content:center;background:var(--surface2)"><span style="font-size:11px;color:var(--muted)">Generá una imagen con IA</span></div>
+          <div id="img-refinar-section" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px;flex-direction:column;gap:8px">
+            <div style="font-size:11px;font-weight:600;color:var(--v)">✏️ Refinar imagen</div>
+            <textarea id="img-instruccion" class="mm-textarea" rows="2" style="font-size:11px;padding:7px 10px;min-height:44px;resize:vertical" placeholder="Ej: agregar montañas al fondo, tonos de atardecer, más contraste..."></textarea>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button class="mm-btn mm-btn-primary" id="btn-refinar" onclick="refinarImagen()" style="font-size:10px;padding:6px 14px;white-space:nowrap"><span class="mm-spinner" id="spin-refinar" style="display:none"></span><span id="btn-refinar-text">Refinar</span></button>
+              <button class="mm-btn mm-btn-sm" onclick="empezarDeNuevo()" style="font-size:10px">↺ Empezar de nuevo</button>
+              <span id="refinar-status" style="font-size:9px;color:var(--dim);margin-left:auto"></span>
+            </div>
+          </div>
         </div>
         <div id="img-content-prompts" style="display:none">
           <div class="text-muted" style="font-size:11px;margin-bottom:10px;line-height:1.5">Personalizá los prompts de cada estilo. Usá <code>{titulo}</code>, <code>{contenido}</code> y <code>{contexto}</code> como variables.</div>
@@ -796,25 +809,69 @@ async function generarImagenIA(){
   const cuerpo=(window._notaActual&&window._notaActual.cuerpo)||document.getElementById('ref-cuerpo-input').value.trim();
   if(!titular||!cuerpo){showToast('⚠ Reformulá la nota primero');return}
   const estilo=document.getElementById('img-estilo').value;
+  const contextoExtra=document.getElementById('img-contexto-extra').value.trim();
   const btn=document.getElementById('btn-gen-img'),spin=document.getElementById('spin-gen-img'),txt=document.getElementById('btn-gen-img-text');
   btn.disabled=true;spin.style.display='inline-block';txt.textContent='Generando...';
   document.getElementById('ref-img-preview').innerHTML='<div style="padding:30px;text-align:center"><span class="mm-spinner" style="display:inline-block"></span><p style="font-size:12px;color:var(--muted);margin-top:10px">Generando imagen con IA...</p></div>';
   try{
-    const res=await fetch(WORKER+'/generar-imagen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:titular,contenido:cuerpo,estilo})});
+    const res=await fetch(WORKER+'/generar-imagen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:titular,contenido:cuerpo,estilo,contexto_extra:contextoExtra})});
     const data=await res.json();if(!data.ok)throw new Error(data.error);
     _imgGeneradaB64='data:image/jpeg;base64,'+data.imagen;
+    window._imgTempId=data.imgTempId||null;
     switchImgTab('ia');
-    const modeloLabel={"flux-2-dev":"FLUX 2 Dev","imagen-4":"Imagen 4",kontext:"FLUX Kontext","gptimage-large":"GPT Image 1.5","qwen-image":"Qwen Image","gpt-image-2":"GPT Image 2","wan-image":"Wan Image",flux:"Flux (Pollinations)",zimage:"Z-Image (Pollinations)",klein:"FLUX.2 Klein",gptimage:"GPT Image 1 Mini","flux-1-schnell":"FLUX 1 Schnell","dreamshaper-8":"DreamShaper 8","sdxl-cf":"SDXL (Cloudflare)"};
+    const modeloLabel={"flux-2-dev":"FLUX 2 Dev","imagen-4":"Imagen 4",kontext:"Kontext","gptimage-large":"GPT Image 1.5","qwen-image":"Qwen Image","gpt-image-2":"GPT Image 2","wan-image":"Wan Image",flux:"Flux (Pollinations)",zimage:"Z-Image (Pollinations)",klein:"FLUX.2 Klein",gptimage:"GPT Image 1 Mini","flux-1-schnell":"FLUX 1 Schnell","dreamshaper-8":"DreamShaper 8","sdxl-cf":"SDXL (Cloudflare)","img2img":"img2img (CF AI)"};
     const badgeLabel=(modeloLabel[data.modelo]||data.modelo||'IA')+(data.motor?' · '+data.motor:'');
     const geminiTag=data.prompt_gemini?' · ✨ prompt IA':'';
-    document.getElementById('ref-img-preview').innerHTML='<div style="position:relative"><img src="'+_imgGeneradaB64+'" style="width:100%;display:block"><span style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.7);color:#fff;font-size:9px;padding:3px 8px;border-radius:4px">'+badgeLabel+geminiTag+'</span></div>';
+    const editTag=data.editable?' · ✏ editable':'';
+    document.getElementById('ref-img-preview').innerHTML='<div style="position:relative"><img src="'+_imgGeneradaB64+'" style="width:100%;display:block"><span style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.7);color:#fff;font-size:9px;padding:3px 8px;border-radius:4px">'+badgeLabel+geminiTag+editTag+'</span></div>';
     document.querySelector('.ref-canvas-wrap').style.display='block';
     const img=new Image();
     img.onload=()=>{_fondoImg=img;drawCanvas();};
     img.src=_imgGeneradaB64;
+    // Mostrar sección de refinado si la imagen es editable
+    if(data.editable&&window._imgTempId){
+      const sec=document.getElementById('img-refinar-section');
+      sec.style.display='flex';
+      document.getElementById('img-instruccion').value='';
+      document.getElementById('refinar-status').textContent='';
+    }
     showToast('✓ Imagen generada');
   }catch(err){document.getElementById('ref-img-preview').innerHTML='<span style="font-size:11px;color:var(--red);padding:20px">✗ '+esc(err.message)+'</span>';showToast('✗ '+err.message)}
   finally{btn.disabled=false;spin.style.display='none';txt.textContent='Generar'}
+}
+
+// ── Refinar imagen con Kontext (edición iterativa) ──
+async function refinarImagen(){
+  const instruccion=document.getElementById('img-instruccion').value.trim();
+  if(!instruccion){showToast('⚠ Escribí un cambio para refinar');return}
+  if(!window._imgTempId){showToast('⚠ No hay imagen para refinar. Generá una primero.');return}
+  const btn=document.getElementById('btn-refinar'),spin=document.getElementById('spin-refinar'),txt=document.getElementById('btn-refinar-text'),status=document.getElementById('refinar-status');
+  btn.disabled=true;spin.style.display='inline-block';txt.textContent='Refinando...';status.textContent='';
+  try{
+    const res=await fetch(WORKER+'/editar-imagen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({imgTempId:window._imgTempId,instruccion})});
+    const data=await res.json();if(!data.ok)throw new Error(data.error);
+    _imgGeneradaB64='data:image/jpeg;base64,'+data.imagen;
+    window._imgTempId=data.imgTempId||window._imgTempId;
+    const modeloLabel={"kontext":"Kontext","img2img":"img2img (CF AI)"};
+    const badgeLabel=(modeloLabel[data.modelo]||data.modelo||'IA')+(data.motor?' · '+data.motor:'');
+    document.getElementById('ref-img-preview').innerHTML='<div style="position:relative"><img src="'+_imgGeneradaB64+'" style="width:100%;display:block"><span style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.7);color:#fff;font-size:9px;padding:3px 8px;border-radius:4px">'+badgeLabel+' · ✏ editable</span></div>';
+    document.querySelector('.ref-canvas-wrap').style.display='block';
+    const img=new Image();
+    img.onload=()=>{_fondoImg=img;drawCanvas();};
+    img.src=_imgGeneradaB64;
+    status.textContent='✓ Refinada';
+    document.getElementById('img-instruccion').value='';
+    showToast('✓ Imagen refinada');
+  }catch(err){status.textContent='✗ '+err.message;showToast('✗ '+err.message)}
+  finally{btn.disabled=false;spin.style.display='none';txt.textContent='Refinar'}
+}
+
+function empezarDeNuevo(){
+  window._imgTempId=null;
+  document.getElementById('img-refinar-section').style.display='none';
+  document.getElementById('img-instruccion').value='';
+  document.getElementById('refinar-status').textContent='';
+  showToast('↺ Cadena de edición reiniciada. Generá una nueva imagen.');
 }
 
 // ── Prompts configurables para generación de imágenes ──

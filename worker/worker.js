@@ -18,6 +18,9 @@ const REEL_PROMPT_KEY  = "config:reel:prompt";
 const REEL_VOCES_KEY   = "config:reel:voces";
 const IMG_PROMPTS_KV_KEY = "config:img_prompts";
 const MAX_PROXY_IMAGE_BYTES = 8 * 1024 * 1024;
+const IMGTEMP_PREFIX = "imgtemp:";      // imágenes generadas/editadas temporales (para edición con Kontext)
+const IMGTEMP_TTL    = 1800;            // 30 minutos
+const PUBLIC_WORKER_URL = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 const WHATSAPP_PREFIX  = "whatsapp:programado:";
 const AGENDA_EV_PREFIX = "agenda:evento:";
 const AGENDA_EF_PREFIX = "agenda:efemeride:";
@@ -3533,15 +3536,18 @@ async function handleReformular(body,env){
   return jsonOk(r.data);
 }
 async function handleGenerarImagen(body,env){
-  const{titulo,contenido,estilo="realista",modelo=""}=body;
+  const{titulo,contenido,estilo="realista",modelo="",contexto_extra=""}=body;
   if(!titulo||!contenido) return jsonError("Faltan campos",400);
   const prompts=await getImgPrompts(env);
   const template=prompts[estilo]||IMG_PROMPTS_DEFAULTS.realista;
 
   // ── 1) Pre-procesar con Gemini: descripción visual concreta en inglés ──
+  // contexto_extra = contexto visual que aporta el usuario en la UI (se suma al de la web).
   // Si Gemini falla, cae a template + reemplazo de variables (comportamiento anterior).
-  const contexto=await buscarContextoWeb(titulo+" "+contenido.substring(0,200));
-  const fallbackPrompt=template.replace(/\{titulo\}/g,titulo).replace(/\{contenido\}/g,contenido.substring(0,400)).replace(/\{contexto\}/g,contexto||"current news");
+  const contextoWeb=await buscarContextoWeb(titulo+" "+contenido.substring(0,200));
+  const contexto=[contexto_extra,contextoWeb].filter(Boolean).join(" · ")||"";
+  const contextoParaTemplate=contexto||"current news";
+  const fallbackPrompt=template.replace(/\{titulo\}/g,titulo).replace(/\{contenido\}/g,contenido.substring(0,400)).replace(/\{contexto\}/g,contextoParaTemplate);
   const gp=await construirPromptVisualGemini(titulo,contenido,contexto,template,env);
   const promptText=gp.error?fallbackPrompt:gp.prompt;
   const negativePrompt=gp.error?"text, words, letters, signatures, watermarks, low quality, blurry, distorted, deformed":gp.negative_prompt;
@@ -3603,7 +3609,121 @@ async function handleGenerarImagen(body,env){
 
   if(!bytes) return jsonError("No se pudo generar la imagen con ningún motor disponible",502);
   let binary='';for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
-  return jsonOk({imagen:btoa(binary),formato:"image/jpeg",estilo_usado:estilo,modelo:modeloUsado,motor:motorUsado,prompt_gemini:gp.error?false:true});
+  const imagenB64=btoa(binary);
+  // Guardar en KV para permitir edición iterativa con Kontext (toma la imagen por URL pública)
+  const imgTempId=guardarImagenTemp(env,imagenB64);
+  return jsonOk({imagen:imagenB64,formato:"image/jpeg",estilo_usado:estilo,modelo:modeloUsado,motor:motorUsado,prompt_gemini:gp.error?false:true,imgTempId,editable:true});
+}
+
+// ── Helpers de imagen temporal en KV (para edición iterativa con Kontext) ──
+// Genera un id y guarda la imagen base64. Devuelve el id. TTL 30 min.
+function guardarImagenTemp(env,imagenB64,id=null){
+  const imgTempId=id||`imgtemp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+  try{env.KV.put(IMGTEMP_PREFIX+imgTempId,imagenB64,{expirationTtl:IMGTEMP_TTL})}catch(e){}
+  return imgTempId;
+}
+
+// GET /img-temp/{id} — sirve la imagen temporal como binario image/jpeg (público, para Kontext)
+async function handleImgTemp(url,env){
+  const id=url.pathname.split("/img-temp/")[1];
+  if(!id) return new Response("Not found",{status:404});
+  let b64=null;
+  try{b64=await env.KV.get(IMGTEMP_PREFIX+id)}catch(e){}
+  if(!b64) return new Response("Not found",{status:404});
+  try{
+    const bin=atob(b64);const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return new Response(bytes,{headers:{...CORS_HEADERS,"Content-Type":"image/jpeg","Cache-Control":"no-store"}});
+  }catch(e){return new Response("Error",{status:500})}
+}
+
+// ============================================================
+// EDITAR IMAGEN con Pollinations Kontext (FLUX Kontext) + fallback img2img
+// POST /editar-imagen {imgTempId, instruccion}
+// Refina la imagen ya generada preservando la composición. Permite iterar.
+// ============================================================
+async function handleEditarImagen(body,env){
+  const{imgTempId,instruccion}=body;
+  if(!imgTempId||!instruccion) return jsonError("Faltan imgTempId o instruccion",400);
+
+  // Recuperar la imagen actual de KV
+  let imgB64=null;
+  try{imgB64=await env.KV.get(IMGTEMP_PREFIX+imgTempId)}catch(e){}
+  if(!imgB64) return jsonError("La imagen expiró. Generá una nueva.",410);
+
+  // Pre-procesar la instrucción con Gemini: traducir a inglés y enriquecer levemente
+  const promptGp=await construirInstruccionEdicionGemini(instruccion,env);
+  const instruccionEN=promptGp.error?instruccion:promptGp.instruccion;
+  const seed=Math.floor(Math.random()*1000000);
+  const imgURL=`${PUBLIC_WORKER_URL}/img-temp/${imgTempId}`;
+
+  let bytes=null,modeloUsado="",motorUsado="";
+
+  // ── MOTOR 1: Pollinations Kontext (FLUX Kontext, gratis) — preserva la composición ──
+  try{
+    const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(instruccionEN)}?model=kontext&image=${encodeURIComponent(imgURL)}&width=1200&height=630&nologo=true&seed=${seed}`;
+    const res=await fetch(url,{signal:AbortSignal.timeout(60000)});
+    if(res.ok){
+      const buf=await res.arrayBuffer();
+      // Kontext a veces responde con JSON de error aunque status sea 200
+      const ct=res.headers.get("Content-Type")||"";
+      if(ct.startsWith("image/")){
+        bytes=new Uint8Array(buf);modeloUsado="kontext";motorUsado="Pollinations";
+      }
+    }
+  }catch(e){}
+
+  // ── MOTOR 2 (fallback): img2img de Cloudflare — strength bajo para preservar composición ──
+  if(!bytes&&env.AI){
+    try{
+      // Convertir base64 → array de bytes para img2img
+      const bin=atob(imgB64);const imgArr=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++)imgArr[i]=bin.charCodeAt(i);
+      const result=await env.AI.run('@cf/runwayml/stable-diffusion-v1-5-img2img',{
+        prompt:instruccionEN,
+        image:[...imgArr],
+        strength:0.45,           // preserva la composición base
+        num_steps:20,
+        guidance:7.5,
+        negative_prompt:"blurry, low quality, distorted, deformed hands, text, words, letters, watermarks, signatures"
+      });
+      bytes=await extraerBytesEdicion(result);
+      if(bytes){modeloUsado="img2img";motorUsado="Cloudflare AI";}
+    }catch(e){}
+  }
+
+  if(!bytes) return jsonError("No se pudo editar la imagen. Kontext puede estar saturado (esperá ~15s e intentá de nuevo).",502);
+
+  let binary='';for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
+  const nuevaB64=btoa(binary);
+  // Sobrescribir la imagen en KV sobre el MISMO id → permite seguir iterando
+  guardarImagenTemp(env,nuevaB64,imgTempId);
+  return jsonOk({imagen:nuevaB64,formato:"image/jpeg",modelo:modeloUsado,motor:motorUsado,imgTempId,editable:true});
+}
+
+// Extrae bytes de la respuesta de env.AI.run para img2img (formatos posibles)
+async function extraerBytesEdicion(result){
+  if(result instanceof ArrayBuffer) return new Uint8Array(result);
+  if(result instanceof ReadableStream) return new Uint8Array(await new Response(result).arrayBuffer());
+  if(result&&result.body) return new Uint8Array(await new Response(result.body).arrayBuffer());
+  return null;
+}
+
+// Convierte la instrucción del usuario (español) en una instrucción de edición clara en inglés
+async function construirInstruccionEdicionGemini(instruccion,env){
+  const prompt=`You are editing an existing AI-generated editorial image.
+The user gives an edit instruction in Spanish. Translate it into a clear, concise ENGLISH edit instruction
+that a FLUX Kontext image-editing model can follow. Keep the scene; only apply the requested change.
+Do NOT describe a new image from scratch. Do NOT add fake text. Max 30 words.
+
+User instruction (Spanish): ${instruccion}
+
+Respond with ONLY valid JSON (no markdown, no backticks):
+{"instruccion":"<clear english edit instruction>"}`;
+
+  const r=await callGemini(prompt,env);
+  if(r.error||!r.data||!r.data.instruccion) return {error:r.error||"no instruction"};
+  return {instruccion:String(r.data.instruccion).trim()};
 }
 
 async function handleGetImgPrompts(env){
@@ -4405,6 +4525,7 @@ export default {
       if(path==="/music/search")                     return handleMusicSearch(url, env);
       if(path==="/music/preview")                    return handleMusicPreview(url, env);
       if(path==="/test-ai")                          return handleTestAI(env);
+      if(path.startsWith("/img-temp/"))               return handleImgTemp(url,env);
       if(path==="/smn/weather")                      return handleSMNWeather(url, env);
       if(path==="/smn/icon")                         return handleSMNIcon(url, env);
       if(path==="/mundo/placa-manana")               return handleMundialManana(env);
@@ -4901,6 +5022,7 @@ export default {
     if(path==="/titulares")                          return handleTitulares(body,env);
     if(path==="/reformular")                         return handleReformular(body,env);
     if(path==="/generar-imagen")                     return handleGenerarImagen(body,env);
+    if(path==="/editar-imagen")                      return handleEditarImagen(body,env);
     if(path==="/img-prompts")                        return handlePostImgPrompts(body,env);
     if(path==="/fuentes")                            return handlePostFuente(body,env);
     if(path==="/editorial")                          return handlePostEditorial(body,env);
