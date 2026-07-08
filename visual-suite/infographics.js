@@ -187,10 +187,41 @@ function dibujarLogoInfografia(ctx, W, H) {
 
 function exportarInfografia() {
   const canvas = document.getElementById('infografiaCanvas');
+  const ow = canvas.width;
+  const oh = canvas.height;
+  const scale = 3;
+  canvas.width = ow * scale;
+  canvas.height = oh * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  renderizarInfografiaEnCtx(ctx, canvas.width / scale, canvas.height / scale);
   canvas.toBlob(blob => {
     const url = URL.createObjectURL(blob);
     mostrarExportPreview(url, 'infografia-media-mendoza');
-  }, 'image/png');
+    // Restaurar
+    canvas.width = ow;
+    canvas.height = oh;
+    renderizarInfografia();
+  }, 'image/png', 1);
+}
+
+function renderizarInfografiaEnCtx(ctx, W, H) {
+  const color1 = document.getElementById('infoColor1').value;
+  const color2 = document.getElementById('infoColor2').value;
+  const title = document.getElementById('infoTitle').value || 'Infografía';
+  const content = document.getElementById('infoContent').value || '';
+
+  ctx.clearRect(0, 0, W, H);
+
+  switch (templateActual) {
+    case 'simple': renderSimple(ctx, W, H, title, content, color1, color2); break;
+    case 'comparativa': renderComparativa(ctx, W, H, title, content, color1, color2); break;
+    case 'listado': renderListado(ctx, W, H, title, content, color1, color2); break;
+    case 'destacado': renderDestacado(ctx, W, H, title, content, color1, color2); break;
+    default: renderSimple(ctx, W, H, title, content, color1, color2);
+  }
+
+  if (typeof dibujarLogoInfografia === 'function') dibujarLogoInfografia(ctx, W, H);
 }
 
 document.addEventListener('DOMContentLoaded', initInfographics);

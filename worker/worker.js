@@ -4105,45 +4105,36 @@ async function getEditorial(env){
   return null;
 }
 async function callGeminiConBusqueda(prompt,env){
-  const fuentes=await buscarDuckDuckGo(prompt.substring(0,200));
+  const fuentes=await buscarWikipedia(prompt.substring(0,200));
   let ctx="";const fv=[];
   for(const f of fuentes.slice(0,3)){
-    try{
-      const res=await fetch(f.url,{headers:BROWSER_HEADERS,redirect:"follow",signal:AbortSignal.timeout(5000)});
-      if(!res.ok) continue;
-      const html=await res.text();const texto=extraerTexto(html).substring(0,800);
-      if(texto.length<100) continue;
-      const ogImg=html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,500})["']/i);
-      ctx+="\nFUENTE: "+f.titulo+" ("+f.url+")\n"+texto+"\n---";
-      fv.push({titulo:f.titulo,url:f.url,imagen:ogImg?.[1]||''});
-    }catch(e){continue}
+    ctx+="\nFUENTE: "+f.titulo+" ("+f.url+")\n"+f.texto+"\n---";
+    fv.push({titulo:f.titulo,url:f.url,imagen:''});
   }
   const r=await callGemini(prompt+(ctx?"\n\nCONTENIDO WEB:\n"+ctx:""),env);
   if(r.error) return r;
   if(fv.length) r.data.fuentes=fv;
   return r;
 }
-async function buscarDuckDuckGo(query){
+async function buscarWikipedia(query){
   try{
-    const res=await fetch("https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar",{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"text/html"},redirect:"follow"});
-    if(!res.ok) return [];
-    const html=await res.text();const resultados=[];
-    const regexes=[
-      /class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</g,
-      /<a[^>]+class="[^"]*result[^"]*a[^"]*"[^>]*href="([^"]+)"[^>]*>([^<]+)</gi,
-      /<a[^>]+rel="nofollow"[^>]+href="[^"]*uddg=([^"&]+)[^"]*"[^>]*>([^<]+)</gi,
-      /class="result__snippet"[^>]*>([^<]+)</gi,
-    ];
-    for(const regex of regexes){
-      regex.lastIndex=0;let match;
-      while((match=regex.exec(html))!==null&&resultados.length<5){
-        if(match[1]&&match[2]){
-          let u=decodeURIComponent(match[1]);const t=match[2].trim();
-          if(u.startsWith("//"))u="https:"+u;
-          if(u.startsWith("http")&&t&&!resultados.some(r=>r.url===u))resultados.push({url:u,titulo:t});
-        }
+    const q=encodeURIComponent(query);
+    const buscaRes=await fetch(`https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=3&origin=*`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
+    if(!buscaRes.ok) return [];
+    const busca=await buscaRes.json();
+    const pages=busca?.query?.search||[];
+    const resultados=[];
+    for(const p of pages.slice(0,2)){
+      const title=encodeURIComponent(p.title);
+      const contentRes=await fetch(`https://es.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${title}&format=json&origin=*`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
+      if(!contentRes.ok) continue;
+      const data=await contentRes.json();
+      const pagesData=data?.query?.pages||{};
+      const pageId=Object.keys(pagesData)[0];
+      const extract=pagesData[pageId]?.extract||"";
+      if(extract.length>100){
+        resultados.push({titulo:p.title,url:`https://es.wikipedia.org/wiki/${title}`,texto:extract.substring(0,2000)});
       }
-      if(resultados.length>=3)break;
     }
     return resultados;
   }catch(e){return []}

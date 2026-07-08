@@ -39,35 +39,60 @@ function cambiarTab(tab) {
 
 // ── Exportar visual activa ──
 function exportarVisual() {
-  let elemento;
   const nombreBase = 'visual-media-mendoza';
 
   switch (tabActual) {
     case 'charts':
-      elemento = document.getElementById('chartContainer');
-      if (!elemento) return toast('No hay gráfico para exportar');
+      exportarGrafico();
       break;
     case 'maps':
-      elemento = document.getElementById('mapContainer');
-      if (!elemento) return toast('No hay mapa para exportar');
+      exportarMapa();
       break;
     case 'timeline':
-      elemento = document.getElementById('timelineContainer');
-      if (!elemento) return toast('No hay timeline para exportar');
+      exportarTimeline();
       break;
     case 'infographics':
-      elemento = document.getElementById('infografiaArea');
-      if (!elemento) return toast('No hay infografía para exportar');
+      exportarInfografia();
       break;
-    default: return;
   }
+}
 
+function exportarGrafico() {
+  const canvas = document.getElementById('chartCanvas');
+  if (!canvas) return toast('No hay gráfico para exportar');
+  // Capturar a alta resolución forzando el canvas
+  const ow = canvas.width;
+  const oh = canvas.height;
+  const scale = 4;
+  canvas.width = ow * scale;
+  canvas.height = oh * scale;
+  canvas.style.width = ow + 'px';
+  canvas.style.height = oh + 'px';
+  if (chartInstance) {
+    chartInstance.resize();
+  }
+  // Esperar render y capturar
+  setTimeout(() => {
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      mostrarExportPreview(url, nombreBase);
+      // Restaurar
+      canvas.width = ow;
+      canvas.height = oh;
+      canvas.style.width = '';
+      canvas.style.height = '';
+      if (chartInstance) chartInstance.resize();
+    }, 'image/png', 1);
+  }, 200);
+}
+
+function exportarMapa() {
+  const elemento = document.getElementById('mapContainer');
+  if (!elemento) return toast('No hay mapa para exportar');
   const isDark = document.body.classList.contains('dark-theme');
-  const bgColor = tabActual === 'infographics' ? undefined : (isDark ? '#161810' : '#ffffff');
-
   html2canvas(elemento, {
-    scale: 3,
-    backgroundColor: bgColor,
+    scale: 4,
+    backgroundColor: isDark ? '#161810' : '#ffffff',
     logging: false,
     useCORS: true,
     allowTaint: true
@@ -75,11 +100,26 @@ function exportarVisual() {
     canvas.toBlob(blob => {
       const url = URL.createObjectURL(blob);
       mostrarExportPreview(url, nombreBase);
-    }, 'image/png');
-  }).catch(err => {
-    console.error('Export error:', err);
-    toast('Error al exportar');
-  });
+    });
+  }).catch(() => toast('Error al exportar mapa'));
+}
+
+function exportarTimeline() {
+  const elemento = document.getElementById('timelineContainer');
+  if (!elemento) return toast('No hay timeline para exportar');
+  const isDark = document.body.classList.contains('dark-theme');
+  html2canvas(elemento, {
+    scale: 4,
+    backgroundColor: isDark ? '#161810' : '#ffffff',
+    logging: false,
+    useCORS: true,
+    allowTaint: true
+  }).then(canvas => {
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      mostrarExportPreview(url, nombreBase);
+    });
+  }).catch(() => toast('Error al exportar timeline'));
 }
 
 function mostrarExportPreview(url, nombre) {
