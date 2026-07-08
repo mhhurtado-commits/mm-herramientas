@@ -35,8 +35,6 @@ function renderizarInfografia() {
 
   ctx.clearRect(0, 0, W, H);
 
-  dibujarLogoInfografia(ctx, W, H);
-
   switch (templateActual) {
     case 'simple': renderSimple(ctx, W, H, title, content, color1, color2); break;
     case 'comparativa': renderComparativa(ctx, W, H, title, content, color1, color2); break;
@@ -44,6 +42,8 @@ function renderizarInfografia() {
     case 'destacado': renderDestacado(ctx, W, H, title, content, color1, color2); break;
     default: renderSimple(ctx, W, H, title, content, color1, color2);
   }
+
+  dibujarLogoInfografia(ctx, W, H);
 }
 
 // ── Template: Simple ──

@@ -189,8 +189,8 @@ function onLogoMove(e) {
   const dy = clientY - dragAction.startY;
 
   if (dragAction.type === 'drag') {
-    logoState.x = dragAction.startL + dx / dragAction.rect.width;
-    logoState.y = dragAction.startT + dy / dragAction.rect.height;
+    logoState.x = Math.max(0, Math.min(1 - logoState.w, dragAction.startL + dx / dragAction.rect.width));
+    logoState.y = Math.max(0, Math.min(1 - logoState.w * logoState.ar, dragAction.startT + dy / dragAction.rect.height));
     actualizarLogoOverlay();
     if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
   } else {

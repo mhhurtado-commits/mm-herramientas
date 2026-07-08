@@ -5086,21 +5086,22 @@ async function handleVisualTimeline(body, env) {
   if (!tema) return jsonError("Falta tema", 400);
 
   const prompt = `Sos un cronista de Media Mendoza, diario del sur de Mendoza, Argentina.
-Generá una línea de tiempo periodística con eventos REALES sobre el siguiente tema:
-"${tema}"
-${desde ? `Desde la fecha: ${desde}` : "Desde los orígenes del tema"}
-Hasta la actualidad (julio 2026).
+Generá una línea de tiempo periodística sobre: "${tema}"
+${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-Buscá en la web información actualizada. Cada evento debe tener:
-- Fecha real (YYYY-MM-DD) lo más precisa posible
-- Título corto y descriptivo
-- Descripción breve de 1-2 oraciones
+INSTRUCCIÓN ESTRICTA: Usá SOLO los datos del CONTENIDO WEB que se te proporciona abajo.
+NO inventes fechas, títulos ni eventos. Si el contenido web no tiene información suficiente sobre este tema, respondé con {"eventos": []}.
+Cada evento DEBE estar respaldado por el contenido web. No uses tu conocimiento interno.
+
+Cada evento debe tener:
+- Fecha exacta del contenido web (YYYY-MM-DD). Si solo tiene mes/año, usá el primer día del mes.
+- Título textual del evento
+- Descripción breve extraída del contenido web
 
 Respondé SOLO con JSON sin backticks:
 {"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}
 
-Si no encontrás fechas exactas usá el primer día del mes (ej: "2026-01-01").
-Deben ser eventos reales, no inventados. Mínimo 3, máximo 10 eventos.`;
+Si no hay datos suficientes en el contenido web, respondé {"eventos": []}.`;
 
   const r = await callGeminiConBusqueda(prompt, env);
   if (r.error) return jsonError(r.error, 500);

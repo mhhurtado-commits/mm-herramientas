@@ -8,7 +8,6 @@ const TIPO_NOMBRE = {
   doughnut: 'Donut', radar: 'Radar', polarArea: 'Área Polar'
 };
 
-// Plugin global para fondo del canvas
 const bgPlugin = {
   id: 'customBg',
   beforeDraw: (chart) => {
@@ -22,7 +21,33 @@ const bgPlugin = {
   }
 };
 
+// Plugin para mostrar valores en las barras/segmentos
+const labelPlugin = {
+  id: 'dataLabels',
+  afterDraw: (chart) => {
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach((ds, i) => {
+      const meta = chart.getDatasetMeta(i);
+      meta.data.forEach((bar, j) => {
+        const val = ds.data[j];
+        if (val === undefined || val === null) return;
+        const text = String(val);
+        ctx.save();
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#000';
+        ctx.font = `bold 12px "Inter", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        const x = bar.x;
+        const y = Math.min(bar.y - 4, chart.chartArea.top + 8);
+        ctx.fillText(text, x, y);
+        ctx.restore();
+      });
+    });
+  }
+};
+
 Chart.register(bgPlugin);
+Chart.register(labelPlugin);
 
 function initCharts() {
   actualizarGrafico();
@@ -107,8 +132,7 @@ function actualizarGrafico() {
             color: getComputedStyle(document.body).getPropertyValue('--muted').trim(),
             font: { size: 11 }
           }
-        },
-        customBg: true
+        }
       },
       scales: isPie || isPolar ? {} : {
         x: {
@@ -131,7 +155,6 @@ function actualizarGrafico() {
   });
 }
 
-// ── IA para sugerir gráfico ──
 async function generarGraficoConIA() {
   const btn = document.querySelector('#panel-charts .vs-btn-primary + .vs-btn-secondary');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Pensando...'; }
