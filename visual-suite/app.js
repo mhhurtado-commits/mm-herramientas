@@ -6,14 +6,17 @@ let tabActual = 'charts';
 
 const logoState = window.logoState = {
   visible: true,
-  x: 2,
-  y: 2,
-  w: 80,
+  x: 0.02,
+  y: 0.02,
+  w: 0.15,
   img: null,
   loaded: false
 };
 
-const LOGO_PATH = '../assets/logo-cuadrado.png';
+const LOGO_PATH = '../assets/logo.png';
+
+let dragActive = null;
+let dragTarget = null;
 
 // ── Tabs ──
 document.addEventListener('DOMContentLoaded', () => {
@@ -101,6 +104,10 @@ function initLogo() {
     if (typeof renderizarInfografia === 'function') renderizarInfografia();
   };
   logoState.img.src = LOGO_PATH;
+  document.getElementById('logoX').value = logoState.x * 100;
+  document.getElementById('logoY').value = logoState.y * 100;
+  document.getElementById('logoW').value = logoState.w * 100;
+  actualizarControlesLogo();
 }
 
 function toggleLogo() {
@@ -109,42 +116,140 @@ function toggleLogo() {
   actualizarLogoOverlay();
 }
 
-function actualizarLogoPosicion() {
-  logoState.x = parseInt(document.getElementById('logoX').value);
-  logoState.y = parseInt(document.getElementById('logoY').value);
-  document.getElementById('logoXVal').textContent = logoState.x + '%';
-  document.getElementById('logoYVal').textContent = logoState.y + '%';
-  actualizarLogoOverlayHTML();
-  if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
-}
-
-function actualizarLogoTamano() {
-  logoState.w = parseInt(document.getElementById('logoW').value);
-  document.getElementById('logoWVal').textContent = logoState.w + 'px';
-  actualizarLogoOverlayHTML();
-  if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+function actualizarControlesLogo() {
+  document.getElementById('logoXVal').textContent = Math.round(logoState.x * 100) + '%';
+  document.getElementById('logoYVal').textContent = Math.round(logoState.y * 100) + '%';
+  document.getElementById('logoWVal').textContent = Math.round(logoState.w * 100) + '%';
 }
 
 function actualizarLogoOverlay() {
-  actualizarLogoOverlayHTML();
-}
-
-function actualizarLogoOverlayHTML() {
+  if (!logoState.loaded) return;
   const overlayIds = ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline'];
   overlayIds.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (!logoState.loaded || !logoState.visible) {
+    if (!logoState.visible) {
       el.style.display = 'none';
       return;
     }
     el.style.display = 'block';
-    el.style.left = logoState.x + '%';
-    el.style.top = logoState.y + '%';
-    el.style.width = logoState.w + 'px';
+    el.style.left = (logoState.x * 100) + '%';
+    el.style.top = (logoState.y * 100) + '%';
+    el.style.width = (logoState.w * 100) + '%';
     el.style.height = 'auto';
-    el.innerHTML = `<img src="${LOGO_PATH}" alt="Media Mendoza" draggable="false"><div class="logo-resize-handle"></div>`;
+    el.innerHTML = `<img src="${LOGO_PATH}" alt="Media Mendoza" draggable="false"><div class="logo-resize-handle" data-resize="se"></div>`;
   });
+  syncSliderFromState();
+}
+
+function syncSliderFromState() {
+  document.getElementById('logoX').value = Math.round(logoState.x * 100);
+  document.getElementById('logoY').value = Math.round(logoState.y * 100);
+  document.getElementById('logoW').value = Math.round(logoState.w * 100);
+  actualizarControlesLogo();
+}
+
+// ── Drag & Resize directo sobre el logo overlay ──
+document.addEventListener('mousedown', e => {
+  const handle = e.target.closest('.logo-resize-handle');
+  if (handle) {
+    const overlay = handle.closest('.vs-logo-overlay');
+    if (!overlay || !overlay.style.display || overlay.style.display === 'none') return;
+    e.preventDefault();
+    dragActive = { type: 'resize', overlay, startX: e.clientX, startY: e.clientY, startW: logoState.w, startH: logoState.h, startXpos: logoState.x, startYpos: logoState.y, containerW: overlay.parentElement.clientWidth, containerH: overlay.parentElement.clientHeight };
+    return;
+  }
+  const overlay = e.target.closest('.vs-logo-overlay');
+  if (overlay && overlay.style.display !== 'none') {
+    e.preventDefault();
+    dragActive = { type: 'drag', overlay, startX: e.clientX, startY: e.clientY, startL: logoState.x, startT: logoState.y };
+  }
+});
+
+document.addEventListener('mousemove', e => {
+  if (!dragActive) return;
+  const dx = e.clientX - dragActive.startX;
+  const dy = e.clientY - dragActive.startY;
+  if (dragActive.type === 'drag') {
+    const pW = dragActive.overlay.parentElement.clientWidth;
+    const pH = dragActive.overlay.parentElement.clientHeight;
+    logoState.x = Math.max(0, Math.min(1 - logoState.w, dragActive.startL + dx / pW));
+    logoState.y = Math.max(0, Math.min(1 - logoState.h * (logoState.img.naturalHeight / logoState.img.naturalWidth), dragActive.startT + dy / pH));
+    actualizarLogoOverlay();
+    if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+  } else if (dragActive.type === 'resize') {
+    const pW = dragActive.overlay.parentElement.clientWidth;
+    const maxW = 0.8;
+    const ar = logoState.img.naturalHeight / logoState.img.naturalWidth;
+    logoState.w = Math.max(0.03, Math.min(maxW, dragActive.startW + dx / pW));
+    actualizarLogoOverlay();
+    if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (dragActive) { dragActive = null; }
+});
+
+// ── Touch events ──
+document.addEventListener('touchstart', e => {
+  const touch = e.touches[0];
+  const handle = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (!handle) return;
+  const handleEl = handle.closest('.logo-resize-handle');
+  if (handleEl) {
+    const overlay = handleEl.closest('.vs-logo-overlay');
+    if (!overlay || !overlay.style.display || overlay.style.display === 'none') return;
+    e.preventDefault();
+    dragActive = { type: 'resize', overlay, startX: touch.clientX, startY: touch.clientY, startW: logoState.w, startH: logoState.h, startXpos: logoState.x, startYpos: logoState.y, containerW: overlay.parentElement.clientWidth, containerH: overlay.parentElement.clientHeight };
+    return;
+  }
+  const overlayEl = handle.closest('.vs-logo-overlay');
+  if (overlayEl && overlayEl.style.display !== 'none') {
+    e.preventDefault();
+    dragActive = { type: 'drag', overlay: overlayEl, startX: touch.clientX, startY: touch.clientY, startL: logoState.x, startT: logoState.y };
+  }
+}, { passive: false });
+
+document.addEventListener('touchmove', e => {
+  if (!dragActive) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  const dx = touch.clientX - dragActive.startX;
+  const dy = touch.clientY - dragActive.startY;
+  if (dragActive.type === 'drag') {
+    const pW = dragActive.overlay.parentElement.clientWidth;
+    const pH = dragActive.overlay.parentElement.clientHeight;
+    logoState.x = Math.max(0, Math.min(1 - logoState.w, dragActive.startL + dx / pW));
+    logoState.y = Math.max(0, Math.min(1 - logoState.h * (logoState.img.naturalHeight / logoState.img.naturalWidth), dragActive.startT + dy / pH));
+    actualizarLogoOverlay();
+    if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+  } else if (dragActive.type === 'resize') {
+    const pW = dragActive.overlay.parentElement.clientWidth;
+    logoState.w = Math.max(0.03, Math.min(0.8, dragActive.startW + dx / pW));
+    actualizarLogoOverlay();
+    if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', () => {
+  if (dragActive) { dragActive = null; }
+});
+
+// ── Sliders ──
+function actualizarLogoPosicion() {
+  logoState.x = parseInt(document.getElementById('logoX').value) / 100;
+  logoState.y = parseInt(document.getElementById('logoY').value) / 100;
+  actualizarControlesLogo();
+  actualizarLogoOverlay();
+  if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+}
+
+function actualizarLogoTamano() {
+  logoState.w = parseInt(document.getElementById('logoW').value) / 100;
+  actualizarControlesLogo();
+  actualizarLogoOverlay();
+  if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
 }
 
 // ── Toast ──

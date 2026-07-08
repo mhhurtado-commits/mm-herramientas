@@ -177,10 +177,11 @@ function wrapText(ctx, text, maxWidth) {
 function dibujarLogoInfografia(ctx, W, H) {
   const ls = window.logoState;
   if (!ls || !ls.loaded || !ls.visible || !ls.img) return;
-  const lx = (ls.x / 100) * W;
-  const ly = (ls.y / 100) * H;
-  const lw = ls.w * (W / 800);
-  const lh = lw * (ls.img.naturalHeight / ls.img.naturalWidth);
+  const lx = ls.x * W;
+  const ly = ls.y * H;
+  const lw = ls.w * W;
+  const ar = ls.img.naturalHeight / ls.img.naturalWidth;
+  const lh = lw * ar;
   ctx.drawImage(ls.img, lx, ly, lw, lh);
 }
 
