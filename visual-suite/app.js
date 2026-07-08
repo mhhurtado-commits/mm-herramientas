@@ -62,11 +62,15 @@ function exportarVisual() {
     default: return;
   }
 
+  const isDark = document.body.classList.contains('dark-theme');
+  const bgColor = tabActual === 'infographics' ? undefined : (isDark ? '#161810' : '#ffffff');
+
   html2canvas(elemento, {
-    scale: 2,
-    backgroundColor: getComputedStyle(document.body).getPropertyValue('--surface').trim() || '#ffffff',
+    scale: 3,
+    backgroundColor: bgColor,
     logging: false,
-    useCORS: true
+    useCORS: true,
+    allowTaint: true
   }).then(canvas => {
     canvas.toBlob(blob => {
       const url = URL.createObjectURL(blob);

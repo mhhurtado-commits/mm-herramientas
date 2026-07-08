@@ -21,25 +21,44 @@ const bgPlugin = {
   }
 };
 
-// Plugin para mostrar valores en las barras/segmentos
+// Plugin para mostrar valores en barras y segmentos
 const labelPlugin = {
   id: 'dataLabels',
   afterDraw: (chart) => {
     const ctx = chart.ctx;
+    const type = chart.config._config.type;
+    const isPie = type === 'pie' || type === 'doughnut' || type === 'polarArea';
+    const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#000';
+
     chart.data.datasets.forEach((ds, i) => {
       const meta = chart.getDatasetMeta(i);
-      meta.data.forEach((bar, j) => {
+      meta.data.forEach((el, j) => {
         const val = ds.data[j];
         if (val === undefined || val === null) return;
         const text = String(val);
         ctx.save();
-        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#000';
-        ctx.font = `bold 12px "Inter", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        const x = bar.x;
-        const y = Math.min(bar.y - 4, chart.chartArea.top + 8);
-        ctx.fillText(text, x, y);
+
+        if (isPie) {
+          const arc = el;
+          const angle = (arc.startAngle + arc.endAngle) / 2;
+          const radius = arc.outerRadius * 0.65;
+          const x = arc.x + Math.cos(angle) * radius;
+          const y = arc.y + Math.sin(angle) * radius;
+          ctx.fillStyle = '#fff';
+          ctx.font = `bold 13px "Inter", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(text, x, y);
+        } else {
+          ctx.fillStyle = textColor;
+          ctx.font = `bold 12px "Inter", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          const x = el.x;
+          const y = Math.min(el.y - 4, chart.chartArea.top + 8);
+          ctx.fillText(text, x, y);
+        }
+
         ctx.restore();
       });
     });

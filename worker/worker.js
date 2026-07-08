@@ -4128,11 +4128,22 @@ async function buscarDuckDuckGo(query){
     const res=await fetch("https://html.duckduckgo.com/html/?q="+encodeURIComponent(query)+"&kl=es-ar",{headers:{"User-Agent":BROWSER_HEADERS["User-Agent"],"Accept":"text/html"},redirect:"follow"});
     if(!res.ok) return [];
     const html=await res.text();const resultados=[];
-    const linkRegex=/class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</g;let match;
-    while((match=linkRegex.exec(html))!==null&&resultados.length<5){
-      let u=match[1];const t=match[2].trim();
-      if(u.includes("uddg=")){const d=decodeURIComponent(u.split("uddg=")[1]?.split("&")[0]||"");if(d.startsWith("http"))u=d}
-      if(u.startsWith("http")&&t) resultados.push({url:u,titulo:t});
+    const regexes=[
+      /class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</g,
+      /<a[^>]+class="[^"]*result[^"]*a[^"]*"[^>]*href="([^"]+)"[^>]*>([^<]+)</gi,
+      /<a[^>]+rel="nofollow"[^>]+href="[^"]*uddg=([^"&]+)[^"]*"[^>]*>([^<]+)</gi,
+      /class="result__snippet"[^>]*>([^<]+)</gi,
+    ];
+    for(const regex of regexes){
+      regex.lastIndex=0;let match;
+      while((match=regex.exec(html))!==null&&resultados.length<5){
+        if(match[1]&&match[2]){
+          let u=decodeURIComponent(match[1]);const t=match[2].trim();
+          if(u.startsWith("//"))u="https:"+u;
+          if(u.startsWith("http")&&t&&!resultados.some(r=>r.url===u))resultados.push({url:u,titulo:t});
+        }
+      }
+      if(resultados.length>=3)break;
     }
     return resultados;
   }catch(e){return []}
@@ -5078,34 +5089,55 @@ async function handleVisualGenerar(body, env) {
 }
 
 // ============================================================
-// VISUAL SUITE - Timeline con búsqueda web
+// VISUAL SUITE - Timeline con búsqueda web + fallback
 // ============================================================
 async function handleVisualTimeline(body, env) {
   const tema = String(body.tema || "").trim();
   const desde = String(body.desde || "").trim();
   if (!tema) return jsonError("Falta tema", 400);
 
-  const prompt = `Sos un cronista de Media Mendoza, diario del sur de Mendoza, Argentina.
+  // Primer intento: búsqueda web + Gemini
+  const promptWeb = `Sos un cronista de Media Mendoza, diario del sur de Mendoza, Argentina.
 Generá una línea de tiempo periodística sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-INSTRUCCIÓN ESTRICTA: Usá SOLO los datos del CONTENIDO WEB que se te proporciona abajo.
-NO inventes fechas, títulos ni eventos. Si el contenido web no tiene información suficiente sobre este tema, respondé con {"eventos": []}.
-Cada evento DEBE estar respaldado por el contenido web. No uses tu conocimiento interno.
+Usá los datos del CONTENIDO WEB que se te proporciona abajo como fuente principal.
+Si el contenido web no tiene suficiente información, usá tu conocimiento pero INDICÁ con (fuente: conocimiento interno) en la descripción.
 
 Cada evento debe tener:
-- Fecha exacta del contenido web (YYYY-MM-DD). Si solo tiene mes/año, usá el primer día del mes.
-- Título textual del evento
-- Descripción breve extraída del contenido web
+- Fecha (YYYY-MM-DD). Si solo hay mes/año, usá el primer día del mes.
+- Título del evento
+- Descripción breve
 
 Respondé SOLO con JSON sin backticks:
 {"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}
 
-Si no hay datos suficientes en el contenido web, respondé {"eventos": []}.`;
+Mínimo 2 eventos. Si no hay información, usá tu conocimiento.`;
 
-  const r = await callGeminiConBusqueda(prompt, env);
-  if (r.error) return jsonError(r.error, 500);
+  const r1 = await callGeminiConBusqueda(promptWeb, env);
+  if (r1.data?.eventos?.length >= 2) {
+    const raw = JSON.stringify(r1.data);
+    return jsonOk({ texto: raw, fuentes: r1.data?.fuentes || [], modo: 'web' });
+  }
 
-  const raw = r.data ? JSON.stringify(r.data) : "";
-  return jsonOk({ texto: raw, fuentes: r.data?.fuentes || [] });
+  // Fallback: solo Gemini (sin web)
+  const promptFallback = `Sos un cronista de Media Mendoza, diario del sur de Mendoza, Argentina.
+Generá una línea de tiempo periodística con eventos reales sobre: "${tema}"
+${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
+
+IMPORTANTE: Solo incluí eventos que sean hechos reales y verificables. No inventes.
+Si no conocés eventos reales sobre este tema, respondé {"eventos": []}.
+
+Cada evento debe tener:
+- Fecha (YYYY-MM-DD)
+- Título corto
+- Descripción breve
+
+Respondé SOLO con JSON:
+{"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}`;
+
+  const r2 = await callGemini(promptFallback, env);
+  if (r2.error) return jsonError(r2.error, 500);
+  const raw = r2.data ? JSON.stringify(r2.data) : "{}";
+  return jsonOk({ texto: raw, fuentes: [], modo: 'gemini' });
 }
