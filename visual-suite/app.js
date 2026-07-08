@@ -10,20 +10,18 @@ const logoState = window.logoState = {
   y: 0.02,
   w: 0.15,
   img: null,
-  loaded: false
+  loaded: false,
+  ar: 1
 };
 
 const LOGO_PATH = '../assets/logo.png';
-
 let dragActive = null;
-let dragTarget = null;
 
 // ── Tabs ──
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.vs-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      const target = tab.dataset.tab;
-      cambiarTab(target);
+      cambiarTab(tab.dataset.tab);
     });
   });
   initApp();
@@ -99,27 +97,19 @@ function initLogo() {
   logoState.img = new Image();
   logoState.img.crossOrigin = 'anonymous';
   logoState.img.onload = () => {
+    logoState.ar = logoState.img.naturalHeight / logoState.img.naturalWidth;
     logoState.loaded = true;
     actualizarLogoOverlay();
     if (typeof renderizarInfografia === 'function') renderizarInfografia();
   };
   logoState.img.src = LOGO_PATH;
-  document.getElementById('logoX').value = logoState.x * 100;
-  document.getElementById('logoY').value = logoState.y * 100;
-  document.getElementById('logoW').value = logoState.w * 100;
-  actualizarControlesLogo();
 }
 
 function toggleLogo() {
   logoState.visible = !logoState.visible;
   document.getElementById('logoTrack').classList.toggle('on', logoState.visible);
   actualizarLogoOverlay();
-}
-
-function actualizarControlesLogo() {
-  document.getElementById('logoXVal').textContent = Math.round(logoState.x * 100) + '%';
-  document.getElementById('logoYVal').textContent = Math.round(logoState.y * 100) + '%';
-  document.getElementById('logoWVal').textContent = Math.round(logoState.w * 100) + '%';
+  if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
 }
 
 function actualizarLogoOverlay() {
@@ -128,41 +118,45 @@ function actualizarLogoOverlay() {
   overlayIds.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (!logoState.visible) {
-      el.style.display = 'none';
-      return;
-    }
+    if (!logoState.visible) { el.style.display = 'none'; return; }
     el.style.display = 'block';
     el.style.left = (logoState.x * 100) + '%';
     el.style.top = (logoState.y * 100) + '%';
     el.style.width = (logoState.w * 100) + '%';
     el.style.height = 'auto';
-    el.innerHTML = `<img src="${LOGO_PATH}" alt="Media Mendoza" draggable="false"><div class="logo-resize-handle" data-resize="se"></div>`;
+    el.innerHTML = `<img src="${LOGO_PATH}" alt="Media Mendoza" draggable="false">
+<div class="logo-resize-handle corner-nw" data-corner="nw"></div>
+<div class="logo-resize-handle corner-ne" data-corner="ne"></div>
+<div class="logo-resize-handle corner-sw" data-corner="sw"></div>
+<div class="logo-resize-handle corner-se" data-corner="se"></div>`;
   });
-  syncSliderFromState();
 }
 
-function syncSliderFromState() {
-  document.getElementById('logoX').value = Math.round(logoState.x * 100);
-  document.getElementById('logoY').value = Math.round(logoState.y * 100);
-  document.getElementById('logoW').value = Math.round(logoState.w * 100);
-  actualizarControlesLogo();
-}
-
-// ── Drag & Resize directo sobre el logo overlay ──
+// ── Drag & Resize ──
 document.addEventListener('mousedown', e => {
   const handle = e.target.closest('.logo-resize-handle');
   if (handle) {
     const overlay = handle.closest('.vs-logo-overlay');
-    if (!overlay || !overlay.style.display || overlay.style.display === 'none') return;
+    if (!overlay || overlay.style.display === 'none') return;
     e.preventDefault();
-    dragActive = { type: 'resize', overlay, startX: e.clientX, startY: e.clientY, startW: logoState.w, startH: logoState.h, startXpos: logoState.x, startYpos: logoState.y, containerW: overlay.parentElement.clientWidth, containerH: overlay.parentElement.clientHeight };
+    dragActive = {
+      type: 'resize',
+      corner: handle.dataset.corner,
+      overlay,
+      startX: e.clientX,
+      startY: e.clientY,
+      startW: logoState.w,
+      startXpos: logoState.x,
+      startYpos: logoState.y,
+      cw: overlay.parentElement.clientWidth,
+      ch: overlay.parentElement.clientHeight
+    };
     return;
   }
   const overlay = e.target.closest('.vs-logo-overlay');
   if (overlay && overlay.style.display !== 'none') {
     e.preventDefault();
-    dragActive = { type: 'drag', overlay, startX: e.clientX, startY: e.clientY, startL: logoState.x, startT: logoState.y };
+    dragActive = { type: 'drag', overlay, startX: e.clientX, startY: e.clientY, startL: logoState.x, startT: logoState.y, cw: overlay.parentElement.clientWidth, ch: overlay.parentElement.clientHeight };
   }
 });
 
@@ -171,43 +165,62 @@ document.addEventListener('mousemove', e => {
   const dx = e.clientX - dragActive.startX;
   const dy = e.clientY - dragActive.startY;
   if (dragActive.type === 'drag') {
-    const pW = dragActive.overlay.parentElement.clientWidth;
-    const pH = dragActive.overlay.parentElement.clientHeight;
-    logoState.x = Math.max(0, Math.min(1 - logoState.w, dragActive.startL + dx / pW));
-    logoState.y = Math.max(0, Math.min(1 - logoState.h * (logoState.img.naturalHeight / logoState.img.naturalWidth), dragActive.startT + dy / pH));
+    logoState.x = dragActive.startL + dx / dragActive.cw;
+    logoState.y = dragActive.startT + dy / dragActive.ch;
     actualizarLogoOverlay();
     if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
-  } else if (dragActive.type === 'resize') {
-    const pW = dragActive.overlay.parentElement.clientWidth;
-    const maxW = 0.8;
-    const ar = logoState.img.naturalHeight / logoState.img.naturalWidth;
-    logoState.w = Math.max(0.03, Math.min(maxW, dragActive.startW + dx / pW));
+  } else {
+    const ar = logoState.ar;
+    const minW = 0.03;
+    const maxW = 0.9;
+    const corner = dragActive.corner;
+    let newW = dragActive.startW;
+    let newX = dragActive.startXpos;
+    let newY = dragActive.startYpos;
+    if (corner === 'se') {
+      newW = Math.max(minW, Math.min(maxW, dragActive.startW + dx / dragActive.cw));
+    } else if (corner === 'sw') {
+      newW = Math.max(minW, Math.min(maxW, dragActive.startW - dx / dragActive.cw));
+      newX = dragActive.startXpos + (dragActive.startW - newW);
+    } else if (corner === 'ne') {
+      newW = Math.max(minW, Math.min(maxW, dragActive.startW + dx / dragActive.cw));
+      newY = dragActive.startYpos + (dragActive.startW - newW) * ar;
+    } else if (corner === 'nw') {
+      newW = Math.max(minW, Math.min(maxW, dragActive.startW - dx / dragActive.cw));
+      newX = dragActive.startXpos + (dragActive.startW - newW);
+      newY = dragActive.startYpos + (dragActive.startW - newW) * ar;
+    }
+    logoState.w = newW;
+    logoState.x = newX;
+    logoState.y = newY;
     actualizarLogoOverlay();
     if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
   }
 });
 
-document.addEventListener('mouseup', () => {
-  if (dragActive) { dragActive = null; }
-});
+document.addEventListener('mouseup', () => { dragActive = null; });
 
-// ── Touch events ──
 document.addEventListener('touchstart', e => {
   const touch = e.touches[0];
-  const handle = document.elementFromPoint(touch.clientX, touch.clientY);
-  if (!handle) return;
-  const handleEl = handle.closest('.logo-resize-handle');
-  if (handleEl) {
-    const overlay = handleEl.closest('.vs-logo-overlay');
-    if (!overlay || !overlay.style.display || overlay.style.display === 'none') return;
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (!target) return;
+  const handle = target.closest('.logo-resize-handle');
+  if (handle) {
+    const overlay = handle.closest('.vs-logo-overlay');
+    if (!overlay || overlay.style.display === 'none') return;
     e.preventDefault();
-    dragActive = { type: 'resize', overlay, startX: touch.clientX, startY: touch.clientY, startW: logoState.w, startH: logoState.h, startXpos: logoState.x, startYpos: logoState.y, containerW: overlay.parentElement.clientWidth, containerH: overlay.parentElement.clientHeight };
+    dragActive = {
+      type: 'resize', corner: handle.dataset.corner, overlay,
+      startX: touch.clientX, startY: touch.clientY,
+      startW: logoState.w, startXpos: logoState.x, startYpos: logoState.y,
+      cw: overlay.parentElement.clientWidth, ch: overlay.parentElement.clientHeight
+    };
     return;
   }
-  const overlayEl = handle.closest('.vs-logo-overlay');
-  if (overlayEl && overlayEl.style.display !== 'none') {
+  const overlay = target.closest('.vs-logo-overlay');
+  if (overlay && overlay.style.display !== 'none') {
     e.preventDefault();
-    dragActive = { type: 'drag', overlay: overlayEl, startX: touch.clientX, startY: touch.clientY, startL: logoState.x, startT: logoState.y };
+    dragActive = { type: 'drag', overlay, startX: touch.clientX, startY: touch.clientY, startL: logoState.x, startT: logoState.y, cw: overlay.parentElement.clientWidth, ch: overlay.parentElement.clientHeight };
   }
 }, { passive: false });
 
@@ -218,39 +231,40 @@ document.addEventListener('touchmove', e => {
   const dx = touch.clientX - dragActive.startX;
   const dy = touch.clientY - dragActive.startY;
   if (dragActive.type === 'drag') {
-    const pW = dragActive.overlay.parentElement.clientWidth;
-    const pH = dragActive.overlay.parentElement.clientHeight;
-    logoState.x = Math.max(0, Math.min(1 - logoState.w, dragActive.startL + dx / pW));
-    logoState.y = Math.max(0, Math.min(1 - logoState.h * (logoState.img.naturalHeight / logoState.img.naturalWidth), dragActive.startT + dy / pH));
+    logoState.x = dragActive.startL + dx / dragActive.cw;
+    logoState.y = dragActive.startT + dy / dragActive.ch;
     actualizarLogoOverlay();
     if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
-  } else if (dragActive.type === 'resize') {
-    const pW = dragActive.overlay.parentElement.clientWidth;
-    logoState.w = Math.max(0.03, Math.min(0.8, dragActive.startW + dx / pW));
+  } else {
+    const ar = logoState.ar;
+    const minW = 0.03;
+    const maxW = 0.9;
+    const corner = dragActive.corner;
+    let newW = dragActive.startW;
+    let newX = dragActive.startXpos;
+    let newY = dragActive.startYpos;
+    if (corner === 'se') {
+      newW = Math.max(minW, Math.min(maxW, dragActive.startW + dx / dragActive.cw));
+    } else if (corner === 'sw') {
+      newW = Math.max(minW, Math.min(maxW, dragActive.startW - dx / dragActive.cw));
+      newX = dragActive.startXpos + (dragActive.startW - newW);
+    } else if (corner === 'ne') {
+      newW = Math.max(minW, Math.min(maxW, dragActive.startW + dx / dragActive.cw));
+      newY = dragActive.startYpos + (dragActive.startW - newW) * ar;
+    } else if (corner === 'nw') {
+      newW = Math.max(minW, Math.min(maxW, dragActive.startW - dx / dragActive.cw));
+      newX = dragActive.startXpos + (dragActive.startW - newW);
+      newY = dragActive.startYpos + (dragActive.startW - newW) * ar;
+    }
+    logoState.w = newW;
+    logoState.x = newX;
+    logoState.y = newY;
     actualizarLogoOverlay();
     if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
   }
 }, { passive: false });
 
-document.addEventListener('touchend', () => {
-  if (dragActive) { dragActive = null; }
-});
-
-// ── Sliders ──
-function actualizarLogoPosicion() {
-  logoState.x = parseInt(document.getElementById('logoX').value) / 100;
-  logoState.y = parseInt(document.getElementById('logoY').value) / 100;
-  actualizarControlesLogo();
-  actualizarLogoOverlay();
-  if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
-}
-
-function actualizarLogoTamano() {
-  logoState.w = parseInt(document.getElementById('logoW').value) / 100;
-  actualizarControlesLogo();
-  actualizarLogoOverlay();
-  if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
-}
+document.addEventListener('touchend', () => { dragActive = null; });
 
 // ── Toast ──
 function toast(msg) {
@@ -280,28 +294,20 @@ const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 async function apiPost(path, data) {
   try {
     const res = await fetch(`${WORKER_URL}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
     return await res.json();
-  } catch (e) {
-    console.error('API error:', e);
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 async function apiGet(path) {
   try {
     const res = await fetch(`${WORKER_URL}${path}`);
     return await res.json();
-  } catch (e) {
-    console.error('API error:', e);
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
-// ── Init ──
 function initApp() {
   initLogo();
 }
