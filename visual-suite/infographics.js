@@ -35,6 +35,8 @@ function renderizarInfografia() {
 
   ctx.clearRect(0, 0, W, H);
 
+  dibujarLogoInfografia(ctx, W, H);
+
   switch (templateActual) {
     case 'simple': renderSimple(ctx, W, H, title, content, color1, color2); break;
     case 'comparativa': renderComparativa(ctx, W, H, title, content, color1, color2); break;
@@ -170,6 +172,16 @@ function wrapText(ctx, text, maxWidth) {
     else lines.push(word);
   }
   return lines;
+}
+
+function dibujarLogoInfografia(ctx, W, H) {
+  const ls = window.logoState;
+  if (!ls || !ls.loaded || !ls.visible || !ls.img) return;
+  const lx = (ls.x / 100) * W;
+  const ly = (ls.y / 100) * H;
+  const lw = ls.w * (W / 800);
+  const lh = lw * (ls.img.naturalHeight / ls.img.naturalWidth);
+  ctx.drawImage(ls.img, lx, ly, lw, lh);
 }
 
 function exportarInfografia() {

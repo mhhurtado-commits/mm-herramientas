@@ -4,6 +4,17 @@
 
 let tabActual = 'charts';
 
+const logoState = window.logoState = {
+  visible: true,
+  x: 2,
+  y: 2,
+  w: 80,
+  img: null,
+  loaded: false
+};
+
+const LOGO_PATH = '../assets/logo-cuadrado.png';
+
 // ── Tabs ──
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.vs-tab').forEach(tab => {
@@ -19,6 +30,11 @@ function cambiarTab(tab) {
   tabActual = tab;
   document.querySelectorAll('.vs-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('.vs-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${tab}`));
+  actualizarLogoOverlay();
+  if (tab === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+  setTimeout(() => {
+    if (tab === 'maps' && mapInstance) mapInstance.invalidateSize();
+  }, 200);
 }
 
 // ── Exportar visual activa ──
@@ -28,7 +44,7 @@ function exportarVisual() {
 
   switch (tabActual) {
     case 'charts':
-      elemento = document.querySelector('.vs-chart-container canvas');
+      elemento = document.getElementById('chartContainer');
       if (!elemento) return toast('No hay gráfico para exportar');
       break;
     case 'maps':
@@ -73,6 +89,62 @@ function mostrarExportPreview(url, nombre) {
 
 function cerrarExportPreview() {
   document.getElementById('exportPreview').classList.remove('show');
+}
+
+// ── Logo ──
+function initLogo() {
+  logoState.img = new Image();
+  logoState.img.crossOrigin = 'anonymous';
+  logoState.img.onload = () => {
+    logoState.loaded = true;
+    actualizarLogoOverlay();
+    if (typeof renderizarInfografia === 'function') renderizarInfografia();
+  };
+  logoState.img.src = LOGO_PATH;
+}
+
+function toggleLogo() {
+  logoState.visible = !logoState.visible;
+  document.getElementById('logoTrack').classList.toggle('on', logoState.visible);
+  actualizarLogoOverlay();
+}
+
+function actualizarLogoPosicion() {
+  logoState.x = parseInt(document.getElementById('logoX').value);
+  logoState.y = parseInt(document.getElementById('logoY').value);
+  document.getElementById('logoXVal').textContent = logoState.x + '%';
+  document.getElementById('logoYVal').textContent = logoState.y + '%';
+  actualizarLogoOverlayHTML();
+  if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+}
+
+function actualizarLogoTamano() {
+  logoState.w = parseInt(document.getElementById('logoW').value);
+  document.getElementById('logoWVal').textContent = logoState.w + 'px';
+  actualizarLogoOverlayHTML();
+  if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+}
+
+function actualizarLogoOverlay() {
+  actualizarLogoOverlayHTML();
+}
+
+function actualizarLogoOverlayHTML() {
+  const overlayIds = ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline'];
+  overlayIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!logoState.loaded || !logoState.visible) {
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = 'block';
+    el.style.left = logoState.x + '%';
+    el.style.top = logoState.y + '%';
+    el.style.width = logoState.w + 'px';
+    el.style.height = 'auto';
+    el.innerHTML = `<img src="${LOGO_PATH}" alt="Media Mendoza" draggable="false"><div class="logo-resize-handle"></div>`;
+  });
 }
 
 // ── Toast ──
@@ -126,4 +198,5 @@ async function apiGet(path) {
 
 // ── Init ──
 function initApp() {
+  initLogo();
 }
