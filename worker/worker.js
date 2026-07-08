@@ -5052,6 +5052,7 @@ export default {
     if(path==="/api/generate-headline")              return handleGenerateHeadline(request, env);
     if(path==="/smn/update-token")                   return handleSMNUpdateToken(body, env);
     if(path==="/smn/upload-icon")                    return handleSMNUploadIcon(request, env);
+    if(path==="/visual/generar")                     return handleVisualGenerar(body, env);
 
     return jsonError("Ruta no encontrada",404);
   },
@@ -5060,3 +5061,17 @@ export default {
     return queue(batch, env);
   }
 };
+
+// ============================================================
+// VISUAL SUITE - Generar con IA
+// ============================================================
+async function handleVisualGenerar(body, env) {
+  const prompt = String(body.prompt || "").trim();
+  if (!prompt) return jsonError("Falta prompt", 400);
+
+  const r = await callGemini(prompt, env);
+  if (r.error) return jsonError(r.error, 500);
+
+  const raw = r.data ? JSON.stringify(r.data) : "";
+  return jsonOk({ texto: raw });
+}

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Visual Suite — Media Mendoza</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+.vs-main {
+  padding-top: var(--header-h);
+  padding-bottom: var(--footer-h);
+  max-width: 1280px;
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.vs-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  gap: 2px;
+  margin: 20px 0 24px;
+  overflow-x: auto;
+}
+.vs-tab {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 10px 20px;
+  color: var(--dim);
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all .15s;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+.vs-tab:hover { color: var(--white); }
+.vs-tab.active { color: var(--v); border-bottom-color: var(--v); }
+.vs-tab-icon { margin-right: 6px; }
+.vs-panel { display: none; }
+.vs-panel.active { display: block; animation: fadeIn .2s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.vs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 960px) { .vs-grid { grid-template-columns: 1fr; } }
+.vs-card {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.vs-card.accent { border-top: 3px solid var(--v); }
+.vs-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.vs-card-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: .5px;
+  color: var(--text);
+}
+.vs-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.vs-chart-container {
+  position: relative;
+  width: 100%;
+  max-height: 400px;
+  min-height: 250px;
+}
+.vs-chart-container canvas {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 380px;
+}
+.vs-map-container {
+  width: 100%;
+  height: 400px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line2);
+}
+.vs-map-container .leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+.vs-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font-body);
+  outline: none;
+  transition: border-color .15s;
+}
+.vs-input:focus { border-color: var(--v); }
+.vs-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font-body);
+  outline: none;
+  transition: border-color .15s;
+  min-height: 80px;
+  resize: vertical;
+}
+.vs-textarea:focus { border-color: var(--v); }
+.vs-select {
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-body);
+  outline: none;
+  cursor: pointer;
+}
+.vs-select:focus { border-color: var(--v); }
+.vs-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+.vs-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.vs-color-input {
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  cursor: pointer;
+}
+.vs-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(166,206,57,0.12);
+  color: var(--v);
+  border: 1px solid rgba(166,206,57,0.3);
+}
+.vs-btn {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all .15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.vs-btn:active { transform: scale(.97); }
+.vs-btn-primary { background: var(--v); color: #1a2a00; }
+.vs-btn-primary:hover { background: var(--v-dark); color: #fff; }
+.vs-btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--line2); }
+.vs-btn-secondary:hover { border-color: var(--v); color: var(--v); }
+.vs-btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(230,57,70,0.3); }
+.vs-btn-danger:hover { background: var(--red); color: #fff; }
+.vs-btn-sm { padding: 5px 10px; font-size: 10px; }
+.vs-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.vs-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.vs-data-table th {
+  text-align: left;
+  padding: 6px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--dim);
+  border-bottom: 1px solid var(--line);
+}
+.vs-data-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line3);
+  color: var(--text);
+}
+.vs-data-table td input {
+  width: 100%;
+  padding: 4px 6px;
+  background: var(--surface2);
+  border: 1px solid var(--line3);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-body);
+}
+.vs-data-table td input:focus { border-color: var(--v); outline: none; }
+.vs-add-row {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--v);
+  cursor: pointer;
+  padding: 4px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.vs-add-row:hover { text-decoration: underline; }
+
+.vs-timeline-container {
+  position: relative;
+  padding: 20px 0;
+}
+.vs-timeline-line {
+  position: absolute;
+  left: 24px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--line2);
+}
+.vs-timeline-item {
+  position: relative;
+  padding-left: 56px;
+  margin-bottom: 20px;
+}
+.vs-timeline-dot {
+  position: absolute;
+  left: 17px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--v);
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 2px var(--v);
+}
+.vs-timeline-date {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--v);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.vs-timeline-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 2px 0;
+}
+.vs-timeline-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.vs-timeline-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+}
+
+.vs-infografia-area {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.vs-infografia-area canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.vs-infografia-templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.vs-infografia-template {
+  aspect-ratio: 16 / 9;
+  background: var(--surface2);
+  border: 2px solid var(--line2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dim);
+  transition: all .15s;
+  padding: 10px;
+  text-align: center;
+}
+.vs-infografia-template:hover { border-color: var(--v); color: var(--v); }
+.vs-infografia-template.active { border-color: var(--v); background: rgba(166,206,57,0.06); color: var(--v); }
+.vs-infografia-template-icon { font-size: 24px; }
+
+.export-preview-area {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0,0,0,.8);
+  backdrop-filter: blur(4px);
+  align-items: center;
+  justify-content: center;
+}
+.export-preview-area.show { display: flex; }
+.export-preview-box {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+.export-preview-box img {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+body.dark-theme .leaflet-layer { filter: brightness(.7) invert(1) hue-rotate(180deg); }
+body.dark-theme .leaflet-control-zoom a { background: var(--surface); color: var(--text); border-color: var(--line2); }
+body.dark-theme .leaflet-control-attribution { background: var(--surface); color: var(--dim); }
+</style>
+</head>
+<body>
+<!-- topbar -->
+<header class="mm-header">
+  <a href="/" class="mm-header-brand">
+    <img src="../assets/logo.png" alt="MM" class="mm-header-logo" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section">
+    <span class="mm-header-label">Visual Suite</span>
+  </div>
+  <div class="mm-header-status">
+    <div class="mm-status-dot"></div>
+    <span class="mm-status-txt">Conectado</span>
+  </div>
+</header>
+
+<main class="vs-main">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+    <h1 style="font-family:var(--font-display);font-size:2rem;letter-spacing:.5px;color:var(--text)">Visual Suite</h1>
+    <div style="display:flex;gap:6px">
+      <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarVisual()">⬇ Exportar PNG</button>
+    </div>
+  </div>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Creá gráficos, mapas interactivos, líneas de tiempo e infografías para tus notas periodísticas.</p>
+
+  <!-- tabs -->
+  <div class="vs-tabs" id="vsTabs">
+    <button class="vs-tab active" data-tab="charts"><span class="vs-tab-icon">📊</span>Gráficos</button>
+    <button class="vs-tab" data-tab="maps"><span class="vs-tab-icon">🗺️</span>Mapas</button>
+    <button class="vs-tab" data-tab="timeline"><span class="vs-tab-icon">📅</span>Línea de Tiempo</button>
+    <button class="vs-tab" data-tab="infographics"><span class="vs-tab-icon">🎨</span>Infografías</button>
+  </div>
+
+  <!-- PANEL: GRÁFICOS -->
+  <div class="vs-panel active" id="panel-charts">
+    <div class="vs-grid">
+      <div class="vs-card accent">
+        <div class="vs-card-header">
+          <span class="vs-card-title">Configuración</span>
+        </div>
+        <div>
+          <div class="vs-label">Tipo de gráfico</div>
+          <select class="vs-select" id="chartType" style="width:100%;margin-top:6px" onchange="cambiarTipoGrafico()">
+            <option value="bar">Barras</option>
+            <option value="line">Líneas</option>
+            <option value="pie">Torta</option>
+            <option value="doughnut">Donut</option>
+            <option value="radar">Radar</option>
+            <option value="polarArea">Área Polar</option>
+          </select>
+        </div>
+        <div>
+          <div class="vs-label">Título</div>
+          <input class="vs-input" id="chartTitle" value="Título del gráfico" style="margin-top:6px" oninput="actualizarGrafico()">
+        </div>
+        <div>
+          <div class="vs-label">Datos (etiqueta, valor por línea)</div>
+          <textarea class="vs-textarea" id="chartData" style="margin-top:6px;min-height:120px;font-family:monospace;font-size:12px">Enero, 45
+Febrero, 62
+Marzo, 38
+Abril, 55
+Mayo, 70</textarea>
+        </div>
+        <div class="vs-row">
+          <div>
+            <div class="vs-label">Color principal</div>
+            <input class="vs-color-input" id="chartColor1" type="color" value="#a6ce39" oninput="actualizarGrafico()">
+          </div>
+          <div>
+            <div class="vs-label">Color secundario</div>
+            <input class="vs-color-input" id="chartColor2" type="color" value="#7a9e1f" oninput="actualizarGrafico()">
+          </div>
+          <div>
+            <div class="vs-label">Color fondo</div>
+            <input class="vs-color-input" id="chartBgColor" type="color" value="#ffffff" oninput="actualizarGrafico()">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="vs-btn vs-btn-primary" onclick="actualizarGrafico()">🔄 Actualizar</button>
+          <button class="vs-btn vs-btn-secondary" onclick="generarGraficoConIA()">🤖 Sugerir con IA</button>
+        </div>
+      </div>
+
+      <div class="vs-card">
+        <div class="vs-card-header">
+          <span class="vs-card-title">Vista previa</span>
+          <span class="vs-badge" id="chartTypeBadge">Barras</span>
+        </div>
+        <div class="vs-chart-container">
+          <canvas id="chartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL: MAPAS -->
+  <div class="vs-panel" id="panel-maps">
+    <div class="vs-grid">
+      <div class="vs-card accent">
+        <div class="vs-card-header">
+          <span class="vs-card-title">Configuración del mapa</span>
+        </div>
+        <div>
+          <div class="vs-label">Buscar ubicación</div>
+          <div class="vs-row" style="margin-top:6px">
+            <input class="vs-input" id="mapSearchInput" placeholder="Ej: San Rafael, Mendoza" style="flex:1">
+            <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="buscarUbicacion()">🔍 Ir</button>
+          </div>
+        </div>
+        <div>
+          <div class="vs-label">Agregar marcador</div>
+          <div class="vs-row" style="margin-top:6px">
+            <input class="vs-input" id="markerTitle" placeholder="Título" style="flex:1">
+            <input class="vs-input" id="markerDesc" placeholder="Descripción" style="flex:1">
+            <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="agregarMarcador()">+</button>
+          </div>
+        </div>
+        <div class="vs-row">
+          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="limpiarMarcadores()">🗑 Limpiar</button>
+          <span style="font-size:11px;color:var(--dim)" id="markerCount">0 marcadores</span>
+        </div>
+      </div>
+
+      <div class="vs-card">
+        <div class="vs-card-header">
+          <span class="vs-card-title">Mapa</span>
+          <span class="vs-badge">Leaflet + OSM</span>
+        </div>
+        <div class="vs-map-container" id="mapContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL: LÍNEA DE TIEMPO -->
+  <div class="vs-panel" id="panel-timeline">
+    <div class="vs-grid">
+      <div class="vs-card accent">
+        <div class="vs-card-header">
+          <span class="vs-card-title">Agregar evento</span>
+        </div>
+        <div>
+          <div class="vs-label">Fecha</div>
+          <input class="vs-input" id="tlDate" type="date" style="margin-top:6px">
+        </div>
+        <div>
+          <div class="vs-label">Título</div>
+          <input class="vs-input" id="tlTitle" placeholder="Título del evento" style="margin-top:6px">
+        </div>
+        <div>
+          <div class="vs-label">Descripción</div>
+          <textarea class="vs-textarea" id="tlDesc" placeholder="Descripción del evento" style="margin-top:6px"></textarea>
+        </div>
+        <button class="vs-btn vs-btn-primary" onclick="agregarEventoTimeline()">+ Agregar Evento</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarTimelineIA()">🤖 Generar con IA</button>
+          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarTimeline()">🗑 Limpiar todo</button>
+        </div>
+      </div>
+
+      <div class="vs-card">
+        <div class="vs-card-header">
+          <span class="vs-card-title">Línea de Tiempo</span>
+          <span class="vs-badge" id="tlCount">0 eventos</span>
+        </div>
+        <div class="vs-timeline-container" id="timelineContainer">
+          <div class="vs-timeline-line"></div>
+          <div id="timelineEvents" style="position:relative">
+            <p style="font-size:12px;color:var(--dim);padding:20px 0 20px 56px">Agregá eventos para construir la línea de tiempo.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL: INFOGRAFÍAS -->
+  <div class="vs-panel" id="panel-infographics">
+    <div class="vs-grid">
+      <div class="vs-card accent">
+        <div class="vs-card-header">
+          <span class="vs-card-title">Plantillas</span>
+        </div>
+        <div class="vs-infografia-templates" id="infografiaTemplates">
+          <div class="vs-infografia-template active" data-template="simple" onclick="seleccionarTemplate('simple')">
+            <span class="vs-infografia-template-icon">📄</span>
+            Simple
+          </div>
+          <div class="vs-infografia-template" data-template="comparativa" onclick="seleccionarTemplate('comparativa')">
+            <span class="vs-infografia-template-icon">📊</span>
+            Comparativa
+          </div>
+          <div class="vs-infografia-template" data-template="listado" onclick="seleccionarTemplate('listado')">
+            <span class="vs-infografia-template-icon">📋</span>
+            Listado
+          </div>
+          <div class="vs-infografia-template" data-template="destacado" onclick="seleccionarTemplate('destacado')">
+            <span class="vs-infografia-template-icon">⭐</span>
+            Destacado
+          </div>
+        </div>
+        <div>
+          <div class="vs-label">Título</div>
+          <input class="vs-input" id="infoTitle" value="Título de la infografía" style="margin-top:6px" oninput="renderizarInfografia()">
+        </div>
+        <div>
+          <div class="vs-label">Contenido (texto o datos)</div>
+          <textarea class="vs-textarea" id="infoContent" style="margin-top:6px;min-height:100px" oninput="renderizarInfografia()">Dato principal: 85%
+Subtítulo: de los lectores prefiere contenido visual
+Fuente: Encuesta Media Mendoza 2026</textarea>
+        </div>
+        <div class="vs-row">
+          <div>
+            <div class="vs-label">Color 1</div>
+            <input class="vs-color-input" type="color" id="infoColor1" value="#a6ce39" oninput="renderizarInfografia()">
+          </div>
+          <div>
+            <div class="vs-label">Color 2</div>
+            <input class="vs-color-input" type="color" id="infoColor2" value="#1a1a1a" oninput="renderizarInfografia()">
+          </div>
+        </div>
+      </div>
+
+      <div class="vs-card">
+        <div class="vs-card-header">
+          <span class="vs-card-title">Vista previa</span>
+          <span class="vs-badge" id="infoTemplateBadge">Simple</span>
+        </div>
+        <div class="vs-infografia-area" id="infografiaArea">
+          <canvas id="infografiaCanvas"></canvas>
+        </div>
+        <button class="vs-btn vs-btn-primary" onclick="exportarInfografia()" style="align-self:center">⬇ Exportar Infografía</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="mm-footer">
+  <div class="mm-footer-dot"></div>
+  <span class="mm-footer-txt">Chart.js · Leaflet · html2canvas</span>
+  <div class="mm-footer-sep"></div>
+  <div class="mm-footer-meta">
+    <span class="mm-footer-item">Visual Suite</span>
+    <span class="mm-footer-item">v1.0 — 2026</span>
+  </div>
+</footer>
+
+<!-- export preview modal -->
+<div class="export-preview-area" id="exportPreview">
+  <div class="export-preview-box">
+    <div style="display:flex;gap:8px;align-items:center;width:100%;justify-content:space-between">
+      <span style="font-size:14px;font-weight:700;color:var(--text)">Vista previa</span>
+      <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="cerrarExportPreview()">✕ Cerrar</button>
+    </div>
+    <img id="exportPreviewImg" alt="Preview">
+    <a id="exportDownloadLink" class="vs-btn vs-btn-primary" download="visual-media-mendoza.png">⬇ Descargar PNG</a>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script src="charts.js"></script>
+<script src="maps.js"></script>
+<script src="timeline.js"></script>
+<script src="infographics.js"></script>
+</body>
+</html>
