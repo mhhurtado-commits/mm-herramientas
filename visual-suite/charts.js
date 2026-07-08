@@ -8,6 +8,22 @@ const TIPO_NOMBRE = {
   doughnut: 'Donut', radar: 'Radar', polarArea: 'Área Polar'
 };
 
+// Plugin global para fondo del canvas
+const bgPlugin = {
+  id: 'customBg',
+  beforeDraw: (chart) => {
+    const bg = document.getElementById('chartBgColor').value;
+    const ctx = chart.canvas.getContext('2d');
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, chart.canvas.width, chart.canvas.height);
+    ctx.restore();
+  }
+};
+
+Chart.register(bgPlugin);
+
 function initCharts() {
   actualizarGrafico();
 }
@@ -37,7 +53,6 @@ function actualizarGrafico() {
   const rawData = document.getElementById('chartData').value;
   const color1 = document.getElementById('chartColor1').value;
   const color2 = document.getElementById('chartColor2').value;
-  const bgColor = document.getElementById('chartBgColor').value;
 
   const { labels, values } = parseChartData(rawData);
   if (!labels.length) return;
@@ -92,7 +107,8 @@ function actualizarGrafico() {
             color: getComputedStyle(document.body).getPropertyValue('--muted').trim(),
             font: { size: 11 }
           }
-        }
+        },
+        customBg: true
       },
       scales: isPie || isPolar ? {} : {
         x: {
@@ -110,8 +126,7 @@ function actualizarGrafico() {
           },
           grid: { color: getComputedStyle(document.body).getPropertyValue('--line').trim() }
         }
-      },
-      backgroundColor: bgColor
+      }
     }
   });
 }

@@ -608,7 +608,7 @@ Mayo, 70</textarea>
     <div class="vs-grid">
       <div class="vs-card accent">
         <div class="vs-card-header">
-          <span class="vs-card-title">Agregar evento</span>
+          <span class="vs-card-title">Agregar evento manual</span>
         </div>
         <div>
           <div class="vs-label">Fecha</div>
@@ -623,8 +623,21 @@ Mayo, 70</textarea>
           <textarea class="vs-textarea" id="tlDesc" placeholder="Descripción del evento" style="margin-top:6px"></textarea>
         </div>
         <button class="vs-btn vs-btn-primary" onclick="agregarEventoTimeline()">+ Agregar Evento</button>
+        <div class="divider" style="height:1px;background:var(--line);margin:4px 0"></div>
+        <div class="vs-card-header">
+          <span class="vs-card-title">Generar con IA</span>
+        </div>
+        <div>
+          <div class="vs-label">Tema</div>
+          <input class="vs-input" id="tlTema" placeholder="Ej: Historia del ferrocarril en Mendoza" style="margin-top:6px">
+        </div>
+        <div>
+          <div class="vs-label">Desde (fecha opcional)</div>
+          <input class="vs-input" id="tlDesde" type="date" style="margin-top:6px">
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarTimelineIA()">🤖 Generar con IA</button>
+          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarTimelineWeb()">🌐 Generar con IA (web)</button>
+          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarTimelineIA()">🤖 Generar sin web</button>
           <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarTimeline()">🗑 Limpiar todo</button>
         </div>
       </div>

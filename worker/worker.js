@@ -5053,6 +5053,7 @@ export default {
     if(path==="/smn/update-token")                   return handleSMNUpdateToken(body, env);
     if(path==="/smn/upload-icon")                    return handleSMNUploadIcon(request, env);
     if(path==="/visual/generar")                     return handleVisualGenerar(body, env);
+    if(path==="/visual/timeline")                    return handleVisualTimeline(body, env);
 
     return jsonError("Ruta no encontrada",404);
   },
@@ -5074,4 +5075,36 @@ async function handleVisualGenerar(body, env) {
 
   const raw = r.data ? JSON.stringify(r.data) : "";
   return jsonOk({ texto: raw });
+}
+
+// ============================================================
+// VISUAL SUITE - Timeline con búsqueda web
+// ============================================================
+async function handleVisualTimeline(body, env) {
+  const tema = String(body.tema || "").trim();
+  const desde = String(body.desde || "").trim();
+  if (!tema) return jsonError("Falta tema", 400);
+
+  const prompt = `Sos un cronista de Media Mendoza, diario del sur de Mendoza, Argentina.
+Generá una línea de tiempo periodística con eventos REALES sobre el siguiente tema:
+"${tema}"
+${desde ? `Desde la fecha: ${desde}` : "Desde los orígenes del tema"}
+Hasta la actualidad (julio 2026).
+
+Buscá en la web información actualizada. Cada evento debe tener:
+- Fecha real (YYYY-MM-DD) lo más precisa posible
+- Título corto y descriptivo
+- Descripción breve de 1-2 oraciones
+
+Respondé SOLO con JSON sin backticks:
+{"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}
+
+Si no encontrás fechas exactas usá el primer día del mes (ej: "2026-01-01").
+Deben ser eventos reales, no inventados. Mínimo 3, máximo 10 eventos.`;
+
+  const r = await callGeminiConBusqueda(prompt, env);
+  if (r.error) return jsonError(r.error, 500);
+
+  const raw = r.data ? JSON.stringify(r.data) : "";
+  return jsonOk({ texto: raw, fuentes: r.data?.fuentes || [] });
 }

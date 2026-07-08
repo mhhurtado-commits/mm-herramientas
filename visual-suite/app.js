@@ -15,7 +15,6 @@ const logoState = window.logoState = {
 };
 
 const LOGO_PATH = '../assets/logo.png';
-let dragActive = null;
 
 // ── Tabs ──
 document.addEventListener('DOMContentLoaded', () => {
@@ -100,6 +99,7 @@ function initLogo() {
     logoState.ar = logoState.img.naturalHeight / logoState.img.naturalWidth;
     logoState.loaded = true;
     actualizarLogoOverlay();
+    initLogoDrag();
     if (typeof renderizarInfografia === 'function') renderizarInfografia();
   };
   logoState.img.src = LOGO_PATH;
@@ -114,8 +114,7 @@ function toggleLogo() {
 
 function actualizarLogoOverlay() {
   if (!logoState.loaded) return;
-  const overlayIds = ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline'];
-  overlayIds.forEach(id => {
+  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     if (!logoState.visible) { el.style.display = 'none'; return; }
@@ -132,63 +131,88 @@ function actualizarLogoOverlay() {
   });
 }
 
-// ── Drag & Resize ──
-document.addEventListener('mousedown', e => {
-  const handle = e.target.closest('.logo-resize-handle');
+// ── Drag & Resize directo sobre el logo overlay (estilo placas) ──
+function initLogoDrag() {
+  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline'].forEach(id => {
+    const overlay = document.getElementById(id);
+    if (!overlay) return;
+    overlay.addEventListener('mousedown', onLogoDown);
+    overlay.addEventListener('touchstart', onLogoDown, { passive: false });
+  });
+}
+
+let dragAction = null;
+
+function onLogoDown(e) {
+  const target = e.target;
+  const handle = target.closest('.logo-resize-handle');
+  const rect = this.parentElement.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+  e.stopPropagation();
+  e.preventDefault();
+
   if (handle) {
-    const overlay = handle.closest('.vs-logo-overlay');
-    if (!overlay || overlay.style.display === 'none') return;
-    e.preventDefault();
-    dragActive = {
+    dragAction = {
       type: 'resize',
       corner: handle.dataset.corner,
-      overlay,
-      startX: e.clientX,
-      startY: e.clientY,
+      startX: clientX,
+      startY: clientY,
       startW: logoState.w,
       startXpos: logoState.x,
       startYpos: logoState.y,
-      cw: overlay.parentElement.clientWidth,
-      ch: overlay.parentElement.clientHeight
+      rect
     };
-    return;
+  } else {
+    dragAction = {
+      type: 'drag',
+      startX: clientX,
+      startY: clientY,
+      startL: logoState.x,
+      startT: logoState.y,
+      rect
+    };
   }
-  const overlay = e.target.closest('.vs-logo-overlay');
-  if (overlay && overlay.style.display !== 'none') {
-    e.preventDefault();
-    dragActive = { type: 'drag', overlay, startX: e.clientX, startY: e.clientY, startL: logoState.x, startT: logoState.y, cw: overlay.parentElement.clientWidth, ch: overlay.parentElement.clientHeight };
-  }
-});
 
-document.addEventListener('mousemove', e => {
-  if (!dragActive) return;
-  const dx = e.clientX - dragActive.startX;
-  const dy = e.clientY - dragActive.startY;
-  if (dragActive.type === 'drag') {
-    logoState.x = dragActive.startL + dx / dragActive.cw;
-    logoState.y = dragActive.startT + dy / dragActive.ch;
+  document.addEventListener('mousemove', onLogoMove);
+  document.addEventListener('mouseup', onLogoUp);
+  document.addEventListener('touchmove', onLogoMove, { passive: false });
+  document.addEventListener('touchend', onLogoUp);
+}
+
+function onLogoMove(e) {
+  if (!dragAction) return;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  const dx = clientX - dragAction.startX;
+  const dy = clientY - dragAction.startY;
+
+  if (dragAction.type === 'drag') {
+    logoState.x = dragAction.startL + dx / dragAction.rect.width;
+    logoState.y = dragAction.startT + dy / dragAction.rect.height;
     actualizarLogoOverlay();
     if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
   } else {
-    const ar = logoState.ar;
+    const corner = dragAction.corner;
     const minW = 0.03;
     const maxW = 0.9;
-    const corner = dragActive.corner;
-    let newW = dragActive.startW;
-    let newX = dragActive.startXpos;
-    let newY = dragActive.startYpos;
+    let newW = dragAction.startW;
+    let newX = dragAction.startXpos;
+    let newY = dragAction.startYpos;
+
     if (corner === 'se') {
-      newW = Math.max(minW, Math.min(maxW, dragActive.startW + dx / dragActive.cw));
+      newW = Math.max(minW, Math.min(maxW, dragAction.startW + dx / dragAction.rect.width));
     } else if (corner === 'sw') {
-      newW = Math.max(minW, Math.min(maxW, dragActive.startW - dx / dragActive.cw));
-      newX = dragActive.startXpos + (dragActive.startW - newW);
+      newW = Math.max(minW, Math.min(maxW, dragAction.startW - dx / dragAction.rect.width));
+      newX = dragAction.startXpos + (dragAction.startW - newW);
     } else if (corner === 'ne') {
-      newW = Math.max(minW, Math.min(maxW, dragActive.startW + dx / dragActive.cw));
-      newY = dragActive.startYpos + (dragActive.startW - newW) * ar;
+      newW = Math.max(minW, Math.min(maxW, dragAction.startW + dx / dragAction.rect.width));
+      newY = dragAction.startYpos + (dragAction.startW - newW) * logoState.ar;
     } else if (corner === 'nw') {
-      newW = Math.max(minW, Math.min(maxW, dragActive.startW - dx / dragActive.cw));
-      newX = dragActive.startXpos + (dragActive.startW - newW);
-      newY = dragActive.startYpos + (dragActive.startW - newW) * ar;
+      newW = Math.max(minW, Math.min(maxW, dragAction.startW - dx / dragAction.rect.width));
+      newX = dragAction.startXpos + (dragAction.startW - newW);
+      newY = dragAction.startYpos + (dragAction.startW - newW) * logoState.ar;
     }
     logoState.w = newW;
     logoState.x = newX;
@@ -196,75 +220,17 @@ document.addEventListener('mousemove', e => {
     actualizarLogoOverlay();
     if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
   }
-});
 
-document.addEventListener('mouseup', () => { dragActive = null; });
+  if (e.touches) e.preventDefault();
+}
 
-document.addEventListener('touchstart', e => {
-  const touch = e.touches[0];
-  const target = document.elementFromPoint(touch.clientX, touch.clientY);
-  if (!target) return;
-  const handle = target.closest('.logo-resize-handle');
-  if (handle) {
-    const overlay = handle.closest('.vs-logo-overlay');
-    if (!overlay || overlay.style.display === 'none') return;
-    e.preventDefault();
-    dragActive = {
-      type: 'resize', corner: handle.dataset.corner, overlay,
-      startX: touch.clientX, startY: touch.clientY,
-      startW: logoState.w, startXpos: logoState.x, startYpos: logoState.y,
-      cw: overlay.parentElement.clientWidth, ch: overlay.parentElement.clientHeight
-    };
-    return;
-  }
-  const overlay = target.closest('.vs-logo-overlay');
-  if (overlay && overlay.style.display !== 'none') {
-    e.preventDefault();
-    dragActive = { type: 'drag', overlay, startX: touch.clientX, startY: touch.clientY, startL: logoState.x, startT: logoState.y, cw: overlay.parentElement.clientWidth, ch: overlay.parentElement.clientHeight };
-  }
-}, { passive: false });
-
-document.addEventListener('touchmove', e => {
-  if (!dragActive) return;
-  e.preventDefault();
-  const touch = e.touches[0];
-  const dx = touch.clientX - dragActive.startX;
-  const dy = touch.clientY - dragActive.startY;
-  if (dragActive.type === 'drag') {
-    logoState.x = dragActive.startL + dx / dragActive.cw;
-    logoState.y = dragActive.startT + dy / dragActive.ch;
-    actualizarLogoOverlay();
-    if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
-  } else {
-    const ar = logoState.ar;
-    const minW = 0.03;
-    const maxW = 0.9;
-    const corner = dragActive.corner;
-    let newW = dragActive.startW;
-    let newX = dragActive.startXpos;
-    let newY = dragActive.startYpos;
-    if (corner === 'se') {
-      newW = Math.max(minW, Math.min(maxW, dragActive.startW + dx / dragActive.cw));
-    } else if (corner === 'sw') {
-      newW = Math.max(minW, Math.min(maxW, dragActive.startW - dx / dragActive.cw));
-      newX = dragActive.startXpos + (dragActive.startW - newW);
-    } else if (corner === 'ne') {
-      newW = Math.max(minW, Math.min(maxW, dragActive.startW + dx / dragActive.cw));
-      newY = dragActive.startYpos + (dragActive.startW - newW) * ar;
-    } else if (corner === 'nw') {
-      newW = Math.max(minW, Math.min(maxW, dragActive.startW - dx / dragActive.cw));
-      newX = dragActive.startXpos + (dragActive.startW - newW);
-      newY = dragActive.startYpos + (dragActive.startW - newW) * ar;
-    }
-    logoState.w = newW;
-    logoState.x = newX;
-    logoState.y = newY;
-    actualizarLogoOverlay();
-    if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
-  }
-}, { passive: false });
-
-document.addEventListener('touchend', () => { dragActive = null; });
+function onLogoUp() {
+  dragAction = null;
+  document.removeEventListener('mousemove', onLogoMove);
+  document.removeEventListener('mouseup', onLogoUp);
+  document.removeEventListener('touchmove', onLogoMove);
+  document.removeEventListener('touchend', onLogoUp);
+}
 
 // ── Toast ──
 function toast(msg) {

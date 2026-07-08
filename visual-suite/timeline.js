@@ -66,18 +66,58 @@ function limpiarTimeline() {
   toast('Timeline limpiada');
 }
 
-// ── IA para generar timeline ──
+// ── IA con búsqueda web ──
+async function generarTimelineWeb() {
+  const tema = document.getElementById('tlTema').value.trim();
+  const desde = document.getElementById('tlDesde').value;
+
+  if (!tema) return toast('Ingresá un tema para la línea de tiempo');
+
+  const btn = document.querySelector('#panel-timeline .vs-btn-primary + .vs-btn-secondary');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando...'; }
+
+  const result = await apiPost('/visual/timeline', { tema, desde });
+
+  if (btn) { btn.disabled = false; btn.textContent = '🌐 Generar con IA (web)'; }
+
+  if (result && result.ok) {
+    try {
+      const parsed = JSON.parse(result.texto);
+      if (parsed.eventos && parsed.eventos.length) {
+        parsed.eventos.forEach(ev => {
+          timelineEvents.push({
+            date: ev.date || '2026-01-01',
+            title: ev.title || 'Evento',
+            desc: ev.desc || ''
+          });
+        });
+        renderizarTimeline();
+        toast(`${parsed.eventos.length} eventos generados con datos reales`);
+      } else {
+        toast('No se encontraron eventos');
+      }
+    } catch (e) {
+      toast('Error al interpretar respuesta');
+    }
+  } else {
+    toast('No se pudo generar (modo offline)');
+  }
+}
+
+// ── IA simple (sin web) ──
 async function generarTimelineIA() {
+  const tema = document.getElementById('tlTema').value.trim() || 'actualidad de Mendoza';
+
   const btn = document.querySelector('#panel-timeline .vs-btn-primary + .vs-btn-secondary');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Pensando...'; }
 
-  const prompt = `Generá 5 eventos para una línea de tiempo periodística sobre un tema de actualidad de Mendoza, Argentina.
+  const prompt = `Generá 5 eventos para una línea de tiempo periodística sobre: "${tema}" (Mendoza, Argentina).
 Cada evento debe tener: fecha (YYYY-MM-DD), título corto y descripción breve.
 Respondé SOLO con JSON sin backticks ni markdown:
 {"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}`;
 
   const result = await apiPost('/visual/generar', { prompt, datos: '' });
-  if (btn) { btn.disabled = false; btn.textContent = '🤖 Generar con IA'; }
+  if (btn) { btn.disabled = false; btn.textContent = '🌐 Generar con IA (web)'; }
 
   if (result && result.ok) {
     try {

@@ -33,18 +33,32 @@ function buscarUbicacion() {
   const q = document.getElementById('mapSearchInput').value.trim();
   if (!q) return toast('Ingresá una ubicación');
 
-  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&accept-language=es`)
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&accept-language=es&addressdetails=1`)
     .then(r => r.json())
     .then(data => {
       if (!data.length) return toast('Ubicación no encontrada');
 
-      const loc = data[0];
-      const lat = parseFloat(loc.lat);
-      const lon = parseFloat(loc.lon);
+      if (data.length === 1) {
+        const loc = data[0];
+        mapInstance.setView([loc.lat, loc.lon], 16);
+        agregarMarcadorCoords(loc.lat, loc.lon, loc.display_name.split(',')[0], loc.display_name);
+        return;
+      }
 
-      mapInstance.setView([lat, lon], 13);
+      // Múltiples resultados: mostrar para elegir
+      const choices = data.slice(0, 5).map((loc, i) =>
+        `${i + 1}: ${loc.display_name}`
+      ).join('\n');
 
-      agregarMarcadorCoords(lat, lon, loc.display_name.split(',')[0], loc.display_name);
+      const idx = prompt(`Se encontraron varios resultados. Elegí uno (1-${data.slice(0, 5).length}):\n\n${choices}`, '1');
+      if (!idx) return;
+
+      const i = parseInt(idx) - 1;
+      if (isNaN(i) || i < 0 || i >= data.length) return toast('Selección inválida');
+
+      const loc = data[i];
+      mapInstance.setView([loc.lat, loc.lon], 16);
+      agregarMarcadorCoords(loc.lat, loc.lon, loc.display_name.split(',')[0], loc.display_name);
     })
     .catch(() => toast('Error al buscar ubicación'));
 }
@@ -61,9 +75,15 @@ function agregarMarcador() {
 }
 
 function agregarMarcadorCoords(lat, lng, title, desc) {
-  const marker = L.marker([lat, lng])
+  const marker = L.marker([lat, lng], { draggable: true })
     .bindPopup(`<b>${title}</b>${desc !== title ? '<br>' + desc : ''}`)
     .addTo(markersLayer);
+
+  // Actualizar popup al arrastrar
+  marker.on('dragend', function() {
+    const pos = this.getLatLng();
+    this.bindPopup(`<b>${title}</b><br>Lat: ${pos.lat.toFixed(6)}, Lng: ${pos.lng.toFixed(6)}`).openPopup();
+  });
 
   markerList.push({ lat, lng, title, desc, marker });
   actualizarContadorMarcadores();
