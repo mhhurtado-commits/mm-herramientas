@@ -4105,12 +4105,15 @@ async function getEditorial(env){
   return null;
 }
 async function callGeminiConBusqueda(prompt,env,searchQuery){
-  const articulos = await buscarEnWeb(searchQuery, env);
+  const { articulos, debugSearch } = await buscarEnWeb(searchQuery, env);
   const fuentes = [];
   const ctxParts = [];
   for (const a of articulos.slice(0, 3)) {
     ctxParts.push("\n--- FUENTE: " + a.titulo + " (" + a.url + ") ---\n" + a.texto + "\n---");
     fuentes.push({ titulo: a.titulo, url: a.url, imagen: '' });
+  }
+  if (fuentes.length === 0) {
+    return { error: "No se encontraron fuentes web", debugSearch };
   }
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
@@ -4127,36 +4130,18 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
         const match=raw.match(/\{[\s\S]*\}/);if(!match) break;
         let parsed;try{parsed=JSON.parse(match[0])}catch{break}
         if(fuentes.length) parsed.fuentes=fuentes;
-        return {data:parsed};
+        return {data:parsed, debugSearch};
       }catch(err){if(intento<2) await sleep(3000)}
     }
   }
-  return {error:"Todas las API keys de Gemini están agotadas."};
+  return {error:"Todas las API keys de Gemini están agotadas.", debugSearch};
 }
 
 async function buscarEnWeb(query, env) {
-  // 1. UnSearch API (5000 consultas gratis/mes, sin tarjeta, Cloudflare-native)
-  const unsearchKey = env.UNSEARCH_API_KEY;
-  if (unsearchKey) {
-    try {
-      const res = await fetch('https://api.unsearch.dev/api/v1/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': unsearchKey },
-        body: JSON.stringify({ query, count: 8 })
-      });
-      if (!res.ok) return [];
-      const data = await res.json();
-      const items = data.results || data.web?.results || [];
-      const articulos = [];
-      for (const item of items.slice(0, 6)) {
-        const texto = [item.title, item.snippet || item.description, (item.content || '').substring(0, 1000)].filter(Boolean).join('. ');
-        if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link || item.url, texto: texto.substring(0, 2000) });
-      }
-      return articulos;
-    } catch (e) { return []; }
-  }
-  // 2. Serper API (2500 consultas gratis, sin tarjeta) como alternativa
+  const debug = { proveedores: [] };
+  // 1. Serper API (2500 consultas gratis, sin tarjeta)
   const serperKey = env.SERPER_API_KEY;
+  debug.serperConfigurada = !!serperKey;
   if (serperKey) {
     try {
       const res = await fetch('https://google.serper.dev/search', {
@@ -4164,51 +4149,60 @@ async function buscarEnWeb(query, env) {
         headers: { 'Content-Type': 'application/json', 'X-API-KEY': serperKey },
         body: JSON.stringify({ q: query, gl: 'ar', hl: 'es', num: 8 })
       });
-      if (!res.ok) return [];
+      debug.serperStatus = res.status;
+      if (!res.ok) { debug.proveedores.push('serper:error_'+res.status); return { articulos: [], debugSearch: debug }; }
       const data = await res.json();
       const items = data.organic || [];
+      debug.serperItems = items.length;
       const articulos = [];
       for (const item of items.slice(0, 6)) {
         const texto = [item.title, item.snippet].filter(Boolean).join('. ');
         if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
       }
-      return articulos;
-    } catch (e) { return []; }
+      debug.proveedores.push('serper:ok');
+      return { articulos, debugSearch: debug };
+    } catch (e) { debug.serperError = e.message; debug.proveedores.push('serper:exception'); return { articulos: [], debugSearch: debug }; }
   }
-  // 3. Google Custom Search (limitado a sitios específicos)
+  // 2. Google Custom Search
   const gcsKey = env.GOOGLE_SEARCH_KEY;
   const gcsCx = env.GOOGLE_SEARCH_CX;
   if (gcsKey && gcsCx) {
     try {
       const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${gcsKey}&cx=${gcsCx}&q=${encodeURIComponent(query)}&lr=lang_es&num=8`);
-      if (!res.ok) return [];
+      debug.gcsStatus = res.status;
+      if (!res.ok) { debug.proveedores.push('gcs:error_'+res.status); return { articulos: [], debugSearch: debug }; }
       const data = await res.json();
       const items = data.items || [];
+      debug.gcsItems = items.length;
       const articulos = [];
       for (const item of items.slice(0, 6)) {
         const texto = [item.title, item.snippet, item.pagemap?.metatags?.[0]?.['og:description'] || ''].filter(Boolean).join('. ');
         if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
       }
-      return articulos;
-    } catch (e) { return []; }
+      debug.proveedores.push('gcs:ok');
+      return { articulos, debugSearch: debug };
+    } catch (e) { debug.gcsError = e.message; debug.proveedores.push('gcs:exception'); return { articulos: [], debugSearch: debug }; }
   }
-  // 4. Fallback: Wikipedia REST summary
+  // 3. Fallback: Wikipedia REST summary
   try {
     const q = encodeURIComponent(query);
     const buscaRes = await fetch(`https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=3`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" } });
-    if (!buscaRes.ok) return [];
+    debug.wikiSearchStatus = buscaRes.status;
+    if (!buscaRes.ok) { debug.proveedores.push('wiki:error'); return { articulos: [], debugSearch: debug }; }
     const data = await buscaRes.json();
     const pages = data?.query?.search || [];
+    debug.wikiPages = pages.length;
+    debug.proveedores.push('wiki:'+(pages.length?'ok':'sin_resultados'));
     for (const p of pages.slice(0, 1)) {
       const title = encodeURIComponent(p.title);
       const sumRes = await fetch(`https://es.wikipedia.org/api/rest_v1/page/summary/${title}`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" }, signal: AbortSignal.timeout(5000) });
       if (!sumRes.ok) continue;
       const sum = await sumRes.json();
       const texto = (sum.extract || '') + '\n' + (sum.extract_html || '').replace(/<[^>]+>/g,'');
-      if (texto.length > 200) return [{ titulo: sum.title || p.title, url: sum.content_urls?.desktop?.page || `https://es.wikipedia.org/wiki/${title}`, texto: texto.substring(0, 10000) }];
+      if (texto.length > 200) return { articulos: [{ titulo: sum.title || p.title, url: sum.content_urls?.desktop?.page || `https://es.wikipedia.org/wiki/${title}`, texto: texto.substring(0, 10000) }], debugSearch: debug };
     }
-    return [];
-  } catch (e) { return []; }
+    return { articulos: [], debugSearch: debug };
+  } catch (e) { debug.wikiError = e.message; return { articulos: [], debugSearch: debug }; }
 }
 async function callGemini(prompt,env){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
@@ -5177,7 +5171,13 @@ Ejemplo correcto:
 Respondé SOLO con JSON. Mínimo 2 eventos. No respondas {"eventos": []}.`;
 
   const r1 = await callGeminiConBusqueda(promptWeb, env, tema);
-  const debug = { intento1_fuentes: r1.data?.fuentes?.length || 0, intento1_eventos: r1.data?.eventos?.length || 0, error: r1.error || null };
+  const debug = r1.debugSearch || {};
+
+  if (r1.error) {
+    debug.intento1_error = r1.error;
+    // Sin fuentes web ni fallback - error claro
+    return jsonOk({ texto: '{"eventos":[]}', fuentes: [], modo: 'sin_fuentes', debug, error: r1.error });
+  }
 
   if (r1.data?.eventos?.length >= 2) {
     const raw = JSON.stringify(r1.data);
@@ -5190,11 +5190,12 @@ Extraé eventos INDIVIDUALES con datos concretos sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
 REGLAS ESTRICTAS:
-- Cada evento = un hecho individual con fecha y número concreto
+- Solo incluí eventos de los que tengas CERTEZA ABSOLUTA (fechas, números, nombres)
+- Si no estás seguro de un dato, no lo incluyas
+- Preferí devolver menos eventos pero verídicos
 - Incluí porcentajes, cantidades, resultados cuando sea relevante
-- No hagas resúmenes genéricos
 
-Respondé SOLO con JSON. Mínimo 2 eventos. {"eventos": []} no está permitido.
+Respondé SOLO con JSON. Si no tenés datos concretos, respondé {"eventos": [], "nota": "sin datos"}.
 {"eventos": [{"date": "2026-06-15", "title": "Hecho concreto", "desc": "Dato numérico específico"}]}`;
 
   const r2 = await callGemini(promptFallback, env);
