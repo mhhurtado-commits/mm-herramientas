@@ -4135,6 +4135,34 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
 }
 
 async function buscarEnWeb(query, env) {
+  // 1. Brave Search API (búsqueda web REAL, plan gratis 2000/mes)
+  const braveKey = env.BRAVE_API_KEY;
+  if (braveKey) {
+    try {
+      const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8&safesearch=off`, { headers: { "Accept": "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": braveKey } });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const items = data.web?.results || [];
+      const articulos = [];
+      for (const item of items.slice(0, 6)) {
+        const texto = [item.title, item.description, item.extra_snippets?.join('. ') || ''].filter(Boolean).join('. ');
+        if (texto.length > 30) articulos.push({ titulo: item.title, url: item.url, texto: texto.substring(0, 2000) });
+      }
+      // Intentar fetch de artículo completo para el primer resultado
+      if (articulos.length > 0) {
+        try {
+          const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
+          if (artRes.ok) {
+            const html = await artRes.text();
+            const fullTexto = extraerTexto(html).substring(0, 5000);
+            if (fullTexto.length > 300) articulos[0].texto += '\n\n' + fullTexto;
+          }
+        } catch { /* article fetch opcional */ }
+      }
+      return articulos;
+    } catch (e) { return []; }
+  }
+  // 2. Google Custom Search (si configurado, pero limitado a sitios específicos)
   const gcsKey = env.GOOGLE_SEARCH_KEY;
   const gcsCx = env.GOOGLE_SEARCH_CX;
   if (gcsKey && gcsCx) {
@@ -4143,33 +4171,15 @@ async function buscarEnWeb(query, env) {
       if (!res.ok) return [];
       const data = await res.json();
       const items = data.items || [];
-      // Usar snippets de Google como fuente principal (siempre disponibles)
       const articulos = [];
       for (const item of items.slice(0, 6)) {
         const texto = [item.title, item.snippet, item.pagemap?.metatags?.[0]?.['og:description'] || ''].filter(Boolean).join('. ');
-        if (texto.length > 30) {
-          articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
-        }
-      }
-      // Fetch artículos completos en paralelo (si se puede) para más contexto
-      const fetchTasks = items.slice(0, 2).map(async (item) => {
-        try {
-          const artRes = await fetch(item.link, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
-          if (!artRes.ok) return null;
-          const html = await artRes.text();
-          const texto = extraerTexto(html).substring(0, 5000);
-          if (texto.length < 300) return null;
-          return { index: items.indexOf(item), texto };
-        } catch { return null; }
-      });
-      const articulosExtra = (await Promise.all(fetchTasks)).filter(Boolean);
-      for (const ae of articulosExtra) {
-        if (articulos[ae.index]) articulos[ae.index].texto += '\n\n' + ae.texto.substring(0, 3000);
+        if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
       }
       return articulos;
     } catch (e) { return []; }
   }
-  // Fallback: Wikipedia summary API (rápido, siempre disponible)
+  // 3. Fallback: Wikipedia REST summary
   try {
     const q = encodeURIComponent(query);
     const buscaRes = await fetch(`https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=3`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" } });
