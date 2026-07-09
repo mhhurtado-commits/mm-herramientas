@@ -5159,10 +5159,62 @@ async function handleVisualGenerar(body, env) {
 // VISUAL SUITE - Timeline con búsqueda web + fallback
 // ============================================================
 async function handleVisualTimeline(body, env) {
+  const url = String(body.url || "").trim();
   const tema = String(body.tema || "").trim();
   const desde = String(body.desde || "").trim();
+
+  // ── Modo URL: extraer contenido del artículo y pasar a Gemini ──
+  if (url) {
+    const nombreTema = tema || 'el artículo proporcionado';
+    try {
+      const res = await fetch(url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(12000) });
+      if (!res.ok) return jsonError(`Error al obtener URL: ${res.status}`);
+      const html = await res.text();
+      const contenido = extraerTexto(html).substring(0, 10000);
+      if (contenido.length < 100) return jsonError("No se pudo extraer contenido del link");
+
+      const promptUrl = `Sos un cronista de datos de Media Mendoza.
+Extraé TODOS los eventos INDIVIDUALES del siguiente artículo sobre: "${nombreTema}"
+
+ARTÍCULO:
+${contenido}
+
+REGLAS ESTRICTAS:
+- Cada evento = un hecho INDIVIDUAL con fecha exacta (YYYY-MM-DD)
+- Si la fecha exacta (día) no está disponible, usá el mes/año (ej: 2026-06-01)
+- NO incluyas resúmenes, acumulados ni titles genéricos
+- La descripción debe tener datos NUMÉRICOS concretos (goles, porcentajes, cantidades)
+- EXTRAÉ TODOS los hechos que encuentres en el contenido, no solo los primeros
+- Si el artículo habla de un partido/juego: cada gol es un evento separado
+- Si el artículo habla de inflación/economía: cada mes es un evento separado con su porcentaje
+
+Ejemplo gol por gol:
+{"eventos":[
+  {"date":"2026-06-15","title":"Gol 1: Messi 10'","desc":"Messi abre el marcador a los 10 minutos"},
+  {"date":"2026-06-15","title":"Gol 2: Martínez 30'","desc":"Martínez aumenta desde afuera del área"},
+  {"date":"2026-06-15","title":"Gol 3: Messi 75'","desc":"Messi sella el hat-trick de penal"}
+]}
+
+Ejemplo inflación mensual:
+{"eventos":[
+  {"date":"2026-01-01","title":"Inflación enero 2026","desc":"2,3% mensual, 84,2% interanual"},
+  {"date":"2026-02-01","title":"Inflación febrero 2026","desc":"2,1% mensual, 83,5% interanual"}
+]}
+
+Respondé SOLO con JSON. Cuantos más eventos extraigas mejor. Mínimo 2 incluí el propio hecho principal. No respondas {"eventos": []}.`;
+
+      const r = await callGemini(promptUrl, env);
+      if (r.error) return jsonError(r.error, 500);
+      const raw = r.data ? JSON.stringify(r.data) : "{}";
+      return jsonOk({ texto: raw, fuentes: [{ titulo: 'Artículo proporcionado', url }], modo: 'url', debug: {} });
+    } catch (e) {
+      return jsonError("Error al procesar el link: " + e.message);
+    }
+  }
+
   if (!tema) return jsonError("Falta tema", 400);
 
+  // ── Modo normal: búsqueda web → Gemini ──
   const promptWeb = `Sos un cronista de datos de Media Mendoza.
 Extraé TODOS los eventos INDIVIDUALES disponibles en los ARTÍCULOS WEB sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
@@ -5193,7 +5245,6 @@ Respondé SOLO con JSON. Cuantos más eventos extraigas mejor. Mínimo 2. No res
 
   if (r1.error) {
     debug.intento1_error = r1.error;
-    // Sin fuentes web ni fallback - error claro
     return jsonOk({ texto: '{"eventos":[]}', fuentes: [], modo: 'sin_fuentes', debug, error: r1.error });
   }
 
@@ -5202,7 +5253,6 @@ Respondé SOLO con JSON. Cuantos más eventos extraigas mejor. Mínimo 2. No res
     return jsonOk({ texto: raw, fuentes: r1.data?.fuentes || [], modo: 'web', debug });
   }
 
-  // Fallback: solo Gemini (conocimiento interno)
   const promptFallback = `Sos un cronista de datos de Media Mendoza.
 Extraé eventos INDIVIDUALES con datos concretos sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.

@@ -66,6 +66,46 @@ function limpiarTimeline() {
   toast('Timeline limpiada');
 }
 
+// ── IA desde URL específica ──
+async function generarTimelineDesdeUrl() {
+  const url = document.getElementById('tlUrl').value.trim();
+  const tema = document.getElementById('tlTema').value.trim() || url;
+
+  if (!url) return toast('Ingresá una URL de un artículo');
+
+  const btn = document.querySelector('button[onclick="generarTimelineDesdeUrl()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Extrayendo...'; }
+
+  const result = await apiPost('/visual/timeline', { url, tema });
+
+  if (btn) { btn.disabled = false; btn.textContent = '📄 Extraer desde URL'; }
+
+  if (result?.error) return toast(result.error);
+
+  if (result && result.ok) {
+    try {
+      const parsed = JSON.parse(result.texto);
+      if (parsed.eventos && parsed.eventos.length) {
+        parsed.eventos.forEach(ev => {
+          timelineEvents.push({
+            date: ev.date || '2026-01-01',
+            title: ev.title || 'Evento',
+            desc: ev.desc || ''
+          });
+        });
+        renderizarTimeline();
+        toast(`${parsed.eventos.length} eventos extraídos del artículo`);
+      } else {
+        toast('No se encontraron eventos en el artículo');
+      }
+    } catch (e) {
+      toast('Error al interpretar respuesta');
+    }
+  } else {
+    toast('Error al procesar');
+  }
+}
+
 // ── IA con búsqueda web ──
 async function generarTimelineWeb() {
   const tema = document.getElementById('tlTema').value.trim();

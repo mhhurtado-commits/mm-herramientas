@@ -200,6 +200,8 @@
 .vs-btn-secondary:hover { border-color: var(--v); color: var(--v); }
 .vs-btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(230,57,70,0.3); }
 .vs-btn-danger:hover { background: var(--red); color: #fff; }
+.vs-btn-accent { background: var(--surface2); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+.vs-btn-accent:hover { background: #3b82f6; color: #fff; }
 .vs-btn-sm { padding: 5px 10px; font-size: 10px; }
 .vs-btn:disabled { opacity: .5; cursor: not-allowed; }
 
@@ -632,13 +634,18 @@ Mayo, 70</textarea>
           <input class="vs-input" id="tlTema" placeholder="Ej: Historia del ferrocarril en Mendoza" style="margin-top:6px">
         </div>
         <div>
+          <div class="vs-label">O pegá un link a un artículo (opcional)</div>
+          <input class="vs-input" id="tlUrl" placeholder="https://fifa.com/es/articles/..." style="margin-top:6px">
+        </div>
+        <div>
           <div class="vs-label">Desde (fecha opcional)</div>
           <input class="vs-input" id="tlDesde" type="date" style="margin-top:6px">
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarTimelineWeb()">🌐 Generar con IA (web)</button>
-          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarTimelineIA()">🤖 Generar sin web</button>
-          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarTimeline()">🗑 Limpiar todo</button>
+          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarTimelineWeb()">🌐 Buscar en web</button>
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarTimelineDesdeUrl()">📄 Extraer desde URL</button>
+          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarTimelineIA()">🤖 Solo IA</button>
+          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarTimeline()">🗑 Limpiar</button>
         </div>
       </div>
 
