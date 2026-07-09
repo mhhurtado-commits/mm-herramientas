@@ -5170,9 +5170,51 @@ async function handleVisualTimeline(body, env) {
       const res = await fetch(url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(12000) });
       if (!res.ok) return jsonError(`Error al obtener URL: ${res.status}`);
       const html = await res.text();
-      const contenido = extraerTexto(html).substring(0, 10000);
-      if (contenido.length < 100) return jsonError("No se pudo extraer contenido del link");
+      let contenido = extraerTexto(html);
+      let fuentes = [{ titulo: 'Artículo proporcionado', url }];
+      let modo = 'url';
 
+      // Si el scraping directo no da texto, buscar en Serper para obtener snippet de Google
+      if (contenido.length < 100) {
+        const serperKey = env.SERPER_API_KEY;
+        if (serperKey) {
+          try {
+            const sr = await fetch('https://google.serper.dev/search', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-API-KEY': serperKey },
+              body: JSON.stringify({ q: url, gl: 'ar', hl: 'es', num: 3 })
+            });
+            if (sr.ok) {
+              const sd = await sr.json();
+              const items = sd.organic || [];
+              const partes = [];
+              for (const item of items.slice(0, 3)) {
+                if (item.snippet) partes.push(item.title + '. ' + item.snippet);
+              }
+              if (partes.length) {
+                contenido = partes.join('\n\n').substring(0, 10000);
+                modo = 'url_via_serper';
+              }
+            }
+          } catch {}
+        }
+      }
+
+      if (contenido.length < 100) {
+        // Último recurso: preguntar a Gemini directamente con la URL
+        const promptUrlFallback = `Dame un listado de eventos INDIVIDUALES sobre: "${nombreTema}"
+La URL "${url}" no se pudo leer (sitio dinámico).
+Usá tu conocimiento interno. Respondé SOLO con JSON:
+{"eventos": [{"date":"2026-01-01","title":"...","desc":"..."}]}`;
+        const rFb = await callGemini(promptUrlFallback, env);
+        if (!rFb.error && rFb.data?.eventos?.length) {
+          const rawFb = JSON.stringify(rFb.data);
+          return jsonOk({ texto: rawFb, fuentes, modo: 'gemini_fallback', debug: {} });
+        }
+        return jsonError("No se pudo extraer contenido del link. Probá con un artículo de otro sitio (ej: ESPN, Ole, Infobae)");
+      }
+
+      contenido = contenido.substring(0, 10000);
       const promptUrl = `Sos un cronista de datos de Media Mendoza.
 Extraé TODOS los eventos INDIVIDUALES del siguiente artículo sobre: "${nombreTema}"
 
@@ -5206,7 +5248,7 @@ Respondé SOLO con JSON. Cuantos más eventos extraigas mejor. Mínimo 2 incluí
       const r = await callGemini(promptUrl, env);
       if (r.error) return jsonError(r.error, 500);
       const raw = r.data ? JSON.stringify(r.data) : "{}";
-      return jsonOk({ texto: raw, fuentes: [{ titulo: 'Artículo proporcionado', url }], modo: 'url', debug: {} });
+      return jsonOk({ texto: raw, fuentes, modo, debug: {} });
     } catch (e) {
       return jsonError("Error al procesar el link: " + e.message);
     }
