@@ -2,6 +2,26 @@
 // Visual Suite — Módulo de Línea de Tiempo
 // ============================================================
 
+// Polyfill para roundRect si falta
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, radii) {
+    let r = typeof radii === 'number' ? radii : (radii || 0);
+    if (Array.isArray(radii)) r = radii[0] || 0;
+    r = Math.min(r, w / 2, h / 2);
+    this.moveTo(x + r, y);
+    this.lineTo(x + w - r, y);
+    this.quadraticCurveTo(x + w, y, x + w, y + r);
+    this.lineTo(x + w, y + h - r);
+    this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    this.lineTo(x + r, y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - r);
+    this.lineTo(x, y + r);
+    this.quadraticCurveTo(x, y, x + r, y);
+    this.closePath();
+    return this;
+  };
+}
+
 const timelineEvents = [];
 
 function initTimeline() {
@@ -185,6 +205,163 @@ function escHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+// ── Renderizador canvas para exportar timeline como flyer ──
+function detectarIconoEvento(title, desc) {
+  const t = (title + ' ' + desc).toLowerCase();
+  if (t.includes('gol') || t.includes('partido') || t.includes('fútbol') || t.includes('mundial') || t.includes('messi')) return '⚽';
+  if (t.includes('inflación') || t.includes('economía') || t.includes('dólar') || t.includes('precio') || t.includes('pbi')) return '📈';
+  if (t.includes('elección') || t.includes('presidente') || t.includes('gobierno') || t.includes('ley') || t.includes('decreto')) return '🏛';
+  if (t.includes('acuerdo') || t.includes('tratado') || t.includes('paz') || t.includes('cumbre')) return '🤝';
+  if (t.includes('terremoto') || t.includes('inundación') || t.includes('clima') || t.includes('temporal') || t.includes('sequía')) return '🌊';
+  if (t.includes('copa') || t.includes('título') || t.includes('campeón') || t.includes('medalla')) return '🏆';
+  if (t.includes('muerte') || t.includes('falleció') || t.includes('asesinato') || t.includes('tragedia')) return '🕊';
+  if (t.includes('vacuna') || t.includes('salud') || t.includes('hospital') || t.includes('pandemia')) return '🏥';
+  if (t.includes('cine') || t.includes('música') || t.includes('concierto') || t.includes('show') || t.includes('artista')) return '🎭';
+  if (t.includes('premio') || t.includes('reconocimiento') || t.includes('galardón')) return '🎖';
+  if (t.includes('mundial') || t.includes('olimpíada') || t.includes('jjoo') || t.includes('deporte')) return '🏅';
+  return '📌';
+}
+
+function renderTimelineCanvas(events, W, H) {
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const isDark = document.body.classList.contains('dark-theme');
+  const bg = isDark ? '#0f1110' : '#f8f9f7';
+  const cardBg = isDark ? '#1a1c1a' : '#ffffff';
+  const accent = '#a6ce39';
+  const textColor = isDark ? '#e8e8e0' : '#1a1a1a';
+  const dimText = isDark ? '#888' : '#888';
+  const lineColor = isDark ? '#2a2c2a' : '#e0e0e0';
+
+  const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
+
+  // Fondo
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Header bar
+  const headerH = H * 0.1;
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, 0, W, headerH);
+  ctx.fillStyle = '#1a2a00';
+  ctx.font = `900 ${headerH * 0.36}px "Inter", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('📅 LÍNEA DE TIEMPO', W / 2, headerH * 0.62);
+  ctx.font = `${headerH * 0.2}px "Inter", sans-serif`;
+  ctx.fillStyle = '#2a4a00';
+  ctx.fillText('Media Mendoza', W / 2, headerH * 0.88);
+
+  // Línea vertical central
+  const centerX = W * 0.15;
+  const startY = headerH + H * 0.04;
+  const eventSpacing = (H - headerH - H * 0.12) / Math.max(sorted.length, 1);
+  const usableH = H - headerH - H * 0.08;
+
+  // Dibujar línea vertical
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(centerX, startY);
+  ctx.lineTo(centerX, startY + usableH * 0.95);
+  ctx.stroke();
+
+  // Footer
+  const footerY = H - H * 0.04;
+  ctx.fillStyle = dimText;
+  ctx.font = `${H * 0.018}px "Inter", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('Media Mendoza · mmherramientas.media', W / 2, footerY);
+
+  // Eventos
+  sorted.forEach((ev, i) => {
+    const y = startY + i * eventSpacing;
+    const fecha = new Date(ev.date + 'T12:00:00');
+    const fechaStr = fecha.toLocaleDateString('es-AR', {
+      year: 'numeric', month: 'short', day: 'numeric'
+    });
+
+    // Círculo en la línea
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(centerX, y, W * 0.012, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = bg;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(centerX, y, W * 0.018, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Card de evento
+    const cardX = centerX + W * 0.04;
+    const cardW = W * 0.78;
+    const cardH = eventSpacing * 0.75;
+    const cardY = y - cardH / 2;
+
+    // Sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.05)';
+    ctx.beginPath();
+    ctx.roundRect(cardX + 2, cardY + 2, cardW, cardH, 8);
+    ctx.fill();
+
+    // Card bg
+    ctx.fillStyle = cardBg;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, cardH, 8);
+    ctx.fill();
+
+    // Borde izquierdo
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, 4, cardH, [2, 0, 0, 2]);
+    ctx.fill();
+
+    // Icono
+    const icono = detectarIconoEvento(ev.title, ev.desc);
+    ctx.font = `${cardH * 0.4}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(icono, cardX + W * 0.045, cardY + cardH * 0.55);
+
+    // Fecha
+    ctx.fillStyle = accent;
+    ctx.font = `700 ${cardH * 0.18}px "Inter", sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(fechaStr, cardX + W * 0.075, cardY + cardH * 0.35);
+
+    // Título
+    ctx.fillStyle = textColor;
+    ctx.font = `700 ${cardH * 0.22}px "Inter", sans-serif`;
+    ctx.fillText(ev.title.substring(0, 80), cardX + W * 0.075, cardY + cardH * 0.62);
+
+    // Descripción
+    if (ev.desc) {
+      ctx.fillStyle = dimText;
+      ctx.font = `${cardH * 0.17}px "Inter", sans-serif`;
+      const descText = ev.desc.length > 120 ? ev.desc.substring(0, 117) + '...' : ev.desc;
+      ctx.fillText(descText, cardX + W * 0.075, cardY + cardH * 0.85);
+    }
+  });
+
+  return canvas;
+}
+
+function exportarTimelineComoFlyer() {
+  const sorted = [...timelineEvents].sort((a, b) => a.date.localeCompare(b.date));
+  if (!sorted.length) return toast('No hay eventos para exportar');
+
+  const W = 1200;
+  const H = Math.max(600, sorted.length * 120 + 150);
+  const canvas = renderTimelineCanvas(sorted, W, H);
+
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    mostrarExportPreview(url, 'timeline-flyer-media-mendoza');
+  }, 'image/png', 1);
 }
 
 document.addEventListener('DOMContentLoaded', initTimeline);

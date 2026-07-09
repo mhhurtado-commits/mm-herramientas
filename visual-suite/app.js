@@ -105,21 +105,7 @@ function exportarMapa() {
 }
 
 function exportarTimeline() {
-  const elemento = document.getElementById('timelineContainer');
-  if (!elemento) return toast('No hay timeline para exportar');
-  const isDark = document.body.classList.contains('dark-theme');
-  html2canvas(elemento, {
-    scale: 4,
-    backgroundColor: isDark ? '#161810' : '#ffffff',
-    logging: false,
-    useCORS: true,
-    allowTaint: true
-  }).then(canvas => {
-    canvas.toBlob(blob => {
-      const url = URL.createObjectURL(blob);
-      mostrarExportPreview(url, nombreBase);
-    });
-  }).catch(() => toast('Error al exportar timeline'));
+  exportarTimelineComoFlyer();
 }
 
 function mostrarExportPreview(url, nombre) {
