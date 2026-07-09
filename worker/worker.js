@@ -5132,6 +5132,7 @@ export default {
     if(path==="/smn/upload-icon")                    return handleSMNUploadIcon(request, env);
     if(path==="/visual/generar")                     return handleVisualGenerar(body, env);
     if(path==="/visual/timeline")                    return handleVisualTimeline(body, env);
+    if(path==="/visual/extraer")                     return handleVisualExtraer(body, env);
 
     return jsonError("Ruta no encontrada",404);
   },
@@ -5314,4 +5315,110 @@ Respondé SOLO con JSON. Si no tenés datos concretos, respondé {"eventos": [],
   if (r2.error) return jsonError(r2.error, 500);
   const raw = r2.data ? JSON.stringify(r2.data) : "{}";
   return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
+}
+
+// ── Extraer todo desde una URL (charts + mapa + timeline + infografía) ──
+async function handleVisualExtraer(body, env) {
+  const url = String(body.url || "").trim();
+  const tema = String(body.tema || "").trim() || 'el artículo';
+  if (!url) return jsonError("Falta URL", 400);
+
+  // 1. Extraer contenido
+  let contenido = '';
+  let modo = '';
+  let fuentes = [];
+
+  try {
+    const res = await fetch(url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(12000) });
+    if (res.ok) {
+      const html = await res.text();
+      contenido = extraerTexto(html);
+      modo = 'scrape';
+    }
+  } catch {}
+
+  // Fallback: buscar en Serper si el scraping directo no funciona
+  if (contenido.length < 100) {
+    const serperKey = env.SERPER_API_KEY;
+    if (serperKey) {
+      try {
+        const sr = await fetch('https://google.serper.dev/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-KEY': serperKey },
+          body: JSON.stringify({ q: url, gl: 'ar', hl: 'es', num: 3 })
+        });
+        if (sr.ok) {
+          const sd = await sr.json();
+          const items = sd.organic || [];
+          const partes = [];
+          for (const item of items.slice(0, 3)) {
+            if (item.snippet) partes.push(item.title + '. ' + item.snippet);
+          }
+          if (partes.length) {
+            contenido = partes.join('\n\n');
+            modo = 'serper';
+          }
+        }
+      } catch {}
+    }
+  }
+
+  if (contenido.length < 100) {
+    // Solo confiar en Gemini
+    modo = 'gemini_only';
+  }
+
+  contenido = contenido.substring(0, 12000);
+
+  // 2. Llamar a Gemini con un prompt que extrae TODO
+  const promptExtraer = `Sos un asistente de periodismo de datos de Media Mendoza.
+Analizá el siguiente artículo y extraé TODA la información estructurada posible.
+
+ARTÍCULO:
+${contenido}
+
+Respondé SOLO con JSON. Sin markdown, sin backticks.
+Estructura exacta:
+
+{
+  "titulo": "Título del artículo o tema detectado",
+  "chart": {
+    "titulo": "Título sugerido para el gráfico (o null si no aplica)",
+    "tipo": "bar|line|pie (o null)",
+    "datos": [{"label": "etiqueta1", "value": 100}, {"label": "etiqueta2", "value": 200}]
+  },
+  "mapa": {
+    "lugares": [{"nombre": "Lugar", "direccion": "Dirección completa (para geocodificar)", "descripcion": "Contexto del lugar en el artículo"}]
+  },
+  "timeline": {
+    "eventos": [{"date": "2026-06-15", "title": "Título corto del evento", "desc": "Descripción con datos concretos"}]
+  },
+  "infografia": {
+    "titulo": "Título de la infografía (o null)",
+    "lineas": ["Dato clave 1", "Dato clave 2", "Cifra relevante 3"]
+  }
+}
+
+REGLAS:
+- Si no hay datos para una sección, poné null (no array vacío)
+- chart.datos: solo cuando haya números/nombres comparables (meses, categorías con valores)
+- chart.tipo: bar para comparaciones, line para tendencias, pie para proporciones
+- mapa.lugares: solo cuando haya lugares/ubicaciones mencionados
+- timeline.eventos: extraé CADA hecho individual con fecha lo más específica posible
+- infografia.lineas: datos numéricos impactantes, fechas clave, cifras relevantes
+
+Respondé SOLO con el JSON.`;
+
+  const r = await callGemini(promptExtraer, env);
+  if (r.error) return jsonError(r.error, 500);
+  const raw = r.data || {};
+  return jsonOk({
+    titulo: raw.titulo || tema,
+    chart: raw.chart || null,
+    mapa: raw.mapa || null,
+    timeline: raw.timeline || null,
+    infografia: raw.infografia || null,
+    modo,
+    url
+  });
 }

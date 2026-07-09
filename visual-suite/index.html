@@ -202,6 +202,27 @@
 .vs-btn-danger:hover { background: var(--red); color: #fff; }
 .vs-btn-accent { background: var(--surface2); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
 .vs-btn-accent:hover { background: #3b82f6; color: #fff; }
+
+.vs-url-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: stretch;
+}
+.vs-url-input {
+  flex: 1;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font-body);
+  outline: none;
+  transition: border-color .15s;
+}
+.vs-url-input:focus { border-color: #3b82f6; }
+.vs-url-bar .vs-btn { white-space: nowrap; }
 .vs-btn-sm { padding: 5px 10px; font-size: 10px; }
 .vs-btn:disabled { opacity: .5; cursor: not-allowed; }
 
@@ -494,6 +515,12 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
     </div>
   </div>
 
+  <!-- URL bar -->
+  <div class="vs-url-bar">
+    <input class="vs-url-input" id="urlInput" placeholder="Pegá un link a un artículo (FIFA, ESPN, INDEC, etc.) y extraé todo automáticamente">
+    <button class="vs-btn vs-btn-accent" onclick="extraerDeUrl()" id="btnExtraerUrl">🔍 Extraer de URL</button>
+  </div>
+
   <!-- tabs -->
   <div class="vs-tabs" id="vsTabs">
     <button class="vs-tab active" data-tab="charts"><span class="vs-tab-icon">📊</span>Gráficos</button>
@@ -634,16 +661,11 @@ Mayo, 70</textarea>
           <input class="vs-input" id="tlTema" placeholder="Ej: Historia del ferrocarril en Mendoza" style="margin-top:6px">
         </div>
         <div>
-          <div class="vs-label">O pegá un link a un artículo (opcional)</div>
-          <input class="vs-input" id="tlUrl" placeholder="https://fifa.com/es/articles/..." style="margin-top:6px">
-        </div>
-        <div>
           <div class="vs-label">Desde (fecha opcional)</div>
           <input class="vs-input" id="tlDesde" type="date" style="margin-top:6px">
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarTimelineWeb()">🌐 Buscar en web</button>
-          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarTimelineDesdeUrl()">📄 Extraer desde URL</button>
           <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarTimelineIA()">🤖 Solo IA</button>
           <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarTimeline()">🗑 Limpiar</button>
         </div>

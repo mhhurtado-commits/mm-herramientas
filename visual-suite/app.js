@@ -318,6 +318,83 @@ async function apiGet(path) {
   } catch (e) { return null; }
 }
 
+// ── Extraer todo desde una URL ──
+async function extraerDeUrl() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return toast('Pegá un link de un artículo');
+
+  const btn = document.getElementById('btnExtraerUrl');
+  btn.disabled = true;
+  btn.textContent = '⏳ Extrayendo...';
+
+  const result = await apiPost('/visual/extraer', { url });
+
+  btn.disabled = false;
+  btn.textContent = '🔍 Extraer de URL';
+
+  if (!result || !result.ok) {
+    return toast(result?.error || 'Error al extraer');
+  }
+
+  toast('Datos extraídos. Revisá cada solapa para editar.');
+
+  // ── CHARTS ──
+  if (result.chart && result.chart.datos && result.chart.datos.length > 0) {
+    const lines = result.chart.datos.map(d => `${d.label}, ${d.value}`).join('\n');
+    document.getElementById('chartData').value = lines;
+    if (result.chart.titulo) document.getElementById('chartTitle').value = result.chart.titulo;
+    if (result.chart.tipo && ['bar','line','pie','doughnut','radar','polarArea'].includes(result.chart.tipo)) {
+      document.getElementById('chartType').value = result.chart.tipo;
+      cambiarTipoGrafico();
+    }
+    actualizarGrafico();
+  }
+
+  // ── MAPA ──
+  if (result.mapa && result.mapa.lugares && result.mapa.lugares.length > 0) {
+    limpiarMarcadores();
+    for (const lugar of result.mapa.lugares) {
+      if (lugar.direccion) {
+        document.getElementById('mapSearchInput').value = lugar.direccion + ', Mendoza, Argentina';
+        // No geocodificamos automáticamente para evitar rate limits, el usuario puede buscar
+      }
+      if (lugar.nombre) {
+        document.getElementById('markerTitle').value = lugar.nombre;
+        document.getElementById('markerDesc').value = lugar.descripcion || '';
+      }
+    }
+    toast(`📍 ${result.mapa.lugares.length} lugar(es) detectado(s). Usá "Buscar ubicación" en la solapa Mapas.`);
+  }
+
+  // ── TIMELINE ──
+  if (result.timeline && result.timeline.eventos && result.timeline.eventos.length > 0) {
+    for (const ev of result.timeline.eventos) {
+      timelineEvents.push({
+        date: ev.date || '2026-01-01',
+        title: ev.title || 'Evento',
+        desc: ev.desc || ''
+      });
+    }
+    renderizarTimeline();
+    toast(`📅 ${result.timeline.eventos.length} eventos agregados a la línea de tiempo`);
+  }
+
+  // ── INFOGRAFÍA ──
+  if (result.infografia) {
+    if (result.infografia.titulo) document.getElementById('infoTitle').value = result.infografia.titulo;
+    if (result.infografia.lineas && result.infografia.lineas.length > 0) {
+      document.getElementById('infoContent').value = result.infografia.lineas.join('\n');
+    }
+    seleccionarTemplate('destacado');
+    renderizarInfografia();
+    toast(`🎨 Datos cargados en infografía`);
+  }
+}
+
 function initApp() {
   initLogo();
+  // Enter en URL input
+  document.getElementById('urlInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') extraerDeUrl();
+  });
 }
