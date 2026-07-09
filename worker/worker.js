@@ -4105,12 +4105,12 @@ async function getEditorial(env){
   return null;
 }
 async function callGeminiConBusqueda(prompt,env,searchQuery){
-  const wiki = await buscarWikipediaRaw(searchQuery);
+  const articulos = await buscarEnWeb(searchQuery, env);
   const fuentes = [];
   const ctxParts = [];
-  for (const f of wiki.slice(0, 3)) {
-    ctxParts.push("\n--- FUENTE WIKIPEDIA: " + f.titulo + " (" + f.url + ") ---\n" + f.texto + "\n---");
-    fuentes.push({ titulo: f.titulo, url: f.url, imagen: '' });
+  for (const a of articulos.slice(0, 3)) {
+    ctxParts.push("\n--- FUENTE: " + a.titulo + " (" + a.url + ") ---\n" + a.texto + "\n---");
+    fuentes.push({ titulo: a.titulo, url: a.url, imagen: '' });
   }
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
@@ -4118,7 +4118,7 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
   for(let i=0;i<keys.length;i++){
     for(let intento=1;intento<=2;intento++){
       try{
-        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO WEB (wikitext con datos estructurados):\n"+ctx:"")}]}],generationConfig:{temperature:0.5,maxOutputTokens:3000}})});
+        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO DE ARTÍCULOS WEB:\n"+ctx:"")}]}],generationConfig:{temperature:0.4,maxOutputTokens:3000}})});
         if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
         if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
         if(!res.ok) break;
@@ -4134,30 +4134,56 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
   return {error:"Todas las API keys de Gemini están agotadas."};
 }
 
-async function buscarWikipediaRaw(query){
-  try{
-    const idiomas=['es','en'];
-    for(const lang of idiomas){
-      const q=encodeURIComponent(query);
-      const buscaRes=await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=5`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
-      if(!buscaRes.ok) continue;
-      const data=await buscaRes.json();
-      const pages=data?.query?.search||[];
-      for(const p of pages.slice(0,3)){
-        const title=encodeURIComponent(p.title);
-        const rawRes=await fetch(`https://${lang}.wikipedia.org/w/index.php?title=${title}&action=raw`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
-        if(!rawRes.ok) continue;
-        const wikitext=await rawRes.text();
-        if(wikitext.length>200){
-          // Limpiar: quitar HTML entities pero mantener estructura de tablas y datos
-          const limpio=wikitext.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
-          // Si encontró una página con contenido sustancial (>5000 chars), devolver solo esa
-          return [{titulo:`${p.title} (${lang})`,url:`https://${lang}.wikipedia.org/wiki/${title}`,texto:limpio.substring(0,20000)}];
+async function buscarEnWeb(query, env) {
+  const gcsKey = env.GOOGLE_SEARCH_KEY;
+  const gcsCx = env.GOOGLE_SEARCH_CX;
+  if (gcsKey && gcsCx) {
+    try {
+      const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${gcsKey}&cx=${gcsCx}&q=${encodeURIComponent(query)}&lr=lang_es&num=8`);
+      if (!res.ok) { return []; }
+      const data = await res.json();
+      const items = data.items || [];
+      const resultados = [];
+      const fetchTasks = items.slice(0, 3).map(async (item) => {
+        try {
+          const artRes = await fetch(item.link, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(10000) });
+          if (!artRes.ok) return null;
+          const html = await artRes.text();
+          const texto = extraerTexto(html).substring(0, 5000);
+          if (texto.length < 300) return null;
+          return { titulo: item.title, url: item.link, texto };
+        } catch { return null; }
+      });
+      const articulos = (await Promise.all(fetchTasks)).filter(Boolean);
+      // Si no se pudieron fetch los artículos, al menos pasar los snippets de búsqueda
+      if (articulos.length === 0) {
+        for (const item of items.slice(0, 5)) {
+          const texto = (item.snippet || '') + '\n' + (item.pagemap?.metatags?.[0]?.['og:description'] || '');
+          if (texto.trim().length > 50) {
+            articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1000) });
+          }
         }
       }
+      return articulos;
+    } catch (e) { return []; }
+  }
+  // Fallback: Wikipedia raw wikitext
+  try {
+    const q = encodeURIComponent(query);
+    const buscaRes = await fetch(`https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=3`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" } });
+    if (!buscaRes.ok) return [];
+    const data = await buscaRes.json();
+    const pages = data?.query?.search || [];
+    for (const p of pages.slice(0, 1)) {
+      const title = encodeURIComponent(p.title);
+      const rawRes = await fetch(`https://es.wikipedia.org/w/index.php?title=${title}&action=raw`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" }, signal: AbortSignal.timeout(6000) });
+      if (!rawRes.ok) continue;
+      const wikitext = await rawRes.text();
+      const limpio = wikitext.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/'{2,5}/g,'').replace(/\[{2}([^\]|]*?\|)?([^\]]*?)\]{2}/g,'$2').replace(/\{\{[^}]*\}\}/g,' ').replace(/<ref[^>]*>[\s\S]*?<\/ref>/g,'').replace(/\|.*/g,' ').replace(/\s+/g,' ').trim();
+      if (limpio.length > 200) return [{ titulo: p.title, url: `https://es.wikipedia.org/wiki/${title}`, texto: limpio.substring(0, 12000) }];
     }
     return [];
-  }catch(e){return []}
+  } catch (e) { return []; }
 }
 async function callGemini(prompt,env){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
@@ -5107,22 +5133,23 @@ async function handleVisualTimeline(body, env) {
   const desde = String(body.desde || "").trim();
   if (!tema) return jsonError("Falta tema", 400);
 
-  const promptWeb = `Sos un cronista de Media Mendoza, diario del sur de Mendoza, Argentina.
-Generá una línea de tiempo periodística sobre: "${tema}"
+  const promptWeb = `Sos un cronista de datos de Media Mendoza.
+Extraé eventos INDIVIDUALES con datos NUMÉRICOS y FECHAS EXACTAS de los ARTÍCULOS WEB que se proporcionan abajo sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-Abajo se proporciona wikitext de Wikipedia con información estructurada (tablas, fechas, datos).
-Extraé eventos reales del contenido. Si el wikitext no tiene suficiente info, complementá con tu conocimiento.
+REGLAS ESTRICTAS:
+- Cada evento representa un DATO INDIVIDUAL (un partido, un índice, una ley, un hecho)
+- La descripción incluye NÚMEROS CONCRETOS (goles, porcentajes, cantidades)
+- Nada de resúmenes genéricos. Extraé cada fila de tabla como evento separado.
+- Fecha en formato YYYY-MM-DD
 
-Cada evento debe tener:
-- Fecha (YYYY-MM-DD)
-- Título corto
-- Descripción con datos concretos
+Ejemplo correcto:
+{"eventos":[
+  {"date":"2026-01-01","title":"Inflación enero 2026","desc":"2,3% mensual"},
+  {"date":"2026-06-15","title":"Argentina 3-1 Argelia","desc":"Messi anotó 3 goles"}
+]}
 
-Respondé SOLO con JSON sin backticks:
-{"eventos": [{"date": "2026-06-15", "title": "Título del evento", "desc": "Descripción con datos"}]}
-
-IMPORTANTE: Respondé con al menos 2 eventos. No respondas {"eventos": []}.`;
+Respondé SOLO con JSON. Mínimo 2 eventos. No respondas {"eventos": []}.`;
 
   const r1 = await callGeminiConBusqueda(promptWeb, env, tema);
   const debug = { intento1_fuentes: r1.data?.fuentes?.length || 0, intento1_eventos: r1.data?.eventos?.length || 0, error: r1.error || null };
@@ -5133,21 +5160,17 @@ IMPORTANTE: Respondé con al menos 2 eventos. No respondas {"eventos": []}.`;
   }
 
   // Fallback: solo Gemini (conocimiento interno)
-  const promptFallback = `Sos un cronista de Media Mendoza.
-Generá una línea de tiempo sobre: "${tema}"
+  const promptFallback = `Sos un cronista de datos de Media Mendoza.
+Extraé eventos INDIVIDUALES con datos concretos sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-Usá tu conocimiento para incluir eventos reales con fechas, nombres y datos concretos.
+REGLAS ESTRICTAS:
+- Cada evento = un hecho individual con fecha y número concreto
+- Incluí porcentajes, cantidades, resultados cuando sea relevante
+- No hagas resúmenes genéricos
 
-Cada evento:
-- Fecha (YYYY-MM-DD)
-- Título corto
-- Descripción breve
-
-Respondé SOLO con JSON:
-{"eventos": [{"date": "2026-06-15", "title": "Título", "desc": "Descripción"}]}
-
-IMPORTANTE: Respondé con al menos 2 eventos. {"eventos": []} no está permitido.`;
+Respondé SOLO con JSON. Mínimo 2 eventos. {"eventos": []} no está permitido.
+{"eventos": [{"date": "2026-06-15", "title": "Hecho concreto", "desc": "Dato numérico específico"}]}`;
 
   const r2 = await callGemini(promptFallback, env);
   debug.intento2_error = r2.error || null;
