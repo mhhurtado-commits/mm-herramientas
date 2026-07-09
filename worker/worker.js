@@ -5153,19 +5153,19 @@ async function handleVisualTimeline(body, env) {
   if (!tema) return jsonError("Falta tema", 400);
 
   const promptWeb = `Sos un cronista de datos de Media Mendoza.
-Extraé eventos INDIVIDUALES con datos NUMÉRICOS y FECHAS EXACTAS de los ARTÍCULOS WEB que se proporcionan abajo sobre: "${tema}"
+Extraé eventos INDIVIDUALES de los ARTÍCULOS WEB que se proporcionan abajo sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
 REGLAS ESTRICTAS:
-- Cada evento representa un DATO INDIVIDUAL (un partido, un índice, una ley, un hecho)
-- La descripción incluye NÚMEROS CONCRETOS (goles, porcentajes, cantidades)
-- Nada de resúmenes genéricos. Extraé cada fila de tabla como evento separado.
-- Fecha en formato YYYY-MM-DD
+- Cada evento = un hecho INDIVIDUAL con fecha exacta (YYYY-MM-DD)
+- NO incluyas resúmenes ni acumulados. Solo hechos concretos individuales.
+- La descripción debe tener datos NUMÉRICOS (goles, porcentajes, resultados)
+- Buscá en los artículos TODOS los hechos disponibles, no te limites a unos pocos
 
 Ejemplo correcto:
 {"eventos":[
-  {"date":"2026-01-01","title":"Inflación enero 2026","desc":"2,3% mensual"},
-  {"date":"2026-06-15","title":"Argentina 3-1 Argelia","desc":"Messi anotó 3 goles"}
+  {"date":"2026-06-15","title":"Argentina 3-1 Argelia","desc":"Messi anotó 3 goles (hat-trick)"},
+  {"date":"2026-06-21","title":"Argentina 2-0 Austria","desc":"Messi anotó 2 goles"}
 ]}
 
 Respondé SOLO con JSON. Mínimo 2 eventos. No respondas {"eventos": []}.`;
