@@ -4106,54 +4106,61 @@ async function getEditorial(env){
 }
 async function callGeminiConBusqueda(prompt,env,searchQuery){
   // 1) Buscar fuentes en paralelo
-  const [newsRss, wikiPages] = await Promise.all([
+  const [newsRss, wiki] = await Promise.all([
     buscarGoogleNews(searchQuery),
     buscarWikipedia(searchQuery)
   ]);
-  // 2) Fetch contenido real de los primeros 2 artículos de Google News
-  const fetchTasks = newsRss.slice(0, 2).map(async (item) => {
-    try {
-      const res = await fetch(item.url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(5000) });
-      if (!res.ok) return null;
-      const html = await res.text();
-      const texto = extraerTexto(html).substring(0, 3000);
-      if (texto.length < 200) return null;
-      return { ...item, texto };
-    } catch { return null; }
-  });
-  const articulos = (await Promise.all(fetchTasks)).filter(Boolean);
-  // 3) Juntar todo: artículos completos + Wikipedia
-  const fuentes = [];
-  const ctxParts = [];
-  for (const f of [...articulos, ...wikiPages].slice(0, 3)) {
-    ctxParts.push("\nFUENTE: " + f.titulo + " (" + f.url + ")\n" + f.texto + "\n---");
-    fuentes.push({ titulo: f.titulo, url: f.url, imagen: '' });
-  }
-  // 4) Llamar Gemini con el contexto web
-  const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
-  if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
-  const ctx=ctxParts.join("");
-  for(let i=0;i<keys.length;i++){
-    for(let intento=1;intento<=2;intento++){
-      try{
-        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO WEB:\n"+ctx:"")}]}],generationConfig:{temperature:0.3,maxOutputTokens:3000}})});
-        if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
-        if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
-        if(!res.ok) break;
-        const data=await res.json();
-        const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||"";
-        const match=raw.match(/\{[\s\S]*\}/);if(!match) break;
-        let parsed;try{parsed=JSON.parse(match[0])}catch{break}
-        if(fuentes.length) parsed.fuentes=fuentes;
-        return {data:parsed};
-      }catch(err){if(intento<2) await sleep(3000)}
+  // 2) Fetch contenido real de artículos de Google News + Wikipedia (con timeout de 15s total)
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const fetchTasks = newsRss.slice(0, 2).map(async (item) => {
+      try {
+        const res = await fetch(item.url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
+        if (!res.ok) return null;
+        const html = await res.text();
+        const texto = extraerTexto(html).substring(0, 4000);
+        if (texto.length < 200) return null;
+        return { ...item, texto };
+      } catch { return null; }
+    });
+    const articulos = (await Promise.all(fetchTasks)).filter(Boolean);
+    // 3) Juntar y limitar fuentes (artículos completos tienen prioridad)
+    const fuentes = [];
+    const ctxParts = [];
+    for (const f of [...articulos, ...wiki].slice(0, 3)) {
+      ctxParts.push("\nFUENTE: " + f.titulo + " (" + f.url + ")\n" + f.texto + "\n---");
+      fuentes.push({ titulo: f.titulo, url: f.url, imagen: '' });
     }
-  }
-  return {error:"Todas las API keys de Gemini están agotadas."};
+    if (fuentes.length === 0) {
+      // Sin fuentes web, Gemini se basará en su conocimiento (pero el prompt lo pide)
+    }
+    // 4) Llamar Gemini con el contexto web
+    const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
+    if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
+    const ctx=ctxParts.join("");
+    for(let i=0;i<keys.length;i++){
+      for(let intento=1;intento<=2;intento++){
+        try{
+          const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO WEB:\n"+ctx:"")}]}],generationConfig:{temperature:0.3,maxOutputTokens:3000}})});
+          if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
+          if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
+          if(!res.ok) break;
+          const data=await res.json();
+          const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||"";
+          const match=raw.match(/\{[\s\S]*\}/);if(!match) break;
+          let parsed;try{parsed=JSON.parse(match[0])}catch{break}
+          if(fuentes.length) parsed.fuentes=fuentes;
+          return {data:parsed};
+        }catch(err){if(intento<2) await sleep(3000)}
+      }
+    }
+    return {error:"Todas las API keys de Gemini están agotadas."};
+  } finally { clearTimeout(timer); }
 }
 async function buscarGoogleNews(query){
   try{
-    const res=await fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=es&gl=AR&num=5`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
+    const res=await fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=es&gl=AR`,{headers:{"User-Agent":"MediaMendozaWorker/2.0","Accept":"application/xml,text/xml,*/*"}});
     if(!res.ok) return [];
     const xml=await res.text();
     const items=xml.match(/<item>[\s\S]*?<\/item>/g)||[];
@@ -4163,7 +4170,7 @@ async function buscarGoogleNews(query){
       const link=item.match(/<link>([^<]+)<\/link>/)?.[1]||'';
       const desc=item.match(/<description><!\[CDATA\[([^\]]+)\]\]><\/description>/)?.[1]||item.match(/<description>([^<]+)<\/description>/)?.[1]||'';
       const pubDate=item.match(/<pubDate>([^<]+)<\/pubDate>/)?.[1]||'';
-      if(title&&link) resultados.push({titulo:title,url:link,texto:desc+'\nPublicado: '+pubDate});
+      if(title&&link) resultados.push({titulo:title,url:link,texto:(desc||'')+'\nPublicado: '+(pubDate||'')});
     }
     return resultados;
   }catch(e){return []}
@@ -4174,21 +4181,24 @@ async function buscarWikipedia(query){
     const idiomas=['es','en'];
     for(const lang of idiomas){
       const q=encodeURIComponent(query);
-      const buscaRes=await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=3&origin=*`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
+      const buscaRes=await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=5&origin=*`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
       if(!buscaRes.ok) continue;
       const busca=await buscaRes.json();
       const pages=busca?.query?.search||[];
       const resultados=[];
-      for(const p of pages.slice(0,2)){
+      // Buscar la mejor página (priorizar la más relevante)
+      for(const p of pages.slice(0,3)){
         const title=encodeURIComponent(p.title);
-        // Usar action=parse para obtener TODO el artículo como texto plano
-        const contentRes=await fetch(`https://${lang}.wikipedia.org/w/api.php?action=parse&page=${title}&prop=text&format=json&origin=*`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
+        const contentRes=await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&prop=extracts|info&exlimit=1&explaintext&exchars=15000&titles=${title}&format=json&origin=*`,{headers:{"User-Agent":"MediaMendozaWorker/2.0"}});
         if(!contentRes.ok) continue;
         const data=await contentRes.json();
-        const html=data?.parse?.text?.['*']||"";
-        const text=html.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
-        if(text.length>200){
-          resultados.push({titulo:`${p.title} (${lang})`,url:`https://${lang}.wikipedia.org/wiki/${title}`,texto:text.substring(0,8000)});
+        const pagesData=data?.query?.pages||{};
+        const pageId=Object.keys(pagesData)[0];
+        const extract=pagesData[pageId]?.extract||"";
+        if(extract.length>300){
+          resultados.push({titulo:`${p.title} (${lang})`,url:`https://${lang}.wikipedia.org/wiki/${title}`,texto:extract.substring(0,15000)});
+          // Con una buena página alcanza
+          if(extract.length>2000) break;
         }
       }
       if(resultados.length>0) return resultados;
