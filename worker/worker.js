@@ -5108,19 +5108,21 @@ async function handleVisualTimeline(body, env) {
   if (!tema) return jsonError("Falta tema", 400);
 
   const promptWeb = `Sos un cronista de Media Mendoza, diario del sur de Mendoza, Argentina.
-Extraé datos de fútbol del wikitext de Wikipedia que se proporciona abajo y generá una línea de tiempo con los partidos y goles de: "${tema}"
+Generá una línea de tiempo periodística sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-El wikitext contiene tablas con partidos, fechas, equipos, resultados y goleadores.
-Buscá en el texto los partidos donde aparezca el tema y extraé:
-- Fecha exacta del partido
-- Título con: Rival + resultado
-- Descripción con: cantidad de goles, minuto, tipo de gol (si se menciona)
+Abajo se proporciona wikitext de Wikipedia con información estructurada (tablas, fechas, datos).
+Extraé eventos reales del contenido. Si el wikitext no tiene suficiente info, complementá con tu conocimiento.
 
-INSTRUCCIÓN OBLIGATORIA: Respondé con al menos 3 eventos si hay datos en el wikitext.
+Cada evento debe tener:
+- Fecha (YYYY-MM-DD)
+- Título corto
+- Descripción con datos concretos
 
 Respondé SOLO con JSON sin backticks:
-{"eventos": [{"date": "2026-06-15", "title": "Argentina 3-1 Argelia", "desc": "Messi anotó 3 goles (hat-trick)"}]}`;
+{"eventos": [{"date": "2026-06-15", "title": "Título del evento", "desc": "Descripción con datos"}]}
+
+IMPORTANTE: Respondé con al menos 2 eventos. No respondas {"eventos": []}.`;
 
   const r1 = await callGeminiConBusqueda(promptWeb, env, tema);
   const debug = { intento1_fuentes: r1.data?.fuentes?.length || 0, intento1_eventos: r1.data?.eventos?.length || 0, error: r1.error || null };
@@ -5131,15 +5133,21 @@ Respondé SOLO con JSON sin backticks:
   }
 
   // Fallback: solo Gemini (conocimiento interno)
-  const promptFallback = `Sos un cronista deportivo de Media Mendoza.
-Generá una línea de tiempo con los partidos del Mundial 2026 donde participó: "${tema}"
+  const promptFallback = `Sos un cronista de Media Mendoza.
+Generá una línea de tiempo sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-INSTRUCCIÓN OBLIGATORIA: Respondé con al menos 3 partidos. No respondas {"eventos": []}.
-Cada evento debe tener: fecha exacta del partido, rival, resultado, y goles del jugador involucrado.
+Usá tu conocimiento para incluir eventos reales con fechas, nombres y datos concretos.
+
+Cada evento:
+- Fecha (YYYY-MM-DD)
+- Título corto
+- Descripción breve
 
 Respondé SOLO con JSON:
-{"eventos": [{"date": "2026-06-15", "title": "Argentina vs Argelia (3-1)", "desc": "Messi anotó 3 goles"}]}`;
+{"eventos": [{"date": "2026-06-15", "title": "Título", "desc": "Descripción"}]}
+
+IMPORTANTE: Respondé con al menos 2 eventos. {"eventos": []} no está permitido.`;
 
   const r2 = await callGemini(promptFallback, env);
   debug.intento2_error = r2.error || null;
