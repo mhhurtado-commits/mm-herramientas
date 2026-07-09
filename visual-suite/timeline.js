@@ -86,46 +86,6 @@ function limpiarTimeline() {
   toast('Timeline limpiada');
 }
 
-// ── IA desde URL específica ──
-async function generarTimelineDesdeUrl() {
-  const url = document.getElementById('tlUrl').value.trim();
-  const tema = document.getElementById('tlTema').value.trim() || url;
-
-  if (!url) return toast('Ingresá una URL de un artículo');
-
-  const btn = document.querySelector('button[onclick="generarTimelineDesdeUrl()"]');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Extrayendo...'; }
-
-  const result = await apiPost('/visual/timeline', { url, tema });
-
-  if (btn) { btn.disabled = false; btn.textContent = '📄 Extraer desde URL'; }
-
-  if (result?.error) return toast(result.error);
-
-  if (result && result.ok) {
-    try {
-      const parsed = JSON.parse(result.texto);
-      if (parsed.eventos && parsed.eventos.length) {
-        parsed.eventos.forEach(ev => {
-          timelineEvents.push({
-            date: ev.date || '2026-01-01',
-            title: ev.title || 'Evento',
-            desc: ev.desc || ''
-          });
-        });
-        renderizarTimeline();
-        toast(`${parsed.eventos.length} eventos extraídos del artículo`);
-      } else {
-        toast('No se encontraron eventos en el artículo');
-      }
-    } catch (e) {
-      toast('Error al interpretar respuesta');
-    }
-  } else {
-    toast('Error al procesar');
-  }
-}
-
 // ── IA con búsqueda web ──
 async function generarTimelineWeb() {
   const tema = document.getElementById('tlTema').value.trim();
@@ -133,26 +93,27 @@ async function generarTimelineWeb() {
 
   if (!tema) return toast('Ingresá un tema para la línea de tiempo');
 
-  const btn = document.querySelector('#panel-timeline .vs-btn-primary + .vs-btn-secondary');
+  const btn = document.getElementById('btnTlWeb');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando...'; }
 
   const result = await apiPost('/visual/timeline', { tema, desde });
 
-  if (btn) { btn.disabled = false; btn.textContent = '🌐 Generar con IA (web)'; }
+  if (btn) { btn.disabled = false; btn.textContent = '🌐 Buscar en web'; }
 
   if (result && result.ok) {
     try {
       const parsed = JSON.parse(result.texto);
       if (parsed.eventos && parsed.eventos.length) {
+        let count = 0;
         parsed.eventos.forEach(ev => {
-          timelineEvents.push({
-            date: ev.date || '2026-01-01',
-            title: ev.title || 'Evento',
-            desc: ev.desc || ''
-          });
+          const d = fechaValida(ev.date);
+          if (!d) return; // omitir eventos con fecha inválida
+          timelineEvents.push({ date: d, title: ev.title || 'Evento', desc: ev.desc || '' });
+          count++;
         });
         renderizarTimeline();
-        toast(`${parsed.eventos.length} eventos generados con datos reales`);
+        if (count) toast(`${count} eventos generados con datos reales`);
+        else toast('Los eventos encontrados tienen fechas inválidas');
       } else {
         toast('No se encontraron eventos');
       }
@@ -168,7 +129,7 @@ async function generarTimelineWeb() {
 async function generarTimelineIA() {
   const tema = document.getElementById('tlTema').value.trim() || 'actualidad de Mendoza';
 
-  const btn = document.querySelector('#panel-timeline .vs-btn-primary + .vs-btn-secondary');
+  const btn = document.getElementById('btnTlIA');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Pensando...'; }
 
   const prompt = `Generá 5 eventos para una línea de tiempo periodística sobre: "${tema}" (Mendoza, Argentina).
@@ -177,21 +138,22 @@ Respondé SOLO con JSON sin backticks ni markdown:
 {"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}`;
 
   const result = await apiPost('/visual/generar', { prompt, datos: '' });
-  if (btn) { btn.disabled = false; btn.textContent = '🌐 Generar con IA (web)'; }
+  if (btn) { btn.disabled = false; btn.textContent = '🤖 Solo IA'; }
 
   if (result && result.ok) {
     try {
       const parsed = JSON.parse(result.texto);
       if (parsed.eventos && parsed.eventos.length) {
+        let count = 0;
         parsed.eventos.forEach(ev => {
-          timelineEvents.push({
-            date: ev.date || '2026-01-01',
-            title: ev.title || 'Evento',
-            desc: ev.desc || ''
-          });
+          const d = fechaValida(ev.date);
+          if (!d) return; // omitir eventos con fecha inválida
+          timelineEvents.push({ date: d, title: ev.title || 'Evento', desc: ev.desc || '' });
+          count++;
         });
         renderizarTimeline();
-        toast(`${parsed.eventos.length} eventos generados por IA`);
+        if (count) toast(`${count} eventos generados por IA`);
+        else toast('Los eventos encontrados tienen fechas inválidas');
       }
     } catch (e) {
       toast('Error al interpretar respuesta IA');
@@ -347,12 +309,17 @@ function renderTimelineCanvas(events, W, H) {
     }
   });
 
+  // Logo de marca (respeta visibilidad/posición/escala del overlay)
+  if (typeof dibujarLogo === 'function') dibujarLogo(ctx, W, H);
+
   return canvas;
 }
 
-function exportarTimelineComoFlyer() {
+async function exportarTimelineComoFlyer() {
   const sorted = [...timelineEvents].sort((a, b) => a.date.localeCompare(b.date));
   if (!sorted.length) return toast('No hay eventos para exportar');
+  // Esperar que las fuentes web estén cargadas antes de pintar al canvas
+  await document.fonts.ready;
 
   const W = 1200;
   const H = Math.max(600, sorted.length * 120 + 150);

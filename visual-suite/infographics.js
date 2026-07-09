@@ -407,7 +407,9 @@ function dibujarLogoInfografia(ctx, W, H) {
   ctx.drawImage(ls.img, lx, ly, lw, lh);
 }
 
-function exportarInfografia() {
+async function exportarInfografia() {
+  // Esperar que las fuentes web estén cargadas antes de pintar al canvas
+  await document.fonts.ready;
   const canvas = document.getElementById('infografiaCanvas');
   const ow = canvas.width;
   const oh = canvas.height;

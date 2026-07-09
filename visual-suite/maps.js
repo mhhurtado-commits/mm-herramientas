@@ -6,6 +6,14 @@ let mapInstance = null;
 let markersLayer = null;
 const markerList = [];
 
+// Escapa HTML para evitar inyección en popups (título/descripción pueden venir
+// de Nominatim o de la extracción por IA).
+function escHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
 function initMaps() {
   setTimeout(() => {
     const container = document.getElementById('mapContainer');
@@ -75,14 +83,16 @@ function agregarMarcador() {
 }
 
 function agregarMarcadorCoords(lat, lng, title, desc) {
+  const t = escHtml(title);
+  const d = escHtml(desc);
   const marker = L.marker([lat, lng], { draggable: true })
-    .bindPopup(`<b>${title}</b>${desc !== title ? '<br>' + desc : ''}`)
+    .bindPopup(`<b>${t}</b>${desc !== title ? '<br>' + d : ''}`)
     .addTo(markersLayer);
 
   // Actualizar popup al arrastrar
   marker.on('dragend', function() {
     const pos = this.getLatLng();
-    this.bindPopup(`<b>${title}</b><br>Lat: ${pos.lat.toFixed(6)}, Lng: ${pos.lng.toFixed(6)}`).openPopup();
+    this.bindPopup(`<b>${t}</b><br>Lat: ${pos.lat.toFixed(6)}, Lng: ${pos.lng.toFixed(6)}`).openPopup();
   });
 
   markerList.push({ lat, lng, title, desc, marker });

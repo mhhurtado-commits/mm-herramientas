@@ -2,6 +2,17 @@
 // Visual Suite — Media Mendoza — App Principal
 // ============================================================
 
+// Valida que un string sea una fecha parseable (YYYY-MM-DD). Devuelve el
+// string limpio o null si es inválido/vacío, para no inventar fechas.
+function fechaValida(d) {
+  if (!d || typeof d !== 'string') return null;
+  const s = d.trim();
+  if (!s) return null;
+  const fecha = new Date(s + 'T12:00:00');
+  if (isNaN(fecha.getTime())) return null;
+  return s;
+}
+
 let tabActual = 'charts';
 
 const logoState = window.logoState = {
@@ -57,9 +68,11 @@ function exportarVisual() {
   }
 }
 
-function exportarGrafico() {
+async function exportarGrafico() {
   const canvas = document.getElementById('chartCanvas');
   if (!canvas) return toast('No hay gráfico para exportar');
+  // Esperar que Inter u otras fuentes web estén disponibles
+  await document.fonts.ready;
   // Capturar a alta resolución forzando el canvas
   const ow = canvas.width;
   const oh = canvas.height;
@@ -73,6 +86,9 @@ function exportarGrafico() {
   }
   // Esperar render y capturar
   setTimeout(() => {
+    // Sellar el logo sobre el canvas (el overlay DOM no entra en toBlob)
+    const ctx = canvas.getContext('2d');
+    if (typeof dibujarLogo === 'function') dibujarLogo(ctx, canvas.width, canvas.height);
     canvas.toBlob(blob => {
       const url = URL.createObjectURL(blob);
       mostrarExportPreview(url, nombreBase);
@@ -133,6 +149,16 @@ function initLogo() {
     if (typeof renderizarInfografia === 'function') renderizarInfografia();
   };
   logoState.img.src = LOGO_PATH;
+}
+
+// Pinta el logo sobre un canvas de exportación (charts, timeline), respetando
+// visibilidad, posición (x,y), ancho (w) y relación de aspecto (ar).
+function dibujarLogo(ctx, W, H) {
+  const ls = window.logoState;
+  if (!ls || !ls.loaded || !ls.visible || !ls.img) return;
+  const lw = ls.w * W;
+  const lh = lw * (ls.ar || (ls.img.naturalHeight / ls.img.naturalWidth));
+  ctx.drawImage(ls.img, ls.x * W, ls.y * H, lw, lh);
 }
 
 function toggleLogo() {
@@ -385,15 +411,15 @@ async function extraerDeUrl() {
 
   // ── TIMELINE ──
   if (result.timeline && result.timeline.eventos && result.timeline.eventos.length > 0) {
+    let count = 0;
     for (const ev of result.timeline.eventos) {
-      timelineEvents.push({
-        date: ev.date || '2026-01-01',
-        title: ev.title || 'Evento',
-        desc: ev.desc || ''
-      });
+      const d = fechaValida(ev.date);
+      if (!d) continue; // omitir eventos con fecha inválida
+      timelineEvents.push({ date: d, title: ev.title || 'Evento', desc: ev.desc || '' });
+      count++;
     }
     renderizarTimeline();
-    toast(`📅 ${result.timeline.eventos.length} eventos agregados a la línea de tiempo`);
+    if (count > 0) toast(`📅 ${count} eventos agregados a la línea de tiempo`);
   }
 
   // ── INFOGRAFÍA ──

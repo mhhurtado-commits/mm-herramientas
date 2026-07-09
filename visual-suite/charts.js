@@ -26,7 +26,7 @@ const labelPlugin = {
   id: 'dataLabels',
   afterDraw: (chart) => {
     const ctx = chart.ctx;
-    const type = chart.config._config.type;
+    const type = chart.config.type;
     const isPie = type === 'pie' || type === 'doughnut' || type === 'polarArea';
     const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#000';
 
@@ -77,15 +77,48 @@ function cambiarTipoGrafico() {
   actualizarGrafico();
 }
 
+// Convierte un texto a número tolerando coma o punto decimal (es-AR / en-US).
+// "45,5" -> 45.5 · "1.234,5" -> 1234.5 · "45.5" -> 45.5
+function parsearNumero(str) {
+  if (str == null) return NaN;
+  const s = String(str).trim().replace(/\s/g, '');
+  if (!s) return NaN;
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+  let norm = s;
+  if (hasComma && hasDot) {
+    // Formato 1.234,5 -> quitar separador de miles (.), coma a punto
+    norm = s.replace(/\./g, '').replace(',', '.');
+  } else if (hasComma) {
+    // Solo coma -> asumir decimal
+    norm = s.replace(',', '.');
+  }
+  const n = parseFloat(norm);
+  return isNaN(n) ? NaN : n;
+}
+
+// Separa cada línea en { etiqueta, valor } soportando separadores de campo
+// ',', ';' o tabulador, y decimales con ',' o '.' (audiencia es-AR).
 function parseChartData(text) {
   const lines = text.trim().split('\n').filter(l => l.trim());
   const labels = [];
   const values = [];
+
+  // Detectar separador dominante en las primeras líneas
+  const sample = lines.slice(0, 10).join('\n');
+  let sep = ',';
+  if (sample.includes('\t')) sep = '\t';
+  else if (sample.includes(';') && !sample.includes(',')) sep = ';';
+
   for (const line of lines) {
-    const parts = line.split(',').map(s => s.trim());
+    const parts = line.split(sep).map(s => s.trim());
     if (parts.length >= 2) {
-      labels.push(parts[0]);
-      values.push(parseFloat(parts[1]) || 0);
+      const valStr = parts[parts.length - 1];
+      const val = parsearNumero(valStr);
+      if (isNaN(val)) continue; // ignorar filas no numéricas (ej. encabezados)
+      const label = parts.slice(0, parts.length - 1).join(sep === '\t' ? '\t' : ', ').trim();
+      labels.push(label);
+      values.push(val);
     }
   }
   return { labels, values };

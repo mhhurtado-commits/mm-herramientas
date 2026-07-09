@@ -4124,7 +4124,7 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
         const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO DE ARTÍCULOS WEB:\n"+ctx:"")}]}],generationConfig:{temperature:0.4,maxOutputTokens:4000}})});
         if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
         if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
-        if(!res.ok) break;
+        if(!res.ok){const errBody=await res.text().catch(()=>'');console.error(`Gemini ${res.status} key#${i+1}:`,errBody);if(res.status>=400&&res.status<500) return {error:`Error ${res.status} de Gemini: ${errBody.substring(0,200)}`};break}
         const data=await res.json();
         const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||"";
         const match=raw.match(/\{[\s\S]*\}/);if(!match) break;
@@ -4224,7 +4224,7 @@ async function callGemini(prompt,env){
         const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.7,maxOutputTokens:2000}})});
         if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
         if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
-        if(!res.ok) break;
+        if(!res.ok){const errBody=await res.text().catch(()=>'');console.error(`Gemini ${res.status} key#${i+1}:`,errBody);if(res.status>=400&&res.status<500) return {error:`Error ${res.status} de Gemini: ${errBody.substring(0,200)}`};break}
         const data=await res.json();
         const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||"";
         const match=raw.match(/\{[\s\S]*\}/);if(!match) break;
@@ -5364,8 +5364,8 @@ async function handleVisualExtraer(body, env) {
   }
 
   if (contenido.length < 100) {
-    // Solo confiar en Gemini
-    modo = 'gemini_only';
+    // No se pudo extraer nada del scrape ni del Serper; retornar error claro en vez de alucinar.
+    return jsonError("No se pudo extraer contenido útil del artículo (ni scrape ni búsqueda). Verifique la URL.", 500);
   }
 
   contenido = contenido.substring(0, 12000);
