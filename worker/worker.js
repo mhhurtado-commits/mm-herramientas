@@ -4140,34 +4140,36 @@ async function buscarEnWeb(query, env) {
   if (gcsKey && gcsCx) {
     try {
       const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${gcsKey}&cx=${gcsCx}&q=${encodeURIComponent(query)}&lr=lang_es&num=8`);
-      if (!res.ok) { return []; }
+      if (!res.ok) return [];
       const data = await res.json();
       const items = data.items || [];
-      const resultados = [];
-      const fetchTasks = items.slice(0, 3).map(async (item) => {
+      // Usar snippets de Google como fuente principal (siempre disponibles)
+      const articulos = [];
+      for (const item of items.slice(0, 6)) {
+        const texto = [item.title, item.snippet, item.pagemap?.metatags?.[0]?.['og:description'] || ''].filter(Boolean).join('. ');
+        if (texto.length > 30) {
+          articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
+        }
+      }
+      // Fetch artículos completos en paralelo (si se puede) para más contexto
+      const fetchTasks = items.slice(0, 2).map(async (item) => {
         try {
-          const artRes = await fetch(item.link, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(10000) });
+          const artRes = await fetch(item.link, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
           if (!artRes.ok) return null;
           const html = await artRes.text();
           const texto = extraerTexto(html).substring(0, 5000);
           if (texto.length < 300) return null;
-          return { titulo: item.title, url: item.link, texto };
+          return { index: items.indexOf(item), texto };
         } catch { return null; }
       });
-      const articulos = (await Promise.all(fetchTasks)).filter(Boolean);
-      // Si no se pudieron fetch los artículos, al menos pasar los snippets de búsqueda
-      if (articulos.length === 0) {
-        for (const item of items.slice(0, 5)) {
-          const texto = (item.snippet || '') + '\n' + (item.pagemap?.metatags?.[0]?.['og:description'] || '');
-          if (texto.trim().length > 50) {
-            articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1000) });
-          }
-        }
+      const articulosExtra = (await Promise.all(fetchTasks)).filter(Boolean);
+      for (const ae of articulosExtra) {
+        if (articulos[ae.index]) articulos[ae.index].texto += '\n\n' + ae.texto.substring(0, 3000);
       }
       return articulos;
     } catch (e) { return []; }
   }
-  // Fallback: Wikipedia raw wikitext
+  // Fallback: Wikipedia summary API (rápido, siempre disponible)
   try {
     const q = encodeURIComponent(query);
     const buscaRes = await fetch(`https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=3`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" } });
@@ -4176,11 +4178,11 @@ async function buscarEnWeb(query, env) {
     const pages = data?.query?.search || [];
     for (const p of pages.slice(0, 1)) {
       const title = encodeURIComponent(p.title);
-      const rawRes = await fetch(`https://es.wikipedia.org/w/index.php?title=${title}&action=raw`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" }, signal: AbortSignal.timeout(6000) });
-      if (!rawRes.ok) continue;
-      const wikitext = await rawRes.text();
-      const limpio = wikitext.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/'{2,5}/g,'').replace(/\[{2}([^\]|]*?\|)?([^\]]*?)\]{2}/g,'$2').replace(/\{\{[^}]*\}\}/g,' ').replace(/<ref[^>]*>[\s\S]*?<\/ref>/g,'').replace(/\|.*/g,' ').replace(/\s+/g,' ').trim();
-      if (limpio.length > 200) return [{ titulo: p.title, url: `https://es.wikipedia.org/wiki/${title}`, texto: limpio.substring(0, 12000) }];
+      const sumRes = await fetch(`https://es.wikipedia.org/api/rest_v1/page/summary/${title}`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" }, signal: AbortSignal.timeout(5000) });
+      if (!sumRes.ok) continue;
+      const sum = await sumRes.json();
+      const texto = (sum.extract || '') + '\n' + (sum.extract_html || '').replace(/<[^>]+>/g,'');
+      if (texto.length > 200) return [{ titulo: sum.title || p.title, url: sum.content_urls?.desktop?.page || `https://es.wikipedia.org/wiki/${title}`, texto: texto.substring(0, 10000) }];
     }
     return [];
   } catch (e) { return []; }
