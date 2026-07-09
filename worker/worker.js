@@ -4121,7 +4121,7 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
   for(let i=0;i<keys.length;i++){
     for(let intento=1;intento<=2;intento++){
       try{
-        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO DE ARTÍCULOS WEB:\n"+ctx:"")}]}],generationConfig:{temperature:0.4,maxOutputTokens:3000}})});
+        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO DE ARTÍCULOS WEB:\n"+ctx:"")}]}],generationConfig:{temperature:0.4,maxOutputTokens:4000}})});
         if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
         if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
         if(!res.ok) break;
@@ -4158,6 +4158,17 @@ async function buscarEnWeb(query, env) {
       for (const item of items.slice(0, 6)) {
         const texto = [item.title, item.snippet].filter(Boolean).join('. ');
         if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
+      }
+      // Fetch contenido completo del primer resultado para más detalle
+      if (articulos.length > 0) {
+        try {
+          const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
+          if (artRes.ok) {
+            const html = await artRes.text();
+            const fullTexto = extraerTexto(html).substring(0, 6000);
+            if (fullTexto.length > 500) articulos[0].texto += '\n\n--- CONTENIDO COMPLETO ---\n' + fullTexto;
+          }
+        } catch {}
       }
       debug.proveedores.push('serper:ok');
       return { articulos, debugSearch: debug };
@@ -5153,22 +5164,29 @@ async function handleVisualTimeline(body, env) {
   if (!tema) return jsonError("Falta tema", 400);
 
   const promptWeb = `Sos un cronista de datos de Media Mendoza.
-Extraé eventos INDIVIDUALES de los ARTÍCULOS WEB que se proporcionan abajo sobre: "${tema}"
+Extraé TODOS los eventos INDIVIDUALES disponibles en los ARTÍCULOS WEB sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
 REGLAS ESTRICTAS:
 - Cada evento = un hecho INDIVIDUAL con fecha exacta (YYYY-MM-DD)
-- NO incluyas resúmenes ni acumulados. Solo hechos concretos individuales.
-- La descripción debe tener datos NUMÉRICOS (goles, porcentajes, resultados)
-- Buscá en los artículos TODOS los hechos disponibles, no te limites a unos pocos
+- NO incluyas resúmenes, acumulados ni titles genéricos
+- La descripción debe tener datos NUMÉRICOS concretos
+- EXTRAÉ TODOS los hechos que encuentres en el contenido, no solo los primeros
 
-Ejemplo correcto:
+Ejemplo correcto para fútbol (extraer cada partido):
 {"eventos":[
-  {"date":"2026-06-15","title":"Argentina 3-1 Argelia","desc":"Messi anotó 3 goles (hat-trick)"},
-  {"date":"2026-06-21","title":"Argentina 2-0 Austria","desc":"Messi anotó 2 goles"}
+  {"date":"2026-06-15","title":"Argentina 3-1 Argelia","desc":"Messi anotó 3 goles"},
+  {"date":"2026-06-21","title":"Argentina 2-0 Austria","desc":"Messi anotó 2 goles"},
+  {"date":"2026-06-27","title":"Argentina 3-0 Jordania","desc":"Messi anotó 1 gol de tiro libre"}
 ]}
 
-Respondé SOLO con JSON. Mínimo 2 eventos. No respondas {"eventos": []}.`;
+Ejemplo correcto para inflación (extraer cada mes):
+{"eventos":[
+  {"date":"2026-01-01","title":"Inflación enero 2026","desc":"2,3% mensual"},
+  {"date":"2026-02-01","title":"Inflación febrero 2026","desc":"2,1% mensual"}
+]}
+
+Respondé SOLO con JSON. Cuantos más eventos extraigas mejor. Mínimo 2. No respondas {"eventos": []}.`;
 
   const r1 = await callGeminiConBusqueda(promptWeb, env, tema);
   const debug = r1.debugSearch || {};
