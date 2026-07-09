@@ -5155,21 +5155,21 @@ async function handleVisualTimeline(body, env) {
   if (!tema) return jsonError("Falta tema", 400);
 
   const promptWeb = `Sos un cronista de Media Mendoza, diario del sur de Mendoza, Argentina.
-Generá una línea de tiempo periodística con EVENTOS REALES sobre: "${tema}"
+Generá una línea de tiempo periodística con eventos sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-Usá el CONTENIDO WEB que se te proporciona abajo como fuente principal.
-No inventes fechas ni eventos. Si un dato no está confirmado, no lo incluyas.
+Usá el CONTENIDO WEB que se te proporciona abajo como fuente principal para extraer fechas, nombres y datos concretos.
+Si el contenido web no tiene suficiente detalle, complementá con tu conocimiento.
+
+INSTRUCCIÓN OBLIGATORIA: Siempre respondé con al menos 2 eventos. No respondas {"eventos": []} incluso si no estás seguro. Usá tu conocimiento para completar.
 
 Cada evento debe tener:
 - Fecha (YYYY-MM-DD)
 - Título corto
-- Descripción breve
+- Descripción breve con datos específicos (equipos, resultados, números)
 
 Respondé SOLO con JSON sin backticks:
-{"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}
-
-Mínimo 2 eventos. Si no hay suficiente información, respondé {"eventos": []}.`;
+{"eventos": [{"date": "2026-06-15", "title": "Ejemplo evento", "desc": "Descripción con datos"}]}`;
 
   const r1 = await callGeminiConBusqueda(promptWeb, env, tema);
   const debug = { intento1_fuentes: r1.data?.fuentes?.length || 0, intento1_eventos: r1.data?.eventos?.length || 0, error: r1.error || null };
@@ -5181,14 +5181,16 @@ Mínimo 2 eventos. Si no hay suficiente información, respondé {"eventos": []}.
 
   // Fallback: solo Gemini (conocimiento interno)
   const promptFallback = `Sos un cronista de Media Mendoza.
-Generá una línea de tiempo con eventos reales sobre: "${tema}"
+Generá una línea de tiempo con eventos sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
 
-IMPORTANTE: Solo incluí eventos reales y verificables. No inventes nada.
-Si no conocés datos reales, respondé {"eventos": []}.
+Basate en hechos reales. Si no tenés datos específicos del tema exacto, incluí eventos relacionados del contexto general.
+
+INSTRUCCIÓN OBLIGATORIA: Respondé SIEMPRE con al menos 3 eventos. {"eventos": []} no está permitido.
+Cada evento: fecha (YYYY-MM-DD), título, descripción breve.
 
 Respondé SOLO con JSON:
-{"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}`;
+{"eventos": [{"date": "2026-06-15", "title": "Ejemplo", "desc": "Descripción"}]}`;
 
   const r2 = await callGemini(promptFallback, env);
   debug.intento2_error = r2.error || null;
