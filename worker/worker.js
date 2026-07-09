@@ -4135,34 +4135,47 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
 }
 
 async function buscarEnWeb(query, env) {
-  // 1. Brave Search API (búsqueda web REAL, plan gratis 2000/mes)
-  const braveKey = env.BRAVE_API_KEY;
-  if (braveKey) {
+  // 1. UnSearch API (5000 consultas gratis/mes, sin tarjeta, Cloudflare-native)
+  const unsearchKey = env.UNSEARCH_API_KEY;
+  if (unsearchKey) {
     try {
-      const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8&safesearch=off`, { headers: { "Accept": "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": braveKey } });
+      const res = await fetch('https://api.unsearch.dev/api/v1/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': unsearchKey },
+        body: JSON.stringify({ query, count: 8 })
+      });
       if (!res.ok) return [];
       const data = await res.json();
-      const items = data.web?.results || [];
+      const items = data.results || data.web?.results || [];
       const articulos = [];
       for (const item of items.slice(0, 6)) {
-        const texto = [item.title, item.description, item.extra_snippets?.join('. ') || ''].filter(Boolean).join('. ');
-        if (texto.length > 30) articulos.push({ titulo: item.title, url: item.url, texto: texto.substring(0, 2000) });
-      }
-      // Intentar fetch de artículo completo para el primer resultado
-      if (articulos.length > 0) {
-        try {
-          const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
-          if (artRes.ok) {
-            const html = await artRes.text();
-            const fullTexto = extraerTexto(html).substring(0, 5000);
-            if (fullTexto.length > 300) articulos[0].texto += '\n\n' + fullTexto;
-          }
-        } catch { /* article fetch opcional */ }
+        const texto = [item.title, item.snippet || item.description, (item.content || '').substring(0, 1000)].filter(Boolean).join('. ');
+        if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link || item.url, texto: texto.substring(0, 2000) });
       }
       return articulos;
     } catch (e) { return []; }
   }
-  // 2. Google Custom Search (si configurado, pero limitado a sitios específicos)
+  // 2. Serper API (2500 consultas gratis, sin tarjeta) como alternativa
+  const serperKey = env.SERPER_API_KEY;
+  if (serperKey) {
+    try {
+      const res = await fetch('https://google.serper.dev/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-KEY': serperKey },
+        body: JSON.stringify({ q: query, gl: 'ar', hl: 'es', num: 8 })
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const items = data.organic || [];
+      const articulos = [];
+      for (const item of items.slice(0, 6)) {
+        const texto = [item.title, item.snippet].filter(Boolean).join('. ');
+        if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
+      }
+      return articulos;
+    } catch (e) { return []; }
+  }
+  // 3. Google Custom Search (limitado a sitios específicos)
   const gcsKey = env.GOOGLE_SEARCH_KEY;
   const gcsCx = env.GOOGLE_SEARCH_CX;
   if (gcsKey && gcsCx) {
@@ -4179,7 +4192,7 @@ async function buscarEnWeb(query, env) {
       return articulos;
     } catch (e) { return []; }
   }
-  // 3. Fallback: Wikipedia REST summary
+  // 4. Fallback: Wikipedia REST summary
   try {
     const q = encodeURIComponent(query);
     const buscaRes = await fetch(`https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=3`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" } });
