@@ -318,6 +318,37 @@ async function apiGet(path) {
   } catch (e) { return null; }
 }
 
+// ── Limpiar todo ──
+function limpiarTodo() {
+  if (!confirm('¿Limpiar todos los módulos? Se borrarán los datos de gráficos, mapa, timeline e infografía.')) return;
+
+  // URL
+  document.getElementById('urlInput').value = '';
+
+  // Charts
+  document.getElementById('chartData').value = 'Enero, 45\nFebrero, 62\nMarzo, 38\nAbril, 55\nMayo, 70';
+  document.getElementById('chartTitle').value = 'Título del gráfico';
+  document.getElementById('chartType').value = 'bar';
+  cambiarTipoGrafico();
+
+  // Maps
+  if (typeof limpiarMarcadores === 'function') limpiarMarcadores();
+  document.getElementById('mapSearchInput').value = '';
+  document.getElementById('markerTitle').value = '';
+  document.getElementById('markerDesc').value = '';
+
+  // Timeline
+  if (typeof limpiarTimeline === 'function') limpiarTimeline();
+
+  // Infografia
+  document.getElementById('infoTitle').value = 'Título de la infografía';
+  document.getElementById('infoContent').value = 'Dato clave 1\nDato clave 2\nCifra relevante 3';
+  seleccionarTemplate('destacado');
+  renderizarInfografia();
+
+  toast('🗑 Todos los módulos limpiados');
+}
+
 // ── Extraer todo desde una URL ──
 async function extraerDeUrl() {
   const url = document.getElementById('urlInput').value.trim();
