@@ -4105,19 +4105,31 @@ async function getEditorial(env){
   return null;
 }
 async function callGeminiConBusqueda(prompt,env,searchQuery){
-  // 1) Buscar en Google News RSS + Wikipedia en paralelo
-  const [news, wiki] = await Promise.all([
+  // 1) Buscar fuentes en paralelo
+  const [newsRss, wikiPages] = await Promise.all([
     buscarGoogleNews(searchQuery),
     buscarWikipedia(searchQuery)
   ]);
-  // 2) Juntar y limitar fuentes
+  // 2) Fetch contenido real de los primeros 2 artículos de Google News
+  const fetchTasks = newsRss.slice(0, 2).map(async (item) => {
+    try {
+      const res = await fetch(item.url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return null;
+      const html = await res.text();
+      const texto = extraerTexto(html).substring(0, 3000);
+      if (texto.length < 200) return null;
+      return { ...item, texto };
+    } catch { return null; }
+  });
+  const articulos = (await Promise.all(fetchTasks)).filter(Boolean);
+  // 3) Juntar todo: artículos completos + Wikipedia
   const fuentes = [];
   const ctxParts = [];
-  for (const f of [...news, ...wiki].slice(0, 3)) {
+  for (const f of [...articulos, ...wikiPages].slice(0, 3)) {
     ctxParts.push("\nFUENTE: " + f.titulo + " (" + f.url + ")\n" + f.texto + "\n---");
     fuentes.push({ titulo: f.titulo, url: f.url, imagen: '' });
   }
-  // 3) Llamar Gemini con el contexto web
+  // 4) Llamar Gemini con el contexto web
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
   const ctx=ctxParts.join("");
