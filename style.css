@@ -23,58 +23,90 @@
 
 /* ── Tema claro (por defecto) ── */
 :root {
-  --v: #a6ce39;
-  --vo: #8fb82d;
-  --vl: #eaf3de;
-  --v-dark: #7a9e1f;
-  --v-dim: rgba(166,206,57,0.12);
-  --v-badge: #c8e87a;
-  --red: #e63946;
-  --red-bg: rgba(230,57,70,0.08);
-  --red-dim: #fdecea;
-  --wa: #25d366;
-  --wa-dark: #1ebe5d;
-  --bg: #f4f4f2;
-  --bg2: #fafaf8;
+  /* Paleta profesional para publicación impresa y digital */
+  --v: #1a5632;                    /* Verde principal: editorial, profundo */
+  --vo: #2d7e47;                   /* Verde hover */
+  --vl: #e8f5ec;                   /* Verde muy claro para fondos */
+  --v-dark: #104520;               /* Verde oscuro */
+  --v-dim: rgba(26, 86, 50, 0.12); /* Verde con opacidad */
+  --v-badge: #c8e8d8;              /* Badge verde suave */
+  
+  --accent: #d4af37;               /* Dorado elegante para acentos */
+  --accent-dark: #b8940f;
+  --accent-dim: rgba(212, 175, 55, 0.15);
+  
+  --red: #c41e3a;                  /* Rojo editorial */
+  --red-bg: rgba(198, 30, 58, 0.06);
+  --red-dim: #f7e7ea;
+  
+  --wa: #129c5a;                   /* Verde éxito */
+  --wa-dark: #0e7d4a;
+  
+  /* Fondos y superficies para impresión */
+  --bg: #ffffff;                   /* Blanco puro */
+  --bg2: #f8f8f8;                  /* Gris muy claro */
   --surface: #ffffff;
-  --surface2: #fafafa;
-  --line: rgba(0,0,0,0.08);
-  --line2: rgba(0,0,0,0.12);
-  --line3: rgba(0,0,0,0.04);
-  --white: #1a1a1a;
-  --dim: #888680;
-  --muted: #666666;
-  --text: #1a1a1a;
+  --surface2: #f0f0f0;
+  
+  /* Líneas y bordes sutiles */
+  --line: #e0e0e0;
+  --line2: #cccccc;
+  --line3: #f0f0f0;
+  
+  /* Tipografía y texto */
+  --white: #1a1a1a;                /* Texto sobre fondos oscuros */
+  --dim: #888888;                  /* Texto secundario */
+  --muted: #666666;                /* Texto terciario */
+  --text: #1a1a1a;                 /* Texto principal */
+  
+  /* Fuentes */
   --font-display: 'BebasNeue', sans-serif;
   --font-serif: 'DM Serif Display', serif;
   --font-body: 'Inter', sans-serif;
+  
+  /* Espaciado y layout */
   --header-h: 56px;
   --footer-h: 46px;
   --radius-sm: 4px;
   --radius: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
-  --shadow: 0 2px 8px rgba(0,0,0,0.08);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  
+  /* Sombras sutiles para impresión */
+  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.1);
 }
 
 body.dark-theme {
-  --bg: #0a0b08;
-  --bg2: #111309;
-  --surface: #161810;
-  --surface2: #1e2016;
-  --line: rgba(255,255,255,0.07);
-  --line2: rgba(255,255,255,0.12);
-  --line3: rgba(255,255,255,0.04);
-  --white: #f5f5f0;
-  --dim: #6b6d5e;
-  --muted: #9b9d8a;
+  --bg: #0f110f;
+  --bg2: #161814;
+  --surface: #1c1e1a;
+  --surface2: #242622;
+  --line: #2a2c28;
+  --line2: #3a3c36;
+  --line3: #1f211d;
+  --white: #f0f0eb;
+  --dim: #8a8c7e;
+  --muted: #a8aa98;
   --text: #e8e8e0;
+  --v: #6ec988;               /* Verde más claro para modo oscuro */
+  --vo: #8dd9a0;
+  --vl: #1a2e20;
+  --v-dark: #4ab86a;
+  --v-dim: rgba(110, 201, 136, 0.15);
+  --v-badge: #2e4a35;
+  --accent: #e8c96b;           /* Dorado suave para modo oscuro */
+  --accent-dark: #d4b84f;
+  --accent-dim: rgba(232, 201, 107, 0.15);
+  --red: #e87a8a;
+  --red-bg: rgba(232, 122, 138, 0.12);
+  --red-dim: #3a1a20;
   --shadow: 0 4px 20px rgba(0,0,0,0.3);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.25);
-  --red-bg: rgba(230,57,70,0.12);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.35);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

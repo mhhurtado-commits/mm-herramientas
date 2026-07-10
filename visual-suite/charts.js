@@ -141,27 +141,41 @@ function actualizarGrafico() {
   const isPolar = type === 'polarArea';
   const isPie = type === 'pie' || type === 'doughnut';
 
-  const alpha = isPie || isPolar ? '0.8' : '0.6';
+  // Use new color palette for better professional aesthetic
+  const accentColor = getComputedStyle(document.body).getPropertyValue('--v').trim();     // --primary
+  const accentColorDark = getComputedStyle(document.body).getPropertyValue('--v-dark').trim(); // --primary-dark
+  const accentColorLight = getComputedStyle(document.body).getPropertyValue('--vl').trim();   // --primary-light
+  const accentColorDim = getComputedStyle(document.body).getPropertyValue('--v-dim').trim(); // --v-dim
+  const textPrimary = getComputedStyle(document.body).getPropertyValue('--text').trim();     // --text-primary
+  const textSecondary = getComputedStyle(document.body).getPropertyValue('--muted').trim(); // --text-secondary
+  const gridColor = getComputedStyle(document.body).getPropertyValue('--line').trim();      // --line
+  const gridSoftColor = getComputedStyle(document.body).getPropertyValue('--line3').trim();   // --line3
+
   const colors = values.map((_, i) => {
-    const base = i % 2 === 0 ? color1 : color2;
+    // Use alternating primary and accent colors for better visual hierarchy
     if (isPie || isPolar) {
+      // For pie/polar charts, use distinct pastel colors with good contrast
       const hue = (i * 137.5) % 360;
       return `hsl(${hue}, 65%, 55%)`;
     }
-    return base;
+    // For bar, line, etc. charts, use primary color with lighter variations
+    return i % 2 === 0 ? accentColor : accentColorLight;
   });
 
   const datasets = [{
     label: title || 'Datos',
     data: values,
-    backgroundColor: isPie || isPolar ? colors : colors.map(c => c + alpha),
-    borderColor: isPie || isPolar ? '#ffffff' : colors,
-    borderWidth: isPie || isPolar ? 2 : 2,
+    backgroundColor: isPie || isPolar ? colors : colors.map(c => c + '33'), // subtle transparency for bar/line charts
+    borderColor: isPie || isPolar ? '#ffffff' : accentColor, // Use accent color for borders
+    borderWidth: 1, // Reduce border thickness for cleaner look
     pointBackgroundColor: colors,
     pointBorderColor: '#ffffff',
-    pointRadius: type === 'line' ? 4 : 0,
+    pointRadius: type === 'line' ? 3 : 0, // Smaller points for cleaner aesthetic
+    pointHoverRadius: type === 'line' ? 5 : 0,
     fill: type === 'line',
-    tension: type === 'line' ? 0.3 : 0
+    tension: type === 'line' ? 0.3 : 0,
+    hoverBackgroundColor: accentColorDark,
+    hoverBorderColor: '#ffffff'
   }];
 
   chartInstance = new Chart(ctx, {
@@ -170,38 +184,109 @@ function actualizarGrafico() {
     options: {
       responsive: true,
       maintainAspectRatio: true,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
       plugins: {
         title: {
           display: !!title,
           text: title,
-          color: getComputedStyle(document.body).getPropertyValue('--text').trim(),
-          font: { family: "'BebasNeue', sans-serif", size: 20 }
+          color: textPrimary,
+          font: { family: "'BebasNeue', sans-serif", size: 20, weight: '600' }
         },
         legend: {
           display: isPie || isPolar || type === 'radar',
           position: 'bottom',
           labels: {
-            color: getComputedStyle(document.body).getPropertyValue('--muted').trim(),
-            font: { size: 11 }
+            color: textSecondary,
+            font: { size: 12, weight: '500' },
+            padding: 20,
+            generateLabels: function(chart) {
+              const data = chart.data;
+              if (data.datasets.length === 0) return [];
+              const dataset = data.datasets[0];
+              const labels = data.labels || [];
+              return labels.map((label, i) => {
+                // Create custom legend with color dot and text
+                const style = chart.ctx.createLinearGradient(0, 0, 60, 0);
+                if (isPie || isPolar) {
+                  style.addColorStop(0, colors[i]);
+                  style.addColorStop(1, colors[i]);
+                } else {
+                  style.addColorStop(0, colors[Math.min(i, colors.length - 1)]);
+                  style.addColorStop(1, colors[Math.min(i, colors.length - 1)]);
+                }
+                return {
+                  text: label,
+                  fillStyle: style,
+                  strokeStyle: colors[Math.min(i, colors.length - 1)],
+                  lineWidth: 3,
+                  hidden: false,
+                  index: i
+                };
+              });
+            }
+          },
+          align: 'center',
+          fullSize: false,
+          maxHeight: 60,
+          maxWidth: 200
+        },
+        datalabels: {
+          display: false, // We use custom label plugin in labelPlugin below
+          anchor: 'center',
+          align: 'center',
+          color: '#fff',
+          font: { weight: 'bold', size: 14 },
+          formatter: function(value) {
+            return value;
           }
         }
       },
       scales: isPie || isPolar ? {} : {
         x: {
           ticks: {
-            color: getComputedStyle(document.body).getPropertyValue('--dim').trim(),
-            font: { size: 10 }
+            color: textSecondary,
+            font: { size: 11, weight: '500' },
+            pad: 10,
+            maxRotation: 45,
+            minRotation: 0
           },
-          grid: { color: getComputedStyle(document.body).getPropertyValue('--line').trim() }
+          grid: {
+            color: gridColor,
+            drawBorder: false,
+            tickLength: 4
+          },
+          border: {
+            display: false
+          },
+          suggestedMin: 0
         },
         y: {
           beginAtZero: true,
           ticks: {
-            color: getComputedStyle(document.body).getPropertyValue('--dim').trim(),
-            font: { size: 10 }
+            color: textSecondary,
+            font: { size: 11, weight: '500' },
+            pad: 10,
+            callback: function(value) {
+              return value.toLocaleString();
+            }
           },
-          grid: { color: getComputedStyle(document.body).getPropertyValue('--line').trim() }
+          grid: {
+            color: gridSoftColor,
+            drawBorder: false,
+            tickLength: 4
+          },
+          border: {
+            display: false
+          }
         }
+      },
+      responsivePlugin: false,
+      animation: {
+        duration: 500,
+        easing: 'easeInOutQuart'
       }
     }
   });
