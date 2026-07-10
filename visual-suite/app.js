@@ -69,6 +69,7 @@ function exportarVisual() {
 }
 
 async function exportarGrafico() {
+  const nombreBase = 'visual-media-mendoza';
   const src = document.getElementById('chartCanvas');
   if (!src) return toast('No hay gráfico para exportar');
   if (!chartInstance) return toast('No hay gráfico para exportar');
@@ -147,6 +148,7 @@ async function exportarGrafico() {
 }
 
 function exportarMapa() {
+  const nombreBase = 'visual-media-mendoza';
   const elemento = document.getElementById('mapContainer');
   if (!elemento) return toast('No hay mapa para exportar');
   const isDark = document.body.classList.contains('dark-theme');
@@ -264,7 +266,7 @@ function toggleLogo() {
 
 function actualizarLogoOverlay() {
   if (!logoState.loaded) return;
-  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline'].forEach(id => {
+  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     if (!logoState.visible) { el.style.display = 'none'; return; }
@@ -283,7 +285,7 @@ function actualizarLogoOverlay() {
 
 // ── Drag & Resize directo sobre el logo overlay (estilo placas) ──
 function initLogoDrag() {
-  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline'].forEach(id => {
+  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia'].forEach(id => {
     const overlay = document.getElementById(id);
     if (!overlay) return;
     overlay.addEventListener('mousedown', onLogoDown);
