@@ -69,37 +69,80 @@ function exportarVisual() {
 }
 
 async function exportarGrafico() {
-  const canvas = document.getElementById('chartCanvas');
-  if (!canvas) return toast('No hay gráfico para exportar');
-  // Esperar que Inter u otras fuentes web estén disponibles
+  const src = document.getElementById('chartCanvas');
+  if (!src) return toast('No hay gráfico para exportar');
   await document.fonts.ready;
-  // Capturar a alta resolución forzando el canvas
-  const ow = canvas.width;
-  const oh = canvas.height;
+  const ow = src.width, oh = src.height;
   const scale = 4;
-  canvas.width = ow * scale;
-  canvas.height = oh * scale;
-  canvas.style.width = ow + 'px';
-  canvas.style.height = oh + 'px';
-  if (chartInstance) {
-    chartInstance.resize();
-  }
-  // Esperar render y capturar
+  src.width = ow * scale;
+  src.height = oh * scale;
+  if (chartInstance) chartInstance.resize();
+
   setTimeout(() => {
-    // Sellar el logo sobre el canvas (el overlay DOM no entra en toBlob)
-    const ctx = canvas.getContext('2d');
-    if (typeof dibujarLogo === 'function') dibujarLogo(ctx, canvas.width, canvas.height);
-    canvas.toBlob(blob => {
+    // ── Marco editorial de la placa (colores solo de la placa) ──
+    const M = Math.round(src.width * 0.06);
+    const headerH = Math.round(src.height * 0.18);
+    const footerH = Math.round(src.height * 0.12);
+    const frame = document.createElement('canvas');
+    frame.width = src.width + M * 2;
+    frame.height = src.height + headerH + footerH;
+    const ctx = frame.getContext('2d');
+
+    // Fondo papel
+    const g = ctx.createLinearGradient(0, 0, 0, frame.height);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(1, '#f3f5f2');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, frame.width, frame.height);
+
+    // Header tinta + regla dorada
+    ctx.fillStyle = '#16201b';
+    ctx.fillRect(0, 0, frame.width, headerH);
+    ctx.fillStyle = '#c9a227';
+    ctx.fillRect(0, headerH - 6, frame.width, 6);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#c9a227';
+    ctx.font = `700 ${headerH * 0.13}px "Inter", sans-serif`;
+    ctx.fillText('MEDIA MENDOZA · DATOS', M, headerH * 0.36);
+    const tEl = document.getElementById('chartTitle');
+    const title = (tEl && tEl.value) ? tEl.value : 'Gráfico';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `400 ${headerH * 0.5}px "DM Serif Display", serif`;
+    let t = title;
+    while (ctx.measureText(t).width > frame.width - 2 * M && t.length > 4) t = t.slice(0, -1);
+    if (t.length < title.length) t = t.slice(0, -1) + '…';
+    ctx.fillText(t, M, headerH * 0.84);
+
+    // Gráfico
+    ctx.drawImage(src, M, headerH + M * 0.5, src.width, src.height);
+
+    // Footer
+    const fy = frame.height - footerH * 0.4;
+    ctx.strokeStyle = 'rgba(22,32,27,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(M, fy - footerH * 0.18);
+    ctx.lineTo(frame.width - M, fy - footerH * 0.18);
+    ctx.stroke();
+    ctx.fillStyle = '#5b665f';
+    ctx.font = `600 ${footerH * 0.18}px "Inter", sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, fy);
+    ctx.textAlign = 'right';
+    ctx.fillText('Generado con Visual Suite', frame.width - M, fy);
+
+    // Logo de marca
+    if (typeof dibujarLogo === 'function') dibujarLogo(ctx, frame.width, frame.height);
+
+    frame.toBlob(blob => {
       const url = URL.createObjectURL(blob);
       mostrarExportPreview(url, nombreBase);
-      // Restaurar
-      canvas.width = ow;
-      canvas.height = oh;
-      canvas.style.width = '';
-      canvas.style.height = '';
+      // Restaurar canvas del gráfico
+      src.width = ow;
+      src.height = oh;
       if (chartInstance) chartInstance.resize();
     }, 'image/png', 1);
-  }, 200);
+  }, 250);
 }
 
 function exportarMapa() {
@@ -112,11 +155,58 @@ function exportarMapa() {
     logging: false,
     useCORS: true,
     allowTaint: true
-  }).then(canvas => {
-    // Sellar el logo de marca sobre el mapa exportado
-    const ctx = canvas.getContext('2d');
-    if (typeof dibujarLogo === 'function') dibujarLogo(ctx, canvas.width, canvas.height);
-    canvas.toBlob(blob => {
+  }).then(mapCanvas => {
+    // ── Marco editorial de la placa (colores solo de la placa) ──
+    const M = Math.round(mapCanvas.width * 0.04);
+    const headerH = Math.round(mapCanvas.height * 0.16);
+    const footerH = Math.round(mapCanvas.height * 0.10);
+    const frame = document.createElement('canvas');
+    frame.width = mapCanvas.width + M * 2;
+    frame.height = mapCanvas.height + headerH + footerH;
+    const ctx = frame.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 0, frame.height);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(1, '#f3f5f2');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, frame.width, frame.height);
+
+    // Header tinta + regla dorada
+    ctx.fillStyle = '#16201b';
+    ctx.fillRect(0, 0, frame.width, headerH);
+    ctx.fillStyle = '#c9a227';
+    ctx.fillRect(0, headerH - 6, frame.width, 6);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#c9a227';
+    ctx.font = `700 ${headerH * 0.13}px "Inter", sans-serif`;
+    ctx.fillText('MEDIA MENDOZA · MAPA', M, headerH * 0.36);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `400 ${headerH * 0.5}px "DM Serif Display", serif`;
+    let mt = 'Mapa interactivo';
+    while (ctx.measureText(mt).width > frame.width - 2 * M && mt.length > 4) mt = mt.slice(0, -1);
+    ctx.fillText(mt, M, headerH * 0.84);
+
+    // Mapa
+    ctx.drawImage(mapCanvas, M, headerH + M * 0.5, mapCanvas.width, mapCanvas.height);
+
+    // Footer
+    const fy = frame.height - footerH * 0.4;
+    ctx.strokeStyle = 'rgba(22,32,27,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(M, fy - footerH * 0.18);
+    ctx.lineTo(frame.width - M, fy - footerH * 0.18);
+    ctx.stroke();
+    ctx.fillStyle = '#5b665f';
+    ctx.font = `600 ${footerH * 0.18}px "Inter", sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, fy);
+    ctx.textAlign = 'right';
+    ctx.fillText('Generado con Visual Suite', frame.width - M, fy);
+
+    // Logo de marca
+    if (typeof dibujarLogo === 'function') dibujarLogo(ctx, frame.width, frame.height);
+
+    frame.toBlob(blob => {
       const url = URL.createObjectURL(blob);
       mostrarExportPreview(url, nombreBase);
     });

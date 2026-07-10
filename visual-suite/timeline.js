@@ -186,130 +186,186 @@ function detectarIconoEvento(title, desc) {
   return '📌';
 }
 
+// ── Helpers de placa (solo para el flyer, no afectan la app) ──
+function hexToRgbaPlate(hex, a) {
+  const h = String(hex).replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+// Ajusta un texto en hasta maxLines líneas; recorta la última con "…"
+function wrapPlateLines(ctx, text, maxWidth, maxLines) {
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    const test = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && cur) {
+      lines.push(cur);
+      cur = w;
+      if (lines.length === maxLines - 1) break;
+    } else cur = test;
+  }
+  if (cur && lines.length < maxLines) lines.push(cur);
+  const used = lines.join(' ').split(/\s+/).length;
+  if (used < words.length && lines.length) {
+    let last = lines[lines.length - 1];
+    lines[lines.length - 1] = last.length > 3 ? last.slice(0, -1) + '…' : last;
+  }
+  return lines;
+}
+
 function renderTimelineCanvas(events, W, H) {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  const isDark = document.body.classList.contains('dark-theme');
-  const bg = isDark ? '#0f1110' : '#f8f9f7';
-  const cardBg = isDark ? '#1a1c1a' : '#ffffff';
-  const accent = '#a6ce39';
-  const textColor = isDark ? '#e8e8e0' : '#1a1a1a';
-  const dimText = isDark ? '#888' : '#888';
-  const lineColor = isDark ? '#2a2c2a' : '#e0e0e0';
+  // ── Paleta de la placa (independiente de la app) ──
+  const INK    = '#16201b';   // tinta casi negra
+  const INK2   = '#5b665f';   // texto secundario
+  const ACCENT = '#1f9d5b';   // verde esmeralda moderno
+  const GOLD   = '#c9a227';   // dorado
+  const PAPER  = '#ffffff';
+  const M = Math.round(W * 0.045);
 
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
+  const n = Math.max(sorted.length, 1);
 
-  // Fondo
-  ctx.fillStyle = bg;
+  // Fondo papel con leve degrade
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#fdfdfb');
+  bgGrad.addColorStop(1, '#f1f4f1');
+  ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Header bar
-  const headerH = H * 0.1;
-  ctx.fillStyle = accent;
+  // ── Header editorial ──
+  const headerH = Math.round(H * 0.13);
+  ctx.fillStyle = INK;
   ctx.fillRect(0, 0, W, headerH);
-  ctx.fillStyle = '#1a2a00';
-  ctx.font = `900 ${headerH * 0.36}px "Inter", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText('📅 LÍNEA DE TIEMPO', W / 2, headerH * 0.62);
-  ctx.font = `${headerH * 0.2}px "Inter", sans-serif`;
-  ctx.fillStyle = '#2a4a00';
-  ctx.fillText('Media Mendoza', W / 2, headerH * 0.88);
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(0, headerH - 6, W, 6); // barra dorada
+  ctx.textAlign = 'left';
+  ctx.fillStyle = GOLD;
+  ctx.font = `700 ${Math.round(headerH * 0.13)}px "Inter", sans-serif`;
+  ctx.fillText('MEDIA MENDOZA  ·  CRONOLOGÍA', M, headerH * 0.36);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `400 ${Math.round(headerH * 0.5)}px "DM Serif Display", serif`;
+  ctx.fillText('Línea de tiempo', M, headerH * 0.84);
 
-  // Línea vertical central
-  const centerX = W * 0.15;
-  const startY = headerH + H * 0.04;
-  const eventSpacing = (H - headerH - H * 0.12) / Math.max(sorted.length, 1);
-  const usableH = H - headerH - H * 0.08;
+  // ── Geometría de eventos ──
+  const spineX = M + Math.round(W * 0.02);
+  const topPad = headerH + Math.round(H * 0.05);
+  const botPad = Math.round(H * 0.07);
+  const areaH = H - topPad - botPad;
+  const spacing = areaH / n;
+  const cardH = Math.min(spacing * 0.84, Math.round(H * 0.16));
+  const cardX = spineX + Math.round(W * 0.05);
+  const cardW = W - M - cardX;
 
-  // Dibujar línea vertical
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 3;
-  ctx.setLineDash([]);
+  // Línea espinal
+  ctx.strokeStyle = hexToRgbaPlate(ACCENT, 0.5);
+  ctx.lineWidth = Math.max(3, W * 0.0025);
   ctx.beginPath();
-  ctx.moveTo(centerX, startY);
-  ctx.lineTo(centerX, startY + usableH * 0.95);
+  ctx.moveTo(spineX, topPad);
+  ctx.lineTo(spineX, topPad + areaH);
   ctx.stroke();
 
-  // Footer
-  const footerY = H - H * 0.04;
-  ctx.fillStyle = dimText;
-  ctx.font = `${H * 0.018}px "Inter", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText('Media Mendoza · mmherramientas.media', W / 2, footerY);
-
-  // Eventos
   sorted.forEach((ev, i) => {
-    const y = startY + i * eventSpacing;
-    const fecha = new Date(ev.date + 'T12:00:00');
-    const fechaStr = fecha.toLocaleDateString('es-AR', {
-      year: 'numeric', month: 'short', day: 'numeric'
-    });
+    const cy = topPad + spacing * i + spacing / 2;
 
-    // Círculo en la línea
-    ctx.fillStyle = accent;
+    // Nodo en la espina
+    ctx.fillStyle = ACCENT;
     ctx.beginPath();
-    ctx.arc(centerX, y, W * 0.012, 0, Math.PI * 2);
+    ctx.arc(spineX, cy, W * 0.009, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = bg;
-    ctx.lineWidth = 3;
+    ctx.fillStyle = PAPER;
     ctx.beginPath();
-    ctx.arc(centerX, y, W * 0.018, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Card de evento
-    const cardX = centerX + W * 0.04;
-    const cardW = W * 0.78;
-    const cardH = eventSpacing * 0.75;
-    const cardY = y - cardH / 2;
-
-    // Sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.05)';
-    ctx.beginPath();
-    ctx.roundRect(cardX + 2, cardY + 2, cardW, cardH, 8);
+    ctx.arc(spineX, cy, W * 0.005, 0, Math.PI * 2);
     ctx.fill();
 
-    // Card bg
-    ctx.fillStyle = cardBg;
+    const cardY = cy - cardH / 2;
+
+    // Sombra suave
+    ctx.fillStyle = 'rgba(20,32,27,0.10)';
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY, cardW, cardH, 8);
+    ctx.roundRect(cardX + 4, cardY + 8, cardW, cardH, 18);
+    ctx.fill();
+    // Tarjeta
+    ctx.fillStyle = PAPER;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, cardH, 18);
+    ctx.fill();
+    // Barra de acento izquierda
+    ctx.fillStyle = ACCENT;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, Math.round(W * 0.006), cardH, [18, 0, 0, 18]);
     ctx.fill();
 
-    // Borde izquierdo
-    ctx.fillStyle = accent;
+    // Chip de icono
+    const chip = cardH * 0.62;
+    const chipX = cardX + Math.round(W * 0.02);
+    const chipY = cy - chip / 2;
+    ctx.fillStyle = hexToRgbaPlate(ACCENT, 0.12);
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY, 4, cardH, [2, 0, 0, 2]);
+    ctx.roundRect(chipX, chipY, chip, chip, 14);
     ctx.fill();
-
-    // Icono
-    const icono = detectarIconoEvento(ev.title, ev.desc);
-    ctx.font = `${cardH * 0.4}px sans-serif`;
+    ctx.font = `${Math.round(chip * 0.58)}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(icono, cardX + W * 0.045, cardY + cardH * 0.55);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(detectarIconoEvento(ev.title, ev.desc), chipX + chip / 2, chipY + chip / 2);
+    ctx.textBaseline = 'alphabetic';
+
+    const textX = chipX + chip + Math.round(W * 0.025);
+    const textW = (cardX + cardW - Math.round(W * 0.02)) - textX;
 
     // Fecha
-    ctx.fillStyle = accent;
-    ctx.font = `700 ${cardH * 0.18}px "Inter", sans-serif`;
+    const fecha = new Date(ev.date + 'T12:00:00');
+    const fechaStr = fecha.toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' });
+    ctx.fillStyle = ACCENT;
+    ctx.font = `700 ${Math.round(cardH * 0.15)}px "Inter", sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText(fechaStr, cardX + W * 0.075, cardY + cardH * 0.35);
+    ctx.fillText(fechaStr.toUpperCase(), textX, cardY + cardH * 0.27);
 
-    // Título
-    ctx.fillStyle = textColor;
-    ctx.font = `700 ${cardH * 0.22}px "Inter", sans-serif`;
-    ctx.fillText(ev.title.substring(0, 80), cardX + W * 0.075, cardY + cardH * 0.62);
+    // Título (envuelto)
+    ctx.fillStyle = INK;
+    ctx.font = `700 ${Math.round(cardH * 0.21)}px "Inter", sans-serif`;
+    wrapPlateLines(ctx, ev.title, textW, 2).forEach((ln, k) =>
+      ctx.fillText(ln, textX, cardY + cardH * 0.5 + k * Math.round(cardH * 0.23)));
 
-    // Descripción
+    // Descripción (envuelta)
     if (ev.desc) {
-      ctx.fillStyle = dimText;
-      ctx.font = `${cardH * 0.17}px "Inter", sans-serif`;
-      const descText = ev.desc.length > 120 ? ev.desc.substring(0, 117) + '...' : ev.desc;
-      ctx.fillText(descText, cardX + W * 0.075, cardY + cardH * 0.85);
+      ctx.fillStyle = INK2;
+      ctx.font = `400 ${Math.round(cardH * 0.155)}px "Inter", sans-serif`;
+      wrapPlateLines(ctx, ev.desc, textW, 2).forEach((ln, k) =>
+        ctx.fillText(ln, textX, cardY + cardH * 0.74 + k * Math.round(cardH * 0.2)));
     }
-  });
 
-  // Logo de marca (respeta visibilidad/posición/escala del overlay)
+    // Índice (gran numeral tenue)
+    ctx.fillStyle = hexToRgbaPlate(INK, 0.05);
+    ctx.font = `900 ${Math.round(cardH * 0.9)}px "Inter", sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.fillText(String(i + 1).padStart(2, '0'), cardX + cardW - Math.round(W * 0.015), cy + cardH * 0.34);
+  });
+  ctx.textAlign = 'left';
+
+  // ── Footer ──
+  const footerY = H - Math.round(H * 0.035);
+  ctx.strokeStyle = hexToRgbaPlate(INK, 0.12);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(M, footerY - Math.round(H * 0.02));
+  ctx.lineTo(W - M, footerY - Math.round(H * 0.02));
+  ctx.stroke();
+  ctx.fillStyle = INK2;
+  ctx.font = `600 ${Math.round(H * 0.016)}px "Inter", sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, footerY);
+  ctx.textAlign = 'right';
+  ctx.fillText('Generado con Visual Suite', W - M, footerY);
+
+  // Logo de marca (overlay del usuario)
   if (typeof dibujarLogo === 'function') dibujarLogo(ctx, W, H);
 
   return canvas;

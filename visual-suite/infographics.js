@@ -103,11 +103,66 @@ function drawDecorativeCircles(ctx, W, H, c1) {
   ctx.globalAlpha = 1;
 }
 
-function drawFooter(ctx, W, H) {
-  ctx.fillStyle = 'rgba(0,0,0,0.15)';
-  ctx.font = `${H * 0.02}px "Inter", sans-serif`;
+// ── Helpers de placa (estética de infografías; no afectan la app) ──
+const PLATE_INK = '#16201b';
+const PLATE_INK2 = '#5b665f';
+
+function drawPlateFooter(ctx, W, H, accent, dark) {
+  const M = W * 0.05;
+  const y = H - H * 0.035;
+  ctx.strokeStyle = dark ? 'rgba(255,255,255,0.15)' : 'rgba(22,32,27,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(M, y - H * 0.02);
+  ctx.lineTo(W - M, y - H * 0.02);
+  ctx.stroke();
+  ctx.fillStyle = dark ? 'rgba(255,255,255,0.6)' : PLATE_INK2;
+  ctx.font = `600 ${H * 0.02}px "Inter", sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, y);
+  ctx.textAlign = 'right';
+  ctx.fillText('Generado con Visual Suite', W - M, y);
+  ctx.textAlign = 'left';
+}
+
+function drawPlateHeader(ctx, W, H, kicker, title, accent, dark) {
+  const M = W * 0.05;
+  const ink = dark ? '#ffffff' : PLATE_INK;
+  ctx.textAlign = 'left';
+  if (kicker) {
+    ctx.fillStyle = accent;
+    ctx.font = `700 ${H * 0.022}px "Inter", sans-serif`;
+    ctx.fillText(kicker.toUpperCase(), M, H * 0.075);
+  }
+  ctx.fillStyle = ink;
+  ctx.font = `400 ${H * 0.06}px "DM Serif Display", serif`;
+  let t = title;
+  while (ctx.measureText(t).width > W * 0.9 && t.length > 4) t = t.slice(0, -1);
+  if (t.length < title.length) t = t.slice(0, -1) + '…';
+  ctx.fillText(t, M, H * 0.14);
+  ctx.fillStyle = accent;
+  ctx.fillRect(M, H * 0.155, W * 0.16, Math.max(3, H * 0.004));
+}
+
+function drawIconChipPlate(ctx, x, y, size, icono, accent) {
+  ctx.fillStyle = hexToRgba(accent, 0.14);
+  ctx.beginPath();
+  ctx.roundRect(x, y, size, size, size * 0.28);
+  ctx.fill();
+  ctx.font = `${size * 0.56}px sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('Media Mendoza · mmherramientas.media', W / 2, H - H * 0.025);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(icono, x + size / 2, y + size / 2);
+  ctx.textBaseline = 'alphabetic';
+}
+
+// Separa "Etiqueta: valor" para resaltar el valor
+function splitRichLine(line) {
+  const idx = line.indexOf(':');
+  if (idx > 0 && idx < line.length - 1) {
+    return { label: line.slice(0, idx + 1), value: line.slice(idx + 1).trim(), hasColon: true };
+  }
+  return { label: '', value: line, hasColon: false };
 }
 
 function detectarIconoLinea(linea) {
@@ -126,270 +181,277 @@ function detectarIconoLinea(linea) {
 
 // ── Template: Flyer Simple ──
 function renderFlyerSimple(ctx, W, H, title, content, c1, c2) {
-  drawGradientBg(ctx, W, H, c1, c2, true);
-  drawDecorativeCircles(ctx, W, H, '#ffffff');
+  const M = W * 0.05;
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(1, '#f3f5f2');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
 
-  // Barra semi-transparente superior
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  ctx.fillRect(0, 0, W, H * 0.13);
+  drawPlateHeader(ctx, W, H, 'RESUMEN', title, c1, false);
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `900 ${H * 0.055}px "Inter", sans-serif`;
-  ctx.textAlign = 'left';
-  ctx.fillText(title.toUpperCase(), W * 0.05, H * 0.092);
-
-  // Línea decorativa
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.fillRect(W * 0.05, H * 0.11, W * 0.3, 3);
-
-  // Contenido en tarjetas
   const lines = content.split('\n').filter(l => l.trim());
-  const cardH = H * 0.08;
-  const gap = H * 0.02;
-  const startY = H * 0.18;
   const maxCards = Math.min(lines.length, 8);
+  const top = H * 0.20;
+  const bottom = H - H * 0.07;
+  const areaH = bottom - top;
+  const cardH = Math.min(areaH / Math.max(maxCards, 1) * 0.86, H * 0.085);
+  const gap = maxCards ? (areaH - cardH * maxCards) / maxCards : 0;
 
   lines.slice(0, maxCards).forEach((line, i) => {
-    const y = startY + i * (cardH + gap);
-    const icono = detectarIconoLinea(line);
-
-    // Card semi-transparente
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    const y = top + i * (cardH + gap);
+    ctx.fillStyle = 'rgba(22,32,27,0.08)';
     ctx.beginPath();
-    ctx.roundRect(W * 0.05, y, W * 0.9, cardH, 6);
+    ctx.roundRect(M + 3, y + 5, W - 2 * M, cardH, 14);
     ctx.fill();
-
-    // Borde izquierdo
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.beginPath();
-    ctx.roundRect(W * 0.05, y, 3, cardH, [3, 0, 0, 3]);
-    ctx.fill();
-
-    // Texto
     ctx.fillStyle = '#ffffff';
-    ctx.font = `600 ${H * 0.028}px "Inter", sans-serif`;
+    ctx.beginPath();
+    ctx.roundRect(M, y, W - 2 * M, cardH, 14);
+    ctx.fill();
+    ctx.fillStyle = c1;
+    ctx.beginPath();
+    ctx.roundRect(M, y, Math.max(4, W * 0.004), cardH, [14, 0, 0, 14]);
+    ctx.fill();
+
+    const chip = cardH * 0.62;
+    const chipX = M + W * 0.02;
+    const chipY = y + (cardH - chip) / 2;
+    drawIconChipPlate(ctx, chipX, chipY, chip, detectarIconoLinea(line), c1);
+
+    const textX = chipX + chip + W * 0.02;
+    const { label, value, hasColon } = splitRichLine(line);
     ctx.textAlign = 'left';
-    ctx.fillText(icono + line, W * 0.08, y + cardH * 0.6);
+    if (hasColon) {
+      ctx.fillStyle = PLATE_INK;
+      ctx.font = `700 ${cardH * 0.22}px "Inter", sans-serif`;
+      ctx.fillText(label, textX, y + cardH * 0.4);
+      ctx.fillStyle = c1;
+      ctx.font = `800 ${cardH * 0.26}px "Inter", sans-serif`;
+      ctx.fillText(value, textX, y + cardH * 0.74);
+    } else {
+      ctx.fillStyle = PLATE_INK;
+      ctx.font = `600 ${cardH * 0.26}px "Inter", sans-serif`;
+      ctx.fillText(line, textX, y + cardH * 0.58);
+    }
   });
 
-  drawFooter(ctx, W, H);
+  drawPlateFooter(ctx, W, H, c1, false);
 }
 
 // ── Template: Flyer Comparativa ──
 function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
-  // Fondo oscuro con gradiente
+  const M = W * 0.05;
   const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, '#1a1a2e');
-  grad.addColorStop(1, '#16213e');
+  grad.addColorStop(0, '#10131f');
+  grad.addColorStop(1, '#1b2236');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // Header
+  // Header banda
   ctx.fillStyle = c1;
-  ctx.fillRect(0, 0, W, H * 0.12);
-
+  ctx.fillRect(0, 0, W, H * 0.13);
   ctx.fillStyle = '#ffffff';
-  ctx.font = `900 ${H * 0.05}px "Inter", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText('📊 ' + title.toUpperCase(), W / 2, H * 0.082);
+  ctx.font = `700 ${H * 0.026}px "Inter", sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText('COMPARATIVA', M, H * 0.055);
+  ctx.font = `400 ${H * 0.05}px "DM Serif Display", serif`;
+  let t = title;
+  while (ctx.measureText(t).width > W * 0.9 && t.length > 4) t = t.slice(0, -1);
+  if (t.length < title.length) t = t.slice(0, -1) + '…';
+  ctx.fillText(t, M, H * 0.105);
 
   const lines = content.split('\n').filter(l => l.trim());
-  const midX = W / 2;
   const leftItems = lines.filter((_, i) => i % 2 === 0);
   const rightItems = lines.filter((_, i) => i % 2 === 1);
+  const midX = W / 2;
+  const itemH = H * 0.11;
+  const maxN = Math.max(leftItems.length, rightItems.length);
+  const totalH = maxN * itemH;
+  const startY = (H - totalH) / 2 + H * 0.04;
 
-  // Línea divisoria vertical
+  // Divisor vertical
   ctx.strokeStyle = 'rgba(255,255,255,0.15)';
   ctx.lineWidth = 2;
-  ctx.setLineDash([6, 4]);
+  ctx.setLineDash([6, 5]);
   ctx.beginPath();
-  ctx.moveTo(midX, H * 0.18);
-  ctx.lineTo(midX, H * 0.88);
+  ctx.moveTo(midX, startY - H * 0.02);
+  ctx.lineTo(midX, startY + totalH + H * 0.02);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Etiquetas VS
+  // Badge VS
   ctx.fillStyle = c1;
-  ctx.font = `900 ${H * 0.04}px "Inter", sans-serif`;
+  ctx.beginPath();
+  ctx.arc(midX, startY - H * 0.02, W * 0.022, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `900 ${W * 0.02}px "Inter", sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('VS', midX, H * 0.16);
-
-  // Items izquierda
-  const itemH = H * 0.1;
-  const maxItems = Math.max(leftItems.length, rightItems.length);
-  const totalH = maxItems * itemH;
-  const startY2 = (H - totalH) / 2 + H * 0.1;
+  ctx.textBaseline = 'middle';
+  ctx.fillText('VS', midX, startY - H * 0.02);
+  ctx.textBaseline = 'alphabetic';
 
   leftItems.forEach((item, i) => {
-    const y = startY2 + i * itemH;
-    // Círculo decorativo
-    ctx.fillStyle = hexToRgba(c1, 0.15);
-    ctx.beginPath();
-    ctx.arc(midX - W * 0.2, y + itemH * 0.35, W * 0.035, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = c1;
+    const cy = startY + i * itemH + itemH * 0.4;
+    const chip = itemH * 0.6;
+    drawIconChipPlate(ctx, midX - W * 0.42, cy - chip / 2, chip, detectarIconoLinea(item), c1);
+    ctx.fillStyle = '#ffffff';
     ctx.font = `700 ${H * 0.026}px "Inter", sans-serif`;
     ctx.textAlign = 'right';
-    ctx.fillText('◀ ' + item, midX - W * 0.04, y + itemH * 0.4);
+    ctx.fillText(item, midX - W * 0.05 - chip - W * 0.01, cy + itemH * 0.14);
   });
 
-  // Items derecha
   rightItems.forEach((item, i) => {
-    const y = startY2 + i * itemH;
-    ctx.fillStyle = hexToRgba(c2, 0.15);
-    ctx.beginPath();
-    ctx.arc(midX + W * 0.2, y + itemH * 0.35, W * 0.035, 0, Math.PI * 2);
-    ctx.fill();
+    const cy = startY + i * itemH + itemH * 0.4;
+    const chip = itemH * 0.6;
+    drawIconChipPlate(ctx, midX + W * 0.05, cy - chip / 2, chip, detectarIconoLinea(item), c2);
     ctx.fillStyle = '#ffffff';
     ctx.font = `700 ${H * 0.026}px "Inter", sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText(item + ' ▶', midX + W * 0.04, y + itemH * 0.4);
+    ctx.fillText(item, midX + W * 0.05 + chip + W * 0.01, cy + itemH * 0.14);
   });
 
-  drawFooter(ctx, W, H);
+  drawPlateFooter(ctx, W, H, c1, true);
 }
 
 // ── Template: Flyer Listado ──
 function renderFlyerListado(ctx, W, H, title, content, c1, c2) {
-  // Fondo
-  drawGradientBg(ctx, W, H, c1, '#ffffff', false);
-  // Overlay oscuro para legibilidad
-  ctx.fillStyle = 'rgba(0,0,0,0.03)';
+  const M = W * 0.05;
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(1, '#f3f5f2');
+  ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
-  // Header con acento
-  ctx.fillStyle = c1;
-  ctx.fillRect(0, 0, W, H * 0.11);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `900 ${H * 0.05}px "Inter", sans-serif`;
-  ctx.textAlign = 'left';
-  ctx.fillText('📋 ' + title.toUpperCase(), W * 0.05, H * 0.078);
+  drawPlateHeader(ctx, W, H, 'LISTADO', title, c1, false);
 
   const items = content.split('\n').filter(l => l.trim());
-  const itemH = H * 0.09;
-  const startY3 = H * 0.16;
-  const maxItems2 = Math.min(items.length, 10);
+  const maxN = Math.min(items.length, 10);
+  const top = H * 0.20;
+  const bottom = H - H * 0.07;
+  const areaH = bottom - top;
+  const itemH = areaH / Math.max(maxN, 1);
+  const numX = M + W * 0.03;
+  const spineX = numX + W * 0.03;
 
-  items.slice(0, maxItems2).forEach((item, i) => {
-    const y = startY3 + i * itemH;
-    const icono = detectarIconoLinea(item);
+  // Espina vertical
+  ctx.strokeStyle = hexToRgba(c1, 0.3);
+  ctx.lineWidth = Math.max(2, W * 0.0015);
+  ctx.beginPath();
+  ctx.moveTo(spineX, top);
+  ctx.lineTo(spineX, top + areaH - itemH * 0.4);
+  ctx.stroke();
 
-    // Número de ítem decorativo
-    ctx.fillStyle = hexToRgba(c1, 0.15);
-    ctx.font = `900 ${H * 0.045}px "Inter", sans-serif`;
+  items.slice(0, maxN).forEach((item, i) => {
+    const y = top + i * itemH;
+    const cy = y + itemH * 0.4;
+    // Número
+    ctx.fillStyle = hexToRgba(c1, 0.12);
+    ctx.font = `900 ${itemH * 0.5}px "Inter", sans-serif`;
     ctx.textAlign = 'right';
-    ctx.fillText(String(i + 1).padStart(2, '0'), W * 0.1, y + itemH * 0.55);
-
-    // Línea conectora al número
-    if (i < maxItems2 - 1) {
-      ctx.strokeStyle = hexToRgba(c1, 0.2);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(W * 0.09, y + itemH * 0.55);
-      ctx.lineTo(W * 0.09, y + itemH * 0.95);
-      ctx.stroke();
-    }
-
-    // Círculo conector
+    ctx.fillText(String(i + 1).padStart(2, '0'), numX + W * 0.02, cy + itemH * 0.18);
+    // Nodo
     ctx.fillStyle = c1;
     ctx.beginPath();
-    ctx.arc(W * 0.09, y + itemH * 0.55, 4, 0, Math.PI * 2);
+    ctx.arc(spineX, cy, W * 0.006, 0, Math.PI * 2);
     ctx.fill();
-
-    // Texto del item
-    const textColor = document.body.classList.contains('dark-theme') ? '#e8e8e0' : '#1a1a1a';
-    ctx.fillStyle = textColor;
-    ctx.font = `600 ${H * 0.028}px "Inter", sans-serif`;
+    // Chip
+    const chip = itemH * 0.5;
+    const chipX = spineX + W * 0.025;
+    drawIconChipPlate(ctx, chipX, cy - chip / 2, chip, detectarIconoLinea(item), c1);
+    // Texto
+    const textX = chipX + chip + W * 0.02;
+    const { label, value, hasColon } = splitRichLine(item);
     ctx.textAlign = 'left';
-    ctx.fillText(icono + item, W * 0.15, y + itemH * 0.55);
+    if (hasColon) {
+      ctx.fillStyle = PLATE_INK;
+      ctx.font = `700 ${itemH * 0.2}px "Inter", sans-serif`;
+      ctx.fillText(label, textX, cy - itemH * 0.02);
+      ctx.fillStyle = c1;
+      ctx.font = `800 ${itemH * 0.24}px "Inter", sans-serif`;
+      ctx.fillText(value, textX, cy + itemH * 0.22);
+    } else {
+      ctx.fillStyle = PLATE_INK;
+      ctx.font = `600 ${itemH * 0.24}px "Inter", sans-serif`;
+      ctx.fillText(item, textX, cy + itemH * 0.1);
+    }
   });
 
-  drawFooter(ctx, W, H);
+  drawPlateFooter(ctx, W, H, c1, false);
 }
 
 // ── Template: Flyer Destacado ──
 function renderFlyerDestacado(ctx, W, H, title, content, c1, c2) {
-  // Fondo con gradiente dramático
-  drawGradientBg(ctx, W, H, c2, '#000000', false);
-
-  // Círculos decorativos grandes
-  ctx.globalAlpha = 0.04;
-  for (let i = 0; i < 5; i++) {
-    ctx.fillStyle = '#ffffff';
-    const x = W * (0.1 + i * 0.2);
-    const y = H * (0.2 + (i % 3) * 0.25);
-    ctx.beginPath();
-    ctx.arc(x, y, 80 + i * 20, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
+  const M = W * 0.05;
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, c2);
+  grad.addColorStop(1, '#0a0d12');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
 
   // Barra lateral de acento
   ctx.fillStyle = c1;
-  ctx.fillRect(0, 0, W * 0.07, H);
+  ctx.fillRect(0, 0, W * 0.035, H);
 
-  // Título grande
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `900 ${H * 0.07}px "Inter", sans-serif`;
+  // Kicker + título serif
+  ctx.fillStyle = c1;
+  ctx.font = `700 ${H * 0.024}px "Inter", sans-serif`;
   ctx.textAlign = 'left';
-  ctx.fillText(title.toUpperCase(), W * 0.12, H * 0.15);
-
-  // Subtítulo decorativo
-  ctx.fillStyle = hexToRgba(c1, 0.6);
-  ctx.font = `${H * 0.025}px "Inter", sans-serif`;
-  ctx.fillText('DATOS DESTACADOS', W * 0.12, H * 0.19);
-
-  // Línea decorativa
-  ctx.fillStyle = hexToRgba(c1, 0.4);
-  ctx.fillRect(W * 0.12, H * 0.205, W * 0.4, 2);
+  ctx.fillText('DATOS DESTACADOS', M, H * 0.09);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `400 ${H * 0.062}px "DM Serif Display", serif`;
+  let t = title;
+  while (ctx.measureText(t).width > W * 0.85 && t.length > 4) t = t.slice(0, -1);
+  if (t.length < title.length) t = t.slice(0, -1) + '…';
+  ctx.fillText(t, M, H * 0.155);
+  ctx.fillStyle = hexToRgba(c1, 0.7);
+  ctx.fillRect(M, H * 0.17, W * 0.16, Math.max(3, H * 0.004));
 
   const lines = content.split('\n').filter(l => l.trim());
-  const cardW = W * 0.75;
-  const cardH2 = H * 0.09;
-  const gap2 = H * 0.025;
-  const startY4 = H * 0.26;
+  const maxN = Math.min(lines.length, 8);
+  const top = H * 0.22;
+  const bottom = H - H * 0.07;
+  const areaH = bottom - top;
+  const cardH = Math.min(areaH / Math.max(maxN, 1) * 0.86, H * 0.095);
+  const gap = maxN ? (areaH - cardH * maxN) / maxN : 0;
 
-  lines.slice(0, 8).forEach((line, i) => {
-    const y = startY4 + i * (cardH2 + gap2);
-    const icono = detectarIconoLinea(line);
-
-    // Card oscuro con borde
+  lines.slice(0, maxN).forEach((line, i) => {
+    const y = top + i * (cardH + gap);
     ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(W * 0.12, y, cardW, cardH2, 8);
+    ctx.roundRect(M, y, W - 2 * M, cardH, 12);
     ctx.fill();
     ctx.stroke();
-
-    // Indicador de acento en cada card
     ctx.fillStyle = c1;
     ctx.beginPath();
-    ctx.roundRect(W * 0.12, y, 3, cardH2, [4, 0, 0, 4]);
+    ctx.roundRect(M, y, Math.max(4, W * 0.004), cardH, [12, 0, 0, 12]);
     ctx.fill();
 
-    // Texto
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `700 ${H * 0.028}px "Inter", sans-serif`;
-    ctx.textAlign = 'left';
+    const chip = cardH * 0.6;
+    const chipX = M + W * 0.02;
+    const chipY = y + (cardH - chip) / 2;
+    drawIconChipPlate(ctx, chipX, chipY, chip, detectarIconoLinea(line), c1);
 
-    // Si la línea tiene dos puntos, separar
-    const colonIdx = line.indexOf(':');
-    if (colonIdx > 0) {
-      const label = line.substring(0, colonIdx + 1);
-      const value = line.substring(colonIdx + 1).trim();
-      ctx.fillStyle = hexToRgba(c1, 0.8);
-      ctx.fillText(icono + label, W * 0.17, y + cardH2 * 0.42);
+    const textX = chipX + chip + W * 0.02;
+    const { label, value, hasColon } = splitRichLine(line);
+    ctx.textAlign = 'left';
+    if (hasColon) {
+      ctx.fillStyle = hexToRgba(c1, 0.85);
+      ctx.font = `700 ${cardH * 0.2}px "Inter", sans-serif`;
+      ctx.fillText(label, textX, y + cardH * 0.38);
       ctx.fillStyle = '#ffffff';
-      ctx.font = `800 ${H * 0.034}px "Inter", sans-serif`;
-      ctx.fillText(value, W * 0.17, y + cardH2 * 0.78);
-      ctx.font = `700 ${H * 0.028}px "Inter", sans-serif`;
+      ctx.font = `800 ${cardH * 0.26}px "Inter", sans-serif`;
+      ctx.fillText(value, textX, y + cardH * 0.74);
     } else {
-      ctx.fillText(icono + line, W * 0.17, y + cardH2 * 0.6);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 ${cardH * 0.24}px "Inter", sans-serif`;
+      ctx.fillText(line, textX, y + cardH * 0.58);
     }
   });
 
-  drawFooter(ctx, W, H);
+  drawPlateFooter(ctx, W, H, c1, true);
 }
 
 function wrapText(ctx, text, maxWidth) {
