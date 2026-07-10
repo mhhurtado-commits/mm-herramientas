@@ -141,40 +141,37 @@ function actualizarGrafico() {
   const isPolar = type === 'polarArea';
   const isPie = type === 'pie' || type === 'doughnut';
 
-  // Use new color palette for better professional aesthetic
-  const accentColor = getComputedStyle(document.body).getPropertyValue('--v').trim();     // --primary
-  const accentColorDark = getComputedStyle(document.body).getPropertyValue('--v-dark').trim(); // --primary-dark
-  const accentColorLight = getComputedStyle(document.body).getPropertyValue('--vl').trim();   // --primary-light
-  const accentColorDim = getComputedStyle(document.body).getPropertyValue('--v-dim').trim(); // --v-dim
-  const textPrimary = getComputedStyle(document.body).getPropertyValue('--text').trim();     // --text-primary
-  const textSecondary = getComputedStyle(document.body).getPropertyValue('--muted').trim(); // --text-secondary
-  const gridColor = getComputedStyle(document.body).getPropertyValue('--line').trim();      // --line
-  const gridSoftColor = getComputedStyle(document.body).getPropertyValue('--line3').trim();   // --line3
+  // Colores del gráfico: respetan los selectores del usuario (color1/color2)
+  const alpha = isPie || isPolar ? '0.8' : '0.6';
 
   const colors = values.map((_, i) => {
-    // Use alternating primary and accent colors for better visual hierarchy
+    const base = i % 2 === 0 ? color1 : color2;
     if (isPie || isPolar) {
-      // For pie/polar charts, use distinct pastel colors with good contrast
       const hue = (i * 137.5) % 360;
       return `hsl(${hue}, 65%, 55%)`;
     }
-    // For bar, line, etc. charts, use primary color with lighter variations
-    return i % 2 === 0 ? accentColor : accentColorLight;
+    return base;
   });
+
+  // Variables de tema para texto/rejilla (no alteran el color corporativo)
+  const textPrimary = getComputedStyle(document.body).getPropertyValue('--text').trim();
+  const textSecondary = getComputedStyle(document.body).getPropertyValue('--muted').trim();
+  const gridColor = getComputedStyle(document.body).getPropertyValue('--line').trim();
+  const gridSoftColor = getComputedStyle(document.body).getPropertyValue('--line3').trim();
 
   const datasets = [{
     label: title || 'Datos',
     data: values,
-    backgroundColor: isPie || isPolar ? colors : colors.map(c => c + '33'), // subtle transparency for bar/line charts
-    borderColor: isPie || isPolar ? '#ffffff' : accentColor, // Use accent color for borders
-    borderWidth: 1, // Reduce border thickness for cleaner look
+    backgroundColor: isPie || isPolar ? colors : colors.map(c => c + '33'),
+    borderColor: isPie || isPolar ? '#ffffff' : colors,
+    borderWidth: 1,
     pointBackgroundColor: colors,
     pointBorderColor: '#ffffff',
-    pointRadius: type === 'line' ? 3 : 0, // Smaller points for cleaner aesthetic
+    pointRadius: type === 'line' ? 3 : 0,
     pointHoverRadius: type === 'line' ? 5 : 0,
     fill: type === 'line',
     tension: type === 'line' ? 0.3 : 0,
-    hoverBackgroundColor: accentColorDark,
+    hoverBackgroundColor: color2,
     hoverBorderColor: '#ffffff'
   }];
 
