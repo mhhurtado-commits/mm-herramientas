@@ -71,21 +71,24 @@ function exportarVisual() {
 async function exportarGrafico() {
   const src = document.getElementById('chartCanvas');
   if (!src) return toast('No hay gráfico para exportar');
+  if (!chartInstance) return toast('No hay gráfico para exportar');
   await document.fonts.ready;
-  const ow = src.width, oh = src.height;
-  const scale = 4;
-  src.width = ow * scale;
-  src.height = oh * scale;
-  if (chartInstance) chartInstance.resize();
 
-  setTimeout(() => {
+  // Capturar el gráfico ya renderizado (evita pelear con el resize responsivo)
+  const dataURL = chartInstance.toBase64Image();
+  if (!dataURL) return toast('Error al exportar gráfico');
+
+  const img = new Image();
+  img.onload = () => {
+    const cw = img.naturalWidth, ch = img.naturalHeight;
+    if (!cw || !ch) { toast('Error al exportar gráfico'); return; }
     // ── Marco editorial de la placa (colores solo de la placa) ──
-    const M = Math.round(src.width * 0.06);
-    const headerH = Math.round(src.height * 0.18);
-    const footerH = Math.round(src.height * 0.12);
+    const M = Math.round(cw * 0.06);
+    const headerH = Math.round(ch * 0.18);
+    const footerH = Math.round(ch * 0.12);
     const frame = document.createElement('canvas');
-    frame.width = src.width + M * 2;
-    frame.height = src.height + headerH + footerH;
+    frame.width = cw + M * 2;
+    frame.height = ch + headerH + footerH;
     const ctx = frame.getContext('2d');
 
     // Fondo papel
@@ -114,7 +117,7 @@ async function exportarGrafico() {
     ctx.fillText(t, M, headerH * 0.84);
 
     // Gráfico
-    ctx.drawImage(src, M, headerH + M * 0.5, src.width, src.height);
+    ctx.drawImage(img, M, headerH + M * 0.5, cw, ch);
 
     // Footer
     const fy = frame.height - footerH * 0.4;
@@ -137,12 +140,10 @@ async function exportarGrafico() {
     frame.toBlob(blob => {
       const url = URL.createObjectURL(blob);
       mostrarExportPreview(url, nombreBase);
-      // Restaurar canvas del gráfico
-      src.width = ow;
-      src.height = oh;
-      if (chartInstance) chartInstance.resize();
     }, 'image/png', 1);
-  }, 250);
+  };
+  img.onerror = () => toast('Error al exportar gráfico');
+  img.src = dataURL;
 }
 
 function exportarMapa() {
