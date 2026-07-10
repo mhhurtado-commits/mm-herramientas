@@ -113,6 +113,9 @@ function exportarMapa() {
     useCORS: true,
     allowTaint: true
   }).then(canvas => {
+    // Sellar el logo de marca sobre el mapa exportado
+    const ctx = canvas.getContext('2d');
+    if (typeof dibujarLogo === 'function') dibujarLogo(ctx, canvas.width, canvas.height);
     canvas.toBlob(blob => {
       const url = URL.createObjectURL(blob);
       mostrarExportPreview(url, nombreBase);

@@ -195,7 +195,8 @@ function renderTimelineCanvas(events, W, H) {
   const isDark = document.body.classList.contains('dark-theme');
   const bg = isDark ? '#0f1110' : '#f8f9f7';
   const cardBg = isDark ? '#1a1c1a' : '#ffffff';
-  const accent = '#a6ce39';
+  const accent = '#1a5632';          // Verde editorial Media Mendoza
+  const gold = '#d4af37';            // Dorado de acento
   const textColor = isDark ? '#e8e8e0' : '#1a1a1a';
   const dimText = isDark ? '#888' : '#888';
   const lineColor = isDark ? '#2a2c2a' : '#e0e0e0';
@@ -210,13 +211,16 @@ function renderTimelineCanvas(events, W, H) {
   const headerH = H * 0.1;
   ctx.fillStyle = accent;
   ctx.fillRect(0, 0, W, headerH);
-  ctx.fillStyle = '#1a2a00';
+  // Barra dorada decorativa bajo el header
+  ctx.fillStyle = gold;
+  ctx.fillRect(0, headerH - 4, W, 4);
+  ctx.fillStyle = '#ffffff';
   ctx.font = `900 ${headerH * 0.36}px "Inter", sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('📅 LÍNEA DE TIEMPO', W / 2, headerH * 0.62);
-  ctx.font = `${headerH * 0.2}px "Inter", sans-serif`;
-  ctx.fillStyle = '#2a4a00';
-  ctx.fillText('Media Mendoza', W / 2, headerH * 0.88);
+  ctx.fillText('📅 LÍNEA DE TIEMPO', W / 2, headerH * 0.6);
+  ctx.font = `700 ${headerH * 0.2}px "Inter", sans-serif`;
+  ctx.fillStyle = gold;
+  ctx.fillText('MEDIA MENDOZA', W / 2, headerH * 0.86);
 
   // Línea vertical central
   const centerX = W * 0.15;
@@ -321,8 +325,8 @@ async function exportarTimelineComoFlyer() {
   // Esperar que las fuentes web estén cargadas antes de pintar al canvas
   await document.fonts.ready;
 
-  const W = 1200;
-  const H = Math.max(600, sorted.length * 120 + 150);
+  const W = 2400;
+  const H = Math.max(1200, sorted.length * 240 + 300);
   const canvas = renderTimelineCanvas(sorted, W, H);
 
   canvas.toBlob(blob => {

@@ -41,8 +41,15 @@ function seleccionarTemplate(template) {
 function renderizarInfografia() {
   const canvas = document.getElementById('infografiaCanvas');
   const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = canvas.parentElement.clientWidth || 800;
-  canvas.height = canvas.width * 9 / 16;
+  // Render a mayor resolución (2x) para exportación e impresión nítida,
+  // manteniendo el tamaño visual vía CSS.
+  const dpr = 2;
+  const cssW = canvas.parentElement.clientWidth || 800;
+  const cssH = cssW * 9 / 16;
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
 
   const ctx = canvas.getContext('2d');
   const W = canvas.width;
