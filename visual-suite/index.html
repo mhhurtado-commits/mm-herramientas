@@ -478,6 +478,32 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   box-shadow: 0 1px 3px rgba(0,0,0,.2);
 }
 .vs-logo-track.on .vs-logo-thumb { transform: translateX(14px); }
+
+/* ── Editor de Publicación (mini web diseñable) ── */
+.pub-editor { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 960px) { .pub-editor { grid-template-columns: 1fr; } }
+.pub-palette { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 80px; }
+.pub-sections { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.pub-section-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.pub-section-row .nm { flex: 1; font-weight: 600; color: var(--text); }
+.pub-icon-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+.pub-icon-gallery .pi { background: var(--surface2); border: 1px solid var(--line2); border-radius: 8px; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.pub-icon-gallery .pi:hover { border-color: var(--v); }
+.pub-icon-gallery .pi svg { width: 100%; height: auto; }
+.pub-stage-wrap { background: var(--surface2); border: 1px solid var(--line2); border-radius: var(--radius-xl); padding: 16px; overflow: auto; max-height: 78vh; }
+.pub-stage { position: relative; background: #fff; min-height: 600px; border-radius: 12px; box-shadow: var(--shadow-md); overflow: hidden; }
+.pub-sec { padding: 40px 24px; border-bottom: 1px solid var(--line); }
+.pub-block { position: absolute; cursor: move; user-select: none; touch-action: none; }
+.pub-block.icono svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 4px 10px rgba(0,0,0,.15)); }
+.pub-block.ilustracion img { border-radius: 8px; box-shadow: 0 8px 30px rgba(20,30,25,.12); }
+.pub-block.selected { outline: 2px solid var(--v); outline-offset: 2px; }
+.pub-block[contenteditable] { cursor: text; }
+.pub-resize-handle { position: absolute; width: 12px; height: 12px; background: var(--v); border: 2px solid #fff; border-radius: 2px; z-index: 5; display: none; }
+.pub-block.selected .pub-resize-handle { display: block; }
+.pub-resize-handle.corner-nw { top: -6px; left: -6px; cursor: nw-resize; }
+.pub-resize-handle.corner-ne { top: -6px; right: -6px; cursor: ne-resize; }
+.pub-resize-handle.corner-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+.pub-resize-handle.corner-se { bottom: -6px; right: -6px; cursor: se-resize; }
 </style>
 </head>
 <body>
@@ -530,6 +556,7 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
     <button class="vs-tab" data-tab="maps"><span class="vs-tab-icon">🗺️</span>Mapas</button>
     <button class="vs-tab" data-tab="timeline"><span class="vs-tab-icon">📅</span>Línea de Tiempo</button>
     <button class="vs-tab" data-tab="infographics"><span class="vs-tab-icon">🎨</span>Infografías</button>
+    <button class="vs-tab" data-tab="editor"><span class="vs-tab-icon">🖊️</span>Editor</button>
   </div>
 
   <!-- PANEL: GRÁFICOS -->
@@ -751,6 +778,57 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
     </div>
   </div>
 
+  <!-- PANEL: EDITOR DE PUBLICACIÓN -->
+  <div class="vs-panel" id="panel-editor">
+    <div class="vs-card accent" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <div class="vs-label">Título de la publicación</div>
+          <input class="vs-input" id="pubTitulo" style="margin-top:6px" value="Publicación Media Mendoza" oninput="if(window.pubState)pubState.titulo=this.value">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarBasePublicacion();renderEditor()">🔄 Regenerar base</button>
+          <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="exportarMiniWeb()">🌐 Exportar mini web</button>
+          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarEditorPNG()">⬇ Exportar PNG</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pub-editor">
+      <div class="pub-palette">
+        <div class="vs-card">
+          <div class="vs-card-title">Secciones</div>
+          <div id="pubSections" class="pub-sections"></div>
+        </div>
+        <div class="vs-card">
+          <div class="vs-card-title">Agregar elementos</div>
+          <div class="vs-label">Ícono</div>
+          <div id="pubIconGallery" class="pub-icon-gallery"></div>
+          <div class="vs-row" style="margin-top:10px">
+            <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="addIlustracionLocal()">🖼 Ilustración (datos)</button>
+          </div>
+          <div class="vs-row" style="margin-top:8px">
+            <input class="vs-input" id="pubIAPrompt" placeholder="Prompt de ilustración con IA…" style="flex:1">
+            <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="addIlustracionIA()">✨ IA</button>
+          </div>
+          <div class="vs-row" style="margin-top:8px">
+            <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="addTexto()">🔤 Texto</button>
+            <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="addForma('rect')">▭ Rectángulo</button>
+            <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="addForma('circulo')">⚪ Círculo</button>
+          </div>
+        </div>
+        <div class="vs-card">
+          <div class="vs-card-title">Inspector</div>
+          <div id="pubInspector" style="font-size:12px;color:var(--muted)">Seleccioná un elemento del lienzo para editarlo.</div>
+        </div>
+      </div>
+
+      <div class="pub-stage-wrap">
+        <div class="pub-stage" id="pubStage"></div>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <footer class="mm-footer">
@@ -812,4 +890,5 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
 <script src="infographics.js"></script>
 <script src="recursos.js"></script>
 <script src="publicacion.js"></script>
+<script src="editor.js"></script>
 </body>

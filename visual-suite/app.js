@@ -43,8 +43,13 @@ function cambiarTab(tab) {
   document.querySelectorAll('.vs-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${tab}`));
   actualizarLogoOverlay();
   if (tab === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+  if (tab === 'editor' && typeof renderEditor === 'function') {
+    if (!window.pubState || !window.pubState.secciones.length) generarBasePublicacion();
+    renderEditor();
+  }
   setTimeout(() => {
     if (tab === 'maps' && mapInstance) mapInstance.invalidateSize();
+    if (tab === 'editor' && typeof renderEditor === 'function') renderEditor();
   }, 200);
 }
 

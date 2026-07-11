@@ -5133,6 +5133,7 @@ export default {
     if(path==="/visual/generar")                     return handleVisualGenerar(body, env);
     if(path==="/visual/timeline")                    return handleVisualTimeline(body, env);
     if(path==="/visual/extraer")                     return handleVisualExtraer(body, env);
+    if(path==="/visual/ilustrar")                    return handleVisualIlustrar(body, env);
 
     return jsonError("Ruta no encontrada",404);
   },
@@ -5318,6 +5319,54 @@ Respondé SOLO con JSON. Si no tenés datos concretos, respondé {"eventos": [],
 }
 
 // ── Extraer todo desde una URL (charts + mapa + timeline + infografía) ──
+// ============================================================
+// VISUAL SUITE - Ilustración con MODELO DE IMAGEN (diferente al de la suite)
+// NO se toca GEMINI_MODEL (gemini-3.1-flash-lite) usado por el resto de la suite.
+// ============================================================
+const GEMINI_IMAGEN_MODEL = "gemini-3-pro-image-preview";
+const GEMINI_IMAGEN_URL  = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGEN_MODEL}:generateContent`;
+
+async function handleVisualIlustrar(body, env) {
+  const prompt = String(body.prompt || "").trim();
+  if (!prompt) return jsonError("Falta prompt", 400);
+
+  const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+  if (!keys.length) return jsonError("No hay API keys de Gemini configuradas", 500);
+
+  const bodyReq = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { responseModalities: ["IMAGE", "TEXT"] }
+  };
+
+  for (let i = 0; i < keys.length; i++) {
+    try {
+      const res = await fetch(`${GEMINI_IMAGEN_URL}?key=${keys[i]}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyReq)
+      });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        console.error(`Ilustrar ${res.status} key#${i + 1}:`, errBody);
+        if (res.status >= 400 && res.status < 500) return jsonError(`Error ${res.status}: ${errBody.substring(0, 200)}`, res.status);
+        continue;
+      }
+      const data = await res.json();
+      const parts = data?.candidates?.[0]?.content?.parts || [];
+      for (const p of parts) {
+        if (p.inlineData && p.inlineData.data) {
+          const mime = p.inlineData.mimeType || "image/png";
+          return jsonOk({ imagen: `data:${mime};base64,${p.inlineData.data}`, modelo: GEMINI_IMAGEN_MODEL });
+        }
+      }
+      return jsonError("El modelo no devolvió una imagen", 500);
+    } catch (err) {
+      console.error("Ilustrar error:", err);
+    }
+  }
+  return jsonError("No se pudo generar la ilustración (modelo de imagen agotado o no disponible)", 500);
+}
+
 async function handleVisualExtraer(body, env) {
   const url = String(body.url || "").trim();
   const tema = String(body.tema || "").trim() || 'el artículo';
