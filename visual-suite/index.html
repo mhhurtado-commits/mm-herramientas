@@ -501,6 +501,7 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
     <h1 style="font-family:var(--font-display);font-size:2rem;letter-spacing:.5px;color:var(--text)">Visual Suite</h1>
     <div style="display:flex;gap:6px">
       <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarVisual()">⬇ Exportar PNG</button>
+      <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="generarPublicacionWeb()">🌐 Publicación Web</button>
     </div>
   </div>
   <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Creá gráficos, mapas interactivos, líneas de tiempo e infografías para tus notas periodísticas.</p>
@@ -761,6 +762,20 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
   </div>
 </footer>
 
+<!-- web preview modal -->
+<div class="export-preview-area" id="webPreview">
+  <div class="export-preview-box" style="max-width:1100px;width:94%">
+    <div style="display:flex;gap:8px;align-items:center;width:100%;justify-content:space-between">
+      <span style="font-size:14px;font-weight:700;color:var(--text)">Vista previa · Publicación Web</span>
+      <div style="display:flex;gap:8px">
+        <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="descargarPublicacionWeb()">⬇ Descargar HTML</button>
+        <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="cerrarWebPreview()">✕ Cerrar</button>
+      </div>
+    </div>
+    <iframe id="webPreviewFrame" style="width:100%;height:70vh;border:0;border-radius:12px;background:#fff"></iframe>
+  </div>
+</div>
+
 <!-- export preview modal -->
 <div class="export-preview-area" id="exportPreview">
   <div class="export-preview-box">
@@ -778,5 +793,6 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
 <script src="maps.js"></script>
 <script src="timeline.js"></script>
 <script src="infographics.js"></script>
+<script src="publicacion.js"></script>
 </body>
 </html>
