@@ -607,6 +607,11 @@ Mayo, 70</textarea>
           <button class="vs-btn vs-btn-primary" onclick="actualizarGrafico()">🔄 Actualizar</button>
           <button class="vs-btn vs-btn-secondary" onclick="generarGraficoConIA()">🤖 Sugerir con IA</button>
         </div>
+        <div class="vs-row" style="margin-top:4px">
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('chartTitle').value,document.getElementById('chartData').value,function(){toast('Fondo listo. Exportá la placa para verlo.')})">🎨 Fondo IA</button>
+          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="refinarFondoIA(prompt('Instrucción para refinar el fondo:'),function(){toast('Refinado. Exportá la placa.')})">✏️ Refinar</button>
+          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();toast('Fondo IA eliminado')">✕ Sin fondo IA</button>
+        </div>
       </div>
 
       <div class="vs-card">
@@ -699,6 +704,11 @@ Mayo, 70</textarea>
           <button class="vs-btn vs-btn-secondary vs-btn-sm" id="btnTlIA" onclick="generarTimelineIA()">🤖 Solo IA</button>
           <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarTimeline()">🗑 Limpiar</button>
         </div>
+        <div class="vs-row" style="margin-top:4px">
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('tlTema').value||(timelineEvents[0]&&timelineEvents[0].title)||'Cronología Mendoza',timelineEvents.map(function(e){return e.title}).join('. '),function(){toast('Fondo listo. Exportá la placa.')})">🎨 Fondo IA</button>
+          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="refinarFondoIA(prompt('Instrucción para refinar el fondo:'),function(){toast('Refinado. Exportá la placa.')})">✏️ Refinar</button>
+          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();toast('Fondo IA eliminado')">✕ Sin fondo IA</button>
+        </div>
       </div>
 
       <div class="vs-card">
@@ -760,6 +770,16 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
           <div>
             <div class="vs-label">Color 2</div>
             <input class="vs-color-input" type="color" id="infoColor2" value="#1a1a1a" oninput="renderizarInfografia()">
+          </div>
+        </div>
+        <div class="divider" style="height:1px;background:var(--line);margin:4px 0"></div>
+        <div>
+          <div class="vs-label">Fondo editorial con IA</div>
+          <p style="font-size:11px;color:var(--muted);margin:4px 0 8px;line-height:1.5">La IA arma el fondo editorial (sin texto); el canvas dibuja tus datos reales legibles encima.</p>
+          <div class="vs-row">
+            <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('infoTitle').value,document.getElementById('infoContent').value,renderizarInfografia)">🎨 Generar fondo</button>
+            <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="refinarFondoIA(prompt('Instrucción para refinar el fondo:'),renderizarInfografia)">✏️ Refinar</button>
+            <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();renderizarInfografia()">✕ Sin fondo IA</button>
           </div>
         </div>
       </div>

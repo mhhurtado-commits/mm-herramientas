@@ -27,6 +27,103 @@ const logoState = window.logoState = {
 
 const LOGO_PATH = '../assets/logo.png';
 
+// ── Fondo IA para placas híbridas (IA genera fondo editorial, canvas pinta datos) ──
+const fondoIA = window.fondoIA = {
+  img: null,         // Image object (cargado)
+  dataUrl: null,     // data:image/jpeg;base64,...
+  imgTempId: null,   // para refinado con /editar-imagen
+  loading: false
+};
+
+// Genera un fondo editorial con IA usando /generar-imagen (estilo infografia, prompt negativo)
+// No usa el modelo de Gemini de la suite; usa los motores de difusión (FLUX/SDXL/Pollinations).
+async function generarFondoIA(titulo, contenido, onReady) {
+  if (fondoIA.loading) return toast('Ya hay un fondo en generación…');
+  if (!titulo) return toast('Faltan datos para generar el fondo');
+  fondoIA.loading = true;
+  try {
+    const res = await fetch(`${WORKER_URL}/generar-imagen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titulo: titulo,
+        contenido: contenido || titulo,
+        estilo: 'infografia',
+        contexto_extra: 'Media Mendoza newspaper editorial background, professional, clean, no text'
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error del generador');
+    fondoIA.dataUrl = 'data:image/jpeg;base64,' + data.imagen;
+    fondoIA.imgTempId = data.imgTempId || null;
+    const img = new Image();
+    img.onload = () => {
+      fondoIA.img = img;
+      fondoIA.loading = false;
+      toast('✓ Fondo editorial generado');
+      if (typeof onReady === 'function') onReady(img);
+    };
+    img.onerror = () => {
+      fondoIA.loading = false;
+      toast('Error al cargar la imagen generada');
+    };
+    img.src = fondoIA.dataUrl;
+  } catch (err) {
+    fondoIA.loading = false;
+    toast('✗ ' + err.message);
+  }
+}
+
+// Refinar el fondo IA existente con una instrucción (usa /editar-imagen del worker)
+async function refinarFondoIA(instruccion, onReady) {
+  if (!fondoIA.imgTempId) return toast('Generá un fondo primero');
+  try {
+    const res = await fetch(`${WORKER_URL}/editar-imagen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imgTempId: fondoIA.imgTempId, instruccion })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error al refinar');
+    fondoIA.dataUrl = 'data:image/jpeg;base64,' + data.imagen;
+    fondoIA.imgTempId = data.imgTempId || fondoIA.imgTempId;
+    const img = new Image();
+    img.onload = () => {
+      fondoIA.img = img;
+      toast('✓ Fondo refinado');
+      if (typeof onReady === 'function') onReady(img);
+    };
+    img.onerror = () => toast('Error al cargar el fondo refinado');
+    img.src = fondoIA.dataUrl;
+  } catch (err) {
+    toast('✗ ' + err.message);
+  }
+}
+
+// Limpia el fondo IA (vuelve al fondo por defecto del canvas)
+function limpiarFondoIA() {
+  fondoIA.img = null;
+  fondoIA.dataUrl = null;
+  fondoIA.imgTempId = null;
+  fondoIA.loading = false;
+}
+
+// Dibuja el fondo IA en un canvas, con overlay para legibilidad.
+// Devuelve true si dibujó algo, false si no hay fondo.
+function dibujarFondoIA(ctx, W, H, overlayColor) {
+  if (!fondoIA.img || !fondoIA.img.complete || !fondoIA.img.naturalWidth) return false;
+  // Cover: llenar todo el canvas manteniendo aspect ratio
+  const iw = fondoIA.img.naturalWidth, ih = fondoIA.img.naturalHeight;
+  const scale = Math.max(W / iw, H / ih);
+  const sw = iw * scale, sh = ih * scale;
+  const sx = (W - sw) / 2, sy = (H - sh) / 2;
+  ctx.drawImage(fondoIA.img, sx, sy, sw, sh);
+  // Overlay semitransparente para que el texto sea legible encima
+  ctx.fillStyle = overlayColor || 'rgba(255,255,255,0.78)';
+  ctx.fillRect(0, 0, W, H);
+  return true;
+}
+
 // ── Tabs ──
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.vs-tab').forEach(tab => {
@@ -97,12 +194,14 @@ async function exportarGrafico() {
     frame.height = ch + headerH + footerH;
     const ctx = frame.getContext('2d');
 
-    // Fondo papel
-    const g = ctx.createLinearGradient(0, 0, 0, frame.height);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(1, '#f3f5f2');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, frame.width, frame.height);
+    // Fondo: IA editorial o papel por defecto
+    if (!dibujarFondoIA(ctx, frame.width, frame.height, 'rgba(255,255,255,0.85)')) {
+      const g = ctx.createLinearGradient(0, 0, 0, frame.height);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(1, '#f3f5f2');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, frame.width, frame.height);
+    }
 
     // Header tinta + regla dorada
     ctx.fillStyle = '#16201b';

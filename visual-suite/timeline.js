@@ -233,12 +233,14 @@ function renderTimelineCanvas(events, W, H) {
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
   const n = Math.max(sorted.length, 1);
 
-  // Fondo papel con leve degrade
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-  bgGrad.addColorStop(0, '#fdfdfb');
-  bgGrad.addColorStop(1, '#f1f4f1');
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, W, H);
+  // Fondo: IA editorial o papel por defecto
+  if (!dibujarFondoIA(ctx, W, H, 'rgba(253,253,251,0.85)')) {
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    bgGrad.addColorStop(0, '#fdfdfb');
+    bgGrad.addColorStop(1, '#f1f4f1');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   // ── Header editorial ──
   const headerH = Math.round(H * 0.13);

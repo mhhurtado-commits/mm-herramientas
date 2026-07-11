@@ -182,11 +182,13 @@ function detectarIconoLinea(linea) {
 // ── Template: Flyer Simple ──
 function renderFlyerSimple(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(1, '#f3f5f2');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
+  if (!dibujarFondoIA(ctx, W, H, 'rgba(255,255,255,0.82)')) {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(1, '#f3f5f2');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   drawPlateHeader(ctx, W, H, 'RESUMEN', title, c1, false);
 
@@ -241,11 +243,13 @@ function renderFlyerSimple(ctx, W, H, title, content, c1, c2) {
 // ── Template: Flyer Comparativa ──
 function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
-  const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, '#10131f');
-  grad.addColorStop(1, '#1b2236');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+  if (!dibujarFondoIA(ctx, W, H, 'rgba(16,19,31,0.88)')) {
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, '#10131f');
+    grad.addColorStop(1, '#1b2236');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   // Header banda
   ctx.fillStyle = c1;
@@ -317,11 +321,13 @@ function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
 // ── Template: Flyer Listado ──
 function renderFlyerListado(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(1, '#f3f5f2');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
+  if (!dibujarFondoIA(ctx, W, H, 'rgba(255,255,255,0.82)')) {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(1, '#f3f5f2');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   drawPlateHeader(ctx, W, H, 'LISTADO', title, c1, false);
 
@@ -383,11 +389,13 @@ function renderFlyerListado(ctx, W, H, title, content, c1, c2) {
 // ── Template: Flyer Destacado ──
 function renderFlyerDestacado(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
-  const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, c2);
-  grad.addColorStop(1, '#0a0d12');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+  if (!dibujarFondoIA(ctx, W, H, 'rgba(26,26,46,0.88)')) {
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, c2);
+    grad.addColorStop(1, '#0a0d12');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   // Barra lateral de acento
   ctx.fillStyle = c1;
