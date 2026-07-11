@@ -86,6 +86,86 @@ function limpiarTimeline() {
   toast('Timeline limpiada');
 }
 
+// ── Carga desde JSON (fuente manual / externa) ──
+// Normaliza distintos esquemas de JSON a {f, title, desc} legibles para la placa.
+function normalizarEventoJSON(item) {
+  const f = String(item.fecha || item.date || item.fechaISO || item.fechaISOString || '');
+  const rival = item.rival || item.oponente || item.equipo || item.contrincante || '';
+  const fase = item.fase || item.torneo || item.etapa || item.grupo || '';
+  const minuto = item.minuto || item.min || item.minutoGol || '';
+  const tipo = item.tipo || item.tipoGol || item.tipoDeGol || '';
+  const marcador = item.marcador || item.score || item.resultado || item.placar || '';
+  const titulo0 = item.titulo || item.title || item.evento || item.nombre || '';
+  const desc0 = item.desc || item.descripcion || item.detalle || item.resumen || '';
+
+  let title, desc;
+  if (titulo0) {
+    title = String(titulo0);
+    desc = [fase, rival && ('vs ' + rival), minuto, tipo, marcador, desc0].filter(Boolean).join(' · ');
+  } else if (rival || fase || minuto || tipo || marcador) {
+    const partes = [];
+    if (fase) partes.push(fase);
+    if (rival) partes.push('vs ' + rival);
+    const golN = (item.id != null && item.id !== '') ? `Gol #${item.id}` : 'Gol';
+    title = `${golN}${partes.length ? ' · ' + partes.join(' · ') : ''}`;
+    desc = [minuto ? `Min ${minuto}` : '', tipo, marcador ? `Marcador ${marcador}` : '', desc0]
+      .filter(Boolean).join(' · ') || 'Evento';
+  } else {
+    title = 'Evento';
+    desc = String(desc0 || '');
+  }
+  return { f, title, desc };
+}
+
+// Parsea el JSON del textarea (#tlJson) y carga los eventos en la timeline.
+// Acepta: array directo, o {eventos|data|timeline|items|resultados:[...]}.
+// El JSON reemplaza al dataset actual (es el dataset completo).
+async function cargarTimelineDesdeJSON() {
+  const ta = document.getElementById('tlJson');
+  const text = (ta && ta.value || '').trim();
+  if (!text) return toast('Pegá el JSON de eventos en el cuadro de arriba');
+
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) { return toast('JSON inválido: ' + e.message); }
+
+  let items = Array.isArray(data) ? data
+    : (data.eventos || data.data || data.timeline || data.items || data.resultados || []);
+  if (!Array.isArray(items) || !items.length) return toast('No se encontraron eventos en el JSON');
+
+  const btn = document.getElementById('btnTlJson');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Cargando...'; }
+
+  timelineEvents.length = 0; // el JSON es el dataset completo
+  let count = 0;
+  items.forEach(it => {
+    const { f, title, desc } = normalizarEventoJSON(it);
+    const d = fechaValida(f);
+    if (!d) return; // omitir eventos con fecha inválida
+    timelineEvents.push({ date: d, title, desc, meta: it });
+    count++;
+  });
+
+  if (btn) { btn.disabled = false; btn.textContent = '📋 Cargar JSON'; }
+  renderizarTimeline();
+  if (count) toast(`${count} eventos cargados desde JSON`);
+  else toast('Ningún evento tenía una fecha válida');
+}
+
+// Lee un archivo .json seleccionado y dispara la carga.
+function cargarArchivoJSON(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const ta = document.getElementById('tlJson');
+    if (ta) ta.value = e.target.result;
+    cargarTimelineDesdeJSON();
+  };
+  reader.onerror = () => toast('No se pudo leer el archivo');
+  reader.readAsText(file);
+}
+
 // ── IA con búsqueda web ──
 async function generarTimelineWeb() {
   const tema = document.getElementById('tlTema').value.trim();

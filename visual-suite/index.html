@@ -713,6 +713,25 @@ Mayo, 70</textarea>
 
       <div class="vs-card">
         <div class="vs-card-header">
+          <span class="vs-card-title">Fuente: JSON</span>
+          <span class="vs-badge" style="background:var(--v);color:#16201b">Manual</span>
+        </div>
+        <div>
+          <div class="vs-label">Pegá aquí el JSON de eventos</div>
+          <textarea class="vs-textarea" id="tlJson" style="margin-top:6px;min-height:96px;font-family:monospace;font-size:11px" placeholder='[{"fecha":"2026-06-16","fase":"Fase de Grupos","rival":"Argelia","minuto":"17&#39;","tipo":"Jugada (Zurda)","marcador":"1-0"}]'></textarea>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="vs-btn vs-btn-accent vs-btn-sm" id="btnTlJson" onclick="cargarTimelineDesdeJSON()">📋 Cargar JSON</button>
+          <label class="vs-btn vs-btn-secondary vs-btn-sm" style="cursor:pointer">
+            📁 Archivo
+            <input type="file" id="tlJsonFile" accept=".json,application/json" style="display:none" onchange="cargarArchivoJSON(this)">
+          </label>
+          <span style="font-size:11px;color:var(--muted);align-self:center">Reemplaza los eventos actuales</span>
+        </div>
+      </div>
+
+      <div class="vs-card">
+        <div class="vs-card-header">
           <span class="vs-card-title">Línea de Tiempo</span>
           <span class="vs-badge" id="tlCount">0 eventos</span>
         </div>
@@ -722,6 +741,10 @@ Mayo, 70</textarea>
             <p style="font-size:12px;color:var(--dim);padding:20px 0 20px 56px">Agregá eventos para construir la línea de tiempo.</p>
           </div>
           <div class="vs-logo-overlay" id="logoOverlayTimeline" style="display:none"></div>
+        </div>
+        <div class="vs-row" style="margin-top:10px">
+          <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="exportarTimeline()">⬇ Exportar placa (PNG)</button>
+          <span style="font-size:11px;color:var(--muted);align-self:center">La placa usa tus datos reales; el fondo IA (si lo generaste) queda debajo.</span>
         </div>
       </div>
     </div>
