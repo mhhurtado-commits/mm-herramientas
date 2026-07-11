@@ -5231,6 +5231,7 @@ REGLAS ESTRICTAS:
 - EXTRAÉ TODOS los hechos que encuentres en el contenido, no solo los primeros
 - Si el artículo habla de un partido/juego: cada gol es un evento separado
 - Si el artículo habla de inflación/economía: cada mes es un evento separado con su porcentaje
+- CONTEXTO: estos eventos conforman una LÍNEA DE TIEMPO (timeline); necesitamos TODOS los hitos cronológicos sin resumir, aunque sean muchos.
 
 Ejemplo gol por gol:
 {"eventos":[
@@ -5245,7 +5246,7 @@ Ejemplo inflación mensual:
   {"date":"2026-02-01","title":"Inflación febrero 2026","desc":"2,1% mensual, 83,5% interanual"}
 ]}
 
-Respondé SOLO con JSON. Cuantos más eventos extraigas mejor. Mínimo 2 incluí el propio hecho principal. No respondas {"eventos": []}.`;
+Respondé SOLO con JSON. Cuantos más eventos extraigas mejor: NO te limites a 2, incluí CADA evento individual disponible (pueden ser 10, 20 o más). No respondas {"eventos": []}.`;
 
       const r = await callGemini(promptUrl, env);
       if (r.error) return jsonError(r.error, 500);
@@ -5261,28 +5262,29 @@ Respondé SOLO con JSON. Cuantos más eventos extraigas mejor. Mínimo 2 incluí
   // ── Modo normal: búsqueda web → Gemini ──
   const promptWeb = `Sos un cronista de datos de Media Mendoza.
 Extraé TODOS los eventos INDIVIDUALES disponibles en los ARTÍCULOS WEB sobre: "${tema}"
-${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
+${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta la fecha actual.
+
+CONTEXTO IMPORTANTE: estos eventos se usarán para CONFORMAR UNA LÍNEA DE TIEMPO (timeline) periodística. Por eso necesitamos TODOS los hitos cronológicos disponibles, listados uno por uno, SIN resumir, SIN agrupar y SIN acumular. Cada evento = un hecho con su propia fecha.
 
 REGLAS ESTRICTAS:
-- Cada evento = un hecho INDIVIDUAL con fecha exacta (YYYY-MM-DD)
-- NO incluyas resúmenes, acumulados ni titles genéricos
-- La descripción debe tener datos NUMÉRICOS concretos
-- EXTRAÉ TODOS los hechos que encuentres en el contenido, no solo los primeros
+- Cada evento = un hecho INDIVIDUAL con fecha exacta (YYYY-MM-DD) cuando la tengas; si solo sabés el mes, usá "periodo":"YYYY-MM"; si solo año y mes, "mes":"Enero"+"año":2026.
+- NO incluyas resúmenes, acumulados, totales ni títulos genéricos.
+- La descripción debe tener datos NUMÉRICOS concretos (goles, porcentajes, cantidades).
+- EXTRAÉ CADA evento individual que encuentres: NO te limites a 2 ni a los primeros. Cuantos más eventos incluyas (10, 20 o más), mejor. Nunca respondas con pocos si hay más disponibles.
 
-Ejemplo correcto para fútbol (extraer cada partido):
+Ejemplo (fútbol, un evento por partido):
 {"eventos":[
   {"date":"2026-06-15","title":"Argentina 3-1 Argelia","desc":"Messi anotó 3 goles"},
-  {"date":"2026-06-21","title":"Argentina 2-0 Austria","desc":"Messi anotó 2 goles"},
-  {"date":"2026-06-27","title":"Argentina 3-0 Jordania","desc":"Messi anotó 1 gol de tiro libre"}
+  {"date":"2026-06-21","title":"Argentina 2-0 Austria","desc":"Messi anotó 2 goles"}
 ]}
 
-Ejemplo correcto para inflación (extraer cada mes):
+Ejemplo (inflación, un evento por mes, con campos extra):
 {"eventos":[
-  {"date":"2026-01-01","title":"Inflación enero 2026","desc":"2,3% mensual"},
-  {"date":"2026-02-01","title":"Inflación febrero 2026","desc":"2,1% mensual"}
+  {"periodo":"2026-01","titulo":"Inflación enero","descripcion":"2,3% mensual","ipc_mensual_porcentaje":2.3,"tipo_dato":"oficial"},
+  {"periodo":"2026-02","titulo":"Inflación febrero","descripcion":"2,1% mensual","ipc_mensual_porcentaje":2.1,"tipo_dato":"oficial"}
 ]}
 
-Respondé SOLO con JSON. Cuantos más eventos extraigas mejor. Mínimo 2. No respondas {"eventos": []}.`;
+Respondé SOLO con JSON (array o {"eventos":[...]}). Incluí TODOS los eventos que encuentres. No respondas {"eventos": []}.`;
 
   const r1 = await callGeminiConBusqueda(promptWeb, env, tema);
   const debug = r1.debugSearch || {};
@@ -5299,15 +5301,18 @@ Respondé SOLO con JSON. Cuantos más eventos extraigas mejor. Mínimo 2. No res
 
   const promptFallback = `Sos un cronista de datos de Media Mendoza.
 Extraé eventos INDIVIDUALES con datos concretos sobre: "${tema}"
-${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta julio 2026.
+${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta la fecha actual.
+
+CONTEXTO: estos eventos conforman una LÍNEA DE TIEMPO (timeline). Necesitamos TODOS los hitos cronológicos que tengas con certeza, sin resumir.
 
 REGLAS ESTRICTAS:
 - Solo incluí eventos de los que tengas CERTEZA ABSOLUTA (fechas, números, nombres)
 - Si no estás seguro de un dato, no lo incluyas
-- Preferí devolver menos eventos pero verídicos
+- Preferí devolver menos eventos pero verídicos; pero si hay muchos hitos ciertos, incluílos TODOS (no te limites a 2)
 - Incluí porcentajes, cantidades, resultados cuando sea relevante
+- Podés usar "periodo":"YYYY-MM" o "mes":"Enero"+"año":2026 si no tenés el día
 
-Respondé SOLO con JSON. Si no tenés datos concretos, respondé {"eventos": [], "nota": "sin datos"}.
+Respondé SOLO con JSON (array o {"eventos":[...]}). Si no tenés datos concretos, respondé {"eventos": [], "nota": "sin datos"}.
 {"eventos": [{"date": "2026-06-15", "title": "Hecho concreto", "desc": "Dato numérico específico"}]}`;
 
   const r2 = await callGemini(promptFallback, env);

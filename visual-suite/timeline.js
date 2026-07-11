@@ -303,24 +303,16 @@ async function generarTimelineWeb() {
 }
 
 // ── IA simple (sin web) ──
+// ── IA con búsqueda web (fundamentada: no alucina) ──
 async function generarTimelineIA() {
   const tema = document.getElementById('tlTema').value.trim() || 'actualidad de Mendoza';
 
   const btn = document.getElementById('btnTlIA');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Pensando...'; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando...'; }
 
-  const prompt = `Generá eventos para una línea de tiempo periodística sobre: "${tema}" (Mendoza, Argentina).
-Cada evento es un OBJETO con CUALQUIERA de estos campos (usá los que apliquen):
-- Fecha en cualquier formato: "fecha":"2026-01-15" (YYYY-MM-DD), o "periodo":"2026-01" (mensual), o "mes":"Enero"+"año":2026.
-- "titulo" (texto breve) o "name". Si no lo das, se arma uno con la fecha y los datos.
-- "descripcion" (texto largo) o "desc".
-- CUALQUIER otro campo extra (ej: ipc_mensual_porcentaje, rival, minuto, marcador, fuente) se mostrará solo en la placa como "Clave: valor".
-- Opcional: una palabra clave tipo "inflación", "gol", "economía" para elegir el ícono.
-Incluí datos NUMÉRICOS concretos. Respondé SOLO con JSON (sin backticks ni markdown), como array o como {"eventos":[...]}:
-{"eventos":[{"periodo":"2026-01","titulo":"Inflación enero","descripcion":"3,2% mensual","ipc_mensual_porcentaje":3.2,"tipo_dato":"oficial"},{"fecha":"2026-06-16","titulo":"Gol 1: Messi","descripcion":"Abre el marcador a los 17'","rival":"Argelia","minuto":"17'"}]}`;
-
-  const result = await apiPost('/visual/generar', { prompt, datos: '' });
-  if (btn) { btn.disabled = false; btn.textContent = '🤖 Solo IA'; }
+  // Usa el endpoint con búsqueda web para no inventar datos fácticos.
+  const result = await apiPost('/visual/timeline', { tema, desde: '' });
+  if (btn) { btn.disabled = false; btn.textContent = '🤖 IA + Web'; }
 
   if (result && result.ok) {
     try {
@@ -336,8 +328,10 @@ Incluí datos NUMÉRICOS concretos. Respondé SOLO con JSON (sin backticks ni ma
           count++;
         });
         renderizarTimeline();
-        if (count) toast(`${count} eventos generados por IA${omit ? ` (${omit} sin fecha)` : ''}`);
+        if (count) toast(`${count} eventos generados${omit ? ` (${omit} sin fecha)` : ''}`);
         else toast('Los eventos encontrados tienen fechas inválidas');
+      } else {
+        toast('No se encontraron eventos');
       }
     } catch (e) {
       toast('Error al interpretar respuesta IA');
