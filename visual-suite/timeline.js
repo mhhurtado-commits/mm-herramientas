@@ -99,7 +99,9 @@ const MESES_IX = {
 // Campos que denotan fecha (se ignoran al armar la descripción).
 const CLAVES_FECHA = ['fecha','date','fechaISO','fecha_iso','fechaISOString','timestamp','time','periodo','anio','año','year','mes','month','semana','trimestre'];
 // Campos que denotan un título explícito.
-const CLAVES_TITULO = ['titulo','title','nombre','name','evento','label','concepto','indicador','descripcion','desc','resumen'];
+const CLAVES_TITULO = ['titulo','title','nombre','name','evento','label','concepto','indicador'];
+// Campos que denotan una descripción explícita.
+const CLAVES_DESC = ['descripcion','desc','detalle','resumen','descripción'];
 
 function capitalizar(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
@@ -192,18 +194,20 @@ function normalizarEventoJSON(item) {
     }
   }
 
-  // 2) Descripción: todos los demás campos como "Clave: valor"
-  const ignorar = new Set([tk, ...CLAVES_FECHA, 'id', 'meta', 'extra', '_', 'tipo_dato']);
-  const partes = [];
-  for (const [k, v] of entradas) {
-    if (ignorar.has(k)) continue;
-    if (typeof v === 'object') continue;
-    partes.push(`${formatearClave(k)}: ${v}`);
+  // 2) Descripción: usa la explícita si existe; si no, arma "Clave: valor" con el resto.
+  const dk = CLAVES_DESC.find(k => item[k] != null && String(item[k]).trim() !== '');
+  let desc = dk ? String(item[dk]).trim() : '';
+  if (!desc) {
+    const ignorar = new Set([tk, dk, ...CLAVES_FECHA, 'id', 'meta', 'extra', '_', 'tipo_dato']);
+    const partes = [];
+    for (const [k, v] of entradas) {
+      if (ignorar.has(k)) continue;
+      if (typeof v === 'object') continue;
+      partes.push(`${formatearClave(k)}: ${v}`);
+    }
+    if (item.tipo_dato) partes.push(`Fuente: ${item.tipo_dato}`);
+    desc = partes.join(' · ');
   }
-  if (item.tipo_dato) partes.push(`Fuente: ${item.tipo_dato}`);
-  let desc = partes.join(' · ');
-  if (!desc) desc = String(item.descripcion || item.desc || '');
-  if (!desc) desc = '';
 
   return { f, title, desc };
 }
@@ -274,16 +278,18 @@ async function generarTimelineWeb() {
   if (result && result.ok) {
     try {
       const parsed = JSON.parse(result.texto);
-      if (parsed.eventos && parsed.eventos.length) {
-        let count = 0;
-        parsed.eventos.forEach(ev => {
-          const d = fechaValida(ev.date);
-          if (!d) return; // omitir eventos con fecha inválida
-          timelineEvents.push({ date: d, title: ev.title || 'Evento', desc: ev.desc || '' });
+      const items = Array.isArray(parsed) ? parsed : (parsed.eventos || parsed.data || parsed.timeline || parsed.items || []);
+      if (items && items.length) {
+        let count = 0, omit = 0;
+        items.forEach(it => {
+          const n = normalizarEventoJSON(it);
+          const d = fechaValida(n.f);
+          if (!d) { omit++; return; }
+          timelineEvents.push({ date: d, title: n.title, desc: n.desc, meta: it });
           count++;
         });
         renderizarTimeline();
-        if (count) toast(`${count} eventos generados con datos reales`);
+        if (count) toast(`${count} eventos generados con datos reales${omit ? ` (${omit} sin fecha)` : ''}`);
         else toast('Los eventos encontrados tienen fechas inválidas');
       } else {
         toast('No se encontraron eventos');
@@ -303,10 +309,15 @@ async function generarTimelineIA() {
   const btn = document.getElementById('btnTlIA');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Pensando...'; }
 
-  const prompt = `Generá 5 eventos para una línea de tiempo periodística sobre: "${tema}" (Mendoza, Argentina).
-Cada evento debe tener: fecha (YYYY-MM-DD), título corto y descripción breve.
-Respondé SOLO con JSON sin backticks ni markdown:
-{"eventos": [{"date": "2026-01-15", "title": "...", "desc": "..."}]}`;
+  const prompt = `Generá eventos para una línea de tiempo periodística sobre: "${tema}" (Mendoza, Argentina).
+Cada evento es un OBJETO con CUALQUIERA de estos campos (usá los que apliquen):
+- Fecha en cualquier formato: "fecha":"2026-01-15" (YYYY-MM-DD), o "periodo":"2026-01" (mensual), o "mes":"Enero"+"año":2026.
+- "titulo" (texto breve) o "name". Si no lo das, se arma uno con la fecha y los datos.
+- "descripcion" (texto largo) o "desc".
+- CUALQUIER otro campo extra (ej: ipc_mensual_porcentaje, rival, minuto, marcador, fuente) se mostrará solo en la placa como "Clave: valor".
+- Opcional: una palabra clave tipo "inflación", "gol", "economía" para elegir el ícono.
+Incluí datos NUMÉRICOS concretos. Respondé SOLO con JSON (sin backticks ni markdown), como array o como {"eventos":[...]}:
+{"eventos":[{"periodo":"2026-01","titulo":"Inflación enero","descripcion":"3,2% mensual","ipc_mensual_porcentaje":3.2,"tipo_dato":"oficial"},{"fecha":"2026-06-16","titulo":"Gol 1: Messi","descripcion":"Abre el marcador a los 17'","rival":"Argelia","minuto":"17'"}]}`;
 
   const result = await apiPost('/visual/generar', { prompt, datos: '' });
   if (btn) { btn.disabled = false; btn.textContent = '🤖 Solo IA'; }
@@ -314,16 +325,18 @@ Respondé SOLO con JSON sin backticks ni markdown:
   if (result && result.ok) {
     try {
       const parsed = JSON.parse(result.texto);
-      if (parsed.eventos && parsed.eventos.length) {
-        let count = 0;
-        parsed.eventos.forEach(ev => {
-          const d = fechaValida(ev.date);
-          if (!d) return; // omitir eventos con fecha inválida
-          timelineEvents.push({ date: d, title: ev.title || 'Evento', desc: ev.desc || '' });
+      const items = Array.isArray(parsed) ? parsed : (parsed.eventos || parsed.data || parsed.timeline || parsed.items || []);
+      if (items && items.length) {
+        let count = 0, omit = 0;
+        items.forEach(it => {
+          const n = normalizarEventoJSON(it);
+          const d = fechaValida(n.f);
+          if (!d) { omit++; return; }
+          timelineEvents.push({ date: d, title: n.title, desc: n.desc, meta: it });
           count++;
         });
         renderizarTimeline();
-        if (count) toast(`${count} eventos generados por IA`);
+        if (count) toast(`${count} eventos generados por IA${omit ? ` (${omit} sin fecha)` : ''}`);
         else toast('Los eventos encontrados tienen fechas inválidas');
       }
     } catch (e) {
