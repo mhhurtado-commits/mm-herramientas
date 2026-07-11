@@ -1,10 +1,9 @@
 /* visual-suite/publicacion.js
- * Genera una "mini-web" autónoma a partir de los datos ya cargados/generados
- * en Visual Suite (gráfico, mapa, cronología, infografía).
- * Reutiliza los estados globales (chartInstance, markerList, timelineEvents,
- * templateActual, logoState) SIN tocar el worker ni el modelo de Gemini.
- * El archivo resultante es un .html autocontenido (CSS + datos inline,
- * librerías por CDN, logo embebido en base64).
+ * (1) "Publicación Web" — miniweb autónoma (chart/mapa/timeline/infografia)
+ * (2) "Publicación Rica" — igual que la anterior PERO agrega una
+ *     galería de recursos gráficos descargables individualmente
+ *     (iconos SVG + ilustraciones PNG generadas desde los datos actuales).
+ * Reutiliza los estados globales sin tocar el worker ni el modelo de Gemini.
  */
 
 /* ---------- Estilos de la publicación generada ---------- */
@@ -62,6 +61,17 @@ section.mmw-sec{padding:60px 0;border-bottom:1px solid var(--line)}
 .mmw-sec.destacado .mmw-card{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);border-left-color:var(--v)}
 .mmw-sec.destacado .mmw-card .lbl{color:#9fb0a4}
 .mmw-sec.destacado .mmw-card .val{color:#fff}
+/* galería de recursos */
+.mmw-gallery{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin-top:10px}
+.mmw-rescard{position:relative;background:var(--paper2);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.mmw-rescard .mmw-badge{position:absolute;top:10px;right:10px;background:var(--v);color:#16201b;font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;letter-spacing:.05em}
+.mmw-rescard .mmw-badge.png{background:var(--gold);color:#16201b}
+.mmw-resprev{width:100%;min-height:120px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px}
+.mmw-resprev svg{max-width:100%;height:auto}
+.mmw-resprev img{max-width:100%;max-height:160px;border-radius:6px}
+.mmw-resname{font-size:12px;color:var(--muted);word-break:break-all}
+.mmw-resbtn{background:var(--v);color:#16201b;border:none;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:background .2s}
+.mmw-resbtn:hover{background:var(--v-dark);color:#fff}
 @media(max-width:640px){.mmw-nav nav{display:none}.mmw-vs{grid-template-columns:1fr}.mmw-vs-badge{margin:0 auto}}
 `;
 
@@ -277,19 +287,33 @@ function buildInfografia(info){
     + '<p class="sub mmw-reveal">Información destacada.</p>'+cards+'</div></section>';
 }
 
-/* ---------- Ensamblado del HTML autónomo ---------- */
-function construirHTML(D){
+/* ---------- Ensamblado del HTML autónomo (web o rica) ---------- */
+function headComun(titulo){
+  return '<!doctype html><html lang="es"><head><meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>'+escapeHtml(titulo)+'</title>'
+    + '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">'
+    + '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">'
+    + '<style>'+PAGE_CSS+'</style></head><body>';
+}
+
+function navYHero(D){
   var titulo=escapeHtml(D.titulo||'Publicación Media Mendoza');
   var dateline=formatearFecha(D.generado);
-  var logo=D.logo||'';
-
   var secciones=[];
   if(D.chart) secciones.push(['sec-chart','Gráfico']);
   if(D.mapa&&D.mapa.length) secciones.push(['sec-map','Mapa']);
   if(D.timeline&&D.timeline.length) secciones.push(['sec-timeline','Cronología']);
   if(D.infografia&&D.infografia.lineas&&D.infografia.lineas.length) secciones.push(['sec-info','Datos']);
   var navLinks = secciones.map(function(s){ return '<a href="#'+s[0]+'">'+s[1]+'</a>'; }).join('');
+  return '<header class="mmw-nav"><div class="mmw-brand"><span class="dot"></span>MEDIA MENDOZA</div><nav>'+navLinks+'</nav></header>'
+    + '<section class="mmw-hero"><div class="mmw-wrap"><span class="mmw-kicker">Publicación interactiva</span>'
+    + '<h1>'+titulo+'</h1><div class="mmw-dateline">Publicado '+dateline+'</div></div></section>';
+}
 
+function seccionesComunes(D){
   var chartSec = D.chart
     ? ('<section class="mmw-sec" id="sec-chart"><div class="mmw-wrap">'
        + '<h2 class="mmw-reveal">'+escapeHtml(D.chart.titulo||'Gráfico')+'</h2>'
@@ -297,37 +321,32 @@ function construirHTML(D){
        + '<div class="mmw-chart-box mmw-reveal"><div style="position:relative;height:380px"><canvas id="mmwChart"></canvas></div></div>'
        + '</div></section>')
     : '';
-
   var mapSec = (D.mapa&&D.mapa.length)
     ? ('<section class="mmw-sec" id="sec-map"><div class="mmw-wrap">'
        + '<h2 class="mmw-reveal">Mapa</h2>'
        + '<p class="sub mmw-reveal">Ubicaciones relacionadas con la nota.</p>'
        + '<div id="map" class="mmw-reveal"></div></div></section>')
     : '';
-
   var tlSec = (D.timeline&&D.timeline.length) ? buildTimeline(D.timeline) : '';
   var infoSec = (D.infografia&&D.infografia.lineas&&D.infografia.lineas.length) ? buildInfografia(D.infografia) : '';
+  return chartSec + mapSec + tlSec + infoSec;
+}
 
-  var footer = '<footer class="mmw-footer"><div class="mmw-wrap">'
+function footerComun(D){
+  var logo=D.logo||'';
+  return '<footer class="mmw-footer"><div class="mmw-wrap">'
     + (logo ? '<img src="'+logo+'" alt="Media Mendoza">' : '')
     + '<div class="small">MEDIA MENDOZA · mmherramientas.media</div>'
     + '<div class="small" style="margin-top:6px">Generado con Visual Suite</div></div></footer>';
+}
 
-  // JSON seguro: escapamos '<' para evitar romper el <script> de la página.
+/* ---------- (1) Publicación Web ---------- */
+function construirHTMLWeb(D){
   var safeJson = JSON.stringify(D).replace(/</g, '\\u003c');
-
-  return '<!doctype html><html lang="es"><head><meta charset="utf-8">'
-    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    + '<title>'+titulo+'</title>'
-    + '<link rel="preconnect" href="https://fonts.googleapis.com">'
-    + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-    + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">'
-    + '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">'
-    + '<style>'+PAGE_CSS+'</style></head><body>'
-    + '<header class="mmw-nav"><div class="mmw-brand"><span class="dot"></span>MEDIA MENDOZA</div><nav>'+navLinks+'</nav></header>'
-    + '<section class="mmw-hero"><div class="mmw-wrap"><span class="mmw-kicker">Publicación interactiva</span>'
-    + '<h1>'+titulo+'</h1><div class="mmw-dateline">Publicado '+dateline+'</div></div></section>'
-    + chartSec + mapSec + tlSec + infoSec + footer
+  return headComun(D.titulo)
+    + navYHero(D)
+    + seccionesComunes(D)
+    + footerComun(D)
     + '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"><\/script>'
     + '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>'
     + '<script>window.MM_DATA='+safeJson+';<\/script>'
@@ -335,8 +354,61 @@ function construirHTML(D){
     + '</body></html>';
 }
 
-/* ---------- Interfaz (botón + modal en index.html) ---------- */
+/* ---------- (2) Publicación Rica (con galería de recursos) ---------- */
+function construirHTMLRica(D, recursos){
+  recursos = recursos || {svgs:[], pngs:[]};
+  var svgs = recursos.svgs || [];
+  var pngs = recursos.pngs || [];
+
+  var gallery = '';
+  if(svgs.length || pngs.length){
+    var cards = svgs.map(function(s){
+      return '<div class="mmw-rescard mmw-reveal"><span class="mmw-badge">SVG</span>'
+        + '<div class="mmw-resprev">'+s.svg+'</div>'
+        + '<div class="mmw-resname">'+escapeHtml(s.nombreArchivo)+'</div>'
+        + '<button class="mmw-resbtn" onclick="MM_descargarSVG(\''+s.nombreArchivo+'\')">Descargar SVG</button></div>';
+    }).join('');
+    cards += pngs.map(function(p){
+      return '<div class="mmw-rescard mmw-reveal"><span class="mmw-badge png">PNG</span>'
+        + '<div class="mmw-resprev"><img src="'+p.dataUrl+'" alt=""></div>'
+        + '<div class="mmw-resname">'+escapeHtml(p.nombreArchivo)+'</div>'
+        + '<button class="mmw-resbtn" onclick="MM_descargarPNG(\''+p.nombreArchivo+'\')">Descargar PNG</button></div>';
+    }).join('');
+
+    gallery = '<section class="mmw-sec" id="sec-recursos"><div class="mmw-wrap">'
+      + '<h2 class="mmw-reveal">Recursos para tu nota</h2>'
+      + '<p class="sub mmw-reveal">Elementos gráficos listos para descargar y usar en la publicación.</p>'
+      + '<div class="mmw-gallery">'+cards+'</div></div></section>';
+  }
+
+  // Datos de recursos embebidos para los handlers de descarga
+  var recData = { svgs:{}, pngs:{} };
+  svgs.forEach(function(s){ recData.svgs[s.nombreArchivo] = s.svg; });
+  pngs.forEach(function(p){ recData.pngs[p.nombreArchivo] = p.dataUrl; });
+  var recJson = JSON.stringify(recData).replace(/</g, '\\u003c');
+
+  var safeJson = JSON.stringify(D).replace(/</g, '\\u003c');
+
+  var dlScript = 'window.MM_REC='+recJson+';'
+    + 'function MM_descargarSVG(fn){var s=window.MM_REC.svgs[fn];if(!s)return;var b=new Blob([s],{type:"image/svg+xml"});var u=URL.createObjectURL(b);var a=document.createElement("a");a.href=u;a.download=fn;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},200);}'
+    + 'function MM_descargarPNG(fn){var d=window.MM_REC.pngs[fn];if(!d)return;var a=document.createElement("a");a.href=d;a.download=fn;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},200);}';
+
+  return headComun(D.titulo)
+    + navYHero(D)
+    + seccionesComunes(D)
+    + gallery
+    + footerComun(D)
+    + '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"><\/script>'
+    + '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>'
+    + '<script>window.MM_DATA='+safeJson+';<\/script>'
+    + '<script>'+INIT_JS+'<\/script>'
+    + '<script>'+dlScript+'<\/script>'
+    + '</body></html>';
+}
+
+/* ---------- Interfaz (botones + modales) ---------- */
 var ultimoWebHTML='';
+var ultimoRicaHTML='';
 
 function generarPublicacionWeb(){
   var D=recogerDatos();
@@ -344,27 +416,56 @@ function generarPublicacionWeb(){
     alert('No hay datos para generar la publicación. Creá un gráfico, mapa, cronología o infografía primero.');
     return;
   }
-  var html=construirHTML(D);
-  ultimoWebHTML=html;
+  ultimoWebHTML=construirHTMLWeb(D);
   var modal=document.getElementById('webPreview');
   var frame=document.getElementById('webPreviewFrame');
-  if(frame) frame.srcdoc=html;
+  if(frame) frame.srcdoc=ultimoWebHTML;
   if(modal) modal.classList.add('show');
 }
-
 function cerrarWebPreview(){
   var modal=document.getElementById('webPreview');
   var frame=document.getElementById('webPreviewFrame');
   if(frame) frame.srcdoc='';
   if(modal) modal.classList.remove('show');
 }
-
 function descargarPublicacionWeb(){
   if(!ultimoWebHTML){ return; }
   var blob=new Blob([ultimoWebHTML],{type:'text/html'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
   a.href=url; a.download='publicacion-media-mendoza.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+}
+
+function generarPublicacionRica(){
+  var D=recogerDatos();
+  if(!D.chart && !D.mapa && !D.timeline && !D.infografia){
+    alert('No hay datos para generar la publicación. Creá un gráfico, mapa, cronología o infografía primero.');
+    return;
+  }
+  var promptManual = (document.getElementById('ricaPrompt')||{}).value || '';
+  var svgs = (window.recursos && recursos.generarIconosSVG) ? recursos.generarIconosSVG(D) : [];
+  var pngs = (window.recursos && recursos.generarIlustracionesPNG) ? recursos.generarIlustracionesPNG(D, promptManual) : [];
+  ultimoRicaHTML = construirHTMLRica(D, {svgs:svgs, pngs:pngs});
+
+  var modal=document.getElementById('ricaPreview');
+  var frame=document.getElementById('ricaPreviewFrame');
+  if(frame) frame.srcdoc=ultimoRicaHTML;
+  if(modal) modal.classList.add('show');
+}
+function cerrarRicaPreview(){
+  var modal=document.getElementById('ricaPreview');
+  var frame=document.getElementById('ricaPreviewFrame');
+  if(frame) frame.srcdoc='';
+  if(modal) modal.classList.remove('show');
+}
+function descargarPublicacionRica(){
+  if(!ultimoRicaHTML){ return; }
+  var blob=new Blob([ultimoRicaHTML],{type:'text/html'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download='publicacion-rica-media-mendoza.html';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
 }

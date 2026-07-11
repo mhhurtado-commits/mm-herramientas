@@ -23,3 +23,5 @@
 *.tar.xz
 *.tar.zst
 ```
+# Dependencias (instalación local de prueba)
+node_modules/
