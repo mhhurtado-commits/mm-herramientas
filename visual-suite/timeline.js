@@ -61,9 +61,9 @@ function renderizarTimeline() {
   let html = '';
   sorted.forEach((ev, i) => {
     const fecha = new Date(ev.date + 'T12:00:00');
-    const fechaStr = fecha.toLocaleDateString('es-AR', {
-      year: 'numeric', month: 'long', day: 'numeric'
-    });
+    const fechaStr = (fecha.getDate() === 1)
+      ? fecha.toLocaleDateString('es-AR', { year: 'numeric', month: 'long' })
+      : fecha.toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' });
     html += `
       <div class="vs-timeline-item">
         <div class="vs-timeline-dot"></div>
@@ -87,33 +87,124 @@ function limpiarTimeline() {
 }
 
 // ── Carga desde JSON (fuente manual / externa) ──
-// Normaliza distintos esquemas de JSON a {f, title, desc} legibles para la placa.
-function normalizarEventoJSON(item) {
-  const f = String(item.fecha || item.date || item.fechaISO || item.fechaISOString || '');
-  const rival = item.rival || item.oponente || item.equipo || item.contrincante || '';
-  const fase = item.fase || item.torneo || item.etapa || item.grupo || '';
-  const minuto = item.minuto || item.min || item.minutoGol || '';
-  const tipo = item.tipo || item.tipoGol || item.tipoDeGol || '';
-  const marcador = item.marcador || item.score || item.resultado || item.placar || '';
-  const titulo0 = item.titulo || item.title || item.evento || item.nombre || '';
-  const desc0 = item.desc || item.descripcion || item.detalle || item.resumen || '';
+// ── Normalización GENERAL de JSON ──
+// Acepta cualquier esquema. Extrae una fecha ordenable y arma título/descripción
+// a partir de los campos presentes, sin importar el tema.
+const MESES_IX = {
+  enero:1, febrero:2, marzo:3, abril:4, mayo:5, junio:6, julio:7, agosto:8,
+  septiembre:9, octubre:10, noviembre:11, diciembre:12,
+  january:1, february:2, march:3, april:4, may:5, june:6, july:7, august:8,
+  september:9, october:10, november:11, december:12
+};
+// Campos que denotan fecha (se ignoran al armar la descripción).
+const CLAVES_FECHA = ['fecha','date','fechaISO','fecha_iso','fechaISOString','timestamp','time','periodo','anio','año','year','mes','month','semana','trimestre'];
+// Campos que denotan un título explícito.
+const CLAVES_TITULO = ['titulo','title','nombre','name','evento','label','concepto','indicador','descripcion','desc','resumen'];
 
-  let title, desc;
-  if (titulo0) {
-    title = String(titulo0);
-    desc = [fase, rival && ('vs ' + rival), minuto, tipo, marcador, desc0].filter(Boolean).join(' · ');
-  } else if (rival || fase || minuto || tipo || marcador) {
-    const partes = [];
-    if (fase) partes.push(fase);
-    if (rival) partes.push('vs ' + rival);
-    const golN = (item.id != null && item.id !== '') ? `Gol #${item.id}` : 'Gol';
-    title = `${golN}${partes.length ? ' · ' + partes.join(' · ') : ''}`;
-    desc = [minuto ? `Min ${minuto}` : '', tipo, marcador ? `Marcador ${marcador}` : '', desc0]
-      .filter(Boolean).join(' · ') || 'Evento';
-  } else {
-    title = 'Evento';
-    desc = String(desc0 || '');
+function capitalizar(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+// "ipc_mensual_porcentaje" -> "Ipc mensual porcentaje"
+function formatearClave(k) {
+  return String(k)
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^./, c => c.toUpperCase());
+}
+
+// "2026-01" -> "Ene 2026"
+function etiquetaPeriodo(s) {
+  const m = String(s).trim().match(/^(\d{4})[-/](\d{1,2})/);
+  if (m) {
+    const meses = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const mm = parseInt(m[2], 10);
+    if (mm >= 1 && mm <= 12) return `${meses[mm]} ${m[1]}`;
   }
+  return String(s);
+}
+
+// Devuelve una fecha YYYY-MM-DD normalizada o null. Soporta muchos formatos.
+function extraerFecha(item) {
+  // Fecha explícita / ISO / epoch
+  for (const k of ['fecha', 'date', 'fechaISO', 'fecha_iso', 'fechaISOString', 'timestamp', 'time']) {
+    if (item[k] == null) continue;
+    const s = String(item[k]).trim();
+    if (/^\d{10,13}$/.test(s)) {
+      const dt = new Date(Number(s) * (s.length === 10 ? 1000 : 1));
+      if (!isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
+    }
+    const dt = new Date(s.length <= 10 ? s + 'T12:00:00' : s);
+    if (!isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
+  }
+  // Periodo mensual "YYYY-MM"
+  if (item.periodo) {
+    const m = String(item.periodo).trim().match(/^(\d{4})[-/](\d{1,2})/);
+    if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-01`;
+  }
+  // Año + mes (numérico o nombre)
+  const anio = item.año || item.anio || item.year;
+  const mes = item.mes || item.month;
+  if (anio != null && mes != null) {
+    const y = String(anio).trim();
+    let mm;
+    if (/^\d+$/.test(String(mes).trim())) mm = String(mes).padStart(2, '0');
+    else { const mi = MESES_IX[String(mes).trim().toLowerCase()]; if (mi) mm = String(mi).padStart(2, '0'); }
+    if (/^\d{4}$/.test(y) && mm) return `${y}-${mm}-01`;
+  }
+  return null;
+}
+
+// Título contextual para casos comunes (deportes/partidos). Null si no aplica.
+function tituloContextual(item) {
+  const rival = item.rival || item.equipo || item.oponente || item.contrincante;
+  const fase = item.fase || item.etapa || item.torneo || item.grupo;
+  const esDeporte = rival || item.marcador || item.minuto || item.tipo;
+  if (!esDeporte) return null;
+  const esGol = item.minuto || (item.tipo && /gol/i.test(String(item.tipo)));
+  const noun = esGol ? 'Gol' : (rival ? 'Partido' : 'Evento');
+  const pref = (item.id != null && item.id !== '') ? `${noun} #${item.id}` : noun;
+  const parts = [];
+  if (fase) parts.push(fase);
+  if (rival) parts.push('vs ' + rival);
+  return parts.length ? `${pref} · ${parts.join(' · ')}` : pref;
+}
+
+// Normaliza un item cualquiera a {f, title, desc} legibles para la placa.
+function normalizarEventoJSON(item) {
+  const f = extraerFecha(item);
+  const entradas = Object.entries(item).filter(([k, v]) => v !== null && v !== undefined && v !== '');
+
+  // 1) Título
+  let title = '';
+  const tk = CLAVES_TITULO.find(k => item[k] != null && String(item[k]).trim() !== '');
+  if (tk) {
+    title = String(item[tk]).trim();
+  } else {
+    const ctx = tituloContextual(item);
+    if (ctx) title = ctx;
+    else if (item.mes && (item.año || item.anio || item.year)) title = `${capitalizar(String(item.mes))} ${item.año || item.anio || item.year}`;
+    else if (item.periodo) title = etiquetaPeriodo(String(item.periodo));
+    else if (f) { const dt = new Date(f + 'T12:00:00'); title = dt.toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' }); }
+    else {
+      const txt = entradas.find(([k, v]) => typeof v === 'string' && !CLAVES_FECHA.includes(k) && v.length > 2 && v.length < 70);
+      title = txt ? txt[1] : 'Evento';
+    }
+  }
+
+  // 2) Descripción: todos los demás campos como "Clave: valor"
+  const ignorar = new Set([tk, ...CLAVES_FECHA, 'id', 'meta', 'extra', '_', 'tipo_dato']);
+  const partes = [];
+  for (const [k, v] of entradas) {
+    if (ignorar.has(k)) continue;
+    if (typeof v === 'object') continue;
+    partes.push(`${formatearClave(k)}: ${v}`);
+  }
+  if (item.tipo_dato) partes.push(`Fuente: ${item.tipo_dato}`);
+  let desc = partes.join(' · ');
+  if (!desc) desc = String(item.descripcion || item.desc || '');
+  if (!desc) desc = '';
+
   return { f, title, desc };
 }
 
@@ -253,7 +344,7 @@ function escHtml(str) {
 function detectarIconoEvento(title, desc) {
   const t = (title + ' ' + desc).toLowerCase();
   if (t.includes('gol') || t.includes('partido') || t.includes('fútbol') || t.includes('mundial') || t.includes('messi')) return '⚽';
-  if (t.includes('inflación') || t.includes('economía') || t.includes('dólar') || t.includes('precio') || t.includes('pbi')) return '📈';
+  if (t.includes('inflación') || t.includes('inflacion') || t.includes('ipc') || t.includes('economía') || t.includes('dólar') || t.includes('precio') || t.includes('pbi')) return '📈';
   if (t.includes('elección') || t.includes('presidente') || t.includes('gobierno') || t.includes('ley') || t.includes('decreto')) return '🏛';
   if (t.includes('acuerdo') || t.includes('tratado') || t.includes('paz') || t.includes('cumbre')) return '🤝';
   if (t.includes('terremoto') || t.includes('inundación') || t.includes('clima') || t.includes('temporal') || t.includes('sequía')) return '🌊';
@@ -404,7 +495,9 @@ function renderTimelineCanvas(events, W, H) {
 
     // Fecha
     const fecha = new Date(ev.date + 'T12:00:00');
-    const fechaStr = fecha.toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' });
+    const fechaStr = (fecha.getDate() === 1)
+      ? fecha.toLocaleDateString('es-AR', { year: 'numeric', month: 'long' }).toUpperCase()
+      : fecha.toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
     ctx.fillStyle = ACCENT;
     ctx.font = `700 ${Math.round(cardH * 0.15)}px "Inter", sans-serif`;
     ctx.textAlign = 'left';
