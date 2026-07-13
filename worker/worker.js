@@ -4139,36 +4139,73 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
 
 async function buscarEnWeb(query, env) {
   const debug = { proveedores: [] };
-  // Google Custom Search (único proveedor)
+  // 1. Google Custom Search (oficial, 100/día gratis)
   const gcsKey = env.GOOGLE_SEARCH_KEY;
   const gcsCx = env.GOOGLE_SEARCH_CX;
-  if (!gcsKey || !gcsCx) return { articulos: [], debugSearch: debug, error: 'Google Search no configurado' };
-  try {
-    const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${gcsKey}&cx=${gcsCx}&q=${encodeURIComponent(query)}&lr=lang_es&num=8`);
-    debug.gcsStatus = res.status;
-    if (!res.ok) { debug.proveedores.push('gcs:error_'+res.status); return { articulos: [], debugSearch: debug, error: `Google Search error ${res.status}` }; }
-    const data = await res.json();
-    const items = data.items || [];
-    debug.gcsItems = items.length;
-    const articulos = [];
-    for (const item of items.slice(0, 6)) {
-      const texto = [item.title, item.snippet, item.pagemap?.metatags?.[0]?.['og:description'] || ''].filter(Boolean).join('. ');
-      if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
-    }
-    // Fetch contenido completo del primer resultado
-    if (articulos.length > 0) {
-      try {
-        const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
-        if (artRes.ok) {
-          const html = await artRes.text();
-          const fullTexto = extraerTexto(html).substring(0, 6000);
-          if (fullTexto.length > 500) articulos[0].texto += '\n\n--- CONTENIDO COMPLETO ---\n' + fullTexto;
+  if (gcsKey && gcsCx) {
+    try {
+      const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${gcsKey}&cx=${gcsCx}&q=${encodeURIComponent(query)}&lr=lang_es&num=8`);
+      debug.gcsStatus = res.status;
+      if (res.ok) {
+        const data = await res.json();
+        const items = data.items || [];
+        debug.gcsItems = items.length;
+        const articulos = [];
+        for (const item of items.slice(0, 6)) {
+          const texto = [item.title, item.snippet, item.pagemap?.metatags?.[0]?.['og:description'] || ''].filter(Boolean).join('. ');
+          if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
         }
-      } catch {}
-    }
-    debug.proveedores.push('gcs:ok');
-    return { articulos, debugSearch: debug };
-  } catch (e) { debug.gcsError = e.message; debug.proveedores.push('gcs:exception'); return { articulos: [], debugSearch: debug, error: e.message }; }
+        if (articulos.length > 0) {
+          try {
+            const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
+            if (artRes.ok) {
+              const html = await artRes.text();
+              const fullTexto = extraerTexto(html).substring(0, 6000);
+              if (fullTexto.length > 500) articulos[0].texto += '\n\n--- CONTENIDO COMPLETO ---\n' + fullTexto;
+            }
+          } catch {}
+        }
+        debug.proveedores.push('gcs:ok');
+        return { articulos, debugSearch: debug };
+      }
+      debug.proveedores.push('gcs:error_'+res.status);
+    } catch (e) { debug.gcsError = e.message; debug.proveedores.push('gcs:exception'); }
+  }
+  // 2. Serper API (fallback, 2500 gratis, da resultados Google reales)
+  const serperKey = env.SERPER_API_KEY;
+  debug.serperConfigurada = !!serperKey;
+  if (serperKey) {
+    try {
+      const res = await fetch('https://google.serper.dev/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-KEY': serperKey },
+        body: JSON.stringify({ q: query, gl: 'ar', hl: 'es', num: 8 })
+      });
+      debug.serperStatus = res.status;
+      if (!res.ok) { debug.proveedores.push('serper:error_'+res.status); return { articulos: [], debugSearch: debug }; }
+      const data = await res.json();
+      const items = data.organic || [];
+      debug.serperItems = items.length;
+      const articulos = [];
+      for (const item of items.slice(0, 6)) {
+        const texto = [item.title, item.snippet].filter(Boolean).join('. ');
+        if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
+      }
+      if (articulos.length > 0) {
+        try {
+          const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
+          if (artRes.ok) {
+            const html = await artRes.text();
+            const fullTexto = extraerTexto(html).substring(0, 6000);
+            if (fullTexto.length > 500) articulos[0].texto += '\n\n--- CONTENIDO COMPLETO ---\n' + fullTexto;
+          }
+        } catch {}
+      }
+      debug.proveedores.push('serper:ok');
+      return { articulos, debugSearch: debug };
+    } catch (e) { debug.serperError = e.message; debug.proveedores.push('serper:exception'); return { articulos: [], debugSearch: debug }; }
+  }
+  return { articulos: [], debugSearch: debug };
 }
 async function callGemini(prompt,env){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
@@ -5216,75 +5253,53 @@ Respondé SOLO con JSON. Cuantos más eventos extraigas mejor: NO te limites a 2
 
   const debug = {};
 
-  // ── Prompt principal: conocimiento interno de Gemini ──
-  const promptPrincipal = `Sos un cronista de datos de Media Mendoza.
+  // ── Prompt: extraer desde artículos web reales (con Serper como respaldo) ──
+  const promptBusqueda = `Sos un cronista de datos de Media Mendoza.
 
 Tema: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta la fecha actual.
 
-Usando TU CONOCIMIENTO INTERNO como fuente principal, extraé TODOS los eventos individuales disponibles para armar una línea de tiempo periodística.
+Los ARTÍCULOS WEB a continuación contienen información real sobre este tema.
+Extraé TODOS los eventos individuales disponibles ÚNICAMENTE de lo que dicen los artículos.
+NO inventes datos, NO uses tu conocimiento interno, NO alucines.
+Si un artículo menciona algo, extraelo. Si no lo menciona, no lo incluyas.
 
 INSTRUCCIONES POR TIPO DE DATO:
 
-Si son eventos DEPORTIVOS (fútbol, tenis, etc):
-- Incluí CADA gol/partido como evento individual
-- Por cada uno: fecha exacta (YYYY-MM-DD), fase del torneo, rival, minuto, tipo de jugada, marcador
+Si son eventos DEPORTIVOS (fútbol, etc):
+- Incluí CADA gol/partido mencionado como evento individual
+- Por cada uno: fecha, fase, rival, minuto, tipo de jugada, marcador
 - Ejemplo: {"fecha":"2026-06-16","fase":"Fase de Grupos","rival":"Argelia","minuto":"17'","tipo":"Jugada (Zurda)","marcador":"1-0"}
 
-Si son eventos ECONÓMICOS (inflación, PBI, etc):
-- Incluí CADA mes/trimestre como evento individual con su valor numérico
+Si son eventos ECONÓMICOS (inflación, etc):
+- Incluí CADA mes/trimestre mencionado con su valor
 - Ejemplo: {"periodo":"2026-01","titulo":"Inflación enero","descripcion":"2,3% mensual","ipc_mensual_porcentaje":2.3}
 
 Si son eventos HISTÓRICOS o POLÍTICOS:
-- Incluí CADA hito/fecha como evento individual
-- Con fecha, título corto y descripción con datos concretos
+- Incluí CADA hito mencionado con su fecha
 
-REGLAS GENERALES:
-- Cada evento = un hecho INDIVIDUAL con su propia fecha
-- NO resumir, NO agrupar, NO acumular
-- EXTRAÉ LA MAYOR CANTIDAD POSIBLE de eventos (10, 20 o más)
-- Si tenés datos detallados (minuto de gol, fase, rival), incluílos como campos adicionales
-- Fechas en formato YYYY-MM-DD (o YYYY-MM-01 si solo sabés mes)
+REGLAS:
+- SOLO extraé lo que está en los artículos
+- Cada evento = un hecho INDIVIDUAL
+- NO resumir, NO agrupar
+- Respondé SOLO con JSON envuelto en {"eventos":[...]}.`;
 
-Respondé SOLO con JSON. Siempre envuelto en {"eventos":[...]}.
-No incluyas texto antes ni después del JSON.
-Si no tenés datos, respondé {"eventos":[],"nota":"sin datos en mi conocimiento"}.`;
-
-  // 1. Gemini con conocimiento interno
-  const r1 = await callGemini(promptPrincipal, env);
-  if (r1.error) { debug.error_gemini = r1.error; }
-  else { debug.eventos_gemini = r1.data?.eventos?.length || 0; }
-
-  // Si Gemini devolvió suficientes eventos, retornar
-  if (r1.data?.eventos?.length >= 2) {
-    const raw = JSON.stringify(r1.data);
-    return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
-  }
-
-  // 2. Fallback: intentar con búsqueda web para complementar
-  const rBusq = await callGeminiConBusqueda(promptPrincipal, env, tema);
-  if (rBusq.error) {
-    debug.error_busqueda = rBusq.error;
-    // Si tampoco dio resultados, devolver lo que tenga Gemini (aunque sean pocos)
-    if (r1.data?.eventos?.length >= 1) {
-      const raw = JSON.stringify(r1.data);
-      return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
-    }
-    return jsonOk({ texto: '{"eventos":[]}', fuentes: [], modo: 'sin_fuentes', debug, error: rBusq.error });
-  }
+  // 1. Intentar con búsqueda web primero (Google CSE → Serper)
+  const rBusq = await callGeminiConBusqueda(promptBusqueda, env, tema);
+  if (rBusq.error) { debug.error_busqueda = rBusq.error; }
+  else { debug.eventos_busqueda = rBusq.data?.eventos?.length || 0; }
 
   if (rBusq.data?.eventos?.length >= 2) {
     const raw = JSON.stringify(rBusq.data);
     return jsonOk({ texto: raw, fuentes: rBusq.data?.fuentes || [], modo: 'web', debug });
   }
 
-  // 3. Último recurso: lo que tenga Gemini
-  if (r1.data?.eventos?.length >= 1) {
-    const raw = JSON.stringify(r1.data);
-    return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
-  }
-
-  return jsonOk({ texto: '{"eventos":[]}', fuentes: [], modo: 'sin_datos', debug });
+  // 2. Si la búsqueda no dio resultados, devolver vacío (no alucinar)
+  return jsonOk({
+    texto: '{"eventos":[],"nota":"No se encontraron datos reales en la web para este tema"}',
+    fuentes: [], modo: 'sin_datos', debug,
+    error: rBusq.error || 'La búsqueda web no encontró artículos con datos suficientes'
+  });
 }
 
 // ── Extraer todo desde una URL (charts + mapa + timeline + infografía) ──
