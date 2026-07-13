@@ -4121,7 +4121,7 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
   for(let i=0;i<keys.length;i++){
     for(let intento=1;intento<=2;intento++){
       try{
-        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO DE ARTÍCULOS WEB:\n"+ctx:"")}]}],generationConfig:{temperature:0.4,maxOutputTokens:4000}})});
+        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO DE ARTÍCULOS WEB:\n"+ctx:"")}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}})});
         if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
         if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
         if(!res.ok){const errBody=await res.text().catch(()=>'');console.error(`Gemini ${res.status} key#${i+1}:`,errBody);if(res.status>=400&&res.status<500) return {error:`Error ${res.status} de Gemini: ${errBody.substring(0,200)}`};break}
@@ -4139,7 +4139,42 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
 
 async function buscarEnWeb(query, env) {
   const debug = { proveedores: [] };
-  // 1. Serper API (2500 consultas gratis, sin tarjeta)
+  // 1. Google Custom Search (100/día gratis, resultados oficiales de Google)
+  const gcsKey = env.GOOGLE_SEARCH_KEY;
+  const gcsCx = env.GOOGLE_SEARCH_CX;
+  if (gcsKey && gcsCx) {
+    try {
+      const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${gcsKey}&cx=${gcsCx}&q=${encodeURIComponent(query)}&lr=lang_es&num=8`);
+      debug.gcsStatus = res.status;
+      if (!res.ok) { debug.proveedores.push('gcs:error_'+res.status); }
+      else {
+        const data = await res.json();
+        const items = data.items || [];
+        debug.gcsItems = items.length;
+        const articulos = [];
+        for (const item of items.slice(0, 6)) {
+          const texto = [item.title, item.snippet, item.pagemap?.metatags?.[0]?.['og:description'] || ''].filter(Boolean).join('. ');
+          if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
+        }
+        // Fetch contenido completo del primer resultado
+        if (articulos.length > 0) {
+          try {
+            const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
+            if (artRes.ok) {
+              const html = await artRes.text();
+              const fullTexto = extraerTexto(html).substring(0, 6000);
+              if (fullTexto.length > 500) articulos[0].texto += '\n\n--- CONTENIDO COMPLETO ---\n' + fullTexto;
+            }
+          } catch {}
+        }
+        if (articulos.length) {
+          debug.proveedores.push('gcs:ok');
+          return { articulos, debugSearch: debug };
+        }
+      }
+    } catch (e) { debug.gcsError = e.message; debug.proveedores.push('gcs:exception'); }
+  }
+  // 2. Serper API (2500 consultas gratis, Google via proxy)
   const serperKey = env.SERPER_API_KEY;
   debug.serperConfigurada = !!serperKey;
   if (serperKey) {
@@ -4173,26 +4208,6 @@ async function buscarEnWeb(query, env) {
       debug.proveedores.push('serper:ok');
       return { articulos, debugSearch: debug };
     } catch (e) { debug.serperError = e.message; debug.proveedores.push('serper:exception'); return { articulos: [], debugSearch: debug }; }
-  }
-  // 2. Google Custom Search
-  const gcsKey = env.GOOGLE_SEARCH_KEY;
-  const gcsCx = env.GOOGLE_SEARCH_CX;
-  if (gcsKey && gcsCx) {
-    try {
-      const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${gcsKey}&cx=${gcsCx}&q=${encodeURIComponent(query)}&lr=lang_es&num=8`);
-      debug.gcsStatus = res.status;
-      if (!res.ok) { debug.proveedores.push('gcs:error_'+res.status); return { articulos: [], debugSearch: debug }; }
-      const data = await res.json();
-      const items = data.items || [];
-      debug.gcsItems = items.length;
-      const articulos = [];
-      for (const item of items.slice(0, 6)) {
-        const texto = [item.title, item.snippet, item.pagemap?.metatags?.[0]?.['og:description'] || ''].filter(Boolean).join('. ');
-        if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
-      }
-      debug.proveedores.push('gcs:ok');
-      return { articulos, debugSearch: debug };
-    } catch (e) { debug.gcsError = e.message; debug.proveedores.push('gcs:exception'); return { articulos: [], debugSearch: debug }; }
   }
   // 3. Fallback: Wikipedia REST summary
   try {
@@ -5217,7 +5232,7 @@ Usá tu conocimiento interno. Respondé SOLO con JSON:
       }
 
       contenido = contenido.substring(0, 10000);
-      const promptUrl = `Sos un cronista de datos de Media Mendoza.
+      const promptUrl = `${PERSONA_TIMELINE}
 Extraé TODOS los eventos INDIVIDUALES del siguiente artículo sobre: "${nombreTema}"
 
 ARTÍCULO:
@@ -5259,8 +5274,20 @@ Respondé SOLO con JSON. Cuantos más eventos extraigas mejor: NO te limites a 2
 
   if (!tema) return jsonError("Falta tema", 400);
 
+  // Persona común: esquema general de extracción de datos para visualización.
+  // (Traducida al español; se adaptó la regla de salida al wrapper {"eventos":[...]}
+  //  que espera el worker. Se omitió la regla original de "tips después del JSON"
+  //  porque el worker solo lee el primer bloque {...}.)
+  const PERSONA_TIMELINE = `Sos un asistente experto en extracción y estructuración de datos para aplicaciones de visualización (gráficos, timelines, infografías).
+Transformá cualquier tema o consulta del usuario en un objeto JSON limpio, preciso y listo para ser consumido por un frontend.
+
+REGLAS ESTRICTAS:
+1) SALIDA OBLIGATORIA: respondé SIEMPRE con un bloque JSON válido envuelto en un objeto: {"eventos":[ ... ]}. Nunca uses un array suelto. No incluyas explicaciones previas ni texto introductorio antes del JSON.
+2) NORMALIZACIÓN: fechas en ISO 8601 (AAAA-MM-DD o AAAA-MM). Claves en snake_case. Valores numéricos como números nativos (number/float), no como strings con "%" o "$" salvo que sea estrictamente necesario para la visualización.
+3) TIEMPO: si los datos son del año en curso (2026), marcá con "tipo_dato":"oficial" (histórico) o "tipo_dato":"proyección" (estimación). Si un evento no ocurrió, poné sus campos de resultado en null.`;
+
   // ── Modo normal: búsqueda web → Gemini ──
-  const promptWeb = `Sos un cronista de datos de Media Mendoza.
+  const promptWeb = `${PERSONA_TIMELINE}
 Extraé TODOS los eventos INDIVIDUALES disponibles en los ARTÍCULOS WEB sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta la fecha actual.
 
@@ -5299,7 +5326,7 @@ Respondé SOLO con JSON (array o {"eventos":[...]}). Incluí TODOS los eventos q
     return jsonOk({ texto: raw, fuentes: r1.data?.fuentes || [], modo: 'web', debug });
   }
 
-  const promptFallback = `Sos un cronista de datos de Media Mendoza.
+  const promptFallback = `${PERSONA_TIMELINE}
 Extraé eventos INDIVIDUALES con datos concretos sobre: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta la fecha actual.
 
