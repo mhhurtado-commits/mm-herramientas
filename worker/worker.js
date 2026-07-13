@@ -3746,8 +3746,7 @@ async function handleRedactar(body,env){
   if(!ideas) return jsonError("Falta campo: ideas",400);
   const ed=comprimirEditorial(await getEditorial(env));
   const prompt=`Sos redactor de Media Mendoza.\nRedactá una nota periodística.\n\nCONTENIDO:\n${ideas}\n\n${buscarWeb?"Buscá contexto en la web.":"Solo usá la info provista."}\n${ed?`\nREGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titular":"","bajada":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}`;
-  const fn=buscarWeb?callGeminiConBusqueda:callGemini;
-  const r=await fn(prompt,env,ideas);
+  const r=await callGemini(prompt,env,buscarWeb);
   if(r.error) return jsonError(r.error,500);
   return jsonOk(r.data);
 }
@@ -4104,85 +4103,33 @@ async function getEditorial(env){
   try{const v=await env.KV.get(EDITORIAL_KV_KEY,"json");if(v&&v.activo&&v.prompt) return v.prompt}catch(e){}
   return null;
 }
-async function callGeminiConBusqueda(prompt,env,searchQuery){
-  const { articulos, debugSearch } = await buscarEnWeb(searchQuery, env);
-  const fuentes = [];
-  const ctxParts = [];
-  for (const a of articulos.slice(0, 3)) {
-    ctxParts.push("\n--- FUENTE: " + a.titulo + " (" + a.url + ") ---\n" + a.texto + "\n---");
-    fuentes.push({ titulo: a.titulo, url: a.url, imagen: '' });
-  }
-  if (fuentes.length === 0) {
-    return { error: "No se encontraron fuentes web", debugSearch };
-  }
-  const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
-  if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
-  const ctx=ctxParts.join("\n");
-  for(let i=0;i<keys.length;i++){
-    for(let intento=1;intento<=2;intento++){
-      try{
-        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt+(ctx?"\n\nCONTENIDO DE ARTÍCULOS WEB:\n"+ctx:"")}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}})});
-        if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
-        if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
-        if(!res.ok){const errBody=await res.text().catch(()=>'');console.error(`Gemini ${res.status} key#${i+1}:`,errBody);if(res.status>=400&&res.status<500) return {error:`Error ${res.status} de Gemini: ${errBody.substring(0,200)}`};break}
-        const data=await res.json();
-        const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||"";
-        const match=raw.match(/\{[\s\S]*\}/);if(!match) break;
-        let parsed;try{parsed=JSON.parse(match[0])}catch{break}
-        if(fuentes.length) parsed.fuentes=fuentes;
-        return {data:parsed, debugSearch};
-      }catch(err){if(intento<2) await sleep(3000)}
-    }
-  }
-  return {error:"Todas las API keys de Gemini están agotadas.", debugSearch};
-}
 
-async function buscarEnWeb(query, env) {
-  const debug = { proveedores: [] };
-  // Google Custom Search (único proveedor)
-  const gcsKey = env.GOOGLE_SEARCH_KEY;
-  const gcsCx = env.GOOGLE_SEARCH_CX;
-  if (!gcsKey || !gcsCx) return { articulos: [], debugSearch: debug, error: 'Google Search no configurado' };
-  try {
-    const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${gcsKey}&cx=${gcsCx}&q=${encodeURIComponent(query)}&lr=lang_es&num=8`);
-    debug.gcsStatus = res.status;
-    if (!res.ok) { debug.proveedores.push('gcs:error_'+res.status); return { articulos: [], debugSearch: debug, error: `Google Search error ${res.status}` }; }
-    const data = await res.json();
-    const items = data.items || [];
-    debug.gcsItems = items.length;
-    const articulos = [];
-    for (const item of items.slice(0, 6)) {
-      const texto = [item.title, item.snippet, item.pagemap?.metatags?.[0]?.['og:description'] || ''].filter(Boolean).join('. ');
-      if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
-    }
-    if (articulos.length > 0) {
-      try {
-        const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
-        if (artRes.ok) {
-          const html = await artRes.text();
-          const fullTexto = extraerTexto(html).substring(0, 6000);
-          if (fullTexto.length > 500) articulos[0].texto += '\n\n--- CONTENIDO COMPLETO ---\n' + fullTexto;
-        }
-      } catch {}
-    }
-    debug.proveedores.push('gcs:ok');
-    return { articulos, debugSearch: debug };
-  } catch (e) { debug.gcsError = e.message; debug.proveedores.push('gcs:exception'); return { articulos: [], debugSearch: debug, error: e.message }; }
-}
-async function callGemini(prompt,env){
+async function callGemini(prompt,env,searchEnabled=false){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
+  const body={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000,responseMimeType:"application/json"}};
+  if(searchEnabled) body.tools=[{google_search:{}}];
   for(let i=0;i<keys.length;i++){
     for(let intento=1;intento<=2;intento++){
       try{
-        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}})});
+        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
         if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
         if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
         if(!res.ok){const errBody=await res.text().catch(()=>'');console.error(`Gemini ${res.status} key#${i+1}:`,errBody);if(res.status>=400&&res.status<500) return {error:`Error ${res.status} de Gemini: ${errBody.substring(0,200)}`};break}
         const data=await res.json();
-        const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||"";
-        const match=raw.match(/\{[\s\S]*\}/);if(!match) break;
-        let parsed;try{parsed=JSON.parse(match[0])}catch{break}
+        const candidate=data?.candidates?.[0];
+        const raw=candidate?.content?.parts?.[0]?.text||"";
+        const grounding=candidate?.groundingMetadata||{};
+        // Con responseMimeType application/json, Gemini devuelve JSON directo (sin markdown)
+        let parsed;
+        try{parsed=JSON.parse(raw)}catch{
+          const match=raw.match(/\{[\s\S]*\}/);
+          if(!match) break;
+          try{parsed=JSON.parse(match[0])}catch{break}
+        }
+        if(grounding?.searchEntryPoint?.renderedContent){
+          parsed._fuentes=grounding.searchEntryPoint.renderedContent;
+        }
         return {data:parsed};
       }catch(err){if(intento<2) await sleep(3000)}
     }
@@ -5130,49 +5077,19 @@ async function handleVisualTimeline(body, env) {
       let fuentes = [{ titulo: 'Artículo proporcionado', url }];
       let modo = 'url';
 
-      // Si el scraping directo no da texto, buscar en Serper para obtener snippet de Google
+      // Si el scraping directo no da texto, usar Gemini con búsqueda
       if (contenido.length < 100) {
-        const serperKey = env.SERPER_API_KEY;
-        if (serperKey) {
-          try {
-            const sr = await fetch('https://google.serper.dev/search', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-API-KEY': serperKey },
-              body: JSON.stringify({ q: url, gl: 'ar', hl: 'es', num: 3 })
-            });
-            if (sr.ok) {
-              const sd = await sr.json();
-              const items = sd.organic || [];
-              const partes = [];
-              for (const item of items.slice(0, 3)) {
-                if (item.snippet) partes.push(item.title + '. ' + item.snippet);
-              }
-              if (partes.length) {
-                contenido = partes.join('\n\n').substring(0, 10000);
-                modo = 'url_via_serper';
-              }
-            }
-          } catch {}
-        }
-      }
-
-      if (contenido.length < 100) {
-        // Último recurso: preguntar a Gemini directamente con la URL
-        const promptUrlFallback = `Dame un listado de eventos INDIVIDUALES sobre: "${nombreTema}"
-La URL "${url}" no se pudo leer (sitio dinámico).
-Usá tu conocimiento interno. Respondé SOLO con JSON:
-{"eventos": [{"date":"2026-01-01","title":"...","desc":"..."}]}`;
-        const rFb = await callGemini(promptUrlFallback, env);
+        const promptUrlSearch = `Buscá información sobre: "${nombreTema}" (relacionado a ${url}). Extraé TODOS los eventos individuales disponibles. Respondé SOLO con JSON: {"eventos":[...]}`;
+        const rFb = await callGemini(promptUrlSearch, env, true);
         if (!rFb.error && rFb.data?.eventos?.length) {
           const rawFb = JSON.stringify(rFb.data);
-          return jsonOk({ texto: rawFb, fuentes, modo: 'gemini_fallback', debug: {} });
+          return jsonOk({ texto: rawFb, fuentes, modo: 'gemini_search', debug: {} });
         }
         return jsonError("No se pudo extraer contenido del link. Probá con un artículo de otro sitio (ej: ESPN, Ole, Infobae)");
       }
 
       contenido = contenido.substring(0, 10000);
-      const promptUrl = `${PERSONA_TIMELINE}
-Extraé TODOS los eventos INDIVIDUALES del siguiente artículo sobre: "${nombreTema}"
+      const promptUrl = `Extraé TODOS los eventos INDIVIDUALES del siguiente artículo sobre: "${nombreTema}"
 
 ARTÍCULO:
 ${contenido}
@@ -5246,23 +5163,14 @@ REGLAS:
 - No incluyas texto antes ni después del JSON
 - Si no tenés datos, respondé {"eventos":[],"nota":"sin datos disponibles"}`;
 
-  // 1. Intentar con Gemini + artículos web (si Google CSE funciona)
-  const rBusq = await callGeminiConBusqueda(promptPrincipal, env, tema);
-  if (rBusq.error) { debug.error_busqueda = rBusq.error; }
-  else { debug.eventos_busqueda = rBusq.data?.eventos?.length || 0; }
+  // Gemini con búsqueda web nativa (google_search tool busca en Google automáticamente)
+  const r = await callGemini(promptPrincipal, env, true);
+  if (r.error) { debug.error_gemini = r.error; }
+  else { debug.eventos = r.data?.eventos?.length || 0; }
 
-  if (rBusq.data?.eventos?.length >= 1) {
-    const raw = JSON.stringify(rBusq.data);
-    return jsonOk({ texto: raw, fuentes: rBusq.data?.fuentes || [], modo: 'web', debug });
-  }
-
-  // 2. Fallback: si Google CSE falló o no devolvió suficientes datos, usar Gemini directo (conocimiento interno + artículos)
-  if (!rBusq.data?.eventos?.length) {
-    const r1 = await callGemini(promptPrincipal, env);
-    if (r1.data?.eventos?.length >= 1) {
-      const raw = JSON.stringify(r1.data);
-      return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
-    }
+  if (r.data?.eventos?.length >= 1) {
+    const raw = JSON.stringify(r.data);
+    return jsonOk({ texto: raw, fuentes: [], modo: 'gemini_con_busqueda', debug });
   }
 
   return jsonOk({
@@ -5339,35 +5247,15 @@ async function handleVisualExtraer(body, env) {
     }
   } catch {}
 
-  // Fallback: buscar en Serper si el scraping directo no funciona
+  // Fallback: si el scraping no funciona, usar Gemini con búsqueda nativa
   if (contenido.length < 100) {
-    const serperKey = env.SERPER_API_KEY;
-    if (serperKey) {
-      try {
-        const sr = await fetch('https://google.serper.dev/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-API-KEY': serperKey },
-          body: JSON.stringify({ q: url, gl: 'ar', hl: 'es', num: 3 })
-        });
-        if (sr.ok) {
-          const sd = await sr.json();
-          const items = sd.organic || [];
-          const partes = [];
-          for (const item of items.slice(0, 3)) {
-            if (item.snippet) partes.push(item.title + '. ' + item.snippet);
-          }
-          if (partes.length) {
-            contenido = partes.join('\n\n');
-            modo = 'serper';
-          }
-        }
-      } catch {}
+    const promptUrlSearch = `Buscá información sobre esta URL: "${url}" (tema: ${tema || "el artículo"}). Extraé TODA la información disponible en formato JSON estructurado. Respondé SOLO con JSON: { "titulo": "...", "chart": {...}, "mapa": {...}, "timeline": {...}, "infografia": {...} }. Si no hay datos para una sección, poné null.`;
+    const rFb = await callGemini(promptUrlSearch, env, true);
+    if (!rFb.error && rFb.data) {
+      const rawFb = JSON.stringify(rFb.data);
+      return jsonOk({ texto: rawFb, fuentes: [], modo: 'gemini_search' });
     }
-  }
-
-  if (contenido.length < 100) {
-    // No se pudo extraer nada del scrape ni del Serper; retornar error claro en vez de alucinar.
-    return jsonError("No se pudo extraer contenido útil del artículo (ni scrape ni búsqueda). Verifique la URL.", 500);
+    return jsonError("No se pudo extraer contenido útil del artículo. Verifique la URL.", 500);
   }
 
   contenido = contenido.substring(0, 12000);
