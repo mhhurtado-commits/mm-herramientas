@@ -4107,36 +4107,33 @@ async function getEditorial(env){
 async function callGemini(prompt,env,searchEnabled=false){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
-  const body={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}};
-  if(searchEnabled) body.tools=[{google_search:{}}];
+  const makeBody=s=>{const b={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}};if(s)b.tools=[{google_search:{}}];return b};
   for(let i=0;i<keys.length;i++){
     for(let intento=1;intento<=2;intento++){
       try{
-        console.log(`Gemini call attempt ${intento} key#${i+1} search=${searchEnabled}`);
+        const body=makeBody(searchEnabled);
         const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-        console.log(`Gemini response status: ${res.status}`);
         if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
         if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
-        if(!res.ok){const errBody=await res.text().catch(()=>'');console.error(`Gemini ${res.status} key#${i+1}:`,errBody.substring(0,300));if(res.status>=400&&res.status<500) return {error:`Error ${res.status}: ${errBody.substring(0,200)}`};break}
+        if(!res.ok){
+          const errBody=await res.text().catch(()=>'');
+          if(res.status===400&&searchEnabled){searchEnabled=false;intento=0;continue}
+          if(res.status>=400&&res.status<500) return {error:`Error ${res.status}: ${errBody.substring(0,200)}`};
+          break
+        }
         const data=await res.json();
         const candidate=data?.candidates?.[0];
-        if(!candidate){console.error('Gemini: no candidate',JSON.stringify(data).substring(0,500));break}
-        const finish=candidate.finishReason;
-        if(finish&&finish!=='STOP'){console.error(`Gemini finish: ${finish}`,JSON.stringify(candidate).substring(0,500));break}
+        if(!candidate) break;
         const raw=candidate?.content?.parts?.[0]?.text||"";
-        if(!raw){console.error('Gemini: empty text',JSON.stringify(candidate).substring(0,500));break}
-        const grounding=candidate?.groundingMetadata||{};
+        if(!raw) break;
         let parsed;
         try{parsed=JSON.parse(raw)}catch{
           const match=raw.match(/\{[\s\S]*\}/);
-          if(!match){console.error('Gemini: no JSON in',raw.substring(0,200));break}
-          try{parsed=JSON.parse(match[0])}catch{console.error('Gemini: JSON parse failed for',match[0].substring(0,200));break}
-        }
-        if(grounding?.searchEntryPoint?.renderedContent){
-          parsed._fuentes=grounding.searchEntryPoint.renderedContent;
+          if(!match) break;
+          try{parsed=JSON.parse(match[0])}catch{break}
         }
         return {data:parsed};
-      }catch(err){console.error(`Gemini exception key#${i+1} attempt ${intento}:`,err.message);if(intento<2) await sleep(3000)}
+      }catch(err){if(intento<2) await sleep(3000)}
     }
   }
   return {error:"Todas las API keys de Gemini están agotadas."};
@@ -5168,15 +5165,23 @@ REGLAS:
 - No incluyas texto antes ni después del JSON
 - Si no tenés datos, respondé {"eventos":[],"nota":"sin datos disponibles"}`;
 
-  // Gemini con búsqueda web nativa (google_search tool busca en Google automáticamente)
-  const r = await callGemini(promptPrincipal, env, true);
-  if (r.error) { debug.error_gemini = r.error; }
-  else { debug.eventos = r.data?.eventos?.length || 0; }
+  // 1. Gemini con conocimiento interno (sin búsqueda, compatible con todos los modelos)
+  const r1 = await callGemini(promptPrincipal, env, false);
+  if (r1.error) { debug.error_gemini = r1.error; }
+  else { debug.eventos = r1.data?.eventos?.length || 0; }
 
-  if (r.data?.eventos?.length >= 1) {
-    const raw = JSON.stringify(r.data);
+  if (r1.data?.eventos?.length >= 1) {
+    const raw = JSON.stringify(r1.data);
+    return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
+  }
+
+  // 2. Fallback: intentar con google_search tool (modelos que lo soportan)
+  const r2 = await callGemini(promptPrincipal, env, true);
+  if (!r2.error && r2.data?.eventos?.length >= 1) {
+    const raw = JSON.stringify(r2.data);
     return jsonOk({ texto: raw, fuentes: [], modo: 'gemini_con_busqueda', debug });
   }
+  if (r2.error) debug.error_busqueda = r2.error;
 
   return jsonOk({
     texto: '{"eventos":[],"nota":"No se encontraron datos para este tema"}',
