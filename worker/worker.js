@@ -5214,80 +5214,77 @@ Respondé SOLO con JSON. Cuantos más eventos extraigas mejor: NO te limites a 2
 
   if (!tema) return jsonError("Falta tema", 400);
 
-  // Persona común: esquema general de extracción de datos para visualización.
-  // (Traducida al español; se adaptó la regla de salida al wrapper {"eventos":[...]}
-  //  que espera el worker. Se omitió la regla original de "tips después del JSON"
-  //  porque el worker solo lee el primer bloque {...}.)
-  const PERSONA_TIMELINE = `Sos un asistente experto en extracción y estructuración de datos para aplicaciones de visualización (gráficos, timelines, infografías).
-Transformá cualquier tema o consulta del usuario en un objeto JSON limpio, preciso y listo para ser consumido por un frontend.
+  const debug = {};
 
-REGLAS ESTRICTAS:
-1) SALIDA OBLIGATORIA: respondé SIEMPRE con un bloque JSON válido envuelto en un objeto: {"eventos":[ ... ]}. Nunca uses un array suelto. No incluyas explicaciones previas ni texto introductorio antes del JSON.
-2) NORMALIZACIÓN: fechas en ISO 8601 (AAAA-MM-DD o AAAA-MM). Claves en snake_case. Valores numéricos como números nativos (number/float), no como strings con "%" o "$" salvo que sea estrictamente necesario para la visualización.
-3) TIEMPO: si los datos son del año en curso (2026), marcá con "tipo_dato":"oficial" (histórico) o "tipo_dato":"proyección" (estimación). Si un evento no ocurrió, poné sus campos de resultado en null.`;
+  // ── Prompt principal: conocimiento interno de Gemini ──
+  const promptPrincipal = `Sos un cronista de datos de Media Mendoza.
 
-  // ── Modo normal: búsqueda web → Gemini ──
-  const promptWeb = `${PERSONA_TIMELINE}
-Extraé TODOS los eventos INDIVIDUALES disponibles en los ARTÍCULOS WEB sobre: "${tema}"
+Tema: "${tema}"
 ${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta la fecha actual.
 
-CONTEXTO IMPORTANTE: estos eventos se usarán para CONFORMAR UNA LÍNEA DE TIEMPO (timeline) periodística. Por eso necesitamos TODOS los hitos cronológicos disponibles, listados uno por uno, SIN resumir, SIN agrupar y SIN acumular. Cada evento = un hecho con su propia fecha.
+Usando TU CONOCIMIENTO INTERNO como fuente principal, extraé TODOS los eventos individuales disponibles para armar una línea de tiempo periodística.
 
-REGLAS ESTRICTAS:
-- Cada evento = un hecho INDIVIDUAL con fecha exacta (YYYY-MM-DD) cuando la tengas; si solo sabés el mes, usá "periodo":"YYYY-MM"; si solo año y mes, "mes":"Enero"+"año":2026.
-- NO incluyas resúmenes, acumulados, totales ni títulos genéricos.
-- La descripción debe tener datos NUMÉRICOS concretos (goles, porcentajes, cantidades).
-- EXTRAÉ CADA evento individual que encuentres: NO te limites a 2 ni a los primeros. Cuantos más eventos incluyas (10, 20 o más), mejor. Nunca respondas con pocos si hay más disponibles.
+INSTRUCCIONES POR TIPO DE DATO:
 
-Ejemplo (fútbol, un evento por partido):
-{"eventos":[
-  {"date":"2026-06-15","title":"Argentina 3-1 Argelia","desc":"Messi anotó 3 goles"},
-  {"date":"2026-06-21","title":"Argentina 2-0 Austria","desc":"Messi anotó 2 goles"}
-]}
+Si son eventos DEPORTIVOS (fútbol, tenis, etc):
+- Incluí CADA gol/partido como evento individual
+- Por cada uno: fecha exacta (YYYY-MM-DD), fase del torneo, rival, minuto, tipo de jugada, marcador
+- Ejemplo: {"fecha":"2026-06-16","fase":"Fase de Grupos","rival":"Argelia","minuto":"17'","tipo":"Jugada (Zurda)","marcador":"1-0"}
 
-Ejemplo (inflación, un evento por mes, con campos extra):
-{"eventos":[
-  {"periodo":"2026-01","titulo":"Inflación enero","descripcion":"2,3% mensual","ipc_mensual_porcentaje":2.3,"tipo_dato":"oficial"},
-  {"periodo":"2026-02","titulo":"Inflación febrero","descripcion":"2,1% mensual","ipc_mensual_porcentaje":2.1,"tipo_dato":"oficial"}
-]}
+Si son eventos ECONÓMICOS (inflación, PBI, etc):
+- Incluí CADA mes/trimestre como evento individual con su valor numérico
+- Ejemplo: {"periodo":"2026-01","titulo":"Inflación enero","descripcion":"2,3% mensual","ipc_mensual_porcentaje":2.3}
 
-Respondé SOLO con JSON (array o {"eventos":[...]}). Incluí TODOS los eventos que encuentres. No respondas {"eventos": []}.`;
+Si son eventos HISTÓRICOS o POLÍTICOS:
+- Incluí CADA hito/fecha como evento individual
+- Con fecha, título corto y descripción con datos concretos
 
-  const r1 = await callGeminiConBusqueda(promptWeb, env, tema);
-  const debug = r1.debugSearch || {};
+REGLAS GENERALES:
+- Cada evento = un hecho INDIVIDUAL con su propia fecha
+- NO resumir, NO agrupar, NO acumular
+- EXTRAÉ LA MAYOR CANTIDAD POSIBLE de eventos (10, 20 o más)
+- Si tenés datos detallados (minuto de gol, fase, rival), incluílos como campos adicionales
+- Fechas en formato YYYY-MM-DD (o YYYY-MM-01 si solo sabés mes)
 
-  if (r1.error) {
-    debug.intento1_error = r1.error;
-    return jsonOk({ texto: '{"eventos":[]}', fuentes: [], modo: 'sin_fuentes', debug, error: r1.error });
-  }
+Respondé SOLO con JSON. Siempre envuelto en {"eventos":[...]}.
+No incluyas texto antes ni después del JSON.
+Si no tenés datos, respondé {"eventos":[],"nota":"sin datos en mi conocimiento"}.`;
 
+  // 1. Gemini con conocimiento interno
+  const r1 = await callGemini(promptPrincipal, env);
+  if (r1.error) { debug.error_gemini = r1.error; }
+  else { debug.eventos_gemini = r1.data?.eventos?.length || 0; }
+
+  // Si Gemini devolvió suficientes eventos, retornar
   if (r1.data?.eventos?.length >= 2) {
     const raw = JSON.stringify(r1.data);
-    return jsonOk({ texto: raw, fuentes: r1.data?.fuentes || [], modo: 'web', debug });
+    return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
   }
 
-  const promptFallback = `${PERSONA_TIMELINE}
-Extraé eventos INDIVIDUALES con datos concretos sobre: "${tema}"
-${desde ? `Desde: ${desde}` : "Desde los orígenes del tema"} hasta la fecha actual.
+  // 2. Fallback: intentar con búsqueda web para complementar
+  const rBusq = await callGeminiConBusqueda(promptPrincipal, env, tema);
+  if (rBusq.error) {
+    debug.error_busqueda = rBusq.error;
+    // Si tampoco dio resultados, devolver lo que tenga Gemini (aunque sean pocos)
+    if (r1.data?.eventos?.length >= 1) {
+      const raw = JSON.stringify(r1.data);
+      return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
+    }
+    return jsonOk({ texto: '{"eventos":[]}', fuentes: [], modo: 'sin_fuentes', debug, error: rBusq.error });
+  }
 
-CONTEXTO: estos eventos conforman una LÍNEA DE TIEMPO (timeline). Necesitamos TODOS los hitos cronológicos que tengas con certeza, sin resumir.
+  if (rBusq.data?.eventos?.length >= 2) {
+    const raw = JSON.stringify(rBusq.data);
+    return jsonOk({ texto: raw, fuentes: rBusq.data?.fuentes || [], modo: 'web', debug });
+  }
 
-REGLAS ESTRICTAS:
-- Solo incluí eventos de los que tengas CERTEZA ABSOLUTA (fechas, números, nombres)
-- Si no estás seguro de un dato, no lo incluyas
-- Preferí devolver menos eventos pero verídicos; pero si hay muchos hitos ciertos, incluílos TODOS (no te limites a 2)
-- Incluí porcentajes, cantidades, resultados cuando sea relevante
-- Podés usar "periodo":"YYYY-MM" o "mes":"Enero"+"año":2026 si no tenés el día
+  // 3. Último recurso: lo que tenga Gemini
+  if (r1.data?.eventos?.length >= 1) {
+    const raw = JSON.stringify(r1.data);
+    return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
+  }
 
-Respondé SOLO con JSON (array o {"eventos":[...]}). Si no tenés datos concretos, respondé {"eventos": [], "nota": "sin datos"}.
-{"eventos": [{"date": "2026-06-15", "title": "Hecho concreto", "desc": "Dato numérico específico"}]}`;
-
-  const r2 = await callGemini(promptFallback, env);
-  debug.intento2_error = r2.error || null;
-  debug.intento2_eventos = r2.data?.eventos?.length || 0;
-  if (r2.error) return jsonError(r2.error, 500);
-  const raw = r2.data ? JSON.stringify(r2.data) : "{}";
-  return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
+  return jsonOk({ texto: '{"eventos":[]}', fuentes: [], modo: 'sin_datos', debug });
 }
 
 // ── Extraer todo desde una URL (charts + mapa + timeline + infografía) ──
