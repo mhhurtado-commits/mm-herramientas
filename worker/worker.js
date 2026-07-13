@@ -4139,96 +4139,36 @@ async function callGeminiConBusqueda(prompt,env,searchQuery){
 
 async function buscarEnWeb(query, env) {
   const debug = { proveedores: [] };
-  // 1. Google Custom Search (100/día gratis, resultados oficiales de Google)
+  // Google Custom Search (único proveedor)
   const gcsKey = env.GOOGLE_SEARCH_KEY;
   const gcsCx = env.GOOGLE_SEARCH_CX;
-  if (gcsKey && gcsCx) {
-    try {
-      const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${gcsKey}&cx=${gcsCx}&q=${encodeURIComponent(query)}&lr=lang_es&num=8`);
-      debug.gcsStatus = res.status;
-      if (!res.ok) { debug.proveedores.push('gcs:error_'+res.status); }
-      else {
-        const data = await res.json();
-        const items = data.items || [];
-        debug.gcsItems = items.length;
-        const articulos = [];
-        for (const item of items.slice(0, 6)) {
-          const texto = [item.title, item.snippet, item.pagemap?.metatags?.[0]?.['og:description'] || ''].filter(Boolean).join('. ');
-          if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
-        }
-        // Fetch contenido completo del primer resultado
-        if (articulos.length > 0) {
-          try {
-            const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
-            if (artRes.ok) {
-              const html = await artRes.text();
-              const fullTexto = extraerTexto(html).substring(0, 6000);
-              if (fullTexto.length > 500) articulos[0].texto += '\n\n--- CONTENIDO COMPLETO ---\n' + fullTexto;
-            }
-          } catch {}
-        }
-        if (articulos.length) {
-          debug.proveedores.push('gcs:ok');
-          return { articulos, debugSearch: debug };
-        }
-      }
-    } catch (e) { debug.gcsError = e.message; debug.proveedores.push('gcs:exception'); }
-  }
-  // 2. Serper API (2500 consultas gratis, Google via proxy)
-  const serperKey = env.SERPER_API_KEY;
-  debug.serperConfigurada = !!serperKey;
-  if (serperKey) {
-    try {
-      const res = await fetch('https://google.serper.dev/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-KEY': serperKey },
-        body: JSON.stringify({ q: query, gl: 'ar', hl: 'es', num: 8 })
-      });
-      debug.serperStatus = res.status;
-      if (!res.ok) { debug.proveedores.push('serper:error_'+res.status); return { articulos: [], debugSearch: debug }; }
-      const data = await res.json();
-      const items = data.organic || [];
-      debug.serperItems = items.length;
-      const articulos = [];
-      for (const item of items.slice(0, 6)) {
-        const texto = [item.title, item.snippet].filter(Boolean).join('. ');
-        if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
-      }
-      // Fetch contenido completo del primer resultado para más detalle
-      if (articulos.length > 0) {
-        try {
-          const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
-          if (artRes.ok) {
-            const html = await artRes.text();
-            const fullTexto = extraerTexto(html).substring(0, 6000);
-            if (fullTexto.length > 500) articulos[0].texto += '\n\n--- CONTENIDO COMPLETO ---\n' + fullTexto;
-          }
-        } catch {}
-      }
-      debug.proveedores.push('serper:ok');
-      return { articulos, debugSearch: debug };
-    } catch (e) { debug.serperError = e.message; debug.proveedores.push('serper:exception'); return { articulos: [], debugSearch: debug }; }
-  }
-  // 3. Fallback: Wikipedia REST summary
+  if (!gcsKey || !gcsCx) return { articulos: [], debugSearch: debug, error: 'Google Search no configurado' };
   try {
-    const q = encodeURIComponent(query);
-    const buscaRes = await fetch(`https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&srlimit=3`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" } });
-    debug.wikiSearchStatus = buscaRes.status;
-    if (!buscaRes.ok) { debug.proveedores.push('wiki:error'); return { articulos: [], debugSearch: debug }; }
-    const data = await buscaRes.json();
-    const pages = data?.query?.search || [];
-    debug.wikiPages = pages.length;
-    debug.proveedores.push('wiki:'+(pages.length?'ok':'sin_resultados'));
-    for (const p of pages.slice(0, 1)) {
-      const title = encodeURIComponent(p.title);
-      const sumRes = await fetch(`https://es.wikipedia.org/api/rest_v1/page/summary/${title}`, { headers: { "User-Agent": "MediaMendozaWorker/2.0" }, signal: AbortSignal.timeout(5000) });
-      if (!sumRes.ok) continue;
-      const sum = await sumRes.json();
-      const texto = (sum.extract || '') + '\n' + (sum.extract_html || '').replace(/<[^>]+>/g,'');
-      if (texto.length > 200) return { articulos: [{ titulo: sum.title || p.title, url: sum.content_urls?.desktop?.page || `https://es.wikipedia.org/wiki/${title}`, texto: texto.substring(0, 10000) }], debugSearch: debug };
+    const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${gcsKey}&cx=${gcsCx}&q=${encodeURIComponent(query)}&lr=lang_es&num=8`);
+    debug.gcsStatus = res.status;
+    if (!res.ok) { debug.proveedores.push('gcs:error_'+res.status); return { articulos: [], debugSearch: debug, error: `Google Search error ${res.status}` }; }
+    const data = await res.json();
+    const items = data.items || [];
+    debug.gcsItems = items.length;
+    const articulos = [];
+    for (const item of items.slice(0, 6)) {
+      const texto = [item.title, item.snippet, item.pagemap?.metatags?.[0]?.['og:description'] || ''].filter(Boolean).join('. ');
+      if (texto.length > 30) articulos.push({ titulo: item.title, url: item.link, texto: texto.substring(0, 1500) });
     }
-    return { articulos: [], debugSearch: debug };
-  } catch (e) { debug.wikiError = e.message; return { articulos: [], debugSearch: debug }; }
+    // Fetch contenido completo del primer resultado
+    if (articulos.length > 0) {
+      try {
+        const artRes = await fetch(articulos[0].url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(8000) });
+        if (artRes.ok) {
+          const html = await artRes.text();
+          const fullTexto = extraerTexto(html).substring(0, 6000);
+          if (fullTexto.length > 500) articulos[0].texto += '\n\n--- CONTENIDO COMPLETO ---\n' + fullTexto;
+        }
+      } catch {}
+    }
+    debug.proveedores.push('gcs:ok');
+    return { articulos, debugSearch: debug };
+  } catch (e) { debug.gcsError = e.message; debug.proveedores.push('gcs:exception'); return { articulos: [], debugSearch: debug, error: e.message }; }
 }
 async function callGemini(prompt,env){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
