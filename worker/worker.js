@@ -5165,7 +5165,15 @@ REGLAS:
 - No incluyas texto antes ni después del JSON
 - Si no tenés datos, respondé {"eventos":[],"nota":"sin datos disponibles"}`;
 
-  // 1. Gemini con conocimiento interno (sin búsqueda, compatible con todos los modelos)
+  // 1. Gemini con búsqueda web (prioridad para no alucinar datos)
+  const r2 = await callGemini(promptPrincipal, env, true);
+  if (!r2.error && r2.data?.eventos?.length >= 1) {
+    const raw = JSON.stringify(r2.data);
+    return jsonOk({ texto: raw, fuentes: [], modo: 'gemini_con_busqueda', debug });
+  }
+  if (r2.error) debug.error_busqueda = r2.error;
+
+  // 2. Fallback: Gemini con conocimiento interno (sin búsqueda)
   const r1 = await callGemini(promptPrincipal, env, false);
   if (r1.error) { debug.error_gemini = r1.error; }
   else { debug.eventos = r1.data?.eventos?.length || 0; }
@@ -5174,14 +5182,6 @@ REGLAS:
     const raw = JSON.stringify(r1.data);
     return jsonOk({ texto: raw, fuentes: [], modo: 'gemini', debug });
   }
-
-  // 2. Fallback: intentar con google_search tool (modelos que lo soportan)
-  const r2 = await callGemini(promptPrincipal, env, true);
-  if (!r2.error && r2.data?.eventos?.length >= 1) {
-    const raw = JSON.stringify(r2.data);
-    return jsonOk({ texto: raw, fuentes: [], modo: 'gemini_con_busqueda', debug });
-  }
-  if (r2.error) debug.error_busqueda = r2.error;
 
   return jsonOk({
     texto: '{"eventos":[],"nota":"No se encontraron datos para este tema"}',
