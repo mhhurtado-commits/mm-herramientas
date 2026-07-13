@@ -4107,30 +4107,31 @@ async function getEditorial(env){
 async function callGemini(prompt,env,searchEnabled=false){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
-  const makeBody=s=>{const b={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}};if(s)b.tools=[{google_search:{}}];return b};
+  const makeBody=s=>{const b={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}};if(s)b.tools=[{googleSearch:{}}];return b};
   for(let i=0;i<keys.length;i++){
     for(let intento=1;intento<=2;intento++){
       try{
         const body=makeBody(searchEnabled);
         const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
         if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
-        if(res.status===500||res.status===503){if(intento<2){await sleep(3000);continue}else break}
-        if(!res.ok){
+        if(res.status===500||res.status===503){
           const errBody=await res.text().catch(()=>'');
-          if(res.status===400&&searchEnabled){searchEnabled=false;intento=0;continue}
+          return {error: `Error ${res.status}: ${errBody.substring(0,300)}`};
+        }
+        if(!res.ok){
           if(res.status>=400&&res.status<500) return {error:`Error ${res.status}: ${errBody.substring(0,200)}`};
           break
         }
         const data=await res.json();
         const candidate=data?.candidates?.[0];
-        if(!candidate) break;
+        if(!candidate) return {error: "No candidate: " + JSON.stringify(data)};
         const raw=candidate?.content?.parts?.[0]?.text||"";
-        if(!raw) break;
+        if(!raw) return {error: "No text: " + JSON.stringify(candidate)};
         let parsed;
         try{parsed=JSON.parse(raw)}catch{
           const match=raw.match(/\{[\s\S]*\}/);
-          if(!match) break;
-          try{parsed=JSON.parse(match[0])}catch{break}
+          if(!match) return {error: "Regex match failed. Raw: " + raw};
+          try{parsed=JSON.parse(match[0])}catch{return {error: "JSON parse failed on match. Raw: " + raw};}
         }
         return {data:parsed};
       }catch(err){if(intento<2) await sleep(3000)}
