@@ -392,15 +392,8 @@ async function generarTimelineWeb() {
   const btn = document.getElementById('btnTlWeb');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando en web...'; }
 
-  // Paso 1: buscar desde el navegador (IP residencial, evita 429 de Cloudflare)
-  const promptBusqueda = `Buscá la información más actualizada y detallada sobre: "${tema}" ${desde ? `desde la fecha ${desde}` : ""}.
-Recopilá TODOS los eventos, hitos, partidos o datos clave. Listalos de forma cronológica con el mayor detalle posible (fechas exactas, resultados, etc). Es CRÍTICO que la información sea actual y basada en resultados de la web.
-
-IMPORTANTE: Si el tema se refiere a un evento FUTURO (ej: Mundial 2026, elecciones futuras, etc), buscá información sobre:
-- Fechas programadas del evento
-- Previsiones, predicciones o expectativas
-- Datos históricos relacionados que sirvan de contexto
-- NO inventes resultados que aún no han ocurrido`;
+  // Paso 1: buscar desde el navegador
+  const promptBusqueda = `Buscá la información más actualizada, real y detallada sobre: "${tema}". Recopilá los eventos de forma cronológica con fechas exactas, resultados y datos clave basados estrictamente en los resultados de búsqueda web actuales.`;
 
   const busqueda = await buscarEnGeminiDesdeNavegador(promptBusqueda);
 
@@ -434,15 +427,8 @@ async function generarTimelineIA() {
   const btn = document.getElementById('btnTlIA');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando en web...'; }
 
-  // Paso 1: buscar desde el navegador (IP residencial)
-  const promptBusqueda = `Buscá la información más actualizada y detallada sobre: "${tema}".
-Recopilá TODOS los eventos, hitos, partidos o datos clave. Listalos de forma cronológica con el mayor detalle posible (fechas exactas, resultados, etc). Es CRÍTICO que la información sea actual y basada en resultados de la web.
-
-IMPORTANTE: Si el tema se refiere a un evento FUTURO (ej: Mundial 2026, elecciones futuras, etc), buscá información sobre:
-- Fechas programadas del evento
-- Previsiones, predicciones o expectativas
-- Datos históricos relacionados que sirvan de contexto
-- NO inventes resultados que aún no han ocurrido`;
+  // Paso 1: buscar desde el navegador
+  const promptBusqueda = `Buscá la información más actualizada, real y detallada sobre: "${tema}". Recopilá los eventos de forma cronológica con fechas exactas, resultados y datos clave basados estrictamente en los resultados de búsqueda web actuales.`;
 
   const busqueda = await buscarEnGeminiDesdeNavegador(promptBusqueda);
 
