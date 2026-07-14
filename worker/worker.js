@@ -4123,7 +4123,7 @@ async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOv
           const errBody=await res.text().catch(()=>'');
           if(res.status===429){
             lastError = `HTTP 429 (Rate Limit / Quota Exceeded) para la key ${i+1}.`;
-            if(intento<2){await sleep(3000);continue}else break;
+            return {error: lastError}; // Abortar: si una key da 429, todas van a dar 429 (misma IP/proyecto)
           }
           if(res.status===400){
             if(searchEnabled){
@@ -5242,7 +5242,8 @@ REGLAS:
   }
   if (rDatos.error) debug.error_busqueda = rDatos.error;
 
-  // 2. Fallback: Gemini con conocimiento interno (sin búsqueda)
+  // 2. Fallback: Gemini con conocimiento interno (sin búsqueda) — esperar 2s si hubo error de cuota
+  if (rDatos.error && rDatos.error.includes('429')) await sleep(2000);
   const r1 = await callGemini(promptPrincipal, env, false, true);
   if (r1.error) { debug.error_gemini = r1.error; }
   else { debug.eventos = r1.data?.eventos?.length || 0; }
