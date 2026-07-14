@@ -4104,40 +4104,79 @@ async function getEditorial(env){
   return null;
 }
 
-async function callGemini(prompt,env,searchEnabled=false){
+async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOverride=null){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
+  // La API REST de Gemini requiere camelCase (googleSearch)
   const makeBody=s=>{const b={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}};if(s)b.tools=[{googleSearch:{}}];return b};
+  
+  let lastError = "Todas las API keys están agotadas u ocurrió un error desconocido.";
+  const modelToUse = modelOverride || GEMINI_MODEL;
+  const geminiUrl = GEMINI_URL.replace(GEMINI_MODEL, modelToUse);
+  
   for(let i=0;i<keys.length;i++){
     for(let intento=1;intento<=2;intento++){
       try{
         const body=makeBody(searchEnabled);
-        const res=await fetch(`${GEMINI_URL}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-        if(res.status===429){if(intento<2){await sleep(3000);continue}else break}
-        if(res.status===500||res.status===503){
-          const errBody=await res.text().catch(()=>'');
-          return {error: `Error ${res.status}: ${errBody.substring(0,300)}`};
-        }
+        const res=await fetch(`${geminiUrl}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+        
         if(!res.ok){
-          if(res.status>=400&&res.status<500) return {error:`Error ${res.status}: ${errBody.substring(0,200)}`};
-          break
+          const errBody=await res.text().catch(()=>'');
+          if(res.status===429){
+            lastError = `HTTP 429 (Rate Limit / Quota Exceeded) para la key ${i+1}.`;
+            if(intento<2){await sleep(3000);continue}else break;
+          }
+          if(res.status===400){
+            lastError = `HTTP 400 (Bad Request): ${errBody.substring(0,200)}`;
+            return {error: lastError}; // Falla inmediatamente si es 400 (mala sintaxis/modelo no lo soporta)
+          }
+          if(res.status===403){
+             lastError = `HTTP 403 (Forbidden/Quota): ${errBody.substring(0,200)}`;
+             break; // Intenta otra key
+          }
+          if(res.status>=500){
+             lastError = `HTTP ${res.status} (Gemini Down): ${errBody.substring(0,200)}`;
+             if(intento<2){await sleep(3000);continue}else break;
+          }
+          lastError = `HTTP Error ${res.status}: ${errBody.substring(0,200)}`;
+          break;
         }
+        
         const data=await res.json();
         const candidate=data?.candidates?.[0];
-        if(!candidate) return {error: "No candidate: " + JSON.stringify(data)};
+        if(!candidate){
+          lastError = "No candidate: " + JSON.stringify(data);
+          return {error: lastError};
+        }
+        
         const raw=candidate?.content?.parts?.[0]?.text||"";
-        if(!raw) return {error: "No text: " + JSON.stringify(candidate)};
+        if(!raw){
+           lastError = "No text: " + JSON.stringify(candidate);
+           return {error: lastError};
+        }
+        
+        if(!expectJson) return {data: raw};
+        
         let parsed;
         try{parsed=JSON.parse(raw)}catch{
           const match=raw.match(/\{[\s\S]*\}/);
-          if(!match) return {error: "Regex match failed. Raw: " + raw};
-          try{parsed=JSON.parse(match[0])}catch{return {error: "JSON parse failed on match. Raw: " + raw};}
+          if(!match){
+             lastError = "Regex match failed. Raw: " + raw;
+             return {error: lastError};
+          }
+          try{parsed=JSON.parse(match[0])}catch{
+             lastError = "JSON parse failed on match. Raw: " + raw;
+             return {error: lastError};
+          }
         }
         return {data:parsed};
-      }catch(err){if(intento<2) await sleep(3000)}
+      }catch(err){
+        lastError = `Excepción JS: ${err.message}`;
+        if(intento<2) await sleep(3000);
+      }
     }
   }
-  return {error:"Todas las API keys de Gemini están agotadas."};
+  return {error: lastError};
 }
 
 // ============================================================
@@ -5083,7 +5122,7 @@ async function handleVisualTimeline(body, env) {
       // Si el scraping directo no da texto, usar Gemini con búsqueda
       if (contenido.length < 100) {
         const promptUrlSearch = `Buscá información sobre: "${nombreTema}" (relacionado a ${url}). Extraé TODOS los eventos individuales disponibles. Respondé SOLO con JSON: {"eventos":[...]}`;
-        const rFb = await callGemini(promptUrlSearch, env, true);
+        const rFb = await callGemini(promptUrlSearch, env, true, false, "gemini-3.5-flash");
         if (!rFb.error && rFb.data?.eventos?.length) {
           const rawFb = JSON.stringify(rFb.data);
           return jsonOk({ texto: rawFb, fuentes, modo: 'gemini_search', debug: {} });
@@ -5122,7 +5161,7 @@ Ejemplo inflación mensual:
 
 Respondé SOLO con JSON. Cuantos más eventos extraigas mejor: NO te limites a 2, incluí CADA evento individual disponible (pueden ser 10, 20 o más). No respondas {"eventos": []}.`;
 
-      const r = await callGemini(promptUrl, env);
+      const r = await callGemini(promptUrl, env, false, true, "gemini-3.5-flash");
       if (r.error) return jsonError(r.error, 500);
       const raw = r.data ? JSON.stringify(r.data) : "{}";
       return jsonOk({ texto: raw, fuentes, modo, debug: {} });
@@ -5166,16 +5205,36 @@ REGLAS:
 - No incluyas texto antes ni después del JSON
 - Si no tenés datos, respondé {"eventos":[],"nota":"sin datos disponibles"}`;
 
-  // 1. Gemini con búsqueda web (prioridad para no alucinar datos)
-  const r2 = await callGemini(promptPrincipal, env, true);
-  if (!r2.error && r2.data?.eventos?.length >= 1) {
-    const raw = JSON.stringify(r2.data);
-    return jsonOk({ texto: raw, fuentes: [], modo: 'gemini_con_busqueda', debug });
+  // 1. Búsqueda web en texto plano (Modo 2 pasos para evitar conflictos de schema)
+  const promptBusqueda = `Buscá la información más actualizada y detallada sobre: "${tema}" ${desde ? `desde la fecha ${desde}` : ""}.
+Recopilá TODOS los eventos, hitos, partidos o datos clave. Listalos de forma cronológica con el mayor detalle posible (fechas exactas, resultados, etc). Es CRÍTICO que la información sea actual y basada en resultados de la web.`;
+
+  const rDatos = await callGemini(promptBusqueda, env, true, false, "gemini-3.5-flash");
+
+  if (!rDatos.error && rDatos.data && rDatos.data.length > 50) {
+    const promptFormato = `Sos un cronista de datos. Basado EXCLUSIVAMENTE en la siguiente información recopilada de la web:
+
+${rDatos.data}
+
+Formateá esta información en una línea de tiempo.
+Para EVENTOS DEPORTIVOS (fútbol): cada gol/partido es un evento individual con fecha (YYYY-MM-DD), fase, rival, minuto, tipo de jugada, marcador.
+REGLAS:
+- EXTRAÉ todos los eventos mencionados en el texto proporcionado.
+- Respondé SOLO con JSON envuelto en {"eventos":[...]}
+- No incluyas texto antes ni después del JSON.
+- Si no hay eventos en el texto, respondé {"eventos":[],"nota":"sin datos"}`;
+
+    const rFormato = await callGemini(promptFormato, env, false, true, "gemini-3.5-flash");
+    if (!rFormato.error && rFormato.data?.eventos?.length >= 1) {
+      const raw = JSON.stringify(rFormato.data);
+      return jsonOk({ texto: raw, fuentes: [], modo: 'gemini_con_busqueda', debug: { modo: '2_pasos' } });
+    }
+    if (rFormato.error) debug.error_formato = rFormato.error;
   }
-  if (r2.error) debug.error_busqueda = r2.error;
+  if (rDatos.error) debug.error_busqueda = rDatos.error;
 
   // 2. Fallback: Gemini con conocimiento interno (sin búsqueda)
-  const r1 = await callGemini(promptPrincipal, env, false);
+  const r1 = await callGemini(promptPrincipal, env, false, true, "gemini-3.5-flash");
   if (r1.error) { debug.error_gemini = r1.error; }
   else { debug.eventos = r1.data?.eventos?.length || 0; }
 
