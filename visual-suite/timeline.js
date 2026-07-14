@@ -50,16 +50,17 @@ function eliminarEventoTimeline(index) {
 
 function renderizarTimeline() {
   const container = document.getElementById('timelineEvents');
-  const sorted = [...timelineEvents].sort((a, b) => a.date.localeCompare(b.date));
+  // Ordenar el array original para que los índices de eliminación coincidan
+  timelineEvents.sort((a, b) => a.date.localeCompare(b.date));
 
-  if (!sorted.length) {
+  if (!timelineEvents.length) {
     container.innerHTML = '<p style="font-size:12px;color:var(--dim);padding:20px 0 20px 56px">Agregá eventos para construir la línea de tiempo.</p>';
     document.getElementById('tlCount').textContent = '0 eventos';
     return;
   }
 
   let html = '';
-  sorted.forEach((ev, i) => {
+  timelineEvents.forEach((ev, i) => {
     const fecha = new Date(ev.date + 'T12:00:00');
     const fechaStr = (fecha.getDate() === 1)
       ? fecha.toLocaleDateString('es-AR', { year: 'numeric', month: 'long' })
@@ -261,7 +262,68 @@ function cargarArchivoJSON(input) {
   reader.readAsText(file);
 }
 
-// ── IA con búsqueda web ──
+// ── Búsqueda directa a Gemini desde el navegador (bypass IP Cloudflare) ──
+let _geminiApiKey = '';
+
+async function obtenerApiKeyGemini() {
+  if (_geminiApiKey) return _geminiApiKey;
+  const res = await apiPost('/visual/key', {});
+  if (res && res.ok && res.key) { _geminiApiKey = res.key; return res.key; }
+  return null;
+}
+
+async function buscarEnGeminiDesdeNavegador(prompt) {
+  const apiKey = await obtenerApiKeyGemini();
+  if (!apiKey) return { error: 'No se pudo obtener la API key' };
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 8000 },
+        tools: [{ googleSearch: {} }]
+      })
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      return { error: `Gemini API error ${res.status}: ${err.substring(0, 200)}` };
+    }
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!text) return { error: 'Gemini no devolvió texto' };
+    return { data: text };
+  } catch (e) {
+    return { error: 'Error de conexión: ' + e.message };
+  }
+}
+
+async function procesarResultadoTimeline(result) {
+  if (!result || !result.ok) return toast('No se pudo generar (modo offline)');
+  try {
+    const parsed = JSON.parse(result.texto);
+    const items = Array.isArray(parsed) ? parsed : (parsed.eventos || parsed.data || parsed.timeline || parsed.items || []);
+    if (items && items.length) {
+      let count = 0, omit = 0;
+      items.forEach(it => {
+        const n = normalizarEventoJSON(it);
+        const d = fechaValida(n.f);
+        if (!d) { omit++; return; }
+        timelineEvents.push({ date: d, title: n.title, desc: n.desc, meta: it });
+        count++;
+      });
+      renderizarTimeline();
+      if (count) toast(`${count} eventos generados${omit ? ` (${omit} sin fecha)` : ''}`);
+      else toast('Los eventos encontrados tienen fechas inválidas');
+    } else {
+      toast('No se encontraron eventos');
+    }
+  } catch (e) {
+    toast('Error al interpretar respuesta');
+  }
+}
+
+// ── IA con búsqueda web (desde navegador → worker) ──
 async function generarTimelineWeb() {
   const tema = document.getElementById('tlTema').value.trim();
   const desde = document.getElementById('tlDesde').value;
@@ -269,76 +331,67 @@ async function generarTimelineWeb() {
   if (!tema) return toast('Ingresá un tema para la línea de tiempo');
 
   const btn = document.getElementById('btnTlWeb');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando...'; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando en web...'; }
 
-  const result = await apiPost('/visual/timeline', { tema, desde });
+  // Paso 1: buscar desde el navegador (IP residencial, evita 429 de Cloudflare)
+  const promptBusqueda = `Buscá la información más actualizada y detallada sobre: "${tema}" ${desde ? `desde la fecha ${desde}` : ""}.
+Recopilá TODOS los eventos, hitos, partidos o datos clave. Listalos de forma cronológica con el mayor detalle posible (fechas exactas, resultados, etc). Es CRÍTICO que la información sea actual y basada en resultados de la web.
 
-  if (btn) { btn.disabled = false; btn.textContent = '🌐 Buscar en web'; }
+IMPORTANTE: Si el tema se refiere a un evento FUTURO (ej: Mundial 2026, elecciones futuras, etc), buscá información sobre:
+- Fechas programadas del evento
+- Previsiones, predicciones o expectativas
+- Datos históricos relacionados que sirvan de contexto
+- NO inventes resultados que aún no han ocurrido`;
 
-  if (result && result.ok) {
-    try {
-      const parsed = JSON.parse(result.texto);
-      const items = Array.isArray(parsed) ? parsed : (parsed.eventos || parsed.data || parsed.timeline || parsed.items || []);
-      if (items && items.length) {
-        let count = 0, omit = 0;
-        items.forEach(it => {
-          const n = normalizarEventoJSON(it);
-          const d = fechaValida(n.f);
-          if (!d) { omit++; return; }
-          timelineEvents.push({ date: d, title: n.title, desc: n.desc, meta: it });
-          count++;
-        });
-        renderizarTimeline();
-        if (count) toast(`${count} eventos generados con datos reales${omit ? ` (${omit} sin fecha)` : ''}`);
-        else toast('Los eventos encontrados tienen fechas inválidas');
-      } else {
-        toast('No se encontraron eventos');
-      }
-    } catch (e) {
-      toast('Error al interpretar respuesta');
-    }
-  } else {
-    toast('No se pudo generar (modo offline)');
+  const busqueda = await buscarEnGeminiDesdeNavegador(promptBusqueda);
+
+  if (busqueda.error) {
+    // Si falló la búsqueda local, intentar directo al Worker (fallback)
+    if (btn) btn.textContent = '⏳ Enviando al servidor...';
+    const result = await apiPost('/visual/timeline', { tema, desde });
+    if (btn) { btn.disabled = false; btn.textContent = '🌐 Buscar en web'; }
+    return procesarResultadoTimeline(result);
   }
+
+  // Paso 2: enviar texto buscado al Worker para formatear
+  if (btn) btn.textContent = '⏳ Formateando datos...';
+  const result = await apiPost('/visual/timeline', { tema, desde, textoBusquedaCliente: busqueda.data });
+  if (btn) { btn.disabled = false; btn.textContent = '🌐 Buscar en web'; }
+  return procesarResultadoTimeline(result);
 }
 
-// ── IA simple (sin web) ──
-// ── IA con búsqueda web (fundamentada: no alucina) ──
+// ── IA con búsqueda web (fundamentada, desde navegador → worker) ──
 async function generarTimelineIA() {
   const tema = document.getElementById('tlTema').value.trim() || 'actualidad de Mendoza';
 
   const btn = document.getElementById('btnTlIA');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando...'; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando en web...'; }
 
-  // Usa el endpoint con búsqueda web para no inventar datos fácticos.
-  const result = await apiPost('/visual/timeline', { tema, desde: '' });
-  if (btn) { btn.disabled = false; btn.textContent = '🤖 IA + Web'; }
+  // Paso 1: buscar desde el navegador (IP residencial)
+  const promptBusqueda = `Buscá la información más actualizada y detallada sobre: "${tema}".
+Recopilá TODOS los eventos, hitos, partidos o datos clave. Listalos de forma cronológica con el mayor detalle posible (fechas exactas, resultados, etc). Es CRÍTICO que la información sea actual y basada en resultados de la web.
 
-  if (result && result.ok) {
-    try {
-      const parsed = JSON.parse(result.texto);
-      const items = Array.isArray(parsed) ? parsed : (parsed.eventos || parsed.data || parsed.timeline || parsed.items || []);
-      if (items && items.length) {
-        let count = 0, omit = 0;
-        items.forEach(it => {
-          const n = normalizarEventoJSON(it);
-          const d = fechaValida(n.f);
-          if (!d) { omit++; return; }
-          timelineEvents.push({ date: d, title: n.title, desc: n.desc, meta: it });
-          count++;
-        });
-        renderizarTimeline();
-        if (count) toast(`${count} eventos generados${omit ? ` (${omit} sin fecha)` : ''}`);
-        else toast('Los eventos encontrados tienen fechas inválidas');
-      } else {
-        toast('No se encontraron eventos');
-      }
-    } catch (e) {
-      toast('Error al interpretar respuesta IA');
-    }
-  } else {
-    toast('No se pudo obtener sugerencia (modo offline)');
+IMPORTANTE: Si el tema se refiere a un evento FUTURO (ej: Mundial 2026, elecciones futuras, etc), buscá información sobre:
+- Fechas programadas del evento
+- Previsiones, predicciones o expectativas
+- Datos históricos relacionados que sirvan de contexto
+- NO inventes resultados que aún no han ocurrido`;
+
+  const busqueda = await buscarEnGeminiDesdeNavegador(promptBusqueda);
+
+  if (busqueda.error) {
+    // Fallback directo al Worker
+    if (btn) btn.textContent = '⏳ Enviando al servidor...';
+    const result = await apiPost('/visual/timeline', { tema, desde: '' });
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 IA + Web'; }
+    return procesarResultadoTimeline(result);
   }
+
+  // Paso 2: enviar al Worker para formatear
+  if (btn) btn.textContent = '⏳ Formateando datos...';
+  const result = await apiPost('/visual/timeline', { tema, desde: '', textoBusquedaCliente: busqueda.data });
+  if (btn) { btn.disabled = false; btn.textContent = '🤖 IA + Web'; }
+  return procesarResultadoTimeline(result);
 }
 
 function escHtml(str) {

@@ -5080,6 +5080,7 @@ export default {
     if(path==="/visual/timeline")                    return handleVisualTimeline(body, env);
     if(path==="/visual/extraer")                     return handleVisualExtraer(body, env);
     if(path==="/visual/ilustrar")                    return handleVisualIlustrar(body, env);
+    if(path==="/visual/key")                         return handleVisualKey(body, env);
 
     return jsonError("Ruta no encontrada",404);
   },
@@ -5104,12 +5105,22 @@ async function handleVisualGenerar(body, env) {
 }
 
 // ============================================================
+// VISUAL SUITE - Exponer API key para búsqueda desde el cliente (bypass IP Cloudflare)
+// ============================================================
+async function handleVisualKey(body, env) {
+  const key = env.GEMINI_KEY_1 || env.GEMINI_KEY_2 || '';
+  if (!key) return jsonError('No hay API keys configuradas', 500);
+  return jsonOk({ key });
+}
+
+// ============================================================
 // VISUAL SUITE - Timeline con búsqueda web + fallback
 // ============================================================
 async function handleVisualTimeline(body, env) {
   const url = String(body.url || "").trim();
   const tema = String(body.tema || "").trim();
   const desde = String(body.desde || "").trim();
+  const textoBusquedaCliente = String(body.textoBusquedaCliente || "").trim();
 
   // ── Modo URL: extraer contenido del artículo y pasar a Gemini ──
   if (url) {
@@ -5208,8 +5219,15 @@ REGLAS:
 - No incluyas texto antes ni después del JSON
 - Si no tenés datos, respondé {"eventos":[],"nota":"sin datos disponibles"}`;
 
-  // 1. Búsqueda web en texto plano (Modo 2 pasos para evitar conflictos de schema)
-  const promptBusqueda = `Buscá la información más actualizada y detallada sobre: "${tema}" ${desde ? `desde la fecha ${desde}` : ""}.
+  let textoParaFormatear = '';
+
+  if (textoBusquedaCliente) {
+    // El cliente ya realizó la búsqueda desde su IP residencial (bypass IP Cloudflare)
+    textoParaFormatear = textoBusquedaCliente;
+    debug.modo_busqueda = 'cliente';
+  } else {
+    // Fallback: búsqueda desde el Worker (puede fallar por 429 en Cloudflare)
+    const promptBusqueda = `Buscá la información más actualizada y detallada sobre: "${tema}" ${desde ? `desde la fecha ${desde}` : ""}.
 Recopilá TODOS los eventos, hitos, partidos o datos clave. Listalos de forma cronológica con el mayor detalle posible (fechas exactas, resultados, etc). Es CRÍTICO que la información sea actual y basada en resultados de la web.
 
 IMPORTANTE: Si el tema se refiere a un evento FUTURO (ej: Mundial 2026, elecciones futuras, etc), buscá información sobre:
@@ -5218,12 +5236,18 @@ IMPORTANTE: Si el tema se refiere a un evento FUTURO (ej: Mundial 2026, eleccion
 - Datos históricos relacionados que sirvan de contexto
 - NO inventes resultados que aún no han ocurrido`;
 
-  const rDatos = await callGemini(promptBusqueda, env, true, false);
+    const rDatos = await callGemini(promptBusqueda, env, true, false);
+    if (!rDatos.error && rDatos.data && rDatos.data.length > 50) {
+      textoParaFormatear = rDatos.data;
+      debug.modo_busqueda = 'worker';
+    }
+    if (rDatos.error) debug.error_busqueda = rDatos.error;
+  }
 
-  if (!rDatos.error && rDatos.data && rDatos.data.length > 50) {
+  if (textoParaFormatear.length > 50) {
     const promptFormato = `Sos un cronista de datos. Basado EXCLUSIVAMENTE en la siguiente información recopilada de la web:
 
-${rDatos.data}
+${textoParaFormatear}
 
 Formateá esta información en una línea de tiempo.
 Para EVENTOS DEPORTIVOS (fútbol): cada gol/partido es un evento individual con fecha (YYYY-MM-DD), fase, rival, minuto, tipo de jugada, marcador.
@@ -5236,14 +5260,12 @@ REGLAS:
     const rFormato = await callGemini(promptFormato, env, false, true);
     if (!rFormato.error && rFormato.data?.eventos?.length >= 1) {
       const raw = JSON.stringify(rFormato.data);
-      return jsonOk({ texto: raw, fuentes: [], modo: 'gemini_con_busqueda', debug: { modo: '2_pasos' } });
+      return jsonOk({ texto: raw, fuentes: [], modo: debug.modo_busqueda === 'cliente' ? 'cliente_con_busqueda' : 'gemini_con_busqueda', debug });
     }
     if (rFormato.error) debug.error_formato = rFormato.error;
   }
-  if (rDatos.error) debug.error_busqueda = rDatos.error;
 
-  // 2. Fallback: Gemini con conocimiento interno (sin búsqueda) — esperar 2s si hubo error de cuota
-  if (rDatos.error && rDatos.error.includes('429')) await sleep(2000);
+  // 2. Fallback: Gemini con conocimiento interno (sin búsqueda)
   const r1 = await callGemini(promptPrincipal, env, false, true);
   if (r1.error) { debug.error_gemini = r1.error; }
   else { debug.eventos = r1.data?.eventos?.length || 0; }
