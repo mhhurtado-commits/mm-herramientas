@@ -277,11 +277,12 @@ async function obtenerApiKeysGemini() {
 
 async function buscarEnGeminiDesdeNavegador(prompt) {
   const keys = await obtenerApiKeysGemini();
-  if (!keys.length) return { error: 'No hay API keys disponibles' };
-  let body, data;
+  if (!keys || !keys.length) return { error: 'No hay API keys disponibles' };
+
   for (let i = 0; i < keys.length; i++) {
+    const keyActual = keys[i];
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${keys[i]}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${keyActual}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -290,23 +291,46 @@ async function buscarEnGeminiDesdeNavegador(prompt) {
           tools: [{ googleSearch: {} }]
         })
       });
-      body = null; data = null;
-      try { data = await res.json(); } catch {}
-      // Detectar 429 (HTTP status o error JSON interno)
-      if (res.status === 429 || data?.error?.code == 429) {
-        console.warn('Key ' + (i + 1) + ' agotada. Rotando a Key ' + (i + 2));
+
+      let data = null;
+      try { 
+        data = await res.json(); 
+      } catch (jsonErr) {
+        // Si no se puede parsear el JSON, seguimos adelante para validar el status HTTP
+      }
+
+      // 1. Detectar si la clave actual está agotada o tiene problemas de cuota/límites
+      const esLímiteCuota = (res.status === 429) || (data?.error?.code === 429) || (data?.error?.status === "RESOURCE_EXHAUSTED");
+      
+      if (esLímiteCuota) {
+        console.warn(`⚠️ Key ${i + 1} agotada (429/Resource Exhausted). Rotando a Key ${i + 2}...`);
+        continue; // Salta a la siguiente iteración del for (siguiente key)
+      }
+
+      // 2. Si es otro tipo de error de la API (ej: error 400, 403, 500), también rotamos para no truncar el flujo
+      if (!res.ok) {
+        const msgError = data?.error?.message || `HTTP ${res.status}`;
+        console.warn(`⚠️ Key ${i + 1} falló con error: ${msgError}. Probando la siguiente...`);
+        continue; 
+      }
+
+      // 3. Si todo salió bien, procesamos el texto
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (!text) {
+        console.warn(`⚠️ Key ${i + 1} no devolvió texto en candidates. Probando la siguiente...`);
         continue;
       }
-      if (!res.ok) {
-        return { error: `Gemini API error ${res.status}: ${(data?.error?.message || '').substring(0, 200)}` };
-      }
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (!text) return { error: 'Gemini no devolvió texto' };
+
+      console.log(`✅ ¡Búsqueda exitosa con la Key ${i + 1}!`);
       return { data: text };
+
     } catch (e) {
-      console.warn('Key ' + (i + 1) + ' error red: ' + e.message + '. Rotando a Key ' + (i + 2));
+      // Errores de red o conexión del fetch
+      console.warn(`⚠️ Key ${i + 1} - Error de red: ${e.message}. Rotando a Key ${i + 2}...`);
     }
   }
+
+  // Si recorrió el bucle completo y ninguna key funcionó:
   return { error: '429_todas_las_keys' };
 }
 
