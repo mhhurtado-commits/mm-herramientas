@@ -3868,7 +3868,6 @@ async function handleProcesarImagenes(request, env) {
     }
     const VISION_MODELS = [
       GEMINI_MODEL,
-      "gemini-3.5-flash",
       "gemini-2.0-flash",
       "gemini-1.5-flash"
     ];
@@ -4127,8 +4126,12 @@ async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOv
             if(intento<2){await sleep(3000);continue}else break;
           }
           if(res.status===400){
+            if(searchEnabled){
+              // Tool no soportado por este modelo, reintentar sin search
+              searchEnabled=false; intento=0; continue;
+            }
             lastError = `HTTP 400 (Bad Request): ${errBody.substring(0,200)}`;
-            return {error: lastError}; // Falla inmediatamente si es 400 (mala sintaxis/modelo no lo soporta)
+            return {error: lastError};
           }
           if(res.status===403){
              lastError = `HTTP 403 (Forbidden/Quota): ${errBody.substring(0,200)}`;
@@ -5122,7 +5125,7 @@ async function handleVisualTimeline(body, env) {
       // Si el scraping directo no da texto, usar Gemini con búsqueda
       if (contenido.length < 100) {
         const promptUrlSearch = `Buscá información sobre: "${nombreTema}" (relacionado a ${url}). Extraé TODOS los eventos individuales disponibles. Respondé SOLO con JSON: {"eventos":[...]}`;
-        const rFb = await callGemini(promptUrlSearch, env, true, false, "gemini-3.5-flash");
+        const rFb = await callGemini(promptUrlSearch, env, true, false);
         if (!rFb.error && rFb.data?.eventos?.length) {
           const rawFb = JSON.stringify(rFb.data);
           return jsonOk({ texto: rawFb, fuentes, modo: 'gemini_search', debug: {} });
@@ -5161,7 +5164,7 @@ Ejemplo inflación mensual:
 
 Respondé SOLO con JSON. Cuantos más eventos extraigas mejor: NO te limites a 2, incluí CADA evento individual disponible (pueden ser 10, 20 o más). No respondas {"eventos": []}.`;
 
-      const r = await callGemini(promptUrl, env, false, true, "gemini-3.5-flash");
+      const r = await callGemini(promptUrl, env, false, true);
       if (r.error) return jsonError(r.error, 500);
       const raw = r.data ? JSON.stringify(r.data) : "{}";
       return jsonOk({ texto: raw, fuentes, modo, debug: {} });
@@ -5207,9 +5210,15 @@ REGLAS:
 
   // 1. Búsqueda web en texto plano (Modo 2 pasos para evitar conflictos de schema)
   const promptBusqueda = `Buscá la información más actualizada y detallada sobre: "${tema}" ${desde ? `desde la fecha ${desde}` : ""}.
-Recopilá TODOS los eventos, hitos, partidos o datos clave. Listalos de forma cronológica con el mayor detalle posible (fechas exactas, resultados, etc). Es CRÍTICO que la información sea actual y basada en resultados de la web.`;
+Recopilá TODOS los eventos, hitos, partidos o datos clave. Listalos de forma cronológica con el mayor detalle posible (fechas exactas, resultados, etc). Es CRÍTICO que la información sea actual y basada en resultados de la web.
 
-  const rDatos = await callGemini(promptBusqueda, env, true, false, "gemini-3.5-flash");
+IMPORTANTE: Si el tema se refiere a un evento FUTURO (ej: Mundial 2026, elecciones futuras, etc), buscá información sobre:
+- Fechas programadas del evento
+- Previsiones, predicciones o expectativas
+- Datos históricos relacionados que sirvan de contexto
+- NO inventes resultados que aún no han ocurrido`;
+
+  const rDatos = await callGemini(promptBusqueda, env, true, false);
 
   if (!rDatos.error && rDatos.data && rDatos.data.length > 50) {
     const promptFormato = `Sos un cronista de datos. Basado EXCLUSIVAMENTE en la siguiente información recopilada de la web:
@@ -5224,7 +5233,7 @@ REGLAS:
 - No incluyas texto antes ni después del JSON.
 - Si no hay eventos en el texto, respondé {"eventos":[],"nota":"sin datos"}`;
 
-    const rFormato = await callGemini(promptFormato, env, false, true, "gemini-3.5-flash");
+    const rFormato = await callGemini(promptFormato, env, false, true);
     if (!rFormato.error && rFormato.data?.eventos?.length >= 1) {
       const raw = JSON.stringify(rFormato.data);
       return jsonOk({ texto: raw, fuentes: [], modo: 'gemini_con_busqueda', debug: { modo: '2_pasos' } });
@@ -5234,7 +5243,7 @@ REGLAS:
   if (rDatos.error) debug.error_busqueda = rDatos.error;
 
   // 2. Fallback: Gemini con conocimiento interno (sin búsqueda)
-  const r1 = await callGemini(promptPrincipal, env, false, true, "gemini-3.5-flash");
+  const r1 = await callGemini(promptPrincipal, env, false, true);
   if (r1.error) { debug.error_gemini = r1.error; }
   else { debug.eventos = r1.data?.eventos?.length || 0; }
 
