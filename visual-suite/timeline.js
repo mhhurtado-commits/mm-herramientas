@@ -22,6 +22,7 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
   };
 }
 
+const TAVILY_API_KEY = "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";
 const timelineEvents = [];
 
 function initTimeline() {
@@ -276,8 +277,43 @@ async function obtenerApiKeysGemini() {
 }
 
 async function buscarEnGeminiDesdeNavegador(prompt) {
+  // ── Paso A: Buscar en la web con Tavily ──
+  console.log('🔍 Buscando en web con Tavily...');
+  let context = '';
+  try {
+    const tavilyRes = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query: prompt,
+        search_depth: 'basic',
+        max_results: 5
+      })
+    });
+    if (tavilyRes.ok) {
+      const searchData = await tavilyRes.json();
+      const results = searchData?.results || [];
+      if (results.length) {
+        context = results.map(r => `- ${r.title}: ${r.content} (Fuente: ${r.url})`).join('\n');
+        console.log(`✅ Tavily devolvió ${results.length} resultados`);
+      } else {
+        console.warn('⚠️ Tavily no encontró resultados');
+      }
+    } else {
+      console.warn(`⚠️ Tavily error HTTP ${tavilyRes.status}`);
+    }
+  } catch (e) {
+    console.warn('⚠️ Error llamando a Tavily:', e.message);
+  }
+
+  // ── Paso B: Consultar a Gemini con el contexto de Tavily (sin googleSearch) ──
+  const promptGemini = context
+    ? `Usá la siguiente información real obtenida de la web para responder con la mayor precisión posible.\n\nInformación de contexto:\n${context}\n\nPregunta/Instrucción original: ${prompt}`
+    : prompt;
+
   const keys = await obtenerApiKeysGemini();
-  if (!keys || !keys.length) return { error: 'No hay API keys disponibles' };
+  if (!keys || !keys.length) return { error: 'No hay API keys de Gemini disponibles' };
 
   for (let i = 0; i < keys.length; i++) {
     const keyActual = keys[i];
@@ -286,51 +322,38 @@ async function buscarEnGeminiDesdeNavegador(prompt) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 8000 },
-          tools: [{ googleSearch: {} }]
+          contents: [{ parts: [{ text: promptGemini }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 8000 }
         })
       });
 
       let data = null;
       try { 
         data = await res.json(); 
-      } catch (jsonErr) {
-        // Si no se puede parsear el JSON, seguimos adelante para validar el status HTTP
-      }
+      } catch (jsonErr) {}
 
-      // 1. Detectar si la clave actual está agotada o tiene problemas de cuota/límites
       const esLímiteCuota = (res.status === 429) || (data?.error?.code === 429) || (data?.error?.status === "RESOURCE_EXHAUSTED");
-      
       if (esLímiteCuota) {
-        console.warn(`⚠️ Key ${i + 1} agotada (429/Resource Exhausted). Rotando a Key ${i + 2}...`);
-        continue; // Salta a la siguiente iteración del for (siguiente key)
-      }
-
-      // 2. Si es otro tipo de error de la API (ej: error 400, 403, 500), también rotamos para no truncar el flujo
-      if (!res.ok) {
-        const msgError = data?.error?.message || `HTTP ${res.status}`;
-        console.warn(`⚠️ Key ${i + 1} falló con error: ${msgError}. Probando la siguiente...`);
-        continue; 
-      }
-
-      // 3. Si todo salió bien, procesamos el texto
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (!text) {
-        console.warn(`⚠️ Key ${i + 1} no devolvió texto en candidates. Probando la siguiente...`);
+        console.warn(`⚠️ Key ${i + 1} agotada (429). Rotando a Key ${i + 2}...`);
         continue;
       }
-
-      console.log(`✅ ¡Búsqueda exitosa con la Key ${i + 1}!`);
+      if (!res.ok) {
+        const msgError = data?.error?.message || `HTTP ${res.status}`;
+        console.warn(`⚠️ Key ${i + 1} falló: ${msgError}. Rotando a Key ${i + 2}...`);
+        continue; 
+      }
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (!text) {
+        console.warn(`⚠️ Key ${i + 1} no devolvió texto. Rotando a Key ${i + 2}...`);
+        continue;
+      }
+      console.log(`✅ Gemini respondió con la Key ${i + 1}`);
       return { data: text };
-
     } catch (e) {
-      // Errores de red o conexión del fetch
       console.warn(`⚠️ Key ${i + 1} - Error de red: ${e.message}. Rotando a Key ${i + 2}...`);
     }
   }
 
-  // Si recorrió el bucle completo y ninguna key funcionó:
   return { error: '429_todas_las_keys' };
 }
 
