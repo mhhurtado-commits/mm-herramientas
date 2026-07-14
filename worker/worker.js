@@ -5108,9 +5108,9 @@ async function handleVisualGenerar(body, env) {
 // VISUAL SUITE - Exponer API key para búsqueda desde el cliente (bypass IP Cloudflare)
 // ============================================================
 async function handleVisualKey(body, env) {
-  const key = env.GEMINI_KEY_1 || env.GEMINI_KEY_2 || '';
-  if (!key) return jsonError('No hay API keys configuradas', 500);
-  return jsonOk({ key });
+  const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+  if (!keys.length) return jsonError('No hay API keys configuradas', 500);
+  return jsonOk({ keys });
 }
 
 // ============================================================

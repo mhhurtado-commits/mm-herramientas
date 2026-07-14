@@ -263,39 +263,46 @@ function cargarArchivoJSON(input) {
 }
 
 // ── Búsqueda directa a Gemini desde el navegador (bypass IP Cloudflare) ──
-let _geminiApiKey = '';
+let _geminiApiKeys = null;
 
-async function obtenerApiKeyGemini() {
-  if (_geminiApiKey) return _geminiApiKey;
+async function obtenerApiKeysGemini() {
+  if (_geminiApiKeys) return _geminiApiKeys;
   const res = await apiPost('/visual/key', {});
-  if (res && res.ok && res.key) { _geminiApiKey = res.key; return res.key; }
-  return null;
+  if (res && res.ok && Array.isArray(res.keys) && res.keys.length) {
+    _geminiApiKeys = res.keys;
+    return _geminiApiKeys;
+  }
+  return [];
 }
 
 async function buscarEnGeminiDesdeNavegador(prompt) {
-  const apiKey = await obtenerApiKeyGemini();
-  if (!apiKey) return { error: 'No se pudo obtener la API key' };
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 8000 },
-        tools: [{ googleSearch: {} }]
-      })
-    });
-    if (!res.ok) {
-      const err = await res.text().catch(() => '');
-      return { error: `Gemini API error ${res.status}: ${err.substring(0, 200)}` };
+  const keys = await obtenerApiKeysGemini();
+  if (!keys.length) return { error: 'No hay API keys disponibles' };
+  for (let i = 0; i < keys.length; i++) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${keys[i]}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 8000 },
+          tools: [{ googleSearch: {} }]
+        })
+      });
+      if (!res.ok) {
+        if (res.status === 429) continue;
+        const err = await res.text().catch(() => '');
+        return { error: `Gemini API error ${res.status}: ${err.substring(0, 200)}` };
+      }
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (!text) return { error: 'Gemini no devolvió texto' };
+      return { data: text };
+    } catch (e) {
+      return { error: 'Error de conexión: ' + e.message };
     }
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (!text) return { error: 'Gemini no devolvió texto' };
-    return { data: text };
-  } catch (e) {
-    return { error: 'Error de conexión: ' + e.message };
   }
+  return { error: '429_todas_las_keys' };
 }
 
 async function procesarResultadoTimeline(result) {
@@ -345,8 +352,16 @@ IMPORTANTE: Si el tema se refiere a un evento FUTURO (ej: Mundial 2026, eleccion
 
   const busqueda = await buscarEnGeminiDesdeNavegador(promptBusqueda);
 
+  if (busqueda.error && busqueda.error === '429_todas_las_keys') {
+    // Todas las keys agotadas por cuota → fallback a conocimiento interno del Worker
+    if (btn) btn.textContent = '⏳ Usando conocimiento interno...';
+    const result = await apiPost('/visual/timeline', { tema, desde });
+    if (btn) { btn.disabled = false; btn.textContent = '🌐 Buscar en web'; }
+    return procesarResultadoTimeline(result);
+  }
+
   if (busqueda.error) {
-    // Si falló la búsqueda local, intentar directo al Worker (fallback)
+    // Fallback directo al Worker
     if (btn) btn.textContent = '⏳ Enviando al servidor...';
     const result = await apiPost('/visual/timeline', { tema, desde });
     if (btn) { btn.disabled = false; btn.textContent = '🌐 Buscar en web'; }
@@ -378,6 +393,14 @@ IMPORTANTE: Si el tema se refiere a un evento FUTURO (ej: Mundial 2026, eleccion
 - NO inventes resultados que aún no han ocurrido`;
 
   const busqueda = await buscarEnGeminiDesdeNavegador(promptBusqueda);
+
+  if (busqueda.error && busqueda.error === '429_todas_las_keys') {
+    // Todas las keys agotadas → fallback a conocimiento interno del Worker
+    if (btn) btn.textContent = '⏳ Usando conocimiento interno...';
+    const result = await apiPost('/visual/timeline', { tema, desde: '' });
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 IA + Web'; }
+    return procesarResultadoTimeline(result);
+  }
 
   if (busqueda.error) {
     // Fallback directo al Worker
