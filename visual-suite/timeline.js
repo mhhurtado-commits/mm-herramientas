@@ -289,12 +289,13 @@ async function buscarEnGeminiDesdeNavegador(prompt) {
           tools: [{ googleSearch: {} }]
         })
       });
+      const data = await res.json();
+      // Gemini a veces devuelve HTTP 200 con { error: { code: 429, ... } } en el body
+      if (data?.error?.code === 429) continue;
       if (!res.ok) {
         if (res.status === 429) continue;
-        const err = await res.text().catch(() => '');
-        return { error: `Gemini API error ${res.status}: ${err.substring(0, 200)}` };
+        return { error: `Gemini API error ${res.status}: ${(data?.error?.message || '').substring(0, 200)}` };
       }
-      const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       if (!text) return { error: 'Gemini no devolvió texto' };
       return { data: text };
