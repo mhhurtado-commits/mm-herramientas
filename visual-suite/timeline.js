@@ -309,7 +309,18 @@ async function buscarEnGeminiDesdeNavegador(prompt) {
 
   // ── Paso B: Consultar a Gemini con el contexto de Tavily (sin googleSearch) ──
   const promptGemini = context
-    ? `Usá la siguiente información real obtenida de la web para responder con la mayor precisión posible.\n\nInformación de contexto:\n${context}\n\nPregunta/Instrucción original: ${prompt}`
+    ? `Usa la siguiente información real obtenida de la web para responder con la mayor precisión posible. 
+
+Información de contexto obtenida:
+${context}
+
+Pregunta/Instrucción original del usuario: "${prompt}"
+
+Instrucciones de formateo CRÍTICAS:
+1. **Consolidación y Síntesis:** Si el tema involucra datos repetitivos, múltiples fuentes para un mismo suceso o actualizaciones constantes de un mismo periodo, consolida la información. No dupliques fechas ni crees múltiples eventos para el mismo hito.
+2. **Hitos Clave:** Selecciona únicamente los eventos que marquen un avance real y significativo en la cronología. Evita el "ruido" o datos secundarios (por ejemplo, si se buscan goles, pon solo los goles; si se busca inflación mensual, pon solo el índice general de cada mes, ignorando variaciones por rubro o localidad).
+3. **Estructura Limpia:** Cada elemento de la línea de tiempo debe ser único, autoexplicativo y estar ordenado de manera estrictamente cronológica.
+4. **Factualidad:** Basate exclusivamente en los datos del contexto provisto. Si el contexto no contiene datos suficientes para responder lo solicitado por el usuario, indícalo claramente en la nota final en lugar de alucinar o rellenar con datos irrelevantes.`
     : prompt;
 
   const keys = await obtenerApiKeysGemini();
