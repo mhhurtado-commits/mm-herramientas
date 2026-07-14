@@ -278,6 +278,7 @@ async function obtenerApiKeysGemini() {
 async function buscarEnGeminiDesdeNavegador(prompt) {
   const keys = await obtenerApiKeysGemini();
   if (!keys.length) return { error: 'No hay API keys disponibles' };
+  let body, data;
   for (let i = 0; i < keys.length; i++) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${keys[i]}`, {
@@ -289,18 +290,21 @@ async function buscarEnGeminiDesdeNavegador(prompt) {
           tools: [{ googleSearch: {} }]
         })
       });
-      const data = await res.json();
-      // Gemini a veces devuelve HTTP 200 con { error: { code: 429, ... } } en el body
-      if (data?.error?.code === 429) continue;
+      body = null; data = null;
+      try { data = await res.json(); } catch {}
+      // Detectar 429 (HTTP status o error JSON interno)
+      if (res.status === 429 || data?.error?.code == 429) {
+        console.warn('Key ' + (i + 1) + ' agotada. Rotando a Key ' + (i + 2));
+        continue;
+      }
       if (!res.ok) {
-        if (res.status === 429) continue;
         return { error: `Gemini API error ${res.status}: ${(data?.error?.message || '').substring(0, 200)}` };
       }
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       if (!text) return { error: 'Gemini no devolvió texto' };
       return { data: text };
     } catch (e) {
-      return { error: 'Error de conexión: ' + e.message };
+      console.warn('Key ' + (i + 1) + ' error red: ' + e.message + '. Rotando a Key ' + (i + 2));
     }
   }
   return { error: '429_todas_las_keys' };
