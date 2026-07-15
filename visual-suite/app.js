@@ -561,6 +561,9 @@ function limpiarTodo() {
   // Infografia
   document.getElementById('infoTitle').value = 'Título de la infografía';
   document.getElementById('infoContent').value = 'Dato clave 1\nDato clave 2\nCifra relevante 3';
+  document.getElementById('infoTema').value = '';
+  document.getElementById('infoPrompt').value = '';
+  document.getElementById('infoJson').value = '';
   seleccionarTemplate('destacado');
   renderizarInfografia();
 

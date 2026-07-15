@@ -179,86 +179,136 @@ function detectarIconoLinea(linea) {
   return '▸ ';
 }
 
+function drawDotGrid(ctx, W, H, color, spacing) {
+  ctx.fillStyle = color;
+  for (let x = spacing; x < W; x += spacing) {
+    for (let y = spacing; y < H; y += spacing) {
+      ctx.beginPath();
+      ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawDataBar(ctx, x, y, w, h, pct, color) {
+  const r = h / 2;
+  ctx.fillStyle = hexToRgba(color, 0.15);
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.fill();
+  ctx.fillStyle = hexToRgba(color, 0.85);
+  ctx.beginPath();
+  ctx.roundRect(x, y, Math.min(w, w * pct), h, r);
+  ctx.fill();
+}
+
 // ── Template: Flyer Simple ──
 function renderFlyerSimple(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
-  if (!dibujarFondoIA(ctx, W, H, 'rgba(255,255,255,0.82)')) {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(1, '#f3f5f2');
-    ctx.fillStyle = g;
+  const isDark = false;
+  if (!dibujarFondoIA(ctx, W, H, 'rgba(255,255,255,0.85)')) {
+    ctx.fillStyle = '#fafbfa';
     ctx.fillRect(0, 0, W, H);
+    drawDotGrid(ctx, W, H, hexToRgba(c1, 0.08), Math.round(W * 0.045));
   }
 
-  drawPlateHeader(ctx, W, H, 'RESUMEN', title, c1, false);
+  // Top accent bar
+  ctx.fillStyle = c1;
+  ctx.fillRect(0, 0, W, Math.round(H * 0.006));
+
+  drawPlateHeader(ctx, W, H, 'RESUMEN', title, c1, isDark);
 
   const lines = content.split('\n').filter(l => l.trim());
   const maxCards = Math.min(lines.length, 8);
   const top = H * 0.20;
   const bottom = H - H * 0.07;
   const areaH = bottom - top;
-  const cardH = Math.min(areaH / Math.max(maxCards, 1) * 0.86, H * 0.085);
+  const cardH = Math.min(areaH / Math.max(maxCards, 1) * 0.82, H * 0.09);
   const gap = maxCards ? (areaH - cardH * maxCards) / maxCards : 0;
 
   lines.slice(0, maxCards).forEach((line, i) => {
     const y = top + i * (cardH + gap);
-    ctx.fillStyle = 'rgba(22,32,27,0.08)';
+    const cy = y + cardH / 2;
+
+    // Sombra sutil
+    ctx.fillStyle = hexToRgba(c2, 0.06);
     ctx.beginPath();
-    ctx.roundRect(M + 3, y + 5, W - 2 * M, cardH, 14);
+    ctx.roundRect(M + 2, y + 3, W - 2 * M, cardH, 12);
     ctx.fill();
+
+    // Card bg
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.roundRect(M, y, W - 2 * M, cardH, 14);
+    ctx.roundRect(M, y, W - 2 * M, cardH, 12);
     ctx.fill();
+
+    // Top bar acento
     ctx.fillStyle = c1;
     ctx.beginPath();
-    ctx.roundRect(M, y, Math.max(4, W * 0.004), cardH, [14, 0, 0, 14]);
+    ctx.roundRect(M, y, W - 2 * M, Math.round(W * 0.005), [12, 12, 0, 0]);
     ctx.fill();
 
-    const chip = cardH * 0.62;
-    const chipX = M + W * 0.02;
-    const chipY = y + (cardH - chip) / 2;
+    const chip = cardH * 0.58;
+    const chipX = M + W * 0.025;
+    const chipY = cy - chip / 2;
     drawIconChipPlate(ctx, chipX, chipY, chip, detectarIconoLinea(line), c1);
 
-    const textX = chipX + chip + W * 0.02;
+    const textX = chipX + chip + W * 0.025;
+    const textW = (W - 2 * M) - (textX - M);
     const { label, value, hasColon } = splitRichLine(line);
     ctx.textAlign = 'left';
+
     if (hasColon) {
       ctx.fillStyle = PLATE_INK;
-      ctx.font = `700 ${cardH * 0.22}px "Inter", sans-serif`;
-      ctx.fillText(label, textX, y + cardH * 0.4);
+      ctx.font = `600 ${cardH * 0.2}px "Inter", sans-serif`;
+      ctx.fillText(label, textX, y + cardH * 0.38);
       ctx.fillStyle = c1;
-      ctx.font = `800 ${cardH * 0.26}px "Inter", sans-serif`;
-      ctx.fillText(value, textX, y + cardH * 0.74);
+      ctx.font = `800 ${cardH * 0.28}px "Inter", sans-serif`;
+      let v = value;
+      while (ctx.measureText(v).width > textW * 0.5 && v.length > 2) v = v.slice(0, -1);
+      ctx.fillText(v, textX, y + cardH * 0.76);
+      // Mini data bar
+      const valNum = parseFloat(String(value).replace(',', '.'));
+      if (!isNaN(valNum) && valNum > 0) {
+        const barW = textW * 0.3;
+        const barH = Math.round(cardH * 0.06);
+        drawDataBar(ctx, textX + ctx.measureText(v).width + W * 0.015, y + cardH * 0.68, barW, barH, Math.min(valNum / 100, 1), c1);
+      }
     } else {
       ctx.fillStyle = PLATE_INK;
-      ctx.font = `600 ${cardH * 0.26}px "Inter", sans-serif`;
-      ctx.fillText(line, textX, y + cardH * 0.58);
+      ctx.font = `600 ${cardH * 0.24}px "Inter", sans-serif`;
+      ctx.fillText(line, textX, cy + cardH * 0.08);
     }
   });
 
-  drawPlateFooter(ctx, W, H, c1, false);
+  drawPlateFooter(ctx, W, H, c1, isDark);
 }
 
 // ── Template: Flyer Comparativa ──
 function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
-  if (!dibujarFondoIA(ctx, W, H, 'rgba(16,19,31,0.88)')) {
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, '#10131f');
-    grad.addColorStop(1, '#1b2236');
+  const isDark = true;
+  if (!dibujarFondoIA(ctx, W, H, 'rgba(10,12,22,0.9)')) {
+    const grad = ctx.createRadialGradient(W * 0.3, H * 0.3, 0, W * 0.3, H * 0.3, W * 0.8);
+    grad.addColorStop(0, '#1a1d2e');
+    grad.addColorStop(1, '#0c0e18');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
+    drawDotGrid(ctx, W, H, 'rgba(255,255,255,0.03)', Math.round(W * 0.04));
   }
 
-  // Header banda
+  // Header
+  const headerH = H * 0.13;
+  ctx.fillStyle = hexToRgba(c1, 0.12);
+  ctx.fillRect(0, 0, W, headerH);
   ctx.fillStyle = c1;
-  ctx.fillRect(0, 0, W, H * 0.13);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `700 ${H * 0.026}px "Inter", sans-serif`;
+  ctx.fillRect(0, headerH - Math.round(H * 0.005), W, Math.round(H * 0.005));
+  ctx.fillStyle = c1;
+  ctx.font = `700 ${H * 0.024}px "Inter", sans-serif`;
   ctx.textAlign = 'left';
   ctx.fillText('COMPARATIVA', M, H * 0.055);
-  ctx.font = `400 ${H * 0.05}px "DM Serif Display", serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `400 ${H * 0.048}px "DM Serif Display", serif`;
   let t = title;
   while (ctx.measureText(t).width > W * 0.9 && t.length > 4) t = t.slice(0, -1);
   if (t.length < title.length) t = t.slice(0, -1) + '…';
@@ -268,68 +318,82 @@ function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
   const leftItems = lines.filter((_, i) => i % 2 === 0);
   const rightItems = lines.filter((_, i) => i % 2 === 1);
   const midX = W / 2;
-  const itemH = H * 0.11;
-  const maxN = Math.max(leftItems.length, rightItems.length);
-  const totalH = maxN * itemH;
-  const startY = (H - totalH) / 2 + H * 0.04;
+  const maxN = Math.max(leftItems.length, rightItems.length, 1);
+  const itemH = Math.min(H * 0.1, (H - headerH - H * 0.1) / maxN);
+  const startY = headerH + (H - headerH - itemH * maxN) / 2;
 
-  // Divisor vertical
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([6, 5]);
+  // VS circle glow
+  const vsR = W * 0.028;
+  ctx.shadowColor = hexToRgba(c1, 0.5);
+  ctx.shadowBlur = 30;
+  ctx.fillStyle = hexToRgba(c1, 0.15);
   ctx.beginPath();
-  ctx.moveTo(midX, startY - H * 0.02);
-  ctx.lineTo(midX, startY + totalH + H * 0.02);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Badge VS
+  ctx.arc(midX, startY + itemH * 0.3, vsR * 1.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
   ctx.fillStyle = c1;
   ctx.beginPath();
-  ctx.arc(midX, startY - H * 0.02, W * 0.022, 0, Math.PI * 2);
+  ctx.arc(midX, startY + itemH * 0.3, vsR, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#ffffff';
-  ctx.font = `900 ${W * 0.02}px "Inter", sans-serif`;
+  ctx.font = `900 ${vsR * 0.9}px "Inter", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('VS', midX, startY - H * 0.02);
+  ctx.fillText('VS', midX, startY + itemH * 0.3);
   ctx.textBaseline = 'alphabetic';
 
-  leftItems.forEach((item, i) => {
-    const cy = startY + i * itemH + itemH * 0.4;
-    const chip = itemH * 0.6;
-    drawIconChipPlate(ctx, midX - W * 0.42, cy - chip / 2, chip, detectarIconoLinea(item), c1);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `700 ${H * 0.026}px "Inter", sans-serif`;
-    ctx.textAlign = 'right';
-    ctx.fillText(item, midX - W * 0.05 - chip - W * 0.01, cy + itemH * 0.14);
-  });
+  const colW = (midX - M - W * 0.04);
 
-  rightItems.forEach((item, i) => {
-    const cy = startY + i * itemH + itemH * 0.4;
-    const chip = itemH * 0.6;
-    drawIconChipPlate(ctx, midX + W * 0.05, cy - chip / 2, chip, detectarIconoLinea(item), c2);
+  leftItems.slice(0, maxN).forEach((item, i) => {
+    const cy = startY + i * itemH + itemH * 0.6;
+    const icono = detectarIconoLinea(item);
+    const chip = itemH * 0.45;
+    drawIconChipPlate(ctx, M, cy - chip / 2, chip, icono, c1);
     ctx.fillStyle = '#ffffff';
-    ctx.font = `700 ${H * 0.026}px "Inter", sans-serif`;
+    ctx.font = `600 ${H * 0.022}px "Inter", sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText(item, midX + W * 0.05 + chip + W * 0.01, cy + itemH * 0.14);
+    ctx.fillText(item, M + chip + W * 0.02, cy + itemH * 0.08);
+
+    // Data bar
+    const valNum = parseFloat(String(item).replace(/[^0-9.,]/g, '').replace(',', '.'));
+    if (!isNaN(valNum) && valNum > 0) {
+      drawDataBar(ctx, M + chip + W * 0.02, cy + itemH * 0.12, colW * 0.5, Math.round(H * 0.012), Math.min(valNum / 100, 1), c1);
+    }
   });
 
-  drawPlateFooter(ctx, W, H, c1, true);
+  rightItems.slice(0, maxN).forEach((item, i) => {
+    const cy = startY + i * itemH + itemH * 0.6;
+    const icono = detectarIconoLinea(item);
+    const chip = itemH * 0.45;
+    drawIconChipPlate(ctx, midX + W * 0.04, cy - chip / 2, chip, icono, c2);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `600 ${H * 0.022}px "Inter", sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.fillText(item, W - M - chip - W * 0.02, cy + itemH * 0.08);
+
+    const valNum = parseFloat(String(item).replace(/[^0-9.,]/g, '').replace(',', '.'));
+    if (!isNaN(valNum) && valNum > 0) {
+      drawDataBar(ctx, W - M - chip - W * 0.02 - colW * 0.5, cy + itemH * 0.12, colW * 0.5, Math.round(H * 0.012), Math.min(valNum / 100, 1), c2);
+    }
+  });
+
+  drawPlateFooter(ctx, W, H, c1, isDark);
 }
 
 // ── Template: Flyer Listado ──
 function renderFlyerListado(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
-  if (!dibujarFondoIA(ctx, W, H, 'rgba(255,255,255,0.82)')) {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(1, '#f3f5f2');
-    ctx.fillStyle = g;
+  const isDark = false;
+  if (!dibujarFondoIA(ctx, W, H, 'rgba(255,255,255,0.85)')) {
+    ctx.fillStyle = '#fafbfa';
     ctx.fillRect(0, 0, W, H);
+    drawDotGrid(ctx, W, H, hexToRgba(c1, 0.06), Math.round(W * 0.04));
   }
 
-  drawPlateHeader(ctx, W, H, 'LISTADO', title, c1, false);
+  ctx.fillStyle = c1;
+  ctx.fillRect(0, 0, W, Math.round(H * 0.006));
+
+  drawPlateHeader(ctx, W, H, 'LISTADO', title, c1, isDark);
 
   const items = content.split('\n').filter(l => l.trim());
   const maxN = Math.min(items.length, 10);
@@ -337,129 +401,170 @@ function renderFlyerListado(ctx, W, H, title, content, c1, c2) {
   const bottom = H - H * 0.07;
   const areaH = bottom - top;
   const itemH = areaH / Math.max(maxN, 1);
-  const numX = M + W * 0.03;
-  const spineX = numX + W * 0.03;
+  const spineX = M + W * 0.045;
 
-  // Espina vertical
-  ctx.strokeStyle = hexToRgba(c1, 0.3);
-  ctx.lineWidth = Math.max(2, W * 0.0015);
+  // Spine
+  ctx.strokeStyle = hexToRgba(c1, 0.2);
+  ctx.lineWidth = Math.max(2, W * 0.002);
   ctx.beginPath();
   ctx.moveTo(spineX, top);
-  ctx.lineTo(spineX, top + areaH - itemH * 0.4);
+  ctx.lineTo(spineX, top + areaH - itemH * 0.3);
   ctx.stroke();
 
   items.slice(0, maxN).forEach((item, i) => {
-    const y = top + i * itemH;
-    const cy = y + itemH * 0.4;
-    // Número
-    ctx.fillStyle = hexToRgba(c1, 0.12);
-    ctx.font = `900 ${itemH * 0.5}px "Inter", sans-serif`;
-    ctx.textAlign = 'right';
-    ctx.fillText(String(i + 1).padStart(2, '0'), numX + W * 0.02, cy + itemH * 0.18);
-    // Nodo
+    const cy = top + i * itemH + itemH * 0.45;
+    const numStr = String(i + 1).padStart(2, '0');
+
+    // Giant number bg
+    ctx.fillStyle = hexToRgba(c1, 0.04);
+    ctx.font = `900 ${itemH * 0.7}px "Inter", sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(numStr, M, cy + itemH * 0.18);
+
+    // Node
     ctx.fillStyle = c1;
     ctx.beginPath();
-    ctx.arc(spineX, cy, W * 0.006, 0, Math.PI * 2);
+    ctx.arc(spineX, cy, W * 0.007, 0, Math.PI * 2);
     ctx.fill();
-    // Chip
-    const chip = itemH * 0.5;
-    const chipX = spineX + W * 0.025;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(spineX, cy, W * 0.004, 0, Math.PI * 2);
+    ctx.fill();
+
+    const chip = itemH * 0.48;
+    const chipX = spineX + W * 0.03;
     drawIconChipPlate(ctx, chipX, cy - chip / 2, chip, detectarIconoLinea(item), c1);
-    // Texto
-    const textX = chipX + chip + W * 0.02;
+
+    const textX = chipX + chip + W * 0.025;
+    const textW = (W - M - textX);
     const { label, value, hasColon } = splitRichLine(item);
     ctx.textAlign = 'left';
+
     if (hasColon) {
       ctx.fillStyle = PLATE_INK;
-      ctx.font = `700 ${itemH * 0.2}px "Inter", sans-serif`;
-      ctx.fillText(label, textX, cy - itemH * 0.02);
+      ctx.font = `600 ${itemH * 0.18}px "Inter", sans-serif`;
+      ctx.fillText(label, textX, cy - itemH * 0.04);
       ctx.fillStyle = c1;
-      ctx.font = `800 ${itemH * 0.24}px "Inter", sans-serif`;
+      ctx.font = `800 ${itemH * 0.26}px "Inter", sans-serif`;
       ctx.fillText(value, textX, cy + itemH * 0.22);
+      // Mini bar
+      const valNum = parseFloat(String(value).replace(',', '.'));
+      if (!isNaN(valNum) && valNum > 0) {
+        drawDataBar(ctx, textX, cy + itemH * 0.32, textW * 0.35, Math.round(H * 0.01), Math.min(valNum / 100, 1), c1);
+      }
     } else {
       ctx.fillStyle = PLATE_INK;
-      ctx.font = `600 ${itemH * 0.24}px "Inter", sans-serif`;
+      ctx.font = `600 ${itemH * 0.22}px "Inter", sans-serif`;
       ctx.fillText(item, textX, cy + itemH * 0.1);
     }
   });
 
-  drawPlateFooter(ctx, W, H, c1, false);
+  drawPlateFooter(ctx, W, H, c1, isDark);
 }
 
 // ── Template: Flyer Destacado ──
 function renderFlyerDestacado(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
-  if (!dibujarFondoIA(ctx, W, H, 'rgba(26,26,46,0.88)')) {
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, c2);
-    grad.addColorStop(1, '#0a0d12');
+  const isDark = true;
+  if (!dibujarFondoIA(ctx, W, H, 'rgba(10,12,22,0.9)')) {
+    const grad = ctx.createRadialGradient(W * 0.5, H * 0.3, 0, W * 0.5, H * 0.3, W * 0.9);
+    grad.addColorStop(0, '#16192b');
+    grad.addColorStop(1, '#080a12');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
+    drawDotGrid(ctx, W, H, 'rgba(255,255,255,0.025)', Math.round(W * 0.05));
   }
 
-  // Barra lateral de acento
+  // Left accent bar
   ctx.fillStyle = c1;
-  ctx.fillRect(0, 0, W * 0.035, H);
+  ctx.fillRect(0, 0, Math.round(W * 0.03), H);
 
-  // Kicker + título serif
+  // Kicker
   ctx.fillStyle = c1;
-  ctx.font = `700 ${H * 0.024}px "Inter", sans-serif`;
+  ctx.font = `700 ${H * 0.022}px "Inter", sans-serif`;
   ctx.textAlign = 'left';
-  ctx.fillText('DATOS DESTACADOS', M, H * 0.09);
+  ctx.fillText('DATOS DESTACADOS', M, H * 0.08);
   ctx.fillStyle = '#ffffff';
-  ctx.font = `400 ${H * 0.062}px "DM Serif Display", serif`;
+  ctx.font = `400 ${H * 0.065}px "DM Serif Display", serif`;
   let t = title;
   while (ctx.measureText(t).width > W * 0.85 && t.length > 4) t = t.slice(0, -1);
   if (t.length < title.length) t = t.slice(0, -1) + '…';
   ctx.fillText(t, M, H * 0.155);
-  ctx.fillStyle = hexToRgba(c1, 0.7);
-  ctx.fillRect(M, H * 0.17, W * 0.16, Math.max(3, H * 0.004));
+  ctx.fillStyle = hexToRgba(c1, 0.6);
+  ctx.fillRect(M, H * 0.17, W * 0.18, Math.round(H * 0.005));
 
   const lines = content.split('\n').filter(l => l.trim());
   const maxN = Math.min(lines.length, 8);
   const top = H * 0.22;
   const bottom = H - H * 0.07;
   const areaH = bottom - top;
-  const cardH = Math.min(areaH / Math.max(maxN, 1) * 0.86, H * 0.095);
+  const cardH = Math.min(areaH / Math.max(maxN, 1) * 0.82, H * 0.1);
   const gap = maxN ? (areaH - cardH * maxN) / maxN : 0;
 
   lines.slice(0, maxN).forEach((line, i) => {
     const y = top + i * (cardH + gap);
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    const cy = y + cardH / 2;
+
+    // Glassmorphism card
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(M, y, W - 2 * M, cardH, 12);
+    ctx.roundRect(M, y, W - 2 * M, cardH, 14);
     ctx.fill();
     ctx.stroke();
+
+    // Left accent
     ctx.fillStyle = c1;
     ctx.beginPath();
-    ctx.roundRect(M, y, Math.max(4, W * 0.004), cardH, [12, 0, 0, 12]);
+    ctx.roundRect(M, y + cardH * 0.12, Math.round(W * 0.005), cardH * 0.76, 4);
     ctx.fill();
 
-    const chip = cardH * 0.6;
-    const chipX = M + W * 0.02;
-    const chipY = y + (cardH - chip) / 2;
+    const chip = cardH * 0.55;
+    const chipX = M + W * 0.03;
+    const chipY = cy - chip / 2;
     drawIconChipPlate(ctx, chipX, chipY, chip, detectarIconoLinea(line), c1);
 
-    const textX = chipX + chip + W * 0.02;
+    const textX = chipX + chip + W * 0.025;
+    const textW = (W - 2 * M) - (textX - M);
     const { label, value, hasColon } = splitRichLine(line);
     ctx.textAlign = 'left';
+
     if (hasColon) {
-      ctx.fillStyle = hexToRgba(c1, 0.85);
-      ctx.font = `700 ${cardH * 0.2}px "Inter", sans-serif`;
-      ctx.fillText(label, textX, y + cardH * 0.38);
+      ctx.fillStyle = hexToRgba(c1, 0.8);
+      ctx.font = `600 ${cardH * 0.18}px "Inter", sans-serif`;
+      ctx.fillText(label, textX, y + cardH * 0.35);
       ctx.fillStyle = '#ffffff';
-      ctx.font = `800 ${cardH * 0.26}px "Inter", sans-serif`;
-      ctx.fillText(value, textX, y + cardH * 0.74);
+      ctx.font = `800 ${cardH * 0.3}px "Inter", sans-serif`;
+      ctx.fillText(value, textX, y + cardH * 0.76);
+
+      const valNum = parseFloat(String(value).replace(',', '.'));
+      if (!isNaN(valNum) && valNum > 0) {
+        const barW = textW * 0.35;
+        drawDataBar(ctx, textX + ctx.measureText(value).width + W * 0.02, y + cardH * 0.63, barW, Math.round(H * 0.01), Math.min(valNum / 100, 1), c1);
+      }
     } else {
       ctx.fillStyle = '#ffffff';
-      ctx.font = `700 ${cardH * 0.24}px "Inter", sans-serif`;
-      ctx.fillText(line, textX, y + cardH * 0.58);
+      ctx.font = `700 ${cardH * 0.22}px "Inter", sans-serif`;
+      ctx.fillText(line, textX, cy + cardH * 0.08);
     }
   });
 
-  drawPlateFooter(ctx, W, H, c1, true);
+  // Donut chart decoration for visual interest
+  const donutSize = Math.min(W, H) * 0.07;
+  const donutX = W - M - donutSize / 2;
+  const donutY = H * 0.12;
+  ctx.strokeStyle = hexToRgba(c1, 0.15);
+  ctx.lineWidth = donutSize * 0.15;
+  ctx.beginPath();
+  ctx.arc(donutX, donutY, donutSize * 0.4, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = hexToRgba(c1, 0.6);
+  ctx.beginPath();
+  ctx.arc(donutX, donutY, donutSize * 0.4, -Math.PI / 2, Math.PI * 0.8);
+  ctx.stroke();
+
+  drawPlateFooter(ctx, W, H, c1, isDark);
 }
 
 function wrapText(ctx, text, maxWidth) {
@@ -522,6 +627,76 @@ function renderizarInfografiaEnCtx(ctx, W, H) {
   }
 
   if (typeof dibujarLogoInfografia === 'function') dibujarLogoInfografia(ctx, W, H);
+}
+
+// ── Chat IA ──
+const TEMPLATE_NOMBRES = { simple: 'Simple', comparativa: 'Comparativa', listado: 'Listado', destacado: 'Destacado' };
+
+function generarPromptInfografia() {
+  const tema = document.getElementById('infoTema').value.trim();
+  if (!tema) return toast('Ingresá un tema para generar el prompt');
+
+  const templates = Object.entries(TEMPLATE_NOMBRES).map(([k, v]) => `${k} (${v})`).join(', ');
+
+  const prompt = `Necesito un JSON puro para pegar en un frontend que genera infografías visuales.
+
+Tema: "${tema}"
+
+Formato requerido:
+{
+  "titulo": "título llamativo para la infografía",
+  "lineas": ["Etiqueta: valor numérico", "Subtítulo: más datos"],
+  "template_sugerido": "simple | comparativa | listado | destacado",
+  "color_principal": "#código hex",
+  "color_secundario": "#código hex"
+}
+
+Templates disponibles: ${templates}
+
+Reglas:
+- Cada línea representa un dato de la infografía (formato: "Etiqueta: valor")
+- Usá datos reales según tu conocimiento sobre el tema
+- 4 a 10 líneas como máximo
+- Incluí cifras, porcentajes y estadísticas concretas
+- Elegí colores que combinen bien (modernos, sobrios)
+- Elegí el template que mejor represente los datos
+- Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;
+
+  const ta = document.getElementById('infoPrompt');
+  if (ta) {
+    ta.value = prompt;
+    toast('✅ Prompt generado. Copialo con el botón y pegalo en Gemini Chat.');
+  }
+}
+
+function copiarPromptInfografia() {
+  const ta = document.getElementById('infoPrompt');
+  if (!ta || !ta.value.trim()) return toast('No hay prompt para copiar');
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) { navigator.clipboard?.writeText(ta.value); }
+  toast('✅ Prompt copiado al portapapeles');
+}
+
+function cargarJSONdeChat() {
+  const ta = document.getElementById('infoJson');
+  const text = (ta && ta.value || '').trim();
+  if (!text) return toast('Pegá el JSON en el cuadro de arriba');
+
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch (e) { return toast('JSON inválido: ' + e.message); }
+
+  if (parsed.titulo) document.getElementById('infoTitle').value = parsed.titulo;
+  if (parsed.lineas && Array.isArray(parsed.lineas)) {
+    document.getElementById('infoContent').value = parsed.lineas.join('\n');
+  }
+  if (parsed.template_sugerido && TEMPLATE_NOMBRES[parsed.template_sugerido]) {
+    seleccionarTemplate(parsed.template_sugerido);
+  }
+  if (parsed.color_principal) document.getElementById('infoColor1').value = parsed.color_principal;
+  if (parsed.color_secundario) document.getElementById('infoColor2').value = parsed.color_secundario;
+  renderizarInfografia();
+  toast('✅ Infografía cargada desde Chat IA');
 }
 
 document.addEventListener('DOMContentLoaded', initInfographics);

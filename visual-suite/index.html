@@ -824,7 +824,29 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
             <input class="vs-color-input" type="color" id="infoColor2" value="#1a1a1a" oninput="renderizarInfografia()">
           </div>
         </div>
-        <div class="divider" style="height:1px;background:var(--line);margin:4px 0"></div>
+        <!-- Chat IA -->
+        <div class="divider" style="height:1px;background:var(--line);margin:8px 0"></div>
+        <div class="vs-card-header">
+          <span class="vs-card-title">Generar con Chat IA</span>
+        </div>
+        <div>
+          <div class="vs-label">Tema</div>
+          <input class="vs-input" id="infoTema" placeholder="Ej: Tráfico en Mendoza 2026" style="margin-top:6px">
+        </div>
+        <button class="vs-btn vs-btn-secondary" onclick="generarPromptInfografia()" style="margin-top:8px">🤖 Generar prompt para Chat IA</button>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <textarea class="vs-textarea" id="infoPrompt" style="flex:1;min-height:80px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar..."></textarea>
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptInfografia()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
+        </div>
+        <div style="margin-top:8px">
+          <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
+          <textarea class="vs-textarea" id="infoJson" style="margin-top:6px;min-height:60px;font-family:monospace;font-size:11px" placeholder='{"titulo":"Tráfico en Mendoza","lineas":["Vehículos: 1.200.000","Aumento anual: 4,8%"],"template_sugerido":"destacado","color_principal":"#e63946","color_secundario":"#1d3557"}'></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarJSONdeChat()">📋 Cargar JSON</button>
+        </div>
+
+        <div class="divider" style="height:1px;background:var(--line);margin:8px 0"></div>
         <div>
           <div class="vs-label">Fondo editorial con IA</div>
           <p style="font-size:11px;color:var(--muted);margin:4px 0 8px;line-height:1.5">La IA arma el fondo editorial (sin texto); el canvas dibuja tus datos reales legibles encima.</p>
