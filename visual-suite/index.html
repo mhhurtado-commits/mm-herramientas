@@ -700,10 +700,10 @@ Mayo, 70</textarea>
             <div class="vs-label">Tema</div>
             <input class="vs-input" id="tlTema" placeholder="Ej: Goles Messi Mundial 2026" style="margin-top:6px">
           </div>
-          <button class="vs-btn vs-btn-secondary" onclick="generarPromptChat()" style="margin-top:8px">📋 Generar prompt para Chat IA</button>
-          <div style="margin-top:8px">
-            <div class="vs-label">Prompt generado (copiado automáticamente)</div>
-            <textarea class="vs-textarea" id="tlPrompt" style="margin-top:6px;min-height:100px;font-family:monospace;font-size:12px;color:var(--muted)" readonly placeholder="Acá aparecerá el prompt para copiar y pegar en Gemini Chat..."></textarea>
+          <button class="vs-btn vs-btn-secondary" onclick="generarPromptChat()" style="margin-top:8px">🤖 Generar prompt para Chat IA</button>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <textarea class="vs-textarea" id="tlPrompt" style="flex:1;min-height:100px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar y pegar en Gemini Chat..."></textarea>
+            <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPrompt()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
           </div>
         </div>
 

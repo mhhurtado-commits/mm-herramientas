@@ -82,7 +82,11 @@ function renderizarTimeline() {
 }
 
 function limpiarTimeline() {
+  if (!confirm('¿Limpiar toda la línea de tiempo? Se borrarán los eventos, el tema, el prompt y el JSON.')) return;
   timelineEvents.length = 0;
+  document.getElementById('tlTema').value = '';
+  document.getElementById('tlPrompt').value = '';
+  document.getElementById('tlJson').value = '';
   renderizarTimeline();
   toast('Timeline limpiada');
 }
@@ -309,8 +313,16 @@ ${campos}
   const ta = document.getElementById('tlPrompt');
   if (ta) {
     ta.value = prompt;
-    toast('✅ Prompt generado. Copialo manualmente (Ctrl+C) y pegalo en Gemini Chat.');
+    toast('✅ Prompt generado. Copialo con el botón Copiar o Ctrl+C y pegalo en Gemini Chat.');
   }
+}
+
+function copiarPrompt() {
+  const ta = document.getElementById('tlPrompt');
+  if (!ta || !ta.value.trim()) return toast('No hay prompt para copiar');
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) { navigator.clipboard?.writeText(ta.value); }
+  toast('✅ Prompt copiado al portapapeles');
 }
 
 function escHtml(str) {
@@ -366,7 +378,7 @@ function wrapPlateLines(ctx, text, maxWidth, maxLines) {
   return lines;
 }
 
-function renderTimelineCanvas(events, W, H) {
+function renderTimelineCanvas(events, W, H, titulo) {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -404,7 +416,7 @@ function renderTimelineCanvas(events, W, H) {
   ctx.fillText('MEDIA MENDOZA  ·  CRONOLOGÍA', M, headerH * 0.36);
   ctx.fillStyle = '#ffffff';
   ctx.font = `400 ${Math.round(headerH * 0.5)}px "DM Serif Display", serif`;
-  ctx.fillText('Línea de tiempo', M, headerH * 0.84);
+  ctx.fillText(titulo || 'Línea de tiempo', M, headerH * 0.84);
 
   // ── Geometría de eventos ──
   const spineX = M + Math.round(W * 0.02);
@@ -533,7 +545,8 @@ async function exportarTimelineComoFlyer() {
 
   const W = 2400;
   const H = Math.max(1200, sorted.length * 240 + 300);
-  const canvas = renderTimelineCanvas(sorted, W, H);
+  const titulo = document.getElementById('tlTema').value.trim() || 'Línea de tiempo';
+  const canvas = renderTimelineCanvas(sorted, W, H, titulo);
 
   canvas.toBlob(blob => {
     const url = URL.createObjectURL(blob);
