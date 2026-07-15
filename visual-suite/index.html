@@ -603,11 +603,34 @@ Mayo, 70</textarea>
             <input class="vs-color-input" id="chartBgColor" type="color" value="#ffffff" oninput="actualizarGrafico()">
           </div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="vs-row">
           <button class="vs-btn vs-btn-primary" onclick="actualizarGrafico()">🔄 Actualizar</button>
-          <button class="vs-btn vs-btn-secondary" onclick="generarGraficoConIA()">🤖 Sugerir con IA</button>
         </div>
-        <div class="vs-row" style="margin-top:4px">
+
+        <!-- Chat IA -->
+        <div class="divider" style="height:1px;background:var(--line);margin:8px 0"></div>
+        <div class="vs-card-header">
+          <span class="vs-card-title">Generar con Chat IA</span>
+        </div>
+        <div>
+          <div class="vs-label">Tema</div>
+          <input class="vs-input" id="chartTema" placeholder="Ej: Inflación Argentina 2025" style="margin-top:6px">
+        </div>
+        <button class="vs-btn vs-btn-secondary" onclick="generarPromptChart()" style="margin-top:8px">🤖 Generar prompt para Chat IA</button>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <textarea class="vs-textarea" id="chartPrompt" style="flex:1;min-height:80px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar..."></textarea>
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptChart()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
+        </div>
+        <div style="margin-top:8px">
+          <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
+          <textarea class="vs-textarea" id="chartJson" style="margin-top:6px;min-height:60px;font-family:monospace;font-size:11px" placeholder='{"titulo":"Inflación 2025","tipo_sugerido":"line","datos_ordenados":[{"etiqueta":"Ene","valor":2.3}]}'></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarJSONdeChat()">📋 Cargar JSON</button>
+        </div>
+
+        <!-- Fondo IA -->
+        <div class="vs-row" style="margin-top:12px">
           <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('chartTitle').value,document.getElementById('chartData').value,function(){toast('Fondo listo. Exportá la placa para verlo.')})">🎨 Fondo IA</button>
           <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="refinarFondoIA(prompt('Instrucción para refinar el fondo:'),function(){toast('Refinado. Exportá la placa.')})">✏️ Refinar</button>
           <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();toast('Fondo IA eliminado')">✕ Sin fondo IA</button>

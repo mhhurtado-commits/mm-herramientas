@@ -289,49 +289,67 @@ function actualizarGrafico() {
   });
 }
 
-async function generarGraficoConIA() {
-  const btn = document.querySelector('#panel-charts .vs-btn-primary + .vs-btn-secondary');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Pensando...'; }
+function generarPromptChart() {
+  const tema = document.getElementById('chartTema').value.trim();
+  if (!tema) return toast('Ingresá un tema para generar el prompt');
 
-  const rawData = document.getElementById('chartData').value;
-  const tipoActual = document.getElementById('chartType').value;
+  const tipos = Object.entries(TIPO_NOMBRE).map(([k, v]) => `${k} (${v})`).join(', ');
 
-  const prompt = `Sos un asistente de visualización de datos para un diario digital.
-Datos crudos del usuario:
-${rawData}
+  const prompt = `Necesito un JSON puro para pegar en un frontend que genera gráficos.
 
-Tipo de gráfico actual: ${tipoActual} (${TIPO_NOMBRE[tipoActual]})
+Tema: "${tema}"
 
-Respondé SOLO con JSON sin backticks ni markdown:
+Formato requerido:
 {
-  "titulo": "título sugerido para el gráfico",
-  "tipo_sugerido": "bar|line|pie|doughnut|radar|polarArea",
-  "datos_ordenados": [{"etiqueta": "...", "valor": 123}],
-  "razon": "breve explicación de por qué este gráfico funciona mejor"
-}`;
+  "titulo": "título descriptivo del gráfico",
+  "tipo_sugerido": "bar | line | pie | doughnut | radar | polarArea",
+  "datos_ordenados": [{"etiqueta": "etiqueta", "valor": 123}],
+  "razon": "breve explicación de por qué este tipo de gráfico funciona mejor"
+}
 
-  const result = await apiPost('/visual/generar', { prompt, datos: rawData });
-  if (btn) { btn.disabled = false; btn.textContent = '🤖 Sugerir con IA'; }
+Tipos disponibles: ${tipos}
 
-  if (result && result.ok) {
-    try {
-      const parsed = JSON.parse(result.texto);
-      if (parsed.titulo) document.getElementById('chartTitle').value = parsed.titulo;
-      if (parsed.tipo_sugerido && TIPO_NOMBRE[parsed.tipo_sugerido]) {
-        document.getElementById('chartType').value = parsed.tipo_sugerido;
-      }
-      if (parsed.datos_ordenados) {
-        const newData = parsed.datos_ordenados.map(d => `${d.etiqueta}, ${d.valor}`).join('\n');
-        document.getElementById('chartData').value = newData;
-      }
-      cambiarTipoGrafico();
-      toast(`IA sugirió: ${parsed.razon || 'gráfico optimizado'}`);
-    } catch (e) {
-      toast('Error al interpretar sugerencia IA');
-    }
-  } else {
-    toast('No se pudo obtener sugerencia (modo offline)');
+Reglas:
+- 5 a 10 datos como máximo
+- Valores numéricos reales según datos públicos conocidos
+- Etiquetas claras y descriptivas
+- Elegí el tipo de gráfico que mejor represente los datos
+- Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;
+
+  const ta = document.getElementById('chartPrompt');
+  if (ta) {
+    ta.value = prompt;
+    toast('✅ Prompt generado. Copialo con el botón y pegalo en Gemini Chat.');
   }
+}
+
+function copiarPromptChart() {
+  const ta = document.getElementById('chartPrompt');
+  if (!ta || !ta.value.trim()) return toast('No hay prompt para copiar');
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) { navigator.clipboard?.writeText(ta.value); }
+  toast('✅ Prompt copiado al portapapeles');
+}
+
+async function cargarJSONdeChat() {
+  const ta = document.getElementById('chartJson');
+  const text = (ta && ta.value || '').trim();
+  if (!text) return toast('Pegá el JSON en el cuadro de arriba');
+
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch (e) { return toast('JSON inválido: ' + e.message); }
+
+  if (parsed.titulo) document.getElementById('chartTitle').value = parsed.titulo;
+  if (parsed.tipo_sugerido && TIPO_NOMBRE[parsed.tipo_sugerido]) {
+    document.getElementById('chartType').value = parsed.tipo_sugerido;
+  }
+  if (parsed.datos_ordenados && Array.isArray(parsed.datos_ordenados) && parsed.datos_ordenados.length) {
+    const lines = parsed.datos_ordenados.map(d => `${d.etiqueta}, ${d.valor}`).join('\n');
+    document.getElementById('chartData').value = lines;
+  }
+  cambiarTipoGrafico();
+  toast(`✅ Gráfico cargado: ${parsed.razon || 'listo'}`);
 }
 
 document.addEventListener('DOMContentLoaded', initCharts);

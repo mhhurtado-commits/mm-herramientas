@@ -541,6 +541,9 @@ function limpiarTodo() {
   document.getElementById('chartData').value = 'Enero, 45\nFebrero, 62\nMarzo, 38\nAbril, 55\nMayo, 70';
   document.getElementById('chartTitle').value = 'Título del gráfico';
   document.getElementById('chartType').value = 'bar';
+  document.getElementById('chartTema').value = '';
+  document.getElementById('chartPrompt').value = '';
+  document.getElementById('chartJson').value = '';
   cambiarTipoGrafico();
 
   // Maps
