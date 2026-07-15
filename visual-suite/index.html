@@ -504,6 +504,37 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
 .pub-resize-handle.corner-ne { top: -6px; right: -6px; cursor: ne-resize; }
 .pub-resize-handle.corner-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
 .pub-resize-handle.corner-se { bottom: -6px; right: -6px; cursor: se-resize; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .vs-main { padding-left: 12px; padding-right: 12px; }
+  .vs-main > div:first-child { flex-direction: column; align-items: flex-start !important; gap: 8px; }
+  .vs-main > div:first-child h1 { font-size: 1.5rem !important; }
+  .vs-card { padding: 14px; gap: 10px; }
+  .vs-card-header { flex-direction: column; align-items: flex-start; }
+  .vs-tab { padding: 8px 12px; font-size: 10px; }
+  .vs-map-container { height: 260px; }
+  .vs-url-bar { flex-direction: column; }
+  .vs-url-bar .vs-btn { width: 100%; justify-content: center; }
+  .vs-chart-container { min-height: 180px; }
+  .vs-chart-container canvas { max-height: 240px; }
+  .vs-infografia-area { aspect-ratio: 4 / 3; }
+  #panel-timeline > div[style*="grid"] { grid-template-columns: 1fr !important; }
+  #panel-timeline > div[style*="grid"] > div:last-child { position: static !important; }
+  .pub-editor .pub-palette { position: static; }
+  .pub-stage-wrap { max-height: none; }
+}
+
+@media (max-width: 640px) {
+  .vs-grid { gap: 10px; }
+  .vs-infografia-templates { grid-template-columns: repeat(2, 1fr); }
+  .vs-infografia-area { aspect-ratio: 1 / 1; }
+  .export-preview-box { padding: 16px; }
+  .vs-logo-controls { flex-direction: column; align-items: flex-start; }
+  .vs-btn { font-size: 10px; padding: 7px 12px; }
+  .vs-btn-sm { padding: 5px 8px; font-size: 9px; }
+  .vs-row { gap: 6px; }
+}
 </style>
 </head>
 <body>
