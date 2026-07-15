@@ -551,6 +551,9 @@ function limpiarTodo() {
 
   // Timeline
   if (typeof limpiarTimeline === 'function') limpiarTimeline();
+  document.getElementById('tlTema').value = '';
+  document.getElementById('tlPrompt').value = '';
+  document.getElementById('tlJson').value = '';
 
   // Infografia
   document.getElementById('infoTitle').value = 'Título de la infografía';

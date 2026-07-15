@@ -22,7 +22,6 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
   };
 }
 
-const TAVILY_API_KEY = "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";
 const timelineEvents = [];
 
 function initTimeline() {
@@ -79,7 +78,7 @@ function renderizarTimeline() {
   });
 
   container.innerHTML = html;
-  document.getElementById('tlCount').textContent = `${sorted.length} eventos`;
+  document.getElementById('tlCount').textContent = `${timelineEvents.length} eventos`;
 }
 
 function limpiarTimeline() {
@@ -263,207 +262,55 @@ function cargarArchivoJSON(input) {
   reader.readAsText(file);
 }
 
-// ── Búsqueda directa a Gemini desde el navegador (bypass IP Cloudflare) ──
-let _geminiApiKeys = null;
-
-async function obtenerApiKeysGemini() {
-  if (_geminiApiKeys) return _geminiApiKeys;
-  const res = await apiPost('/visual/key', {});
-  if (res && res.ok && Array.isArray(res.keys) && res.keys.length) {
-    _geminiApiKeys = res.keys;
-    return _geminiApiKeys;
-  }
-  return [];
+// ── Generar prompt para Chat IA ──
+function detectarTipoTema(tema) {
+  const t = tema.toLowerCase();
+  if (/\b(gol|partido|mundial|copa|fútbol|messi|tenis|liga|f1|nba|boxeo|deporte)\b/.test(t)) return 'deportes';
+  if (/\b(inflación|economía|dólar|ipc|pbi|precio|salario|impuesto|deuda|bolsa|mercado)\b/.test(t)) return 'economia';
+  if (/\b(elección|presidente|gobierno|ley|decreto|constitución|guerra|tratado|acuerdo)\b/.test(t)) return 'historia';
+  return 'general';
 }
 
-async function buscarEnGeminiDesdeNavegador(prompt) {
-  // ── Paso A: Buscar en la web con Tavily ──
-  console.log('🔍 Buscando en web con Tavily...');
-  let context = '';
-  try {
-    const tavilyRes = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: TAVILY_API_KEY,
-        query: prompt,
-        search_depth: 'basic',
-        max_results: 5
-      })
-    });
-    if (tavilyRes.ok) {
-      const searchData = await tavilyRes.json();
-      const results = searchData?.results || [];
-      if (results.length) {
-        context = results.map(r => `- ${r.title}: ${r.content} (Fuente: ${r.url})`).join('\n');
-        console.log(`✅ Tavily devolvió ${results.length} resultados`);
-      } else {
-        console.warn('⚠️ Tavily no encontró resultados');
-      }
-    } else {
-      console.warn(`⚠️ Tavily error HTTP ${tavilyRes.status}`);
-    }
-  } catch (e) {
-    console.warn('⚠️ Error llamando a Tavily:', e.message);
-  }
-
-  // ── Paso B: Consultar a Gemini con el contexto de Tavily (sin googleSearch) ──
-  const promptGemini = context
-    ? `Usa la siguiente información real obtenida de la web para responder con la mayor precisión posible. 
-
-Información de contexto obtenida:
-${context}
-
-Pregunta/Instrucción original del usuario: "${prompt}"
-
-Instrucciones de formateo CRÍTICAS:
-1. **Consolidación y Síntesis:** Si el tema involucra datos repetitivos, múltiples fuentes para un mismo suceso o actualizaciones constantes de un mismo periodo, consolida la información. No dupliques fechas ni crees múltiples eventos para el mismo hito.
-2. **Hitos Clave:** Selecciona únicamente los eventos que marquen un avance real y significativo en la cronología. Evita el "ruido" o datos secundarios (por ejemplo, si se buscan goles, pon solo los goles; si se busca inflación mensual, pon solo el índice general de cada mes, ignorando variaciones por rubro o localidad).
-3. **Estructura Limpia:** Cada elemento de la línea de tiempo debe ser único, autoexplicativo y estar ordenado de manera estrictamente cronológica.
-4. **Factualidad:** Basate exclusivamente en los datos del contexto provisto. Si el contexto no contiene datos suficientes para responder lo solicitado por el usuario, indícalo claramente en la nota final en lugar de alucinar o rellenar con datos irrelevantes.`
-    : prompt;
-
-  const keys = await obtenerApiKeysGemini();
-  if (!keys || !keys.length) return { error: 'No hay API keys de Gemini disponibles' };
-
-  for (let i = 0; i < keys.length; i++) {
-    const keyActual = keys[i];
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${keyActual}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptGemini }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 8000 }
-        })
-      });
-
-      let data = null;
-      try { 
-        data = await res.json(); 
-      } catch (jsonErr) {}
-
-      const esLímiteCuota = (res.status === 429) || (data?.error?.code === 429) || (data?.error?.status === "RESOURCE_EXHAUSTED");
-      if (esLímiteCuota) {
-        console.warn(`⚠️ Key ${i + 1} agotada (429). Rotando a Key ${i + 2}...`);
-        continue;
-      }
-      if (!res.ok) {
-        const msgError = data?.error?.message || `HTTP ${res.status}`;
-        console.warn(`⚠️ Key ${i + 1} falló: ${msgError}. Rotando a Key ${i + 2}...`);
-        continue; 
-      }
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (!text) {
-        console.warn(`⚠️ Key ${i + 1} no devolvió texto. Rotando a Key ${i + 2}...`);
-        continue;
-      }
-      console.log(`✅ Gemini respondió con la Key ${i + 1}`);
-      return { data: text };
-    } catch (e) {
-      console.warn(`⚠️ Key ${i + 1} - Error de red: ${e.message}. Rotando a Key ${i + 2}...`);
-    }
-  }
-
-  return { error: '429_todas_las_keys' };
+function camposSegunTipo(tipo) {
+  const map = {
+    deportes: `- Incluí para cada evento: fase del torneo, rival, minuto, tipo de jugada, marcador
+- Ejemplo: {"fecha":"2026-06-15","titulo":"Messi 10'","desc":"Gol de Messi a los 10' vs Argelia - Fase de Grupos"}`,
+    economia: `- Incluí para cada evento: valor numérico, porcentaje, indicador económico
+- Ejemplo: {"fecha":"2026-01-01","titulo":"Inflación enero 2026","desc":"2,3% mensual - 84,2% interanual"}`,
+    historia: `- Incluí para cada evento: protagonistas, lugar, contexto breve
+- Ejemplo: {"fecha":"1816-07-09","titulo":"Declaración de Independencia","desc":"Congreso de Tucumán proclama la independencia argentina"}`,
+    general: `- Incluí campos descriptivos relevantes según el tema
+- Ejemplo: {"fecha":"2026-06-15","titulo":"Título del evento","desc":"Descripción con datos concretos"}`
+  };
+  return map[tipo] || map.general;
 }
 
-async function procesarResultadoTimeline(result) {
-  if (!result || !result.ok) return toast('No se pudo generar (modo offline)');
-  try {
-    const parsed = JSON.parse(result.texto);
-    const items = Array.isArray(parsed) ? parsed : (parsed.eventos || parsed.data || parsed.timeline || parsed.items || []);
-    if (items && items.length) {
-      let count = 0, omit = 0;
-      items.forEach(it => {
-        const n = normalizarEventoJSON(it);
-        const d = fechaValida(n.f);
-        if (!d) { omit++; return; }
-        timelineEvents.push({ date: d, title: n.title, desc: n.desc, meta: it });
-        count++;
-      });
-      renderizarTimeline();
-      if (count) toast(`${count} eventos generados${omit ? ` (${omit} sin fecha)` : ''}`);
-      else toast('Los eventos encontrados tienen fechas inválidas');
-    } else {
-      toast('No se encontraron eventos');
-    }
-  } catch (e) {
-    toast('Error al interpretar respuesta');
-  }
-}
-
-// ── IA con búsqueda web (desde navegador → worker) ──
-async function generarTimelineWeb() {
+function generarPromptChat() {
   const tema = document.getElementById('tlTema').value.trim();
-  const desde = document.getElementById('tlDesde').value;
+  if (!tema) return toast('Ingresá un tema para generar el prompt');
 
-  if (!tema) return toast('Ingresá un tema para la línea de tiempo');
+  const tipo = detectarTipoTema(tema);
+  const campos = camposSegunTipo(tipo);
 
-  const btn = document.getElementById('btnTlWeb');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando en web...'; }
+  const prompt = `Necesito un JSON puro para pegar en un frontend que renderiza una línea de tiempo.
 
-  // Paso 1: buscar desde el navegador
-  const promptBusqueda = `Buscá la información más actualizada, real y detallada sobre: "${tema}". Recopilá los eventos de forma cronológica con fechas exactas, resultados y datos clave basados estrictamente en los resultados de búsqueda web actuales.`;
+Tema: "${tema}"
 
-  const busqueda = await buscarEnGeminiDesdeNavegador(promptBusqueda);
+Formato requerido:
+{ "eventos": [ { "fecha": "YYYY-MM-DD", "titulo": "...", "descripcion": "..." } ] }
 
-  if (busqueda.error && busqueda.error === '429_todas_las_keys') {
-    // Todas las keys agotadas por cuota → fallback a conocimiento interno del Worker
-    if (btn) btn.textContent = '⏳ Usando conocimiento interno...';
-    const result = await apiPost('/visual/timeline', { tema, desde });
-    if (btn) { btn.disabled = false; btn.textContent = '🌐 Buscar en web'; }
-    return procesarResultadoTimeline(result);
+Reglas:
+- Cada evento individual tiene su propia entrada
+- Orden cronológico estricto
+- Detecté que este tema es de tipo: ${tipo}
+${campos}
+- Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;
+
+  const ta = document.getElementById('tlPrompt');
+  if (ta) {
+    ta.value = prompt;
+    toast('✅ Prompt generado. Copialo manualmente (Ctrl+C) y pegalo en Gemini Chat.');
   }
-
-  if (busqueda.error) {
-    // Fallback directo al Worker
-    if (btn) btn.textContent = '⏳ Enviando al servidor...';
-    const result = await apiPost('/visual/timeline', { tema, desde });
-    if (btn) { btn.disabled = false; btn.textContent = '🌐 Buscar en web'; }
-    return procesarResultadoTimeline(result);
-  }
-
-  // Paso 2: enviar texto buscado al Worker para formatear
-  if (btn) btn.textContent = '⏳ Formateando datos...';
-  const result = await apiPost('/visual/timeline', { tema, desde, textoBusquedaCliente: busqueda.data });
-  if (btn) { btn.disabled = false; btn.textContent = '🌐 Buscar en web'; }
-  return procesarResultadoTimeline(result);
-}
-
-// ── IA con búsqueda web (fundamentada, desde navegador → worker) ──
-async function generarTimelineIA() {
-  const tema = document.getElementById('tlTema').value.trim() || 'actualidad de Mendoza';
-
-  const btn = document.getElementById('btnTlIA');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando en web...'; }
-
-  // Paso 1: buscar desde el navegador
-  const promptBusqueda = `Buscá la información más actualizada, real y detallada sobre: "${tema}". Recopilá los eventos de forma cronológica con fechas exactas, resultados y datos clave basados estrictamente en los resultados de búsqueda web actuales.`;
-
-  const busqueda = await buscarEnGeminiDesdeNavegador(promptBusqueda);
-
-  if (busqueda.error && busqueda.error === '429_todas_las_keys') {
-    // Todas las keys agotadas → fallback a conocimiento interno del Worker
-    if (btn) btn.textContent = '⏳ Usando conocimiento interno...';
-    const result = await apiPost('/visual/timeline', { tema, desde: '' });
-    if (btn) { btn.disabled = false; btn.textContent = '🤖 IA + Web'; }
-    return procesarResultadoTimeline(result);
-  }
-
-  if (busqueda.error) {
-    // Fallback directo al Worker
-    if (btn) btn.textContent = '⏳ Enviando al servidor...';
-    const result = await apiPost('/visual/timeline', { tema, desde: '' });
-    if (btn) { btn.disabled = false; btn.textContent = '🤖 IA + Web'; }
-    return procesarResultadoTimeline(result);
-  }
-
-  // Paso 2: enviar al Worker para formatear
-  if (btn) btn.textContent = '⏳ Formateando datos...';
-  const result = await apiPost('/visual/timeline', { tema, desde: '', textoBusquedaCliente: busqueda.data });
-  if (btn) { btn.disabled = false; btn.textContent = '🤖 IA + Web'; }
-  return procesarResultadoTimeline(result);
 }
 
 function escHtml(str) {

@@ -669,68 +669,74 @@ Mayo, 70</textarea>
 
   <!-- PANEL: LÍNEA DE TIEMPO -->
   <div class="vs-panel" id="panel-timeline">
-    <div class="vs-grid">
-      <div class="vs-card accent">
-        <div class="vs-card-header">
-          <span class="vs-card-title">Agregar evento manual</span>
+    <div style="display:grid;grid-template-columns:2fr 3fr;gap:16px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <!-- Manual -->
+        <div class="vs-card accent">
+          <div class="vs-card-header">
+            <span class="vs-card-title">Agregar evento manual</span>
+          </div>
+          <div>
+            <div class="vs-label">Fecha</div>
+            <input class="vs-input" id="tlDate" type="date" style="margin-top:6px">
+          </div>
+          <div>
+            <div class="vs-label">Título</div>
+            <input class="vs-input" id="tlTitle" placeholder="Título del evento" style="margin-top:6px">
+          </div>
+          <div>
+            <div class="vs-label">Descripción</div>
+            <textarea class="vs-textarea" id="tlDesc" placeholder="Descripción del evento" style="margin-top:6px"></textarea>
+          </div>
+          <button class="vs-btn vs-btn-primary" onclick="agregarEventoTimeline()">+ Agregar Evento</button>
         </div>
-        <div>
-          <div class="vs-label">Fecha</div>
-          <input class="vs-input" id="tlDate" type="date" style="margin-top:6px">
+
+        <!-- Chat IA -->
+        <div class="vs-card">
+          <div class="vs-card-header">
+            <span class="vs-card-title">Generar con Chat IA</span>
+          </div>
+          <div>
+            <div class="vs-label">Tema</div>
+            <input class="vs-input" id="tlTema" placeholder="Ej: Goles Messi Mundial 2026" style="margin-top:6px">
+          </div>
+          <button class="vs-btn vs-btn-secondary" onclick="generarPromptChat()" style="margin-top:8px">📋 Generar prompt para Chat IA</button>
+          <div style="margin-top:8px">
+            <div class="vs-label">Prompt generado (copiado automáticamente)</div>
+            <textarea class="vs-textarea" id="tlPrompt" style="margin-top:6px;min-height:100px;font-family:monospace;font-size:12px;color:var(--muted)" readonly placeholder="Acá aparecerá el prompt para copiar y pegar en Gemini Chat..."></textarea>
+          </div>
         </div>
-        <div>
-          <div class="vs-label">Título</div>
-          <input class="vs-input" id="tlTitle" placeholder="Título del evento" style="margin-top:6px">
+
+        <!-- JSON -->
+        <div class="vs-card">
+          <div class="vs-card-header">
+            <span class="vs-card-title">Cargar JSON</span>
+            <span class="vs-badge" style="background:var(--v);color:#16201b">Chat IA</span>
+          </div>
+          <div>
+            <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
+            <textarea class="vs-textarea" id="tlJson" style="margin-top:6px;min-height:80px;font-family:monospace;font-size:11px" placeholder='[{"fecha":"2026-06-16","titulo":"Gol Messi 17&#39;","descripcion":"Messi abre el marcador vs Argelia - Fase de Grupos"}]'></textarea>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarTimelineDesdeJSON()">📋 Cargar JSON</button>
+            <label class="vs-btn vs-btn-secondary vs-btn-sm" style="cursor:pointer">
+              📁 Archivo
+              <input type="file" id="tlJsonFile" accept=".json,application/json" style="display:none" onchange="cargarArchivoJSON(this)">
+            </label>
+          </div>
         </div>
-        <div>
-          <div class="vs-label">Descripción</div>
-          <textarea class="vs-textarea" id="tlDesc" placeholder="Descripción del evento" style="margin-top:6px"></textarea>
-        </div>
-        <button class="vs-btn vs-btn-primary" onclick="agregarEventoTimeline()">+ Agregar Evento</button>
-        <div class="divider" style="height:1px;background:var(--line);margin:4px 0"></div>
-        <div class="vs-card-header">
-          <span class="vs-card-title">Generar con IA</span>
-        </div>
-        <div>
-          <div class="vs-label">Tema</div>
-          <input class="vs-input" id="tlTema" placeholder="Ej: Historia del ferrocarril en Mendoza" style="margin-top:6px">
-        </div>
-        <div>
-          <div class="vs-label">Desde (fecha opcional)</div>
-          <input class="vs-input" id="tlDesde" type="date" style="margin-top:6px">
-        </div>
+
+        <!-- Acciones -->
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="vs-btn vs-btn-secondary vs-btn-sm" id="btnTlWeb" onclick="generarTimelineWeb()">🌐 Buscar en web</button>
-          <button class="vs-btn vs-btn-secondary vs-btn-sm" id="btnTlIA" onclick="generarTimelineIA()">🤖 IA + Web</button>
-          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarTimeline()">🗑 Limpiar</button>
-        </div>
-        <div class="vs-row" style="margin-top:4px">
-          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('tlTema').value||(timelineEvents[0]&&timelineEvents[0].title)||'Cronología Mendoza',timelineEvents.map(function(e){return e.title}).join('. '),function(){toast('Fondo listo. Exportá la placa.')})">🎨 Fondo IA</button>
+          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarTimeline()">🗑 Limpiar timeline</button>
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('tlTema').value||(timelineEvents[0]&&timelineEvents[0].title)||'Cronología',timelineEvents.map(function(e){return e.title}).join('. '),function(){toast('Fondo listo. Exportá la placa.')})">🎨 Fondo IA</button>
           <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="refinarFondoIA(prompt('Instrucción para refinar el fondo:'),function(){toast('Refinado. Exportá la placa.')})">✏️ Refinar</button>
           <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();toast('Fondo IA eliminado')">✕ Sin fondo IA</button>
         </div>
       </div>
 
-      <div class="vs-card">
-        <div class="vs-card-header">
-          <span class="vs-card-title">Fuente: JSON</span>
-          <span class="vs-badge" style="background:var(--v);color:#16201b">Manual</span>
-        </div>
-        <div>
-          <div class="vs-label">Pegá aquí el JSON de eventos</div>
-          <textarea class="vs-textarea" id="tlJson" style="margin-top:6px;min-height:96px;font-family:monospace;font-size:11px" placeholder='[{"fecha":"2026-06-16","fase":"Fase de Grupos","rival":"Argelia","minuto":"17&#39;","tipo":"Jugada (Zurda)","marcador":"1-0"}]'></textarea>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-          <button class="vs-btn vs-btn-accent vs-btn-sm" id="btnTlJson" onclick="cargarTimelineDesdeJSON()">📋 Cargar JSON</button>
-          <label class="vs-btn vs-btn-secondary vs-btn-sm" style="cursor:pointer">
-            📁 Archivo
-            <input type="file" id="tlJsonFile" accept=".json,application/json" style="display:none" onchange="cargarArchivoJSON(this)">
-          </label>
-          <span style="font-size:11px;color:var(--muted);align-self:center">Reemplaza los eventos actuales</span>
-        </div>
-      </div>
-
-      <div class="vs-card">
+      <!-- Timeline display (right column, prominent) -->
+      <div class="vs-card" style="position:sticky;top:80px">
         <div class="vs-card-header">
           <span class="vs-card-title">Línea de Tiempo</span>
           <span class="vs-badge" id="tlCount">0 eventos</span>
