@@ -425,4 +425,17 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
   dibujarLogoEfemerides(ctx, W, H);
 }
 
+function cargarArchivoJSONEfe(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const ta = document.getElementById('efeJson');
+    if (ta) ta.value = e.target.result;
+    cargarJSONEfemerides();
+  };
+  reader.onerror = () => toast('No se pudo leer el archivo');
+  reader.readAsText(file);
+}
+
 document.addEventListener('DOMContentLoaded', initEfemerides);
