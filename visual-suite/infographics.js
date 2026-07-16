@@ -35,6 +35,8 @@ let formatoActual = 'landscape';
 // ── Estado del título arrastrable ──
 let titleState = { x: null, y: null, w: null, h: null };
 let titleAction = null; // 'drag' | 'resize-nw' | 'resize-ne' | 'resize-sw' | 'resize-se' | 'resize-w' | 'resize-e'
+let titleActive = false;
+let scale = 1;
 const TITLE_DEF = {
   simple:      { x: 0.05, y: 0.09, w: 0.9,  h: 0.1 },
   listado:     { x: 0.05, y: 0.09, w: 0.9,  h: 0.1 },
@@ -62,115 +64,109 @@ function initInfographics() {
   resetTitlePos();
   renderizarInfografia();
 
-  // Eventos del canvas para título arrastrable
   const canvas = document.getElementById('infografiaCanvas');
   if (canvas) {
-    canvas.addEventListener('mousedown', onTitleDown);
-    canvas.addEventListener('touchstart', onTitleDown, { passive: false });
+    canvas.addEventListener('mousedown', onDown);
+    canvas.addEventListener('touchstart', onDown, { passive: false });
+    canvas.addEventListener('mousemove', onMove);
+    canvas.addEventListener('touchmove', onMove, { passive: false });
+    canvas.addEventListener('mouseup', onUp);
+    canvas.addEventListener('touchend', onUp);
   }
 }
 
-// ── Eventos del título ──
-function getCanvasCoords(e) {
+// ── Eventos del título (copiado de placas) ──
+function getPos(e) {
   const canvas = document.getElementById('infografiaCanvas');
   if (!canvas) return null;
   const rect = canvas.getBoundingClientRect();
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  const W = canvas.width;
-  const H = canvas.height;
-  const sx = W / rect.width;
-  const sy = H / rect.height;
-  return { x: (clientX - rect.left) * sx, y: (clientY - rect.top) * sy, W, H };
+  const t = e.touches ? e.touches[0] : e;
+  return { x: (t.clientX - rect.left) * scale, y: (t.clientY - rect.top) * scale };
 }
 
-function hitTestHandle(px, py, r, W) {
-  const hs = Math.max(8, Math.round(W * 0.012));
+function getHandleHit(pos) {
+  const s = titleState.x != null ? titleState : TITLE_DEF[templateActual] || TITLE_DEF.simple;
+  const el = { x: s.x * fmtW(), y: s.y * fmtH(), w: s.w * fmtW(), h: s.h * fmtH() };
+  const base = Math.round(16 * (fmtW() / 1080));
   const handles = [
-    { id: 'nw', x: r.x, y: r.y },
-    { id: 'ne', x: r.x + r.w, y: r.y },
-    { id: 'sw', x: r.x, y: r.y + r.h },
-    { id: 'se', x: r.x + r.w, y: r.y + r.h },
-    { id: 'w',  x: r.x, y: r.y + r.h / 2 },
-    { id: 'e',  x: r.x + r.w, y: r.y + r.h / 2 }
+    { id: 'nw', x: el.x, y: el.y, t: 'c' }, { id: 'ne', x: el.x + el.w, y: el.y, t: 'c' },
+    { id: 'sw', x: el.x, y: el.y + el.h, t: 'c' }, { id: 'se', x: el.x + el.w, y: el.y + el.h, t: 'c' },
+    { id: 'w', x: el.x, y: el.y + el.h / 2, t: 's' }, { id: 'e', x: el.x + el.w, y: el.y + el.h / 2, t: 's' }
   ];
-  const hitR = hs * 0.7;
   for (const h of handles) {
-    if (Math.abs(px - h.x) < hitR && Math.abs(py - h.y) < hitR) return h.id;
+    const hitR = h.t === 'c' ? base * 2.5 : base * 2;
+    if (Math.abs(pos.x - h.x) < hitR && Math.abs(pos.y - h.y) < hitR) return h.id;
   }
   return null;
 }
 
-function onTitleDown(e) {
-  const c = getCanvasCoords(e);
-  if (!c) return;
-  const r = getTitleRect(c.W, c.H);
-  const handle = hitTestHandle(c.x, c.y, r, c.W);
-  if (handle) {
-    titleAction = 'resize-' + handle;
-    e.preventDefault();
-    window.addEventListener('mousemove', onTitleMove);
-    window.addEventListener('mouseup', onTitleUp);
-    window.addEventListener('touchmove', onTitleMove, { passive: false });
-    window.addEventListener('touchend', onTitleUp);
+function fmtW() { return FORMATOS[formatoActual].w; }
+function fmtH() { return FORMATOS[formatoActual].h; }
+
+function onDown(e) {
+  if (e.touches) e.preventDefault();
+  const pos = getPos(e);
+  if (!pos) return;
+  const W = fmtW(), H = fmtH();
+  const s = titleState.x != null ? titleState : TITLE_DEF[templateActual] || TITLE_DEF.simple;
+  const el = { x: s.x * W, y: s.y * H, w: s.w * W, h: s.h * H };
+  const hid = getHandleHit(pos);
+  if (hid) {
+    titleAction = 'resize-' + hid;
+    titleActive = true;
+    titleState._offX = pos.x; titleState._offY = pos.y;
+    titleState._startS = { x: s.x, y: s.y, w: s.w, h: s.h };
     return;
   }
-  // Hit test sobre el bloque del título
-  if (c.x >= r.x && c.x <= r.x + r.w && c.y >= r.y && c.y <= r.y + r.h) {
+  if (pos.x >= el.x && pos.x <= el.x + el.w && pos.y >= el.y && pos.y <= el.y + el.h) {
     titleAction = 'drag';
-    titleState._startX = titleState.x;
-    titleState._startY = titleState.y;
-    titleState._offX = c.x - r.x;
-    titleState._offY = c.y - r.y;
-    titleState._W = c.W;
-    titleState._H = c.H;
-    e.preventDefault();
-    window.addEventListener('mousemove', onTitleMove);
-    window.addEventListener('mouseup', onTitleUp);
-    window.addEventListener('touchmove', onTitleMove, { passive: false });
-    window.addEventListener('touchend', onTitleUp);
+    titleActive = true;
+    titleState._offX = pos.x - el.x; titleState._offY = pos.y - el.y;
+  } else {
+    titleActive = false;
+    renderizarInfografia();
   }
 }
 
-function onTitleMove(e) {
-  if (!titleAction) return;
+function onMove(e) {
   if (e.touches) e.preventDefault();
-  const c = getCanvasCoords(e);
-  if (!c) return;
+  if (!titleAction) return;
+  const pos = getPos(e);
+  if (!pos) return;
+  const W = fmtW(), H = fmtH();
   const s = titleState.x != null ? titleState : TITLE_DEF[templateActual] || TITLE_DEF.simple;
-  const iW = c.W, iH = c.H;
   if (titleAction === 'drag') {
-    if (s._startX == null) { s._startX = s.x; s._startY = s.y; }
-    let nx = s._startX + (c.x - s._offX - s._startX * iW) / iW;
-    let ny = s._startY + (c.y - s._offY - s._startY * iH) / iH;
+    let nx = (pos.x - titleState._offX) / W;
+    let ny = (pos.y - titleState._offY) / H;
     nx = Math.max(0, Math.min(1 - s.w, nx));
     ny = Math.max(0, Math.min(1 - s.h, ny));
+    const ecx = nx + s.w / 2, ecy = ny + s.h / 2;
+    const SNAP = W * 0.014 / W;
+    if (Math.abs(ecx - 0.5) < SNAP) nx = 0.5 - s.w / 2;
+    if (Math.abs(ecy - 0.5) < SNAP) ny = 0.5 - s.h / 2;
     s.x = nx; s.y = ny;
     titleState = s;
   } else {
     const corner = titleAction.replace('resize-', '');
-    const minW = 0.08, minH = 0.03, maxW = 0.95, maxH = 0.3;
-    let { x, y, w, h } = s;
-    const dx = (c.x - s._offX - x * iW) / iW;
-    const dy = (c.y - s._offY - y * iH) / iH;
-    if (corner === 'se') { w = Math.max(minW, Math.min(maxW, w + dx)); h = Math.max(minH, Math.min(maxH, h + dy)); }
-    else if (corner === 'sw') { const nw = Math.max(minW, Math.min(maxW, w - dx)); x = x + w - nw; w = nw; h = Math.max(minH, Math.min(maxH, h + dy)); }
-    else if (corner === 'ne') { w = Math.max(minW, Math.min(maxW, w + dx)); const nh = Math.max(minH, Math.min(maxH, h - dy)); y = y + h - nh; h = nh; }
-    else if (corner === 'nw') { const nw = Math.max(minW, Math.min(maxW, w - dx)); x = x + w - nw; w = nw; const nh = Math.max(minH, Math.min(maxH, h - dy)); y = y + h - nh; h = nh; }
-    else if (corner === 'w') { const nw = Math.max(minW, Math.min(maxW, w - dx)); x = x + w - nw; w = nw; }
-    else if (corner === 'e') { w = Math.max(minW, Math.min(maxW, w + dx)); }
+    const MIN = W * 0.04;
+    const SMAX = { x: 1 - MIN / W, y: 1 - MIN / H, w: 1, h: 0.4 };
+    let { x, y, w, h } = titleState._startS;
+    const dx = pos.x - titleState._offX;
+    const dy = pos.y - titleState._offY;
+    if (corner === 'se') { w = Math.max(MIN / W, Math.min(SMAX.w, w + dx / W)); h = Math.max(MIN / H, Math.min(SMAX.h, h + dy / H)); }
+    else if (corner === 'sw') { const nw = Math.max(MIN / W, Math.min(SMAX.w, w - dx / W)); x = x + w - nw; w = nw; h = Math.max(MIN / H, Math.min(SMAX.h, h + dy / H)); }
+    else if (corner === 'ne') { w = Math.max(MIN / W, Math.min(SMAX.w, w + dx / W)); const nh = Math.max(MIN / H, Math.min(SMAX.h, h - dy / H)); y = y + h - nh; h = nh; }
+    else if (corner === 'nw') { const nw = Math.max(MIN / W, Math.min(SMAX.w, w - dx / W)); x = x + w - nw; w = nw; const nh = Math.max(MIN / H, Math.min(SMAX.h, h - dy / H)); y = y + h - nh; h = nh; }
+    else if (corner === 'w') { const nw = Math.max(MIN / W, Math.min(SMAX.w, w - dx / W)); x = x + w - nw; w = nw; }
+    else if (corner === 'e') { w = Math.max(MIN / W, Math.min(SMAX.w, w + dx / W)); }
     Object.assign(s, { x, y, w, h });
     titleState = s;
   }
   renderizarInfografia();
 }
 
-function onTitleUp() {
+function onUp() {
   titleAction = null;
-  window.removeEventListener('mousemove', onTitleMove);
-  window.removeEventListener('mouseup', onTitleUp);
-  window.removeEventListener('touchmove', onTitleMove);
-  window.removeEventListener('touchend', onTitleUp);
   renderizarInfografia();
 }
 
@@ -188,18 +184,16 @@ function seleccionarTemplate(template) {
 function renderizarInfografia() {
   const canvas = document.getElementById('infografiaCanvas');
   const fmt = FORMATOS[formatoActual] || FORMATOS.landscape;
-  const dpr = 2;
+  const W = fmt.w, H = fmt.h;
   const cssW = canvas.parentElement.clientWidth || 800;
-  const cssH = cssW * fmt.h / fmt.w;
+  const cssH = cssW * H / W;
   canvas.style.width = cssW + 'px';
   canvas.style.height = cssH + 'px';
-  canvas.width = Math.round(cssW * dpr);
-  canvas.height = Math.round(cssH * dpr);
+  canvas.width = W;
+  canvas.height = H;
+  scale = W / cssW;
 
   const ctx = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
-
   const color1 = document.getElementById('infoColor1').value;
   const color2 = document.getElementById('infoColor2').value;
   const title = document.getElementById('infoTitle').value || 'Infografía';
@@ -217,9 +211,7 @@ function renderizarInfografia() {
 
   dibujarLogoInfografia(ctx, W, H);
 
-  // Handles y guías del título
-  if (titleAction) drawTitleGuides(ctx, W, H);
-  drawTitleHandles(ctx, W, H);
+  if (titleActive) drawActiveUI(ctx, W, H);
 }
 
 // ── Helpers ──
@@ -275,34 +267,44 @@ function drawPlateFooter(ctx, W, H, accent, dark) {
   ctx.textAlign = 'left';
 }
 
-function drawPlateHeader(ctx, W, H, kicker, title, accent, dark) {
+function drawTitle(ctx, W, H, title, accent, dark, kicker) {
+  if (!title) return;
   const s = titleState.x != null ? titleState : TITLE_DEF[templateActual] || TITLE_DEF.simple;
   const bx = s.x * W, by = s.y * H, bw = s.w * W, bh = s.h * H;
-  const ink = dark ? '#ffffff' : PLATE_INK;
-  const pad = bw * 0.04;
-  const titleW = bw - pad * 2;
-  ctx.textAlign = 'left';
-  const kickH = kicker ? bh * 0.22 : 0;
+  const pad = Math.round(bw * 0.025);
+  const aw = bw - pad * 2;
+  if (aw <= 0) return;
+  // Kicker
   if (kicker) {
+    ctx.textAlign = 'left';
     ctx.fillStyle = accent;
-    ctx.font = `700 ${Math.min(bw, bh) * 0.14}px "Inter", sans-serif`;
-    ctx.fillText(kicker.toUpperCase(), bx + pad, by + bh * 0.2);
+    ctx.font = `700 ${Math.round(bh * 0.18)}px "Inter", sans-serif`;
+    ctx.fillText(kicker.toUpperCase(), bx + pad, by + Math.round(bh * 0.12));
   }
-  ctx.fillStyle = ink;
-  let sz = Math.min(bw * 0.07, bh * 0.28);
+  const kickH = kicker ? bh * 0.3 : 0;
+  let sz = Math.max(10, Math.round(bh * 0.35));
   let lines, lh;
   for (let i = 0; i < 20; i++) {
     ctx.font = `400 ${sz}px "DM Serif Display", serif`;
-    lines = wrapText(ctx, title, titleW);
-    lh = sz * 1.2;
-    if (lines.length * lh <= bh * 0.6 || sz <= 10) break;
+    lines = wrapText(ctx, title, aw);
+    lh = Math.round(sz * 1.15);
+    if (lines.length * lh <= (bh - kickH) * 0.9 || sz <= 10) break;
     sz = Math.max(10, Math.round(sz * 0.88));
   }
-  const ty = by + kickH + (bh - kickH - lines.length * lh) / 2;
-  lines.forEach((l, i) => ctx.fillText(l, bx + pad, ty + i * lh));
-  const barY = ty + lines.length * lh + bh * 0.04;
-  ctx.fillStyle = accent;
-  ctx.fillRect(bx + pad, barY, bw * 0.18, Math.max(2, bh * 0.02));
+  const textH = lines.length * lh;
+  const titleAreaH = bh - kickH;
+  const sy = by + kickH + Math.round((titleAreaH - textH) / 2);
+  const cx = bx + Math.round(bw / 2);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = dark ? '#ffffff' : PLATE_INK;
+  ctx.shadowColor = dark ? 'rgba(0,0,0,0.85)' : 'transparent';
+  ctx.shadowBlur = dark ? Math.round(sz * 0.18) : 0;
+  ctx.shadowOffsetX = dark ? Math.round(sz * 0.04) : 0;
+  ctx.shadowOffsetY = dark ? Math.round(sz * 0.04) : 0;
+  lines.forEach((l, i) => ctx.fillText(l, cx, sy + i * lh));
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 }
 
 function drawIconChipPlate(ctx, x, y, size, icono, accent) {
@@ -377,7 +379,7 @@ function renderFlyerSimple(ctx, W, H, title, content, c1, c2) {
   ctx.fillStyle = c1;
   ctx.fillRect(0, 0, W, Math.round(H * 0.006));
 
-  drawPlateHeader(ctx, W, H, 'RESUMEN', title, c1, isDark);
+  drawTitle(ctx, W, H, title, c1, isDark, 'RESUMEN');
 
   const lines = content.split('\n').filter(l => l.trim());
   const maxCards = Math.min(lines.length, 8);
@@ -467,7 +469,7 @@ function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
   ctx.fillStyle = c1;
   ctx.fillRect(0, tr.y + tr.h + headerPad - Math.round(H * 0.005), W, Math.round(H * 0.005));
   // Título (usa titleState para posición)
-  drawPlateHeader(ctx, W, H, 'COMPARATIVA', title, c1, true);
+  drawTitle(ctx, W, H, title, c1, true, 'COMPARATIVA');
 
   const lines = content.split('\n').filter(l => l.trim());
   const leftItems = lines.filter((_, i) => i % 2 === 0);
@@ -549,7 +551,7 @@ function renderFlyerListado(ctx, W, H, title, content, c1, c2) {
   ctx.fillStyle = c1;
   ctx.fillRect(0, 0, W, Math.round(H * 0.006));
 
-  drawPlateHeader(ctx, W, H, 'LISTADO', title, c1, isDark);
+  drawTitle(ctx, W, H, title, c1, isDark, 'LISTADO');
 
   const items = content.split('\n').filter(l => l.trim());
   const maxN = Math.min(items.length, 10);
@@ -636,7 +638,7 @@ function renderFlyerDestacado(ctx, W, H, title, content, c1, c2) {
   ctx.fillStyle = c1;
   ctx.fillRect(0, 0, Math.round(W * 0.03), H);
 
-  drawPlateHeader(ctx, W, H, 'DATOS DESTACADOS', title, c1, true);
+  drawTitle(ctx, W, H, title, c1, true, 'DATOS DESTACADOS');
 
   const lines = content.split('\n').filter(l => l.trim());
   const maxN = Math.min(lines.length, 8);
@@ -737,75 +739,92 @@ function dibujarLogoInfografia(ctx, W, H) {
   ctx.drawImage(ls.img, lx, ly, lw, lh);
 }
 
-// ── Handles y guías del título ──
+// ── getTitleRect — útil para templates ──
 function getTitleRect(W, H) {
   const s = titleState.x != null ? titleState : TITLE_DEF[templateActual] || TITLE_DEF.simple;
   return { x: s.x * W, y: s.y * H, w: s.w * W, h: s.h * H };
 }
 
-function drawTitleHandles(ctx, W, H) {
-  const r = getTitleRect(W, H);
-  const hs = Math.max(8, Math.round(W * 0.012));
-  const handles = [
-    { id: 'nw', x: r.x, y: r.y },
-    { id: 'ne', x: r.x + r.w, y: r.y },
-    { id: 'sw', x: r.x, y: r.y + r.h },
-    { id: 'se', x: r.x + r.w, y: r.y + r.h },
-    { id: 'w',  x: r.x, y: r.y + r.h / 2 },
-    { id: 'e',  x: r.x + r.w, y: r.y + r.h / 2 }
-  ];
-  handles.forEach(h => {
-    ctx.fillStyle = 'rgba(166,206,57,0.9)';
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.5;
-    ctx.fillRect(h.x - hs / 2, h.y - hs / 2, hs, hs);
-    ctx.strokeRect(h.x - hs / 2, h.y - hs / 2, hs, hs);
-  });
-  // Borde del bloque
-  ctx.strokeStyle = 'rgba(166,206,57,0.4)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
-  ctx.strokeRect(r.x, r.y, r.w, r.h);
-  ctx.setLineDash([]);
-}
-
-function drawTitleGuides(ctx, W, H) {
-  // Centro
-  ctx.strokeStyle = 'rgba(166,206,57,0.85)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([6, 4]);
+// ── drawActiveUI — copiado textual de placas (drawActiveUI + getHandles) ──
+function drawActiveUI(ctx, W, H) {
+  const s = titleState.x != null ? titleState : TITLE_DEF[templateActual] || TITLE_DEF.simple;
+  const el = { x: s.x * W, y: s.y * H, w: s.w * W, h: s.h * H };
+  const cx = el.x + el.w / 2, cy = el.y + el.h / 2;
+  const lw = Math.max(2, Math.round(W * 0.0016));
+  const HR = 16;
+  const hs = Math.round(HR * (W / 1080));
+  ctx.save();
+  // Centro H y V
+  ctx.strokeStyle = 'rgba(166,206,57,.85)'; ctx.lineWidth = Math.max(2, lw * 1.5);
+  ctx.setLineDash([Math.round(W * 0.008), Math.round(W * 0.004)]);
   ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+  // Tercios verticales
+  ctx.strokeStyle = 'rgba(166,206,57,.45)'; ctx.lineWidth = Math.max(1, lw);
+  ctx.beginPath(); ctx.moveTo(W / 3, 0); ctx.lineTo(W / 3, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W * 2 / 3, 0); ctx.lineTo(W * 2 / 3, H); ctx.stroke();
+  // Tercios horizontales
+  ctx.beginPath(); ctx.moveTo(0, H / 3); ctx.lineTo(W, H / 3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, H * 2 / 3); ctx.lineTo(W, H * 2 / 3); ctx.stroke();
+  // Guías de bordes del elemento activo
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = Math.max(1, lw);
+  ctx.beginPath(); ctx.moveTo(el.x, 0); ctx.lineTo(el.x, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(el.x + el.w, 0); ctx.lineTo(el.x + el.w, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, el.y); ctx.lineTo(W, el.y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, el.y + el.h); ctx.lineTo(W, el.y + el.h); ctx.stroke();
   ctx.setLineDash([]);
-  // Guías de bordes
-  const r = getTitleRect(W, H);
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([3, 5]);
-  ctx.beginPath(); ctx.moveTo(r.x, 0); ctx.lineTo(r.x, H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(r.x + r.w, 0); ctx.lineTo(r.x + r.w, H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, r.y); ctx.lineTo(W, r.y); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, r.y + r.h); ctx.lineTo(W, r.y + r.h); ctx.stroke();
-  ctx.setLineDash([]);
+  // Crosshair centro del elemento
+  const cs = Math.round(W * 0.022);
+  ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = Math.max(1, lw);
+  ctx.beginPath(); ctx.moveTo(cx - cs, cy); ctx.lineTo(cx + cs, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy - cs); ctx.lineTo(cx, cy + cs); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx, cy, Math.round(W * 0.004), 0, Math.PI * 2); ctx.fill();
+  // Borde de selección
+  ctx.strokeStyle = 'rgba(166,206,57,.9)'; ctx.lineWidth = lw * 1.5;
+  ctx.beginPath();
+  const r = Math.min(4, el.w / 4, el.h / 4);
+  ctx.moveTo(el.x + r, el.y); ctx.lineTo(el.x + el.w - r, el.y);
+  ctx.quadraticCurveTo(el.x + el.w, el.y, el.x + el.w, el.y + r);
+  ctx.lineTo(el.x + el.w, el.y + el.h - r);
+  ctx.quadraticCurveTo(el.x + el.w, el.y + el.h, el.x + el.w - r, el.y + el.h);
+  ctx.lineTo(el.x + r, el.y + el.h);
+  ctx.quadraticCurveTo(el.x, el.y + el.h, el.x, el.y + el.h - r);
+  ctx.lineTo(el.x, el.y + r);
+  ctx.quadraticCurveTo(el.x, el.y, el.x + r, el.y);
+  ctx.closePath(); ctx.stroke();
+  // Handles esquinas (círculos)
+  const handles = [
+    { x: el.x, y: el.y }, { x: el.x + el.w, y: el.y },
+    { x: el.x, y: el.y + el.h }, { x: el.x + el.w, y: el.y + el.h },
+    { x: el.x, y: el.y + el.h / 2 }, { x: el.x + el.w, y: el.y + el.h / 2 }
+  ];
+  handles.forEach(h => {
+    const isCorner = h.x === el.x || h.x === el.x + el.w;
+    if (isCorner && (h.y === el.y || h.y === el.y + el.h)) {
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(166,206,57,.9)'; ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.arc(h.x, h.y, hs * 0.55, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(166,206,57,.9)'; ctx.lineWidth = lw;
+      const hw = hs * 0.65, hh = hs * 1.3;
+      ctx.beginPath(); ctx.roundRect(h.x - hw / 2, h.y - hh / 2, hw, hh, 4); ctx.fill(); ctx.stroke();
+    }
+  });
+  ctx.restore();
 }
 
 async function exportarInfografia() {
-  // Esperar que las fuentes web estén cargadas antes de pintar al canvas
   await document.fonts.ready;
   const canvas = document.getElementById('infografiaCanvas');
-  const ow = canvas.width;
-  const oh = canvas.height;
-  const scale = 3;
-  canvas.width = ow * scale;
-  canvas.height = oh * scale;
+  const ow = canvas.width, oh = canvas.height;
+  const s = 3;
+  canvas.width = ow * s; canvas.height = oh * s;
   const ctx = canvas.getContext('2d');
-  ctx.scale(scale, scale);
-  renderizarInfografiaEnCtx(ctx, canvas.width / scale, canvas.height / scale);
+  ctx.scale(s, s);
+  renderizarInfografiaEnCtx(ctx, ow, oh);
   canvas.toBlob(blob => {
     const url = URL.createObjectURL(blob);
     mostrarExportPreview(url, 'infografia-flyer-media-mendoza');
-    canvas.width = ow;
-    canvas.height = oh;
+    canvas.width = ow; canvas.height = oh;
     renderizarInfografia();
   }, 'image/png', 1);
 }
