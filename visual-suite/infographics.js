@@ -154,7 +154,7 @@ function drawPlateHeader(ctx, W, H, kicker, title, accent, dark) {
     ctx.fillText(kicker.toUpperCase(), M, H * 0.075);
   }
   ctx.fillStyle = ink;
-  ctx.font = `400 ${base * 0.055}px "DM Serif Display", serif`;
+  ctx.font = `400 ${base * 0.04}px "DM Serif Display", serif`;
   let t = title;
   while (ctx.measureText(t).width > W * 0.9 && t.length > 4) t = t.slice(0, -1);
   if (t.length < title.length) t = t.slice(0, -1) + '…';
