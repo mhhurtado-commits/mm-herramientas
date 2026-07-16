@@ -154,11 +154,13 @@ function drawPlateHeader(ctx, W, H, kicker, title, accent, dark) {
     ctx.fillText(kicker.toUpperCase(), M, H * 0.075);
   }
   ctx.fillStyle = ink;
-  ctx.font = `400 ${base * 0.04}px "DM Serif Display", serif`;
-  let t = title;
-  while (ctx.measureText(t).width > W * 0.9 && t.length > 4) t = t.slice(0, -1);
-  if (t.length < title.length) t = t.slice(0, -1) + '…';
-  ctx.fillText(t, M, H * 0.14);
+  let fs = Math.min(W * 0.035, H * 0.055);
+  ctx.font = `400 ${fs}px "DM Serif Display", serif`;
+  while (ctx.measureText(title).width > W * 0.88 && fs > 12) {
+    fs -= 0.5;
+    ctx.font = `400 ${fs}px "DM Serif Display", serif`;
+  }
+  ctx.fillText(title, M, H * 0.14);
   ctx.fillStyle = accent;
   ctx.fillRect(M, H * 0.155, W * 0.16, Math.max(3, base * 0.004));
 }
