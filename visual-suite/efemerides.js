@@ -106,12 +106,28 @@ function cargarJSONEfemerides() {
 
   if (parsed.fecha) document.getElementById('efeFechaLabel').textContent = parsed.fecha;
   if (parsed.efemerides && Array.isArray(parsed.efemerides)) {
-    efemeridesData = parsed.efemerides;
+    efemeridesData = ordenarEfemerides(parsed.efemerides);
     renderizarEfemerides();
-    toast(`✅ ${efemeridesData.length} efemérides cargadas`);
+    toast(`✅ ${parsed.efemerides.length} efemérides cargadas`);
   } else {
     toast('El JSON no contiene efemérides');
   }
+}
+
+function esNacional(e) {
+  const emoji = e.emoji || '';
+  const titulo = (e.titulo || '').toLowerCase();
+  const desc = (e.descripcion || '').toLowerCase();
+  return emoji.includes('🇦🇷') || /argentina|argentino|argento/i.test(titulo) || /argentina|argentino/i.test(desc);
+}
+
+function ordenarEfemerides(data) {
+  const nacional = data.filter(esNacional).sort((a, b) => (a.anio || 9999) - (b.anio || 9999));
+  const internacional = data.filter(e => !esNacional(e)).sort((a, b) => (a.anio || 9999) - (b.anio || 9999));
+  const result = [];
+  if (nacional.length) result.push({ _separator: '🇦🇷  Nacionales' }, ...nacional);
+  if (internacional.length) result.push({ _separator: '🌍  Internacionales' }, ...internacional);
+  return result;
 }
 
 // ── Render ──
@@ -132,9 +148,12 @@ function renderizarEfemerides() {
   const fmt = EFEMERIDES_FMT[efeFormato] || EFEMERIDES_FMT.landscape;
   const W = fmt.w;
   const itemH = Math.round(W * 0.11);
+  const sepH = Math.round(W * 0.06);
   const headerH = Math.round(W * 0.12);
   const footerH = Math.round(W * 0.06);
-  const totalH = headerH + Math.max(efemeridesData.length, 1) * itemH + footerH + W * 0.02;
+  const cardCount = efemeridesData.filter(e => !e._separator).length;
+  const sepCount = efemeridesData.filter(e => e._separator).length;
+  const totalH = headerH + cardCount * itemH + sepCount * sepH + footerH + Math.round(W * 0.04);
   const cssW = canvas.parentElement.clientWidth || 800;
   const cssH = cssW * totalH / W;
   canvas.style.width = cssW + 'px';
@@ -173,9 +192,19 @@ function renderizarEfemerides() {
   // Items
   const M = Math.round(W * 0.04);
   const cardW = W - M * 2;
+  let curY = headerH + Math.round(W * 0.01);
 
-  efemeridesData.forEach((e, i) => {
-    const y = headerH + i * itemH + Math.round(W * 0.01);
+  efemeridesData.forEach((e) => {
+    if (e._separator) {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = `700 ${Math.round(W * 0.018)}px Inter, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(e._separator, M, curY + sepH / 2);
+      curY += sepH;
+      return;
+    }
+    const y = curY;
     const cy = y + itemH / 2;
 
     // Card bg
@@ -236,10 +265,11 @@ function renderizarEfemerides() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(e.categoria || '', badgeX + badgeW / 2, badgeY + badgeH / 2);
+    curY += itemH;
   });
 
   // Si no hay datos
-  if (efemeridesData.length === 0) {
+  if (cardCount === 0) {
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.font = `500 ${Math.round(W * 0.022)}px Inter, sans-serif`;
     ctx.textAlign = 'center';
@@ -317,6 +347,7 @@ async function exportarEfemerides() {
 
 function renderizarEfemeridesEnCtx(ctx, W, H) {
   const itemH = Math.round(W * 0.11);
+  const sepH = Math.round(W * 0.06);
   const headerH = Math.round(W * 0.12);
   const footerH = Math.round(W * 0.06);
   const M = Math.round(W * 0.04);
@@ -344,8 +375,20 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
   ctx.font = `400 ${Math.round(W * 0.045)}px "DM Serif Display", serif`;
   ctx.fillText(fechaTexto, Math.round(W * 0.04), Math.round(headerH * 0.78));
 
-  efemeridesData.forEach((e, i) => {
-    const y = headerH + i * itemH + Math.round(W * 0.01);
+  let curY = headerH + Math.round(W * 0.01);
+  const cardCount = efemeridesData.filter(e => !e._separator).length;
+
+  efemeridesData.forEach((e) => {
+    if (e._separator) {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = `700 ${Math.round(W * 0.018)}px Inter, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(e._separator, M, curY + sepH / 2);
+      curY += sepH;
+      return;
+    }
+    const y = curY;
     const cy = y + itemH / 2;
     ctx.fillStyle = 'rgba(255,255,255,0.04)';
     ctx.beginPath();
@@ -398,9 +441,10 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(e.categoria || '', badgeX + badgeW / 2, badgeY + badgeH / 2);
+    curY += itemH;
   });
 
-  if (efemeridesData.length === 0) {
+  if (cardCount === 0) {
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.font = `500 ${Math.round(W * 0.022)}px Inter, sans-serif`;
     ctx.textAlign = 'center';
