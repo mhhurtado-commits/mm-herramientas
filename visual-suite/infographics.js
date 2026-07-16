@@ -335,11 +335,16 @@ function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
   ctx.textAlign = 'left';
   ctx.fillText('COMPARATIVA', M, H * 0.055);
   ctx.fillStyle = '#ffffff';
-  ctx.font = `400 ${H * 0.048}px "DM Serif Display", serif`;
-  let t = title;
-  while (ctx.measureText(t).width > W * 0.9 && t.length > 4) t = t.slice(0, -1);
-  if (t.length < title.length) t = t.slice(0, -1) + '…';
-  ctx.fillText(t, M, H * 0.105);
+  let sz = Math.min(W * 0.04, H * 0.045);
+  let titleLines, lh;
+  for (let i = 0; i < 20; i++) {
+    ctx.font = `400 ${sz}px "DM Serif Display", serif`;
+    titleLines = wrapText(ctx, title, W * 0.88);
+    lh = sz * 1.2;
+    if (titleLines.length * lh <= H * 0.06 || sz <= 12) break;
+    sz = Math.max(12, Math.round(sz * 0.88));
+  }
+  titleLines.forEach((l, i) => ctx.fillText(l, M, H * 0.08 + i * lh));
 
   const lines = content.split('\n').filter(l => l.trim());
   const leftItems = lines.filter((_, i) => i % 2 === 0);
@@ -512,13 +517,19 @@ function renderFlyerDestacado(ctx, W, H, title, content, c1, c2) {
   ctx.textAlign = 'left';
   ctx.fillText('DATOS DESTACADOS', M, H * 0.08);
   ctx.fillStyle = '#ffffff';
-  ctx.font = `400 ${H * 0.065}px "DM Serif Display", serif`;
-  let t = title;
-  while (ctx.measureText(t).width > W * 0.85 && t.length > 4) t = t.slice(0, -1);
-  if (t.length < title.length) t = t.slice(0, -1) + '…';
-  ctx.fillText(t, M, H * 0.155);
+  let sz = Math.min(W * 0.04, H * 0.05);
+  let titleLines, lh;
+  for (let i = 0; i < 20; i++) {
+    ctx.font = `400 ${sz}px "DM Serif Display", serif`;
+    titleLines = wrapText(ctx, title, W * 0.85);
+    lh = sz * 1.2;
+    if (titleLines.length * lh <= H * 0.08 || sz <= 12) break;
+    sz = Math.max(12, Math.round(sz * 0.88));
+  }
+  titleLines.forEach((l, i) => ctx.fillText(l, M, H * 0.085 + i * lh));
+  const barY = H * 0.085 + titleLines.length * lh + H * 0.008;
   ctx.fillStyle = hexToRgba(c1, 0.6);
-  ctx.fillRect(M, H * 0.17, W * 0.18, Math.round(H * 0.005));
+  ctx.fillRect(M, barY, W * 0.18, Math.round(H * 0.005));
 
   const lines = content.split('\n').filter(l => l.trim());
   const maxN = Math.min(lines.length, 8);
