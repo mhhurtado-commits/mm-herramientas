@@ -22,9 +22,28 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
   };
 }
 
+const FORMATOS = {
+  landscape: { label: 'Horizontal 16:9', w: 2400, h: 1350, cssAR: '16 / 9' },
+  square:    { label: 'Cuadrado 1:1',    w: 1600, h: 1600, cssAR: '1 / 1' },
+  portrait:  { label: 'Vertical 4:5',    w: 1350, h: 1688, cssAR: '4 / 5' },
+  story:     { label: 'Historia 9:16',   w: 1080, h: 1920, cssAR: '9 / 16' }
+};
+
 let templateActual = 'simple';
+let formatoActual = 'landscape';
+
+function cambiarFormatoInfografia() {
+  const fmt = document.getElementById('infoFormato').value;
+  if (!FORMATOS[fmt]) return;
+  formatoActual = fmt;
+  const area = document.getElementById('infografiaArea');
+  if (area) area.style.aspectRatio = FORMATOS[fmt].cssAR;
+  renderizarInfografia();
+}
 
 function initInfographics() {
+  const area = document.getElementById('infografiaArea');
+  if (area) area.style.aspectRatio = FORMATOS[formatoActual].cssAR;
   renderizarInfografia();
 }
 
@@ -40,12 +59,10 @@ function seleccionarTemplate(template) {
 
 function renderizarInfografia() {
   const canvas = document.getElementById('infografiaCanvas');
-  const rect = canvas.parentElement.getBoundingClientRect();
-  // Render a mayor resolución (2x) para exportación e impresión nítida,
-  // manteniendo el tamaño visual vía CSS.
+  const fmt = FORMATOS[formatoActual] || FORMATOS.landscape;
   const dpr = 2;
   const cssW = canvas.parentElement.clientWidth || 800;
-  const cssH = cssW * 9 / 16;
+  const cssH = cssW * fmt.h / fmt.w;
   canvas.style.width = cssW + 'px';
   canvas.style.height = cssH + 'px';
   canvas.width = Math.round(cssW * dpr);

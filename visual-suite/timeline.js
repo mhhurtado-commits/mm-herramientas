@@ -22,7 +22,21 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
   };
 }
 
-const timelineEvents = [];
+const FORMATOS_TIMELINE = {
+  landscape: { label: 'Horizontal 16:9', w: 2400, h: 1350, cardH: 240 },
+  square:    { label: 'Cuadrado 1:1',    w: 1600, h: 1600, cardH: 280 },
+  portrait:  { label: 'Vertical 4:5',    w: 1350, h: 1688, cardH: 320 },
+  story:     { label: 'Historia 9:16',   w: 1080, h: 1920, cardH: 360 }
+};
+
+let tlFormatoActual = 'landscape';
+
+function cambiarFormatoTimeline() {
+  const fmt = document.getElementById('tlFormato').value;
+  if (!FORMATOS_TIMELINE[fmt]) return;
+  tlFormatoActual = fmt;
+  toast(`Formato: ${FORMATOS_TIMELINE[fmt].label}`);
+}
 
 function initTimeline() {
   document.getElementById('tlDate').valueAsDate = new Date();
@@ -543,8 +557,9 @@ async function exportarTimelineComoFlyer() {
   // Esperar que las fuentes web estén cargadas antes de pintar al canvas
   await document.fonts.ready;
 
-  const W = 2400;
-  const H = Math.max(1200, sorted.length * 240 + 300);
+  const fmt = FORMATOS_TIMELINE[tlFormatoActual] || FORMATOS_TIMELINE.landscape;
+  const W = fmt.w;
+  const H = Math.max(fmt.h, sorted.length * fmt.cardH + 300);
   const titulo = document.getElementById('tlTema').value.trim() || 'Línea de tiempo';
   const canvas = renderTimelineCanvas(sorted, W, H, titulo);
 

@@ -793,7 +793,15 @@ Mayo, 70</textarea>
       <div class="vs-card" style="position:sticky;top:80px">
         <div class="vs-card-header">
           <span class="vs-card-title">Línea de Tiempo</span>
-          <span class="vs-badge" id="tlCount">0 eventos</span>
+          <div class="vs-row">
+            <span class="vs-badge" id="tlCount">0 eventos</span>
+            <select class="vs-select" id="tlFormato" onchange="cambiarFormatoTimeline()" style="font-size:10px;padding:4px 8px">
+              <option value="landscape">Horizontal 16:9</option>
+              <option value="square">Cuadrado 1:1</option>
+              <option value="portrait">Vertical 4:5</option>
+              <option value="story">Historia 9:16</option>
+            </select>
+          </div>
         </div>
         <div class="vs-timeline-container" id="timelineContainer">
           <div class="vs-timeline-line"></div>
@@ -853,6 +861,17 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
           <div>
             <div class="vs-label">Color 2</div>
             <input class="vs-color-input" type="color" id="infoColor2" value="#1a1a1a" oninput="renderizarInfografia()">
+          </div>
+        </div>
+        <div class="vs-row">
+          <div>
+            <div class="vs-label">Formato</div>
+            <select class="vs-select" id="infoFormato" onchange="cambiarFormatoInfografia()">
+              <option value="landscape">Horizontal 16:9</option>
+              <option value="square">Cuadrado 1:1</option>
+              <option value="portrait">Vertical 4:5</option>
+              <option value="story">Historia 9:16</option>
+            </select>
           </div>
         </div>
         <!-- Chat IA -->
