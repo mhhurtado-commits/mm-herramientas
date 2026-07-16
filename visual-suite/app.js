@@ -140,6 +140,7 @@ function cambiarTab(tab) {
   document.querySelectorAll('.vs-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${tab}`));
   actualizarLogoOverlay();
   if (tab === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+  if (tab === 'efemerides' && typeof renderizarEfemerides === 'function') renderizarEfemerides();
   if (tab === 'editor' && typeof renderEditor === 'function') {
     if (!window.pubState || !window.pubState.secciones.length) generarBasePublicacion();
     renderEditor();
@@ -166,6 +167,9 @@ function exportarVisual() {
       break;
     case 'infographics':
       exportarInfografia();
+      break;
+    case 'efemerides':
+      if (typeof exportarEfemerides === 'function') exportarEfemerides();
       break;
   }
 }
@@ -387,9 +391,21 @@ function actualizarLogoOverlay() {
   });
 }
 
+function limpiarEfemerides() {
+  efemeridesData = [];
+  const ta = document.getElementById('efeJson');
+  if (ta) ta.value = '';
+  const ta2 = document.getElementById('efePrompt');
+  if (ta2) ta2.value = '';
+  const lbl = document.getElementById('efeFechaLabel');
+  if (lbl) lbl.textContent = '';
+  renderizarEfemerides();
+  toast('Efemérides limpiadas');
+}
+
 // ── Drag & Resize directo sobre el logo overlay (estilo placas) ──
 function initLogoDrag() {
-  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia'].forEach(id => {
+  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia', 'logoOverlayEfemerides'].forEach(id => {
     const overlay = document.getElementById(id);
     if (!overlay) return;
     overlay.addEventListener('mousedown', onLogoDown);
@@ -600,7 +616,7 @@ async function apiGet(path) {
 
 // ── Limpiar todo ──
 function limpiarTodo() {
-  if (!confirm('¿Limpiar todos los módulos? Se borrarán los datos de gráficos, mapa, timeline e infografía.')) return;
+  if (!confirm('¿Limpiar todos los módulos? Se borrarán los datos de todos los módulos.')) return;
 
   // URL
   document.getElementById('urlInput').value = '';
@@ -634,6 +650,9 @@ function limpiarTodo() {
   document.getElementById('infoJson').value = '';
   seleccionarTemplate('destacado');
   renderizarInfografia();
+
+  // Efemérides
+  if (typeof limpiarEfemerides === 'function') limpiarEfemerides();
 
   toast('🗑 Todos los módulos limpiados');
 }

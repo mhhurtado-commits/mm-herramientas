@@ -587,6 +587,7 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
     <button class="vs-tab" data-tab="maps"><span class="vs-tab-icon">🗺️</span>Mapas</button>
     <button class="vs-tab" data-tab="timeline"><span class="vs-tab-icon">📅</span>Línea de Tiempo</button>
     <button class="vs-tab" data-tab="infographics"><span class="vs-tab-icon">🎨</span>Infografías</button>
+    <button class="vs-tab" data-tab="efemerides"><span class="vs-tab-icon">📆</span>Efemérides</button>
     <button class="vs-tab" data-tab="editor"><span class="vs-tab-icon">🖊️</span>Editor</button>
   </div>
 
@@ -918,6 +919,73 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
           <div class="vs-logo-overlay" id="logoOverlayInfografia" style="display:none"></div>
         </div>
         <button class="vs-btn vs-btn-primary" onclick="exportarInfografia()" style="align-self:center">⬇ Exportar Infografía</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL: EFEMÉRIDES -->
+  <div class="vs-panel" id="panel-efemerides">
+    <div class="vs-grid">
+      <div class="vs-card accent">
+        <div class="vs-card-header">
+          <span class="vs-card-title">Efemérides del día</span>
+        </div>
+        <div>
+          <div class="vs-label">Seleccioná una fecha</div>
+          <input class="vs-input" type="date" id="efeFecha" style="margin-top:6px" onchange="renderizarEfemerides()">
+          <span id="efeFechaLabel" style="display:none"></span>
+        </div>
+
+        <!-- Chat IA -->
+        <div class="divider" style="height:1px;background:var(--line);margin:12px 0"></div>
+        <div class="vs-card-header">
+          <span class="vs-card-title">Generar con Chat IA</span>
+        </div>
+        <button class="vs-btn vs-btn-secondary" onclick="generarPromptEfemerides()" style="margin-top:8px">🤖 Generar prompt para Chat IA</button>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <textarea class="vs-textarea" id="efePrompt" style="flex:1;min-height:100px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar y pegar en Gemini Chat..."></textarea>
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptEfemerides()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
+        </div>
+        <div style="margin-top:10px">
+          <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
+          <textarea class="vs-textarea" id="efeJson" style="margin-top:6px;min-height:80px;font-family:monospace;font-size:11px" placeholder='{"fecha":"16 de julio","efemerides":[{"emoji":"🇦🇷","anio":1965,"titulo":"Nace...","descripcion":"...","categoria":"Política"}]}'></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarJSONEfemerides()">📋 Cargar JSON</button>
+          <label class="vs-btn vs-btn-secondary vs-btn-sm" style="cursor:pointer">
+            📁 Archivo
+            <input type="file" accept=".json,application/json" style="display:none" onchange="cargarArchivoJSON(this)">
+          </label>
+        </div>
+
+        <div class="divider" style="height:1px;background:var(--line);margin:12px 0"></div>
+        <div class="vs-row">
+          <div>
+            <div class="vs-label">Formato</div>
+            <select class="vs-select" id="efeFormato" onchange="cambiarFormatoEfe()" style="margin-top:4px">
+              <option value="landscape">Horizontal 16:9</option>
+              <option value="square">Cuadrado 1:1</option>
+              <option value="portrait">Vertical 4:5</option>
+              <option value="story">Historia 9:16</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="vs-row" style="margin-top:12px">
+          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarEfemerides()">🗑 Limpiar</button>
+        </div>
+      </div>
+
+      <div class="vs-card">
+        <div class="vs-card-header">
+          <span class="vs-card-title">Placa de Efemérides</span>
+          <span class="vs-badge" id="efeCount">0 efemérides</span>
+        </div>
+        <div class="vs-infografia-area" id="efemeridesArea">
+          <canvas id="efemeridesCanvas"></canvas>
+          <div class="vs-logo-overlay" id="logoOverlayEfemerides" style="display:none"></div>
+        </div>
+        <button class="vs-btn vs-btn-primary" onclick="exportarEfemerides()" style="align-self:center;margin-top:12px">⬇ Exportar placa (PNG)</button>
       </div>
     </div>
   </div>
