@@ -147,22 +147,28 @@ function drawPlateHeader(ctx, W, H, kicker, title, accent, dark) {
   const M = W * 0.05;
   const base = Math.min(W, H);
   const ink = dark ? '#ffffff' : PLATE_INK;
+  const titleW = W - M * 2;
   ctx.textAlign = 'left';
   if (kicker) {
     ctx.fillStyle = accent;
-    ctx.font = `700 ${base * 0.022}px "Inter", sans-serif`;
+    ctx.font = `700 ${Math.min(W, H) * 0.022}px "Inter", sans-serif`;
     ctx.fillText(kicker.toUpperCase(), M, H * 0.075);
   }
   ctx.fillStyle = ink;
-  let fs = Math.min(W * 0.035, H * 0.055);
-  ctx.font = `400 ${fs}px "DM Serif Display", serif`;
-  while (ctx.measureText(title).width > W * 0.88 && fs > 12) {
-    fs -= 0.5;
-    ctx.font = `400 ${fs}px "DM Serif Display", serif`;
+  let sz = Math.min(W * 0.04, H * 0.05);
+  let lines, lh;
+  for (let i = 0; i < 20; i++) {
+    ctx.font = `400 ${sz}px "DM Serif Display", serif`;
+    lines = wrapText(ctx, title, titleW);
+    lh = sz * 1.2;
+    if (lines.length * lh <= H * 0.1 || sz <= 12) break;
+    sz = Math.max(12, Math.round(sz * 0.88));
   }
-  ctx.fillText(title, M, H * 0.14);
+  const ty = H * 0.09;
+  lines.forEach((l, i) => ctx.fillText(l, M, ty + i * lh));
+  const barY = ty + lines.length * lh + H * 0.008;
   ctx.fillStyle = accent;
-  ctx.fillRect(M, H * 0.155, W * 0.16, Math.max(3, base * 0.004));
+  ctx.fillRect(M, barY, W * 0.16, Math.max(3, base * 0.004));
 }
 
 function drawIconChipPlate(ctx, x, y, size, icono, accent) {
@@ -588,15 +594,17 @@ function renderFlyerDestacado(ctx, W, H, title, content, c1, c2) {
   drawPlateFooter(ctx, W, H, c1, isDark);
 }
 
-function wrapText(ctx, text, maxWidth) {
-  const words = text.split('\n');
-  const lines = [];
-  for (const word of words) {
-    const wrapped = word.match(new RegExp(`.{1,${Math.floor(maxWidth / (ctx.measureText('A').width || 8))}}`, 'g'));
-    if (wrapped) lines.push(...wrapped);
-    else lines.push(word);
+function wrapText(ctx, text, maxW) {
+  if (!text || maxW <= 0) return [];
+  const words = text.split(' ').filter(w => w.length > 0);
+  const lines = []; let cur = '';
+  for (const w of words) {
+    const test = cur ? cur + ' ' + w : w;
+    if (cur && ctx.measureText(test).width > maxW) { lines.push(cur); cur = w; }
+    else cur = test;
   }
-  return lines;
+  if (cur.trim()) lines.push(cur);
+  return lines.filter(l => l.trim().length > 0);
 }
 
 function dibujarLogoInfografia(ctx, W, H) {

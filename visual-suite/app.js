@@ -418,7 +418,8 @@ function onLogoDown(e) {
       startW: logoState.w,
       startXpos: logoState.x,
       startYpos: logoState.y,
-      rect
+      rect,
+      container: this.parentElement
     };
   } else {
     dragAction = {
@@ -427,10 +428,12 @@ function onLogoDown(e) {
       startY: clientY,
       startL: logoState.x,
       startT: logoState.y,
-      rect
+      rect,
+      container: this.parentElement
     };
   }
 
+  mostrarGuiasCentrado(this.parentElement);
   document.addEventListener('mousemove', onLogoMove);
   document.addEventListener('mouseup', onLogoUp);
   document.addEventListener('touchmove', onLogoMove, { passive: false });
@@ -453,6 +456,7 @@ function onLogoMove(e) {
     if (Math.abs(ecy - 0.5) < SNAP) ny = 0.5 - (logoState.w * logoState.ar) / 2;
     logoState.x = nx; logoState.y = ny;
     actualizarLogoOverlay();
+    actualizarGuiasCentrado(dragAction.container);
     if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
   } else {
     const corner = dragAction.corner;
@@ -479,14 +483,73 @@ function onLogoMove(e) {
     logoState.x = newX;
     logoState.y = newY;
     actualizarLogoOverlay();
+    actualizarGuiasCentrado(dragAction.container);
     if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
   }
 
   if (e.touches) e.preventDefault();
 }
 
+// ── Alignment guides (estilo placas) ──
+function mostrarGuiasCentrado(container) {
+  ocultarGuiasCentrado();
+  const guides = ['vs-guide-ch', 'vs-guide-cv', 'vs-guide-el', 'vs-guide-er', 'vs-guide-et', 'vs-guide-eb'];
+  guides.forEach(id => {
+    const el = document.createElement('div');
+    el.id = id;
+    container.appendChild(el);
+  });
+  actualizarGuiasCentrado(container);
+}
+
+function actualizarGuiasCentrado(container) {
+  if (!container) return;
+  const r = container.getBoundingClientRect();
+  const wPx = r.width, hPx = r.height;
+  const ch = document.getElementById('vs-guide-ch');
+  const cv = document.getElementById('vs-guide-cv');
+  if (ch) Object.assign(ch.style, {
+    position: 'absolute', left: '0', right: '0', top: (hPx / 2) + 'px', height: '1px',
+    borderTop: '1px dashed rgba(166,206,57,0.85)', zIndex: '999', pointerEvents: 'none'
+  });
+  if (cv) Object.assign(cv.style, {
+    position: 'absolute', top: '0', bottom: '0', left: (wPx / 2) + 'px', width: '1px',
+    borderLeft: '1px dashed rgba(166,206,57,0.85)', zIndex: '999', pointerEvents: 'none'
+  });
+  const el = document.getElementById('vs-guide-el');
+  const er = document.getElementById('vs-guide-er');
+  const et = document.getElementById('vs-guide-et');
+  const eb = document.getElementById('vs-guide-eb');
+  const lx = logoState.x * wPx, ly = logoState.y * hPx;
+  const lw = logoState.w * wPx, lh = logoState.w * logoState.ar * hPx;
+  if (el) Object.assign(el.style, {
+    position: 'absolute', left: lx + 'px', top: '0', width: '1px', height: hPx + 'px',
+    borderLeft: '1px solid rgba(255,255,255,0.35)', zIndex: '999', pointerEvents: 'none'
+  });
+  if (er) Object.assign(er.style, {
+    position: 'absolute', left: (lx + lw) + 'px', top: '0', width: '1px', height: hPx + 'px',
+    borderLeft: '1px solid rgba(255,255,255,0.35)', zIndex: '999', pointerEvents: 'none'
+  });
+  if (et) Object.assign(et.style, {
+    position: 'absolute', left: '0', top: ly + 'px', width: wPx + 'px', height: '1px',
+    borderTop: '1px solid rgba(255,255,255,0.35)', zIndex: '999', pointerEvents: 'none'
+  });
+  if (eb) Object.assign(eb.style, {
+    position: 'absolute', left: '0', top: (ly + lh) + 'px', width: wPx + 'px', height: '1px',
+    borderTop: '1px solid rgba(255,255,255,0.35)', zIndex: '999', pointerEvents: 'none'
+  });
+}
+
+function ocultarGuiasCentrado() {
+  ['vs-guide-ch', 'vs-guide-cv', 'vs-guide-el', 'vs-guide-er', 'vs-guide-et', 'vs-guide-eb'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  });
+}
+
 function onLogoUp() {
   dragAction = null;
+  ocultarGuiasCentrado();
   document.removeEventListener('mousemove', onLogoMove);
   document.removeEventListener('mouseup', onLogoUp);
   document.removeEventListener('touchmove', onLogoMove);
