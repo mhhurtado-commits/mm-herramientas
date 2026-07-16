@@ -420,16 +420,17 @@ function renderTimelineCanvas(events, W, H, titulo) {
 
   // ── Header editorial ──
   const headerH = Math.round(H * 0.13);
+  const baseTL = Math.min(W, H);
   ctx.fillStyle = INK;
   ctx.fillRect(0, 0, W, headerH);
   ctx.fillStyle = GOLD;
-  ctx.fillRect(0, headerH - 6, W, 6); // barra dorada
+  ctx.fillRect(0, headerH - 6, W, 6);
   ctx.textAlign = 'left';
   ctx.fillStyle = GOLD;
-  ctx.font = `700 ${Math.round(headerH * 0.13)}px "Inter", sans-serif`;
+  ctx.font = `700 ${Math.round(baseTL * 0.018)}px "Inter", sans-serif`;
   ctx.fillText('MEDIA MENDOZA  ·  CRONOLOGÍA', M, headerH * 0.36);
   ctx.fillStyle = '#ffffff';
-  ctx.font = `400 ${Math.round(headerH * 0.5)}px "DM Serif Display", serif`;
+  ctx.font = `400 ${Math.round(baseTL * 0.055)}px "DM Serif Display", serif`;
   ctx.fillText(titulo || 'Línea de tiempo', M, headerH * 0.84);
 
   // ── Geometría de eventos ──
@@ -539,7 +540,7 @@ function renderTimelineCanvas(events, W, H, titulo) {
   ctx.lineTo(W - M, footerY - Math.round(H * 0.02));
   ctx.stroke();
   ctx.fillStyle = INK2;
-  ctx.font = `600 ${Math.round(H * 0.016)}px "Inter", sans-serif`;
+  ctx.font = `600 ${Math.round(Math.min(W, H) * 0.016)}px "Inter", sans-serif`;
   ctx.textAlign = 'left';
   ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, footerY);
   ctx.textAlign = 'right';

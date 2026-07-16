@@ -431,6 +431,8 @@ function onLogoDown(e) {
     };
   }
 
+  mostrarGuiasCentrado(this.parentElement);
+
   document.addEventListener('mousemove', onLogoMove);
   document.addEventListener('mouseup', onLogoUp);
   document.addEventListener('touchmove', onLogoMove, { passive: false });
@@ -480,8 +482,39 @@ function onLogoMove(e) {
   if (e.touches) e.preventDefault();
 }
 
+// ── Center guides for logo alignment ──
+function mostrarGuiasCentrado(container) {
+  ocultarGuiasCentrado();
+  ['vs-guide-h', 'vs-guide-v'].forEach(id => {
+    const el = document.createElement('div');
+    el.id = id;
+    container.appendChild(el);
+  });
+  const h = document.getElementById('vs-guide-h');
+  const v = document.getElementById('vs-guide-v');
+  const rect = container.getBoundingClientRect();
+  Object.assign(h.style, {
+    position: 'absolute', left: '0', right: '0', top: '50%', height: '1px',
+    background: 'rgba(166,206,57,0.5)', borderTop: '1px dashed rgba(166,206,57,0.3)',
+    zIndex: '999', pointerEvents: 'none'
+  });
+  Object.assign(v.style, {
+    position: 'absolute', top: '0', bottom: '0', left: '50%', width: '1px',
+    background: 'rgba(166,206,57,0.5)', borderLeft: '1px dashed rgba(166,206,57,0.3)',
+    zIndex: '999', pointerEvents: 'none'
+  });
+}
+
+function ocultarGuiasCentrado() {
+  ['vs-guide-h', 'vs-guide-v'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  });
+}
+
 function onLogoUp() {
   dragAction = null;
+  ocultarGuiasCentrado();
   document.removeEventListener('mousemove', onLogoMove);
   document.removeEventListener('mouseup', onLogoUp);
   document.removeEventListener('touchmove', onLogoMove);

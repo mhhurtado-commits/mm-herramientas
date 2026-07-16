@@ -127,6 +127,7 @@ const PLATE_INK2 = '#5b665f';
 function drawPlateFooter(ctx, W, H, accent, dark) {
   const M = W * 0.05;
   const y = H - H * 0.035;
+  const fs = Math.min(W, H) * 0.018;
   ctx.strokeStyle = dark ? 'rgba(255,255,255,0.15)' : 'rgba(22,32,27,0.12)';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -134,7 +135,7 @@ function drawPlateFooter(ctx, W, H, accent, dark) {
   ctx.lineTo(W - M, y - H * 0.02);
   ctx.stroke();
   ctx.fillStyle = dark ? 'rgba(255,255,255,0.6)' : PLATE_INK2;
-  ctx.font = `600 ${H * 0.02}px "Inter", sans-serif`;
+  ctx.font = `600 ${fs}px "Inter", sans-serif`;
   ctx.textAlign = 'left';
   ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, y);
   ctx.textAlign = 'right';
@@ -144,21 +145,22 @@ function drawPlateFooter(ctx, W, H, accent, dark) {
 
 function drawPlateHeader(ctx, W, H, kicker, title, accent, dark) {
   const M = W * 0.05;
+  const base = Math.min(W, H);
   const ink = dark ? '#ffffff' : PLATE_INK;
   ctx.textAlign = 'left';
   if (kicker) {
     ctx.fillStyle = accent;
-    ctx.font = `700 ${H * 0.022}px "Inter", sans-serif`;
+    ctx.font = `700 ${base * 0.022}px "Inter", sans-serif`;
     ctx.fillText(kicker.toUpperCase(), M, H * 0.075);
   }
   ctx.fillStyle = ink;
-  ctx.font = `400 ${H * 0.06}px "DM Serif Display", serif`;
+  ctx.font = `400 ${base * 0.055}px "DM Serif Display", serif`;
   let t = title;
   while (ctx.measureText(t).width > W * 0.9 && t.length > 4) t = t.slice(0, -1);
   if (t.length < title.length) t = t.slice(0, -1) + '…';
   ctx.fillText(t, M, H * 0.14);
   ctx.fillStyle = accent;
-  ctx.fillRect(M, H * 0.155, W * 0.16, Math.max(3, H * 0.004));
+  ctx.fillRect(M, H * 0.155, W * 0.16, Math.max(3, base * 0.004));
 }
 
 function drawIconChipPlate(ctx, x, y, size, icono, accent) {
