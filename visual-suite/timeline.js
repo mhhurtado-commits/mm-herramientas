@@ -231,12 +231,12 @@ function detectarTipoTema(tema) {
 
 function camposSegunTipo(tipo) {
   const map = {
-    deportes: `- Incluí para cada evento: fase del torneo, rival, minuto, tipo de jugada, marcador
-- Ejemplo: {"fecha":"2026-06-15","titulo":"Messi 10'","desc":"Gol de Messi a los 10' vs Argelia - Fase de Grupos"}`,
-    economia: `- Incluí para cada evento: valor numérico, porcentaje, indicador económico
-- Ejemplo: {"fecha":"2026-01-01","titulo":"Inflación enero 2026","desc":"2,3% mensual - 84,2% interanual"}`,
-    historia: `- Incluí para cada evento: protagonistas, lugar, contexto breve
-- Ejemplo: {"fecha":"1816-07-09","titulo":"Declaración de Independencia","desc":"Congreso de Tucumán proclama la independencia argentina"}`,
+    deportes: `- Incluí: fase del torneo, rival, minuto (si lo encontrás)
+- Ejemplo: {"fecha":"2026-06-15","titulo":"Messi 10'","desc":"Gol de Messi vs Argelia - Fase de Grupos (Wikipedia)"}`,
+    economia: `- Incluí: valor numérico o porcentaje (si lo encontrás)
+- Ejemplo: {"fecha":"2026-01-01","titulo":"Inflación enero 2026","desc":"2,3% mensual - 84,2% interanual (INDEC)"}`,
+    historia: `- Incluí: protagonistas, lugar, contexto breve
+- Ejemplo: {"fecha":"1816-07-09","titulo":"Declaración de Independencia","desc":"Congreso de Tucumán proclama la independencia argentina (Wikipedia)"}`,
     general: `- Incluí campos descriptivos relevantes según el tema
 - Ejemplo: {"fecha":"2026-06-15","titulo":"Título del evento","desc":"Descripción con datos concretos"}`
   };
@@ -250,25 +250,23 @@ function generarPromptChat() {
   const tipo = detectarTipoTema(tema);
   const campos = camposSegunTipo(tipo);
 
-  const prompt = `INSTRUCCIÓN CRÍTICA: Usá Google Search para encontrar fechas y datos reales. NO inventes eventos ni fechas. Si no encontrás información verificada para el tema, indicá que no hay datos disponibles en vez de inventar.
-
-Necesito un JSON puro para pegar en un frontend que renderiza una línea de tiempo.
+  const prompt = `Necesito un JSON puro para pegar en un frontend que renderiza una línea de tiempo.
 
 Tema: "${tema}"
 
 Formato requerido:
 { "eventos": [ { "fecha": "YYYY-MM-DD", "titulo": "...", "descripcion": "..." } ] }
 
-Reglas estrictas:
-- ANTES de generar el JSON, buscá en Google los eventos reales del tema
+Reglas:
+- ANTES de generar el JSON, buscá en Google los eventos reales del tema. Usá el parámetro search_provider del tool para cada búsqueda
 - Cada evento individual tiene su propia entrada
 - Orden cronológico estricto
-- Detecté que este tema es de tipo: ${tipo}
+- Tipo de tema detectado: ${tipo}
 ${campos}
-- Usá SOLO fechas y eventos verificados en fuentes confiables (Wikipedia, medios oficiales, instituciones)
-- Incluí la fuente de cada dato si es posible en la descripción
-- Si no encontrás suficientes eventos verificados, devolvé: {"error": "No se encontraron suficientes eventos verificados para este tema"}
-- NUNCA inventes fechas, eventos o datos
+- Usá fechas y eventos verificados en fuentes confiables (Wikipedia, medios oficiales)
+- Incluí la fuente al final de la descripción entre paréntesis
+- Si no encontrás datos para un campo específico, dejalo vacío en vez de inventar
+- Si no encontrás información verificada para el tema, respondé: {"error": "No encontré datos suficientes para este tema"}
 - Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;
 
   const ta = document.getElementById('tlPrompt');
