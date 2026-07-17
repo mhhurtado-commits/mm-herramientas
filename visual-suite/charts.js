@@ -350,7 +350,7 @@ async function cargarJSONdeChat() {
     document.getElementById('chartType').value = parsed.tipo_sugerido;
   }
   if (parsed.datos_ordenados && Array.isArray(parsed.datos_ordenados) && parsed.datos_ordenados.length) {
-    const lines = parsed.datos_ordenados.map(d => `${d.etiqueta}, ${d.valor}`).join('\n');
+    const lines = parsed.datos_ordenados.map(d => `${d.etiqueta}, ${d.valor || d.value}`).join('\n');
     document.getElementById('chartData').value = lines;
   }
   cambiarTipoGrafico();
