@@ -221,53 +221,28 @@ function cargarArchivoJSONTimeline(input) {
 }
 
 // ── Generar prompt para Chat IA ──
-function detectarTipoTema(tema) {
-  const t = tema.toLowerCase();
-  if (/\b(gol|partido|mundial|copa|fútbol|messi|tenis|liga|f1|nba|boxeo|deporte)\b/.test(t)) return 'deportes';
-  if (/\b(inflación|economía|dólar|ipc|pbi|precio|salario|impuesto|deuda|bolsa|mercado)\b/.test(t)) return 'economia';
-  if (/\b(elección|presidente|gobierno|ley|decreto|constitución|guerra|tratado|acuerdo)\b/.test(t)) return 'historia';
-  return 'general';
-}
-
-function camposSegunTipo(tipo) {
-  const map = {
-    deportes: `- Incluí: fase del torneo, rival, minuto (si lo encontrás)
-- Ejemplo: {"fecha":"2026-06-15","titulo":"Messi 10'","desc":"Gol de Messi vs Argelia - Fase de Grupos (Wikipedia)"}`,
-    economia: `- Incluí: valor numérico o porcentaje (si lo encontrás)
-- Ejemplo: {"fecha":"2026-01-01","titulo":"Inflación enero 2026","desc":"2,3% mensual - 84,2% interanual (INDEC)"}`,
-    historia: `- Incluí: protagonistas, lugar, contexto breve
-- Ejemplo: {"fecha":"1816-07-09","titulo":"Declaración de Independencia","desc":"Congreso de Tucumán proclama la independencia argentina (Wikipedia)"}`,
-    general: `- Incluí campos descriptivos relevantes según el tema
-- Ejemplo: {"fecha":"2026-06-15","titulo":"Título del evento","desc":"Descripción con datos concretos"}`
-  };
-  return map[tipo] || map.general;
-}
-
 function generarPromptChat() {
   const tema = document.getElementById('tlTema').value.trim();
   if (!tema) return toast('Ingresá un tema para generar el prompt');
 
-  const tipo = detectarTipoTema(tema);
-  const campos = camposSegunTipo(tipo);
-
-  const prompt = `Necesito un JSON puro para pegar en un frontend que renderiza una línea de tiempo.
+  const prompt = `Necesito un JSON para pegar en un frontend que renderiza una línea de tiempo.
 
 Tema: "${tema}"
 
-Formato requerido:
+Formato:
 { "eventos": [ { "fecha": "YYYY-MM-DD", "titulo": "...", "descripcion": "..." } ] }
 
+Pasos:
+1. Buscá en Google los eventos reales del tema
+2. Armá el JSON con los datos encontrados
+3. Incluí la fuente al final de cada descripción entre paréntesis
+
 Reglas:
-- ANTES de generar el JSON, buscá en Google los eventos reales del tema. Usá el parámetro search_provider del tool para cada búsqueda
-- Cada evento individual tiene su propia entrada
+- Cada evento es una entrada individual
 - Orden cronológico estricto
-- Tipo de tema detectado: ${tipo}
-${campos}
-- Usá fechas y eventos verificados en fuentes confiables (Wikipedia, medios oficiales)
-- Incluí la fuente al final de la descripción entre paréntesis
-- Si no encontrás datos para un campo específico, dejalo vacío en vez de inventar
-- Si no encontrás información verificada para el tema, respondé: {"error": "No encontré datos suficientes para este tema"}
-- Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;
+- Usá datos verificados, no inventes
+- Si no encontrás info para un campo, dejalo vacío
+- Respondé SOLO el JSON`;
 
   const ta = document.getElementById('tlPrompt');
   if (ta) {
