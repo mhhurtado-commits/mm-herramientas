@@ -420,19 +420,17 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
 }
 .vs-logo-overlay .logo-resize-handle {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   background: var(--v);
   border: 2px solid var(--surface);
   border-radius: 2px;
-  display: none;
   z-index: 2;
 }
-.vs-logo-overlay:hover .logo-resize-handle { display: block; }
-.logo-resize-handle.corner-nw { top: -6px; left: -6px; cursor: nw-resize; }
-.logo-resize-handle.corner-ne { top: -6px; right: -6px; cursor: ne-resize; }
-.logo-resize-handle.corner-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
-.logo-resize-handle.corner-se { bottom: -6px; right: -6px; cursor: se-resize; }
+.logo-resize-handle.corner-nw { top: -7px; left: -7px; cursor: nw-resize; }
+.logo-resize-handle.corner-ne { top: -7px; right: -7px; cursor: ne-resize; }
+.logo-resize-handle.corner-sw { bottom: -7px; left: -7px; cursor: sw-resize; }
+.logo-resize-handle.corner-se { bottom: -7px; right: -7px; cursor: se-resize; }
 
 /* ── Logo toggle ── */
 .vs-logo-controls {
@@ -518,17 +516,22 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   .vs-url-bar .vs-btn { width: 100%; justify-content: center; }
   .vs-chart-container { min-height: 180px; }
   .vs-chart-container canvas { max-height: 240px; }
-  .vs-infografia-area { aspect-ratio: 4 / 3; }
+  .vs-infografia-area { max-height: 50vh !important; overflow-y: auto; }
   #panel-timeline > div[style*="grid"] { grid-template-columns: 1fr !important; }
   #panel-timeline > div[style*="grid"] > div:last-child { position: static !important; }
   .pub-editor .pub-palette { position: static; }
   .pub-stage-wrap { max-height: none; }
+  .vs-logo-overlay .logo-resize-handle { width: 26px; height: 26px; }
+  .logo-resize-handle.corner-nw { top: -13px; left: -13px; }
+  .logo-resize-handle.corner-ne { top: -13px; right: -13px; }
+  .logo-resize-handle.corner-sw { bottom: -13px; left: -13px; }
+  .logo-resize-handle.corner-se { bottom: -13px; right: -13px; }
 }
 
 @media (max-width: 640px) {
   .vs-grid { gap: 10px; }
   .vs-infografia-templates { grid-template-columns: repeat(2, 1fr); }
-  .vs-infografia-area { aspect-ratio: 1 / 1; }
+  .vs-infografia-area { max-height: 40vh !important; overflow-y: auto; }
   .export-preview-box { padding: 16px; }
   .vs-logo-controls { flex-direction: column; align-items: flex-start; }
   .vs-btn { font-size: 10px; padding: 7px 12px; }
