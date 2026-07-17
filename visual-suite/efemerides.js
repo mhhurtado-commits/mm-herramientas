@@ -30,9 +30,10 @@ const CAT_COLORS = {
 const CAT_DEFAULT = '#6b7280';
 
 function initEfemerides() {
-  const today = new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const el = document.getElementById('efeFecha');
-  if (el) { el.value = today; el.max = today; }
+  if (el) el.value = today;
   efemeridesData = [];
   loadEfeBlocks();
   initEfeCanvasEvents();
@@ -74,7 +75,7 @@ Requisitos del JSON:
       "emoji": "🇦🇷",
       "anio": 1965,
       "titulo": "Título corto del evento",
-      "descripcion": "Descripción breve (máximo 15 palabras)",
+      "descripcion": "Descripción breve (máximo 10 palabras)",
       "categoria": "Política | Deportes | Cultura | Ciencia | Internacional | Sociedad | Espectáculos | Religión | Económica",
       "tipo": "nacional" | "internacional",
       "destacada": true
@@ -218,6 +219,8 @@ function onEfeDown(e) {
   const canvas = document.getElementById('efemeridesCanvas');
   if (!canvas) return;
   if (e.touches) e.preventDefault();
+  if (e.target !== canvas) return;
+  if (window.dragAction) return;
   const pos = getEfeCanvasPos(e);
   const W = canvas.width, H = canvas.height;
   if (efeActiveBlock) {
