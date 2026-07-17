@@ -896,7 +896,7 @@ function copiarPromptInfografia() {
   toast('✅ Prompt copiado al portapapeles');
 }
 
-function cargarJSONdeChat() {
+function cargarJSONdeChatInfografia() {
   const ta = document.getElementById('infoJson');
   const text = (ta && ta.value || '').trim();
   if (!text) return toast('Pegá el JSON en el cuadro de arriba');

@@ -22,6 +22,8 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
   };
 }
 
+let timelineEvents = [];
+
 const FORMATOS_TIMELINE = {
   landscape: { label: 'Horizontal 16:9', w: 2400, h: 1350, cardH: 240 },
   square:    { label: 'Cuadrado 1:1',    w: 1600, h: 1600, cardH: 280 },
