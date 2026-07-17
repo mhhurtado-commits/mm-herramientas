@@ -2,32 +2,11 @@
 // Visual Suite — Módulo de Efemérides
 // ============================================================
 
-const EFEMERIDES_FMT = {
-  landscape: { label: 'Horizontal 16:9', w: 2400, h: 1350, cssAR: '16 / 9' },
-  square:    { label: 'Cuadrado 1:1',    w: 1600, h: 1600, cssAR: '1 / 1' },
-  portrait:  { label: 'Vertical 4:5',    w: 1350, h: 1688, cssAR: '4 / 5' },
-  story:     { label: 'Historia 9:16',   w: 1080, h: 1920, cssAR: '9 / 16' }
-};
-
 let efemeridesData = [];
 let efeFormato = 'landscape';
-let efeBlocks = null; // { logo, title, body: {x,y,w,h} }
-let efeActiveBlock = null; // 'logo' | 'title' | 'body' | null
+let efeBlocks = null;
+let efeActiveBlock = null;
 let efeDrag = null;
-
-const CAT_COLORS = {
-  'Política': '#3b82f6', 'política': '#3b82f6',
-  'Deportes': '#22c55e', 'deportes': '#22c55e',
-  'Cultura': '#f59e0b', 'cultura': '#f59e0b',
-  'Ciencia': '#a855f7', 'ciencia': '#a855f7',
-  'Internacional': '#ef4444', 'internacional': '#ef4444',
-  'Efeméride': '#8b5cf6', 'efeméride': '#8b5cf6',
-  'Espectáculos': '#ec4899', 'espectáculos': '#ec4899',
-  'Sociedad': '#14b8a6', 'sociedad': '#14b8a6',
-  'Religión': '#f97316', 'religión': '#f97316',
-  'Económica': '#a6ce39', 'económica': '#a6ce39'
-};
-const CAT_DEFAULT = '#6b7280';
 
 function initEfemerides() {
   const d = new Date();
@@ -42,14 +21,14 @@ function initEfemerides() {
 
 function cambiarFormatoEfe() {
   const fmt = document.getElementById('efeFormato').value;
-  if (!EFEMERIDES_FMT[fmt]) return;
+  if (!VS_Formats[fmt]) return;
   efeFormato = fmt;
   const key = 'efeBlocks_' + fmt;
   const saved = localStorage.getItem(key);
   if (saved) { try { efeBlocks = JSON.parse(saved); } catch(e) {} }
   if (!efeBlocks) efeBlocks = getEfeDefaultBlocks();
   const area = document.getElementById('efemeridesArea');
-  if (area) area.style.aspectRatio = EFEMERIDES_FMT[fmt].cssAR;
+  if (area) area.style.aspectRatio = VS_Formats[fmt].cssAR;
   renderizarEfemerides();
 }
 
@@ -61,7 +40,6 @@ function generarPromptEfemerides() {
   const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
   const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const fechaStr = `${dias[fecha.getDay()]} ${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
-  const fechaCorta = `${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
 
   const prompt = `Necesito un JSON puro para pegar en un frontend que genera una placa visual de efemérides.
 
@@ -103,10 +81,7 @@ Reglas estrictas:
 
 function copiarPromptEfemerides() {
   const ta = document.getElementById('efePrompt');
-  if (!ta || !ta.value.trim()) return toast('No hay prompt para copiar');
-  ta.select();
-  try { document.execCommand('copy'); } catch (e) { navigator.clipboard?.writeText(ta.value); }
-  toast('✅ Prompt copiado al portapapeles');
+  VS_Utils.copiarAlPortapapeles(ta?.value, '✅ Prompt copiado al portapapeles');
 }
 
 function cargarJSONEfemerides() {
@@ -144,9 +119,13 @@ function ordenarEfemerides(data) {
   return result;
 }
 
+function cargarArchivoJSONEfe(input) {
+  VS_Utils.cargarArchivoJSON(input, 'efeJson', cargarJSONEfemerides);
+}
+
 // ── Bloques (logo, title, body) ──
 function getEfeDefaultBlocks() {
-  const fmt = EFEMERIDES_FMT[efeFormato] || EFEMERIDES_FMT.landscape;
+  const fmt = VS_Formats[efeFormato] || VS_Formats.landscape;
   const W = fmt.w, H = fmt.h;
   const titleH = Math.max(0.04, Math.min(0.12, Math.round(W * 0.055 / H * 100) / 100));
   const ls = window.logoState;
@@ -212,9 +191,9 @@ function getEfeHandleHit(mx, my, W, H) {
   const canvas = document.getElementById('efemeridesCanvas');
   if (!canvas) return null;
   const rect = canvas.getBoundingClientRect();
-  const scale = rect.width / W;
+  const sc = rect.width / W;
   const touchPx = window.innerWidth < 768 ? 40 : 20;
-  const threshold = touchPx / scale;
+  const threshold = touchPx / sc;
   const ns = threshold / W;
   const b = efeBlocks[efeActiveBlock];
   const nx = mx / W, ny = my / H;
@@ -231,14 +210,14 @@ function getEfeHandleHit(mx, my, W, H) {
 
 function initEfeCanvasEvents() {
   const canvas = document.getElementById('efemeridesCanvas');
-  if (!canvas) return;
+  if (!canvas || canvas._vsListenersAdded) return;
   canvas.addEventListener('mousedown', onEfeDown);
   canvas.addEventListener('touchstart', onEfeDown, { passive: false });
   canvas.addEventListener('mousemove', onEfeMove);
   canvas.addEventListener('touchmove', onEfeMove, { passive: false });
   canvas.addEventListener('mouseup', onEfeUp);
   canvas.addEventListener('touchend', onEfeUp);
-  canvas.addEventListener('touchcancel', onEfeUp);
+  canvas._vsListenersAdded = true;
 }
 
 function onEfeDown(e) {
@@ -263,7 +242,6 @@ function onEfeDown(e) {
     efeActiveBlock = null;
     efeDrag = null;
   }
-  document.addEventListener('touchcancel', onEfeUp);
   renderizarEfemerides();
 }
 
@@ -311,7 +289,6 @@ function onEfeMove(e) {
 
 function onEfeUp() {
   efeDrag = null;
-  document.removeEventListener('touchcancel', onEfeUp);
   const canvas = document.getElementById('efemeridesCanvas');
   if (canvas) canvas.style.cursor = efeActiveBlock ? 'grab' : 'default';
 }
@@ -332,7 +309,7 @@ function renderizarEfemerides() {
       lbl.textContent = `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}`;
     }
   }
-  const fmt = EFEMERIDES_FMT[efeFormato] || EFEMERIDES_FMT.landscape;
+  const fmt = VS_Formats[efeFormato] || VS_Formats.landscape;
   const W = fmt.w, H = fmt.h;
   const cssW = canvas.parentElement.clientWidth || 800;
   const cssH = cssW * H / W;
@@ -347,13 +324,13 @@ function renderizarEfemerides() {
 
   // 1. Fondo
   const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0f111a');
-  grad.addColorStop(1, '#1a1d2e');
+  grad.addColorStop(0, VS_Colors.DARK_BG);
+  grad.addColorStop(1, VS_Colors.DARK_BG2);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
-  drawDotGridEfe(ctx, W, H, 'rgba(255,255,255,0.02)', Math.round(W * 0.03));
+  VS_Utils.drawDotGrid(ctx, W, H, 'rgba(255,255,255,0.02)', Math.round(W * 0.03), 1);
 
-  // 2. Body block (cards + separadores)
+  // 2. Body block
   const br = getEfeBlockRect('body', W, H);
   if (br) {
     ctx.save();
@@ -369,10 +346,22 @@ function renderizarEfemerides() {
   if (tr) drawEfeTitle(ctx, W, H, tr);
 
   // 4. Footer
-  drawEfeFooter(ctx, W, H);
+  VS_CanvasHelpers.drawFooter(ctx, W, H, true);
 
-  // 5. Active UI
-  if (efeActiveBlock) drawEfeActiveUI(ctx, W, H);
+  // 5. Logo
+  if (efeBlocks && efeBlocks.logo) {
+    VS_Utils.dibujarLogo(ctx, W, H, {
+      x: efeBlocks.logo.x,
+      y: efeBlocks.logo.y,
+      w: efeBlocks.logo.w
+    });
+  }
+
+  // 6. Active UI
+  if (efeActiveBlock && efeBlocks && efeBlocks[efeActiveBlock]) {
+    const b = efeBlocks[efeActiveBlock];
+    VS_CanvasHelpers.drawActiveUI(ctx, W, H, { x: b.x * W, y: b.y * H, w: b.w * W, h: b.h * H });
+  }
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -408,7 +397,7 @@ function drawEfeCards(ctx, W, H, br) {
     ctx.roundRect(innerX, y, cardW, itemH - Math.round(W * 0.008), 10);
     ctx.fill();
 
-    const catColor = CAT_COLORS[e.categoria] || CAT_DEFAULT;
+    const catColor = VS_Colors.CAT_COLORS[e.categoria] || VS_Colors.CAT_DEFAULT;
     ctx.fillStyle = isDest ? '#ffd700' : catColor;
     ctx.beginPath();
     ctx.roundRect(innerX, y + Math.round(itemH * 0.1), 4, itemH * 0.8, 2);
@@ -441,7 +430,7 @@ function drawEfeCards(ctx, W, H, br) {
     if (descDisplay.length < desc.length) descDisplay = descDisplay.slice(0, -1) + '…';
     ctx.fillText(descDisplay, yearX, cy + Math.round(itemH * 0.40));
 
-    ctx.fillStyle = hexToRgbaEfe(isDest ? '#ffd700' : catColor, isDest ? 0.2 : 0.15);
+    ctx.fillStyle = VS_Utils.hexToRgba(isDest ? '#ffd700' : catColor, isDest ? 0.2 : 0.15);
     ctx.beginPath();
     const badgeW = ctx.measureText(e.categoria || '').width + Math.round(W * 0.02);
     const badgeH = Math.round(itemH * 0.22);
@@ -474,7 +463,7 @@ function drawEfeTitle(ctx, W, H, tr) {
 
   ctx.textBaseline = 'middle';
 
-  ctx.fillStyle = '#a6ce39';
+  ctx.fillStyle = VS_Colors.ACCENT;
   ctx.fillRect(tr.x, tr.y + tr.h - 2, tr.w, 2);
 
   ctx.font = `700 ${sz}px Inter, sans-serif`;
@@ -485,7 +474,7 @@ function drawEfeTitle(ctx, W, H, tr) {
   const leftW = ctx.measureText(leftText).width;
 
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#a6ce39';
+  ctx.fillStyle = VS_Colors.ACCENT;
   ctx.fillText(leftText, cx - totalW / 2, tr.y + tr.h / 2);
   if (fechaTexto) {
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
@@ -493,145 +482,19 @@ function drawEfeTitle(ctx, W, H, tr) {
   }
 }
 
-function drawEfeFooter(ctx, W, H) {
-  const M = Math.round(W * 0.04);
-  const footerH = Math.round(W * 0.06);
-  const footerY = H - Math.round(footerH * 0.4);
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(M, footerY - Math.round(W * 0.015));
-  ctx.lineTo(W - M, footerY - Math.round(W * 0.015));
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.font = `600 ${Math.round(W * 0.014)}px Inter, sans-serif`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, footerY);
-  ctx.textAlign = 'right';
-  ctx.fillText('Generado con Visual Suite', W - M, footerY);
-}
-
-function drawDotGridEfe(ctx, W, H, color, spacing) {
-  ctx.fillStyle = color;
-  for (let x = spacing; x < W; x += spacing) {
-    for (let y = spacing; y < H; y += spacing) {
-      ctx.beginPath();
-      ctx.arc(x, y, 1, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-}
-
-function hexToRgbaEfe(hex, alpha) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-function dibujarLogoEfemerides(ctx, W, H) {
-  const ls = window.logoState;
-  if (!ls || !ls.loaded || !ls.visible || !ls.img) return;
-  if (!efeBlocks || !efeBlocks.logo) return;
-  const b = efeBlocks.logo;
-  const lx = b.x * W, ly = b.y * H, lw = b.w * W, lh = b.h * H;
-  ctx.drawImage(ls.img, lx, ly, lw, lh);
-}
-
-function drawEfeActiveUI(ctx, W, H) {
-  if (!efeActiveBlock || !efeBlocks || !efeBlocks[efeActiveBlock]) return;
-  const b = efeBlocks[efeActiveBlock];
-  const bx = b.x * W, by = b.y * H, bw = b.w * W, bh = b.h * H;
-  const cx = bx + bw / 2, cy2 = by + bh / 2;
-  const hs = Math.max(18, Math.round(W * 0.016));
-  const lw2 = Math.max(1, Math.round(W * 0.0015));
-
-  // Center guides
-  ctx.strokeStyle = 'rgba(166,206,57,0.5)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 6]);
-  ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
-
-  // Rule of thirds
-  ctx.strokeStyle = 'rgba(166,206,57,0.25)';
-  [W / 3, W * 2 / 3].forEach(x => { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); });
-  [H / 3, H * 2 / 3].forEach(y => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); });
-
-  // Edge guides
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.beginPath(); ctx.moveTo(bx, 0); ctx.lineTo(bx, H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(bx + bw, 0); ctx.lineTo(bx + bw, H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, by); ctx.lineTo(W, by); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, by + bh); ctx.lineTo(W, by + bh); ctx.stroke();
-
-  ctx.setLineDash([]);
-
-  // Center crosshair
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 1;
-  const ch = hs * 0.4;
-  ctx.beginPath(); ctx.moveTo(cx - ch, cy2); ctx.lineTo(cx + ch, cy2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx, cy2 - ch); ctx.lineTo(cx, cy2 + ch); ctx.stroke();
-
-  // Selection border
-  ctx.strokeStyle = '#a6ce39';
-  ctx.lineWidth = lw2;
-  ctx.beginPath();
-  ctx.roundRect(bx, by, bw, bh, 4);
-  ctx.stroke();
-
-  // Handles
-  const handles = efeActiveBlock === 'logo' ? [
-    { x: bx, y: by, id: 'nw' }, { x: bx + bw, y: by, id: 'ne' },
-    { x: bx, y: by + bh, id: 'sw' }, { x: bx + bw, y: by + bh, id: 'se' }
-  ] : [
-    { x: bx, y: by, id: 'nw' }, { x: bx + bw, y: by, id: 'ne' },
-    { x: bx, y: by + bh, id: 'sw' }, { x: bx + bw, y: by + bh, id: 'se' },
-    { x: bx, y: cy2, id: 'w' }, { x: bx + bw, y: cy2, id: 'e' }
-  ];
-  handles.forEach(h => {
-    ctx.beginPath();
-    if (h.id === 'w' || h.id === 'e') {
-      const pw = Math.round(hs * 0.35), ph = Math.round(hs * 0.7);
-      ctx.roundRect(h.x - pw / 2, h.y - ph / 2, pw, ph, 2);
-    } else {
-      ctx.arc(h.x, h.y, hs * 0.45, 0, Math.PI * 2);
-    }
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.strokeStyle = '#a6ce39';
-    ctx.lineWidth = lw2;
-    ctx.stroke();
-  });
-}
-
-// ── Export ──
 async function exportarEfemerides() {
-  await document.fonts.ready;
   const canvas = document.getElementById('efemeridesCanvas');
-  const ow = canvas.width, oh = canvas.height;
-  const s = 3;
-  canvas.width = ow * s; canvas.height = oh * s;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(s, s);
-  renderizarEfemeridesEnCtx(ctx, ow, oh);
-  canvas.toBlob(blob => {
-    const url = URL.createObjectURL(blob);
-    mostrarExportPreview(url, 'efemerides-media-mendoza');
-    canvas.width = ow; canvas.height = oh;
-    renderizarEfemerides();
-  }, 'image/png', 1);
+  await VS_Utils.exportCanvasToPNG(canvas, renderizarEfemeridesEnCtx, 'efemerides-media-mendoza', 3);
+  renderizarEfemerides();
 }
 
 function renderizarEfemeridesEnCtx(ctx, W, H) {
   const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0f111a');
-  grad.addColorStop(1, '#1a1d2e');
+  grad.addColorStop(0, VS_Colors.DARK_BG);
+  grad.addColorStop(1, VS_Colors.DARK_BG2);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
-  drawDotGridEfe(ctx, W, H, 'rgba(255,255,255,0.02)', Math.round(W * 0.03));
+  VS_Utils.drawDotGrid(ctx, W, H, 'rgba(255,255,255,0.02)', Math.round(W * 0.03), 1);
 
   const br = getEfeBlockRect('body', W, H);
   if (br) {
@@ -646,21 +509,15 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
   const tr = getEfeBlockRect('title', W, H);
   if (tr) drawEfeTitle(ctx, W, H, tr);
 
-  drawEfeFooter(ctx, W, H);
-  dibujarLogoEfemerides(ctx, W, H);
-}
+  VS_CanvasHelpers.drawFooter(ctx, W, H, true);
 
-function cargarArchivoJSONEfe(input) {
-  const file = input.files && input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const ta = document.getElementById('efeJson');
-    if (ta) ta.value = e.target.result;
-    cargarJSONEfemerides();
-  };
-  reader.onerror = () => toast('No se pudo leer el archivo');
-  reader.readAsText(file);
+  if (efeBlocks && efeBlocks.logo) {
+    VS_Utils.dibujarLogo(ctx, W, H, {
+      x: efeBlocks.logo.x,
+      y: efeBlocks.logo.y,
+      w: efeBlocks.logo.w
+    });
+  }
 }
 
 document.addEventListener('DOMContentLoaded', initEfemerides);

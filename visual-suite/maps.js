@@ -6,14 +6,6 @@ let mapInstance = null;
 let markersLayer = null;
 const markerList = [];
 
-// Escapa HTML para evitar inyección en popups (título/descripción pueden venir
-// de Nominatim o de la extracción por IA).
-function escHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str == null ? '' : String(str);
-  return div.innerHTML;
-}
-
 function initMaps() {
   setTimeout(() => {
     const container = document.getElementById('mapContainer');
@@ -53,7 +45,6 @@ function buscarUbicacion() {
         return;
       }
 
-      // Múltiples resultados: mostrar para elegir
       const choices = data.slice(0, 5).map((loc, i) =>
         `${i + 1}: ${loc.display_name}`
       ).join('\n');
@@ -83,13 +74,12 @@ function agregarMarcador() {
 }
 
 function agregarMarcadorCoords(lat, lng, title, desc) {
-  const t = escHtml(title);
-  const d = escHtml(desc);
+  const t = VS_Utils.escHtml(title);
+  const d = VS_Utils.escHtml(desc);
   const marker = L.marker([lat, lng], { draggable: true })
     .bindPopup(`<b>${t}</b>${desc !== title ? '<br>' + d : ''}`)
     .addTo(markersLayer);
 
-  // Actualizar popup al arrastrar
   marker.on('dragend', function() {
     const pos = this.getLatLng();
     this.bindPopup(`<b>${t}</b><br>Lat: ${pos.lat.toFixed(6)}, Lng: ${pos.lng.toFixed(6)}`).openPopup();

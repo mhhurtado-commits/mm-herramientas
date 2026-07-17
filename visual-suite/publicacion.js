@@ -145,10 +145,7 @@ const INIT_JS = `
 
 /* ---------- Utilidades ---------- */
 function escapeHtml(s){
-  if(s===null||s===undefined) return '';
-  return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  return VS_Utils.escHtml(s);
 }
 
 function formatearFecha(iso, corto){

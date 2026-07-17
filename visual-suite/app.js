@@ -364,11 +364,7 @@ function initLogo() {
 // Pinta el logo sobre un canvas de exportación (charts, timeline), respetando
 // visibilidad, posición (x,y), ancho (w) y relación de aspecto (ar).
 function dibujarLogo(ctx, W, H) {
-  const ls = window.logoState;
-  if (!ls || !ls.loaded || !ls.visible || !ls.img) return;
-  const lw = ls.w * W;
-  const lh = lw * (ls.ar || (ls.img.naturalHeight / ls.img.naturalWidth));
-  ctx.drawImage(ls.img, ls.x * W, ls.y * H, lw, lh);
+  VS_Utils.dibujarLogo(ctx, W, H);
 }
 
 function toggleLogo() {
@@ -411,13 +407,16 @@ function limpiarEfemerides() {
 }
 
 // ── Drag & Resize directo sobre el logo overlay (estilo placas) ──
+let logoDragInitialized = false;
 function initLogoDrag() {
+  if (logoDragInitialized) return;
   ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia'].forEach(id => {
     const overlay = document.getElementById(id);
     if (!overlay) return;
     overlay.addEventListener('mousedown', onLogoDown);
     overlay.addEventListener('touchstart', onLogoDown, { passive: false });
   });
+  logoDragInitialized = true;
 }
 
 let dragAction = null;

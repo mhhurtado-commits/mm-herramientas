@@ -325,10 +325,7 @@ Reglas:
 
 function copiarPromptChart() {
   const ta = document.getElementById('chartPrompt');
-  if (!ta || !ta.value.trim()) return toast('No hay prompt para copiar');
-  ta.select();
-  try { document.execCommand('copy'); } catch (e) { navigator.clipboard?.writeText(ta.value); }
-  toast('✅ Prompt copiado al portapapeles');
+  VS_Utils.copiarAlPortapapeles(ta?.value, '✅ Prompt copiado al portapapeles');
 }
 
 async function cargarJSONdeChat() {
