@@ -11,8 +11,8 @@ const EFEMERIDES_FMT = {
 
 let efemeridesData = [];
 let efeFormato = 'landscape';
-let efeBlocks = null; // { title: {x,y,w,h}, body: {x,y,w,h} }
-let efeActiveBlock = null; // 'title' | 'body' | null
+let efeBlocks = null; // { logo, title, body: {x,y,w,h} }
+let efeActiveBlock = null; // 'logo' | 'title' | 'body' | null
 let efeDrag = null;
 
 const CAT_COLORS = {
@@ -144,15 +144,27 @@ function ordenarEfemerides(data) {
   return result;
 }
 
-// ── Bloques (title, body) ──
+// ── Bloques (logo, title, body) ──
 function getEfeDefaultBlocks() {
   const fmt = EFEMERIDES_FMT[efeFormato] || EFEMERIDES_FMT.landscape;
   const W = fmt.w, H = fmt.h;
   const titleH = Math.max(0.04, Math.min(0.12, Math.round(W * 0.055 / H * 100) / 100));
+  const ls = window.logoState;
+  const ar = ls && ls.img ? ls.img.naturalHeight / ls.img.naturalWidth : 1;
   return {
+    logo: { x: 0.75, y: 0.02, w: 0.18, h: 0.18 * ar },
     title: { x: 0.04, y: 0.04, w: 0.92, h: titleH },
     body: { x: 0.04, y: 0.04 + titleH + 0.03, w: 0.92, h: 1 - (0.04 + titleH + 0.03 + 0.05) }
   };
+}
+
+function ensureEfeLogoBlock() {
+  if (!efeBlocks) loadEfeBlocks();
+  if (!efeBlocks || efeBlocks.logo) return;
+  const ls = window.logoState;
+  const ar = ls && ls.img ? ls.img.naturalHeight / ls.img.naturalWidth : 1;
+  efeBlocks.logo = { x: 0.75, y: 0.02, w: 0.18, h: 0.18 * ar };
+  saveEfeBlocks();
 }
 
 function loadEfeBlocks() {
@@ -164,6 +176,7 @@ function loadEfeBlocks() {
 
 function saveEfeBlocks() {
   if (!efeBlocks) return;
+  ensureEfeLogoBlock();
   localStorage.setItem('efeBlocks_' + efeFormato, JSON.stringify(efeBlocks));
 }
 
@@ -186,8 +199,7 @@ function getEfeCanvasPos(e) {
 function getEfeBlockHit(mx, my, W, H) {
   if (!efeBlocks) return null;
   const nx = mx / W, ny = my / H;
-  const keys = ['title', 'body'];
-  for (const k of keys) {
+  for (const k of ['title', 'body', 'logo']) {
     const b = efeBlocks[k];
     if (!b) continue;
     if (nx >= b.x && nx <= b.x + b.w && ny >= b.y && ny <= b.y + b.h) return k;
@@ -197,15 +209,23 @@ function getEfeBlockHit(mx, my, W, H) {
 
 function getEfeHandleHit(mx, my, W, H) {
   if (!efeActiveBlock || !efeBlocks || !efeBlocks[efeActiveBlock]) return null;
+  const canvas = document.getElementById('efemeridesCanvas');
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  const scale = rect.width / W;
+  const touchPx = window.innerWidth < 768 ? 40 : 20;
+  const threshold = touchPx / scale;
+  const ns = threshold / W;
   const b = efeBlocks[efeActiveBlock];
   const nx = mx / W, ny = my / H;
-  const hs = Math.max(0.014, 20 / W);
-  if (Math.abs(nx - b.x) < hs && Math.abs(ny - b.y) < hs) return 'nw';
-  if (Math.abs(nx - (b.x + b.w)) < hs && Math.abs(ny - b.y) < hs) return 'ne';
-  if (Math.abs(nx - b.x) < hs && Math.abs(ny - (b.y + b.h)) < hs) return 'sw';
-  if (Math.abs(nx - (b.x + b.w)) < hs && Math.abs(ny - (b.y + b.h)) < hs) return 'se';
-  if (Math.abs(nx - b.x) < hs && ny > b.y && ny < b.y + b.h) return 'w';
-  if (Math.abs(nx - (b.x + b.w)) < hs && ny > b.y && ny < b.y + b.h) return 'e';
+  if (Math.abs(nx - b.x) < ns && Math.abs(ny - b.y) < ns) return 'nw';
+  if (Math.abs(nx - (b.x + b.w)) < ns && Math.abs(ny - b.y) < ns) return 'ne';
+  if (Math.abs(nx - b.x) < ns && Math.abs(ny - (b.y + b.h)) < ns) return 'sw';
+  if (Math.abs(nx - (b.x + b.w)) < ns && Math.abs(ny - (b.y + b.h)) < ns) return 'se';
+  if (efeActiveBlock !== 'logo') {
+    if (Math.abs(nx - b.x) < ns && ny > b.y && ny < b.y + b.h) return 'w';
+    if (Math.abs(nx - (b.x + b.w)) < ns && ny > b.y && ny < b.y + b.h) return 'e';
+  }
   return null;
 }
 
@@ -218,14 +238,14 @@ function initEfeCanvasEvents() {
   canvas.addEventListener('touchmove', onEfeMove, { passive: false });
   canvas.addEventListener('mouseup', onEfeUp);
   canvas.addEventListener('touchend', onEfeUp);
+  canvas.addEventListener('touchcancel', onEfeUp);
 }
 
 function onEfeDown(e) {
   const canvas = document.getElementById('efemeridesCanvas');
   if (!canvas) return;
   if (e.touches) e.preventDefault();
-  if (e.target !== canvas) return;
-  if (window.dragAction) return;
+  ensureEfeLogoBlock();
   const pos = getEfeCanvasPos(e);
   const W = canvas.width, H = canvas.height;
   if (efeActiveBlock) {
@@ -243,6 +263,7 @@ function onEfeDown(e) {
     efeActiveBlock = null;
     efeDrag = null;
   }
+  document.addEventListener('touchcancel', onEfeUp);
   renderizarEfemerides();
 }
 
@@ -268,12 +289,21 @@ function onEfeMove(e) {
     const o = efeDrag.orig;
     let dx = nx - efeDrag.startNx, dy = ny - efeDrag.startNy;
     if (!o) return;
-    if (c === 'se') { b.w = Math.max(MIN, o.w + dx); b.h = Math.max(MIN, o.h + dy); }
-    else if (c === 'sw') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; b.h = Math.max(MIN, o.h + dy); }
-    else if (c === 'ne') { b.w = Math.max(MIN, o.w + dx); const nh = Math.max(MIN, o.h - dy); b.y = o.y + o.h - nh; b.h = nh; }
-    else if (c === 'nw') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; const nh = Math.max(MIN, o.h - dy); b.y = o.y + o.h - nh; b.h = nh; }
-    else if (c === 'e') { b.w = Math.max(MIN, o.w + dx); }
-    else if (c === 'w') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; }
+    if (efeDrag.key === 'logo') {
+      const ls = window.logoState;
+      const ar = ls && ls.img ? ls.img.naturalHeight / ls.img.naturalWidth : 1;
+      if (c === 'se') { const nw = Math.max(MIN, o.w + dx); b.w = nw; b.h = nw * ar; }
+      else if (c === 'sw') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; b.h = nw * ar; }
+      else if (c === 'ne') { const nw = Math.max(MIN, o.w + dx); b.w = nw; b.h = nw * ar; b.y = o.y + o.h - b.h; }
+      else if (c === 'nw') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; b.h = nw * ar; b.y = o.y + o.h - b.h; }
+    } else {
+      if (c === 'se') { b.w = Math.max(MIN, o.w + dx); b.h = Math.max(MIN, o.h + dy); }
+      else if (c === 'sw') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; b.h = Math.max(MIN, o.h + dy); }
+      else if (c === 'ne') { b.w = Math.max(MIN, o.w + dx); const nh = Math.max(MIN, o.h - dy); b.y = o.y + o.h - nh; b.h = nh; }
+      else if (c === 'nw') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; const nh = Math.max(MIN, o.h - dy); b.y = o.y + o.h - nh; b.h = nh; }
+      else if (c === 'e') { b.w = Math.max(MIN, o.w + dx); }
+      else if (c === 'w') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; }
+    }
   }
   saveEfeBlocks();
   renderizarEfemerides();
@@ -281,7 +311,9 @@ function onEfeMove(e) {
 
 function onEfeUp() {
   efeDrag = null;
-  document.getElementById('efemeridesCanvas').style.cursor = efeActiveBlock ? 'grab' : 'default';
+  document.removeEventListener('touchcancel', onEfeUp);
+  const canvas = document.getElementById('efemeridesCanvas');
+  if (canvas) canvas.style.cursor = efeActiveBlock ? 'grab' : 'default';
 }
 
 // ── Render ──
@@ -501,11 +533,9 @@ function hexToRgbaEfe(hex, alpha) {
 function dibujarLogoEfemerides(ctx, W, H) {
   const ls = window.logoState;
   if (!ls || !ls.loaded || !ls.visible || !ls.img) return;
-  const lx = ls.x * W;
-  const ly = ls.y * H;
-  const lw = ls.w * W;
-  const ar = ls.img.naturalHeight / ls.img.naturalWidth;
-  const lh = lw * ar;
+  if (!efeBlocks || !efeBlocks.logo) return;
+  const b = efeBlocks.logo;
+  const lx = b.x * W, ly = b.y * H, lw = b.w * W, lh = b.h * H;
   ctx.drawImage(ls.img, lx, ly, lw, lh);
 }
 
@@ -553,7 +583,10 @@ function drawEfeActiveUI(ctx, W, H) {
   ctx.stroke();
 
   // Handles
-  const handles = [
+  const handles = efeActiveBlock === 'logo' ? [
+    { x: bx, y: by, id: 'nw' }, { x: bx + bw, y: by, id: 'ne' },
+    { x: bx, y: by + bh, id: 'sw' }, { x: bx + bw, y: by + bh, id: 'se' }
+  ] : [
     { x: bx, y: by, id: 'nw' }, { x: bx + bw, y: by, id: 'ne' },
     { x: bx, y: by + bh, id: 'sw' }, { x: bx + bw, y: by + bh, id: 'se' },
     { x: bx, y: cy2, id: 'w' }, { x: bx + bw, y: cy2, id: 'e' }

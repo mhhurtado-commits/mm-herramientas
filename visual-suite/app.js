@@ -350,7 +350,13 @@ function initLogo() {
     logoState.loaded = true;
     actualizarLogoOverlay();
     initLogoDrag();
+    // Actualizar altura del bloque logo en efemerides según AR real
+    const ar = logoState.img.naturalHeight / logoState.img.naturalWidth;
+    if (typeof efeBlocks !== 'undefined' && efeBlocks && efeBlocks.logo) {
+      efeBlocks.logo.h = efeBlocks.logo.w * ar;
+    }
     if (typeof renderizarInfografia === 'function') renderizarInfografia();
+    if (typeof renderizarEfemerides === 'function') renderizarEfemerides();
   };
   logoState.img.src = LOGO_PATH;
 }
@@ -375,7 +381,7 @@ function toggleLogo() {
 
 function actualizarLogoOverlay() {
   if (!logoState.loaded) return;
-  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia', 'logoOverlayEfemerides'].forEach(id => {
+  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     if (!logoState.visible) { el.style.display = 'none'; return; }
@@ -406,7 +412,7 @@ function limpiarEfemerides() {
 
 // ── Drag & Resize directo sobre el logo overlay (estilo placas) ──
 function initLogoDrag() {
-  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia', 'logoOverlayEfemerides'].forEach(id => {
+  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia'].forEach(id => {
     const overlay = document.getElementById(id);
     if (!overlay) return;
     overlay.addEventListener('mousedown', onLogoDown);
@@ -455,6 +461,7 @@ function onLogoDown(e) {
   document.addEventListener('mouseup', onLogoUp);
   document.addEventListener('touchmove', onLogoMove, { passive: false });
   document.addEventListener('touchend', onLogoUp);
+  document.addEventListener('touchcancel', onLogoUp);
 }
 
 function onLogoMove(e) {
@@ -571,6 +578,7 @@ function onLogoUp() {
   document.removeEventListener('mouseup', onLogoUp);
   document.removeEventListener('touchmove', onLogoMove);
   document.removeEventListener('touchend', onLogoUp);
+  document.removeEventListener('touchcancel', onLogoUp);
 }
 
 // ── Toast ──

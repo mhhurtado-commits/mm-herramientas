@@ -335,6 +335,7 @@
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
 }
 .vs-infografia-templates {
   display: grid;
@@ -431,6 +432,15 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
 .logo-resize-handle.corner-ne { top: -6px; right: -6px; cursor: ne-resize; }
 .logo-resize-handle.corner-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
 .logo-resize-handle.corner-se { bottom: -6px; right: -6px; cursor: se-resize; }
+
+/* ── Efemerides prompt row ── */
+.efe-prompt-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.efe-prompt-row textarea { min-width: 200px; }
+@media (max-width: 640px) {
+  .efe-prompt-row { flex-direction: column; }
+  .efe-prompt-row textarea { min-height: 70px; }
+  .efe-prompt-row .vs-btn { align-self: stretch; justify-content: center; }
+}
 
 /* ── Logo toggle ── */
 .vs-logo-controls {
@@ -963,9 +973,9 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
           <span class="vs-card-title">Generar con Chat IA</span>
         </div>
         <button class="vs-btn vs-btn-secondary" onclick="generarPromptEfemerides()" style="margin-top:8px">🤖 Generar prompt para Chat IA</button>
-        <div style="display:flex;gap:6px;margin-top:8px">
+        <div class="efe-prompt-row">
           <textarea class="vs-textarea" id="efePrompt" style="flex:1;min-height:100px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar y pegar en Gemini Chat..."></textarea>
-          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptEfemerides()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptEfemerides()" title="Copiar prompt" style="flex-shrink:0">📋 Copiar</button>
         </div>
         <div style="margin-top:10px">
           <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
