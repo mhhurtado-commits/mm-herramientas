@@ -250,18 +250,25 @@ function generarPromptChat() {
   const tipo = detectarTipoTema(tema);
   const campos = camposSegunTipo(tipo);
 
-  const prompt = `Necesito un JSON puro para pegar en un frontend que renderiza una línea de tiempo.
+  const prompt = `INSTRUCCIÓN CRÍTICA: Usá Google Search para encontrar fechas y datos reales. NO inventes eventos ni fechas. Si no encontrás información verificada para el tema, indicá que no hay datos disponibles en vez de inventar.
+
+Necesito un JSON puro para pegar en un frontend que renderiza una línea de tiempo.
 
 Tema: "${tema}"
 
 Formato requerido:
 { "eventos": [ { "fecha": "YYYY-MM-DD", "titulo": "...", "descripcion": "..." } ] }
 
-Reglas:
+Reglas estrictas:
+- ANTES de generar el JSON, buscá en Google los eventos reales del tema
 - Cada evento individual tiene su propia entrada
 - Orden cronológico estricto
 - Detecté que este tema es de tipo: ${tipo}
 ${campos}
+- Usá SOLO fechas y eventos verificados en fuentes confiables (Wikipedia, medios oficiales, instituciones)
+- Incluí la fuente de cada dato si es posible en la descripción
+- Si no encontrás suficientes eventos verificados, devolvé: {"error": "No se encontraron suficientes eventos verificados para este tema"}
+- NUNCA inventes fechas, eventos o datos
 - Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;
 
   const ta = document.getElementById('tlPrompt');

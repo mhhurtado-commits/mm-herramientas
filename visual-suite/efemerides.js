@@ -41,7 +41,7 @@ function generarPromptEfemerides() {
   const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const fechaStr = `${dias[fecha.getDay()]} ${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
 
-  const prompt = `Necesito un JSON puro para pegar en un frontend que genera una placa visual de efemérides.
+  const prompt = `INSTRUCCIÓN CRÍTICA: Usá Google Search para encontrar efemérides REALES de esta fecha. NO inventes eventos ni fechas. Si no encontrás suficientes efemérides verificadas, devolvé las que tengas certeza y explicá que no se encontraron más.
 
 Fecha: ${fechaStr}
 
@@ -56,20 +56,24 @@ Requisitos del JSON:
       "descripcion": "Descripción breve (máximo 10 palabras)",
       "categoria": "Política | Deportes | Cultura | Ciencia | Internacional | Sociedad | Espectáculos | Religión | Económica",
       "tipo": "nacional" | "internacional",
-      "destacada": true
+      "destacada": true,
+      "fuente": "fuente donde se verificó el dato"
     }
   ]
 }
 
 Reglas estrictas:
+- ANTES de generar el JSON, buscá en Google: "efemérides ${fechaStr.replace(/ de /g, ' ')}" y "qué pasó el ${fechaStr}"
+- Verificá CADA dato en al menos 2 fuentes (Wikipedia, efemerides.com.ar, historiaantigua.com.ar, etc.)
 - Incluí entre 5 y 12 efemérides para esta fecha
 - Incluí argentinas (🇦🇷, tipo "nacional") e internacionales relevantes (🌍, tipo "internacional")
 - El campo "tipo" debe ser EXACTAMENTE "nacional" o "internacional" según corresponda
-- Si es una efeméride muy importante o de celebración especial (como "Día del...", "Día de...", "Año Nuevo", "Navidad", "Revolución", "Independencia", "Fallecimiento de prócer", etc.), marcá "destacada": true. Máximo 2 o 3 destacadas.
+- Si es una efeméride muy importante o de celebración especial, marcá "destacada": true. Máximo 2 o 3 destacadas.
 - Abarcá distintas categorías (política, cultura, deportes, ciencia, sociedad, espectáculos, religión, economía)
 - Cada efeméride debe empezar con "Nace", "Fallece", "Se celebra", "Ocurre", "Se funda", "Se descubre", etc.
 - Incluí el emoji más representativo para cada una
-- VERIFICÁ cada dato antes de incluirlo — son datos chequeables
+- Incluí el campo "fuente" con la fuente verificadora
+- NUNCA inventes nombres, fechas o eventos. Si no estás seguro, NO lo incluyas
 - Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;
 
   const ta = document.getElementById('efePrompt');

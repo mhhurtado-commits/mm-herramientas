@@ -295,7 +295,9 @@ function generarPromptChart() {
 
   const tipos = Object.entries(TIPO_NOMBRE).map(([k, v]) => `${k} (${v})`).join(', ');
 
-  const prompt = `Necesito un JSON puro para pegar en un frontend que genera gráficos.
+  const prompt = `INSTRUCCIÓN CRÍTICA: Usá Google Search para encontrar datos reales y actualizados. NO inventes números. Si no encontrás datos verificados para el tema, indicá que no hay datos disponibles en vez de inventar.
+
+Necesito un JSON puro para pegar en un frontend que genera gráficos.
 
 Tema: "${tema}"
 
@@ -304,14 +306,20 @@ Formato requerido:
   "titulo": "título descriptivo del gráfico",
   "tipo_sugerido": "bar | line | pie | doughnut | radar | polarArea",
   "datos_ordenados": [{"etiqueta": "etiqueta", "valor": 123}],
+  "fuente": "nombre de la fuente oficial de donde sacaste los datos",
   "razon": "breve explicación de por qué este tipo de gráfico funciona mejor"
 }
 
 Tipos disponibles: ${tipos}
 
-Reglas:
+Reglas estrictas:
+- ANTES de generar el JSON, buscá en Google los datos reales del tema
+- Usá SOLO datos de fuentes oficiales: INDEC, Banco Mundial, FMI, ministerios, organismos públicos, medios periodísticos reconocidos
 - 5 a 10 datos como máximo
-- Valores numéricos reales según datos públicos conocidos
+- Incluí el campo "fuente" con el nombre de la fuente consultada
+- Si el tema es argentino, buscá en INDEC (indec.gob.ar) o fuentes oficiales argentinas
+- Si no encontrás datos verificados, devolvé: {"error": "No se encontraron datos verificados para este tema"}
+- NUNCA inventes porcentajes, cifras o estadísticas
 - Etiquetas claras y descriptivas
 - Elegí el tipo de gráfico que mejor represente los datos
 - Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;

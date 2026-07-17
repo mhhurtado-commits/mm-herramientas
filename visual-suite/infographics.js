@@ -616,7 +616,9 @@ function generarPromptInfografia() {
 
   const templates = Object.entries(TEMPLATE_NOMBRES).map(([k, v]) => `${k} (${v})`).join(', ');
 
-  const prompt = `Necesito un JSON puro para pegar en un frontend que genera infografías visuales.
+  const prompt = `INSTRUCCIÓN CRÍTICA: Usá Google Search para encontrar datos reales y actualizados. NO inventes cifras, porcentajes ni estadísticas. Si no encontrás datos verificados para el tema, indicá que no hay datos disponibles en vez de inventar.
+
+Necesito un JSON puro para pegar en un frontend que genera infografías visuales.
 
 Tema: "${tema}"
 
@@ -626,16 +628,22 @@ Formato requerido:
   "lineas": ["Etiqueta: valor numérico", "Subtítulo: más datos"],
   "template_sugerido": "simple | comparativa | listado | destacado",
   "color_principal": "#código hex",
-  "color_secundario": "#código hex"
+  "color_secundario": "#código hex",
+  "fuente": "nombre de la fuente oficial de donde sacaste los datos"
 }
 
 Templates disponibles: ${templates}
 
-Reglas:
+Reglas estrictas:
+- ANTES de generar el JSON, buscá en Google los datos reales del tema
+- Usá SOLO datos de fuentes oficiales: INDEC, Banco Mundial, FMI, ministerios, organismos públicos, medios periodísticos reconocidos
 - Cada línea representa un dato de la infografía (formato: "Etiqueta: valor")
-- Usá datos reales según tu conocimiento sobre el tema
+- Incluí el campo "fuente" con el nombre de la fuente consultada
 - 4 a 10 líneas como máximo
-- Incluí cifras, porcentajes y estadísticas concretas
+- Incluí cifras, porcentajes y estadísticas concretas Y VERIFICADAS
+- Si el tema es argentino, buscá en INDEC (indec.gob.ar) o fuentes oficiales argentinas
+- Si no encontrás datos verificados, devolvé: {"error": "No se encontraron datos verificados para este tema"}
+- NUNCA inventes porcentajes, cifras o estadísticas
 - Elegí colores que combinen bien (modernos, sobrios)
 - Elegí el template que mejor represente los datos
 - Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;
