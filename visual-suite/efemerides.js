@@ -28,7 +28,6 @@ function cambiarFormatoEfe() {
   if (saved) { try { efeBlocks = JSON.parse(saved); } catch(e) {} }
   if (!efeBlocks) efeBlocks = getEfeDefaultBlocks();
   const area = document.getElementById('efemeridesArea');
-  if (area) area.style.aspectRatio = VS_Formats[fmt].cssAR;
   renderizarEfemerides();
 }
 

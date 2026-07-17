@@ -383,17 +383,17 @@
   width: 100%;
   max-width: 800px;
   margin: 0 auto;
-  aspect-ratio: 16 / 9;
   background: var(--surface2);
   border: 1px solid var(--line2);
   border-radius: var(--radius);
-  overflow: hidden;
+  overflow: visible;
 }
 .vs-infografia-area canvas {
   width: 100%;
-  height: 100%;
+  height: auto;
   display: block;
   touch-action: none;
+  border-radius: var(--radius);
 }
 .vs-infografia-templates {
   display: grid;
@@ -588,7 +588,7 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   .vs-url-bar .vs-btn { width: 100%; justify-content: center; }
   .vs-chart-container { min-height: 160px; }
   .vs-chart-container canvas { max-height: 200px; }
-  .vs-infografia-area { max-height: 45vh !important; overflow-y: auto; }
+  .vs-infografia-area { max-height: none !important; overflow: visible !important; }
   .vs-btn { font-size: 11px; padding: 10px 14px; min-height: 40px; }
   .vs-btn-sm { font-size: 10px; padding: 8px 12px; min-height: 36px; }
   .vs-input { font-size: 16px; padding: 12px 14px; }
@@ -615,7 +615,7 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
 @media (max-width: 640px) {
   .vs-grid { gap: 8px; }
   .vs-infografia-templates { grid-template-columns: repeat(2, 1fr); }
-  .vs-infografia-area { max-height: 35vh !important; overflow-y: auto; }
+  .vs-infografia-area { max-height: none !important; overflow: visible !important; }
   .vs-btn { font-size: 11px; padding: 10px 12px; min-height: 40px; }
   .vs-btn-sm { font-size: 11px; padding: 9px 12px; min-height: 38px; }
   .vs-input { font-size: 16px; }
