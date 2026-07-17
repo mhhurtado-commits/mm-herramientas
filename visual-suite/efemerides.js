@@ -129,7 +129,12 @@ function cargarJSONEfemerides() {
 }
 
 function ordenarEfemerides(data) {
-  const destacadas = data.filter(e => e.destacada).sort((a, b) => (a.anio || 9999) - (b.anio || 9999));
+  const destacadas = data.filter(e => e.destacada).sort((a, b) => {
+    const aNac = (a.tipo || '').toLowerCase() === 'nacional' ? 0 : 1;
+    const bNac = (b.tipo || '').toLowerCase() === 'nacional' ? 0 : 1;
+    if (aNac !== bNac) return aNac - bNac;
+    return (a.anio || 9999) - (b.anio || 9999);
+  });
   const nacional = data.filter(e => !e.destacada && (e.tipo || '').toLowerCase() === 'nacional').sort((a, b) => (a.anio || 9999) - (b.anio || 9999));
   const internacional = data.filter(e => !e.destacada && (e.tipo || '').toLowerCase() !== 'nacional').sort((a, b) => (a.anio || 9999) - (b.anio || 9999));
   const result = [];
