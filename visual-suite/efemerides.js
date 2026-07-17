@@ -251,6 +251,10 @@ function onEfeMove(e) {
   if (efeDrag.type === 'drag') {
     b.x = Math.max(0, Math.min(1 - b.w, nx - efeDrag.offX));
     b.y = Math.max(0, Math.min(1 - b.h, ny - efeDrag.offY));
+    const SNAP = 0.014;
+    const ecx = b.x + b.w / 2, ecy = b.y + b.h / 2;
+    if (Math.abs(ecx - 0.5) < SNAP) b.x = 0.5 - b.w / 2;
+    if (Math.abs(ecy - 0.5) < SNAP) b.y = 0.5 - b.h / 2;
   } else if (efeDrag.type.startsWith('resize-')) {
     const c = efeDrag.type.split('-')[1];
     const o = efeDrag.orig;
