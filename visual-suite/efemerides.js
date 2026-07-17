@@ -64,11 +64,11 @@ function generarPromptEfemerides() {
 
   const prompt = `Necesito un JSON puro para pegar en un frontend que genera una placa visual de efemérides.
 
-Fecha: ${fechaStr} (${fechaCorta})
+Fecha: ${fechaStr}
 
 Requisitos del JSON:
 {
-  "fecha": "${fechaCorta}",
+  "fecha": "${fechaStr}",
   "efemerides": [
     {
       "emoji": "🇦🇷",
@@ -138,10 +138,10 @@ function ordenarEfemerides(data) {
 function getEfeDefaultBlocks() {
   const fmt = EFEMERIDES_FMT[efeFormato] || EFEMERIDES_FMT.landscape;
   const W = fmt.w, H = fmt.h;
-  const titleH = Math.max(0.06, Math.round(W * 0.10 / H * 100) / 100);
+  const titleH = Math.max(0.04, Math.min(0.12, Math.round(W * 0.055 / H * 100) / 100));
   return {
-    title: { x: 0.05, y: 0.06, w: 0.9, h: titleH },
-    body: { x: 0.04, y: 0.06 + titleH + 0.04, w: 0.92, h: 1 - (0.06 + titleH + 0.04 + 0.06) }
+    title: { x: 0.04, y: 0.04, w: 0.92, h: titleH },
+    body: { x: 0.04, y: 0.04 + titleH + 0.03, w: 0.92, h: 1 - (0.04 + titleH + 0.03 + 0.05) }
   };
 }
 
@@ -279,8 +279,9 @@ function renderizarEfemerides() {
     const fechaEl = document.getElementById('efeFecha');
     if (fechaEl && fechaEl.value) {
       const d = new Date(fechaEl.value + 'T12:00:00');
+      const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
       const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-      lbl.textContent = d.getDate() + ' de ' + meses[d.getMonth()];
+      lbl.textContent = `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}`;
     }
   }
   const fmt = EFEMERIDES_FMT[efeFormato] || EFEMERIDES_FMT.landscape;
