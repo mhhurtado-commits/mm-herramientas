@@ -386,11 +386,9 @@
   background: var(--surface2);
   border: 1px solid var(--line2);
   border-radius: var(--radius);
-  overflow: visible;
+  overflow: hidden;
 }
 .vs-infografia-area canvas {
-  width: 100%;
-  height: auto;
   display: block;
   touch-action: none;
   border-radius: var(--radius);
@@ -588,7 +586,6 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   .vs-url-bar .vs-btn { width: 100%; justify-content: center; }
   .vs-chart-container { min-height: 160px; }
   .vs-chart-container canvas { max-height: 200px; }
-  .vs-infografia-area { max-height: none !important; overflow: visible !important; }
   .vs-btn { font-size: 11px; padding: 10px 14px; min-height: 40px; }
   .vs-btn-sm { font-size: 10px; padding: 8px 12px; min-height: 36px; }
   .vs-input { font-size: 16px; padding: 12px 14px; }
@@ -610,12 +607,12 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   .vs-tab-header { padding: 10px 12px; }
   .vs-tab-header-title { font-size: 1rem; }
   .vs-tab-header-actions { width: 100%; justify-content: flex-end; }
+  #panel-efemerides .vs-grid > .vs-card:last-child { max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 
 @media (max-width: 640px) {
   .vs-grid { gap: 8px; }
   .vs-infografia-templates { grid-template-columns: repeat(2, 1fr); }
-  .vs-infografia-area { max-height: none !important; overflow: visible !important; }
   .vs-btn { font-size: 11px; padding: 10px 12px; min-height: 40px; }
   .vs-btn-sm { font-size: 11px; padding: 9px 12px; min-height: 38px; }
   .vs-input { font-size: 16px; }
