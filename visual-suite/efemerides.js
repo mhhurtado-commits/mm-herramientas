@@ -11,6 +11,9 @@ const EFEMERIDES_FMT = {
 
 let efemeridesData = [];
 let efeFormato = 'landscape';
+let efeBlocks = null; // { title: {x,y,w,h}, body: {x,y,w,h} }
+let efeActiveBlock = null; // 'title' | 'body' | null
+let efeDrag = null;
 
 const CAT_COLORS = {
   'Política': '#3b82f6', 'política': '#3b82f6',
@@ -31,6 +34,8 @@ function initEfemerides() {
   const el = document.getElementById('efeFecha');
   if (el) { el.value = today; el.max = today; }
   efemeridesData = [];
+  loadEfeBlocks();
+  initEfeCanvasEvents();
   renderizarEfemerides();
 }
 
@@ -38,6 +43,10 @@ function cambiarFormatoEfe() {
   const fmt = document.getElementById('efeFormato').value;
   if (!EFEMERIDES_FMT[fmt]) return;
   efeFormato = fmt;
+  const key = 'efeBlocks_' + fmt;
+  const saved = localStorage.getItem(key);
+  if (saved) { try { efeBlocks = JSON.parse(saved); } catch(e) {} }
+  if (!efeBlocks) efeBlocks = getEfeDefaultBlocks();
   const area = document.getElementById('efemeridesArea');
   if (area) area.style.aspectRatio = EFEMERIDES_FMT[fmt].cssAR;
   renderizarEfemerides();
@@ -66,14 +75,16 @@ Requisitos del JSON:
       "anio": 1965,
       "titulo": "Título corto del evento",
       "descripcion": "Descripción breve (máximo 15 palabras)",
-      "categoria": "Política | Deportes | Cultura | Ciencia | Internacional | Sociedad | Espectáculos | Religión | Económica"
+      "categoria": "Política | Deportes | Cultura | Ciencia | Internacional | Sociedad | Espectáculos | Religión | Económica",
+      "tipo": "nacional" | "internacional"
     }
   ]
 }
 
 Reglas estrictas:
 - Incluí entre 5 y 12 efemérides para esta fecha
-- Mezclá argentinas (🇦🇷) e internacionales relevantes (🌍)
+- Incluí argentinas (🇦🇷, tipo "nacional") e internacionales relevantes (🌍, tipo "internacional")
+- El campo "tipo" debe ser EXACTAMENTE "nacional" o "internacional" según corresponda
 - Abarcá distintas categorías (política, cultura, deportes, ciencia, sociedad, espectáculos, religión, economía)
 - Cada efeméride debe empezar con "Nace", "Fallece", "Se celebra", "Ocurre", "Se funda", "Se descubre", etc.
 - Incluí el emoji más representativo para cada una
@@ -114,20 +125,147 @@ function cargarJSONEfemerides() {
   }
 }
 
-function esNacional(e) {
-  const emoji = e.emoji || '';
-  const titulo = (e.titulo || '').toLowerCase();
-  const desc = (e.descripcion || '').toLowerCase();
-  return emoji.includes('🇦🇷') || /argentina|argentino|argento/i.test(titulo) || /argentina|argentino/i.test(desc);
-}
-
 function ordenarEfemerides(data) {
-  const nacional = data.filter(esNacional).sort((a, b) => (a.anio || 9999) - (b.anio || 9999));
-  const internacional = data.filter(e => !esNacional(e)).sort((a, b) => (a.anio || 9999) - (b.anio || 9999));
+  const nacional = data.filter(e => (e.tipo || '').toLowerCase() === 'nacional').sort((a, b) => (a.anio || 9999) - (b.anio || 9999));
+  const internacional = data.filter(e => (e.tipo || '').toLowerCase() !== 'nacional').sort((a, b) => (a.anio || 9999) - (b.anio || 9999));
   const result = [];
   if (nacional.length) result.push({ _separator: '🇦🇷  Nacionales' }, ...nacional);
   if (internacional.length) result.push({ _separator: '🌍  Internacionales' }, ...internacional);
   return result;
+}
+
+// ── Bloques (title, body) ──
+function getEfeDefaultBlocks() {
+  const fmt = EFEMERIDES_FMT[efeFormato] || EFEMERIDES_FMT.landscape;
+  const W = fmt.w, H = fmt.h;
+  const titleH = Math.max(0.06, Math.round(W * 0.10 / H * 100) / 100);
+  return {
+    title: { x: 0.05, y: 0.06, w: 0.9, h: titleH },
+    body: { x: 0.04, y: 0.06 + titleH + 0.04, w: 0.92, h: 1 - (0.06 + titleH + 0.04 + 0.06) }
+  };
+}
+
+function loadEfeBlocks() {
+  const key = 'efeBlocks_' + efeFormato;
+  const saved = localStorage.getItem(key);
+  if (saved) { try { efeBlocks = JSON.parse(saved); return; } catch(e) {} }
+  efeBlocks = getEfeDefaultBlocks();
+}
+
+function saveEfeBlocks() {
+  if (!efeBlocks) return;
+  localStorage.setItem('efeBlocks_' + efeFormato, JSON.stringify(efeBlocks));
+}
+
+function getEfeBlockRect(name, W, H) {
+  if (!efeBlocks || !efeBlocks[name]) return null;
+  const b = efeBlocks[name];
+  return { x: Math.round(b.x * W), y: Math.round(b.y * H), w: Math.round(b.w * W), h: Math.round(b.h * H) };
+}
+
+function getEfeCanvasPos(e) {
+  const canvas = document.getElementById('efemeridesCanvas');
+  if (!canvas) return { x: 0, y: 0 };
+  const rect = canvas.getBoundingClientRect();
+  const t = e.touches ? e.touches[0] : e;
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return { x: (t.clientX - rect.left) * scaleX, y: (t.clientY - rect.top) * scaleY };
+}
+
+function getEfeBlockHit(mx, my, W, H) {
+  if (!efeBlocks) return null;
+  const nx = mx / W, ny = my / H;
+  const keys = ['title', 'body'];
+  for (const k of keys) {
+    const b = efeBlocks[k];
+    if (!b) continue;
+    if (nx >= b.x && nx <= b.x + b.w && ny >= b.y && ny <= b.y + b.h) return k;
+  }
+  return null;
+}
+
+function getEfeHandleHit(mx, my, W, H) {
+  if (!efeActiveBlock || !efeBlocks || !efeBlocks[efeActiveBlock]) return null;
+  const b = efeBlocks[efeActiveBlock];
+  const nx = mx / W, ny = my / H;
+  const hs = Math.max(0.006, 8 / W);
+  if (Math.abs(nx - b.x) < hs && Math.abs(ny - b.y) < hs) return 'nw';
+  if (Math.abs(nx - (b.x + b.w)) < hs && Math.abs(ny - b.y) < hs) return 'ne';
+  if (Math.abs(nx - b.x) < hs && Math.abs(ny - (b.y + b.h)) < hs) return 'sw';
+  if (Math.abs(nx - (b.x + b.w)) < hs && Math.abs(ny - (b.y + b.h)) < hs) return 'se';
+  if (Math.abs(nx - b.x) < hs && ny > b.y && ny < b.y + b.h) return 'w';
+  if (Math.abs(nx - (b.x + b.w)) < hs && ny > b.y && ny < b.y + b.h) return 'e';
+  return null;
+}
+
+function initEfeCanvasEvents() {
+  const canvas = document.getElementById('efemeridesCanvas');
+  if (!canvas) return;
+  canvas.addEventListener('mousedown', onEfeDown);
+  canvas.addEventListener('touchstart', onEfeDown, { passive: false });
+  canvas.addEventListener('mousemove', onEfeMove);
+  canvas.addEventListener('touchmove', onEfeMove, { passive: false });
+  canvas.addEventListener('mouseup', onEfeUp);
+  canvas.addEventListener('touchend', onEfeUp);
+}
+
+function onEfeDown(e) {
+  const canvas = document.getElementById('efemeridesCanvas');
+  if (!canvas) return;
+  if (e.touches) e.preventDefault();
+  const pos = getEfeCanvasPos(e);
+  const W = canvas.width, H = canvas.height;
+  if (efeActiveBlock) {
+    const hid = getEfeHandleHit(pos.x, pos.y, W, H);
+    if (hid) {
+      efeDrag = { type: 'resize-' + hid, key: efeActiveBlock, startNx: pos.x / W, startNy: pos.y / H, orig: {...efeBlocks[efeActiveBlock]} };
+      return;
+    }
+  }
+  const hit = getEfeBlockHit(pos.x, pos.y, W, H);
+  if (hit) {
+    efeActiveBlock = hit;
+    efeDrag = { type: 'drag', key: hit, offX: pos.x / W - efeBlocks[hit].x, offY: pos.y / H - efeBlocks[hit].y };
+  } else {
+    efeActiveBlock = null;
+    efeDrag = null;
+  }
+  renderizarEfemerides();
+}
+
+function onEfeMove(e) {
+  if (!efeDrag || !efeBlocks) return;
+  const canvas = document.getElementById('efemeridesCanvas');
+  if (!canvas) return;
+  const pos = getEfeCanvasPos(e);
+  const W = canvas.width, H = canvas.height;
+  const nx = pos.x / W, ny = pos.y / H;
+  const b = efeBlocks[efeDrag.key];
+  if (!b) return;
+  const MIN = 0.04;
+  if (efeDrag.type === 'drag') {
+    b.x = Math.max(0, Math.min(1 - b.w, nx - efeDrag.offX));
+    b.y = Math.max(0, Math.min(1 - b.h, ny - efeDrag.offY));
+  } else if (efeDrag.type.startsWith('resize-')) {
+    const c = efeDrag.type.split('-')[1];
+    const o = efeDrag.orig;
+    let dx = nx - efeDrag.startNx, dy = ny - efeDrag.startNy;
+    if (!o) return;
+    if (c === 'se') { b.w = Math.max(MIN, o.w + dx); b.h = Math.max(MIN, o.h + dy); }
+    else if (c === 'sw') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; b.h = Math.max(MIN, o.h + dy); }
+    else if (c === 'ne') { b.w = Math.max(MIN, o.w + dx); const nh = Math.max(MIN, o.h - dy); b.y = o.y + o.h - nh; b.h = nh; }
+    else if (c === 'nw') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; const nh = Math.max(MIN, o.h - dy); b.y = o.y + o.h - nh; b.h = nh; }
+    else if (c === 'e') { b.w = Math.max(MIN, o.w + dx); }
+    else if (c === 'w') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; }
+  }
+  saveEfeBlocks();
+  renderizarEfemerides();
+}
+
+function onEfeUp() {
+  efeDrag = null;
+  document.getElementById('efemeridesCanvas').style.cursor = efeActiveBlock ? 'grab' : 'default';
 }
 
 // ── Render ──
@@ -135,7 +273,7 @@ function renderizarEfemerides() {
   const canvas = document.getElementById('efemeridesCanvas');
   if (!canvas) return;
   const badge = document.getElementById('efeCount');
-  if (badge) badge.textContent = efemeridesData.length + ' efemérides';
+  if (badge) badge.textContent = (efemeridesData.filter(e => !e._separator).length) + ' efemérides';
   const lbl = document.getElementById('efeFechaLabel');
   if (lbl && !lbl.textContent) {
     const fechaEl = document.getElementById('efeFecha');
@@ -146,103 +284,108 @@ function renderizarEfemerides() {
     }
   }
   const fmt = EFEMERIDES_FMT[efeFormato] || EFEMERIDES_FMT.landscape;
-  const W = fmt.w;
-  const itemH = Math.round(W * 0.11);
-  const sepH = Math.round(W * 0.06);
-  const headerH = Math.round(W * 0.12);
-  const footerH = Math.round(W * 0.06);
-  const cardCount = efemeridesData.filter(e => !e._separator).length;
-  const sepCount = efemeridesData.filter(e => e._separator).length;
-  const totalH = headerH + cardCount * itemH + sepCount * sepH + footerH + Math.round(W * 0.04);
+  const W = fmt.w, H = fmt.h;
   const cssW = canvas.parentElement.clientWidth || 800;
-  const cssH = cssW * totalH / W;
+  const cssH = cssW * H / W;
   canvas.style.width = cssW + 'px';
   canvas.style.height = cssH + 'px';
   canvas.width = W;
-  canvas.height = totalH;
+  canvas.height = H;
+
+  if (!efeBlocks) loadEfeBlocks();
 
   const ctx = canvas.getContext('2d');
 
-  // Fondo
-  const grad = ctx.createLinearGradient(0, 0, 0, totalH);
+  // 1. Fondo
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, '#0f111a');
   grad.addColorStop(1, '#1a1d2e');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, totalH);
+  ctx.fillRect(0, 0, W, H);
+  drawDotGridEfe(ctx, W, H, 'rgba(255,255,255,0.02)', Math.round(W * 0.03));
 
-  // Dot grid sutil
-  drawDotGridEfe(ctx, W, totalH, 'rgba(255,255,255,0.02)', Math.round(W * 0.03));
+  // 2. Body block (cards + separadores)
+  const br = getEfeBlockRect('body', W, H);
+  if (br) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(br.x, br.y, br.w, br.h);
+    ctx.clip();
+    drawEfeCards(ctx, W, H, br);
+    ctx.restore();
+  }
 
-  // Header
-  ctx.fillStyle = 'rgba(166,206,57,0.08)';
-  ctx.fillRect(0, 0, W, headerH);
-  ctx.fillStyle = '#a6ce39';
-  ctx.fillRect(0, headerH - 3, W, 3);
+  // 3. Title block
+  const tr = getEfeBlockRect('title', W, H);
+  if (tr) drawEfeTitle(ctx, W, H, tr);
+
+  // 4. Footer
+  drawEfeFooter(ctx, W, H);
+
+  // 5. Logo
+  dibujarLogoEfemerides(ctx, W, H);
+
+  // 6. Active UI
+  if (efeActiveBlock) drawEfeActiveUI(ctx, W, H);
 
   ctx.textAlign = 'left';
-  const fechaLabel = document.getElementById('efeFechaLabel');
-  const fechaTexto = fechaLabel ? fechaLabel.textContent : 'Efemérides';
-  ctx.fillStyle = '#a6ce39';
-  ctx.font = `700 ${Math.round(W * 0.015)}px Inter, sans-serif`;
-  ctx.fillText('📆  EFEMÉRIDES', Math.round(W * 0.04), Math.round(headerH * 0.38));
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `400 ${Math.round(W * 0.045)}px "DM Serif Display", serif`;
-  ctx.fillText(fechaTexto, Math.round(W * 0.04), Math.round(headerH * 0.78));
+  ctx.textBaseline = 'alphabetic';
+}
 
-  // Items
-  const M = Math.round(W * 0.04);
-  const cardW = W - M * 2;
-  let curY = headerH + Math.round(W * 0.01);
+function drawEfeCards(ctx, W, H, br) {
+  const pad = Math.round(W * 0.01);
+  const cardW = br.w - pad * 2;
+  const itemH = Math.round(Math.min(br.h * 0.11, W * 0.11));
+  const sepH = Math.round(W * 0.05);
+  const innerX = br.x + pad;
+  const cardCount = efemeridesData.filter(e => !e._separator).length;
+  let curY = br.y + pad;
 
-  efemeridesData.forEach((e) => {
+  efemeridesData.forEach(e => {
     if (e._separator) {
+      if (curY + sepH > br.y + br.h) return;
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.font = `700 ${Math.round(W * 0.018)}px Inter, sans-serif`;
+      ctx.font = `700 ${Math.round(W * 0.016)}px Inter, sans-serif`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(e._separator, M, curY + sepH / 2);
+      ctx.fillText(e._separator, innerX, curY + sepH / 2);
       curY += sepH;
       return;
     }
+    if (curY + itemH > br.y + br.h) return;
     const y = curY;
     const cy = y + itemH / 2;
 
-    // Card bg
     ctx.fillStyle = 'rgba(255,255,255,0.04)';
     ctx.beginPath();
-    ctx.roundRect(M, y, cardW, itemH - Math.round(W * 0.008), 10);
+    ctx.roundRect(innerX, y, cardW, itemH - Math.round(W * 0.008), 10);
     ctx.fill();
 
-    // Left accent
     const catColor = CAT_COLORS[e.categoria] || CAT_DEFAULT;
     ctx.fillStyle = catColor;
     ctx.beginPath();
-    ctx.roundRect(M, y + Math.round(itemH * 0.1), 4, itemH * 0.8, 2);
+    ctx.roundRect(innerX, y + Math.round(itemH * 0.1), 4, itemH * 0.8, 2);
     ctx.fill();
 
-    // Emoji
     ctx.font = `${Math.round(itemH * 0.45)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(e.emoji || '📌', M + Math.round(W * 0.05), cy);
+    ctx.fillText(e.emoji || '📌', innerX + Math.round(W * 0.05), cy);
 
-    // Año
-    const yearX = M + Math.round(W * 0.09);
+    const yearX = innerX + Math.round(W * 0.09);
     ctx.fillStyle = catColor;
     ctx.font = `900 ${Math.round(itemH * 0.24)}px Inter, sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(e.anio || '', yearX, cy - Math.round(itemH * 0.14));
 
-    // Título
     ctx.fillStyle = '#ffffff';
     ctx.font = `700 ${Math.round(itemH * 0.22)}px Inter, sans-serif`;
     ctx.fillText(e.titulo || '', yearX, cy + Math.round(itemH * 0.16));
 
-    // Descripción
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = `500 ${Math.round(itemH * 0.16)}px Inter, sans-serif`;
-    const descW = cardW - (yearX - M) - Math.round(W * 0.14);
+    const descW = cardW - (yearX - innerX) - Math.round(W * 0.14);
     const desc = e.descripcion || '';
     let descDisplay = desc;
     while (descDisplay && ctx.measureText(descDisplay).width > descW) {
@@ -251,34 +394,60 @@ function renderizarEfemerides() {
     if (descDisplay.length < desc.length) descDisplay = descDisplay.slice(0, -1) + '…';
     ctx.fillText(descDisplay, yearX, cy + Math.round(itemH * 0.40));
 
-    // Categoria badge
     ctx.fillStyle = hexToRgbaEfe(catColor, 0.15);
     ctx.beginPath();
     const badgeW = ctx.measureText(e.categoria || '').width + Math.round(W * 0.02);
     const badgeH = Math.round(itemH * 0.22);
-    const badgeX = W - M - badgeW - Math.round(W * 0.02);
-    const badgeY = cy - badgeH / 2;
-    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+    const bX = br.x + br.w - pad - badgeW - Math.round(W * 0.02);
+    const bY = cy - badgeH / 2;
+    ctx.roundRect(bX, bY, badgeW, badgeH, 4);
     ctx.fill();
     ctx.fillStyle = catColor;
     ctx.font = `600 ${Math.round(itemH * 0.13)}px Inter, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(e.categoria || '', badgeX + badgeW / 2, badgeY + badgeH / 2);
+    ctx.fillText(e.categoria || '', bX + badgeW / 2, bY + badgeH / 2);
     curY += itemH;
   });
 
-  // Si no hay datos
   if (cardCount === 0) {
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.font = `500 ${Math.round(W * 0.022)}px Inter, sans-serif`;
+    ctx.font = `500 ${Math.round(W * 0.02)}px Inter, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Seleccioná una fecha y generá las efemérides con Chat IA', W / 2, headerH + (totalH - headerH - footerH) / 2);
+    ctx.fillText('Seleccioná una fecha y generá las efemérides con Chat IA', br.x + br.w / 2, br.y + br.h / 2);
   }
+}
 
-  // Footer
-  const footerY = totalH - Math.round(footerH * 0.4);
+function drawEfeTitle(ctx, W, H, tr) {
+  const fechaLabel = document.getElementById('efeFechaLabel');
+  const fechaTexto = fechaLabel ? fechaLabel.textContent : '';
+  const labelSize = Math.round(Math.min(tr.h * 0.25, W * 0.018));
+  const dateSize = Math.round(Math.min(tr.h * 0.45, W * 0.04));
+  const cx = tr.x + tr.w / 2;
+
+  ctx.textAlign = 'center';
+
+  // Green accent line at bottom of title block
+  ctx.fillStyle = '#a6ce39';
+  ctx.fillRect(tr.x, tr.y + tr.h - 2, tr.w, 2);
+
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#a6ce39';
+  ctx.font = `700 ${labelSize}px Inter, sans-serif`;
+  ctx.fillText('📆  EFEMÉRIDES', cx, tr.y + tr.h * 0.3);
+
+  if (fechaTexto) {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `400 ${dateSize}px "DM Serif Display", serif`;
+    ctx.fillText(fechaTexto, cx, tr.y + tr.h * 0.72);
+  }
+}
+
+function drawEfeFooter(ctx, W, H) {
+  const M = Math.round(W * 0.04);
+  const footerH = Math.round(W * 0.06);
+  const footerY = H - Math.round(footerH * 0.4);
   ctx.strokeStyle = 'rgba(255,255,255,0.08)';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -288,14 +457,10 @@ function renderizarEfemerides() {
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.font = `600 ${Math.round(W * 0.014)}px Inter, sans-serif`;
   ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
   ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, footerY);
   ctx.textAlign = 'right';
   ctx.fillText('Generado con Visual Suite', W - M, footerY);
-
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-
-  dibujarLogoEfemerides(ctx, W, totalH);
 }
 
 function drawDotGridEfe(ctx, W, H, color, spacing) {
@@ -327,6 +492,71 @@ function dibujarLogoEfemerides(ctx, W, H) {
   ctx.drawImage(ls.img, lx, ly, lw, lh);
 }
 
+function drawEfeActiveUI(ctx, W, H) {
+  if (!efeActiveBlock || !efeBlocks || !efeBlocks[efeActiveBlock]) return;
+  const b = efeBlocks[efeActiveBlock];
+  const bx = b.x * W, by = b.y * H, bw = b.w * W, bh = b.h * H;
+  const cx = bx + bw / 2, cy2 = by + bh / 2;
+  const hs = Math.max(8, Math.round(W * 0.008));
+  const lw2 = Math.max(1, Math.round(W * 0.0015));
+
+  // Center guides
+  ctx.strokeStyle = 'rgba(166,206,57,0.5)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+
+  // Rule of thirds
+  ctx.strokeStyle = 'rgba(166,206,57,0.25)';
+  [W / 3, W * 2 / 3].forEach(x => { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); });
+  [H / 3, H * 2 / 3].forEach(y => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); });
+
+  // Edge guides
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.beginPath(); ctx.moveTo(bx, 0); ctx.lineTo(bx, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(bx + bw, 0); ctx.lineTo(bx + bw, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, by); ctx.lineTo(W, by); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, by + bh); ctx.lineTo(W, by + bh); ctx.stroke();
+
+  ctx.setLineDash([]);
+
+  // Center crosshair
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1;
+  const ch = hs * 0.4;
+  ctx.beginPath(); ctx.moveTo(cx - ch, cy2); ctx.lineTo(cx + ch, cy2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy2 - ch); ctx.lineTo(cx, cy2 + ch); ctx.stroke();
+
+  // Selection border
+  ctx.strokeStyle = '#a6ce39';
+  ctx.lineWidth = lw2;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, 4);
+  ctx.stroke();
+
+  // Handles
+  const handles = [
+    { x: bx, y: by, id: 'nw' }, { x: bx + bw, y: by, id: 'ne' },
+    { x: bx, y: by + bh, id: 'sw' }, { x: bx + bw, y: by + bh, id: 'se' },
+    { x: bx, y: cy2, id: 'w' }, { x: bx + bw, y: cy2, id: 'e' }
+  ];
+  handles.forEach(h => {
+    ctx.beginPath();
+    if (h.id === 'w' || h.id === 'e') {
+      const pw = Math.round(hs * 0.35), ph = Math.round(hs * 0.7);
+      ctx.roundRect(h.x - pw / 2, h.y - ph / 2, pw, ph, 2);
+    } else {
+      ctx.arc(h.x, h.y, hs * 0.45, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#a6ce39';
+    ctx.lineWidth = lw2;
+    ctx.stroke();
+  });
+}
+
 // ── Export ──
 async function exportarEfemerides() {
   await document.fonts.ready;
@@ -346,13 +576,6 @@ async function exportarEfemerides() {
 }
 
 function renderizarEfemeridesEnCtx(ctx, W, H) {
-  const itemH = Math.round(W * 0.11);
-  const sepH = Math.round(W * 0.06);
-  const headerH = Math.round(W * 0.12);
-  const footerH = Math.round(W * 0.06);
-  const M = Math.round(W * 0.04);
-  const cardW = W - M * 2;
-
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, '#0f111a');
   grad.addColorStop(1, '#1a1d2e');
@@ -360,112 +583,20 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
   ctx.fillRect(0, 0, W, H);
   drawDotGridEfe(ctx, W, H, 'rgba(255,255,255,0.02)', Math.round(W * 0.03));
 
-  ctx.fillStyle = 'rgba(166,206,57,0.08)';
-  ctx.fillRect(0, 0, W, headerH);
-  ctx.fillStyle = '#a6ce39';
-  ctx.fillRect(0, headerH - 3, W, 3);
-
-  ctx.textAlign = 'left';
-  const fechaLabel = document.getElementById('efeFechaLabel');
-  const fechaTexto = fechaLabel ? fechaLabel.textContent : 'Efemérides';
-  ctx.fillStyle = '#a6ce39';
-  ctx.font = `700 ${Math.round(W * 0.015)}px Inter, sans-serif`;
-  ctx.fillText('📆  EFEMÉRIDES', Math.round(W * 0.04), Math.round(headerH * 0.38));
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `400 ${Math.round(W * 0.045)}px "DM Serif Display", serif`;
-  ctx.fillText(fechaTexto, Math.round(W * 0.04), Math.round(headerH * 0.78));
-
-  let curY = headerH + Math.round(W * 0.01);
-  const cardCount = efemeridesData.filter(e => !e._separator).length;
-
-  efemeridesData.forEach((e) => {
-    if (e._separator) {
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.font = `700 ${Math.round(W * 0.018)}px Inter, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(e._separator, M, curY + sepH / 2);
-      curY += sepH;
-      return;
-    }
-    const y = curY;
-    const cy = y + itemH / 2;
-    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  const br = getEfeBlockRect('body', W, H);
+  if (br) {
+    ctx.save();
     ctx.beginPath();
-    ctx.roundRect(M, y, cardW, itemH - Math.round(W * 0.008), 10);
-    ctx.fill();
-
-    const catColor = CAT_COLORS[e.categoria] || CAT_DEFAULT;
-    ctx.fillStyle = catColor;
-    ctx.beginPath();
-    ctx.roundRect(M, y + Math.round(itemH * 0.1), 4, itemH * 0.8, 2);
-    ctx.fill();
-
-    ctx.font = `${Math.round(itemH * 0.45)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(e.emoji || '📌', M + Math.round(W * 0.05), cy);
-
-    const yearX = M + Math.round(W * 0.09);
-    ctx.fillStyle = catColor;
-    ctx.font = `900 ${Math.round(itemH * 0.24)}px Inter, sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(e.anio || '', yearX, cy - Math.round(itemH * 0.14));
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `700 ${Math.round(itemH * 0.22)}px Inter, sans-serif`;
-    ctx.fillText(e.titulo || '', yearX, cy + Math.round(itemH * 0.16));
-
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = `500 ${Math.round(itemH * 0.16)}px Inter, sans-serif`;
-    const descW = cardW - (yearX - M) - Math.round(W * 0.14);
-    const desc = e.descripcion || '';
-    let descDisplay = desc;
-    while (descDisplay && ctx.measureText(descDisplay).width > descW) {
-      descDisplay = descDisplay.slice(0, -1);
-    }
-    if (descDisplay.length < desc.length) descDisplay = descDisplay.slice(0, -1) + '…';
-    ctx.fillText(descDisplay, yearX, cy + Math.round(itemH * 0.40));
-
-    ctx.fillStyle = hexToRgbaEfe(catColor, 0.15);
-    ctx.beginPath();
-    const badgeW = ctx.measureText(e.categoria || '').width + Math.round(W * 0.02);
-    const badgeH = Math.round(itemH * 0.22);
-    const badgeX = W - M - badgeW - Math.round(W * 0.02);
-    const badgeY = cy - badgeH / 2;
-    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
-    ctx.fill();
-    ctx.fillStyle = catColor;
-    ctx.font = `600 ${Math.round(itemH * 0.13)}px Inter, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(e.categoria || '', badgeX + badgeW / 2, badgeY + badgeH / 2);
-    curY += itemH;
-  });
-
-  if (cardCount === 0) {
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.font = `500 ${Math.round(W * 0.022)}px Inter, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Seleccioná una fecha y generá las efemérides con Chat IA', W / 2, headerH + (H - headerH - footerH) / 2);
+    ctx.rect(br.x, br.y, br.w, br.h);
+    ctx.clip();
+    drawEfeCards(ctx, W, H, br);
+    ctx.restore();
   }
 
-  const footerY = H - Math.round(footerH * 0.4);
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(M, footerY - Math.round(W * 0.015));
-  ctx.lineTo(W - M, footerY - Math.round(W * 0.015));
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.font = `600 ${Math.round(W * 0.014)}px Inter, sans-serif`;
-  ctx.textAlign = 'left';
-  ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, footerY);
-  ctx.textAlign = 'right';
-  ctx.fillText('Generado con Visual Suite', W - M, footerY);
+  const tr = getEfeBlockRect('title', W, H);
+  if (tr) drawEfeTitle(ctx, W, H, tr);
 
+  drawEfeFooter(ctx, W, H);
   dibujarLogoEfemerides(ctx, W, H);
 }
 

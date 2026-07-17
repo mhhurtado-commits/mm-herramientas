@@ -370,11 +370,12 @@ function toggleLogo() {
   document.getElementById('logoTrack').classList.toggle('on', logoState.visible);
   actualizarLogoOverlay();
   if (tabActual === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
+  if (tabActual === 'efemerides' && typeof renderizarEfemerides === 'function') renderizarEfemerides();
 }
 
 function actualizarLogoOverlay() {
   if (!logoState.loaded) return;
-  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia'].forEach(id => {
+  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia', 'logoOverlayEfemerides'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     if (!logoState.visible) { el.style.display = 'none'; return; }
