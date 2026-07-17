@@ -423,25 +423,27 @@ function drawEfeCards(ctx, W, H, br) {
 function drawEfeTitle(ctx, W, H, tr) {
   const fechaLabel = document.getElementById('efeFechaLabel');
   const fechaTexto = fechaLabel ? fechaLabel.textContent : '';
-  const labelSize = Math.round(Math.min(tr.h * 0.25, W * 0.018));
-  const dateSize = Math.round(Math.min(tr.h * 0.45, W * 0.04));
+  const sz = Math.round(Math.min(tr.h * 0.42, W * 0.04));
   const cx = tr.x + tr.w / 2;
 
-  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
 
-  // Green accent line at bottom of title block
   ctx.fillStyle = '#a6ce39';
   ctx.fillRect(tr.x, tr.y + tr.h - 2, tr.w, 2);
 
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#a6ce39';
-  ctx.font = `700 ${labelSize}px Inter, sans-serif`;
-  ctx.fillText('📆  EFEMÉRIDES', cx, tr.y + tr.h * 0.3);
+  ctx.font = `700 ${sz}px Inter, sans-serif`;
+  const leftText = '📆  EFEMÉRIDES';
+  const sepText = '  ·  ';
+  const fullText = leftText + (fechaTexto ? sepText + fechaTexto : '');
+  const totalW = ctx.measureText(fullText).width;
+  const leftW = ctx.measureText(leftText).width;
 
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#a6ce39';
+  ctx.fillText(leftText, cx - totalW / 2, tr.y + tr.h / 2);
   if (fechaTexto) {
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `400 ${dateSize}px "DM Serif Display", serif`;
-    ctx.fillText(fechaTexto, cx, tr.y + tr.h * 0.72);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillText(sepText + fechaTexto, cx - totalW / 2 + leftW, tr.y + tr.h / 2);
   }
 }
 
