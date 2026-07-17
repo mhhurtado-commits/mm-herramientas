@@ -218,9 +218,7 @@ function initEfeCanvasEvents() {
   canvas.addEventListener('mousedown', onEfeDown);
   canvas.addEventListener('touchstart', onEfeDown, { passive: false });
   canvas.addEventListener('mousemove', onEfeMove);
-  canvas.addEventListener('touchmove', onEfeMove, { passive: false });
   canvas.addEventListener('mouseup', onEfeUp);
-  canvas.addEventListener('touchend', onEfeUp);
   canvas._vsListenersAdded = true;
 }
 
@@ -235,6 +233,11 @@ function onEfeDown(e) {
     const hid = getEfeHandleHit(pos.x, pos.y, W, H);
     if (hid) {
       efeDrag = { type: 'resize-' + hid, key: efeActiveBlock, startNx: pos.x / W, startNy: pos.y / H, orig: {...efeBlocks[efeActiveBlock]} };
+      if (e.touches) {
+        document.addEventListener('touchmove', onEfeMove, { passive: false });
+        document.addEventListener('touchend', onEfeUp);
+        document.addEventListener('touchcancel', onEfeUp);
+      }
       return;
     }
   }
@@ -242,6 +245,11 @@ function onEfeDown(e) {
   if (hit) {
     efeActiveBlock = hit;
     efeDrag = { type: 'drag', key: hit, offX: pos.x / W - efeBlocks[hit].x, offY: pos.y / H - efeBlocks[hit].y };
+    if (e.touches) {
+      document.addEventListener('touchmove', onEfeMove, { passive: false });
+      document.addEventListener('touchend', onEfeUp);
+      document.addEventListener('touchcancel', onEfeUp);
+    }
   } else {
     efeActiveBlock = null;
     efeDrag = null;
@@ -250,6 +258,7 @@ function onEfeDown(e) {
 }
 
 function onEfeMove(e) {
+  if (e.touches) e.preventDefault();
   if (!efeDrag || !efeBlocks) return;
   const canvas = document.getElementById('efemeridesCanvas');
   if (!canvas) return;
@@ -293,6 +302,9 @@ function onEfeMove(e) {
 
 function onEfeUp() {
   efeDrag = null;
+  document.removeEventListener('touchmove', onEfeMove);
+  document.removeEventListener('touchend', onEfeUp);
+  document.removeEventListener('touchcancel', onEfeUp);
   const canvas = document.getElementById('efemeridesCanvas');
   if (canvas) canvas.style.cursor = efeActiveBlock ? 'grab' : 'default';
 }

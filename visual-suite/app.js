@@ -745,3 +745,21 @@ function initApp() {
     if (e.key === 'Enter') extraerDeUrl();
   });
 }
+
+// ── Toggle Chat IA colapsable ──
+function toggleChatIA(id) {
+  const body = document.getElementById('chat-' + id);
+  const btn = body?.previousElementSibling;
+  if (body) body.classList.toggle('open');
+  if (btn) btn.classList.toggle('open');
+}
+
+// ── Resize: recalcular canvas al rotar/cambiar tamaño ──
+window.addEventListener('resize', () => {
+  if (document.querySelector('#panel-infographics.active') && typeof renderizarInfografia === 'function') {
+    renderizarInfografia();
+  }
+  if (document.querySelector('#panel-efemerides.active') && typeof renderizarEfemerides === 'function') {
+    renderizarEfemerides();
+  }
+});

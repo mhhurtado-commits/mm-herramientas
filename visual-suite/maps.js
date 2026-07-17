@@ -101,4 +101,15 @@ function actualizarContadorMarcadores() {
   document.getElementById('markerCount').textContent = `${markerList.length} marcadores`;
 }
 
+function exportarMapa() {
+  const container = document.getElementById('mapContainer');
+  if (!container) return;
+  html2canvas(container).then(canvas => {
+    const link = document.createElement('a');
+    link.download = 'mapa-media-mendoza.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+}
+
 document.addEventListener('DOMContentLoaded', initMaps);

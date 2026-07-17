@@ -226,6 +226,64 @@
 .vs-btn-sm { padding: 5px 10px; font-size: 10px; }
 .vs-btn:disabled { opacity: .5; cursor: not-allowed; }
 
+/* ── Tab Header unificado ── */
+.vs-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.vs-tab-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: .5px;
+  color: var(--text);
+}
+.vs-tab-header-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ── Chat IA colapsable ── */
+.vs-chat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dim);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-body);
+}
+.vs-chat-toggle:hover { color: var(--v); }
+.vs-chat-toggle .arrow { transition: transform .2s; display: inline-block; }
+.vs-chat-toggle.open .arrow { transform: rotate(90deg); }
+.vs-chat-body {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.vs-chat-body.open { display: flex; }
+
 .vs-data-table {
   width: 100%;
   border-collapse: collapse;
@@ -536,8 +594,8 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   .vs-input { font-size: 16px; padding: 12px 14px; }
   .vs-textarea { font-size: 14px; padding: 12px 14px; }
   .vs-select { font-size: 14px; padding: 10px 12px; min-height: 40px; }
-  #panel-timeline > div[style*="grid"] { grid-template-columns: 1fr !important; }
-  #panel-timeline > div[style*="grid"] > div:last-child { position: static !important; }
+  #panel-timeline .vs-timeline-grid { grid-template-columns: 1fr !important; }
+  #panel-timeline .vs-timeline-grid > div:last-child { position: static !important; }
   .pub-editor .pub-palette { position: static; }
   .pub-stage-wrap { max-height: none; }
   .vs-logo-overlay .logo-resize-handle { width: 18px; height: 18px; }
@@ -549,6 +607,9 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   .export-preview-box { max-width: 96vw; max-height: 92vh; padding: 16px; }
   .vs-logo-controls { flex-direction: column; align-items: flex-start; }
   .vs-row { gap: 6px; }
+  .vs-tab-header { padding: 10px 12px; }
+  .vs-tab-header-title { font-size: 1rem; }
+  .vs-tab-header-actions { width: 100%; justify-content: flex-end; }
 }
 
 @media (max-width: 640px) {
@@ -565,6 +626,9 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   .vs-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0; }
   .vs-tab { padding: 10px 8px; font-size: 8px; white-space: nowrap; flex-shrink: 0; }
   .export-preview-box { max-width: 98vw; max-height: 95vh; padding: 12px; }
+  .vs-tab-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .vs-tab-header-actions { width: 100%; }
+  .vs-tab-header-actions .vs-btn { flex: 1; justify-content: center; }
 }
 </style>
 </head>
@@ -588,7 +652,6 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px">
     <h1 style="font-family:var(--font-display);font-size:2rem;letter-spacing:.5px;color:var(--text)">Visual Suite</h1>
     <div style="display:flex;gap:6px">
-      <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarVisual()">⬇ Exportar PNG</button>
       <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="generarPublicacionWeb()">🌐 Publicación Web</button>
       <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="generarPublicacionRica()">🎨 Publicación Rica</button>
     </div>
@@ -624,6 +687,14 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
 
   <!-- PANEL: GRÁFICOS -->
   <div class="vs-panel active" id="panel-charts">
+    <div class="vs-tab-header">
+      <div class="vs-tab-header-title"><span>📊</span> Gráficos</div>
+      <div class="vs-tab-header-actions">
+        <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarVisual()">⬇ Exportar PNG</button>
+        <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('chartTitle').value,document.getElementById('chartData').value,function(){toast('Fondo listo. Exportá la placa para verlo.')})">🎨 Fondo IA</button>
+        <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();toast('Fondo IA eliminado')">✕</button>
+      </div>
+    </div>
     <div class="vs-grid">
       <div class="vs-card accent">
         <div class="vs-card-header">
@@ -670,33 +741,25 @@ Mayo, 70</textarea>
           <button class="vs-btn vs-btn-primary" onclick="actualizarGrafico()">🔄 Actualizar</button>
         </div>
 
-        <!-- Chat IA -->
-        <div class="divider" style="height:1px;background:var(--line);margin:8px 0"></div>
-        <div class="vs-card-header">
-          <span class="vs-card-title">Generar con Chat IA</span>
-        </div>
-        <div>
-          <div class="vs-label">Tema</div>
-          <input class="vs-input" id="chartTema" placeholder="Ej: Inflación Argentina 2025" style="margin-top:6px">
-        </div>
-        <button class="vs-btn vs-btn-secondary" onclick="generarPromptChart()" style="margin-top:8px">🤖 Generar prompt para Chat IA</button>
-        <div style="display:flex;gap:6px;margin-top:8px">
-          <textarea class="vs-textarea" id="chartPrompt" style="flex:1;min-height:80px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar..."></textarea>
-          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptChart()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
-        </div>
-        <div style="margin-top:8px">
-          <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
-          <textarea class="vs-textarea" id="chartJson" style="margin-top:6px;min-height:60px;font-family:monospace;font-size:11px" placeholder='{"titulo":"Inflación 2025","tipo_sugerido":"line","datos_ordenados":[{"etiqueta":"Ene","valor":2.3}]}'></textarea>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <!-- Chat IA colapsable -->
+        <button class="vs-chat-toggle" onclick="toggleChatIA('charts')">
+          <span class="arrow">▸</span> Generar con Chat IA
+        </button>
+        <div class="vs-chat-body" id="chat-charts">
+          <div>
+            <div class="vs-label">Tema</div>
+            <input class="vs-input" id="chartTema" placeholder="Ej: Inflación Argentina 2025" style="margin-top:6px">
+          </div>
+          <button class="vs-btn vs-btn-secondary" onclick="generarPromptChart()">🤖 Generar prompt para Chat IA</button>
+          <div style="display:flex;gap:6px">
+            <textarea class="vs-textarea" id="chartPrompt" style="flex:1;min-height:80px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar..."></textarea>
+            <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptChart()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
+          </div>
+          <div>
+            <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
+            <textarea class="vs-textarea" id="chartJson" style="margin-top:6px;min-height:60px;font-family:monospace;font-size:11px" placeholder='{"titulo":"Inflación 2025","tipo_sugerido":"line","datos_ordenados":[{"etiqueta":"Ene","valor":2.3}]}'></textarea>
+          </div>
           <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarJSONdeChat()">📋 Cargar JSON</button>
-        </div>
-
-        <!-- Fondo IA -->
-        <div class="vs-row" style="margin-top:12px">
-          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('chartTitle').value,document.getElementById('chartData').value,function(){toast('Fondo listo. Exportá la placa para verlo.')})">🎨 Fondo IA</button>
-          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="refinarFondoIA(prompt('Instrucción para refinar el fondo:'),function(){toast('Refinado. Exportá la placa.')})">✏️ Refinar</button>
-          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();toast('Fondo IA eliminado')">✕ Sin fondo IA</button>
         </div>
       </div>
 
@@ -715,6 +778,13 @@ Mayo, 70</textarea>
 
   <!-- PANEL: MAPAS -->
   <div class="vs-panel" id="panel-maps">
+    <div class="vs-tab-header">
+      <div class="vs-tab-header-title"><span>🗺️</span> Mapas</div>
+      <div class="vs-tab-header-actions">
+        <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarMapa()">⬇ Exportar PNG</button>
+        <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarMarcadores()">🗑</button>
+      </div>
+    </div>
     <div class="vs-grid">
       <div class="vs-card accent">
         <div class="vs-card-header">
@@ -736,7 +806,6 @@ Mayo, 70</textarea>
           </div>
         </div>
         <div class="vs-row">
-          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="limpiarMarcadores()">🗑 Limpiar</button>
           <span style="font-size:11px;color:var(--dim)" id="markerCount">0 marcadores</span>
         </div>
       </div>
@@ -755,7 +824,15 @@ Mayo, 70</textarea>
 
   <!-- PANEL: LÍNEA DE TIEMPO -->
   <div class="vs-panel" id="panel-timeline">
-    <div style="display:grid;grid-template-columns:2fr 3fr;gap:16px;align-items:start">
+    <div class="vs-tab-header">
+      <div class="vs-tab-header-title"><span>📅</span> Línea de Tiempo</div>
+      <div class="vs-tab-header-actions">
+        <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarTimeline()">⬇ Exportar PNG</button>
+        <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('tlTema').value||(timelineEvents[0]&&timelineEvents[0].title)||'Cronología',timelineEvents.map(function(e){return e.title}).join('. '),function(){toast('Fondo listo. Exportá la placa.')})">🎨 Fondo IA</button>
+        <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();toast('Fondo IA eliminado')">✕</button>
+      </div>
+    </div>
+    <div class="vs-timeline-grid" style="display:grid;grid-template-columns:2fr 3fr;gap:16px;align-items:start">
       <div style="display:flex;flex-direction:column;gap:16px">
         <!-- Manual -->
         <div class="vs-card accent">
@@ -777,29 +854,25 @@ Mayo, 70</textarea>
           <button class="vs-btn vs-btn-primary" onclick="agregarEventoTimeline()">+ Agregar Evento</button>
         </div>
 
-        <!-- Chat IA -->
+        <!-- Chat IA colapsable -->
         <div class="vs-card">
-          <div class="vs-card-header">
-            <span class="vs-card-title">Generar con Chat IA</span>
+          <button class="vs-chat-toggle" onclick="toggleChatIA('timeline')">
+            <span class="arrow">▸</span> Generar con Chat IA
+          </button>
+          <div class="vs-chat-body" id="chat-timeline">
+            <div>
+              <div class="vs-label">Tema</div>
+              <input class="vs-input" id="tlTema" placeholder="Ej: Goles Messi Mundial 2026" style="margin-top:6px">
+            </div>
+            <button class="vs-btn vs-btn-secondary" onclick="generarPromptChat()">🤖 Generar prompt para Chat IA</button>
+            <div style="display:flex;gap:6px">
+              <textarea class="vs-textarea" id="tlPrompt" style="flex:1;min-height:100px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar y pegar en Gemini Chat..."></textarea>
+              <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPrompt()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
+            </div>
           </div>
-          <div>
-            <div class="vs-label">Tema</div>
-            <input class="vs-input" id="tlTema" placeholder="Ej: Goles Messi Mundial 2026" style="margin-top:6px">
-          </div>
-          <button class="vs-btn vs-btn-secondary" onclick="generarPromptChat()" style="margin-top:8px">🤖 Generar prompt para Chat IA</button>
-          <div style="display:flex;gap:6px;margin-top:8px">
-            <textarea class="vs-textarea" id="tlPrompt" style="flex:1;min-height:100px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar y pegar en Gemini Chat..."></textarea>
-            <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPrompt()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
-          </div>
-        </div>
 
-        <!-- JSON -->
-        <div class="vs-card">
-          <div class="vs-card-header">
-            <span class="vs-card-title">Cargar JSON</span>
-            <span class="vs-badge" style="background:var(--v);color:#16201b">Chat IA</span>
-          </div>
-          <div>
+          <!-- JSON -->
+          <div style="margin-top:10px">
             <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
             <textarea class="vs-textarea" id="tlJson" style="margin-top:6px;min-height:80px;font-family:monospace;font-size:11px" placeholder='[{"fecha":"2026-06-16","titulo":"Gol Messi 17&#39;","descripcion":"Messi abre el marcador vs Argelia - Fase de Grupos"}]'></textarea>
           </div>
@@ -809,15 +882,8 @@ Mayo, 70</textarea>
               📁 Archivo
               <input type="file" id="tlJsonFile" accept=".json,application/json" style="display:none" onchange="cargarArchivoJSON(this)">
             </label>
+            <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarTimeline()">🗑 Limpiar</button>
           </div>
-        </div>
-
-        <!-- Acciones -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarTimeline()">🗑 Limpiar timeline</button>
-          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('tlTema').value||(timelineEvents[0]&&timelineEvents[0].title)||'Cronología',timelineEvents.map(function(e){return e.title}).join('. '),function(){toast('Fondo listo. Exportá la placa.')})">🎨 Fondo IA</button>
-          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="refinarFondoIA(prompt('Instrucción para refinar el fondo:'),function(){toast('Refinado. Exportá la placa.')})">✏️ Refinar</button>
-          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();toast('Fondo IA eliminado')">✕ Sin fondo IA</button>
         </div>
       </div>
 
@@ -842,16 +908,20 @@ Mayo, 70</textarea>
           </div>
           <div class="vs-logo-overlay" id="logoOverlayTimeline" style="display:none"></div>
         </div>
-        <div class="vs-row" style="margin-top:10px">
-          <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="exportarTimeline()">⬇ Exportar placa (PNG)</button>
-          <span style="font-size:11px;color:var(--muted);align-self:center">La placa usa tus datos reales; el fondo IA (si lo generaste) queda debajo.</span>
-        </div>
       </div>
     </div>
   </div>
 
   <!-- PANEL: INFOGRAFÍAS -->
   <div class="vs-panel" id="panel-infographics">
+    <div class="vs-tab-header">
+      <div class="vs-tab-header-title"><span>🎨</span> Infografías</div>
+      <div class="vs-tab-header-actions">
+        <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarInfografia()">⬇ Exportar PNG</button>
+        <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('infoTitle').value,document.getElementById('infoContent').value,renderizarInfografia)">🎨 Fondo IA</button>
+        <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();renderizarInfografia()">✕</button>
+      </div>
+    </div>
     <div class="vs-grid">
       <div class="vs-card accent">
         <div class="vs-card-header">
@@ -906,37 +976,26 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
             </select>
           </div>
         </div>
-        <!-- Chat IA -->
-        <div class="divider" style="height:1px;background:var(--line);margin:8px 0"></div>
-        <div class="vs-card-header">
-          <span class="vs-card-title">Generar con Chat IA</span>
-        </div>
-        <div>
-          <div class="vs-label">Tema</div>
-          <input class="vs-input" id="infoTema" placeholder="Ej: Tráfico en Mendoza 2026" style="margin-top:6px">
-        </div>
-        <button class="vs-btn vs-btn-secondary" onclick="generarPromptInfografia()" style="margin-top:8px">🤖 Generar prompt para Chat IA</button>
-        <div style="display:flex;gap:6px;margin-top:8px">
-          <textarea class="vs-textarea" id="infoPrompt" style="flex:1;min-height:80px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar..."></textarea>
-          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptInfografia()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
-        </div>
-        <div style="margin-top:8px">
-          <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
-          <textarea class="vs-textarea" id="infoJson" style="margin-top:6px;min-height:60px;font-family:monospace;font-size:11px" placeholder='{"titulo":"Tráfico en Mendoza","lineas":["Vehículos: 1.200.000","Aumento anual: 4,8%"],"template_sugerido":"destacado","color_principal":"#e63946","color_secundario":"#1d3557"}'></textarea>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarJSONdeChatInfografia()">📋 Cargar JSON</button>
-        </div>
 
-        <div class="divider" style="height:1px;background:var(--line);margin:8px 0"></div>
-        <div>
-          <div class="vs-label">Fondo editorial con IA</div>
-          <p style="font-size:11px;color:var(--muted);margin:4px 0 8px;line-height:1.5">La IA arma el fondo editorial (sin texto); el canvas dibuja tus datos reales legibles encima.</p>
-          <div class="vs-row">
-            <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="generarFondoIA(document.getElementById('infoTitle').value,document.getElementById('infoContent').value,renderizarInfografia)">🎨 Generar fondo</button>
-            <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="refinarFondoIA(prompt('Instrucción para refinar el fondo:'),renderizarInfografia)">✏️ Refinar</button>
-            <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFondoIA();renderizarInfografia()">✕ Sin fondo IA</button>
+        <!-- Chat IA colapsable -->
+        <button class="vs-chat-toggle" onclick="toggleChatIA('infographics')">
+          <span class="arrow">▸</span> Generar con Chat IA
+        </button>
+        <div class="vs-chat-body" id="chat-infographics">
+          <div>
+            <div class="vs-label">Tema</div>
+            <input class="vs-input" id="infoTema" placeholder="Ej: Tráfico en Mendoza 2026" style="margin-top:6px">
           </div>
+          <button class="vs-btn vs-btn-secondary" onclick="generarPromptInfografia()">🤖 Generar prompt para Chat IA</button>
+          <div style="display:flex;gap:6px">
+            <textarea class="vs-textarea" id="infoPrompt" style="flex:1;min-height:80px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar..."></textarea>
+            <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptInfografia()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
+          </div>
+          <div>
+            <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
+            <textarea class="vs-textarea" id="infoJson" style="margin-top:6px;min-height:60px;font-family:monospace;font-size:11px" placeholder='{"titulo":"Tráfico en Mendoza","lineas":["Vehículos: 1.200.000","Aumento anual: 4,8%"],"template_sugerido":"destacado","color_principal":"#e63946","color_secundario":"#1d3557"}'></textarea>
+          </div>
+          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarJSONdeChatInfografia()">📋 Cargar JSON</button>
         </div>
       </div>
 
@@ -949,13 +1008,19 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
           <canvas id="infografiaCanvas"></canvas>
           <div class="vs-logo-overlay" id="logoOverlayInfografia" style="display:none"></div>
         </div>
-        <button class="vs-btn vs-btn-primary" onclick="exportarInfografia()" style="align-self:center">⬇ Exportar Infografía</button>
       </div>
     </div>
   </div>
 
   <!-- PANEL: EFEMÉRIDES -->
   <div class="vs-panel" id="panel-efemerides">
+    <div class="vs-tab-header">
+      <div class="vs-tab-header-title"><span>📆</span> Efemérides</div>
+      <div class="vs-tab-header-actions">
+        <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarEfemerides()">⬇ Exportar PNG</button>
+        <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarEfemerides()">🗑</button>
+      </div>
+    </div>
     <div class="vs-grid">
       <div class="vs-card accent">
         <div class="vs-card-header">
@@ -966,34 +1031,10 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
           <input class="vs-input" type="date" id="efeFecha" style="margin-top:6px" onchange="renderizarEfemerides()">
           <span id="efeFechaLabel" style="display:none"></span>
         </div>
-
-        <!-- Chat IA -->
-        <div class="divider" style="height:1px;background:var(--line);margin:12px 0"></div>
-        <div class="vs-card-header">
-          <span class="vs-card-title">Generar con Chat IA</span>
-        </div>
-        <button class="vs-btn vs-btn-secondary" onclick="generarPromptEfemerides()" style="margin-top:8px">🤖 Generar prompt para Chat IA</button>
-        <div class="efe-prompt-row">
-          <textarea class="vs-textarea" id="efePrompt" style="flex:1;min-height:100px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar y pegar en Gemini Chat..."></textarea>
-          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptEfemerides()" title="Copiar prompt" style="flex-shrink:0">📋 Copiar</button>
-        </div>
-        <div style="margin-top:10px">
-          <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
-          <textarea class="vs-textarea" id="efeJson" style="margin-top:6px;min-height:80px;font-family:monospace;font-size:11px" placeholder='{"fecha":"16 de julio","efemerides":[{"emoji":"🇦🇷","anio":1965,"titulo":"Nace...","descripcion":"...","categoria":"Política"}]}'></textarea>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-          <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarJSONEfemerides()">📋 Cargar JSON</button>
-          <label class="vs-btn vs-btn-secondary vs-btn-sm" style="cursor:pointer">
-            📁 Archivo
-            <input type="file" accept=".json,application/json" style="display:none" onchange="cargarArchivoJSONEfe(this)">
-          </label>
-        </div>
-
-        <div class="divider" style="height:1px;background:var(--line);margin:12px 0"></div>
-        <div class="vs-row">
+        <div class="vs-row" style="margin-top:8px">
           <div>
             <div class="vs-label">Formato</div>
-            <select class="vs-select" id="efeFormato" onchange="cambiarFormatoEfe()" style="margin-top:4px">
+            <select class="vs-select" id="efeFormato" onchange="cambiarFormatoEfe()">
               <option value="landscape">Horizontal 16:9</option>
               <option value="square">Cuadrado 1:1</option>
               <option value="portrait">Vertical 4:5</option>
@@ -1002,8 +1043,27 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
           </div>
         </div>
 
-        <div class="vs-row" style="margin-top:12px">
-          <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarEfemerides()">🗑 Limpiar</button>
+        <!-- Chat IA colapsable -->
+        <button class="vs-chat-toggle" onclick="toggleChatIA('efemerides')">
+          <span class="arrow">▸</span> Generar con Chat IA
+        </button>
+        <div class="vs-chat-body" id="chat-efemerides">
+          <button class="vs-btn vs-btn-secondary" onclick="generarPromptEfemerides()">🤖 Generar prompt para Chat IA</button>
+          <div style="display:flex;gap:6px">
+            <textarea class="vs-textarea" id="efePrompt" style="flex:1;min-height:100px;font-family:monospace;font-size:12px" placeholder="Acá aparecerá el prompt para copiar y pegar en Gemini Chat..."></textarea>
+            <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptEfemerides()" title="Copiar prompt" style="align-self:flex-start;flex-shrink:0">📋 Copiar</button>
+          </div>
+          <div>
+            <div class="vs-label">Pegá acá el JSON que te devolvió Gemini Chat</div>
+            <textarea class="vs-textarea" id="efeJson" style="margin-top:6px;min-height:80px;font-family:monospace;font-size:11px" placeholder='{"fecha":"16 de julio","efemerides":[{"emoji":"🇦🇷","anio":1965,"titulo":"Nace...","descripcion":"...","categoria":"Política"}]}'></textarea>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarJSONEfemerides()">📋 Cargar JSON</button>
+            <label class="vs-btn vs-btn-secondary vs-btn-sm" style="cursor:pointer">
+              📁 Archivo
+              <input type="file" accept=".json,application/json" style="display:none" onchange="cargarArchivoJSONEfe(this)">
+            </label>
+          </div>
         </div>
       </div>
 
@@ -1016,25 +1076,24 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
           <canvas id="efemeridesCanvas"></canvas>
           <div class="vs-logo-overlay" id="logoOverlayEfemerides" style="display:none"></div>
         </div>
-        <button class="vs-btn vs-btn-primary" onclick="exportarEfemerides()" style="align-self:center;margin-top:12px">⬇ Exportar placa (PNG)</button>
       </div>
     </div>
   </div>
 
   <!-- PANEL: EDITOR DE PUBLICACIÓN -->
   <div class="vs-panel" id="panel-editor">
-    <div class="vs-card accent" style="margin-bottom:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:240px">
-          <div class="vs-label">Título de la publicación</div>
-          <input class="vs-input" id="pubTitulo" style="margin-top:6px" value="Publicación Media Mendoza" oninput="if(window.pubState)pubState.titulo=this.value">
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarBasePublicacion();renderEditor()">🔄 Regenerar base</button>
-          <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="exportarMiniWeb()">🌐 Exportar mini web</button>
-          <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarEditorPNG()">⬇ Exportar PNG</button>
-        </div>
+    <div class="vs-tab-header">
+      <div class="vs-tab-header-title"><span>🖊️</span> Editor</div>
+      <div class="vs-tab-header-actions">
+        <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="generarBasePublicacion();renderEditor()">🔄 Regenerar</button>
+        <button class="vs-btn vs-btn-primary vs-btn-sm" onclick="exportarMiniWeb()">🌐 Web</button>
+        <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarEditorPNG()">⬇ PNG</button>
       </div>
+    </div>
+
+    <div class="vs-card accent" style="margin-bottom:16px">
+      <div class="vs-label">Título de la publicación</div>
+      <input class="vs-input" id="pubTitulo" style="margin-top:6px" value="Publicación Media Mendoza" oninput="if(window.pubState)pubState.titulo=this.value">
     </div>
 
     <div class="pub-editor">

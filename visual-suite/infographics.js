@@ -41,9 +41,7 @@ function initInfographics() {
     canvas.addEventListener('mousedown', onDown);
     canvas.addEventListener('touchstart', onDown, { passive: false });
     canvas.addEventListener('mousemove', onMove);
-    canvas.addEventListener('touchmove', onMove, { passive: false });
     canvas.addEventListener('mouseup', onUp);
-    canvas.addEventListener('touchend', onUp);
     canvas._vsListenersAdded = true;
   }
 }
@@ -88,15 +86,18 @@ function onDown(e) {
     titleActive = true;
     titleState._offX = pos.x; titleState._offY = pos.y;
     titleState._startS = { x: s.x, y: s.y, w: s.w, h: s.h };
-    return;
-  }
-  if (pos.x >= el.x && pos.x <= el.x + el.w && pos.y >= el.y && pos.y <= el.y + el.h) {
+  } else if (pos.x >= el.x && pos.x <= el.x + el.w && pos.y >= el.y && pos.y <= el.y + el.h) {
     titleAction = 'drag';
     titleActive = true;
     titleState._offX = pos.x - el.x; titleState._offY = pos.y - el.y;
   } else {
     titleActive = false;
     renderizarInfografia();
+  }
+  if (e.touches && titleAction) {
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
+    document.addEventListener('touchcancel', onUp);
   }
 }
 
@@ -139,6 +140,9 @@ function onMove(e) {
 
 function onUp() {
   titleAction = null;
+  document.removeEventListener('touchmove', onMove);
+  document.removeEventListener('touchend', onUp);
+  document.removeEventListener('touchcancel', onUp);
   renderizarInfografia();
 }
 
