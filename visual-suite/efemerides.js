@@ -70,6 +70,10 @@ Reglas estrictas:
 - El campo "tipo" debe ser EXACTAMENTE "nacional" o "internacional" según corresponda
 - Si es una efeméride muy importante o de celebración especial, marcá "destacada": true. Máximo 2 o 3 destacadas.
 - Abarcá distintas categorías (política, cultura, deportes, ciencia, sociedad, espectáculos, religión, economía)
+- No incluir más de dos efemérides de la misma categoría, salvo que la fecha lo justifique
+- Evitar duplicados semánticos: no incluir dos efemérides que hagan referencia al mismo acontecimiento histórico, aunque estén redactadas de forma diferente
+- Excluir efemérides de ocasión: no incluir aniversarios, recordatorios periodísticos o efemérides derivadas del mismo hecho histórico
+- Ordenar por relevancia histórica para Argentina y luego cronológicamente
 - Cada efeméride debe empezar con "Nace", "Fallece", "Se celebra", "Ocurre", "Se funda", "Se descubre", etc.
 - Incluí el emoji más representativo para cada una
 - Incluí el campo "fuente" con la fuente verificadora
