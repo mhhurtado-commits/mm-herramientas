@@ -388,10 +388,28 @@ function renderizarEfemerides() {
   ctx.textBaseline = 'alphabetic';
 }
 
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let currentLine = '';
+  for (const word of words) {
+    const testLine = currentLine ? currentLine + ' ' + word : word;
+    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+      if (lines.length >= 2) { currentLine = currentLine + '…'; break; }
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine && lines.length < 2) lines.push(currentLine);
+  return lines;
+}
+
 function drawEfeCards(ctx, W, H, br) {
   const pad = Math.round(W * 0.01);
   const cardW = br.w - pad * 2;
-  const itemH = Math.round(Math.min(br.h * 0.13, W * 0.13));
+  const itemH = Math.round(Math.min(br.h * 0.15, W * 0.15));
   const sepH = Math.round(W * 0.05);
   const innerX = br.x + pad;
   const cardCount = efemeridesData.filter(e => !e._separator).length;
@@ -424,43 +442,42 @@ function drawEfeCards(ctx, W, H, br) {
     ctx.roundRect(innerX, y + Math.round(itemH * 0.1), 4, itemH * 0.8, 2);
     ctx.fill();
 
-    ctx.font = `${Math.round(itemH * 0.4)}px sans-serif`;
+    ctx.font = `${Math.round(itemH * 0.35)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(e.emoji || '📌', innerX + Math.round(W * 0.05), cy);
+    ctx.fillText(e.emoji || '📌', innerX + Math.round(W * 0.05), cy - Math.round(itemH * 0.06));
 
     const yearX = innerX + Math.round(W * 0.09);
     ctx.fillStyle = isDest ? '#ffd700' : catColor;
-    ctx.font = `900 ${Math.round(itemH * 0.22)}px Inter, sans-serif`;
+    ctx.font = `900 ${Math.round(itemH * 0.18)}px Inter, sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(e.anio || '', yearX, cy - Math.round(itemH * 0.18));
+    ctx.fillText(e.anio || '', yearX, cy - Math.round(itemH * 0.26));
 
     ctx.fillStyle = isDest ? '#fffbe6' : '#ffffff';
-    ctx.font = `700 ${Math.round(itemH * 0.2)}px Inter, sans-serif`;
-    ctx.fillText(e.titulo || '', yearX, cy + Math.round(itemH * 0.02));
+    ctx.font = `700 ${Math.round(itemH * 0.17)}px Inter, sans-serif`;
+    ctx.fillText(e.titulo || '', yearX, cy - Math.round(itemH * 0.08));
 
     ctx.fillStyle = isDest ? 'rgba(255,215,0,0.7)' : 'rgba(255,255,255,0.6)';
-    ctx.font = `500 ${Math.round(itemH * 0.15)}px Inter, sans-serif`;
+    ctx.font = `500 ${Math.round(itemH * 0.12)}px Inter, sans-serif`;
     const descW = cardW - (yearX - innerX) - Math.round(W * 0.14);
     const desc = e.descripcion || '';
-    let descDisplay = desc;
-    while (descDisplay && ctx.measureText(descDisplay).width > descW) {
-      descDisplay = descDisplay.slice(0, -1);
-    }
-    if (descDisplay.length < desc.length) descDisplay = descDisplay.slice(0, -1) + '…';
-    ctx.fillText(descDisplay, yearX, cy + Math.round(itemH * 0.22));
+    const lines = wrapText(ctx, desc, descW);
+    const lineH = Math.round(itemH * 0.14);
+    lines.forEach((line, i) => {
+      ctx.fillText(line, yearX, cy + Math.round(itemH * 0.08) + i * lineH);
+    });
 
     ctx.fillStyle = VS_Utils.hexToRgba(isDest ? '#ffd700' : catColor, isDest ? 0.2 : 0.15);
     ctx.beginPath();
     const badgeW = ctx.measureText(e.categoria || '').width + Math.round(W * 0.02);
-    const badgeH = Math.round(itemH * 0.22);
+    const badgeH = Math.round(itemH * 0.18);
     const bX = br.x + br.w - pad - badgeW - Math.round(W * 0.02);
-    const bY = cy - badgeH / 2;
+    const bY = cy - badgeH / 2 - Math.round(itemH * 0.06);
     ctx.roundRect(bX, bY, badgeW, badgeH, 4);
     ctx.fill();
     ctx.fillStyle = isDest ? '#ffd700' : catColor;
-    ctx.font = `600 ${Math.round(itemH * 0.13)}px Inter, sans-serif`;
+    ctx.font = `600 ${Math.round(itemH * 0.11)}px Inter, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(e.categoria || '', bX + badgeW / 2, bY + badgeH / 2);
