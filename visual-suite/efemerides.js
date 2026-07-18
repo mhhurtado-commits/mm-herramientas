@@ -66,7 +66,7 @@ Reglas estrictas:
 - Verificá CADA dato en al menos 2 fuentes (Wikipedia, efemerides.com.ar, historiaantigua.com.ar, etc.)
 - Incluí entre 5 y 12 efemérides para esta fecha
 - Incluí argentinas (🇦🇷, tipo "nacional") e internacionales relevantes (🌍, tipo "internacional")
-- Proporción: 75% nacionales, 25% internacionales (ej: de 8 efemérides, 6 nacionales y 2 internacionales)
+- Priorizar una proporción aproximada de 75% nacionales y 25% internacionales. Si no existen suficientes efemérides nacionales relevantes, verificadas y sin duplicados para esa fecha, completar con efemérides internacionales verificadas antes que repetir o inventar acontecimientos.
 - El campo "tipo" debe ser EXACTAMENTE "nacional" o "internacional" según corresponda
 - Si es una efeméride muy importante o de celebración especial, marcá "destacada": true. Máximo 2 o 3 destacadas.
 - Abarcá distintas categorías (política, cultura, deportes, ciencia, sociedad, espectáculos, religión, economía)
