@@ -315,6 +315,17 @@ function onEfeUp() {
 }
 
 // ── Render ──
+function calcEfeRequiredHeight(W) {
+  const sepH = Math.round(W * 0.05);
+  const itemH = Math.round(W * 0.15);
+  let totalH = 0;
+  efemeridesData.forEach(e => {
+    if (e._separator) totalH += sepH;
+    else totalH += itemH;
+  });
+  return totalH + Math.round(W * 0.02);
+}
+
 function renderizarEfemerides() {
   const canvas = document.getElementById('efemeridesCanvas');
   if (!canvas) return;
@@ -351,9 +362,17 @@ function renderizarEfemerides() {
   ctx.fillRect(0, 0, W, H);
   VS_Utils.drawDotGrid(ctx, W, H, 'rgba(255,255,255,0.02)', Math.round(W * 0.03), 1);
 
-  // 2. Body block
+  // 2. Body block - auto-expand to fit all efemerides
   const br = getEfeBlockRect('body', W, H);
   if (br) {
+    const requiredH = calcEfeRequiredHeight(W);
+    if (requiredH > br.h) {
+      br.h = Math.min(requiredH, H - br.y - Math.round(H * 0.06));
+      if (efeBlocks && efeBlocks.body) {
+        efeBlocks.body.h = br.h / H;
+        saveEfeBlocks();
+      }
+    }
     ctx.save();
     ctx.beginPath();
     ctx.rect(br.x, br.y, br.w, br.h);
