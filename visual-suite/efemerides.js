@@ -301,11 +301,11 @@ function onEfeMove(e) {
       else if (c === 'w') { const nw = Math.max(MIN, o.w - dx); b.x = o.x + o.w - nw; b.w = nw; }
     }
   }
-  saveEfeBlocks();
   renderizarEfemerides();
 }
 
 function onEfeUp() {
+  if (efeDrag && efeBlocks) saveEfeBlocks();
   efeDrag = null;
   document.removeEventListener('touchmove', onEfeMove);
   document.removeEventListener('touchend', onEfeUp);
@@ -359,16 +359,12 @@ function renderizarEfemerides() {
   ctx.fillRect(0, 0, W, H);
   VS_Utils.drawDotGrid(ctx, W, H, 'rgba(255,255,255,0.02)', Math.round(W * 0.03), 1);
 
-  // 2. Body block - auto-expand to fit all efemerides
+  // 2. Body block - auto-expand to fit all efemerides (sin guardar en localStorage)
   const br = getEfeBlockRect('body', W, H);
   if (br) {
     const requiredH = calcEfeRequiredHeight(W);
     if (requiredH > br.h) {
       br.h = Math.min(requiredH, H - br.y - Math.round(H * 0.06));
-      if (efeBlocks && efeBlocks.body) {
-        efeBlocks.body.h = br.h / H;
-        saveEfeBlocks();
-      }
     }
     ctx.save();
     ctx.beginPath();
@@ -394,7 +390,7 @@ function renderizarEfemerides() {
     });
   }
 
-  // 6. Active UI
+  // 6. Active UI (solo dibujar guías, no guardar posición)
   if (efeActiveBlock && efeBlocks && efeBlocks[efeActiveBlock]) {
     const b = efeBlocks[efeActiveBlock];
     VS_CanvasHelpers.drawActiveUI(ctx, W, H, { x: b.x * W, y: b.y * H, w: b.w * W, h: b.h * H });
@@ -558,6 +554,8 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
 
   const br = getEfeBlockRect('body', W, H);
   if (br) {
+    const requiredH = calcEfeRequiredHeight(W);
+    if (requiredH > br.h) br.h = Math.min(requiredH, H - br.y - Math.round(H * 0.06));
     ctx.save();
     ctx.beginPath();
     ctx.rect(br.x, br.y, br.w, br.h);
