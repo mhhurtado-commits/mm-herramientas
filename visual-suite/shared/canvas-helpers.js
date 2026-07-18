@@ -37,9 +37,9 @@ const VS_CanvasHelpers = {
     ctx.fillStyle = dark ? 'rgba(255,255,255,0.6)' : VS_Colors.INK2;
     ctx.font = `600 ${fs}px "Inter", sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, y);
+    ctx.fillText('Mediamendoza · Noticias confiables del sur mendocino', M, y);
     ctx.textAlign = 'right';
-    ctx.fillText('Generado con Visual Suite', W - M, y);
+    ctx.fillText('www.mediamendoza.com', W - M, y);
     ctx.textAlign = 'left';
   },
 

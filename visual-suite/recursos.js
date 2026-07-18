@@ -132,13 +132,12 @@
   function drawFooter(ctx, w, h, prompt) {
     ctx.fillStyle = '#8c9a90';
     ctx.font = '400 14px Inter, Arial, sans-serif';
-    ctx.fillText('Generado con Visual Suite', 40, h - 28);
-    if (prompt) {
-      ctx.fillStyle = '#5e6b62';
-      ctx.font = 'italic 14px Inter, Arial, sans-serif';
-      var p = ('“' + prompt + '”').slice(0, 60);
-      ctx.fillText(p, 40, h - 52);
-    }
+    ctx.textAlign = 'left';
+    ctx.fillText('Mediamendoza · Noticias confiables del sur mendocino', 40, h - 28);
+    ctx.textAlign = 'right';
+    ctx.fillText('www.mediamendoza.com', w - 40, h - 28);
+    ctx.textAlign = 'left';
+  }
   }
 
   function pngFromCanvas(c, nombreArchivo) {
