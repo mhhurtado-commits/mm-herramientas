@@ -52,7 +52,7 @@ Requisitos del JSON:
       "emoji": "🇦🇷",
       "anio": 1965,
       "titulo": "Título corto del evento",
-      "descripcion": "Descripción breve (máximo 10 palabras)",
+      "descripcion": "Descripción breve (1 a 2 oraciones, máx. 20 palabras)",
       "categoria": "Política | Deportes | Cultura | Ciencia | Internacional | Sociedad | Espectáculos | Religión | Económica",
       "tipo": "nacional" | "internacional",
       "destacada": true,
@@ -75,6 +75,7 @@ Reglas estrictas:
 - Excluir efemérides de ocasión: no incluir aniversarios, recordatorios periodísticos o efemérides derivadas del mismo hecho histórico
 - Ordenar por relevancia histórica para Argentina y luego cronológicamente
 - Cada efeméride debe empezar con "Nace", "Fallece", "Se celebra", "Ocurre", "Se funda", "Se descubre", etc.
+- La descripción debe ser una o dos oraciones claras y concisas que expliquen el contexto histórico
 - Incluí el emoji más representativo para cada una
 - Incluí el campo "fuente" con la fuente verificadora
 - NUNCA inventes nombres, fechas o eventos. Si no estás seguro, NO lo incluyas
@@ -390,7 +391,7 @@ function renderizarEfemerides() {
 function drawEfeCards(ctx, W, H, br) {
   const pad = Math.round(W * 0.01);
   const cardW = br.w - pad * 2;
-  const itemH = Math.round(Math.min(br.h * 0.11, W * 0.11));
+  const itemH = Math.round(Math.min(br.h * 0.13, W * 0.13));
   const sepH = Math.round(W * 0.05);
   const innerX = br.x + pad;
   const cardCount = efemeridesData.filter(e => !e._separator).length;
@@ -423,24 +424,24 @@ function drawEfeCards(ctx, W, H, br) {
     ctx.roundRect(innerX, y + Math.round(itemH * 0.1), 4, itemH * 0.8, 2);
     ctx.fill();
 
-    ctx.font = `${Math.round(itemH * 0.45)}px sans-serif`;
+    ctx.font = `${Math.round(itemH * 0.4)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(e.emoji || '📌', innerX + Math.round(W * 0.05), cy);
 
     const yearX = innerX + Math.round(W * 0.09);
     ctx.fillStyle = isDest ? '#ffd700' : catColor;
-    ctx.font = `900 ${Math.round(itemH * 0.24)}px Inter, sans-serif`;
+    ctx.font = `900 ${Math.round(itemH * 0.22)}px Inter, sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(e.anio || '', yearX, cy - Math.round(itemH * 0.14));
+    ctx.fillText(e.anio || '', yearX, cy - Math.round(itemH * 0.18));
 
     ctx.fillStyle = isDest ? '#fffbe6' : '#ffffff';
-    ctx.font = `700 ${Math.round(itemH * 0.22)}px Inter, sans-serif`;
-    ctx.fillText(e.titulo || '', yearX, cy + Math.round(itemH * 0.16));
+    ctx.font = `700 ${Math.round(itemH * 0.2)}px Inter, sans-serif`;
+    ctx.fillText(e.titulo || '', yearX, cy + Math.round(itemH * 0.02));
 
     ctx.fillStyle = isDest ? 'rgba(255,215,0,0.7)' : 'rgba(255,255,255,0.6)';
-    ctx.font = `500 ${Math.round(itemH * 0.16)}px Inter, sans-serif`;
+    ctx.font = `500 ${Math.round(itemH * 0.15)}px Inter, sans-serif`;
     const descW = cardW - (yearX - innerX) - Math.round(W * 0.14);
     const desc = e.descripcion || '';
     let descDisplay = desc;
@@ -448,7 +449,7 @@ function drawEfeCards(ctx, W, H, br) {
       descDisplay = descDisplay.slice(0, -1);
     }
     if (descDisplay.length < desc.length) descDisplay = descDisplay.slice(0, -1) + '…';
-    ctx.fillText(descDisplay, yearX, cy + Math.round(itemH * 0.40));
+    ctx.fillText(descDisplay, yearX, cy + Math.round(itemH * 0.22));
 
     ctx.fillStyle = VS_Utils.hexToRgba(isDest ? '#ffd700' : catColor, isDest ? 0.2 : 0.15);
     ctx.beginPath();
