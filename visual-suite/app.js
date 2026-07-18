@@ -402,7 +402,7 @@ function limpiarEfemerides() {
   if (ta2) ta2.value = '';
   const lbl = document.getElementById('efeFechaLabel');
   if (lbl) lbl.textContent = '';
-  renderizarEfemerides();
+  resetEfeBlocks();
   toast('Efemérides limpiadas');
 }
 

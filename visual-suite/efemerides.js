@@ -158,14 +158,34 @@ function ensureEfeLogoBlock() {
 function loadEfeBlocks() {
   const key = 'efeBlocks_' + efeFormato;
   const saved = localStorage.getItem(key);
-  if (saved) { try { efeBlocks = JSON.parse(saved); return; } catch(e) {} }
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.title && parsed.body && parsed.logo
+          && typeof parsed.title.x === 'number' && typeof parsed.body.x === 'number'
+          && parsed.title.w > 0 && parsed.body.w > 0 && parsed.logo.w > 0
+          && parsed.title.h > 0 && parsed.body.h > 0 && parsed.logo.h > 0) {
+        efeBlocks = parsed;
+        return;
+      }
+    } catch(e) {}
+  }
   efeBlocks = getEfeDefaultBlocks();
+  saveEfeBlocks();
 }
 
 function saveEfeBlocks() {
   if (!efeBlocks) return;
   ensureEfeLogoBlock();
   localStorage.setItem('efeBlocks_' + efeFormato, JSON.stringify(efeBlocks));
+}
+
+function resetEfeBlocks() {
+  localStorage.removeItem('efeBlocks_' + efeFormato);
+  efeBlocks = getEfeDefaultBlocks();
+  saveEfeBlocks();
+  renderizarEfemerides();
+  toast('Bloques reiniciados');
 }
 
 function getEfeBlockRect(name, W, H) {
@@ -222,8 +242,6 @@ function initEfeCanvasEvents() {
   if (!canvas || canvas._vsListenersAdded) return;
   canvas.addEventListener('mousedown', onEfeDown);
   canvas.addEventListener('touchstart', onEfeDown, { passive: false });
-  canvas.addEventListener('mousemove', onEfeMove);
-  canvas.addEventListener('mouseup', onEfeUp);
   canvas._vsListenersAdded = true;
 }
 
@@ -238,10 +256,14 @@ function onEfeDown(e) {
     const hid = getEfeHandleHit(pos.x, pos.y, W, H);
     if (hid) {
       efeDrag = { type: 'resize-' + hid, key: efeActiveBlock, startNx: pos.x / W, startNy: pos.y / H, orig: {...efeBlocks[efeActiveBlock]} };
+      efeDrag._isTouch = !!e.touches;
       if (e.touches) {
         document.addEventListener('touchmove', onEfeMove, { passive: false });
         document.addEventListener('touchend', onEfeUp);
         document.addEventListener('touchcancel', onEfeUp);
+      } else {
+        document.addEventListener('mousemove', onEfeMove);
+        document.addEventListener('mouseup', onEfeUp);
       }
       return;
     }
@@ -250,10 +272,14 @@ function onEfeDown(e) {
   if (hit) {
     efeActiveBlock = hit;
     efeDrag = { type: 'drag', key: hit, offX: pos.x / W - efeBlocks[hit].x, offY: pos.y / H - efeBlocks[hit].y };
+    efeDrag._isTouch = !!e.touches;
     if (e.touches) {
       document.addEventListener('touchmove', onEfeMove, { passive: false });
       document.addEventListener('touchend', onEfeUp);
       document.addEventListener('touchcancel', onEfeUp);
+    } else {
+      document.addEventListener('mousemove', onEfeMove);
+      document.addEventListener('mouseup', onEfeUp);
     }
   } else {
     efeActiveBlock = null;
@@ -304,12 +330,18 @@ function onEfeMove(e) {
   renderizarEfemerides();
 }
 
-function onEfeUp() {
+function onEfeUp(e) {
   if (efeDrag && efeBlocks) saveEfeBlocks();
+  const wasTouch = efeDrag && efeDrag._isTouch;
   efeDrag = null;
-  document.removeEventListener('touchmove', onEfeMove);
-  document.removeEventListener('touchend', onEfeUp);
-  document.removeEventListener('touchcancel', onEfeUp);
+  if (wasTouch) {
+    document.removeEventListener('touchmove', onEfeMove);
+    document.removeEventListener('touchend', onEfeUp);
+    document.removeEventListener('touchcancel', onEfeUp);
+  } else {
+    document.removeEventListener('mousemove', onEfeMove);
+    document.removeEventListener('mouseup', onEfeUp);
+  }
   const canvas = document.getElementById('efemeridesCanvas');
   if (canvas) canvas.style.cursor = efeActiveBlock ? 'grab' : 'default';
 }
@@ -502,7 +534,7 @@ function drawEfeCards(ctx, W, H, br) {
     curY += itemH;
   });
 
-  if (cardCount === 0) {
+  if (itemCount === 0) {
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.font = `500 ${Math.round(W * 0.02)}px Inter, sans-serif`;
     ctx.textAlign = 'center';
