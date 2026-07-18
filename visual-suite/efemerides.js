@@ -316,14 +316,11 @@ function onEfeUp() {
 
 // ── Render ──
 function calcEfeRequiredHeight(W) {
-  const sepH = Math.round(W * 0.05);
-  const itemH = Math.round(W * 0.15);
-  let totalH = 0;
-  efemeridesData.forEach(e => {
-    if (e._separator) totalH += sepH;
-    else totalH += itemH;
-  });
-  return totalH + Math.round(W * 0.02);
+  const itemCount = efemeridesData.filter(e => !e._separator).length;
+  const sepCount = efemeridesData.filter(e => e._separator).length;
+  const idealItemH = Math.round(W * 0.14);
+  const idealSepH = Math.round(idealItemH * 0.35);
+  return itemCount * idealItemH + sepCount * idealSepH + Math.round(W * 0.02);
 }
 
 function renderizarEfemerides() {
@@ -428,10 +425,16 @@ function wrapText(ctx, text, maxWidth) {
 function drawEfeCards(ctx, W, H, br) {
   const pad = Math.round(W * 0.01);
   const cardW = br.w - pad * 2;
-  const itemH = Math.round(Math.min(br.h * 0.15, W * 0.15));
-  const sepH = Math.round(W * 0.05);
   const innerX = br.x + pad;
-  const cardCount = efemeridesData.filter(e => !e._separator).length;
+  const itemCount = efemeridesData.filter(e => !e._separator).length;
+  const sepCount = efemeridesData.filter(e => e._separator).length;
+  const totalItems = itemCount + sepCount;
+  const availH = br.h - pad * 2;
+  const sepRatio = 0.35;
+  const itemRatio = 1;
+  const totalRatio = itemCount * itemRatio + sepCount * sepRatio;
+  const itemH = Math.round(Math.min(availH / totalRatio, W * 0.16));
+  const sepH = Math.round(itemH * sepRatio);
   let curY = br.y + pad;
 
   efemeridesData.forEach(e => {
