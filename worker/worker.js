@@ -1576,6 +1576,7 @@ async function obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey) {
       if (!allFixtures) {
         return lastError || { partidos: [], fecha: fechaBase, mensaje: 'API-Football sin partidos en ninguna temporada' };
       }
+    }
 
     const partidos = allFixtures.map(f => {
       const teams = f.teams;
@@ -1741,8 +1742,8 @@ async function obtenerGoleadoresFutbol(env, competicionKey) {
     }));
 
     return { goleadores, competicion: comp.nombre, fuente: 'api-football' };
-  } // fin for
-  return { goleadores: [], competicion: comp.nombre, fuente: 'api-football' };
+    } // fin for
+    return { goleadores: [], competicion: comp.nombre, fuente: 'api-football' };
   } catch (err) {
     return { error: err.message };
   }
