@@ -51,7 +51,8 @@ let S={
   // ── modo collage ──
   collageImgs:[null,null,null,null], // hasta 4 imágenes
   collageLayout:'2h',  // layouts: 2h, 2v, 3t, 3b, 3l, 3r, 4
-  // ── modo futbol/mundial ──
+  // ── modo futbol ──
+  competicion:'liga-profesional',  // competición seleccionada
   mundialTipo:null,    // 'partidos-dia' | 'partido-individual'
   mundialData:null,    // { fecha, partidos[], fuentes[] }
   mundialLogoImg:null, // logo-mundial.png cargado
@@ -391,7 +392,7 @@ function setMode(m){
   if(m==='normal'){
     document.querySelectorAll('.normal-only').forEach(el=>el.style.display='');
     document.querySelectorAll('.special-only').forEach(el=>el.style.display='none');
-    const wp=document.getElementById('mundial-section');
+    const wp=document.getElementById('futbol-section');
     if(wp)wp.style.display='none';
     // Limpiar estado de Mundial al volver a Normal
     S.mundialTipo=null;
@@ -405,12 +406,12 @@ function setMode(m){
     // Futbol: mostrar sección mundial, ocultar el resto
     document.querySelectorAll('.normal-only').forEach(el=>el.style.display='none');
     document.querySelectorAll('[id^="special-panel-"]').forEach(el=>el.style.display='none');
-    const wp=document.getElementById('mundial-section');
+    const wp=document.getElementById('futbol-section');
     if(wp)wp.style.display='block';
   } else {
     // Modo especial: ocultar acordeones, mostrar solo el panel correcto
     document.querySelectorAll('.normal-only').forEach(el=>el.style.display='none');
-    const wp=document.getElementById('mundial-section');
+    const wp=document.getElementById('futbol-section');
     if(wp)wp.style.display='none';
     document.querySelectorAll('[id^="special-panel-"]').forEach(el=>{
       el.style.display=el.id==='special-panel-'+m?'block':'none';
@@ -431,6 +432,48 @@ function setQP(el){
 function setFS(el){
   document.querySelectorAll('[id^="fs-"]').forEach(b=>b.classList.remove('on'));
   el.classList.add('on');snapShot();render();
+}
+
+/* ── Fútbol: cambiar competición ─────────────────────────────────── */
+function cambiarCompeticion(competicion) {
+  S.competicion = competicion;
+  S.futbolTipo = null;
+  S.futbolData = null;
+  S.futbolPartidos = [];
+  S.futbolCalendario = null;
+
+  // Mostrar/ocultar controles según competición
+  const esMundial = competicion === 'mundial';
+  const elGrupos = document.getElementById('futbolGruposRow');
+  const elEtapa = document.getElementById('futbolEtapaRow');
+  const elBracket = document.getElementById('btnBracket');
+  if (elGrupos) elGrupos.style.display = esMundial ? 'flex' : 'none';
+  if (elEtapa) elEtapa.style.display = esMundial ? 'flex' : 'none';
+  if (elBracket) elBracket.style.display = esMundial ? '' : 'none';
+
+  // Recargar datos de la competición
+  if (typeof CalendarioMundial !== 'undefined' && window._calendario) {
+    window._calendario.cargarFechaActual();
+  }
+  render();
+  drawPreviews();
+}
+
+/* ── Fútbol: nombre de competición ───────────────────────────────── */
+function getNombreCompeticion(competicion) {
+  const nombres = {
+    'liga-profesional': 'LIGA PROFESIONAL ARGENTINA',
+    'copa-argentina': 'COPA ARGENTINA',
+    'libertadores': 'COPA LIBERTADORES',
+    'sudamericana': 'COPA SUDAMERICANA',
+    'mundial': 'MUNDIAL 2026'
+  };
+  return nombres[competicion] || 'FÚTBOL';
+}
+
+/* ── Fútbol: es competición de selecciones ────────────────────────── */
+function esSeleccion() {
+  return S.competicion === 'mundial';
 }
 
 function setCollageLayout(layout) {
@@ -1125,7 +1168,7 @@ function drawMundialPartidosDia(W, H, partidos) {
     ctx.font = titleFont;
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText(S.title || `${count} PARTIDO${count>1?'S':''} DEL MUNDIAL`, hdrCX, titleY);
+    ctx.fillText(S.title || `${count} PARTIDO${count>1?'S':''} - ${getNombreCompeticion(S.competicion)}`, hdrCX, titleY);
 
     // ── Línea decorativa bajo título ──
     const lineW = Math.round(hdr.w * 0.33);
@@ -1317,7 +1360,7 @@ function drawMundialResultadosDia(W, H, partidos) {
     ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.058 * hdrScaleH)) : `700 ${Math.round(W*0.058 * hdrScaleH)}px 'BebasNeue',sans-serif`;
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText(S.title || `RESULTADOS DEL MUNDIAL`, hdrCX, titleY);
+    ctx.fillText(S.title || `RESULTADOS - ${getNombreCompeticion(S.competicion)}`, hdrCX, titleY);
 
     // ── Línea decorativa bajo título ──
     const lineW = Math.round(hdr.w * 0.33);
@@ -1892,7 +1935,7 @@ function drawMundialPosiciones(W, H) {
   ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.055 * hdrScaleH)) : `700 ${Math.round(W*0.055 * hdrScaleH)}px 'BebasNeue',sans-serif`;
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  ctx.fillText(S.title || 'POSICIONES', hdrCX, titleY);
+  ctx.fillText(S.title || `POSICIONES - ${getNombreCompeticion(S.competicion)}`, hdrCX, titleY);
 
   // Línea decorativa
   const lineW = Math.round(hdr.w * 0.27);
@@ -2113,7 +2156,7 @@ function drawMundialGoleadores(W, H) {
   ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.055 * hdrScaleH)) : `700 ${Math.round(W*0.055 * hdrScaleH)}px 'BebasNeue',sans-serif`;
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  ctx.fillText(S.title || 'GOLEADORES', hdrCX, titleY);
+  ctx.fillText(S.title || `GOLEADORES - ${getNombreCompeticion(S.competicion)}`, hdrCX, titleY);
 
   // Línea decorativa
   const lineW = Math.round(hdr.w * 0.27);
@@ -2316,7 +2359,7 @@ function drawMundialBracket(W, H) {
     ctx.font = wc26Active() ? wc26Font('700', Math.round(W*0.055 * hdrScaleH)) : `700 ${Math.round(W*0.055 * hdrScaleH)}px 'BebasNeue',sans-serif`;
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText(S.title || 'ELIMINATORIAS', hdrCX, titleY);
+    ctx.fillText(S.title || `ELIMINATORIAS - ${getNombreCompeticion(S.competicion)}`, hdrCX, titleY);
 
     // Línea decorativa
     const lineW = Math.round(hdr.w * 0.33);
@@ -3485,7 +3528,7 @@ const MOB_PANELS = {
       <div class="mode-btn ${S.mode==='textual'?'on':''}"  onclick="setMode('textual')" >💬 Textual</div>
       <div class="mode-btn ${S.mode==='foto'?'on':''}"     onclick="setMode('foto')"    >👤 Foto</div>
       <div class="mode-btn ${S.mode==='collage'?'on':''}"  onclick="setMode('collage')" >🖼 Collage</div>
-      <div class="mode-btn ${S.mode==='futbol'?'on':''}"   onclick="setMode('futbol')"  >⚽ Mundial</div>
+      <div class="mode-btn ${S.mode==='futbol'?'on':''}"   onclick="setMode('futbol')"  >⚽ Fútbol</div>
       <div class="mode-btn ${S.mode==='clima'?'on':''}"    onclick="setMode('clima')"   >🌤️ Clima</div>
     </div>
     ${S.mode==='textual' ? `
@@ -3890,6 +3933,8 @@ function init(){
   if(typeof inicializarCalendarioMundial === 'function') {
     inicializarCalendarioMundial();
   }
+  // Estado inicial de controles de competición
+  cambiarCompeticion(S.competicion || 'liga-profesional');
   // Precargar logo mundial
   const mundialLogo = new Image();
   mundialLogo.crossOrigin = 'anonymous';

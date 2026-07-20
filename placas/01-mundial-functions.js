@@ -237,7 +237,8 @@ async function obtenerApiKeyDelWorker() {
 // ── FUNCIÓN PROXY: Llamar al worker que ya tiene la key (football-data) ──
 async function obtenerPartidosMundialViaWorker(fecha) {
   try {
-    const url = `${MUNDIAL_CONFIG.workerUrl}/mundo/partidos?fecha=${fecha}`;
+    const competicion = S.competicion || 'liga-profesional';
+    const url = `${MUNDIAL_CONFIG.workerUrl}/futbol/partidos?fecha=${fecha}&competicion=${competicion}`;
     const res = await fetch(url);
     
     if (!res.ok) {
@@ -267,7 +268,8 @@ async function obtenerPartidosMundialViaWorker(fecha) {
 // ── FUNCIÓN COMBINADA: Usa ambas APIs ──
 async function obtenerPartidosCombinadosViaWorker(fecha) {
   try {
-    const url = `${MUNDIAL_CONFIG.workerUrl}/mundo/partidos-combinados?fecha=${fecha}`;
+    const competicion = S.competicion || 'liga-profesional';
+    const url = `${MUNDIAL_CONFIG.workerUrl}/futbol/partidos-combinados?fecha=${fecha}&competicion=${competicion}`;
     const res = await fetch(url);
     
     if (!res.ok) {
@@ -298,7 +300,8 @@ async function obtenerPartidosCombinadosViaWorker(fecha) {
 // ── Obtener posiciones de grupos ──
 async function obtenerPosicionesGrupos() {
   try {
-    const url = `${MUNDIAL_CONFIG.workerUrl}/mundo/posiciones`;
+    const competicion = S.competicion || 'liga-profesional';
+    const url = `${MUNDIAL_CONFIG.workerUrl}/futbol/posiciones?competicion=${competicion}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
@@ -312,7 +315,8 @@ async function obtenerPosicionesGrupos() {
 // ── Obtener bracket de eliminación directa (Zafronix) ──
 async function obtenerBracketMundial() {
   try {
-    const url = `${MUNDIAL_CONFIG.workerUrl}/mundo/bracket`;
+    const competicion = S.competicion || 'liga-profesional';
+    const url = `${MUNDIAL_CONFIG.workerUrl}/futbol/bracket?competicion=${competicion}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
@@ -326,7 +330,8 @@ async function obtenerBracketMundial() {
 // ── Obtener planteles del Mundial (Zafronix) ──
 async function obtenerPlantelesMundial() {
   try {
-    const url = `${MUNDIAL_CONFIG.workerUrl}/mundo/planteles`;
+    const competicion = S.competicion || 'liga-profesional';
+    const url = `${MUNDIAL_CONFIG.workerUrl}/futbol/planteles?competicion=${competicion}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
@@ -340,7 +345,8 @@ async function obtenerPlantelesMundial() {
 // ── Obtener estadios del Mundial (Zafronix) ──
 async function obtenerEstadiosMundial() {
   try {
-    const url = `${MUNDIAL_CONFIG.workerUrl}/mundo/estadios`;
+    const competicion = S.competicion || 'liga-profesional';
+    const url = `${MUNDIAL_CONFIG.workerUrl}/futbol/estadios?competicion=${competicion}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
@@ -354,7 +360,8 @@ async function obtenerEstadiosMundial() {
 // ── Obtener goleadores ──
 async function obtenerGoleadores() {
   try {
-    const url = `${MUNDIAL_CONFIG.workerUrl}/mundo/goleadores`;
+    const competicion = S.competicion || 'liga-profesional';
+    const url = `${MUNDIAL_CONFIG.workerUrl}/futbol/goleadores?competicion=${competicion}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
@@ -368,7 +375,8 @@ async function obtenerGoleadores() {
 // ── Obtener detalle enriquecido de un partido ──
 async function obtenerDetallePartido(fixtureId) {
   try {
-    const url = `${MUNDIAL_CONFIG.workerUrl}/mundo/detalle-partido?fixtureId=${fixtureId}`;
+    const competicion = S.competicion || 'liga-profesional';
+    const url = `${MUNDIAL_CONFIG.workerUrl}/futbol/detalle-partido?fixtureId=${fixtureId}&competicion=${competicion}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
@@ -728,7 +736,7 @@ async function generarPlacaGoleadores() {
   }
 
   S.mode = 'futbol';
-  S.title = 'GOLEADORES DEL MUNDIAL';
+  S.title = `GOLEADORES - ${getNombreCompeticion(S.competicion)}`;
   S.cat = 'MUNDIAL 2026';
   S.tpl = 'futbol-premium';
   S.mundialTipo = 'goleadores';
@@ -766,7 +774,8 @@ async function generarPlacaBracket() {
   S.mundialData = { fecha: obtenerFechaArgentina(), partidos: [], bracket };
 
   // Título dinámico según etapa
-  S.title = S.bracketEtapa === 'all' ? 'ELIMINATORIAS' : S.bracketEtapa.toUpperCase();
+  const nombreComp = getNombreCompeticion(S.competicion);
+  S.title = S.bracketEtapa === 'all' ? `ELIMINATORIAS - ${nombreComp}` : S.bracketEtapa.toUpperCase();
   document.getElementById('titIn').value = S.title;
   document.getElementById('catIn').value = S.cat;
 

@@ -1031,10 +1031,66 @@ async function handleSMNUploadIcon(request, env) {
 }
 
 // ============================================================
-// BLOQUE 1️⃣: CONFIGURACIÓN Y HELPERS DEL MUNDIAL
+// BLOQUE 1️⃣: CONFIGURACIÓN Y HELPERS DE FÚTBOL (GENÉRICO)
 // ============================================================
 
 const FOOTBALL_DATA_URL = "https://api.football-data.org/v4";
+
+// ── Registry de competiciones ──
+const COMPETITIONS = {
+  'liga-profesional': {
+    nombre: 'Liga Profesional Argentina',
+    footballData: { id: 141, season: 2025 },
+    apiFootball: { league: 128, season: 2025 },
+    theSportsDB: { id: 4336, season: 2024 },
+    icon: '🇦🇷',
+    tipoLiga: true,  // todos contra todos
+  },
+  'copa-argentina': {
+    nombre: 'Copa Argentina',
+    footballData: { id: null, season: null },
+    apiFootball: { league: 131, season: 2025 },
+    theSportsDB: { id: null, season: null },
+    icon: '🏆',
+    tipoLiga: false, // eliminación directa
+  },
+  'libertadores': {
+    nombre: 'Copa Libertadores',
+    footballData: { id: 14, season: 2025 },
+    apiFootball: { league: 13, season: 2025 },
+    theSportsDB: { id: 4331, season: 2024 },
+    icon: '🏆',
+    tipoLiga: false, // fase grupos + eliminación
+  },
+  'sudamericana': {
+    nombre: 'Copa Sudamericana',
+    footballData: { id: 11, season: 2025 },
+    apiFootball: { league: 11, season: 2025 },
+    theSportsDB: { id: 4332, season: 2024 },
+    icon: '🏆',
+    tipoLiga: false,
+  },
+  'mundial': {
+    nombre: 'Mundial 2026',
+    footballData: { id: 2000, season: 2026 },
+    apiFootball: { league: 1, season: 2026 },
+    theSportsDB: { id: 4429, season: 2025 },
+    icon: '🌍',
+    tipoLiga: false, // fase grupos + eliminación
+  },
+};
+
+function getCompeticion(key) {
+  return COMPETITIONS[key] || COMPETITIONS['liga-profesional'];
+}
+
+function getCompeticionByFootballDataId(competitionId) {
+  return Object.entries(COMPETITIONS).find(([, c]) => c.footballData?.id === competitionId)?.[0] || 'mundial';
+}
+
+function getCompeticionByApiFootballLeague(leagueId) {
+  return Object.entries(COMPETITIONS).find(([, c]) => c.apiFootball?.league === leagueId)?.[0] || 'mundial';
+}
 
 const COUNTRY_FLAGS = {
   "Argentina": "🇦🇷", "Perú": "🇵🇪", "Brasil": "🇧🇷", "Chile": "🇨🇱",
@@ -1437,6 +1493,300 @@ function traducirPais(nombre) {
     "New Caledonia": "Nueva Caledonia"
   };
   return traducciones[nombre] || nombre;
+}
+
+// ════════════════════════════════════════════════════════════════
+// FUNCIONES GENÉRICAS DE FÚTBOL (cualquier competición)
+// ════════════════════════════════════════════════════════════════
+
+// Obtener partidos de API-Football para cualquier competición
+async function obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey) {
+  const apiKey = env.API_FOOTBALL_KEY;
+  if (!apiKey) return { error: "API-Football key no configurada" };
+
+  const comp = getCompeticion(competicionKey);
+  const leagueId = comp.apiFootball?.league;
+  const season = comp.apiFootball?.season;
+  if (!leagueId || !season) return { partidos: [], fecha, mensaje: `${comp.nombre} no disponible en API-Football` };
+
+  try {
+    const ahoraAR = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const hoy = ahoraAR.toISOString().split('T')[0];
+    const fechaBase = fecha || hoy;
+
+    const seasonCacheKey = `futbol:af:${competicionKey}:${season}`;
+    let allFixtures = null;
+    try {
+      if (env.KV) {
+        const raw = await env.KV.get(seasonCacheKey, 'json');
+        if (raw && raw.fixtures && raw.fixtures.length > 0) {
+          const cacheAge = Date.now() - (raw._cachedAt || 0);
+          const hayEnVivo = raw.fixtures.some(f => {
+            try {
+              const fDate = new Date(f.fixture.date);
+              const arDate = new Date(fDate.getTime() - 3 * 60 * 60 * 1000);
+              const fDay = arDate.toISOString().split('T')[0];
+              const st = f.fixture.status.short;
+              return fDay === fechaBase && (
+                st === '1H' || st === '2H' || st === 'HT' || st === 'LIVE' || st === 'ET' || st === 'P' ||
+                st === 'FT' || st === 'AET' || st === 'PEN'
+              );
+            } catch(e) { return false; }
+          });
+          const maxAge = hayEnVivo ? 2 * 60 * 1000 : 12 * 60 * 60 * 1000;
+          if (cacheAge < maxAge) allFixtures = raw.fixtures;
+        }
+      }
+    } catch (cacheErr) {}
+
+    if (!allFixtures) {
+      const url = `${API_FOOTBALL_URL}/fixtures?league=${leagueId}&season=${season}`;
+      let res;
+      try {
+        res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+      } catch (fetchErr) {
+        return { error: `Error de conexión API-Football: ${fetchErr.message}` };
+      }
+      const rawText = await res.text();
+      let data;
+      try { data = JSON.parse(rawText); } catch(e) {
+        return { error: 'Error parseando respuesta', _debug: { status: res.status, body: rawText.substring(0, 500) } };
+      }
+      if (!res.ok) return { error: `Error API-Football: ${res.status}` };
+      if (data.errors && (data.errors.rateLimit || data.errors.Requests)) {
+        return { error: 'Rate limit API-Football: esperá unos minutos' };
+      }
+      if (!data.response || data.response.length === 0) {
+        return { partidos: [], fecha: fechaBase, mensaje: 'API-Football sin partidos' };
+      }
+      allFixtures = data.response;
+      try {
+        if (env.KV) {
+          await env.KV.put(seasonCacheKey, JSON.stringify({
+            fixtures: allFixtures, _cachedAt: Date.now(), _count: allFixtures.length
+          }), { expirationTtl: 43200 });
+        }
+      } catch(e) {}
+    }
+
+    const partidos = allFixtures.map(f => {
+      const teams = f.teams;
+      const goals = f.goals;
+      const fixture = f.fixture;
+      const league = f.league;
+      const status = traducirEstadoAPIFootball(fixture.status.short);
+      const horaAR = fixture.date ? (() => {
+        try {
+          const d = new Date(fixture.date);
+          return new Intl.DateTimeFormat('es-AR', {
+            timeZone: 'America/Argentina/Buenos_Aires',
+            hour: '2-digit', minute: '2-digit', hour12: false,
+          }).format(d);
+        } catch { return '--:--'; }
+      })() : '--:--';
+
+      let fechaPartido = null;
+      if (fixture.date) {
+        try {
+          const d = new Date(fixture.date);
+          const ar = new Date(d.getTime() - 3 * 60 * 60 * 1000);
+          fechaPartido = ar.toISOString().split('T')[0];
+        } catch {}
+      }
+
+      return {
+        id: fixture.id,
+        local: teams.home?.name || '?',
+        visitante: teams.away?.name || '?',
+        banderaLocal: getFlagPais(teams.home?.name),
+        banderaVisitante: getFlagPais(teams.away?.name),
+        hora: horaAR,
+        horaUTC: fixture.date,
+        estado: status,
+        estadio: fixture.venue?.name || '',
+        ciudad: fixture.venue?.city || '',
+        competicion: league?.name || comp.nombre,
+        grupo: null,
+        etapa: null,
+        jornada: league?.round || null,
+        arbitro: fixture.referee || null,
+        golesLocal: goals.home ?? null,
+        golesVisitante: goals.away ?? null,
+        golesHTLocal: null,
+        golesHTVisitante: null,
+        goleadores: [],
+        _fechaPartido: fechaPartido,
+        badgeLocal: teams.home?.logo || null,
+        badgeVisitante: teams.away?.logo || null,
+      };
+    }).filter(p => p._fechaPartido === fechaBase || p._fechaPartido === null);
+
+    return { partidos, fecha: fechaBase, fuente: 'api-football', totalSeason: allFixtures.length };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+// Obtener posiciones para cualquier competición
+async function obtenerPosicionesFutbol(env, competicionKey) {
+  const apiKey = env.API_FOOTBALL_KEY;
+  if (!apiKey) return { error: "API-Football key no configurada" };
+
+  const comp = getCompeticion(competicionKey);
+  const leagueId = comp.apiFootball?.league;
+  const season = comp.apiFootball?.season;
+  if (!leagueId || !season) return { error: `${comp.nombre} sin posiciones disponibles` };
+
+  try {
+    const url = `${API_FOOTBALL_URL}/standings?league=${leagueId}&season=${season}`;
+    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+    if (!res.ok) return { error: `Error API-Football: ${res.status}` };
+
+    const data = await res.json();
+    if (!data.response || data.response.length === 0) return { grupos: [] };
+
+    const result = data.response[0];
+    const leagueData = result.league;
+
+    // Para ligas (todos contra todos): standings viene como array de un solo grupo
+    if (leagueData.standings && leagueData.standings.length === 1) {
+      const tabla = leagueData.standings[0].map(eq => ({
+        posicion: eq.rank,
+        equipo: eq.team?.name || '?',
+        escudo: eq.team?.logo || null,
+        puntos: eq.points,
+        jugados: eq.all?.played || 0,
+        ganados: eq.all?.win || 0,
+        empatados: eq.all?.draw || 0,
+        perdidos: eq.all?.lose || 0,
+        golesFavor: eq.all?.goals?.for || 0,
+        golesContra: eq.all?.goals?.against || 0,
+        diferenciaGoles: eq.goalsDiff || 0,
+        forma: eq.form || null,
+        puntosFmt: eq.points?.toString() || '-',
+      }));
+      // Retornar como "tabla" (sin grupos) para ligas
+      return { tabla, competicion: comp.nombre, tipo: 'tabla' };
+    }
+
+    // Para copas con grupos: standings viene como array de grupos
+    const grupos = {};
+    leagueData.standings.forEach(grupo => {
+      const letra = grupo[0]?.group?.replace('Group ', '') || '?';
+      grupos[letra] = grupo.map(eq => ({
+        posicion: eq.rank,
+        equipo: eq.team?.name || '?',
+        escudo: eq.team?.logo || null,
+        puntos: eq.points,
+        jugados: eq.all?.played || 0,
+        ganados: eq.all?.win || 0,
+        empatados: eq.all?.draw || 0,
+        perdidos: eq.all?.lose || 0,
+        golesFavor: eq.all?.goals?.for || 0,
+        golesContra: eq.all?.goals?.against || 0,
+        diferenciaGoles: eq.goalsDiff || 0,
+        forma: eq.form || null,
+        clasificado: eq.rank <= 2,
+      }));
+    });
+    return { grupos, competicion: comp.nombre, tipo: 'grupos' };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+// Obtener goleadores para cualquier competición
+async function obtenerGoleadoresFutbol(env, competicionKey) {
+  const apiKey = env.API_FOOTBALL_KEY;
+  if (!apiKey) return { error: "API-Football key no configurada" };
+
+  const comp = getCompeticion(competicionKey);
+  const leagueId = comp.apiFootball?.league;
+  const season = comp.apiFootball?.season;
+  if (!leagueId || !season) return { error: `${comp.nombre} sin goleadores disponibles` };
+
+  try {
+    const url = `${API_FOOTBALL_URL}/players/topscorers?league=${leagueId}&season=${season}`;
+    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+    if (!res.ok) return { error: `Error API-Football: ${res.status}` };
+
+    const data = await res.json();
+    if (!data.response) return { goleadores: [] };
+
+    const goleadores = data.response.slice(0, 15).map(g => ({
+      nombre: g.player?.name || '?',
+      equipo: g.statistics?.[0]?.team?.name || '?',
+      escudo: g.statistics?.[0]?.team?.logo || null,
+      bandera: getFlagPais(g.statistics?.[0]?.team?.name),
+      goles: g.statistics?.[0]?.goals?.total || 0,
+      asistencias: g.statistics?.[0]?.goals?.assists || 0,
+      partidos: g.statistics?.[0]?.games?.appearences || 0,
+    }));
+
+    return { goleadores, competicion: comp.nombre, fuente: 'api-football' };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+// Función principal: obtener partidos combinados para cualquier competición
+async function obtenerPartidosCombinadosFutbol(env, fecha, competicionKey) {
+  const comp = getCompeticion(competicionKey);
+  const resultados = { partidos: [], fecha: fecha || null, fuentes: [], competicion: comp.nombre };
+
+  // 1) football-data.org (si tiene ID para esta competición)
+  if (comp.footballData?.id) {
+    try {
+      const fdResult = await obtenerPartidosMundial(env, comp.footballData.id, fecha);
+      if (!fdResult.error && fdResult.partidos && fdResult.partidos.length > 0) {
+        resultados.fuentes.push('football-data');
+        resultados.fecha = fdResult.fecha;
+        // Enriquecer con badges de API-Football
+        const afResult = await obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey);
+        if (!afResult.error && afResult.partidos) {
+          fdResult.partidos.forEach(fd => {
+            const af = afResult.partidos.find(a => a.local === fd.local || a._homeRaw === fd._homeRaw);
+            if (af) {
+              if (af.badgeLocal) fd.badgeLocal = af.badgeLocal;
+              if (af.badgeVisitante) fd.badgeVisitante = af.badgeVisitante;
+              if (!fd.estadio || fd.estadio === 'TBD') fd.estadio = af.estadio;
+              if (!fd.ciudad) fd.ciudad = af.ciudad;
+              if (!fd.arbitro) fd.arbitro = af.arbitro;
+              fd.afFixtureId = af.id;
+            }
+          });
+        }
+        return { ...resultados, partidos: fdResult.partidos };
+      }
+    } catch(e) {}
+  }
+
+  // 2) API-Football como fuente principal o fallback
+  const afResult = await obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey);
+  if (!afResult.error && afResult.partidos && afResult.partidos.length > 0) {
+    resultados.fuentes.push('api-football');
+    resultados.fecha = afResult.fecha;
+    return { ...resultados, partidos: afResult.partidos };
+  }
+
+  // 3) Fallback: intentar con la función Mundial genérica si es mundial
+  if (competicionKey === 'mundial') {
+    try {
+      const fdResult = await obtenerPartidosMundial(env, 2000, fecha);
+      if (!fdResult.error && fdResult.partidos) {
+        resultados.fuentes.push('football-data');
+        return { ...resultados, partidos: fdResult.partidos };
+      }
+    } catch(e) {}
+  }
+
+  return { ...resultados, partidos: [], mensaje: `Sin partidos para ${comp.nombre}` };
+}
+
+// Obtener detalle de partido genérico (cualquier competición)
+async function obtenerDetallePartidoFutbol(env, fixtureId, competicionKey) {
+  // Por ahora solo API-Football tiene detalle
+  return await obtenerDetallePartidoAPIFootball(env, fixtureId);
 }
 
 async function obtenerPartidosMundial(env, competitionId = 2000, fechaSolicitada = null) {
@@ -4701,6 +5051,89 @@ export default {
             {status:500,headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
         }
         return new Response(JSON.stringify({ok:true,...resultado}),
+          {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+      }
+
+      // ════════════════════════════════════════════════════════════════
+      // ENDPOINTS GENÉRICOS DE FÚTBOL (/futbol/*)
+      // ════════════════════════════════════════════════════════════════
+
+      if(path==="/futbol/competiciones") {
+        const lista = Object.entries(COMPETITIONS).map(([key, c]) => ({
+          key, nombre: c.nombre, icon: c.icon, tipoLiga: c.tipoLiga,
+        }));
+        return new Response(JSON.stringify({ok:true, competiciones: lista}),
+          {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+      }
+
+      if(path==="/futbol/partidos") {
+        const fecha = url.searchParams.get("fecha");
+        const competicion = url.searchParams.get("competicion") || 'liga-profesional';
+        const purge = url.searchParams.get("purge");
+
+        if (purge === '1' && env.KV) {
+          const comp = getCompeticion(competicion);
+          if (comp.footballData?.id) {
+            try { await env.KV.delete(`mundial:fd:${comp.footballData.id}`); } catch(e) {}
+          }
+          if (comp.apiFootball) {
+            try { await env.KV.delete(`futbol:af:${competicion}:${comp.apiFootball.season}`); } catch(e) {}
+          }
+        }
+
+        const resultado = await obtenerPartidosCombinadosFutbol(env, fecha || null, competicion);
+        return new Response(JSON.stringify({
+          ok: true,
+          fecha: resultado.fecha,
+          partidos: resultado.partidos || [],
+          total: (resultado.partidos || []).length,
+          fuentes: resultado.fuentes,
+          competicion: resultado.competicion,
+        }), {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+      }
+
+      if(path==="/futbol/detalle-partido") {
+        const fixtureId = url.searchParams.get("fixtureId");
+        const competicion = url.searchParams.get("competicion") || 'liga-profesional';
+        if (!fixtureId) {
+          return new Response(JSON.stringify({ok:false,error:"Parámetro fixtureId requerido"}),
+            {status:400,headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+        }
+        const resultado = await obtenerDetallePartidoFutbol(env, fixtureId, competicion);
+        if (resultado.error) {
+          return new Response(JSON.stringify({ok:false,error:resultado.error}),
+            {status:500,headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+        }
+        return new Response(JSON.stringify({ok:true,...resultado}),
+          {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+      }
+
+      if(path==="/futbol/posiciones") {
+        const competicion = url.searchParams.get("competicion") || 'liga-profesional';
+        const resultado = await obtenerPosicionesFutbol(env, competicion);
+        if (resultado.error) {
+          return new Response(JSON.stringify({ok:false,error:resultado.error}),
+            {status:500,headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+        }
+        return new Response(JSON.stringify({ok:true,...resultado}),
+          {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+      }
+
+      if(path==="/futbol/goleadores") {
+        const competicion = url.searchParams.get("competicion") || 'liga-profesional';
+        const resultado = await obtenerGoleadoresFutbol(env, competicion);
+        if (resultado.error) {
+          return new Response(JSON.stringify({ok:false,error:resultado.error}),
+            {status:500,headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+        }
+        return new Response(JSON.stringify({ok:true,...resultado}),
+          {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+      }
+
+      if(path==="/futbol/bracket") {
+        const competicion = url.searchParams.get("competicion") || 'mundial';
+        const resultado = await obtenerBracketZafronix(env);
+        return new Response(JSON.stringify({ok:true,etapas:resultado}),
           {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
       }
 

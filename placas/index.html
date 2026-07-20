@@ -474,6 +474,48 @@
         padding: 4px 10px;
         font-size: 9px;
       }
+
+      /* ── Fútbol: optimizaciones mobile ── */
+      #futbol-section .mundial-title {
+        font-size: 1rem;
+        padding: 6px 8px;
+      }
+      #futbol-section .mundial-subtitle {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+      }
+      #futbol-section .mundial-generar-btn {
+        font-size: 0.78rem;
+        padding: 8px 10px;
+      }
+      #futbol-section select {
+        font-size: 0.78rem !important;
+        padding: 5px 6px !important;
+      }
+      #futbol-section .mundial-templates {
+        gap: 4px;
+      }
+      #futbol-section .mundial-tpl-btn {
+        padding: 4px;
+        min-width: 0;
+      }
+      #futbol-section .mundial-tpl-name {
+        font-size: 0.68rem;
+      }
+      /* Selector de competición más compacto */
+      #selCompeticion {
+        font-size: 0.8rem !important;
+        padding: 5px 6px !important;
+      }
+      /* Grupos y etapa: scroll horizontal en móvil */
+      #futbolGruposRow, #futbolEtapaRow {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      #futbolGruposRow select, #futbolEtapaRow select {
+        min-width: 120px;
+      }
     }
     
     @media (min-width: 701px) {
@@ -565,12 +607,12 @@
     }
 
     /* ════ SECCIÓN MUNDIAL (SIDEBAR) ════ */
-    #mundial-section { display: none; }
-    #mundial-section .mundial-title {
+    #futbol-section { display: none; }
+    #futbol-section .mundial-title {
       font-family: var(--font-display); font-size: 1rem; letter-spacing: 1px;
       color: var(--v); padding: 10px 0 6px;
     }
-    #mundial-section .mundial-subtitle {
+    #futbol-section .mundial-subtitle {
       font-size: 0.74rem; color: var(--muted); margin-bottom: 10px;
       line-height: 1.4;
     }
@@ -624,7 +666,7 @@
       <div class="mode-btn"     id="mode-textual"  onclick="setMode('textual')">💬 Textual</div>
       <div class="mode-btn"     id="mode-foto"     onclick="setMode('foto')">👤 Foto</div>
       <div class="mode-btn"     id="mode-collage"  onclick="setMode('collage')">🖼 Collage</div>
-      <div class="mode-btn"     id="mode-futbol"   onclick="setMode('futbol')">⚽ Mundial</div>
+      <div class="mode-btn"     id="mode-futbol"   onclick="setMode('futbol')">⚽ Fútbol</div>
       <div class="mode-btn"     id="mode-clima"    onclick="setMode('clima')">🌤️ Clima</div>
     </div>
 
@@ -797,10 +839,23 @@
       <div id="clima-status" style="margin-top:8px;font-size:0.74rem;color:var(--muted);text-align:center"></div>
     </div>
 
-    <!-- SECCIÓN MUNDIAL 2026 -->
-    <div id="mundial-section">
-      <div class="mundial-title">⚽ MUNDIAL 2026</div>
-      <div class="mundial-subtitle">Seleccioná fecha: El calendario muestra todos los partidos del día. Hacé clic en "Generar placa" para crear la placa de partidos, o en un partido individual para hacer su placa.</div>
+    <!-- SECCIÓN FÚTBOL (GENÉRICO) -->
+    <div id="futbol-section">
+      <div class="mundial-title">⚽ FÚTBOL</div>
+
+      <!-- Selector de competición -->
+      <div style="margin-bottom:10px">
+        <label class="mm-label" style="margin-bottom:4px">Competición</label>
+        <select id="selCompeticion" class="mm-select" style="width:100%;padding:6px 8px;font-size:0.82rem" onchange="cambiarCompeticion(this.value)">
+          <option value="liga-profesional">🇦🇷 Liga Profesional</option>
+          <option value="copa-argentina">🏆 Copa Argentina</option>
+          <option value="libertadores">🏆 Copa Libertadores</option>
+          <option value="sudamericana">🏆 Copa Sudamericana</option>
+          <option value="mundial">🌍 Mundial 2026</option>
+        </select>
+      </div>
+
+      <div class="mundial-subtitle">Seleccioná fecha y generá placas de partidos, resultados, posiciones y goleadores.</div>
       <div id="mundialCalendario" class="mundial-calendario-content"></div>
       <button class="mundial-generar-btn" onclick="generarPlacaDelDia()">
         ☀️ Generar placa "Partidos del día"
@@ -808,9 +863,9 @@
       <button class="mundial-generar-btn" style="background:#1a3a5c;margin-top:6px" onclick="generarResultadosDelDia()">
         🌙 Generar placa "Resultados del día"
       </button>
-      <div style="margin-top:6px;display:flex;gap:5px;align-items:center">
+      <div id="futbolGruposRow" style="margin-top:6px;display:flex;gap:5px;align-items:center">
         <label class="mm-label" style="margin:0;white-space:nowrap;font-size:0.76rem">Grupo:</label>
-        <select id="selGrupoPosiciones" class="mm-input" style="flex:1;padding:5px;font-size:0.76rem" onchange="S.grupoPosiciones=this.value;S.posicionesPage=0;if(S.mundialTipo==='posiciones'){render();drawPreviews();}">
+        <select id="selGrupoPosiciones" class="mm-input" style="flex:1;padding:5px;font-size:0.76rem" onchange="S.grupoPosiciones=this.value;S.posicionesPage=0;if(S.futbolTipo==='posiciones'){render();drawPreviews();}">
           <option value="all">Todos (6 por placa)</option>
           <option value="A">Grupo A</option>
           <option value="B">Grupo B</option>
@@ -831,18 +886,18 @@
         <span id="posicionesPageLabel" style="color:var(--muted);font-size:0.74rem;display:flex;align-items:center;padding:0 4px">1/6</span>
         <button class="mundial-generar-btn" style="background:var(--surface2);flex:1;padding:6px;font-size:0.76rem;margin:0" onclick="S.posicionesPage++;render();drawPreviews();">Siguiente ▶</button>
       </div>
-      <button class="mundial-generar-btn" style="background:#0b3d0b;margin-top:6px" onclick="generarPlacaPosiciones()">
+      <button id="btnPosiciones" class="mundial-generar-btn" style="background:#0b3d0b;margin-top:6px" onclick="generarPlacaPosiciones()">
         📊 Generar placa "Posiciones"
       </button>
-      <button class="mundial-generar-btn" style="background:#5c3a1a;margin-top:6px" onclick="generarPlacaGoleadores()">
+      <button id="btnGoleadores" class="mundial-generar-btn" style="background:#5c3a1a;margin-top:6px" onclick="generarPlacaGoleadores()">
         ⚽ Generar placa "Goleadores"
       </button>
-      <button class="mundial-generar-btn" style="background:#3a1a5c;margin-top:6px" onclick="generarPlacaBracket()">
+      <button id="btnBracket" class="mundial-generar-btn" style="background:#3a1a5c;margin-top:6px" onclick="generarPlacaBracket()">
         🏆 Generar placa "Eliminatorias"
       </button>
-      <div style="margin-top:6px;display:flex;gap:5px;align-items:center">
+      <div id="futbolEtapaRow" style="margin-top:6px;display:flex;gap:5px;align-items:center">
         <label class="mm-label" style="margin:0;white-space:nowrap;font-size:0.76rem">Etapa:</label>
-        <select id="selEtapa" class="mm-input" style="flex:1;padding:5px;font-size:0.76rem" onchange="S.bracketEtapa=this.value;if(S.mundialTipo==='bracket'){render();drawPreviews();}">
+        <select id="selEtapa" class="mm-input" style="flex:1;padding:5px;font-size:0.76rem" onchange="S.bracketEtapa=this.value;if(S.futbolTipo==='bracket'){render();drawPreviews();}">
           <option value="all">Todas (placa completa)</option>
           <option value="Ronda de 32">Ronda de 32</option>
           <option value="Octavos de Final">Octavos de Final</option>
@@ -853,7 +908,7 @@
         </select>
       </div>
       <div style="margin-top:12px">
-        <label class="mm-label">Plantilla Mundial</label>
+        <label class="mm-label">Plantilla</label>
         <div class="mundial-templates">
           <div class="mundial-tpl-btn on" id="mundial-tpl-futbol-mañana" onclick="setTpl('futbol-mañana')">
             <div class="mundial-tpl-name">☀️ Mañana</div>
