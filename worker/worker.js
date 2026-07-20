@@ -1040,33 +1040,33 @@ const FOOTBALL_DATA_URL = "https://api.football-data.org/v4";
 const COMPETITIONS = {
   'liga-profesional': {
     nombre: 'Liga Profesional Argentina',
-    footballData: { id: 141, season: 2025 },
-    apiFootball: { league: 128, season: 2025 },
-    theSportsDB: { id: 4336, season: 2024 },
+    footballData: { id: null, season: null },
+    apiFootball: { league: 128, season: 2026 },
+    theSportsDB: { id: 4336, season: 2025 },
     icon: '🇦🇷',
-    tipoLiga: true,  // todos contra todos
+    tipoLiga: true,
   },
   'copa-argentina': {
     nombre: 'Copa Argentina',
     footballData: { id: null, season: null },
-    apiFootball: { league: 131, season: 2025 },
+    apiFootball: { league: 131, season: 2026 },
     theSportsDB: { id: null, season: null },
     icon: '🏆',
-    tipoLiga: false, // eliminación directa
+    tipoLiga: false,
   },
   'libertadores': {
     nombre: 'Copa Libertadores',
-    footballData: { id: 14, season: 2025 },
-    apiFootball: { league: 13, season: 2025 },
-    theSportsDB: { id: 4331, season: 2024 },
+    footballData: { id: null, season: null },
+    apiFootball: { league: 13, season: 2026 },
+    theSportsDB: { id: 4331, season: 2025 },
     icon: '🏆',
-    tipoLiga: false, // fase grupos + eliminación
+    tipoLiga: false,
   },
   'sudamericana': {
     nombre: 'Copa Sudamericana',
-    footballData: { id: 11, season: 2025 },
-    apiFootball: { league: 11, season: 2025 },
-    theSportsDB: { id: 4332, season: 2024 },
+    footballData: { id: null, season: null },
+    apiFootball: { league: 11, season: 2026 },
+    theSportsDB: { id: 4332, season: 2025 },
     icon: '🏆',
     tipoLiga: false,
   },
@@ -1076,7 +1076,7 @@ const COMPETITIONS = {
     apiFootball: { league: 1, season: 2026 },
     theSportsDB: { id: 4429, season: 2025 },
     icon: '🌍',
-    tipoLiga: false, // fase grupos + eliminación
+    tipoLiga: false,
   },
 };
 
@@ -1540,34 +1540,42 @@ async function obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey) {
     } catch (cacheErr) {}
 
     if (!allFixtures) {
-      const url = `${API_FOOTBALL_URL}/fixtures?league=${leagueId}&season=${season}`;
-      let res;
-      try {
-        res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
-      } catch (fetchErr) {
-        return { error: `Error de conexión API-Football: ${fetchErr.message}` };
-      }
-      const rawText = await res.text();
-      let data;
-      try { data = JSON.parse(rawText); } catch(e) {
-        return { error: 'Error parseando respuesta', _debug: { status: res.status, body: rawText.substring(0, 500) } };
-      }
-      if (!res.ok) return { error: `Error API-Football: ${res.status}` };
-      if (data.errors && (data.errors.rateLimit || data.errors.Requests)) {
-        return { error: 'Rate limit API-Football: esperá unos minutos' };
-      }
-      if (!data.response || data.response.length === 0) {
-        return { partidos: [], fecha: fechaBase, mensaje: 'API-Football sin partidos' };
-      }
-      allFixtures = data.response;
-      try {
-        if (env.KV) {
-          await env.KV.put(seasonCacheKey, JSON.stringify({
-            fixtures: allFixtures, _cachedAt: Date.now(), _count: allFixtures.length
-          }), { expirationTtl: 43200 });
+      const seasonsToTry = [season, season - 1, season - 2].filter(s => s >= 2024);
+      let lastError = null;
+      for (const trySeason of seasonsToTry) {
+        const url = `${API_FOOTBALL_URL}/fixtures?league=${leagueId}&season=${trySeason}`;
+        let res;
+        try {
+          res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+        } catch (fetchErr) {
+          lastError = { error: `Error de conexión API-Football: ${fetchErr.message}` };
+          continue;
         }
-      } catch(e) {}
-    }
+        const rawText = await res.text();
+        let data;
+        try { data = JSON.parse(rawText); } catch(e) {
+          lastError = { error: 'Error parseando respuesta', _debug: { status: res.status, body: rawText.substring(0, 500) } };
+          continue;
+        }
+        if (!res.ok) { lastError = { error: `Error API-Football: ${res.status}` }; continue; }
+        if (data.errors && (data.errors.rateLimit || data.errors.Requests)) {
+          return { error: 'Rate limit API-Football: esperá unos minutos' };
+        }
+        if (!data.response || data.response.length === 0) { lastError = { partidos: [], fecha: fechaBase, mensaje: `API-Football sin partidos para season ${trySeason}` }; continue; }
+        allFixtures = data.response;
+        // Cachear con la key que incluye el season que funcionó
+        try {
+          if (env.KV) {
+            await env.KV.put(`futbol:af:${competicionKey}:${trySeason}`, JSON.stringify({
+              fixtures: allFixtures, _cachedAt: Date.now(), _count: allFixtures.length
+            }), { expirationTtl: 43200 });
+          }
+        } catch(e) {}
+        break; // found data, exit loop
+      }
+      if (!allFixtures) {
+        return lastError || { partidos: [], fecha: fechaBase, mensaje: 'API-Football sin partidos en ninguna temporada' };
+      }
 
     const partidos = allFixtures.map(f => {
       const teams = f.teams;
@@ -1638,15 +1646,18 @@ async function obtenerPosicionesFutbol(env, competicionKey) {
   if (!leagueId || !season) return { error: `${comp.nombre} sin posiciones disponibles` };
 
   try {
-    const url = `${API_FOOTBALL_URL}/standings?league=${leagueId}&season=${season}`;
-    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
-    if (!res.ok) return { error: `Error API-Football: ${res.status}` };
+    const seasonsToTry = [season, season - 1, season - 2].filter(s => s >= 2024);
+    let lastError = null;
+    for (const trySeason of seasonsToTry) {
+      const url = `${API_FOOTBALL_URL}/standings?league=${leagueId}&season=${trySeason}`;
+      const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+      if (!res.ok) { lastError = { error: `Error API-Football: ${res.status}` }; continue; }
 
-    const data = await res.json();
-    if (!data.response || data.response.length === 0) return { grupos: [] };
+      const data = await res.json();
+      if (!data.response || data.response.length === 0) { lastError = { grupos: [] }; continue; }
 
-    const result = data.response[0];
-    const leagueData = result.league;
+      const result = data.response[0];
+      const leagueData = result.league;
 
     // Para ligas (todos contra todos): standings viene como array de un solo grupo
     if (leagueData.standings && leagueData.standings.length === 1) {
@@ -1689,7 +1700,10 @@ async function obtenerPosicionesFutbol(env, competicionKey) {
         clasificado: eq.rank <= 2,
       }));
     });
-    return { grupos, competicion: comp.nombre, tipo: 'grupos' };
+      return { grupos, competicion: comp.nombre, tipo: 'grupos' };
+    } // fin for
+    // No se encontraron datos en ninguna temporada
+    return { grupos: [], competicion: comp.nombre, tipo: 'grupos' };
   } catch (err) {
     return { error: err.message };
   }
@@ -1706,14 +1720,17 @@ async function obtenerGoleadoresFutbol(env, competicionKey) {
   if (!leagueId || !season) return { error: `${comp.nombre} sin goleadores disponibles` };
 
   try {
-    const url = `${API_FOOTBALL_URL}/players/topscorers?league=${leagueId}&season=${season}`;
-    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
-    if (!res.ok) return { error: `Error API-Football: ${res.status}` };
+    const seasonsToTry = [season, season - 1, season - 2].filter(s => s >= 2024);
+    let lastError = null;
+    for (const trySeason of seasonsToTry) {
+      const url = `${API_FOOTBALL_URL}/players/topscorers?league=${leagueId}&season=${trySeason}`;
+      const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+      if (!res.ok) { lastError = { error: `Error API-Football: ${res.status}` }; continue; }
 
-    const data = await res.json();
-    if (!data.response) return { goleadores: [] };
+      const data = await res.json();
+      if (!data.response) { lastError = { goleadores: [] }; continue; }
 
-    const goleadores = data.response.slice(0, 15).map(g => ({
+      const goleadores = data.response.slice(0, 15).map(g => ({
       nombre: g.player?.name || '?',
       equipo: g.statistics?.[0]?.team?.name || '?',
       escudo: g.statistics?.[0]?.team?.logo || null,
@@ -1724,6 +1741,8 @@ async function obtenerGoleadoresFutbol(env, competicionKey) {
     }));
 
     return { goleadores, competicion: comp.nombre, fuente: 'api-football' };
+  } // fin for
+  return { goleadores: [], competicion: comp.nombre, fuente: 'api-football' };
   } catch (err) {
     return { error: err.message };
   }
@@ -4980,6 +4999,59 @@ export default {
           ...resultado
         }), {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
       }
+      // ── Debug endpoint: probar APIs de fútbol crudas ──
+      if(path==="/debug/futbol-apis") {
+        const key = url.searchParams.get("key") || 'liga-profesional';
+        const comp = getCompeticion(key);
+        const results = { comp: comp.nombre, tests: {} };
+
+        // Test football-data.org
+        if (comp.footballData?.id) {
+          try {
+            const fdUrl = `${FOOTBALL_DATA_URL}/competitions/${comp.footballData.id}/matches?dateFrom=2025-01-01&dateTo=2025-12-31`;
+            const fdRes = await fetch(fdUrl, { headers: { 'X-Auth-Token': env.FOOTBALL_DATA_API_KEY } });
+            const fdData = await fdRes.text();
+            results.tests.football_data = { status: fdRes.status, matches: (()=>{try{const j=JSON.parse(fdData);return j.resultSet?.count||j.matches?.length||0}catch{return 'parse_error'}})(), body_preview: fdData.substring(0, 500) };
+          } catch(e) { results.tests.football_data = { error: e.message }; }
+        }
+
+        // Test API-Football
+        if (comp.apiFootball?.league) {
+          try {
+            const afUrl = `${API_FOOTBALL_URL}/fixtures?league=${comp.apiFootball.league}&season=${comp.apiFootball.season}`;
+            const afRes = await fetch(afUrl, { headers: { 'x-apisports-key': env.API_FOOTBALL_KEY } });
+            const afData = await afRes.text();
+            results.tests.api_football = { status: afRes.status, fixtures: (()=>{try{const j=JSON.parse(afData);return j.response?.length||0}catch{return 'parse_error'}})(), body_preview: afData.substring(0, 500) };
+          } catch(e) { results.tests.api_football = { error: e.message }; }
+        }
+
+        // Test API-Football standings
+        if (comp.apiFootball?.league) {
+          try {
+            const afUrl = `${API_FOOTBALL_URL}/standings?league=${comp.apiFootball.league}&season=${comp.apiFootball.season}`;
+            const afRes = await fetch(afUrl, { headers: { 'x-apisports-key': env.API_FOOTBALL_KEY } });
+            const afData = await afRes.text();
+            results.tests.api_football_standings = { status: afRes.status, standings: (()=>{try{const j=JSON.parse(afData);return j.response?.length||0}catch{return 'parse_error'}})(), body_preview: afData.substring(0, 500) };
+          } catch(e) { results.tests.api_football_standings = { error: e.message }; }
+        }
+
+        // Test API-Football topscorers
+        if (comp.apiFootball?.league) {
+          try {
+            const afUrl = `${API_FOOTBALL_URL}/players/topscorers?league=${comp.apiFootball.league}&season=${comp.apiFootball.season}`;
+            const afRes = await fetch(afUrl, { headers: { 'x-apisports-key': env.API_FOOTBALL_KEY } });
+            const afData = await afRes.text();
+            results.tests.api_football_topscorers = { status: afRes.status, scorers: (()=>{try{const j=JSON.parse(afData);return j.response?.length||0}catch{return 'parse_error'}})(), body_preview: afData.substring(0, 500) };
+          } catch(e) { results.tests.api_football_topscorers = { error: e.message }; }
+        }
+
+        results.hasFdKey = !!env.FOOTBALL_DATA_API_KEY;
+        results.hasAfKey = !!env.API_FOOTBALL_KEY;
+
+        return new Response(JSON.stringify(results, null, 2),
+          {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+      }
+
 
       if(path==="/mundo/detalle-partido") {
         const fixtureId = url.searchParams.get("fixtureId");
@@ -5064,6 +5136,18 @@ export default {
         }));
         return new Response(JSON.stringify({ok:true, competiciones: lista}),
           {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+      }
+
+      if(path==="/futbol/partidos-combinados") {
+        const fecha = url.searchParams.get("fecha");
+        const competicion = url.searchParams.get("competicion") || 'liga-profesional';
+        const resultado = await obtenerPartidosCombinadosFutbol(env, fecha || null, competicion);
+        return new Response(JSON.stringify({
+          ok: true,
+          ...resultado,
+          partidos: resultado.partidos || [],
+          total: (resultado.partidos || []).length,
+        }), {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
       }
 
       if(path==="/futbol/partidos") {
