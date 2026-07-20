@@ -1041,42 +1041,47 @@ const COMPETITIONS = {
   'liga-profesional': {
     nombre: 'Liga Profesional Argentina',
     footballData: { id: null, season: null },
-    apiFootball: { league: 128, season: 2024 },
-    theSportsDB: { id: 4336, season: 2024 },
+    apiFootball: { league: 128, season: 2026 },
+    theSportsDB: { id: 4406, season: 2026 },
     icon: '🇦🇷',
     tipoLiga: true,
+    hasTheSportsDBStandings: true,
   },
   'copa-argentina': {
     nombre: 'Copa Argentina',
     footballData: { id: null, season: null },
-    apiFootball: { league: 131, season: 2024 },
-    theSportsDB: { id: null, season: null },
+    apiFootball: { league: 131, season: 2026 },
+    theSportsDB: { id: 4500, season: 2026 },
     icon: '🏆',
     tipoLiga: false,
+    hasTheSportsDBStandings: false,
   },
   'libertadores': {
     nombre: 'Copa Libertadores',
     footballData: { id: null, season: null },
-    apiFootball: { league: 13, season: 2024 },
-    theSportsDB: { id: 4331, season: 2024 },
+    apiFootball: { league: 13, season: 2026 },
+    theSportsDB: { id: 4501, season: 2026 },
     icon: '🏆',
     tipoLiga: false,
+    hasTheSportsDBStandings: true,
   },
   'sudamericana': {
     nombre: 'Copa Sudamericana',
     footballData: { id: null, season: null },
-    apiFootball: { league: 11, season: 2024 },
-    theSportsDB: { id: 4332, season: 2024 },
+    apiFootball: { league: 11, season: 2026 },
+    theSportsDB: { id: 4724, season: 2026 },
     icon: '🏆',
     tipoLiga: false,
+    hasTheSportsDBStandings: true,
   },
   'mundial': {
     nombre: 'Mundial 2026',
     footballData: { id: 2000, season: 2026 },
-    apiFootball: { league: 1, season: 2024 },
-    theSportsDB: { id: 4429, season: 2024 },
+    apiFootball: { league: 1, season: 2026 },
+    theSportsDB: { id: 4429, season: 2026 },
     icon: '🌍',
     tipoLiga: false,
+    hasTheSportsDBStandings: false,
   },
 };
 
@@ -1638,10 +1643,20 @@ async function obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey) {
 
 // Obtener posiciones para cualquier competición
 async function obtenerPosicionesFutbol(env, competicionKey) {
+  const comp = getCompeticion(competicionKey);
+
+  // 1) TheSportsDB como fuente principal
+  if (comp.theSportsDB?.id && comp.hasTheSportsDBStandings) {
+    const tsdbResult = await obtenerPosicionesTheSportsDB(env, competicionKey);
+    if (tsdbResult && !tsdbResult.error && (tsdbResult.tabla || tsdbResult.grupos)) {
+      return tsdbResult;
+    }
+  }
+
+  // 2) API-Football como fallback
   const apiKey = env.API_FOOTBALL_KEY;
   if (!apiKey) return { error: "API-Football key no configurada" };
 
-  const comp = getCompeticion(competicionKey);
   const leagueId = comp.apiFootball?.league;
   const season = comp.apiFootball?.season;
   if (!leagueId || !season) return { error: `${comp.nombre} sin posiciones disponibles` };
@@ -1677,8 +1692,7 @@ async function obtenerPosicionesFutbol(env, competicionKey) {
         forma: eq.form || null,
         puntosFmt: eq.points?.toString() || '-',
       }));
-      // Retornar como "tabla" (sin grupos) para ligas
-      return { tabla, competicion: comp.nombre, tipo: 'tabla' };
+      return { tabla, competicion: comp.nombre, tipo: 'tabla', fuente: 'api-football' };
     }
 
     // Para copas con grupos: standings viene como array de grupos
@@ -1701,9 +1715,8 @@ async function obtenerPosicionesFutbol(env, competicionKey) {
         clasificado: eq.rank <= 2,
       }));
     });
-      return { grupos, competicion: comp.nombre, tipo: 'grupos' };
-    } // fin for
-    // No se encontraron datos en ninguna temporada
+      return { grupos, competicion: comp.nombre, tipo: 'grupos', fuente: 'api-football' };
+    }
     return { grupos: [], competicion: comp.nombre, tipo: 'grupos' };
   } catch (err) {
     return { error: err.message };
@@ -1754,50 +1767,36 @@ async function obtenerPartidosCombinadosFutbol(env, fecha, competicionKey) {
   const comp = getCompeticion(competicionKey);
   const resultados = { partidos: [], fecha: fecha || null, fuentes: [], competicion: comp.nombre };
 
-  // 1) football-data.org (si tiene ID para esta competición)
+  // 1) TheSportsDB como fuente principal (gratis, datos actuales)
+  if (comp.theSportsDB?.id) {
+    try {
+      const tsdbResult = await obtenerPartidosTheSportsDB(env, fecha, competicionKey);
+      if (!tsdbResult.error && tsdbResult.partidos && tsdbResult.partidos.length > 0) {
+        resultados.fuentes.push('thesportsdb');
+        resultados.fecha = tsdbResult.fecha;
+        return { ...resultados, partidos: tsdbResult.partidos };
+      }
+    } catch(e) {}
+  }
+
+  // 2) football-data.org (solo para Mundial)
   if (comp.footballData?.id) {
     try {
       const fdResult = await obtenerPartidosMundial(env, comp.footballData.id, fecha);
       if (!fdResult.error && fdResult.partidos && fdResult.partidos.length > 0) {
         resultados.fuentes.push('football-data');
         resultados.fecha = fdResult.fecha;
-        // Enriquecer con badges de API-Football
-        const afResult = await obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey);
-        if (!afResult.error && afResult.partidos) {
-          fdResult.partidos.forEach(fd => {
-            const af = afResult.partidos.find(a => a.local === fd.local || a._homeRaw === fd._homeRaw);
-            if (af) {
-              if (af.badgeLocal) fd.badgeLocal = af.badgeLocal;
-              if (af.badgeVisitante) fd.badgeVisitante = af.badgeVisitante;
-              if (!fd.estadio || fd.estadio === 'TBD') fd.estadio = af.estadio;
-              if (!fd.ciudad) fd.ciudad = af.ciudad;
-              if (!fd.arbitro) fd.arbitro = af.arbitro;
-              fd.afFixtureId = af.id;
-            }
-          });
-        }
         return { ...resultados, partidos: fdResult.partidos };
       }
     } catch(e) {}
   }
 
-  // 2) API-Football como fuente principal o fallback
+  // 3) API-Football como último fallback
   const afResult = await obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey);
   if (!afResult.error && afResult.partidos && afResult.partidos.length > 0) {
     resultados.fuentes.push('api-football');
     resultados.fecha = afResult.fecha;
     return { ...resultados, partidos: afResult.partidos };
-  }
-
-  // 3) Fallback: intentar con la función Mundial genérica si es mundial
-  if (competicionKey === 'mundial') {
-    try {
-      const fdResult = await obtenerPartidosMundial(env, 2000, fecha);
-      if (!fdResult.error && fdResult.partidos) {
-        resultados.fuentes.push('football-data');
-        return { ...resultados, partidos: fdResult.partidos };
-      }
-    } catch(e) {}
   }
 
   return { ...resultados, partidos: [], mensaje: `Sin partidos para ${comp.nombre}` };
@@ -2125,7 +2124,6 @@ async function obtenerPartidosAPIFootball(env, fecha) {
 // ============================================================
 
 const THESPORTSDB_URL = 'https://www.thesportsdb.com/api/v1/json';
-const THESPORTSDB_LEAGUE_ID = '4429'; // FIFA World Cup
 
 // Mapeo de estados TheSportsDB → estados internos
 function traducirEstadoTSDB(status) {
@@ -2138,16 +2136,19 @@ function traducirEstadoTSDB(status) {
   return mapa[status] || status || 'SCHEDULED';
 }
 
-async function obtenerPartidosTheSportsDB(env, fecha) {
-  const apiKey = env.THESPORTSDB_KEY || '3'; // '3' = free public key
+async function obtenerPartidosTheSportsDB(env, fecha, competicionKey) {
+  const apiKey = env.THESPORTSDB_KEY || '3';
+  const comp = getCompeticion(competicionKey);
+  const leagueId = comp.theSportsDB?.id;
+  const season = comp.theSportsDB?.season;
+  if (!leagueId || !season) return { partidos: [], fecha: fecha || null, mensaje: `${comp.nombre} no disponible en TheSportsDB` };
 
   try {
     const ahoraAR = new Date(Date.now() - 3 * 60 * 60 * 1000);
     const hoy = ahoraAR.toISOString().split('T')[0];
     const fechaBase = fecha || hoy;
 
-    // ── CACHE KV: temporada completa (dinámica: 12h normal, 2 min si hay en vivo) ──
-    const cacheKey = 'mundial:tsdb:2026';
+    const cacheKey = `futbol:tsdb:${competicionKey}:${season}`;
     let allEvents = [];
     let cachedIds = new Set();
 
@@ -2158,7 +2159,6 @@ async function obtenerPartidosTheSportsDB(env, fecha) {
           allEvents = raw.events;
           raw.events.forEach(e => cachedIds.add(e.idEvent));
           const cacheAge = Date.now() - (raw._cachedAt || 0);
-          // Detectar partidos en vivo
           const hayEnVivo = raw.events.some(ev => {
             try {
               const evDate = new Date(ev.strTimestamp || (ev.dateEvent + 'T' + (ev.strTime || '00:00:00') + 'Z'));
@@ -2169,61 +2169,56 @@ async function obtenerPartidosTheSportsDB(env, fecha) {
             } catch(e) { return false; }
           });
           const maxAge = hayEnVivo ? 2 * 60 * 1000 : 12 * 60 * 60 * 1000;
-          // Si cache tiene menos de maxAge y ya tiene bastantes eventos, usar cache
-          if (cacheAge < maxAge && allEvents.length >= 48) {
-            return filtrarTSDBPorFecha(allEvents, fechaBase);
+          if (cacheAge < maxAge && allEvents.length >= 5) {
+            return filtrarTSDBPorFecha(allEvents, fechaBase, competicionKey);
           }
         }
       }
-    } catch (cacheErr) { /* ignorar */ }
+    } catch (cacheErr) {}
 
-    // ── API CALL: pedir eventos de la temporada ──
-    const url = `${THESPORTSDB_URL}/${apiKey}/eventsseason.php?id=${THESPORTSDB_LEAGUE_ID}&s=2026`;
+    const url = `${THESPORTSDB_URL}/${apiKey}/eventsseason.php?id=${leagueId}&s=${season}`;
     let res;
     try {
       res = await fetch(url);
     } catch (fetchErr) {
-      if (allEvents.length > 0) return filtrarTSDBPorFecha(allEvents, fechaBase);
+      if (allEvents.length > 0) return filtrarTSDBPorFecha(allEvents, fechaBase, competicionKey);
       return { error: `Error conexión TheSportsDB: ${fetchErr.message}` };
     }
 
     if (!res.ok) {
-      if (allEvents.length > 0) return filtrarTSDBPorFecha(allEvents, fechaBase);
+      if (allEvents.length > 0) return filtrarTSDBPorFecha(allEvents, fechaBase, competicionKey);
       return { error: `Error TheSportsDB: ${res.status}` };
     }
 
     const data = await res.json();
     const newEvents = data.events || [];
 
-    // Merge: agregar eventos nuevos al cache (acumular más de 15)
-    let added = 0;
     for (const ev of newEvents) {
       if (!cachedIds.has(ev.idEvent)) {
         allEvents.push(ev);
         cachedIds.add(ev.idEvent);
-        added++;
       }
     }
 
-    // Guardar en cache (acumulativo)
     try {
       if (env.KV) {
         await env.KV.put(cacheKey, JSON.stringify({
           events: allEvents,
           _cachedAt: Date.now(),
           _count: allEvents.length
-        }), { expirationTtl: 43200 }); // 12 horas
+        }), { expirationTtl: 43200 });
       }
-    } catch(e) { /* ignorar */ }
+    } catch(e) {}
 
-    return filtrarTSDBPorFecha(allEvents, fechaBase);
+    return filtrarTSDBPorFecha(allEvents, fechaBase, competicionKey);
   } catch (err) {
     return { error: err.message };
   }
 }
 
 // Filtrar eventos TheSportsDB por fecha placa (con lógica de madrugada)
-function filtrarTSDBPorFecha(events, fechaBase) {
+function filtrarTSDBPorFecha(events, fechaBase, competicionKey) {
+  const esMundial = competicionKey === 'mundial';
   const partidosDelDia = events.filter(ev => {
     if (!ev.strTimestamp && !ev.dateEvent) return false;
     try {
@@ -2238,8 +2233,8 @@ function filtrarTSDBPorFecha(events, fechaBase) {
     const infoPlaca = calcularFechaPlaca(utcDate.toISOString());
     return {
     id: ev.idEvent,
-    local: traducirPais(ev.strHomeTeam),
-    visitante: traducirPais(ev.strAwayTeam),
+    local: esMundial ? traducirPais(ev.strHomeTeam) : ev.strHomeTeam,
+    visitante: esMundial ? traducirPais(ev.strAwayTeam) : ev.strAwayTeam,
     banderaLocal: getFlagPais(ev.strHomeTeam),
     banderaVisitante: getFlagPais(ev.strAwayTeam),
     hora: formatearHora(ev.strTimestamp || (ev.dateEvent + 'T' + (ev.strTime || '00:00:00') + 'Z')),
@@ -2250,7 +2245,7 @@ function filtrarTSDBPorFecha(events, fechaBase) {
     competicion: ev.strLeague || '',
     grupo: null,
     etapa: ev.strCircuit || null,
-    jornada: null,
+    jornada: ev.intRound ? parseInt(ev.intRound) : null,
     arbitro: null,
     golesLocal: ev.intHomeScore !== null && ev.intHomeScore !== undefined ? parseInt(ev.intHomeScore) : null,
     golesVisitante: ev.intAwayScore !== null && ev.intAwayScore !== undefined ? parseInt(ev.intAwayScore) : null,
@@ -2259,7 +2254,6 @@ function filtrarTSDBPorFecha(events, fechaBase) {
     goleadores: [],
     eventos: [],
     estadisticas: [],
-    // Extras de TheSportsDB
     badgeLocal: ev.strHomeTeamBadge || null,
     badgeVisitante: ev.strAwayTeamBadge || null,
     poster: ev.strPoster || null,
@@ -2267,6 +2261,55 @@ function filtrarTSDBPorFecha(events, fechaBase) {
   };});
 
   return { partidos, fecha: fechaBase, fuente: 'thesportsdb', totalSeason: events.length };
+}
+
+// Obtener posiciones desde TheSportsDB (tabla de posiciones)
+async function obtenerPosicionesTheSportsDB(env, competicionKey) {
+  const apiKey = env.THESPORTSDB_KEY || '3';
+  const comp = getCompeticion(competicionKey);
+  const leagueId = comp.theSportsDB?.id;
+  const season = comp.theSportsDB?.season;
+  if (!leagueId || !season) return null;
+  if (!comp.hasTheSportsDBStandings) return null; // copas sin tabla de grupos
+
+  try {
+    const url = `${THESPORTSDB_URL}/${apiKey}/lookuptable.php?l=${leagueId}&s=${season}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.table || !data.table.length) return null;
+
+    const groups = {};
+    for (const row of data.table) {
+      const grupo = row.strGroup || 'A';
+      if (!groups[grupo]) groups[grupo] = [];
+      groups[grupo].push({
+        posicion: parseInt(row.intRank) || 0,
+        equipo: row.strTeam || '?',
+        escudo: row.strBadge ? row.strBadge.replace('/tiny', '') : null,
+        puntos: parseInt(row.intPoints) || 0,
+        jugados: parseInt(row.intPlayed) || 0,
+        ganados: parseInt(row.intWin) || 0,
+        empatados: parseInt(row.intDraw) || 0,
+        perdidos: parseInt(row.intLoss) || 0,
+        golesFavor: parseInt(row.intGoalsFor) || 0,
+        golesContra: parseInt(row.intGoalsAgainst) || 0,
+        diferenciaGoles: parseInt(row.intGoalDifference) || 0,
+        forma: row.strForm || null,
+        clasificado: row.strDescription?.includes('Promotion') || row.strDescription?.includes('Play') || false,
+      });
+    }
+
+    const groupKeys = Object.keys(groups);
+    // Solo un grupo → tabla directa
+    if (groupKeys.length === 1) {
+      return { tabla: groups[groupKeys[0]], competicion: comp.nombre, tipo: 'tabla', fuente: 'thesportsdb' };
+    }
+    // Múltiples grupos
+    return { grupos: groups, competicion: comp.nombre, tipo: 'grupos', fuente: 'thesportsdb' };
+  } catch (err) {
+    return { error: err.message };
+  }
 }
 
 // ============================================================
@@ -3285,7 +3328,7 @@ async function obtenerPartidosCombinados(env, fecha) {
   }
 
   // 3) TheSportsDB (terciaria - aporta badges/poster)
-  const tsdbResult = await obtenerPartidosTheSportsDB(env, fecha);
+  const tsdbResult = await obtenerPartidosTheSportsDB(env, fecha, 'mundial');
   let tsdbPartidos = [];
   if (!tsdbResult.error && tsdbResult.partidos) {
     tsdbPartidos = tsdbResult.partidos;
@@ -4961,7 +5004,7 @@ export default {
       let fuente = 'football-data';
 
       if (resultado.error || (resultado.partidos || []).length === 0) {
-        const tsdb = await obtenerPartidosTheSportsDB(env, fecha || null);
+        const tsdb = await obtenerPartidosTheSportsDB(env, fecha || null, 'mundial');
         if (!tsdb.error) {
           resultado = tsdb;
           fuente = 'thesportsdb';
@@ -5044,6 +5087,25 @@ export default {
             const afData = await afRes.text();
             results.tests.api_football_topscorers = { status: afRes.status, scorers: (()=>{try{const j=JSON.parse(afData);return j.response?.length||0}catch{return 'parse_error'}})(), body_preview: afData.substring(0, 500) };
           } catch(e) { results.tests.api_football_topscorers = { error: e.message }; }
+        }
+
+        // Test TheSportsDB (nueva fuente principal)
+        if (comp.theSportsDB?.id) {
+          try {
+            const tsdbUrl = `${THESPORTSDB_URL}/3/eventsseason.php?id=${comp.theSportsDB.id}&s=${comp.theSportsDB.season}`;
+            const tsdbRes = await fetch(tsdbUrl);
+            const tsdbData = await tsdbRes.text();
+            results.tests.thesportsdb = { status: tsdbRes.status, events: (()=>{try{const j=JSON.parse(tsdbData);return j.events?.length||0}catch{return 'parse_error'}})(), body_preview: tsdbData.substring(0, 500) };
+          } catch(e) { results.tests.thesportsdb = { error: e.message }; }
+
+          if (comp.hasTheSportsDBStandings) {
+            try {
+              const tsdbUrl2 = `${THESPORTSDB_URL}/3/lookuptable.php?l=${comp.theSportsDB.id}&s=${comp.theSportsDB.season}`;
+              const tsdbRes2 = await fetch(tsdbUrl2);
+              const tsdbData2 = await tsdbRes2.text();
+              results.tests.thesportsdb_standings = { status: tsdbRes2.status, rows: (()=>{try{const j=JSON.parse(tsdbData2);return j.table?.length||0}catch{return 'parse_error'}})(), body_preview: tsdbData2.substring(0, 500) };
+            } catch(e) { results.tests.thesportsdb_standings = { error: e.message }; }
+          }
         }
 
         results.hasFdKey = !!env.FOOTBALL_DATA_API_KEY;
@@ -5428,7 +5490,7 @@ export default {
 
         // 3) TheSportsDB
         try {
-          const tsdb = await obtenerPartidosTheSportsDB(env, fechaBase);
+          const tsdb = await obtenerPartidosTheSportsDB(env, fechaBase, 'mundial');
           report.apis['thesportsdb'] = {
             ok: !tsdb.error,
             count: (tsdb.partidos || []).length,
