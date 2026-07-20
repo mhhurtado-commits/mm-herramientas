@@ -1041,15 +1041,15 @@ const COMPETITIONS = {
   'liga-profesional': {
     nombre: 'Liga Profesional Argentina',
     footballData: { id: null, season: null },
-    apiFootball: { league: 128, season: 2026 },
-    theSportsDB: { id: 4336, season: 2025 },
+    apiFootball: { league: 128, season: 2024 },
+    theSportsDB: { id: 4336, season: 2024 },
     icon: '🇦🇷',
     tipoLiga: true,
   },
   'copa-argentina': {
     nombre: 'Copa Argentina',
     footballData: { id: null, season: null },
-    apiFootball: { league: 131, season: 2026 },
+    apiFootball: { league: 131, season: 2024 },
     theSportsDB: { id: null, season: null },
     icon: '🏆',
     tipoLiga: false,
@@ -1057,24 +1057,24 @@ const COMPETITIONS = {
   'libertadores': {
     nombre: 'Copa Libertadores',
     footballData: { id: null, season: null },
-    apiFootball: { league: 13, season: 2026 },
-    theSportsDB: { id: 4331, season: 2025 },
+    apiFootball: { league: 13, season: 2024 },
+    theSportsDB: { id: 4331, season: 2024 },
     icon: '🏆',
     tipoLiga: false,
   },
   'sudamericana': {
     nombre: 'Copa Sudamericana',
     footballData: { id: null, season: null },
-    apiFootball: { league: 11, season: 2026 },
-    theSportsDB: { id: 4332, season: 2025 },
+    apiFootball: { league: 11, season: 2024 },
+    theSportsDB: { id: 4332, season: 2024 },
     icon: '🏆',
     tipoLiga: false,
   },
   'mundial': {
     nombre: 'Mundial 2026',
     footballData: { id: 2000, season: 2026 },
-    apiFootball: { league: 1, season: 2026 },
-    theSportsDB: { id: 4429, season: 2025 },
+    apiFootball: { league: 1, season: 2024 },
+    theSportsDB: { id: 4429, season: 2024 },
     icon: '🌍',
     tipoLiga: false,
   },
@@ -1540,7 +1540,7 @@ async function obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey) {
     } catch (cacheErr) {}
 
     if (!allFixtures) {
-      const seasonsToTry = [season, season - 1, season - 2].filter(s => s >= 2024);
+      const seasonsToTry = [season, season - 1, season - 2].filter(s => s >= 2022);
       let lastError = null;
       for (const trySeason of seasonsToTry) {
         const url = `${API_FOOTBALL_URL}/fixtures?league=${leagueId}&season=${trySeason}`;
@@ -1647,7 +1647,7 @@ async function obtenerPosicionesFutbol(env, competicionKey) {
   if (!leagueId || !season) return { error: `${comp.nombre} sin posiciones disponibles` };
 
   try {
-    const seasonsToTry = [season, season - 1, season - 2].filter(s => s >= 2024);
+    const seasonsToTry = [season, season - 1, season - 2].filter(s => s >= 2022);
     let lastError = null;
     for (const trySeason of seasonsToTry) {
       const url = `${API_FOOTBALL_URL}/standings?league=${leagueId}&season=${trySeason}`;
@@ -1721,7 +1721,7 @@ async function obtenerGoleadoresFutbol(env, competicionKey) {
   if (!leagueId || !season) return { error: `${comp.nombre} sin goleadores disponibles` };
 
   try {
-    const seasonsToTry = [season, season - 1, season - 2].filter(s => s >= 2024);
+    const seasonsToTry = [season, season - 1, season - 2].filter(s => s >= 2022);
     let lastError = null;
     for (const trySeason of seasonsToTry) {
       const url = `${API_FOOTBALL_URL}/players/topscorers?league=${leagueId}&season=${trySeason}`;
