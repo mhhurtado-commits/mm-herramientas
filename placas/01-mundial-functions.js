@@ -274,7 +274,6 @@ async function obtenerPartidosCombinadosViaWorker(fecha) {
     
     if (!res.ok) {
       console.error('Error en worker (combinado):', res.status);
-      // Fallback al endpoint simple
       return obtenerPartidosMundialViaWorker(fecha);
     }
 
@@ -292,8 +291,24 @@ async function obtenerPartidosCombinadosViaWorker(fecha) {
     return data;
   } catch (e) {
     console.error('Error fetching partidos combinados:', e);
-    // Fallback al endpoint simple
     return obtenerPartidosMundialViaWorker(fecha);
+  }
+}
+
+// ── FUNCIÓN: Obtener partidos de TODAS las competiciones para una fecha ──
+async function obtenerPartidosTodasCompeticiones(fecha) {
+  try {
+    const url = `${MUNDIAL_CONFIG.workerUrl}/futbol/partidos-todos?fecha=${fecha}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('Error en worker (todos):', res.status);
+      return null;
+    }
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.error('Error fetching todas competiciones:', e);
+    return null;
   }
 }
 
@@ -503,7 +518,7 @@ BAJADA: [máximo 150 caracteres]`;
 
 async function cargarPartidosMundial(fecha) {
   showLoading(true);
-  const resultado = await obtenerPartidosMundial(fecha);
+  const resultado = await obtenerPartidosTodasCompeticiones(fecha);
   showLoading(false);
 
   if (!resultado) return;
@@ -515,7 +530,7 @@ async function cargarPartidosMundial(fecha) {
 }
 
 async function generarPlacaPartidosDelDia(fecha) {
-  const resultado = await cargarPartidosMundial(fecha);
+  const resultado = await obtenerPartidosTodasCompeticiones(fecha);
   if (!resultado || resultado.partidos.length === 0) {
     showToast('Sin partidos para esta fecha');
     return;
@@ -523,7 +538,7 @@ async function generarPlacaPartidosDelDia(fecha) {
 
   S.mode = 'futbol';
   S.title = 'PARTIDOS DEL DÍA';
-  S.cat = 'MUNDIAL 2026';
+  S.cat = 'FÚTBOL 2026';
   S.tpl = 'futbol-mañana';
   S.mundialTipo = 'partidos-dia';
   resultado.partidos = deduplicarPartidos(resultado.partidos);
@@ -547,7 +562,7 @@ async function generarPlacaPartidosDelDia(fecha) {
 }
 
 async function generarPlacaResultadosDelDia(fecha) {
-  const resultado = await cargarPartidosMundial(fecha);
+  const resultado = await obtenerPartidosTodasCompeticiones(fecha);
   if (!resultado || resultado.partidos.length === 0) {
     showToast('Sin partidos para esta fecha');
     return;
@@ -561,7 +576,7 @@ async function generarPlacaResultadosDelDia(fecha) {
 
   S.mode = 'futbol';
   S.title = 'RESULTADOS DEL DÍA';
-  S.cat = 'MUNDIAL 2026';
+  S.cat = 'FÚTBOL 2026';
   S.tpl = 'futbol-noche';
   S.mundialTipo = 'resultados-dia';
   resultado.partidos = deduplicarPartidos(resultado.partidos);
@@ -652,7 +667,7 @@ function iniciarAutoRefresh() {
     if (!hayEnVivo) return;
 
     const fecha = S.mundialData.fecha || obtenerFechaArgentina();
-    const resultado = await obtenerPartidosMundial(fecha);
+    const resultado = await obtenerPartidosTodasCompeticiones(fecha);
     if (!resultado || !resultado.partidos) return;
 
     // Actualizar scores y estados sin perder la referencia

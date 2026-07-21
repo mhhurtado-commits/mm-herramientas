@@ -2137,7 +2137,7 @@ function traducirEstadoTSDB(status) {
 }
 
 async function obtenerPartidosTheSportsDB(env, fecha, competicionKey) {
-  const apiKey = env.THESPORTSDB_KEY || '3';
+  const apiKey = env.THESPORTSDB_KEY || '123';
   const comp = getCompeticion(competicionKey);
   const leagueId = comp.theSportsDB?.id;
   const season = comp.theSportsDB?.season;
@@ -2151,7 +2151,9 @@ async function obtenerPartidosTheSportsDB(env, fecha, competicionKey) {
     const cacheKey = `futbol:tsdb:${competicionKey}:${season}`;
     let allEvents = [];
     let cachedIds = new Set();
+    let cacheValid = false;
 
+    // Try to get cached season events
     try {
       if (env.KV) {
         const raw = await env.KV.get(cacheKey, 'json');
@@ -2169,34 +2171,49 @@ async function obtenerPartidosTheSportsDB(env, fecha, competicionKey) {
             } catch(e) { return false; }
           });
           const maxAge = hayEnVivo ? 2 * 60 * 1000 : 12 * 60 * 60 * 1000;
-          if (cacheAge < maxAge && allEvents.length >= 5) {
-            return filtrarTSDBPorFecha(allEvents, fechaBase, competicionKey);
-          }
+          if (cacheAge < maxAge) cacheValid = true;
         }
       }
     } catch (cacheErr) {}
 
-    const url = `${THESPORTSDB_URL}/${apiKey}/eventsseason.php?id=${leagueId}&s=${season}`;
-    let res;
-    try {
-      res = await fetch(url);
-    } catch (fetchErr) {
-      if (allEvents.length > 0) return filtrarTSDBPorFecha(allEvents, fechaBase, competicionKey);
-      return { error: `Error conexión TheSportsDB: ${fetchErr.message}` };
+    // Always fetch from next/past (they update frequently). Only fetch eventsseason if cache is stale.
+    if (!cacheValid) {
+      try {
+        const url = `${THESPORTSDB_URL}/${apiKey}/eventsseason.php?id=${leagueId}&s=${season}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          const newEvents = data.events || [];
+          for (const ev of newEvents) {
+            if (!cachedIds.has(ev.idEvent)) {
+              allEvents.push(ev);
+              cachedIds.add(ev.idEvent);
+            }
+          }
+        }
+      } catch (e) {}
     }
 
-    if (!res.ok) {
-      if (allEvents.length > 0) return filtrarTSDBPorFecha(allEvents, fechaBase, competicionKey);
-      return { error: `Error TheSportsDB: ${res.status}` };
-    }
-
-    const data = await res.json();
-    const newEvents = data.events || [];
-
-    for (const ev of newEvents) {
-      if (!cachedIds.has(ev.idEvent)) {
-        allEvents.push(ev);
-        cachedIds.add(ev.idEvent);
+    // Always fetch next + past (these are small, single-event endpoints)
+    const upcomingUrls = [
+      `${THESPORTSDB_URL}/${apiKey}/eventsnextleague.php?id=${leagueId}`,
+      `${THESPORTSDB_URL}/${apiKey}/eventspastleague.php?id=${leagueId}`,
+    ];
+    for (const url of upcomingUrls) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          const newEvents = data.events || [];
+          for (const ev of newEvents) {
+            if (!cachedIds.has(ev.idEvent)) {
+              allEvents.push(ev);
+              cachedIds.add(ev.idEvent);
+            }
+          }
+        }
+      } catch (e) {
+        continue;
       }
     }
 
@@ -2260,12 +2277,66 @@ function filtrarTSDBPorFecha(events, fechaBase, competicionKey) {
     madugada: infoPlaca.esMadrugada,
   };});
 
+  // If no exact matches found for the requested date, include upcoming + recent events as fallback
+  if (partidos.length === 0 && events.length > 0) {
+    const now = new Date();
+    const future = events
+      .filter(ev => {
+        try {
+          const d = new Date(ev.strTimestamp || (ev.dateEvent + 'T' + (ev.strTime || '00:00:00') + 'Z'));
+          return d > now;
+        } catch { return false; }
+      })
+      .sort((a, b) => {
+        const da = new Date(a.strTimestamp || (a.dateEvent + 'T' + (a.strTime || '00:00:00') + 'Z'));
+        const db = new Date(b.strTimestamp || (b.dateEvent + 'T' + (b.strTime || '00:00:00') + 'Z'));
+        return da - db;
+      })
+      .slice(0, 3);
+
+    for (const ev of future) {
+      const utcDate = new Date(ev.strTimestamp || (ev.dateEvent + 'T' + (ev.strTime || '00:00:00') + 'Z'));
+      const infoPlaca = calcularFechaPlaca(utcDate.toISOString());
+      partidos.push({
+        id: ev.idEvent,
+        local: esMundial ? traducirPais(ev.strHomeTeam) : ev.strHomeTeam,
+        visitante: esMundial ? traducirPais(ev.strAwayTeam) : ev.strAwayTeam,
+        banderaLocal: getFlagPais(ev.strHomeTeam),
+        banderaVisitante: getFlagPais(ev.strAwayTeam),
+        hora: formatearHora(ev.strTimestamp || (ev.dateEvent + 'T' + (ev.strTime || '00:00:00') + 'Z')),
+        horaUTC: ev.strTimestamp || (ev.dateEvent + 'T' + (ev.strTime || '00:00:00')),
+        estado: traducirEstadoTSDB(ev.strStatus),
+        estadio: ev.strVenue || '',
+        ciudad: ev.strCountry || '',
+        competicion: ev.strLeague || '',
+        grupo: null,
+        etapa: ev.strCircuit || null,
+        jornada: ev.intRound ? parseInt(ev.intRound) : null,
+        arbitro: null,
+        golesLocal: ev.intHomeScore !== null && ev.intHomeScore !== undefined ? parseInt(ev.intHomeScore) : null,
+        golesVisitante: ev.intAwayScore !== null && ev.intAwayScore !== undefined ? parseInt(ev.intAwayScore) : null,
+        golesHTLocal: null,
+        golesHTVisitante: null,
+        goleadores: [],
+        eventos: [],
+        estadisticas: [],
+        badgeLocal: ev.strHomeTeamBadge || null,
+        badgeVisitante: ev.strAwayTeamBadge || null,
+        poster: ev.strPoster || null,
+        madugada: infoPlaca.esMadrugada,
+        proximo: true,
+      });
+    }
+
+    return { partidos, fecha: fechaBase, fuente: 'thesportsdb', totalSeason: events.length };
+  }
+
   return { partidos, fecha: fechaBase, fuente: 'thesportsdb', totalSeason: events.length };
 }
 
 // Obtener posiciones desde TheSportsDB (tabla de posiciones)
 async function obtenerPosicionesTheSportsDB(env, competicionKey) {
-  const apiKey = env.THESPORTSDB_KEY || '3';
+  const apiKey = env.THESPORTSDB_KEY || '123';
   const comp = getCompeticion(competicionKey);
   const leagueId = comp.theSportsDB?.id;
   const season = comp.theSportsDB?.season;
@@ -5210,6 +5281,44 @@ export default {
           ...resultado,
           partidos: resultado.partidos || [],
           total: (resultado.partidos || []).length,
+        }), {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+      }
+
+      if(path==="/futbol/partidos-todos") {
+        const fecha = url.searchParams.get("fecha");
+        const ahoraAR = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const hoy = ahoraAR.toISOString().split('T')[0];
+        const fechaBase = fecha || hoy;
+        const todos = [];
+        const fuentes = [];
+        for (const [key, comp] of Object.entries(COMPETITIONS)) {
+          try {
+            const res = await obtenerPartidosCombinadosFutbol(env, fechaBase, key);
+            if (!res.error && res.partidos && res.partidos.length > 0) {
+              res.partidos.forEach(p => {
+                p._compKey = key;
+                p._compNombre = comp.nombre;
+                p._compIcon = comp.icon;
+              });
+              todos.push(...res.partidos);
+              if (res.fuentes) fuentes.push(...res.fuentes);
+            }
+          } catch(e) {}
+        }
+        // Deduplicar por idEvent/id
+        const seen = new Set();
+        const unicos = todos.filter(p => {
+          const id = p.id || p.idEvent;
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+        return new Response(JSON.stringify({
+          ok: true,
+          fecha: fechaBase,
+          partidos: unicos,
+          total: unicos.length,
+          fuentes: [...new Set(fuentes)],
         }), {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
       }
 

@@ -76,6 +76,7 @@ class CalendarioMundial {
         ? `<span class="madrugada-tag" title="Se juega en la madrugada del día siguiente">🌙 Madrugada</span>`
         : '';
       
+      const compTag = p._compIcon ? `<span class="comp-tag">${p._compIcon} ${p._compNombre || ''}</span>` : '';
       html += `
         <div class="partido-item ${estilo}" onclick="window._calendario.seleccionarPartido(${p.id}, '${this.fechaSeleccionada}')">
           <div class="partido-equipos">
@@ -83,7 +84,7 @@ class CalendarioMundial {
             <span class="score">${score}</span>
             <span class="equipo">${p.visitante} ${p.banderaVisitante}</span>
           </div>
-          <div class="partido-info">${p.estadio || 'Sede por confirmar'}${p.ciudad ? ' • ' + p.ciudad : ''}${infoStr ? ' • ' + infoStr : ''}${madrugadaTag ? ' ' + madrugadaTag : ''}</div>
+          <div class="partido-info">${compTag}${p.estadio || 'Sede por confirmar'}${p.ciudad ? ' • ' + p.ciudad : ''}${infoStr ? ' • ' + infoStr : ''}${madrugadaTag ? ' ' + madrugadaTag : ''}</div>
         </div>
       `;
     });
@@ -100,7 +101,7 @@ class CalendarioMundial {
   async seleccionar(fechaStr) {
     this.fechaSeleccionada = fechaStr;
     showLoading(true);
-    const resultado = await obtenerPartidosMundial(fechaStr);
+    const resultado = await obtenerPartidosTodasCompeticiones(fechaStr);
     showLoading(false);
 
     if (resultado) {
@@ -147,7 +148,7 @@ class CalendarioMundial {
 
   async cargarFechaActual() {
     this.fechaSeleccionada = obtenerFechaArgentina();
-    const resultado = await obtenerPartidosMundial(this.fechaSeleccionada);
+    const resultado = await obtenerPartidosTodasCompeticiones(this.fechaSeleccionada);
     if (resultado) {
       this.partidos = resultado.partidos;
       this.refrescar();
