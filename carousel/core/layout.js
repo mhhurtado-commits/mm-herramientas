@@ -31,7 +31,7 @@ export function getFooterZone() {
 export function calcZones(slideType) {
   if (slideType === "cover") {
     _currentZones.headerY = 0;
-    _currentZones.headerH = Math.round(H * 0.6);
+    _currentZones.headerH = Math.round(H * 0.65);
     _currentZones.bodyY = _currentZones.headerH;
     _currentZones.bodyH = H - _currentZones.headerH - FOOTER_H;
     _currentZones.footerY = H - FOOTER_H;

@@ -17,7 +17,9 @@ export var MMTheme = {
     body: "32px sans-serif",
     list: "30px sans-serif",
     footer: "22px sans-serif",
-    category: "bold 24px sans-serif"
+    category: "bold 24px sans-serif",
+    coverTitle: "bold 68px sans-serif",
+    coverSubtitle: "36px sans-serif"
   },
   spacing: {
     paddingX: 40,
@@ -26,10 +28,14 @@ export var MMTheme = {
     lineHSubtitle: 36,
     lineHBody: 40,
     lineHList: 38,
-    footerH: 50
+    footerH: 50,
+    coverLineHTitle: 82,
+    coverLineHSubtitle: 44,
+    paddingCover: 60
   },
   radius: {
     canvas: 16,
-    small: 8
+    small: 8,
+    badge: 12
   }
 };

@@ -1,7 +1,7 @@
 import { createCanvas } from "./core/canvas.js";
-import { calcZones, getHeaderZone, getFooterZone } from "./core/layout.js";
+import { calcZones, getHeaderZone, getBodyZone, getFooterZone } from "./core/layout.js";
 import { drawImageCover } from "./core/image.js";
-import { drawTitle, drawSubtitle, drawParagraph, drawList } from "./core/text.js";
+import { drawTitle, drawSubtitle, drawParagraph, drawList, wrapText } from "./core/text.js";
 import { MMTheme } from "./core/theme.js";
 
 var W = 1080;
@@ -17,6 +17,14 @@ function drawGreenBackground(ctx) {
   ctx.fillRect(0, 0, W, H);
 }
 
+function drawGradientOverlay(ctx, zone) {
+  var grad = ctx.createLinearGradient(0, zone.y + zone.h * 0.5, 0, zone.y + zone.h);
+  grad.addColorStop(0, MMTheme.colors.transparent);
+  grad.addColorStop(1, MMTheme.colors.overlay);
+  ctx.fillStyle = grad;
+  ctx.fillRect(zone.x, zone.y, zone.w, zone.h);
+}
+
 function drawCoverImage(ctx, slide, project) {
   var imgUrl = slide.content.image || (project.article && project.article.image);
   if (!imgUrl) return;
@@ -27,6 +35,7 @@ function drawCoverImage(ctx, slide, project) {
   function drawLoaded() {
     var zone = getHeaderZone();
     drawImageCover(ctx, img, zone.x, zone.y, zone.w, zone.h);
+    drawGradientOverlay(ctx, zone);
   }
 
   if (img.complete && img.naturalWidth > 0) {
@@ -40,59 +49,89 @@ function drawCoverImage(ctx, slide, project) {
   img.src = imgUrl;
 }
 
-function drawGradientOverlay(ctx) {
-  var zone = getHeaderZone();
-  var grad = ctx.createLinearGradient(0, zone.h * 0.4, 0, zone.h);
-  grad.addColorStop(0, MMTheme.colors.transparent);
-  grad.addColorStop(1, MMTheme.colors.overlay);
-  ctx.fillStyle = grad;
-  ctx.fillRect(zone.x, zone.y, zone.w, zone.h);
-}
-
-function drawCategoryBadge(ctx, text) {
-  if (!text) return;
-  var zone = getHeaderZone();
+function drawCategoryBadge(ctx, label, x, y) {
+  if (!label) return;
   ctx.font = MMTheme.fonts.category;
-  var label = text.toUpperCase();
-  var tw = ctx.measureText(label).width;
-  var bandX = MMTheme.spacing.paddingX;
-  var bandY = zone.h - 220;
-  var bandH = 46;
-  var bandW = tw + 36;
+  var text = label.toUpperCase();
+  var tw = ctx.measureText(text).width;
+  var padX = 20;
+  var padY = 10;
+  var bw = tw + padX * 2;
+  var bh = 24 + padY * 2;
   ctx.fillStyle = MMTheme.colors.accent;
-  ctx.fillRect(bandX, bandY, bandW, bandH);
+  ctx.beginPath();
+  ctx.roundRect(x, y, bw, bh, MMTheme.radius.badge);
+  ctx.fill();
   ctx.fillStyle = MMTheme.colors.white;
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + padX, y + bh / 2);
+}
+
+function drawCoverTitle(ctx, text, x, y, maxW) {
+  if (!text) return y;
+  ctx.font = MMTheme.fonts.coverTitle;
+  ctx.fillStyle = MMTheme.colors.textPrimary;
   ctx.textBaseline = "top";
-  ctx.fillText(label, bandX + 18, bandY + 11);
+  return wrapText(ctx, text, x, y, maxW, MMTheme.spacing.coverLineHTitle);
 }
 
-function drawCoverTitle(ctx, slide) {
-  var title = slide.content.title || "";
-  if (!title) return;
-  var zone = getHeaderZone();
-  drawTitle(ctx, title, MMTheme.spacing.paddingX, zone.h - 160, W - MMTheme.spacing.paddingX * 2, MMTheme.spacing.lineHTitle, MMTheme.colors.white);
-}
-
-function drawCoverSubtitle(ctx, slide) {
-  var sub = slide.content.subtitle || "";
-  if (!sub) return;
-  var zone = getHeaderZone();
-  drawSubtitle(ctx, sub, MMTheme.spacing.paddingX, zone.h - 80, W - MMTheme.spacing.paddingX * 2, MMTheme.spacing.lineHSubtitle, MMTheme.colors.white);
-}
-
-function drawCoverFooter(ctx, slide, project) {
-  var footer = getFooterZone();
-  ctx.font = "bold " + MMTheme.fonts.footer;
-  ctx.fillStyle = MMTheme.colors.footer;
+function drawCoverSubtitle(ctx, text, x, y, maxW) {
+  if (!text) return y;
+  ctx.font = MMTheme.fonts.coverSubtitle;
+  ctx.fillStyle = MMTheme.colors.textMuted;
   ctx.textBaseline = "top";
-  ctx.fillText("Media Mendoza", MMTheme.spacing.paddingX, footer.y + 4);
-  ctx.font = MMTheme.fonts.footer;
-  ctx.fillText("mediamendoza.com", MMTheme.spacing.paddingX, footer.y + 28);
-  var total = project.slides ? project.slides.length : 1;
-  var num = (slide.order || 0) + 1;
-  ctx.textAlign = "right";
-  ctx.fillText(num + " / " + total, W - MMTheme.spacing.paddingX, footer.y + 4);
-  ctx.textAlign = "start";
+  return wrapText(ctx, text, x, y, maxW, MMTheme.spacing.coverLineHSubtitle);
+}
+
+function drawCoverLogo(ctx, project, zone) {
+  if (!project.logo) return;
+  var img = new Image();
+  img.crossOrigin = "anonymous";
+
+  function drawLoaded() {
+    var maxLogoW = 200;
+    var logoW = Math.min(img.width, maxLogoW);
+    var logoH = img.height * (logoW / img.width);
+    var logoX = zone.x + (zone.w - logoW) / 2;
+    var logoY = zone.y + zone.h - logoH - 40;
+    ctx.drawImage(img, logoX, logoY, logoW, logoH);
+  }
+
+  if (img.complete && img.naturalWidth > 0) {
+    img.crossOrigin = null;
+    drawLoaded();
+    return;
+  }
+
+  img.onload = drawLoaded;
+  img.onerror = function () {};
+  img.src = project.logo;
+}
+
+function renderCover(ctx, slide, project) {
+  calcZones("cover");
+  drawWhiteBackground(ctx);
+  drawCoverImage(ctx, slide, project);
+
+  var body = getBodyZone();
+  var pad = MMTheme.spacing.paddingCover;
+  var bodyX = pad;
+  var maxW = W - pad * 2;
+  var badgeH = 44;
+
+  var catLabel = project.article && project.article.category;
+  var badgeY = body.y + 60;
+  drawCategoryBadge(ctx, catLabel, bodyX, badgeY);
+
+  var titleText = slide.content.title || "";
+  var titleY = badgeY + badgeH + 28;
+  var titleEnd = drawCoverTitle(ctx, titleText, bodyX, titleY, maxW);
+
+  var subText = slide.content.subtitle || "";
+  var subY = titleEnd + 24;
+  drawCoverSubtitle(ctx, subText, bodyX, subY, maxW);
+
+  drawCoverLogo(ctx, project, body);
 }
 
 function drawGreenHeaderBand(ctx, text) {
@@ -157,17 +196,6 @@ function drawPageNumber(ctx, slide, project) {
   ctx.textAlign = "right";
   ctx.fillText(num + " / " + total, W - MMTheme.spacing.paddingX, footer.y + footer.h / 2);
   ctx.textAlign = "start";
-}
-
-function renderCover(ctx, slide, project) {
-  calcZones("cover");
-  drawWhiteBackground(ctx);
-  drawCoverImage(ctx, slide, project);
-  drawGradientOverlay(ctx);
-  drawCategoryBadge(ctx, project.article && project.article.category);
-  drawCoverTitle(ctx, slide);
-  drawCoverSubtitle(ctx, slide);
-  drawCoverFooter(ctx, slide, project);
 }
 
 function renderTextSlide(ctx, slide, project) {
