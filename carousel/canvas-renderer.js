@@ -195,6 +195,7 @@ function renderEndSlide(ctx, slide, project) {
 }
 
 export function renderSlideToCanvas(slide, project) {
+  try {
   var canvas = createCanvas(W, H);
   var ctx = canvas.getContext("2d");
 
@@ -207,4 +208,8 @@ export function renderSlideToCanvas(slide, project) {
   }
 
   return canvas;
+  } catch (e) {
+    console.log("EXCEPTION in renderSlideToCanvas:", e);
+    return null;
+  }
 }

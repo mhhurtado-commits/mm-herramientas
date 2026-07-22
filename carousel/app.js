@@ -1,5 +1,5 @@
-import { createCarousel } from "./carousel-engine.js";
+console.log("APP");
 
-console.log("Media Mendoza Carousel iniciado");
+import { createCarousel } from "./carousel-engine.js";
 
 createCarousel();

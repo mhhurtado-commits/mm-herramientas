@@ -1,7 +1,10 @@
 import { createCarouselProject } from "./models.js";
 import { createSlide } from "./slide-model.js";
 
+console.log("GENERANDO DEMO");
+
 export function createDemoProject() {
+  console.log("CREATE DEMO PROJECT");
   var project = createCarouselProject();
 
   project.article.url = "https://mediamendoza.com/demo-clima";
