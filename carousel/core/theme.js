@@ -4,9 +4,12 @@ export var MMTheme = {
     textPrimary: "#111111",
     textSecondary: "#333333",
     textMuted: "#666666",
+    gray555: "#555555",
+    grayLight: "#f5f5f5",
     accent: "#a6ce39",
     corporateGreen: "#a6ce39",
     overlay: "rgba(0,0,0,0.65)",
+    overlay75: "rgba(0,0,0,0.75)",
     transparent: "rgba(0,0,0,0)",
     footer: "#bbbbbb",
     white: "#ffffff"
@@ -18,7 +21,7 @@ export var MMTheme = {
     list: "30px sans-serif",
     footer: "22px sans-serif",
     category: "bold 24px sans-serif",
-    coverTitle: "bold 68px sans-serif",
+    coverTitle: "bold 72px sans-serif",
     coverSubtitle: "36px sans-serif"
   },
   spacing: {
@@ -29,13 +32,16 @@ export var MMTheme = {
     lineHBody: 40,
     lineHList: 38,
     footerH: 50,
-    coverLineHTitle: 82,
+    coverLineHTitle: 88,
     coverLineHSubtitle: 44,
-    paddingCover: 60
+    paddingCover: 60,
+    cardPadding: 24,
+    cardGap: 20
   },
   radius: {
     canvas: 16,
     small: 8,
-    badge: 12
+    badge: 12,
+    card: 20
   }
 };
