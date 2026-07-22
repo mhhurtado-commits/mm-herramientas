@@ -1767,7 +1767,22 @@ async function obtenerPartidosCombinadosFutbol(env, fecha, competicionKey) {
   const comp = getCompeticion(competicionKey);
   const resultados = { partidos: [], fecha: fecha || null, fuentes: [], competicion: comp.nombre };
 
-  // 1) API-Football como fuente principal (datos más completos)
+  // 0) OANOR como fuente principal (datos más completos, una llamada por fecha)
+  const oanorAll = await obtenerPartidosOANOR(env, fecha);
+  if (oanorAll && oanorAll.partidos.length > 0) {
+    const compLeagueName = Object.entries(OANOR_LEAGUE_MAP)
+      .find(([, v]) => v === competicionKey)?.[0];
+    if (compLeagueName) {
+      const filtered = oanorAll.partidos.filter(p => p.competicion === compLeagueName);
+      if (filtered.length > 0) {
+        resultados.fuentes.push('oanor');
+        resultados.fecha = oanorAll.fecha;
+        return { ...resultados, partidos: filtered };
+      }
+    }
+  }
+
+  // 1) API-Football como segunda fuente
   const afResult = await obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey);
   if (!afResult.error && afResult.partidos && afResult.partidos.length > 0) {
     resultados.fuentes.push('api-football');
@@ -1775,7 +1790,7 @@ async function obtenerPartidosCombinadosFutbol(env, fecha, competicionKey) {
     return { ...resultados, partidos: afResult.partidos };
   }
 
-  // 2) TheSportsDB como fallback
+  // 2) TheSportsDB como tercer fallback
   if (comp.theSportsDB?.id) {
     try {
       const tsdbResult = await obtenerPartidosTheSportsDB(env, fecha, competicionKey);
@@ -2124,6 +2139,94 @@ async function obtenerPartidosAPIFootball(env, fecha) {
 // ============================================================
 
 const THESPORTSDB_URL = 'https://www.thesportsdb.com/api/v1/json';
+
+// ============================================================
+// OANOR Fixtures & Scores API (wraps TheSportsDB data)
+// ============================================================
+const OANOR_URL = 'https://api.oanor.com/fixtures-api';
+
+const OANOR_LEAGUE_MAP = {
+  'Argentinian Primera Division': 'liga-profesional',
+  'Copa Argentina': 'copa-argentina',
+  'Copa Libertadores': 'libertadores',
+  'Copa Sudamericana': 'sudamericana',
+  'World Cup 2026': 'mundial',
+};
+
+// In-memory cache per request
+let _oanorCache = null;
+let _oanorCacheFecha = null;
+
+async function obtenerPartidosOANOR(env, fecha) {
+  const apiKey = env.OANOR_KEY;
+  if (!apiKey) return null;
+
+  const ahoraAR = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const hoy = ahoraAR.toISOString().split('T')[0];
+  const fechaBase = fecha || hoy;
+
+  // In-memory cache dentro del mismo request
+  if (_oanorCache && _oanorCacheFecha === fechaBase) {
+    return _oanorCache;
+  }
+
+  try {
+    const url = `${OANOR_URL}/v1/day?date=${fechaBase}&sport=Soccer`;
+    const res = await fetch(url, { headers: { 'x-oanor-key': apiKey } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.data?.events || !data.data.events.length) return null;
+
+    const partidos = data.data.events.map(ev => {
+      const compKey = OANOR_LEAGUE_MAP[ev.league] || null;
+      const comp = compKey ? COMPETITIONS[compKey] : null;
+      const utcDate = new Date(ev.timestamp || `${ev.date}T${ev.time}Z`);
+      const infoPlaca = calcularFechaPlaca(utcDate.toISOString());
+      const scoreLocal = ev.home_score !== null && ev.home_score !== undefined ? parseInt(ev.home_score) : null;
+      const scoreVisit = ev.away_score !== null && ev.away_score !== undefined ? parseInt(ev.away_score) : null;
+
+      return {
+        id: ev.id,
+        local: ev.home_team,
+        visitante: ev.away_team,
+        banderaLocal: getFlagPais(ev.home_team),
+        banderaVisitante: getFlagPais(ev.away_team),
+        hora: formatearHora(ev.timestamp || `${ev.date}T${ev.time}Z`),
+        horaUTC: ev.timestamp || `${ev.date}T${ev.time}`,
+        estado: traducirEstadoTSDB(ev.status),
+        estadio: ev.venue || '',
+        ciudad: '',
+        competicion: ev.league || '',
+        grupo: null,
+        etapa: null,
+        jornada: ev.round ? parseInt(ev.round) : null,
+        arbitro: null,
+        golesLocal: scoreLocal,
+        golesVisitante: scoreVisit,
+        golesHTLocal: null,
+        golesHTVisitante: null,
+        goleadores: [],
+        eventos: [],
+        estadisticas: [],
+        badgeLocal: null,
+        badgeVisitante: null,
+        poster: null,
+        madugada: infoPlaca.esMadrugada,
+        _compKey: compKey,
+        _compNombre: comp ? comp.nombre : '',
+        _compIcon: comp ? comp.icon : '',
+      };
+    });
+
+    const result = { partidos, fecha: fechaBase, fuente: 'oanor' };
+    _oanorCache = result;
+    _oanorCacheFecha = fechaBase;
+    return result;
+  } catch (e) {
+    console.error('OANOR error:', e.message);
+    return null;
+  }
+}
 
 // Mapeo de estados TheSportsDB → estados internos
 function traducirEstadoTSDB(status) {
@@ -5242,6 +5345,20 @@ export default {
         const ahoraAR = new Date(Date.now() - 3 * 60 * 60 * 1000);
         const hoy = ahoraAR.toISOString().split('T')[0];
         const fechaBase = fecha || hoy;
+
+        // Try OANOR first (devuelve todas las competiciones en una llamada)
+        const oanorResult = await obtenerPartidosOANOR(env, fechaBase);
+        if (oanorResult && oanorResult.partidos.length > 0) {
+          const conocidos = oanorResult.partidos.filter(p => p._compKey);
+          return new Response(JSON.stringify({
+            ok: true,
+            fecha: fechaBase,
+            partidos: conocidos,
+            total: conocidos.length,
+            fuentes: ['oanor'],
+          }), {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
+        }
+
         const todos = [];
         const fuentes = [];
         for (const [key, comp] of Object.entries(COMPETITIONS)) {
