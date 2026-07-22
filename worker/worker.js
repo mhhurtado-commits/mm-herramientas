@@ -5238,6 +5238,20 @@ export default {
         results.hasFdKey = !!env.FOOTBALL_DATA_API_KEY;
         results.hasAfKey = !!env.API_FOOTBALL_KEY;
 
+        // Test OANOR
+        try {
+          const oanorKey = env.OANOR_KEY;
+          results.hasOanorKey = !!oanorKey;
+          if (oanorKey) {
+            const oanorUrl = `${OANOR_URL}/v1/day?date=2026-07-22&sport=Soccer`;
+            const oanorRes = await fetch(oanorUrl, { headers: { 'x-oanor-key': oanorKey } });
+            const oanorData = await oanorRes.text();
+            results.tests.oanor = { status: oanorRes.status, events: (()=>{try{const j=JSON.parse(oanorData);return j.data?.events?.length||0}catch{return 'parse_error'}})(), body_preview: oanorData.substring(0, 500) };
+          } else {
+            results.tests.oanor = { error: 'OANOR_KEY no configurada' };
+          }
+        } catch(e) { results.tests.oanor = { error: e.message }; }
+
         return new Response(JSON.stringify(results, null, 2),
           {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
       }
