@@ -2151,7 +2151,6 @@ async function obtenerPartidosTheSportsDB(env, fecha, competicionKey) {
     const cacheKey = `futbol:tsdb:${competicionKey}:${season}`;
     let allEvents = [];
     let cachedIds = new Set();
-    let cacheValid = false;
 
     // Try to get cached season events
     try {
@@ -2171,30 +2170,38 @@ async function obtenerPartidosTheSportsDB(env, fecha, competicionKey) {
             } catch(e) { return false; }
           });
           const maxAge = hayEnVivo ? 2 * 60 * 1000 : 12 * 60 * 60 * 1000;
-          if (cacheAge < maxAge) cacheValid = true;
+          if (cacheAge < maxAge && allEvents.length >= 5) {
+            return filtrarTSDBPorFecha(allEvents, fechaBase, competicionKey);
+          }
         }
       }
     } catch (cacheErr) {}
 
-    // Always fetch from next/past (they update frequently). Only fetch eventsseason if cache is stale.
-    if (!cacheValid) {
-      try {
-        const url = `${THESPORTSDB_URL}/${apiKey}/eventsseason.php?id=${leagueId}&s=${season}`;
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          const newEvents = data.events || [];
-          for (const ev of newEvents) {
-            if (!cachedIds.has(ev.idEvent)) {
-              allEvents.push(ev);
-              cachedIds.add(ev.idEvent);
-            }
-          }
-        }
-      } catch (e) {}
+    // Fetch season events from TheSportsDB
+    const url = `${THESPORTSDB_URL}/${apiKey}/eventsseason.php?id=${leagueId}&s=${season}`;
+    let res;
+    try {
+      res = await fetch(url);
+    } catch (fetchErr) {
+      if (allEvents.length > 0) return filtrarTSDBPorFecha(allEvents, fechaBase, competicionKey);
+      return { error: `Error conexión TheSportsDB: ${fetchErr.message}` };
     }
 
-    // Always fetch next + past (these are small, single-event endpoints)
+    if (!res.ok) {
+      if (allEvents.length > 0) return filtrarTSDBPorFecha(allEvents, fechaBase, competicionKey);
+      return { error: `Error TheSportsDB: ${res.status}` };
+    }
+
+    const data = await res.json();
+    const newEvents = data.events || [];
+    for (const ev of newEvents) {
+      if (!cachedIds.has(ev.idEvent)) {
+        allEvents.push(ev);
+        cachedIds.add(ev.idEvent);
+      }
+    }
+
+    // Also fetch next + past for additional coverage
     const upcomingUrls = [
       `${THESPORTSDB_URL}/${apiKey}/eventsnextleague.php?id=${leagueId}`,
       `${THESPORTSDB_URL}/${apiKey}/eventspastleague.php?id=${leagueId}`,
@@ -2204,8 +2211,8 @@ async function obtenerPartidosTheSportsDB(env, fecha, competicionKey) {
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
-          const newEvents = data.events || [];
-          for (const ev of newEvents) {
+          const extraEvents = data.events || [];
+          for (const ev of extraEvents) {
             if (!cachedIds.has(ev.idEvent)) {
               allEvents.push(ev);
               cachedIds.add(ev.idEvent);
