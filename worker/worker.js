@@ -2277,60 +2277,6 @@ function filtrarTSDBPorFecha(events, fechaBase, competicionKey) {
     madugada: infoPlaca.esMadrugada,
   };});
 
-  // If no exact matches found for the requested date, include upcoming + recent events as fallback
-  if (partidos.length === 0 && events.length > 0) {
-    const now = new Date();
-    const future = events
-      .filter(ev => {
-        try {
-          const d = new Date(ev.strTimestamp || (ev.dateEvent + 'T' + (ev.strTime || '00:00:00') + 'Z'));
-          return d > now;
-        } catch { return false; }
-      })
-      .sort((a, b) => {
-        const da = new Date(a.strTimestamp || (a.dateEvent + 'T' + (a.strTime || '00:00:00') + 'Z'));
-        const db = new Date(b.strTimestamp || (b.dateEvent + 'T' + (b.strTime || '00:00:00') + 'Z'));
-        return da - db;
-      })
-      .slice(0, 3);
-
-    for (const ev of future) {
-      const utcDate = new Date(ev.strTimestamp || (ev.dateEvent + 'T' + (ev.strTime || '00:00:00') + 'Z'));
-      const infoPlaca = calcularFechaPlaca(utcDate.toISOString());
-      partidos.push({
-        id: ev.idEvent,
-        local: esMundial ? traducirPais(ev.strHomeTeam) : ev.strHomeTeam,
-        visitante: esMundial ? traducirPais(ev.strAwayTeam) : ev.strAwayTeam,
-        banderaLocal: getFlagPais(ev.strHomeTeam),
-        banderaVisitante: getFlagPais(ev.strAwayTeam),
-        hora: formatearHora(ev.strTimestamp || (ev.dateEvent + 'T' + (ev.strTime || '00:00:00') + 'Z')),
-        horaUTC: ev.strTimestamp || (ev.dateEvent + 'T' + (ev.strTime || '00:00:00')),
-        estado: traducirEstadoTSDB(ev.strStatus),
-        estadio: ev.strVenue || '',
-        ciudad: ev.strCountry || '',
-        competicion: ev.strLeague || '',
-        grupo: null,
-        etapa: ev.strCircuit || null,
-        jornada: ev.intRound ? parseInt(ev.intRound) : null,
-        arbitro: null,
-        golesLocal: ev.intHomeScore !== null && ev.intHomeScore !== undefined ? parseInt(ev.intHomeScore) : null,
-        golesVisitante: ev.intAwayScore !== null && ev.intAwayScore !== undefined ? parseInt(ev.intAwayScore) : null,
-        golesHTLocal: null,
-        golesHTVisitante: null,
-        goleadores: [],
-        eventos: [],
-        estadisticas: [],
-        badgeLocal: ev.strHomeTeamBadge || null,
-        badgeVisitante: ev.strAwayTeamBadge || null,
-        poster: ev.strPoster || null,
-        madugada: infoPlaca.esMadrugada,
-        proximo: true,
-      });
-    }
-
-    return { partidos, fecha: fechaBase, fuente: 'thesportsdb', totalSeason: events.length };
-  }
-
   return { partidos, fecha: fechaBase, fuente: 'thesportsdb', totalSeason: events.length };
 }
 

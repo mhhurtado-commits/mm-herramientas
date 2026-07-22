@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carousel — Media Mendoza</title>
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <h2>Carrusel para Instagram</h2>
+  <div id="inputArea">
+    <input type="url" id="urlInput" placeholder="https://mediamendoza.com/..." style="width:100%;max-width:400px;padding:8px;font-size:14px;box-sizing:border-box" />
+    <br><br>
+    <button id="loadBtn">Cargar noticia</button>
+  </div>
+  <br>
+  <div id="previewPanel" style="border:1px solid #ccc;padding:16px;min-height:120px;max-width:600px">
+    <strong>Vista previa</strong>
+    <div id="previewContent" style="margin-top:8px;font-size:14px"></div>
+  </div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
