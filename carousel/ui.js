@@ -1,6 +1,5 @@
 import { createCarouselProject } from "./models.js";
 import { setProject, getProject } from "./state.js";
-import { generatePlan } from "./carousel-engine.js";
 import { renderCarousel } from "./renderer.js";
 import { createDemoProject } from "./demo.js";
 
@@ -42,7 +41,8 @@ export function initUI() {
 
         if (preview) preview.innerHTML = "Generando plan editorial...";
 
-        await generatePlan();
+        var engine = await import("./carousel-engine.js");
+        await engine.generatePlan();
 
         renderInPreview();
       } catch (e) {
