@@ -5,10 +5,7 @@ import { createDemoProject } from "./demo.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 
-console.log("UI");
-
 export function initUI() {
-  console.log("INIT UI");
   var container = document.getElementById("previewPanel");
   if (container) {
     var previewDiv = document.createElement("div");
@@ -55,39 +52,22 @@ export function initUI() {
   }
 
   var demoBtn = document.getElementById("demoBtn");
-  console.log("demoBtn:", demoBtn);
   if (demoBtn) {
     demoBtn.addEventListener("click", function () {
-      console.log("CLICK DEMO");
-      try {
-        var project = createDemoProject();
-        console.log("demo project created, slides:", project.slides.length);
-        setProject(project);
-        renderInPreview();
-      } catch (e) {
-        console.log("EXCEPTION in DEMO click:", e);
-      }
+      var project = createDemoProject();
+      setProject(project);
+      renderInPreview();
     });
   }
 }
 
 function renderInPreview() {
-  console.log("RENDER IN PREVIEW");
-  try {
-    var preview = document.getElementById("previewContent");
-    if (preview) preview.innerHTML = "";
+  var preview = document.getElementById("previewContent");
+  if (preview) preview.innerHTML = "";
 
-    var carouselPreview = document.getElementById("carousel-preview");
-    console.log("carousel-preview element:", carouselPreview);
-    if (carouselPreview) {
-      carouselPreview.innerHTML = "";
-      var proj = getProject();
-      console.log("project slides:", proj ? proj.slides.length : "NO PROJECT");
-      renderCarousel(proj);
-    } else {
-      console.log("ERROR: #carousel-preview is null");
-    }
-  } catch (e) {
-    console.log("EXCEPTION in renderInPreview:", e);
+  var carouselPreview = document.getElementById("carousel-preview");
+  if (carouselPreview) {
+    carouselPreview.innerHTML = "";
+    renderCarousel(getProject());
   }
 }
