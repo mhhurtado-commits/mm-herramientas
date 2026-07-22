@@ -1767,7 +1767,15 @@ async function obtenerPartidosCombinadosFutbol(env, fecha, competicionKey) {
   const comp = getCompeticion(competicionKey);
   const resultados = { partidos: [], fecha: fecha || null, fuentes: [], competicion: comp.nombre };
 
-  // 1) TheSportsDB como fuente principal (gratis, datos actuales)
+  // 1) API-Football como fuente principal (datos más completos)
+  const afResult = await obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey);
+  if (!afResult.error && afResult.partidos && afResult.partidos.length > 0) {
+    resultados.fuentes.push('api-football');
+    resultados.fecha = afResult.fecha;
+    return { ...resultados, partidos: afResult.partidos };
+  }
+
+  // 2) TheSportsDB como fallback
   if (comp.theSportsDB?.id) {
     try {
       const tsdbResult = await obtenerPartidosTheSportsDB(env, fecha, competicionKey);
@@ -1779,7 +1787,7 @@ async function obtenerPartidosCombinadosFutbol(env, fecha, competicionKey) {
     } catch(e) {}
   }
 
-  // 2) football-data.org (solo para Mundial)
+  // 3) football-data.org (solo para Mundial)
   if (comp.footballData?.id) {
     try {
       const fdResult = await obtenerPartidosMundial(env, comp.footballData.id, fecha);
@@ -1789,14 +1797,6 @@ async function obtenerPartidosCombinadosFutbol(env, fecha, competicionKey) {
         return { ...resultados, partidos: fdResult.partidos };
       }
     } catch(e) {}
-  }
-
-  // 3) API-Football como último fallback
-  const afResult = await obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey);
-  if (!afResult.error && afResult.partidos && afResult.partidos.length > 0) {
-    resultados.fuentes.push('api-football');
-    resultados.fecha = afResult.fecha;
-    return { ...resultados, partidos: afResult.partidos };
   }
 
   return { ...resultados, partidos: [], mensaje: `Sin partidos para ${comp.nombre}` };
