@@ -48,6 +48,68 @@
 .social-tab:hover { color: var(--white); }
 .social-tab.active { color: var(--v); border-bottom-color: var(--v); }
 
+.social-tab-panel {
+  min-width: 0;
+}
+
+.carousel-tab-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.carousel-tab-note {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  padding: 18px 20px;
+}
+
+.carousel-tab-note strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--v);
+}
+
+.carousel-tab-note p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.carousel-tab-frame {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  min-height: 78vh;
+  box-shadow: var(--shadow);
+}
+
+.carousel-tab-frame iframe {
+  display: block;
+  width: 100%;
+  min-height: 78vh;
+  border: 0;
+  background: transparent;
+}
+
+@media (max-width: 900px) {
+  .carousel-tab-note {
+    padding: 16px;
+  }
+
+  .carousel-tab-frame,
+  .carousel-tab-frame iframe {
+    min-height: 72vh;
+  }
+}
+
 /* PAGE TITLE */
 .social-eyebrow {
   font-size: 9px;
@@ -807,11 +869,12 @@ document.addEventListener('DOMContentLoaded', () => {
   <div class="social-tabs">
     <button class="social-tab active" onclick="switchTab('generar', this)">⚡ Generar</button>
     <button class="social-tab" onclick="switchTab('reel', this)">🎬 Reel</button>
+    <button class="social-tab" onclick="switchTab('carousel', this)">🎠 Carrusel</button>
     <button class="social-tab" onclick="switchTab('config', this)">⚙ Config prompts</button>
   </div>
 
   <!-- ═══ TAB GENERAR ═══ -->
-  <div id="tabGenerar">
+  <div id="tabGenerar" class="social-tab-panel">
     <div class="input-panel">
       <div class="mm-field">
         <label class="mm-label">Link de la nota</label>
@@ -869,7 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 
   <!-- ═══ TAB REEL ═══ -->
-  <div id="tabReel" style="display:none">
+  <div id="tabReel" class="social-tab-panel" style="display:none">
     <div class="reel-layout">
 
       <!-- SIDEBAR -->
@@ -1096,7 +1159,24 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 
   <!-- ═══ TAB CONFIG ═══ -->
-  <div id="tabConfig" style="display:none">
+  <div id="tabCarousel" class="social-tab-panel" style="display:none">
+    <div class="carousel-tab-shell">
+      <div class="carousel-tab-note">
+        <strong>Editor Carrusel</strong>
+        <p>El módulo de carrusel queda disponible dentro de Social como flujo integrado. Por ahora conserva su lógica propia y se carga aquí sin duplicar la herramienta.</p>
+      </div>
+      <div class="carousel-tab-frame">
+        <iframe
+          id="carouselEmbed"
+          src="../carousel/index.html"
+          title="Carrusel Media Mendoza"
+          loading="lazy"
+          referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabConfig" class="social-tab-panel" style="display:none">
     <div class="config-info">
       <strong>Prompts editables por red.</strong> Los cambios se guardan en KV y se aplican en la próxima generación.
     </div>
@@ -1223,6 +1303,7 @@ function switchTab(tab, btn) {
   btn.classList.add('active');
   document.getElementById('tabGenerar').style.display = tab === 'generar' ? 'block' : 'none';
   document.getElementById('tabReel').style.display = tab === 'reel' ? 'block' : 'none';
+  document.getElementById('tabCarousel').style.display = tab === 'carousel' ? 'block' : 'none';
   document.getElementById('tabConfig').style.display = tab === 'config' ? 'block' : 'none';
   if (tab === 'config') loadAllPrompts();
   if (tab === 'reel') { 
