@@ -2,16 +2,17 @@ import { createCarouselProject } from "./models.js";
 import { setProject, getProject } from "./state.js";
 import { renderCarousel } from "./renderer.js";
 import { renderSlideToCanvas } from "./canvas-renderer.js";
-import { createDemoProject } from "./demo.js";
 import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
 import { buildInstagramCaptionPrompt, buildReelPrompt } from "./prompts.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 var activeSlideIndex = 0;
+var activeWorkspaceTab = "carousel";
 
 export function initUI() {
   window.removeEventListener("carousel:asset-ready", handleAssetReady);
   window.addEventListener("carousel:asset-ready", handleAssetReady);
+  ensureWorkspaceTabs();
   ensureBulkDownloadButton();
   ensureCaptionPanel();
   ensureReelPanel();
@@ -53,20 +54,11 @@ export function initUI() {
         await generateReelPlan(project);
 
         activeSlideIndex = 0;
+        setActiveWorkspaceTab("carousel");
         renderInPreview();
       } catch (e) {
         if (preview) preview.innerHTML = "No fue posible obtener la noticia.";
       }
-    });
-  }
-
-  var demoBtn = document.getElementById("demoBtn");
-  if (demoBtn) {
-    demoBtn.addEventListener("click", function () {
-      var project = createDemoProject();
-      setProject(project);
-      activeSlideIndex = 0;
-      renderInPreview();
     });
   }
 
@@ -85,6 +77,7 @@ function renderInPreview() {
   if (!carouselPreview) return;
 
   carouselPreview.innerHTML = "";
+  syncWorkspaceTabs();
 
   if (!renderedSlides.length) {
     carouselPreview.innerHTML = '<div class="carousel-empty">Sin diapositivas</div>';
@@ -156,6 +149,42 @@ function handleAssetReady() {
   renderInPreview();
 }
 
+function ensureWorkspaceTabs() {
+  bindWorkspaceTab("carouselTabBtn", "carousel");
+  bindWorkspaceTab("reelTabBtn", "reel");
+  syncWorkspaceTabs();
+}
+
+function bindWorkspaceTab(buttonId, tabName) {
+  var button = document.getElementById(buttonId);
+  if (!button || button.dataset.bound === "true") return;
+  button.dataset.bound = "true";
+  button.addEventListener("click", function () {
+    setActiveWorkspaceTab(tabName);
+  });
+}
+
+function setActiveWorkspaceTab(tabName) {
+  activeWorkspaceTab = tabName === "reel" ? "reel" : "carousel";
+  syncWorkspaceTabs();
+}
+
+function syncWorkspaceTabs() {
+  var tabButtons = document.querySelectorAll(".carousel-tab");
+  var tabPanels = document.querySelectorAll(".carousel-tab-panel");
+
+  for (var i = 0; i < tabButtons.length; i++) {
+    var isActiveButton = tabButtons[i].dataset.tab === activeWorkspaceTab;
+    tabButtons[i].classList.toggle("is-active", isActiveButton);
+    tabButtons[i].setAttribute("aria-selected", isActiveButton ? "true" : "false");
+  }
+
+  for (var j = 0; j < tabPanels.length; j++) {
+    var isActivePanel = tabPanels[j].dataset.tabPanel === activeWorkspaceTab;
+    tabPanels[j].hidden = !isActivePanel;
+  }
+}
+
 function createStageControls(project, activeItem) {
   var wrap = document.createElement("div");
   wrap.className = "carousel-stage-controls";
@@ -199,8 +228,8 @@ function ensureBulkDownloadButton() {
 }
 
 function ensureCaptionPanel() {
-  var previewPanel = document.getElementById("previewPanel");
-  if (!previewPanel || document.getElementById("captionPanel")) return;
+  var host = document.getElementById("captionPanelHost");
+  if (!host || document.getElementById("captionPanel")) return;
 
   var panel = document.createElement("div");
   panel.id = "captionPanel";
@@ -238,12 +267,12 @@ function ensureCaptionPanel() {
 
   panel.appendChild(header);
   panel.appendChild(textarea);
-  previewPanel.appendChild(panel);
+  host.appendChild(panel);
 }
 
 function ensureReelPanel() {
-  var previewPanel = document.getElementById("previewPanel");
-  if (!previewPanel || document.getElementById("reelPlanPanel")) return;
+  var host = document.getElementById("reelPlanPanelHost");
+  if (!host || document.getElementById("reelPlanPanel")) return;
 
   var panel = document.createElement("div");
   panel.id = "reelPlanPanel";
@@ -281,12 +310,12 @@ function ensureReelPanel() {
 
   panel.appendChild(header);
   panel.appendChild(textarea);
-  previewPanel.appendChild(panel);
+  host.appendChild(panel);
 }
 
 function ensureReelStoryboardPanel() {
-  var previewPanel = document.getElementById("previewPanel");
-  if (!previewPanel || document.getElementById("reelStoryboardPanel")) return;
+  var host = document.getElementById("reelStoryboardPanelHost");
+  if (!host || document.getElementById("reelStoryboardPanel")) return;
 
   var panel = document.createElement("div");
   panel.id = "reelStoryboardPanel";
@@ -314,7 +343,7 @@ function ensureReelStoryboardPanel() {
 
   panel.appendChild(header);
   panel.appendChild(grid);
-  previewPanel.appendChild(panel);
+  host.appendChild(panel);
 }
 
 function renderCaptionPanel(project) {
@@ -690,6 +719,7 @@ function clearCarouselWorkspace() {
   document.getElementById("urlInput").value = "";
   setProject(createCarouselProject());
   activeSlideIndex = 0;
+  setActiveWorkspaceTab("carousel");
   renderInPreview();
 }
 

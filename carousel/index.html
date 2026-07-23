@@ -23,7 +23,6 @@
       </div>
       <div class="carousel-actions">
         <button id="loadBtn" class="mm-btn mm-btn-primary">Cargar noticia</button>
-        <button id="demoBtn" class="mm-btn">Cargar Demo</button>
         <button id="clearBtn" class="mm-btn">Limpiar</button>
       </div>
     </div>
@@ -36,7 +35,20 @@
         </div>
         <div id="previewContent" class="carousel-status"></div>
       </div>
-      <div id="carousel-preview"></div>
+      <div class="carousel-tabs" role="tablist" aria-label="Salidas editoriales">
+        <button id="carouselTabBtn" class="carousel-tab is-active" type="button" data-tab="carousel" role="tab" aria-selected="true">Carrusel</button>
+        <button id="reelTabBtn" class="carousel-tab" type="button" data-tab="reel" role="tab" aria-selected="false">Reel</button>
+      </div>
+
+      <div id="carouselTabPanel" class="carousel-tab-panel" data-tab-panel="carousel" role="tabpanel">
+        <div id="carousel-preview"></div>
+      </div>
+
+      <div id="reelTabPanel" class="carousel-tab-panel" data-tab-panel="reel" role="tabpanel" hidden>
+        <div id="captionPanelHost" class="carousel-tab-stack"></div>
+        <div id="reelPlanPanelHost" class="carousel-tab-stack"></div>
+        <div id="reelStoryboardPanelHost" class="carousel-tab-stack"></div>
+      </div>
     </div>
   </div>
 </div>
