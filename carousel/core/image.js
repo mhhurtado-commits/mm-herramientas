@@ -5,7 +5,7 @@ export function drawImageCover(ctx, img, x, y, w, h) {
   var sh = img.height * scale;
   var sx = (sw - w) / 2;
   var sy = (sh - h) / 2;
-  ctx.drawImage(img, -sx, -sy, sw, sh);
+  ctx.drawImage(img, x - sx, y - sy, sw, sh);
 }
 
 export function drawImageContain(ctx, img, x, y, w, h) {
