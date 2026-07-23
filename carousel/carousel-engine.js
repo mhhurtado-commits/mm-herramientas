@@ -23,6 +23,7 @@ export function createCarousel() {
 function convertirPlanASlides(plan) {
   const slides = [];
   let order = 0;
+  const theme = (plan.diagnosis && plan.diagnosis.template) || "mm_classic";
 
   if (plan.cover) {
     const slide = createSlide();
@@ -32,6 +33,7 @@ function convertirPlanASlides(plan) {
     slide.order = order++;
     slide.content.title = plan.cover.title || "";
     slide.content.subtitle = plan.cover.subtitle || "";
+    slide.style.theme = theme;
     slides.push(slide);
   }
 
@@ -45,6 +47,7 @@ function convertirPlanASlides(plan) {
     slide.content.title = item.title || "";
     slide.content.text = item.text || "";
     slide.content.items = item.items || [];
+    slide.style.theme = theme;
     slides.push(slide);
   }
 
@@ -78,6 +81,16 @@ export async function generatePlan() {
       console.log("Carousel:");
       console.log("Articulo:");
       console.log(project.article.title || project.article.url);
+      if (parsed.plan.diagnosis) {
+        console.log("Diagnostico:");
+        console.log(
+          parsed.plan.diagnosis.news_type +
+            " / " +
+            parsed.plan.diagnosis.carousel_type +
+            " / " +
+            parsed.plan.diagnosis.template
+        );
+      }
       console.log("Slides:");
       console.log(project.slides.length);
 

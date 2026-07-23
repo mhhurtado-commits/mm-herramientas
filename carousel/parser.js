@@ -1,17 +1,31 @@
-export const CAROUSEL_PLAN_VERSION = "1.0";
+export const CAROUSEL_PLAN_VERSION = "1.1";
 
-const REQUIRED_SLIDE_TYPES = ["context", "facts", "impact", "cta"];
 const MAX_FACT_ITEMS = 4;
+const ALLOWED_NEWS_TYPES = ["breaking", "service", "institutional", "analysis", "data", "evergreen"];
+const ALLOWED_COMPLEXITIES = ["brief", "medium", "deep"];
+const ALLOWED_TONES = ["informative", "explainer", "chronological", "impact", "utility"];
+const ALLOWED_CAROUSEL_TYPES = ["summary", "explainer", "timeline", "data_points", "service"];
+const ALLOWED_TEMPLATES = ["mm_classic"];
+
+const CAROUSEL_STRUCTURES = {
+  summary: ["context", "facts", "impact", "cta"],
+  explainer: ["context", "impact", "facts", "impact", "cta"],
+  timeline: ["context", "impact", "impact", "facts", "cta"],
+  data_points: ["context", "facts", "facts", "cta"],
+  service: ["context", "impact", "facts", "cta"]
+};
 
 export function normalizeCarouselPlan(rawPlan, article) {
   const errors = [];
   const source = isPlainObject(rawPlan) ? rawPlan : {};
   const normalizedArticle = normalizeArticle(article);
+  const diagnosis = normalizeDiagnosis(source.diagnosis, normalizedArticle, errors);
   const normalizedPlan = {
     version: CAROUSEL_PLAN_VERSION,
     article: normalizedArticle,
-    cover: normalizeCover(source.cover, normalizedArticle, errors),
-    slides: normalizeSlides(source.slides, normalizedArticle, errors)
+    diagnosis: diagnosis,
+    cover: normalizeCover(source.cover, normalizedArticle, diagnosis, errors),
+    slides: normalizeSlides(source.slides, normalizedArticle, diagnosis, errors)
   };
 
   return {
@@ -40,10 +54,35 @@ function normalizeArticle(article) {
   };
 }
 
-function normalizeCover(cover, article, errors) {
+function normalizeDiagnosis(diagnosis, article, errors) {
+  const source = isPlainObject(diagnosis) ? diagnosis : {};
+  const newsType = pickAllowed(source.news_type, ALLOWED_NEWS_TYPES, inferNewsType(article));
+  const complexity = pickAllowed(source.complexity, ALLOWED_COMPLEXITIES, inferComplexity(article));
+  const tone = pickAllowed(source.tone, ALLOWED_TONES, inferTone(newsType));
+  const carouselType = pickAllowed(source.carousel_type, ALLOWED_CAROUSEL_TYPES, inferCarouselType(newsType, complexity));
+  const template = pickAllowed(source.template, ALLOWED_TEMPLATES, "mm_classic");
+  const slideCount = getSlideCountForCarouselType(carouselType);
+  const reason = cleanText(source.reason) || buildDiagnosisReason(newsType, carouselType, article);
+
+  if (!cleanText(source.news_type)) errors.push("diagnosis.news_type faltante");
+  if (!cleanText(source.carousel_type)) errors.push("diagnosis.carousel_type faltante");
+  if (!cleanText(source.template)) errors.push("diagnosis.template faltante");
+
+  return {
+    news_type: newsType,
+    complexity: complexity,
+    tone: tone,
+    carousel_type: carouselType,
+    template: template,
+    slide_count: slideCount,
+    reason: reason
+  };
+}
+
+function normalizeCover(cover, article, diagnosis, errors) {
   const source = isPlainObject(cover) ? cover : {};
   const title = cleanText(source.title) || article.title || "Resumen de la nota";
-  const subtitle = cleanText(source.subtitle) || article.summary || article.category || "";
+  const subtitle = cleanText(source.subtitle) || article.summary || buildCoverSubtitle(diagnosis, article);
 
   if (!cleanText(source.title)) {
     errors.push("cover.title faltante");
@@ -55,34 +94,35 @@ function normalizeCover(cover, article, errors) {
   };
 }
 
-function normalizeSlides(slides, article, errors) {
+function normalizeSlides(slides, article, diagnosis, errors) {
   const sourceSlides = Array.isArray(slides) ? slides : [];
-  const slidesByType = {};
+  const buckets = bucketSlidesByType(sourceSlides);
+  const expectedTypes = getExpectedSlideTypes(diagnosis.carousel_type);
+  const normalized = [];
 
-  for (let i = 0; i < sourceSlides.length; i++) {
-    const item = sourceSlides[i];
-    if (!isPlainObject(item) || !cleanText(item.type)) continue;
-    const type = cleanText(item.type).toLowerCase();
-    if (!slidesByType[type]) {
-      slidesByType[type] = item;
+  for (let i = 0; i < expectedTypes.length; i++) {
+    const type = expectedTypes[i];
+    const source = buckets[type].shift();
+    const slide = normalizeSlide(type, source, article, diagnosis, i);
+    if (!source) {
+      errors.push("slide faltante en posicion " + (i + 1) + ": " + type);
     }
+    if (!slide.title) {
+      errors.push("slide sin titulo en posicion " + (i + 1) + ": " + type);
+    }
+    normalized.push(slide);
   }
 
-  return REQUIRED_SLIDE_TYPES.map(function (type) {
-    const normalized = normalizeSlide(type, slidesByType[type], article);
-    if (!slidesByType[type]) {
-      errors.push("slide type faltante: " + type);
-    }
-    if (!normalized.title) {
-      errors.push("slide sin titulo: " + type);
-    }
-    return normalized;
-  });
+  if (sourceSlides.length > expectedTypes.length) {
+    errors.push("slides extra ignoradas: " + (sourceSlides.length - expectedTypes.length));
+  }
+
+  return normalized;
 }
 
-function normalizeSlide(type, slide, article) {
+function normalizeSlide(type, slide, article, diagnosis, index) {
   const source = isPlainObject(slide) ? slide : {};
-  const defaults = getSlideDefaults(type, article);
+  const defaults = getSlideDefaults(type, article, diagnosis, index);
   const title = cleanText(source.title) || defaults.title;
 
   if (type === "facts") {
@@ -101,41 +141,91 @@ function normalizeSlide(type, slide, article) {
   };
 }
 
-function getSlideDefaults(type, article) {
+function getSlideDefaults(type, article, diagnosis, index) {
   const summary = article.summary || article.title || "Informacion principal";
+  const labels = getContextualLabels(diagnosis.carousel_type);
 
-  switch (type) {
-    case "context":
+  if (type === "context") {
+    return {
+      title: labels.context[index] || "Contexto",
+      text: summary
+    };
+  }
+
+  if (type === "facts") {
+    return {
+      title: labels.facts[index] || "Datos clave",
+      items: buildFactFallbackItems(article, diagnosis, index)
+    };
+  }
+
+  if (type === "impact") {
+    return {
+      title: labels.impact[index] || "Lo importante",
+      text: article.title || summary
+    };
+  }
+
+  if (type === "cta") {
+    return {
+      title: labels.cta[index] || "Segui la cobertura",
+      text: article.url ? "Lee la nota completa en mediamendoza.com" : "Segui informado con Media Mendoza"
+    };
+  }
+
+  return {
+    title: "Slide",
+    text: summary
+  };
+}
+
+function getContextualLabels(carouselType) {
+  switch (carouselType) {
+    case "explainer":
       return {
-        title: "Contexto",
-        text: summary
+        context: ["El contexto"],
+        facts: ["Claves del caso"],
+        impact: ["Que paso", "Por que importa"],
+        cta: ["Mas informacion"]
       };
-    case "facts":
+    case "timeline":
       return {
-        title: "Datos clave",
-        items: buildFactFallbackItems(article)
+        context: ["Inicio"],
+        facts: ["Puntos clave"],
+        impact: ["Desarrollo", "Estado actual"],
+        cta: ["Sigue la cobertura"]
       };
-    case "impact":
+    case "data_points":
       return {
-        title: "Lo importante",
-        text: article.title || summary
+        context: ["Panorama"],
+        facts: ["Datos principales", "Detalle adicional"],
+        impact: [],
+        cta: ["Mas informacion"]
       };
-    case "cta":
+    case "service":
       return {
-        title: "Segui la cobertura",
-        text: article.url ? "Lee la nota completa en mediamendoza.com" : "Segui informado con Media Mendoza"
+        context: ["Que hay que saber"],
+        facts: ["Datos utiles"],
+        impact: ["Que cambia"],
+        cta: ["Informacion completa"]
       };
+    case "summary":
     default:
       return {
-        title: "Slide",
-        text: summary
+        context: ["Contexto"],
+        facts: ["Datos clave"],
+        impact: ["Lo importante"],
+        cta: ["Segui la cobertura"]
       };
   }
 }
 
-function buildFactFallbackItems(article) {
+function buildFactFallbackItems(article, diagnosis, index) {
   const items = [];
 
+  if (diagnosis.carousel_type === "data_points" && index > 1 && article.summary) {
+    items.push(article.summary);
+  }
   if (article.category) {
     items.push("Categoria: " + article.category);
   }
@@ -152,6 +242,93 @@ function buildFactFallbackItems(article) {
   return items.slice(0, MAX_FACT_ITEMS);
 }
 
+function buildCoverSubtitle(diagnosis, article) {
+  if (article.summary) return article.summary;
+
+  switch (diagnosis.news_type) {
+    case "service":
+      return "Informacion util para seguir la noticia";
+    case "data":
+      return "Claves y datos para entender el tema";
+    case "institutional":
+      return "Resumen del hecho y sus puntos principales";
+    default:
+      return article.category || "";
+  }
+}
+
+function buildDiagnosisReason(newsType, carouselType, article) {
+  const base = article.title || article.summary || "nota";
+  return "Se clasifica como " + newsType + " y conviene un carrusel tipo " + carouselType + " por el enfoque de la nota: " + base;
+}
+
+function inferNewsType(article) {
+  const text = (article.title + " " + article.summary + " " + article.category).toLowerCase();
+  if (matchesAny(text, ["servicio", "recomendacion", "transito", "cortes", "horarios", "clima"])) return "service";
+  if (matchesAny(text, ["balance", "estadistica", "datos", "informe", "reporte"])) return "data";
+  if (matchesAny(text, ["analisis", "claves", "explicacion"])) return "analysis";
+  if (matchesAny(text, ["asociacion", "institucion", "municipio", "escuela"])) return "institutional";
+  if (matchesAny(text, ["alerta", "urgente", "accidente", "incendio", "muerte"])) return "breaking";
+  return "breaking";
+}
+
+function inferComplexity(article) {
+  const length = cleanText(article.summary).length + cleanText(article.title).length;
+  if (length > 220) return "deep";
+  if (length > 110) return "medium";
+  return "brief";
+}
+
+function inferTone(newsType) {
+  switch (newsType) {
+    case "service":
+      return "utility";
+    case "analysis":
+      return "explainer";
+    case "data":
+      return "informative";
+    case "institutional":
+      return "chronological";
+    default:
+      return "impact";
+  }
+}
+
+function inferCarouselType(newsType, complexity) {
+  if (newsType === "service") return "service";
+  if (newsType === "data") return "data_points";
+  if (newsType === "analysis") return "explainer";
+  if (complexity === "deep") return "timeline";
+  return "summary";
+}
+
+function getExpectedSlideTypes(carouselType) {
+  return CAROUSEL_STRUCTURES[carouselType] || CAROUSEL_STRUCTURES.summary;
+}
+
+function getSlideCountForCarouselType(carouselType) {
+  return getExpectedSlideTypes(carouselType).length + 1;
+}
+
+function bucketSlidesByType(slides) {
+  const buckets = {
+    context: [],
+    facts: [],
+    impact: [],
+    cta: []
+  };
+
+  for (let i = 0; i < slides.length; i++) {
+    const item = slides[i];
+    if (!isPlainObject(item)) continue;
+    const type = cleanText(item.type).toLowerCase();
+    if (!buckets[type]) continue;
+    buckets[type].push(item);
+  }
+
+  return buckets;
+}
+
 function normalizeItems(items) {
   if (!Array.isArray(items)) return [];
 
@@ -164,6 +341,18 @@ function normalizeItems(items) {
   }
 
   return normalized;
+}
+
+function pickAllowed(value, allowed, fallback) {
+  const cleaned = cleanText(value).toLowerCase();
+  return allowed.indexOf(cleaned) >= 0 ? cleaned : fallback;
+}
+
+function matchesAny(text, words) {
+  for (let i = 0; i < words.length; i++) {
+    if (text.indexOf(words[i]) >= 0) return true;
+  }
+  return false;
 }
 
 function cleanText(value) {
