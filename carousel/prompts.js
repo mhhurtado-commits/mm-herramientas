@@ -89,3 +89,37 @@ export function buildCarouselPrompt(article) {
     "}"
   );
 }
+
+export function buildInstagramCaptionPrompt(article, plan) {
+  const diagnosis = plan && plan.diagnosis ? plan.diagnosis : {};
+  const content = [
+    "Titulo: " + (article.title || ""),
+    "Categoria: " + (article.category || ""),
+    "Resumen: " + (article.summary || ""),
+    "Contenido: " + (article.content || ""),
+    "Tipo de carrusel: " + (diagnosis.carousel_type || ""),
+    "Vertical: " + (diagnosis.vertical || "")
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return (
+    "Genera un texto de acompanamiento para un carrusel de Instagram de Media Mendoza basado en esta noticia.\n\n" +
+    content +
+    "\n\nREGLAS:\n" +
+    "- Tono periodistico, claro y actual.\n" +
+    "- Debe funcionar como caption de Instagram.\n" +
+    "- Incluir una bajada breve al inicio.\n" +
+    "- Incluir cierre con llamada a leer o deslizar.\n" +
+    "- Incluir entre 5 y 8 hashtags relevantes.\n" +
+    "- No usar emojis.\n" +
+    "- No inventar informacion.\n" +
+    "- No repetir el titulo textual mas de una vez.\n\n" +
+    "Responde SOLO con JSON sin backticks ni markdown.\n" +
+    "Formato exacto:\n" +
+    "{\n" +
+    '  "caption":"",\n' +
+    '  "hashtags":["#uno","#dos","#tres"]\n' +
+    "}"
+  );
+}

@@ -10,6 +10,10 @@ export function createCarouselProject() {
       content: ""
     },
     editorialPlan: null,
+    socialCopy: {
+      caption: "",
+      hashtags: []
+    },
     slides: [],
     settings: {
       format: "instagram",

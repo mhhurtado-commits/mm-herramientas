@@ -84,6 +84,43 @@
   backdrop-filter: blur(14px);
 }
 
+.carousel-copy-panel {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, transparent) 0%, color-mix(in srgb, var(--surface2) 90%, transparent) 100%);
+}
+
+.carousel-copy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.carousel-copy-title {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--text);
+}
+
+.carousel-copy-text {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  padding: 14px 16px;
+  border: 1px solid var(--line2);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.55;
+}
+
 .carousel-panel-header {
   display: flex;
   justify-content: space-between;
@@ -404,6 +441,11 @@
     align-items: stretch;
   }
 
+  .carousel-copy-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .carousel-status {
     text-align: left;
   }
@@ -488,6 +530,11 @@
   .carousel-panel {
     padding: 12px;
     border-radius: 18px;
+  }
+
+  .carousel-copy-panel {
+    padding: 12px;
+    border-radius: 16px;
   }
 
   .carousel-panel-title {

@@ -3,6 +3,7 @@ import { setProject, getProject } from "./state.js";
 import { renderCarousel } from "./renderer.js";
 import { renderSlideToCanvas } from "./canvas-renderer.js";
 import { createDemoProject } from "./demo.js";
+import { buildInstagramCaptionPrompt } from "./prompts.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 var activeSlideIndex = 0;
@@ -11,6 +12,7 @@ export function initUI() {
   window.removeEventListener("carousel:asset-ready", handleAssetReady);
   window.addEventListener("carousel:asset-ready", handleAssetReady);
   ensureBulkDownloadButton();
+  ensureCaptionPanel();
 
   var loadBtn = document.getElementById("loadBtn");
   if (loadBtn) {
@@ -44,6 +46,7 @@ export function initUI() {
 
         var engine = await import("./carousel-engine.js");
         await engine.generatePlan();
+        await generateInstagramCaption(project);
 
         activeSlideIndex = 0;
         renderInPreview();
@@ -62,6 +65,11 @@ export function initUI() {
       renderInPreview();
     });
   }
+
+  var clearBtn = document.getElementById("clearBtn");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", clearCarouselWorkspace);
+  }
 }
 
 function renderInPreview() {
@@ -78,6 +86,7 @@ function renderInPreview() {
     carouselPreview.innerHTML = '<div class="carousel-empty">Sin diapositivas</div>';
     if (preview) preview.innerHTML = "";
     toggleBulkDownloadButton(false);
+    renderCaptionPanel(project);
     return;
   }
 
@@ -130,6 +139,7 @@ function renderInPreview() {
   editor.appendChild(sidebar);
   editor.appendChild(stage);
   carouselPreview.appendChild(editor);
+  renderCaptionPanel(project);
 }
 
 function handleAssetReady() {
@@ -180,10 +190,83 @@ function ensureBulkDownloadButton() {
   actions.appendChild(bulkBtn);
 }
 
+function ensureCaptionPanel() {
+  var previewPanel = document.getElementById("previewPanel");
+  if (!previewPanel || document.getElementById("captionPanel")) return;
+
+  var panel = document.createElement("div");
+  panel.id = "captionPanel";
+  panel.className = "carousel-copy-panel";
+  panel.hidden = true;
+
+  var header = document.createElement("div");
+  header.className = "carousel-copy-header";
+
+  var titles = document.createElement("div");
+  var label = document.createElement("div");
+  label.className = "carousel-section-label";
+  label.textContent = "Instagram";
+  var title = document.createElement("strong");
+  title.className = "carousel-copy-title";
+  title.textContent = "Texto sugerido";
+  titles.appendChild(label);
+  titles.appendChild(title);
+
+  var copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.id = "copyCaptionBtn";
+  copyBtn.className = "mm-btn";
+  copyBtn.textContent = "Copiar texto";
+  copyBtn.addEventListener("click", copyInstagramCaption);
+
+  header.appendChild(titles);
+  header.appendChild(copyBtn);
+
+  var textarea = document.createElement("textarea");
+  textarea.id = "captionOutput";
+  textarea.className = "carousel-copy-text";
+  textarea.readOnly = true;
+  textarea.placeholder = "Cuando generes un carrusel desde una nota, aca aparecera el copy sugerido para Instagram.";
+
+  panel.appendChild(header);
+  panel.appendChild(textarea);
+  previewPanel.appendChild(panel);
+}
+
+function renderCaptionPanel(project) {
+  var panel = document.getElementById("captionPanel");
+  var textarea = document.getElementById("captionOutput");
+  if (!panel || !textarea) return;
+
+  var caption = buildCaptionText(project);
+  panel.hidden = !caption;
+  textarea.value = caption;
+}
+
+function buildCaptionText(project) {
+  if (!project || !project.socialCopy) return "";
+  var caption = String(project.socialCopy.caption || "").trim();
+  var hashtags = Array.isArray(project.socialCopy.hashtags) ? project.socialCopy.hashtags.filter(Boolean) : [];
+  if (!caption && !hashtags.length) return "";
+  return caption + (hashtags.length ? "\n\n" + hashtags.join(" ") : "");
+}
+
 function toggleBulkDownloadButton(visible) {
   var bulkBtn = document.getElementById("downloadAllBtn");
   if (!bulkBtn) return;
   bulkBtn.hidden = !visible;
+}
+
+async function copyInstagramCaption() {
+  var preview = document.getElementById("previewContent");
+  var textarea = document.getElementById("captionOutput");
+  if (!textarea || !textarea.value.trim()) return;
+  try {
+    await navigator.clipboard.writeText(textarea.value);
+    setStatus(preview, "Texto de Instagram copiado");
+  } catch (error) {
+    setStatus(preview, "No se pudo copiar el texto");
+  }
 }
 
 function createSlideSelectHandler(index) {
@@ -338,6 +421,47 @@ function buildSlideFileName(item) {
 function setStatus(preview, message) {
   if (!preview) return;
   preview.textContent = message;
+}
+
+function clearCarouselWorkspace() {
+  var hasInput = !!document.getElementById("urlInput").value.trim();
+  var project = getProject();
+  var hasContent = !!(project && (project.article.title || (project.slides && project.slides.length)));
+  if (!hasInput && !hasContent) return;
+
+  if (!window.confirm("Se va a limpiar la URL, el editor y el texto sugerido. Queres continuar?")) {
+    return;
+  }
+
+  document.getElementById("urlInput").value = "";
+  setProject(createCarouselProject());
+  activeSlideIndex = 0;
+  renderInPreview();
+}
+
+async function generateInstagramCaption(project) {
+  if (!project || !project.article) return;
+  try {
+    const res = await fetch(WORKER + "/social/generar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemPrompt: buildInstagramCaptionPrompt(project.article, project.editorialPlan),
+        userMsg: "Genera el caption para Instagram del carrusel."
+      })
+    });
+
+    const data = await res.json();
+    if (!data.ok || !data.result) return;
+
+    project.socialCopy.caption = data.result.caption || "";
+    project.socialCopy.hashtags = Array.isArray(data.result.hashtags) ? data.result.hashtags : [];
+    setProject(project);
+  } catch (error) {
+    project.socialCopy.caption = "";
+    project.socialCopy.hashtags = [];
+    setProject(project);
+  }
 }
 
 async function downloadAllSlides() {
