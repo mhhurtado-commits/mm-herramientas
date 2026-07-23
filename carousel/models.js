@@ -5,6 +5,7 @@ export function createCarouselProject() {
       title: "",
       category: "",
       image: "",
+      images: [],
       summary: "",
       content: ""
     },
@@ -14,7 +15,8 @@ export function createCarouselProject() {
       format: "instagram",
       width: 1080,
       height: 1350,
-      coverLogoPosition: "center"
+      coverLogoPosition: "center",
+      useSecondaryImages: false
     }
   };
 }

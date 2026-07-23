@@ -19,6 +19,10 @@ export function renderCarousel(project) {
       slide.content.image = toRenderableImageUrl(project.article.image);
     }
 
+    if (slide.content && slide.content.supportImage) {
+      slide.content.supportImage = toRenderableImageUrl(slide.content.supportImage);
+    }
+
     var canvas = renderSlideToCanvas(slide, project);
     if (canvas) {
       canvas.className = "carousel-canvas";

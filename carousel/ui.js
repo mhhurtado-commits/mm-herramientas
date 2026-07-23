@@ -34,6 +34,7 @@ export function initUI() {
         project.article.title = data.titulo || "";
         project.article.category = data.categoria || "";
         project.article.image = data.imagen || "";
+        project.article.images = Array.isArray(data.imagenes) ? data.imagenes : [];
         project.article.content = data.texto || "";
         project.article.summary = data.descripcion || "";
         setProject(project);
@@ -112,9 +113,7 @@ function renderInPreview() {
   }
 
   var activeItem = renderedSlides[activeSlideIndex];
-  if (activeItem && activeItem.slide && activeItem.slide.template === "cover") {
-    stage.appendChild(createCoverLogoControls(project));
-  }
+  stage.appendChild(createStageControls(project, activeItem));
 
   var activeCanvas = renderSlideToCanvas(activeItem.slide, project);
   if (activeCanvas) {
@@ -136,6 +135,21 @@ function handleAssetReady() {
   var project = getProject();
   if (!project) return;
   renderInPreview();
+}
+
+function createStageControls(project, activeItem) {
+  var wrap = document.createElement("div");
+  wrap.className = "carousel-stage-controls";
+
+  if (hasSecondaryImages(project)) {
+    wrap.appendChild(createSecondaryImagesControls(project));
+  }
+
+  if (activeItem && activeItem.slide && activeItem.slide.template === "cover") {
+    wrap.appendChild(createCoverLogoControls(project));
+  }
+
+  return wrap;
 }
 
 function ensureBulkDownloadButton() {
@@ -373,6 +387,36 @@ function createCoverLogoControls(project) {
   return wrap;
 }
 
+function createSecondaryImagesControls(project) {
+  var wrap = document.createElement("div");
+  wrap.className = "carousel-cover-controls";
+
+  var label = document.createElement("span");
+  label.className = "carousel-cover-controls-label";
+  label.textContent = "Fotos internas";
+  wrap.appendChild(label);
+
+  var onBtn = document.createElement("button");
+  onBtn.type = "button";
+  onBtn.className = "carousel-cover-chip" + (project.settings && project.settings.useSecondaryImages ? " is-active" : "");
+  onBtn.textContent = "Usar";
+  onBtn.addEventListener("click", async function () {
+    await updateSecondaryImagesSetting(project, true);
+  });
+
+  var offBtn = document.createElement("button");
+  offBtn.type = "button";
+  offBtn.className = "carousel-cover-chip" + (!project.settings || !project.settings.useSecondaryImages ? " is-active" : "");
+  offBtn.textContent = "No usar";
+  offBtn.addEventListener("click", async function () {
+    await updateSecondaryImagesSetting(project, false);
+  });
+
+  wrap.appendChild(onBtn);
+  wrap.appendChild(offBtn);
+  return wrap;
+}
+
 function createCoverLogoButton(project, option, isActive) {
   var button = document.createElement("button");
   button.type = "button";
@@ -385,4 +429,18 @@ function createCoverLogoButton(project, option, isActive) {
     renderInPreview();
   });
   return button;
+}
+
+async function updateSecondaryImagesSetting(project, enabled) {
+  if (!project.settings) project.settings = {};
+  if (project.settings.useSecondaryImages === enabled) return;
+  project.settings.useSecondaryImages = enabled;
+  setProject(project);
+  var engine = await import("./carousel-engine.js");
+  await engine.generatePlan();
+  renderInPreview();
+}
+
+function hasSecondaryImages(project) {
+  return !!(project && project.article && Array.isArray(project.article.images) && project.article.images.length);
 }

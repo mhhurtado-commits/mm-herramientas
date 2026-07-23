@@ -20,10 +20,12 @@ export function createCarousel() {
   console.log("Carousel listo");
 }
 
-function convertirPlanASlides(plan) {
+function convertirPlanASlides(plan, article, settings) {
   const slides = [];
   let order = 0;
   const theme = (plan.diagnosis && plan.diagnosis.template) || "mm_classic";
+  const supportImages = settings && settings.useSecondaryImages ? getSupportImages(article) : [];
+  let supportIndex = 0;
 
   if (plan.cover) {
     const slide = createSlide();
@@ -47,6 +49,9 @@ function convertirPlanASlides(plan) {
     slide.content.title = item.title || "";
     slide.content.text = item.text || "";
     slide.content.items = item.items || [];
+    if ((item.type === "context" || item.type === "impact" || item.type === "facts") && supportImages[supportIndex]) {
+      slide.content.supportImage = supportImages[supportIndex++];
+    }
     slide.style.theme = theme;
     slides.push(slide);
   }
@@ -75,7 +80,7 @@ export async function generatePlan() {
     if (data.ok && data.result) {
       const parsed = normalizeCarouselPlan(data.result, project.article);
       project.editorialPlan = parsed.plan;
-      project.slides = convertirPlanASlides(parsed.plan);
+      project.slides = convertirPlanASlides(parsed.plan, project.article, project.settings);
       setProject(project);
 
       console.log("Carousel:");
@@ -113,3 +118,17 @@ export function loadTemplate() {}
 export function renderSlide() {}
 
 export function exportCarousel() {}
+
+function getSupportImages(article) {
+  if (!article || !Array.isArray(article.images)) return [];
+  const cover = article.image || "";
+  const seen = new Set();
+  const out = [];
+  for (let i = 0; i < article.images.length; i++) {
+    const img = String(article.images[i] || "").trim();
+    if (!img || img === cover || seen.has(img)) continue;
+    seen.add(img);
+    out.push(img);
+  }
+  return out;
+}

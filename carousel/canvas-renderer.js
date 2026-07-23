@@ -130,6 +130,20 @@ function drawPanel(ctx, x, y, w, h, fill, stroke) {
   strokeRoundRect(ctx, x, y, w, h, MMTheme.radius.panel, stroke || MMTheme.colors.lineSoft, 2);
 }
 
+function drawSupportImage(ctx, imgUrl, x, y, w, h) {
+  if (!imgUrl) return false;
+  var img = getCachedImage(imgUrl);
+  if (!img) return false;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 28);
+  ctx.clip();
+  drawImageCover(ctx, img, x, y, w, h);
+  ctx.restore();
+  strokeRoundRect(ctx, x, y, w, h, 28, "rgba(255,255,255,0.85)", 4);
+  return true;
+}
+
 function drawLogoLockup(ctx, x, y, w, centered) {
   drawLogo(ctx, "/assets/logo.png", function (ctx2, img) {
     var logoW = w || 176;
@@ -428,6 +442,22 @@ function renderTextSlide(ctx, slide, project) {
   var gridX = panelX + 70;
   var maxW = panelW - 150 - MMTheme.variant.textWidthOffset;
   var cat = project.article && project.article.category;
+  var supportImage = slide.content && slide.content.supportImage;
+  var hasSupportImage = false;
+  var imageBox = null;
+
+  if (supportImage) {
+    imageBox = {
+      x: panelX + panelW - 318,
+      y: panelY + 54,
+      w: 220,
+      h: 220
+    };
+    hasSupportImage = drawSupportImage(ctx, supportImage, imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+    if (hasSupportImage) {
+      maxW -= 250;
+    }
+  }
 
   if (MMTheme.variant.showEyebrow) {
     drawEyebrow(ctx, gridX, panelY + 42, cat || slide.content.title || "Claves");
@@ -440,6 +470,9 @@ function renderTextSlide(ctx, slide, project) {
 
   var title = slide.content.title || "";
   var titleY = panelY + 96;
+  if (hasSupportImage) {
+    titleY = panelY + 72;
+  }
   if (title) {
     ctx.font = MMTheme.fonts.titleCompact;
     ctx.fillStyle = MMTheme.colors.textPrimary;
@@ -493,6 +526,14 @@ function renderStatsSlide(ctx, slide, project) {
   var cardW = maxW;
   var cardH = MMTheme.variant.statsCardStyle === "rows" ? 120 : MMTheme.variant.statsCardStyle === "impact" ? 170 : 154;
   var gap = MMTheme.spacing.cardGap;
+  var supportImage = slide.content && slide.content.supportImage;
+  var titleTop = panelY + 40;
+
+  if (supportImage && drawSupportImage(ctx, supportImage, panelX + panelW - 272, panelY + 34, 192, 192)) {
+    maxW -= 228;
+    cardW = maxW;
+    titleTop = panelY + 46;
+  }
 
   var title = slide.content.title || "";
   var titleEnd = panelY + 36;
@@ -500,7 +541,7 @@ function renderStatsSlide(ctx, slide, project) {
     ctx.font = MMTheme.fonts.titleCompact;
     ctx.fillStyle = MMTheme.colors.textPrimary;
     ctx.textBaseline = "top";
-    titleEnd = wrapText(ctx, title, gridX, panelY + 40, maxW, MMTheme.spacing.lineHTitle);
+    titleEnd = wrapText(ctx, title, gridX, titleTop, maxW, MMTheme.spacing.lineHTitle);
   }
 
   var items = slide.content.items || [];

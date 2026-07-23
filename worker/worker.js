@@ -182,7 +182,35 @@ function extraerDatosNota(html,url){
   const description=extractMeta(html,/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']{1,500})["']/i,/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{1,500})["']/i);
   const image=extractMeta(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,1500})["']/i,/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']{1,1500})["']/i);
   const category=extractMeta(html,/<meta[^>]+property=["']article:section["'][^>]+content=["']([^"']{1,120})["']/i,/<meta[^>]+name=["']section["'][^>]+content=["']([^"']{1,120})["']/i)||inferirCategoriaDesdeUrl(url);
-  return {title,category,description,body:extraerTexto(html),image,url};
+  const images=extraerImagenesNota(html,url,image);
+  return {title,category,description,body:extraerTexto(html),image,url,images};
+}
+
+function extraerImagenesNota(html,baseUrl,coverImage){
+  const matches=[...html.matchAll(/<img[^>]+src=["']([^"']{8,2000})["'][^>]*>/gi)];
+  const out=[];
+  const seen=new Set();
+  const coverClean=limpiarUrlImagen(coverImage,baseUrl);
+  for(const match of matches){
+    const abs=limpiarUrlImagen(match[1],baseUrl);
+    if(!abs||seen.has(abs)||abs===coverClean) continue;
+    const lower=abs.toLowerCase();
+    if(!/\.(jpg|jpeg|png|webp|avif)(?:$|\?)/i.test(lower) && lower.indexOf('/image/')<0) continue;
+    if(/logo|avatar|icon|ads|pixel|emoji|favicon|placeholder/i.test(lower)) continue;
+    seen.add(abs);
+    out.push(abs);
+    if(out.length>=6) break;
+  }
+  return out;
+}
+
+function limpiarUrlImagen(src,baseUrl){
+  try{
+    if(!src) return "";
+    return new URL(String(src).replace(/&amp;/g,'&'),baseUrl).toString();
+  }catch{
+    return "";
+  }
 }
 
 // ============================================================
@@ -4352,13 +4380,11 @@ async function handleScrape(url){
   try{new URL(targetUrl)}catch{return jsonError("URL inválida",400)}
   try{
     const{html}=await fetchHtml(targetUrl,300);
-    const ogTitle=html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,200})["']/i);
-    const titleTag=html.match(/<title[^>]*>([^<]{1,200})<\/title>/i);
-    const titulo=(ogTitle?.[1]||titleTag?.[1]||'').replace(/\s+/g,' ').trim();
-    const ogImg=html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,500})["']/i)||html.match(/<meta[^>]+content=["']([^"']{1,500})["'][^>]+property=["']og:image["']/i);
-    const texto=extraerTexto(html);
+    const data=extraerDatosNota(html,targetUrl);
+    const titulo=data.title||"";
+    const texto=data.body;
     if(!texto||texto.length<100) return jsonError("No se pudo extraer contenido",422);
-    return jsonOk({titulo,texto,imagen:ogImg?.[1]||'',url:targetUrl});
+    return jsonOk({titulo,categoria:data.category||"",descripcion:data.description||"",texto,imagen:data.image||'',imagenes:data.images||[],url:targetUrl});
   }catch(err){return jsonError(`Error scrapeando: ${err.message}`,502)}
 }
 async function handlePlacasUrl(url){
