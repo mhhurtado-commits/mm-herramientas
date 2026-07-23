@@ -15,6 +15,7 @@ export function initUI() {
   ensureBulkDownloadButton();
   ensureCaptionPanel();
   ensureReelPanel();
+  ensureReelStoryboardPanel();
 
   var loadBtn = document.getElementById("loadBtn");
   if (loadBtn) {
@@ -91,6 +92,7 @@ function renderInPreview() {
     toggleBulkDownloadButton(false);
     renderCaptionPanel(project);
     renderReelPanel(project);
+    renderReelStoryboard(project);
     return;
   }
 
@@ -145,6 +147,7 @@ function renderInPreview() {
   carouselPreview.appendChild(editor);
   renderCaptionPanel(project);
   renderReelPanel(project);
+  renderReelStoryboard(project);
 }
 
 function handleAssetReady() {
@@ -281,6 +284,39 @@ function ensureReelPanel() {
   previewPanel.appendChild(panel);
 }
 
+function ensureReelStoryboardPanel() {
+  var previewPanel = document.getElementById("previewPanel");
+  if (!previewPanel || document.getElementById("reelStoryboardPanel")) return;
+
+  var panel = document.createElement("div");
+  panel.id = "reelStoryboardPanel";
+  panel.className = "carousel-copy-panel";
+  panel.hidden = true;
+
+  var header = document.createElement("div");
+  header.className = "carousel-copy-header";
+
+  var titles = document.createElement("div");
+  var label = document.createElement("div");
+  label.className = "carousel-section-label";
+  label.textContent = "Reel";
+  var title = document.createElement("strong");
+  title.className = "carousel-copy-title";
+  title.textContent = "Storyboard";
+  titles.appendChild(label);
+  titles.appendChild(title);
+
+  header.appendChild(titles);
+
+  var grid = document.createElement("div");
+  grid.id = "reelStoryboardGrid";
+  grid.className = "reel-storyboard-grid";
+
+  panel.appendChild(header);
+  panel.appendChild(grid);
+  previewPanel.appendChild(panel);
+}
+
 function renderCaptionPanel(project) {
   var panel = document.getElementById("captionPanel");
   var textarea = document.getElementById("captionOutput");
@@ -301,6 +337,26 @@ function renderReelPanel(project) {
   textarea.value = reelJson;
 }
 
+function renderReelStoryboard(project) {
+  var panel = document.getElementById("reelStoryboardPanel");
+  var grid = document.getElementById("reelStoryboardGrid");
+  if (!panel || !grid) return;
+
+  var reel = getReelOutput(project);
+  if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) {
+    panel.hidden = true;
+    grid.innerHTML = "";
+    return;
+  }
+
+  panel.hidden = false;
+  grid.innerHTML = "";
+
+  for (var i = 0; i < reel.scenes.length; i++) {
+    grid.appendChild(createReelSceneCard(reel.scenes[i], project));
+  }
+}
+
 function buildCaptionText(project) {
   if (!project || !project.socialCopy) return "";
   var caption = String(project.socialCopy.caption || "").trim();
@@ -310,12 +366,101 @@ function buildCaptionText(project) {
 }
 
 function buildReelPlanText(project) {
-  if (!project || !project.editorialPackage || !project.editorialPackage.outputs || !project.editorialPackage.outputs.reel) {
-    return "";
-  }
-  var reel = project.editorialPackage.outputs.reel;
+  var reel = getReelOutput(project);
   if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) return "";
   return JSON.stringify(reel, null, 2);
+}
+
+function getReelOutput(project) {
+  if (!project || !project.editorialPackage || !project.editorialPackage.outputs) return null;
+  return project.editorialPackage.outputs.reel || null;
+}
+
+function createReelSceneCard(scene, project) {
+  var card = document.createElement("article");
+  card.className = "reel-scene-card";
+
+  var media = document.createElement("div");
+  media.className = "reel-scene-media";
+
+  var imgUrl = resolveReelSceneImage(scene, project);
+  if (imgUrl) {
+    var img = document.createElement("img");
+    img.className = "reel-scene-image";
+    img.src = imgUrl;
+    img.alt = scene.text || scene.visual_role || "Escena del reel";
+    media.appendChild(img);
+  } else {
+    var placeholder = document.createElement("div");
+    placeholder.className = "reel-scene-placeholder";
+    placeholder.textContent = scene.visual_type === "text_card" ? "Placa de texto" : "Sin imagen";
+    media.appendChild(placeholder);
+  }
+
+  var body = document.createElement("div");
+  body.className = "reel-scene-body";
+
+  var top = document.createElement("div");
+  top.className = "reel-scene-top";
+
+  var index = document.createElement("span");
+  index.className = "reel-scene-index";
+  index.textContent = "Escena " + String(scene.order || 0).padStart(2, "0");
+
+  var timing = document.createElement("span");
+  timing.className = "reel-scene-timing";
+  timing.textContent = formatSceneDuration(scene.duration_ms);
+
+  top.appendChild(index);
+  top.appendChild(timing);
+
+  var role = document.createElement("div");
+  role.className = "reel-scene-role";
+  role.textContent = scene.visual_role || scene.visual_type || "Escena";
+
+  var title = document.createElement("h3");
+  title.className = "reel-scene-title";
+  title.textContent = scene.text || "Sin texto principal";
+
+  var subtitle = document.createElement("p");
+  subtitle.className = "reel-scene-subtitle";
+  subtitle.textContent = scene.subtitle || "";
+
+  var source = document.createElement("div");
+  source.className = "reel-scene-source";
+  source.textContent = scene.visual_source || "";
+
+  body.appendChild(top);
+  body.appendChild(role);
+  body.appendChild(title);
+  body.appendChild(subtitle);
+  body.appendChild(source);
+
+  card.appendChild(media);
+  card.appendChild(body);
+  return card;
+}
+
+function resolveReelSceneImage(scene, project) {
+  if (!scene || !project || !project.article) return "";
+  var article = project.article;
+  var source = String(scene.visual_source || "");
+
+  if (source === "article.image") return article.image || "";
+
+  var match = source.match(/^article\.images\[(\d+)\]$/);
+  if (match && Array.isArray(article.images)) {
+    var idx = Number(match[1]);
+    return article.images[idx] || "";
+  }
+
+  return "";
+}
+
+function formatSceneDuration(durationMs) {
+  var ms = Number(durationMs || 0);
+  if (!ms) return "";
+  return (ms / 1000).toFixed(ms % 1000 === 0 ? 0 : 1) + " s";
 }
 
 function toggleBulkDownloadButton(visible) {
