@@ -3,6 +3,7 @@ export var MMTheme = {
     background: "#fcfaf6",
     panel: "#f4f1ea",
     surface: "#ffffff",
+    surfaceSoft: "#f8f6f1",
     textPrimary: "#111111",
     textSecondary: "#353535",
     textMuted: "#666666",
@@ -19,7 +20,8 @@ export var MMTheme = {
     footer: "#9f9f9f",
     white: "#ffffff",
     logoBadge: "rgba(255,255,255,0.94)",
-    whiteOverlay: "rgba(255,255,255,0.16)"
+    whiteOverlay: "rgba(255,255,255,0.16)",
+    brandLine: "rgba(166,206,57,0.38)"
   },
   fonts: {
     title: "700 52px Inter, Arial, sans-serif",
@@ -30,7 +32,7 @@ export var MMTheme = {
     bodyLarge: "400 39px Inter, Arial, sans-serif",
     footer: "600 21px Inter, Arial, sans-serif",
     category: "700 22px Inter, Arial, sans-serif",
-    coverTitle: "700 68px Inter, Arial, sans-serif",
+    coverTitle: "700 76px Inter, Arial, sans-serif",
     coverSubtitle: "30px Inter, Arial, sans-serif",
     kicker: "700 22px Inter, Arial, sans-serif",
     statNumber: "700 22px Inter, Arial, sans-serif",

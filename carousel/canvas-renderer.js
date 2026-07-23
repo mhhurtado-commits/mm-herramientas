@@ -96,11 +96,11 @@ function drawPanel(ctx, x, y, w, h, fill, stroke) {
 }
 
 function drawLogoBadge(ctx, x, y, w, h, centered) {
-  fillRoundRect(ctx, x, y, w, h, h / 2, "#1c1f22");
-  strokeRoundRect(ctx, x, y, w, h, h / 2, "rgba(255,255,255,0.28)", 2);
+  fillRoundRect(ctx, x, y, w, h, h / 2, MMTheme.colors.logoBadge);
+  strokeRoundRect(ctx, x, y, w, h, h / 2, "rgba(166,206,57,0.26)", 2);
 
   drawLogo(ctx, "/assets/logo.png", function (ctx2, img) {
-    var logoW = centered ? 148 : 116;
+    var logoW = centered ? 176 : 146;
     var logoH = img.height * (logoW / img.width);
     var dx = x + (w - logoW) / 2;
     var dy = y + (h - logoH) / 2;
@@ -196,10 +196,10 @@ function drawCategoryBadge(ctx, label, x, y) {
 function drawSwipeHint(ctx, x, y) {
   var w = 170;
   var h = 46;
-  fillRoundRect(ctx, x, y, w, h, 23, "#1c1f22");
-  strokeRoundRect(ctx, x, y, w, h, 23, "rgba(255,255,255,0.18)", 2);
+  fillRoundRect(ctx, x, y, w, h, 23, "rgba(255,255,255,0.92)");
+  strokeRoundRect(ctx, x, y, w, h, 23, "rgba(17,17,17,0.10)", 2);
   ctx.font = MMTheme.fonts.kicker;
-  ctx.fillStyle = MMTheme.colors.white;
+  ctx.fillStyle = MMTheme.colors.textPrimary;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("Desliza", x + w / 2, y + h / 2);
@@ -207,28 +207,35 @@ function drawSwipeHint(ctx, x, y) {
   ctx.textBaseline = "top";
 }
 
-function drawTextHighlightCard(ctx, title, text, panelX, panelY, panelW, panelH) {
-  var cardX = panelX + 52;
-  var cardW = panelW - 104;
-  var cardH = 248;
-  var cardY = panelY + panelH - cardH - 44;
+function drawBrandFooter(ctx, panelX, panelY, panelW, panelH) {
+  var centerX = panelX + panelW / 2;
+  var y = panelY + panelH - 88;
+  var badgeW = 240;
+  var badgeH = 72;
+  var badgeX = centerX - badgeW / 2;
 
-  fillRoundRect(ctx, cardX, cardY, cardW, cardH, 28, MMTheme.colors.surface);
-  strokeRoundRect(ctx, cardX, cardY, cardW, cardH, 28, "rgba(166,206,57,0.28)", 2);
-  fillRoundRect(ctx, cardX, cardY, 16, cardH, 10, MMTheme.colors.accent);
+  ctx.strokeStyle = MMTheme.colors.brandLine;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(panelX + 54, y + badgeH / 2);
+  ctx.lineTo(badgeX - 20, y + badgeH / 2);
+  ctx.stroke();
 
-  ctx.font = MMTheme.fonts.kicker;
-  ctx.fillStyle = MMTheme.colors.accentDark;
-  ctx.textBaseline = "top";
-  ctx.fillText("CLAVE", cardX + 36, cardY + 30);
+  ctx.beginPath();
+  ctx.moveTo(badgeX + badgeW + 20, y + badgeH / 2);
+  ctx.lineTo(panelX + panelW - 54, y + badgeH / 2);
+  ctx.stroke();
 
-  ctx.font = MMTheme.fonts.highlight;
-  ctx.fillStyle = MMTheme.colors.textPrimary;
-  wrapText(ctx, title || text, cardX + 36, cardY + 74, cardW - 72, 44);
+  fillRoundRect(ctx, badgeX, y, badgeW, badgeH, badgeH / 2, MMTheme.colors.surface);
+  strokeRoundRect(ctx, badgeX, y, badgeW, badgeH, badgeH / 2, "rgba(166,206,57,0.24)", 2);
 
-  ctx.font = MMTheme.fonts.subtitle;
-  ctx.fillStyle = MMTheme.colors.textMuted;
-  wrapText(ctx, text, cardX + 36, cardY + 150, cardW - 72, 38);
+  drawLogo(ctx, "/assets/logo.png", function (ctx2, img) {
+    var logoW = 168;
+    var logoH = img.height * (logoW / img.width);
+    var dx = centerX - logoW / 2;
+    var dy = y + (badgeH - logoH) / 2;
+    ctx2.drawImage(img, dx, dy, logoW, logoH);
+  });
 }
 
 function drawCoverTitle(ctx, text, x, y, maxW) {
@@ -263,7 +270,7 @@ function renderCover(ctx, slide, project) {
   var pad = MMTheme.spacing.paddingCover;
   var bodyX = pad;
   var maxW = W - pad * 2;
-  var titleText = slide.content.title || "";
+  var titleText = slide.content.title || (project.article && project.article.title) || "";
   var titleY = 778;
   var titleEnd = drawCoverTitle(ctx, titleText, bodyX, titleY, maxW);
 
@@ -286,7 +293,7 @@ function renderTextSlide(ctx, slide, project) {
   var panelW = W - 124;
   var panelH = H - 220;
   drawPanel(ctx, panelX, panelY, panelW, panelH);
-  drawLeftAccent(ctx, panelX + 20, panelY + 24, 320);
+  drawLeftAccent(ctx, panelX + 20, panelY + 24, 284);
   drawGiantNumber(ctx, (slide.order || 0) + 1, panelX + panelW - 70, panelY + 20, "right");
 
   var gridX = panelX + 70;
@@ -316,11 +323,10 @@ function renderTextSlide(ctx, slide, project) {
     ctx.font = MMTheme.fonts.bodyLarge;
     ctx.fillStyle = MMTheme.colors.textSecondary;
     ctx.textBaseline = "top";
-    wrapText(ctx, text, gridX, textY + 34, maxW - 10, 48);
+    wrapText(ctx, text, gridX, textY + 34, maxW - 10, 50);
   }
 
-  var highlight = getHighlightText(text, 100);
-  drawTextHighlightCard(ctx, title, highlight || text, panelX, panelY, panelW, panelH);
+  drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
 
   drawPageNumber(ctx, slide, project);
 }
@@ -374,12 +380,17 @@ function renderStatsSlide(ctx, slide, project) {
     wrapText(ctx, items[i], gridX + 126, cy + 30, cardW - 156, MMTheme.spacing.lineHList);
   }
 
+  drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
   drawPageNumber(ctx, slide, project);
 }
 
 function renderEndSlide(ctx, slide, project) {
   calcZones("end");
-  drawGreenBackground(ctx);
+  var bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#a6ce39");
+  bg.addColorStop(1, "#badf52");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
   drawFrame(ctx, "rgba(255,255,255,0.34)");
 
   var panelW = W - 240;
@@ -388,9 +399,9 @@ function renderEndSlide(ctx, slide, project) {
   var panelY = (H - panelH) / 2;
   var titleX = panelX + 80;
   var titleW = panelW - 160;
-  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.whiteOverlay, "rgba(255,255,255,0.22)");
+  drawPanel(ctx, panelX, panelY, panelW, panelH, "rgba(255,255,255,0.10)", "rgba(255,255,255,0.24)");
 
-  drawLogoBadge(ctx, (W - 220) / 2, panelY + 52, 220, 88, true);
+  drawLogoBadge(ctx, (W - 280) / 2, panelY + 48, 280, 96, true);
 
   ctx.font = MMTheme.fonts.endKicker;
   ctx.fillStyle = MMTheme.colors.white;
