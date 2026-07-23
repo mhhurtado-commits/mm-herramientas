@@ -6,6 +6,7 @@ import { MMTheme, applyThemeVariant } from "./core/theme.js";
 
 var W = 1080;
 var H = 1350;
+var imageCache = {};
 
 function drawWhiteBackground(ctx) {
   ctx.fillStyle = MMTheme.colors.background;
@@ -53,12 +54,53 @@ function loadCoverImage(ctx, slide, project, maxHeight) {
 
 function drawLogo(ctx, src, drawFn) {
   if (!src) return;
-  var img = new Image();
-  img.onload = function () {
+  var img = getCachedImage(src, function (loadedImg) {
+    drawFn(ctx, loadedImg);
+  });
+  if (img) {
     drawFn(ctx, img);
+  }
+}
+
+function getCachedImage(src, onReady) {
+  var cached = imageCache[src];
+  if (cached && cached.loaded && cached.img) {
+    return cached.img;
+  }
+
+  if (cached && !cached.loaded) {
+    if (onReady) cached.listeners.push(onReady);
+    return null;
+  }
+
+  var img = new Image();
+  imageCache[src] = {
+    img: img,
+    loaded: false,
+    listeners: onReady ? [onReady] : []
   };
-  img.onerror = function () {};
+
+  img.onload = function () {
+    var entry = imageCache[src];
+    if (!entry) return;
+    entry.loaded = true;
+    for (var i = 0; i < entry.listeners.length; i++) {
+      entry.listeners[i](img);
+    }
+    entry.listeners = [];
+    if (typeof window !== "undefined" && window.dispatchEvent && typeof CustomEvent === "function") {
+      window.dispatchEvent(new CustomEvent("carousel:asset-ready", { detail: { src: src } }));
+    }
+  };
+
+  img.onerror = function () {
+    var entry = imageCache[src];
+    if (!entry) return;
+    entry.listeners = [];
+  };
+
   img.src = src;
+  return null;
 }
 
 function fillRoundRect(ctx, x, y, w, h, r, fill) {
@@ -271,14 +313,27 @@ function drawCoverFooter(ctx, panelX, panelY, panelW, panelH) {
   );
 }
 
-function drawCoverLogo(ctx) {
+function drawCoverLogo(ctx, project) {
+  var position = (project && project.settings && project.settings.coverLogoPosition) || "center";
   var badgeW = MMTheme.variant.coverLogoBadgeW;
   var badgeH = MMTheme.variant.coverLogoBadgeH;
   var badgeX = (W - badgeW) / 2;
   var badgeY = MMTheme.variant.coverLogoY;
+
+  if (position === "right") {
+    badgeW = Math.max(286, badgeW - 74);
+    badgeH = Math.max(102, badgeH - 10);
+    badgeX = W - badgeW - 44;
+    badgeY = 52;
+  } else if (position === "image-footer") {
+    badgeW = Math.max(320, badgeW - 22);
+    badgeX = (W - badgeW) / 2;
+    badgeY = 610;
+  }
+
   fillRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, MMTheme.colors.logoBadge);
   strokeRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, "rgba(166,206,57,0.24)", 2);
-  drawLogoLockup(ctx, W / 2, badgeY + 18, MMTheme.variant.coverLogoWidth, true);
+  drawLogoLockup(ctx, badgeX + badgeW / 2, badgeY + 18, position === "right" ? MMTheme.variant.coverLogoWidth - 36 : MMTheme.variant.coverLogoWidth, true);
 }
 
 function fitCoverTitleFont(ctx, text, maxW, maxLines) {
@@ -325,7 +380,7 @@ function renderCover(ctx, slide, project) {
   if (MMTheme.variant.categoryOnCover) {
     drawCategoryBadge(ctx, cat || "Media Mendoza", 52, 52);
   }
-  drawCoverLogo(ctx);
+  drawCoverLogo(ctx, project);
 
   var panelY = MMTheme.variant.coverPanelY;
   var panelH = H - panelY - 28;

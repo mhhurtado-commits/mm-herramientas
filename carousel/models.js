@@ -13,7 +13,8 @@ export function createCarouselProject() {
     settings: {
       format: "instagram",
       width: 1080,
-      height: 1350
+      height: 1350,
+      coverLogoPosition: "center"
     }
   };
 }

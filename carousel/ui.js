@@ -8,6 +8,9 @@ const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 var activeSlideIndex = 0;
 
 export function initUI() {
+  window.removeEventListener("carousel:asset-ready", handleAssetReady);
+  window.addEventListener("carousel:asset-ready", handleAssetReady);
+
   var loadBtn = document.getElementById("loadBtn");
   if (loadBtn) {
     loadBtn.addEventListener("click", async function () {
@@ -108,6 +111,10 @@ function renderInPreview() {
   }
 
   var activeItem = renderedSlides[activeSlideIndex];
+  if (activeItem && activeItem.slide && activeItem.slide.template === "cover") {
+    stage.appendChild(createCoverLogoControls(project));
+  }
+
   var activeCanvas = renderSlideToCanvas(activeItem.slide, project);
   if (activeCanvas) {
     activeCanvas.className = "carousel-canvas carousel-canvas--stage";
@@ -122,6 +129,12 @@ function renderInPreview() {
   editor.appendChild(sidebar);
   editor.appendChild(stage);
   carouselPreview.appendChild(editor);
+}
+
+function handleAssetReady() {
+  var project = getProject();
+  if (!project) return;
+  renderInPreview();
 }
 
 function createSlideSelectHandler(index) {
@@ -165,4 +178,41 @@ function getSlideLabel(item, index) {
   if (title) return title;
   if (slide.type) return slide.type;
   return "Slide " + (index + 1);
+}
+
+function createCoverLogoControls(project) {
+  var wrap = document.createElement("div");
+  wrap.className = "carousel-cover-controls";
+
+  var label = document.createElement("span");
+  label.className = "carousel-cover-controls-label";
+  label.textContent = "Logo portada";
+  wrap.appendChild(label);
+
+  var current = (project.settings && project.settings.coverLogoPosition) || "center";
+  var options = [
+    { value: "right", label: "Arriba derecha" },
+    { value: "center", label: "Centrado" },
+    { value: "image-footer", label: "Pie de foto" }
+  ];
+
+  for (var i = 0; i < options.length; i++) {
+    wrap.appendChild(createCoverLogoButton(project, options[i], current === options[i].value));
+  }
+
+  return wrap;
+}
+
+function createCoverLogoButton(project, option, isActive) {
+  var button = document.createElement("button");
+  button.type = "button";
+  button.className = "carousel-cover-chip" + (isActive ? " is-active" : "");
+  button.textContent = option.label;
+  button.addEventListener("click", function () {
+    if (!project.settings) project.settings = {};
+    project.settings.coverLogoPosition = option.value;
+    setProject(project);
+    renderInPreview();
+  });
+  return button;
 }

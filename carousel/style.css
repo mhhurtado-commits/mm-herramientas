@@ -213,6 +213,47 @@
   min-height: 100%;
 }
 
+.carousel-cover-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.carousel-cover-controls-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-right: 4px;
+}
+
+.carousel-cover-chip {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.carousel-cover-chip:hover {
+  border-color: color-mix(in srgb, var(--v) 55%, var(--line2));
+}
+
+.carousel-cover-chip.is-active {
+  border-color: color-mix(in srgb, var(--v) 75%, var(--line2));
+  background: color-mix(in srgb, var(--v-dim) 42%, var(--surface));
+  box-shadow: 0 0 0 1px var(--v-dim);
+}
+
 .carousel-stage-inner {
   position: relative;
   display: flex;
@@ -351,6 +392,10 @@
     order: 1;
   }
 
+  .carousel-cover-controls {
+    justify-content: flex-start;
+  }
+
   .carousel-stage-inner {
     min-height: auto;
     padding: 18px;
@@ -410,6 +455,16 @@
   .carousel-stage-inner::before {
     inset: 12px;
     border-radius: 14px;
+  }
+
+  .carousel-cover-controls-label {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .carousel-cover-chip {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .carousel-canvas {
