@@ -1,6 +1,6 @@
 import { createCanvas } from "./core/canvas.js";
 import { calcZones, getHeaderZone, getFooterZone } from "./core/layout.js";
-import { drawImageCover } from "./core/image.js";
+import { drawImageContain, drawImageCover } from "./core/image.js";
 import { wrapText } from "./core/text.js";
 import { MMTheme, applyThemeVariant } from "./core/theme.js";
 
@@ -143,15 +143,22 @@ function drawPanel(ctx, x, y, w, h, fill, stroke) {
   strokeRoundRect(ctx, x, y, w, h, MMTheme.radius.panel, stroke || MMTheme.colors.lineSoft, 2);
 }
 
-function drawSupportImage(ctx, imgUrl, x, y, w, h) {
+function drawSupportImage(ctx, imgUrl, x, y, w, h, fitMode) {
   if (!imgUrl) return false;
   var img = getCachedImage(imgUrl);
   if (!img) return false;
+  var mode = fitMode || "cover";
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 28);
   ctx.clip();
-  drawImageCover(ctx, img, x, y, w, h);
+  ctx.fillStyle = MMTheme.colors.surface;
+  ctx.fillRect(x, y, w, h);
+  if (mode === "contain") {
+    drawImageContain(ctx, img, x, y, w, h);
+  } else {
+    drawImageCover(ctx, img, x, y, w, h);
+  }
   ctx.restore();
   strokeRoundRect(ctx, x, y, w, h, 28, "rgba(255,255,255,0.85)", 4);
   return true;
@@ -496,7 +503,8 @@ function renderTextSlide(ctx, slide, project) {
         gridX,
         panelY + panelH - 326,
         panelW - 140,
-        210
+        210,
+        "contain"
       );
     } else {
       hasSupportImage = drawSupportImage(
@@ -505,7 +513,8 @@ function renderTextSlide(ctx, slide, project) {
         panelX + panelW - 318,
         panelY + 54,
         220,
-        220
+        220,
+        "cover"
       );
       if (hasSupportImage) {
         maxW -= 250;
@@ -583,7 +592,7 @@ function renderStatsSlide(ctx, slide, project) {
   var supportImage = slide.content && slide.content.supportImage;
   var titleTop = panelY + 40;
 
-  if (supportImage && drawSupportImage(ctx, supportImage, panelX + panelW - 272, panelY + 34, 192, 192)) {
+  if (supportImage && drawSupportImage(ctx, supportImage, panelX + panelW - 272, panelY + 34, 192, 192, "cover")) {
     maxW -= 228;
     cardW = maxW;
     titleTop = panelY + 46;
