@@ -18,7 +18,7 @@ function drawGreenBackground(ctx) {
 }
 
 function drawGradientOverlay(ctx, zone) {
-  var grad = ctx.createLinearGradient(0, zone.y + zone.h * 0.5, 0, zone.y + zone.h);
+  var grad = ctx.createLinearGradient(0, zone.y + zone.h * 0.46, 0, zone.y + zone.h);
   grad.addColorStop(0, MMTheme.colors.transparent);
   grad.addColorStop(1, MMTheme.colors.overlay75);
   ctx.fillStyle = grad;
@@ -59,21 +59,69 @@ function drawLogo(ctx, src, drawFn) {
   img.src = src;
 }
 
-// ──────── COVER ────────
+function fillRoundRect(ctx, x, y, w, h, r, fill) {
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.fill();
+}
+
+function strokeRoundRect(ctx, x, y, w, h, r, stroke, lineWidth) {
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = lineWidth || 2;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.stroke();
+}
+
+function drawFrame(ctx, stroke) {
+  var inset = MMTheme.spacing.frame;
+  strokeRoundRect(ctx, inset, inset, W - inset * 2, H - inset * 2, 42, stroke || MMTheme.colors.lineSoft, 2);
+}
+
+function drawAccentBar(ctx) {
+  var inset = MMTheme.spacing.frame + 34;
+  var w = W - inset * 2;
+  var y = MMTheme.spacing.frame + 24;
+  var h = MMTheme.spacing.accentBarH;
+  var grad = ctx.createLinearGradient(inset, y, inset + w, y);
+  grad.addColorStop(0, MMTheme.colors.accent);
+  grad.addColorStop(1, "#d9eb97");
+  fillRoundRect(ctx, inset, y, w, h, h / 2, grad);
+}
+
+function drawPanel(ctx, x, y, w, h, fill, stroke) {
+  fillRoundRect(ctx, x, y, w, h, MMTheme.radius.panel, fill || MMTheme.colors.panel);
+  strokeRoundRect(ctx, x, y, w, h, MMTheme.radius.panel, stroke || MMTheme.colors.lineSoft, 2);
+}
+
+function drawLogoBadge(ctx, x, y, w, h, centered) {
+  fillRoundRect(ctx, x, y, w, h, h / 2, MMTheme.colors.logoBadge);
+  strokeRoundRect(ctx, x, y, w, h, h / 2, "rgba(166,206,57,0.22)", 2);
+
+  drawLogo(ctx, "/assets/logo.png", function (ctx2, img) {
+    var logoW = centered ? 148 : 116;
+    var logoH = img.height * (logoW / img.width);
+    var dx = x + (w - logoW) / 2;
+    var dy = y + (h - logoH) / 2;
+    ctx2.drawImage(img, dx, dy, logoW, logoH);
+  });
+}
+
+function drawLeftAccent(ctx, x, y, h) {
+  fillRoundRect(ctx, x, y, 18, h, 12, MMTheme.colors.accent);
+}
 
 function drawCategoryBadge(ctx, label, x, y) {
   if (!label) return;
   ctx.font = MMTheme.fonts.category;
   var text = label.toUpperCase();
   var tw = ctx.measureText(text).width;
-  var padX = 20;
-  var padY = 10;
+  var padX = 22;
+  var padY = 13;
   var bw = tw + padX * 2;
   var bh = 24 + padY * 2;
-  ctx.fillStyle = MMTheme.colors.accent;
-  ctx.beginPath();
-  ctx.roundRect(x, y, bw, bh, MMTheme.radius.badge);
-  ctx.fill();
+  fillRoundRect(ctx, x, y, bw, bh, MMTheme.radius.badge, MMTheme.colors.accent);
   ctx.fillStyle = MMTheme.colors.white;
   ctx.textBaseline = "middle";
   ctx.fillText(text, x + padX, y + bh / 2);
@@ -99,151 +147,166 @@ function renderCover(ctx, slide, project) {
   calcZones("cover");
   drawWhiteBackground(ctx);
   loadCoverImage(ctx, slide, project);
+  drawFrame(ctx);
 
-  var header = getHeaderZone();
   var cat = project.article && project.article.category;
-  drawCategoryBadge(ctx, cat, 40, 40);
+  drawCategoryBadge(ctx, cat || "Media Mendoza", 52, 52);
 
   var body = getBodyZone();
+  var panelX = 28;
+  var panelY = body.y - 24;
+  var panelH = H - panelY - 28;
+  drawPanel(ctx, panelX, panelY, W - 56, panelH, MMTheme.colors.surface, "rgba(222,216,205,0.86)");
+
   var pad = MMTheme.spacing.paddingCover;
   var bodyX = pad;
   var maxW = W - pad * 2;
-
   var titleText = slide.content.title || "";
-  var titleY = body.y + 50;
+  var titleY = body.y + 42;
   var titleEnd = drawCoverTitle(ctx, titleText, bodyX, titleY, maxW);
 
   var subText = slide.content.subtitle || "";
-  var subY = titleEnd + 20;
-  drawCoverSubtitle(ctx, subText, bodyX, subY, maxW);
+  var subY = titleEnd + 18;
+  drawCoverSubtitle(ctx, subText, bodyX, subY, maxW - 70);
 
-  drawLogo(ctx, "/assets/logo.png", function (ctx, img) {
-    var maxW = 180;
-    var w = Math.min(img.width, maxW);
-    var h = img.height * (w / img.width);
-    var x = body.x + body.w - w - 40;
-    var y = body.y + body.h - h - 30;
-    ctx.drawImage(img, x, y, w, h);
-  });
+  drawLogoBadge(ctx, W - 252, H - 132, 188, 76, false);
 }
-
-// ──────── TEXT ────────
 
 function renderTextSlide(ctx, slide, project) {
   calcZones("text");
   drawWhiteBackground(ctx);
+  drawFrame(ctx);
+  drawAccentBar(ctx);
 
-  var gridX = 60;
-  var maxW = W - 120;
+  var panelX = 62;
+  var panelY = 124;
+  var panelW = W - 124;
+  var panelH = H - 220;
+  drawPanel(ctx, panelX, panelY, panelW, panelH);
+  drawLeftAccent(ctx, panelX + 20, panelY + 24, 320);
+
+  var gridX = panelX + 70;
+  var maxW = panelW - 120;
   var cat = project.article && project.article.category;
 
-  ctx.fillStyle = MMTheme.colors.accent;
-  ctx.fillRect(0, 0, W, 80);
   if (cat) {
     ctx.font = MMTheme.fonts.category;
-    ctx.fillStyle = MMTheme.colors.white;
-    ctx.textBaseline = "middle";
-    ctx.fillText(cat.toUpperCase(), gridX, 40);
+    ctx.fillStyle = MMTheme.colors.accentDark;
+    ctx.textBaseline = "top";
+    ctx.fillText(cat.toUpperCase(), gridX, panelY + 42);
   }
 
   var title = slide.content.title || "";
-  var titleY = 110;
+  var titleY = panelY + 96;
   if (title) {
-    ctx.font = MMTheme.fonts.title;
+    ctx.font = MMTheme.fonts.titleCompact;
     ctx.fillStyle = MMTheme.colors.textPrimary;
     ctx.textBaseline = "top";
     titleY = wrapText(ctx, title, gridX, titleY, maxW, MMTheme.spacing.lineHTitle);
   }
 
   var text = slide.content.text || "";
-  var textY = titleY + 24;
+  var textY = titleY + 28;
   if (text) {
     ctx.font = MMTheme.fonts.body;
     ctx.fillStyle = MMTheme.colors.textSecondary;
     ctx.textBaseline = "top";
-    wrapText(ctx, text, gridX, textY, maxW, MMTheme.spacing.lineHBody);
+    wrapText(ctx, text, gridX, textY, maxW - 20, MMTheme.spacing.lineHBody);
   }
 
   drawPageNumber(ctx, slide, project);
 }
-
-// ──────── STATS ────────
 
 function renderStatsSlide(ctx, slide, project) {
   calcZones("stats");
   drawWhiteBackground(ctx);
+  drawFrame(ctx);
+  drawAccentBar(ctx);
 
-  var body = getBodyZone();
-  var gridX = 60;
-  var maxW = W - 120;
+  var panelX = 62;
+  var panelY = 124;
+  var panelW = W - 124;
+  var panelH = H - 220;
+  drawPanel(ctx, panelX, panelY, panelW, panelH);
+
+  var gridX = panelX + 54;
+  var maxW = panelW - 108;
   var cardW = maxW;
-  var cardH = 90;
+  var cardH = 138;
   var cardPad = MMTheme.spacing.cardPadding;
   var gap = MMTheme.spacing.cardGap;
 
   var title = slide.content.title || "";
+  var titleEnd = panelY + 36;
   if (title) {
-    ctx.font = MMTheme.fonts.title;
+    ctx.font = MMTheme.fonts.titleCompact;
     ctx.fillStyle = MMTheme.colors.textPrimary;
     ctx.textBaseline = "top";
-    wrapText(ctx, title, gridX, body.y + 40, maxW, MMTheme.spacing.lineHTitle);
+    titleEnd = wrapText(ctx, title, gridX, panelY + 40, maxW, MMTheme.spacing.lineHTitle);
   }
 
   var items = slide.content.items || [];
-  var startY = body.y + 120;
+  var startY = titleEnd + 34;
   for (var i = 0; i < items.length; i++) {
     var cy = startY + i * (cardH + gap);
-    if (cy + cardH > body.y + body.h) break;
+    if (cy + cardH > panelY + panelH - 30) break;
 
-    ctx.fillStyle = MMTheme.colors.grayLight;
-    ctx.beginPath();
-    ctx.roundRect(gridX, cy, cardW, cardH, MMTheme.radius.card);
-    ctx.fill();
+    drawPanel(ctx, gridX, cy, cardW, cardH, MMTheme.colors.surface, MMTheme.colors.lineSoft);
+    fillRoundRect(ctx, gridX + 24, cy + 24, 78, 44, 22, MMTheme.colors.accentSoft);
+
+    ctx.font = MMTheme.fonts.statNumber;
+    ctx.fillStyle = MMTheme.colors.accentDark;
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(i + 1).padStart(2, "0"), gridX + 47, cy + 46);
 
     ctx.font = MMTheme.fonts.list;
     ctx.fillStyle = MMTheme.colors.textSecondary;
-    ctx.textBaseline = "middle";
-    ctx.fillText("•  " + items[i], gridX + cardPad, cy + cardH / 2);
+    ctx.textBaseline = "top";
+    wrapText(ctx, items[i], gridX + 126, cy + 28, cardW - 156, MMTheme.spacing.lineHList);
   }
 
   drawPageNumber(ctx, slide, project);
 }
-
-// ──────── END ────────
 
 function renderEndSlide(ctx, slide, project) {
   calcZones("end");
   drawGreenBackground(ctx);
+  drawFrame(ctx, "rgba(255,255,255,0.34)");
+
+  var panelW = W - 180;
+  var panelH = 560;
+  var panelX = (W - panelW) / 2;
+  var panelY = (H - panelH) / 2;
+  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.whiteOverlay, "rgba(255,255,255,0.22)");
+
+  drawLogoBadge(ctx, (W - 220) / 2, panelY + 54, 220, 88, true);
 
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  drawLogo(ctx, "/assets/logo.png", function (ctx, img) {
-    var maxW = 300;
-    var w = Math.min(img.width, maxW);
-    var h = img.height * (w / img.width);
-    var x = (W - w) / 2;
-    var y = 380;
-    ctx.drawImage(img, x, y, w, h);
-  });
-
-  ctx.font = "28px sans-serif";
-  ctx.fillStyle = MMTheme.colors.white;
-  ctx.fillText("Leé la nota completa en", W / 2, 630);
-
-  ctx.font = "bold 36px sans-serif";
-  ctx.fillText("mediamendoza.com", W / 2, 690);
-
-  ctx.font = "24px sans-serif";
-  ctx.fillText("Noticias confiables del sur mendocino", W / 2, 750);
-
-  ctx.textAlign = "start";
   ctx.textBaseline = "top";
 
+  var kicker = slide.content.kicker || "SEGUIR INFORMADO";
+  ctx.font = MMTheme.fonts.endKicker;
+  ctx.fillStyle = MMTheme.colors.white;
+  ctx.fillText(kicker, W / 2, panelY + 182);
+
+  ctx.font = MMTheme.fonts.endTitle;
+  ctx.fillStyle = MMTheme.colors.white;
+  wrapText(ctx, slide.content.title || "Mas informacion en mediamendoza.com", panelX + 82, panelY + 236, panelW - 164, 64);
+
+  ctx.font = MMTheme.fonts.subtitle;
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  wrapText(
+    ctx,
+    slide.content.text || "Desliza para repasar los datos clave y entrar a la nota completa.",
+    panelX + 104,
+    panelY + 388,
+    panelW - 208,
+    MMTheme.spacing.lineHSubtitle
+  );
+
+  ctx.textAlign = "start";
   drawPageNumber(ctx, slide, project);
 }
-
-// ──────── SHARED ────────
 
 function drawPageNumber(ctx, slide, project) {
   var footer = getFooterZone();
@@ -260,18 +323,18 @@ function drawPageNumber(ctx, slide, project) {
 
 export function renderSlideToCanvas(slide, project) {
   try {
-  var canvas = createCanvas(W, H);
-  var ctx = canvas.getContext("2d");
+    var canvas = createCanvas(W, H);
+    var ctx = canvas.getContext("2d");
 
-  switch (slide.template) {
-    case "cover": renderCover(ctx, slide, project); break;
-    case "text":  renderTextSlide(ctx, slide, project); break;
-    case "stats": renderStatsSlide(ctx, slide, project); break;
-    case "end":   renderEndSlide(ctx, slide, project); break;
-    default:      renderTextSlide(ctx, slide, project);
-  }
+    switch (slide.template) {
+      case "cover": renderCover(ctx, slide, project); break;
+      case "text": renderTextSlide(ctx, slide, project); break;
+      case "stats": renderStatsSlide(ctx, slide, project); break;
+      case "end": renderEndSlide(ctx, slide, project); break;
+      default: renderTextSlide(ctx, slide, project);
+    }
 
-  return canvas;
+    return canvas;
   } catch (e) {
     console.log("EXCEPTION in renderSlideToCanvas:", e);
     return null;
