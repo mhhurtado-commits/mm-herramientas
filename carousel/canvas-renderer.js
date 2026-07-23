@@ -95,16 +95,19 @@ function drawPanel(ctx, x, y, w, h, fill, stroke) {
   strokeRoundRect(ctx, x, y, w, h, MMTheme.radius.panel, stroke || MMTheme.colors.lineSoft, 2);
 }
 
-function drawLogoBadge(ctx, x, y, w, h, centered) {
-  fillRoundRect(ctx, x, y, w, h, h / 2, MMTheme.colors.logoBadge);
-  strokeRoundRect(ctx, x, y, w, h, h / 2, "rgba(166,206,57,0.26)", 2);
-
+function drawLogoLockup(ctx, x, y, w, centered) {
   drawLogo(ctx, "/assets/logo.png", function (ctx2, img) {
-    var logoW = centered ? 176 : 146;
+    var logoW = w || 176;
     var logoH = img.height * (logoW / img.width);
-    var dx = x + (w - logoW) / 2;
-    var dy = y + (h - logoH) / 2;
+    var dx = centered ? x - logoW / 2 : x;
+    var dy = y;
+    ctx2.save();
+    ctx2.shadowColor = "rgba(17,17,17,0.24)";
+    ctx2.shadowBlur = 10;
+    ctx2.shadowOffsetX = 0;
+    ctx2.shadowOffsetY = 2;
     ctx2.drawImage(img, dx, dy, logoW, logoH);
+    ctx2.restore();
   });
 }
 
@@ -210,40 +213,52 @@ function drawSwipeHint(ctx, x, y) {
 function drawBrandFooter(ctx, panelX, panelY, panelW, panelH) {
   var centerX = panelX + panelW / 2;
   var y = panelY + panelH - 88;
-  var badgeW = 240;
-  var badgeH = 72;
-  var badgeX = centerX - badgeW / 2;
+  var logoW = 182;
+  var logoY = y + 8;
 
   ctx.strokeStyle = MMTheme.colors.brandLine;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(panelX + 54, y + badgeH / 2);
-  ctx.lineTo(badgeX - 20, y + badgeH / 2);
+  ctx.moveTo(panelX + 54, y + 36);
+  ctx.lineTo(centerX - logoW / 2 - 22, y + 36);
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(badgeX + badgeW + 20, y + badgeH / 2);
-  ctx.lineTo(panelX + panelW - 54, y + badgeH / 2);
+  ctx.moveTo(centerX + logoW / 2 + 22, y + 36);
+  ctx.lineTo(panelX + panelW - 54, y + 36);
   ctx.stroke();
 
-  fillRoundRect(ctx, badgeX, y, badgeW, badgeH, badgeH / 2, MMTheme.colors.surface);
-  strokeRoundRect(ctx, badgeX, y, badgeW, badgeH, badgeH / 2, "rgba(166,206,57,0.24)", 2);
+  drawLogoLockup(ctx, centerX, logoY, logoW, true);
+}
 
-  drawLogo(ctx, "/assets/logo.png", function (ctx2, img) {
-    var logoW = 168;
-    var logoH = img.height * (logoW / img.width);
-    var dx = centerX - logoW / 2;
-    var dy = y + (badgeH - logoH) / 2;
-    ctx2.drawImage(img, dx, dy, logoW, logoH);
-  });
+function drawCoverFooter(ctx, panelX, panelY, panelW, panelH) {
+  drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
+  drawSwipeHint(ctx, panelX + panelW - 210, panelY + panelH - 110);
+}
+
+function fitCoverTitleFont(ctx, text, maxW, maxLines) {
+  var options = [
+    { font: MMTheme.fonts.coverTitle, lineH: 84 },
+    { font: "700 76px Inter, Arial, sans-serif", lineH: 78 },
+    { font: "700 68px Inter, Arial, sans-serif", lineH: 72 },
+    { font: "700 60px Inter, Arial, sans-serif", lineH: 64 }
+  ];
+
+  for (var i = 0; i < options.length; i++) {
+    ctx.font = options[i].font;
+    if (measureWrappedLines(ctx, text, maxW) <= maxLines) return options[i];
+  }
+
+  return options[options.length - 1];
 }
 
 function drawCoverTitle(ctx, text, x, y, maxW) {
   if (!text) return y;
-  ctx.font = MMTheme.fonts.coverTitle;
+  var fitted = fitCoverTitleFont(ctx, text, maxW, 3);
+  ctx.font = fitted.font;
   ctx.fillStyle = MMTheme.colors.textPrimary;
   ctx.textBaseline = "top";
-  return wrapText(ctx, text, x, y, maxW, MMTheme.spacing.coverLineHTitle);
+  return wrapText(ctx, text, x, y, maxW, fitted.lineH);
 }
 
 function drawCoverSubtitle(ctx, text, x, y, maxW) {
@@ -265,21 +280,22 @@ function renderCover(ctx, slide, project) {
 
   var panelY = 736;
   var panelH = H - panelY - 28;
-  drawPanel(ctx, 28, panelY, W - 56, panelH, MMTheme.colors.surface, "rgba(222,216,205,0.86)");
+  var panelX = 28;
+  var panelW = W - 56;
+  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.surface, "rgba(222,216,205,0.86)");
 
   var pad = MMTheme.spacing.paddingCover;
   var bodyX = pad;
   var maxW = W - pad * 2;
-  var titleText = slide.content.title || (project.article && project.article.title) || "";
-  var titleY = 778;
+  var titleText = (project.article && project.article.title) || slide.content.title || "";
+  var titleY = 770;
   var titleEnd = drawCoverTitle(ctx, titleText, bodyX, titleY, maxW);
 
-  var subText = slide.content.subtitle || "";
-  var subY = titleEnd + 18;
+  var subText = slide.content.subtitle || slide.content.text || "";
+  var subY = titleEnd + 16;
   drawCoverSubtitle(ctx, subText, bodyX, subY, maxW - 70);
 
-  drawSwipeHint(ctx, 64, H - 126);
-  drawLogoBadge(ctx, W - 252, H - 132, 188, 76, false);
+  drawCoverFooter(ctx, panelX, panelY, panelW, panelH);
 }
 
 function renderTextSlide(ctx, slide, project) {
@@ -323,7 +339,7 @@ function renderTextSlide(ctx, slide, project) {
     ctx.font = MMTheme.fonts.bodyLarge;
     ctx.fillStyle = MMTheme.colors.textSecondary;
     ctx.textBaseline = "top";
-    wrapText(ctx, text, gridX, textY + 34, maxW - 10, 50);
+    wrapText(ctx, text, gridX, textY + 34, maxW - 10, 52);
   }
 
   drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
@@ -377,7 +393,7 @@ function renderStatsSlide(ctx, slide, project) {
     ctx.font = MMTheme.fonts.list;
     ctx.fillStyle = MMTheme.colors.textSecondary;
     ctx.textBaseline = "top";
-    wrapText(ctx, items[i], gridX + 126, cy + 30, cardW - 156, MMTheme.spacing.lineHList);
+    wrapText(ctx, items[i], gridX + 126, cy + 30, cardW - 156, 40);
   }
 
   drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
@@ -401,7 +417,7 @@ function renderEndSlide(ctx, slide, project) {
   var titleW = panelW - 160;
   drawPanel(ctx, panelX, panelY, panelW, panelH, "rgba(255,255,255,0.10)", "rgba(255,255,255,0.24)");
 
-  drawLogoBadge(ctx, (W - 280) / 2, panelY + 48, 280, 96, true);
+  drawLogoLockup(ctx, W / 2, panelY + 58, 220, true);
 
   ctx.font = MMTheme.fonts.endKicker;
   ctx.fillStyle = MMTheme.colors.white;
