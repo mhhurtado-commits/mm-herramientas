@@ -5,7 +5,7 @@ const ALLOWED_NEWS_TYPES = ["breaking", "service", "institutional", "analysis", 
 const ALLOWED_COMPLEXITIES = ["brief", "medium", "deep"];
 const ALLOWED_TONES = ["informative", "explainer", "chronological", "impact", "utility"];
 const ALLOWED_CAROUSEL_TYPES = ["summary", "explainer", "timeline", "data_points", "service"];
-const ALLOWED_TEMPLATES = ["mm_classic"];
+const ALLOWED_TEMPLATES = ["mm_classic", "mm_briefing", "mm_impact"];
 
 const CAROUSEL_STRUCTURES = {
   summary: ["context", "facts", "impact", "cta"],
@@ -60,7 +60,7 @@ function normalizeDiagnosis(diagnosis, article, errors) {
   const complexity = pickAllowed(source.complexity, ALLOWED_COMPLEXITIES, inferComplexity(article));
   const tone = pickAllowed(source.tone, ALLOWED_TONES, inferTone(newsType));
   const carouselType = pickAllowed(source.carousel_type, ALLOWED_CAROUSEL_TYPES, inferCarouselType(newsType, complexity));
-  const template = pickAllowed(source.template, ALLOWED_TEMPLATES, "mm_classic");
+  const template = pickAllowed(source.template, ALLOWED_TEMPLATES, inferTemplate(newsType, carouselType, tone));
   const slideCount = getSlideCountForCarouselType(carouselType);
   const reason = cleanText(source.reason) || buildDiagnosisReason(newsType, carouselType, article);
 
@@ -300,6 +300,22 @@ function inferCarouselType(newsType, complexity) {
   if (newsType === "analysis") return "explainer";
   if (complexity === "deep") return "timeline";
   return "summary";
+}
+
+function inferTemplate(newsType, carouselType, tone) {
+  if (newsType === "service" || carouselType === "service" || carouselType === "data_points") {
+    return "mm_briefing";
+  }
+
+  if (newsType === "breaking" || tone === "impact") {
+    return "mm_impact";
+  }
+
+  if (newsType === "analysis" || carouselType === "explainer" || carouselType === "timeline") {
+    return "mm_briefing";
+  }
+
+  return "mm_classic";
 }
 
 function getExpectedSlideTypes(carouselType) {

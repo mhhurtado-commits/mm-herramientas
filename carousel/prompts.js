@@ -28,7 +28,7 @@ export function buildCarouselPrompt(article) {
     '- complexity permitido: "brief", "medium", "deep".\n' +
     '- tone permitido: "informative", "explainer", "chronological", "impact", "utility".\n' +
     '- carousel_type permitido: "summary", "explainer", "timeline", "data_points", "service".\n' +
-    '- template permitido: "mm_classic".\n' +
+    '- template permitido: "mm_classic", "mm_briefing", "mm_impact".\n' +
     "- Estructuras permitidas segun carousel_type:\n" +
     '  - summary: cover + context + facts + impact + cta\n' +
     '  - explainer: cover + context + impact + facts + impact + cta\n' +
@@ -53,7 +53,7 @@ export function buildCarouselPrompt(article) {
     '    "complexity":"medium",\n' +
     '    "tone":"informative",\n' +
     '    "carousel_type":"summary",\n' +
-    '    "template":"mm_classic",\n' +
+    '    "template":"mm_briefing",\n' +
     '    "slide_count":5,\n' +
     '    "reason":""\n' +
     "  },\n" +

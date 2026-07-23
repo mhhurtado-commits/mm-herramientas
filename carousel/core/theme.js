@@ -1,4 +1,5 @@
-export var MMTheme = {
+var BASE_THEME = {
+  name: "mm_classic",
   colors: {
     background: "#fcfaf6",
     panel: "#f4f1ea",
@@ -22,7 +23,14 @@ export var MMTheme = {
     white: "#ffffff",
     logoBadge: "rgba(255,255,255,0.94)",
     whiteOverlay: "rgba(255,255,255,0.16)",
-    brandLine: "rgba(166,206,57,0.38)"
+    brandLine: "rgba(166,206,57,0.38)",
+    accentBarEnd: "#d9eb97",
+    coverPanelStroke: "rgba(222,216,205,0.86)",
+    endBackground: "#eef5d6",
+    endFrame: "rgba(166,206,57,0.36)",
+    endPanelStroke: "rgba(166,206,57,0.28)",
+    endCtaFill: "#1b1e22",
+    endCtaText: "#ffffff"
   },
   fonts: {
     title: "700 52px Inter, Arial, sans-serif",
@@ -68,5 +76,154 @@ export var MMTheme = {
     badge: 999,
     card: 24,
     panel: 38
+  },
+  variant: {
+    coverLogoWidth: 264,
+    coverLogoBadgeW: 364,
+    coverLogoBadgeH: 116,
+    coverLogoY: 96,
+    coverTitleY: 824,
+    footerLogoWidth: 182,
+    footerInset: 54,
+    footerY: 88,
+    footerLineGap: 22,
+    coverSwipeWidth: 170,
+    coverSwipeHeight: 46,
+    categoryOnCover: true,
+    categoryInText: true,
+    statsCardFill: "#ffffff"
   }
 };
+
+var THEME_VARIANTS = {
+  mm_classic: {},
+  mm_briefing: {
+    colors: {
+      background: "#f7f8f4",
+      panel: "#f2f4ee",
+      surface: "#ffffff",
+      surfaceSoft: "#f6f8f2",
+      textSecondary: "#2f3a33",
+      textMuted: "#627067",
+      lineSoft: "#d7dfcf",
+      accentSoft: "#eef5d9",
+      brandLine: "rgba(166,206,57,0.48)",
+      accentBarEnd: "#eef6c7",
+      coverPanelStroke: "rgba(166,206,57,0.22)",
+      endBackground: "#f3f7e8",
+      endFrame: "rgba(166,206,57,0.30)",
+      endPanelStroke: "rgba(166,206,57,0.24)",
+      endCtaFill: "#ffffff",
+      endCtaText: "#1b1e22"
+    },
+    fonts: {
+      titleCompact: "700 64px Inter, Arial, sans-serif",
+      bodyXL: "400 50px Inter, Arial, sans-serif",
+      list: "34px Inter, Arial, sans-serif",
+      endTitle: "700 60px Inter, Arial, sans-serif"
+    },
+    spacing: {
+      lineHTitle: 60,
+      lineHBody: 48,
+      lineHList: 40
+    },
+    variant: {
+      coverLogoWidth: 286,
+      coverLogoBadgeW: 388,
+      footerLogoWidth: 206,
+      footerInset: 88,
+      footerLineGap: 30,
+      categoryOnCover: false,
+      categoryInText: false,
+      statsCardFill: "#fdfefe"
+    }
+  },
+  mm_impact: {
+    colors: {
+      background: "#f6f4ef",
+      panel: "#efe9de",
+      surface: "#fffdf9",
+      surfaceSoft: "#f6f0e6",
+      textPrimary: "#0f1211",
+      textSecondary: "#2f302d",
+      textMuted: "#5d625d",
+      lineSoft: "#d8cebc",
+      accent: "#9fcf22",
+      accentDark: "#6d9710",
+      accentSoft: "#edf6ce",
+      brandLine: "rgba(159,207,34,0.52)",
+      accentBarEnd: "#f0f7b7",
+      logoBadge: "rgba(255,255,255,0.90)",
+      coverPanelStroke: "rgba(207,198,180,0.90)",
+      endBackground: "#e5efbf",
+      endFrame: "rgba(109,151,16,0.38)",
+      endPanelStroke: "rgba(109,151,16,0.24)",
+      endCtaFill: "#17191c",
+      endCtaText: "#ffffff"
+    },
+    fonts: {
+      titleCompact: "700 68px Inter, Arial, sans-serif",
+      coverTitle: "700 90px Inter, Arial, sans-serif",
+      bodyXL: "400 52px Inter, Arial, sans-serif",
+      list: "35px Inter, Arial, sans-serif",
+      giantNumber: "700 196px Inter, Arial, sans-serif",
+      endTitle: "700 62px Inter, Arial, sans-serif"
+    },
+    spacing: {
+      lineHTitle: 62,
+      lineHBody: 50,
+      lineHList: 42
+    },
+    variant: {
+      coverLogoWidth: 304,
+      coverLogoBadgeW: 408,
+      coverLogoBadgeH: 122,
+      coverLogoY: 88,
+      coverTitleY: 850,
+      footerLogoWidth: 214,
+      footerInset: 82,
+      footerLineGap: 28,
+      coverSwipeWidth: 182,
+      coverSwipeHeight: 50,
+      categoryOnCover: true,
+      categoryInText: false,
+      statsCardFill: "#ffffff"
+    }
+  }
+};
+
+export var MMTheme = cloneTheme(BASE_THEME);
+
+export function applyThemeVariant(themeName) {
+  var nextTheme = mergeTheme(BASE_THEME, THEME_VARIANTS[themeName] || {});
+  Object.assign(MMTheme, nextTheme);
+  return MMTheme;
+}
+
+export function getAvailableCarouselTemplates() {
+  return Object.keys(THEME_VARIANTS);
+}
+
+function cloneTheme(theme) {
+  return JSON.parse(JSON.stringify(theme));
+}
+
+function mergeTheme(base, override) {
+  var merged = cloneTheme(base);
+  if (!override) return merged;
+
+  if (override.colors) Object.assign(merged.colors, override.colors);
+  if (override.fonts) Object.assign(merged.fonts, override.fonts);
+  if (override.spacing) Object.assign(merged.spacing, override.spacing);
+  if (override.radius) Object.assign(merged.radius, override.radius);
+  if (override.variant) Object.assign(merged.variant, override.variant);
+
+  for (var key in override) {
+    if (key !== "colors" && key !== "fonts" && key !== "spacing" && key !== "radius" && key !== "variant") {
+      merged[key] = override[key];
+    }
+  }
+
+  merged.name = override.name || base.name;
+  return merged;
+}

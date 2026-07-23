@@ -2,7 +2,7 @@ import { createCanvas } from "./core/canvas.js";
 import { calcZones, getHeaderZone, getFooterZone } from "./core/layout.js";
 import { drawImageCover } from "./core/image.js";
 import { wrapText } from "./core/text.js";
-import { MMTheme } from "./core/theme.js";
+import { MMTheme, applyThemeVariant } from "./core/theme.js";
 
 var W = 1080;
 var H = 1350;
@@ -88,7 +88,7 @@ function drawAccentBar(ctx) {
   var h = MMTheme.spacing.accentBarH;
   var grad = ctx.createLinearGradient(inset, y, inset + w, y);
   grad.addColorStop(0, MMTheme.colors.accent);
-  grad.addColorStop(1, "#d9eb97");
+  grad.addColorStop(1, MMTheme.colors.accentBarEnd);
   fillRoundRect(ctx, inset, y, w, h, h / 2, grad);
 }
 
@@ -199,8 +199,8 @@ function drawCategoryBadge(ctx, label, x, y) {
 }
 
 function drawSwipeHint(ctx, x, y) {
-  var w = 170;
-  var h = 46;
+  var w = MMTheme.variant.coverSwipeWidth;
+  var h = MMTheme.variant.coverSwipeHeight;
   fillRoundRect(ctx, x, y, w, h, 23, "rgba(255,255,255,0.92)");
   strokeRoundRect(ctx, x, y, w, h, 23, "rgba(17,17,17,0.10)", 2);
   ctx.font = MMTheme.fonts.kicker;
@@ -214,20 +214,22 @@ function drawSwipeHint(ctx, x, y) {
 
 function drawBrandFooter(ctx, panelX, panelY, panelW, panelH) {
   var centerX = panelX + panelW / 2;
-  var y = panelY + panelH - 88;
-  var logoW = 182;
+  var y = panelY + panelH - MMTheme.variant.footerY;
+  var logoW = MMTheme.variant.footerLogoWidth;
   var logoY = y + 8;
+  var inset = MMTheme.variant.footerInset;
+  var gap = MMTheme.variant.footerLineGap;
 
   ctx.strokeStyle = MMTheme.colors.brandLine;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(panelX + 54, y + 36);
-  ctx.lineTo(centerX - logoW / 2 - 22, y + 36);
+  ctx.moveTo(panelX + inset, y + 36);
+  ctx.lineTo(centerX - logoW / 2 - gap, y + 36);
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(centerX + logoW / 2 + 22, y + 36);
-  ctx.lineTo(panelX + panelW - 54, y + 36);
+  ctx.moveTo(centerX + logoW / 2 + gap, y + 36);
+  ctx.lineTo(panelX + panelW - inset, y + 36);
   ctx.stroke();
 
   drawLogoLockup(ctx, centerX, logoY, logoW, true);
@@ -241,17 +243,21 @@ function drawCoverFooter(ctx, panelX, panelY, panelW, panelH) {
   ctx.moveTo(panelX + 54, lineY);
   ctx.lineTo(panelX + panelW - 250, lineY);
   ctx.stroke();
-  drawSwipeHint(ctx, panelX + panelW - 210, panelY + panelH - 110);
+  drawSwipeHint(
+    ctx,
+    panelX + panelW - (MMTheme.variant.coverSwipeWidth + 40),
+    panelY + panelH - (MMTheme.variant.coverSwipeHeight + 64)
+  );
 }
 
 function drawCoverLogo(ctx) {
-  var badgeW = 364;
-  var badgeH = 116;
+  var badgeW = MMTheme.variant.coverLogoBadgeW;
+  var badgeH = MMTheme.variant.coverLogoBadgeH;
   var badgeX = (W - badgeW) / 2;
-  var badgeY = 96;
-  fillRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, "rgba(255,255,255,0.94)");
+  var badgeY = MMTheme.variant.coverLogoY;
+  fillRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, MMTheme.colors.logoBadge);
   strokeRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, "rgba(166,206,57,0.24)", 2);
-  drawLogoLockup(ctx, W / 2, badgeY + 18, 264, true);
+  drawLogoLockup(ctx, W / 2, badgeY + 18, MMTheme.variant.coverLogoWidth, true);
 }
 
 function fitCoverTitleFont(ctx, text, maxW, maxLines) {
@@ -295,20 +301,22 @@ function renderCover(ctx, slide, project) {
   drawFrame(ctx);
 
   var cat = project.article && project.article.category;
-  drawCategoryBadge(ctx, cat || "Media Mendoza", 52, 52);
+  if (MMTheme.variant.categoryOnCover) {
+    drawCategoryBadge(ctx, cat || "Media Mendoza", 52, 52);
+  }
   drawCoverLogo(ctx);
 
   var panelY = 760;
   var panelH = H - panelY - 28;
   var panelX = 28;
   var panelW = W - 56;
-  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.surface, "rgba(222,216,205,0.86)");
+  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.surface, MMTheme.colors.coverPanelStroke);
 
   var pad = MMTheme.spacing.paddingCover;
   var bodyX = pad;
   var maxW = W - pad * 2;
   var titleText = (project.article && project.article.title) || slide.content.title || "";
-  var titleY = 824;
+  var titleY = MMTheme.variant.coverTitleY;
   var titleEnd = drawCoverTitle(ctx, titleText, bodyX, titleY, maxW);
 
   var subText = slide.content.subtitle || slide.content.text || "";
@@ -336,7 +344,7 @@ function renderTextSlide(ctx, slide, project) {
   var maxW = panelW - 150;
   var cat = project.article && project.article.category;
 
-  if (cat) {
+  if (cat && MMTheme.variant.categoryInText) {
     ctx.font = MMTheme.fonts.category;
     ctx.fillStyle = MMTheme.colors.accentDark;
     ctx.textBaseline = "top";
@@ -401,7 +409,7 @@ function renderStatsSlide(ctx, slide, project) {
     var cy = startY + i * (cardH + gap);
     if (cy + cardH > panelY + panelH - 30) break;
 
-    drawPanel(ctx, gridX, cy, cardW, cardH, MMTheme.colors.surface, MMTheme.colors.lineSoft);
+    drawPanel(ctx, gridX, cy, cardW, cardH, MMTheme.variant.statsCardFill, MMTheme.colors.lineSoft);
     fillRoundRect(ctx, gridX + 24, cy + 24, 78, 44, 22, MMTheme.colors.accentSoft);
     fillRoundRect(ctx, gridX + 24, cy + 82, 10, cardH - 106, 6, MMTheme.colors.accent);
 
@@ -422,9 +430,9 @@ function renderStatsSlide(ctx, slide, project) {
 
 function renderEndSlide(ctx, slide, project) {
   calcZones("end");
-  ctx.fillStyle = "#eef5d6";
+  ctx.fillStyle = MMTheme.colors.endBackground;
   ctx.fillRect(0, 0, W, H);
-  drawFrame(ctx, "rgba(166,206,57,0.36)");
+  drawFrame(ctx, MMTheme.colors.endFrame);
 
   var panelW = W - 180;
   var panelH = 760;
@@ -432,7 +440,7 @@ function renderEndSlide(ctx, slide, project) {
   var panelY = (H - panelH) / 2;
   var titleX = panelX + 94;
   var titleW = panelW - 188;
-  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.surface, "rgba(166,206,57,0.28)");
+  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.surface, MMTheme.colors.endPanelStroke);
 
   fillRoundRect(ctx, panelX, panelY, panelW, 22, 22, MMTheme.colors.accent);
   drawLogoLockup(ctx, W / 2, panelY + 54, 248, true);
@@ -465,10 +473,10 @@ function renderEndSlide(ctx, slide, project) {
   var ctaW = titleW - 40;
   var ctaX = panelX + (panelW - ctaW) / 2;
   var ctaY = panelY + panelH - 162;
-  fillRoundRect(ctx, ctaX, ctaY, ctaW, 108, 30, MMTheme.colors.surfaceInk);
+  fillRoundRect(ctx, ctaX, ctaY, ctaW, 108, 30, MMTheme.colors.endCtaFill);
   strokeRoundRect(ctx, ctaX, ctaY, ctaW, 108, 30, "rgba(0,0,0,0.08)", 2);
   ctx.font = MMTheme.fonts.endUrl;
-  ctx.fillStyle = MMTheme.colors.white;
+  ctx.fillStyle = MMTheme.colors.endCtaText;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("mediamendoza.com", ctaX + ctaW / 2, ctaY + 54);
@@ -493,6 +501,7 @@ function drawPageNumber(ctx, slide, project) {
 
 export function renderSlideToCanvas(slide, project) {
   try {
+    applyThemeVariant((slide.style && slide.style.theme) || "mm_classic");
     var canvas = createCanvas(W, H);
     var ctx = canvas.getContext("2d");
 
