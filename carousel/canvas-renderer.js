@@ -232,6 +232,25 @@ function measureWrappedLines(ctx, text, maxW) {
   return lines;
 }
 
+function normalizeLabelText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function shouldShowEyebrowLabel(label, title) {
+  var cleanLabel = normalizeLabelText(label);
+  var cleanTitle = normalizeLabelText(title);
+  if (!cleanLabel || !cleanTitle) return !!cleanLabel;
+  if (cleanLabel === cleanTitle) return false;
+  if (cleanTitle.indexOf(cleanLabel) >= 0 || cleanLabel.indexOf(cleanTitle) >= 0) return false;
+  return true;
+}
+
 function fitEndTitleFont(ctx, text, maxW, maxLines) {
   var options = [
     { font: MMTheme.fonts.endTitle, lineH: 58 },
@@ -456,28 +475,50 @@ function renderTextSlide(ctx, slide, project) {
   var maxW = panelW - 150 - MMTheme.variant.textWidthOffset;
   var supportImage = slide.content && slide.content.supportImage;
   var hasSupportImage = false;
-  var imageBox = null;
+  var title = slide.content.title || "";
+  var text = slide.content.text || "";
+  var eyebrowLabel = slide.content.eyebrow || slide.content.kicker || slide.content.label || "";
+  var titleLines = 0;
+  var bodyLines = 0;
+  var bottomImageLayout = false;
 
   if (supportImage) {
-    imageBox = {
-      x: panelX + panelW - 318,
-      y: panelY + 54,
-      w: 220,
-      h: 220
-    };
-    hasSupportImage = drawSupportImage(ctx, supportImage, imageBox.x, imageBox.y, imageBox.w, imageBox.h);
-    if (hasSupportImage) {
-      maxW -= 250;
+    ctx.font = MMTheme.fonts.titleCompact;
+    titleLines = measureWrappedLines(ctx, title, panelW - 150);
+    ctx.font = MMTheme.fonts.bodyXL;
+    bodyLines = measureWrappedLines(ctx, text, panelW - 160);
+    bottomImageLayout = titleLines <= 2 && bodyLines <= 8;
+
+    if (bottomImageLayout) {
+      hasSupportImage = drawSupportImage(
+        ctx,
+        supportImage,
+        gridX,
+        panelY + panelH - 286,
+        panelW - 140,
+        170
+      );
+    } else {
+      hasSupportImage = drawSupportImage(
+        ctx,
+        supportImage,
+        panelX + panelW - 318,
+        panelY + 54,
+        220,
+        220
+      );
+      if (hasSupportImage) {
+        maxW -= 250;
+      }
     }
   }
 
-  if (MMTheme.variant.showEyebrow) {
-    drawEyebrow(ctx, gridX, panelY + 42, slide.content.title || "Claves");
+  if (MMTheme.variant.showEyebrow && shouldShowEyebrowLabel(eyebrowLabel, title)) {
+    drawEyebrow(ctx, gridX, panelY + 42, eyebrowLabel);
   }
 
-  var title = slide.content.title || "";
   var titleY = panelY + 96;
-  if (hasSupportImage) {
+  if (hasSupportImage && !bottomImageLayout) {
     titleY = panelY + 72;
   }
   if (title) {
@@ -487,7 +528,6 @@ function renderTextSlide(ctx, slide, project) {
     titleY = wrapText(ctx, title, gridX, titleY, maxW, MMTheme.spacing.lineHTitle);
   }
 
-  var text = slide.content.text || "";
   var textY = titleY + 36;
   if (text) {
     if (MMTheme.variant.showQuoteMark) {
@@ -496,7 +536,14 @@ function renderTextSlide(ctx, slide, project) {
     ctx.font = MMTheme.fonts.bodyXL;
     ctx.fillStyle = MMTheme.colors.textSecondary;
     ctx.textBaseline = "top";
-    wrapText(ctx, text, gridX, textY + MMTheme.variant.bodyOffsetY, maxW - 10, MMTheme.spacing.lineHBody + 6);
+    wrapText(
+      ctx,
+      text,
+      gridX,
+      textY + MMTheme.variant.bodyOffsetY,
+      maxW - 10,
+      bottomImageLayout ? MMTheme.spacing.lineHBody + 4 : MMTheme.spacing.lineHBody + 6
+    );
   }
 
   if (MMTheme.name === "mm_briefing") {
