@@ -8,21 +8,35 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="app">
-  <h2>Carrusel para Instagram</h2>
-  <div id="inputArea" class="carousel-toolbar">
-    <input type="url" id="urlInput" class="carousel-url-input" placeholder="https://mediamendoza.com/..." />
-    <div class="carousel-actions">
-      <button id="loadBtn">Cargar noticia</button>
-      <button id="demoBtn">Cargar Demo</button>
+<div id="app" class="carousel-app">
+  <div class="carousel-shell mm-animate">
+    <div class="carousel-hero">
+      <div class="carousel-kicker">Media Mendoza Suite</div>
+      <h1 class="carousel-title">Carrusel para Instagram</h1>
+      <p class="carousel-subtitle">Convertí una nota en un carrusel editorial listo para revisar slide por slide.</p>
     </div>
-  </div>
-  <div id="previewPanel" class="carousel-panel">
-    <div class="carousel-panel-header">
-      <strong>Editor</strong>
-      <div id="previewContent" class="carousel-status"></div>
+
+    <div id="inputArea" class="carousel-toolbar">
+      <div class="mm-field carousel-url-field">
+        <label class="mm-label" for="urlInput">URL de la nota</label>
+        <input type="url" id="urlInput" class="mm-input carousel-url-input" placeholder="https://mediamendoza.com/..." />
+      </div>
+      <div class="carousel-actions">
+        <button id="loadBtn" class="mm-btn mm-btn-primary">Cargar noticia</button>
+        <button id="demoBtn" class="mm-btn">Cargar Demo</button>
+      </div>
     </div>
-    <div id="carousel-preview"></div>
+
+    <div id="previewPanel" class="carousel-panel">
+      <div class="carousel-panel-header">
+        <div>
+          <div class="carousel-section-label">Editor</div>
+          <strong class="carousel-panel-title">Vista de trabajo</strong>
+        </div>
+        <div id="previewContent" class="carousel-status"></div>
+      </div>
+      <div id="carousel-preview"></div>
+    </div>
   </div>
 </div>
 <script type="module" src="app.js"></script>

@@ -79,7 +79,7 @@ function renderInPreview() {
   }
 
   if (preview) {
-    preview.innerHTML = renderedSlides.length + " slides listos";
+    preview.innerHTML = renderedSlides.length + " slides generados";
   }
 
   var editor = document.createElement("div");
@@ -144,7 +144,7 @@ function createThumbnailButton(item, isActive) {
 
   var indexLabel = document.createElement("span");
   indexLabel.className = "carousel-thumb-index";
-  indexLabel.textContent = "Slide " + (item.index + 1);
+  indexLabel.textContent = (item.index + 1).toString().padStart(2, "0");
 
   var typeLabel = document.createElement("span");
   typeLabel.className = "carousel-thumb-type";
