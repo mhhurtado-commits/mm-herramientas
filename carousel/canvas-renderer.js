@@ -239,9 +239,10 @@ function drawCoverFooter(ctx, panelX, panelY, panelW, panelH) {
 function fitCoverTitleFont(ctx, text, maxW, maxLines) {
   var options = [
     { font: MMTheme.fonts.coverTitle, lineH: 84 },
-    { font: "700 76px Inter, Arial, sans-serif", lineH: 78 },
-    { font: "700 68px Inter, Arial, sans-serif", lineH: 72 },
-    { font: "700 60px Inter, Arial, sans-serif", lineH: 64 }
+    { font: "700 78px Inter, Arial, sans-serif", lineH: 80 },
+    { font: "700 70px Inter, Arial, sans-serif", lineH: 72 },
+    { font: "700 62px Inter, Arial, sans-serif", lineH: 66 },
+    { font: "700 54px Inter, Arial, sans-serif", lineH: 58 }
   ];
 
   for (var i = 0; i < options.length; i++) {
@@ -254,7 +255,7 @@ function fitCoverTitleFont(ctx, text, maxW, maxLines) {
 
 function drawCoverTitle(ctx, text, x, y, maxW) {
   if (!text) return y;
-  var fitted = fitCoverTitleFont(ctx, text, maxW, 3);
+  var fitted = fitCoverTitleFont(ctx, text, maxW, 2);
   ctx.font = fitted.font;
   ctx.fillStyle = MMTheme.colors.textPrimary;
   ctx.textBaseline = "top";
@@ -278,7 +279,7 @@ function renderCover(ctx, slide, project) {
   var cat = project.article && project.article.category;
   drawCategoryBadge(ctx, cat || "Media Mendoza", 52, 52);
 
-  var panelY = 736;
+  var panelY = 760;
   var panelH = H - panelY - 28;
   var panelX = 28;
   var panelW = W - 56;
@@ -288,11 +289,11 @@ function renderCover(ctx, slide, project) {
   var bodyX = pad;
   var maxW = W - pad * 2;
   var titleText = (project.article && project.article.title) || slide.content.title || "";
-  var titleY = 770;
+  var titleY = 796;
   var titleEnd = drawCoverTitle(ctx, titleText, bodyX, titleY, maxW);
 
   var subText = slide.content.subtitle || slide.content.text || "";
-  var subY = titleEnd + 16;
+  var subY = titleEnd + 12;
   drawCoverSubtitle(ctx, subText, bodyX, subY, maxW - 70);
 
   drawCoverFooter(ctx, panelX, panelY, panelW, panelH);
@@ -336,10 +337,10 @@ function renderTextSlide(ctx, slide, project) {
   var textY = titleY + 36;
   if (text) {
     drawQuoteMark(ctx, gridX - 8, textY - 34);
-    ctx.font = MMTheme.fonts.bodyLarge;
+    ctx.font = MMTheme.fonts.bodyXL;
     ctx.fillStyle = MMTheme.colors.textSecondary;
     ctx.textBaseline = "top";
-    wrapText(ctx, text, gridX, textY + 34, maxW - 10, 52);
+    wrapText(ctx, text, gridX, textY + 38, maxW - 10, 56);
   }
 
   drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
@@ -393,7 +394,7 @@ function renderStatsSlide(ctx, slide, project) {
     ctx.font = MMTheme.fonts.list;
     ctx.fillStyle = MMTheme.colors.textSecondary;
     ctx.textBaseline = "top";
-    wrapText(ctx, items[i], gridX + 126, cy + 30, cardW - 156, 40);
+    wrapText(ctx, items[i], gridX + 126, cy + 28, cardW - 156, 44);
   }
 
   drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
@@ -402,55 +403,53 @@ function renderStatsSlide(ctx, slide, project) {
 
 function renderEndSlide(ctx, slide, project) {
   calcZones("end");
-  var bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#a6ce39");
-  bg.addColorStop(1, "#badf52");
-  ctx.fillStyle = bg;
+  ctx.fillStyle = "#eef5d6";
   ctx.fillRect(0, 0, W, H);
-  drawFrame(ctx, "rgba(255,255,255,0.34)");
+  drawFrame(ctx, "rgba(166,206,57,0.36)");
 
-  var panelW = W - 240;
-  var panelH = 640;
+  var panelW = W - 180;
+  var panelH = 760;
   var panelX = (W - panelW) / 2;
   var panelY = (H - panelH) / 2;
-  var titleX = panelX + 80;
-  var titleW = panelW - 160;
-  drawPanel(ctx, panelX, panelY, panelW, panelH, "rgba(255,255,255,0.10)", "rgba(255,255,255,0.24)");
+  var titleX = panelX + 94;
+  var titleW = panelW - 188;
+  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.surface, "rgba(166,206,57,0.28)");
 
-  drawLogoLockup(ctx, W / 2, panelY + 58, 220, true);
+  fillRoundRect(ctx, panelX, panelY, panelW, 22, 22, MMTheme.colors.accent);
+  drawLogoLockup(ctx, W / 2, panelY + 54, 248, true);
 
   ctx.font = MMTheme.fonts.endKicker;
-  ctx.fillStyle = MMTheme.colors.white;
+  ctx.fillStyle = MMTheme.colors.accentDark;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  ctx.fillText(slide.content.kicker || "SEGUIR INFORMADO", W / 2, panelY + 178);
+  ctx.fillText(slide.content.kicker || "SEGUIR INFORMADO", W / 2, panelY + 160);
 
   var endTitle = slide.content.title || "Mas informacion en mediamendoza.com";
   var fitted = fitEndTitleFont(ctx, endTitle, titleW, 3);
   ctx.font = fitted.font;
-  ctx.fillStyle = MMTheme.colors.white;
+  ctx.fillStyle = MMTheme.colors.textPrimary;
   ctx.textAlign = "start";
-  wrapText(ctx, endTitle, titleX, panelY + 246, titleW, fitted.lineH);
+  wrapText(ctx, endTitle, titleX, panelY + 228, titleW, fitted.lineH);
 
   ctx.font = MMTheme.fonts.subtitle;
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.fillStyle = MMTheme.colors.textSecondary;
   wrapText(
     ctx,
     slide.content.text || "Desliza para repasar los datos clave y entrar a la nota completa.",
     titleX,
-    panelY + 420,
+    panelY + 430,
     titleW,
-    MMTheme.spacing.lineHSubtitle
+    44
   );
 
-  var ctaY = panelY + panelH - 140;
-  fillRoundRect(ctx, titleX, ctaY, titleW, 92, 26, "#1c1f22");
-  strokeRoundRect(ctx, titleX, ctaY, titleW, 92, 26, "rgba(255,255,255,0.18)", 2);
-  ctx.font = MMTheme.fonts.cta;
+  var ctaY = panelY + panelH - 194;
+  fillRoundRect(ctx, titleX, ctaY, titleW, 108, 30, MMTheme.colors.surfaceInk);
+  strokeRoundRect(ctx, titleX, ctaY, titleW, 108, 30, "rgba(0,0,0,0.08)", 2);
+  ctx.font = MMTheme.fonts.endUrl;
   ctx.fillStyle = MMTheme.colors.white;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("mediamendoza.com", titleX + titleW / 2, ctaY + 46);
+  ctx.fillText("mediamendoza.com", titleX + titleW / 2, ctaY + 54);
 
   ctx.textAlign = "start";
   ctx.textBaseline = "top";

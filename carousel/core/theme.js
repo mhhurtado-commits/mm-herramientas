@@ -4,6 +4,7 @@ export var MMTheme = {
     panel: "#f4f1ea",
     surface: "#ffffff",
     surfaceSoft: "#f8f6f1",
+    surfaceInk: "#1b1e22",
     textPrimary: "#111111",
     textSecondary: "#353535",
     textMuted: "#666666",
@@ -30,6 +31,7 @@ export var MMTheme = {
     body: "35px Inter, Arial, sans-serif",
     list: "34px Inter, Arial, sans-serif",
     bodyLarge: "400 42px Inter, Arial, sans-serif",
+    bodyXL: "400 46px Inter, Arial, sans-serif",
     footer: "600 21px Inter, Arial, sans-serif",
     category: "700 22px Inter, Arial, sans-serif",
     coverTitle: "700 84px Inter, Arial, sans-serif",
@@ -37,11 +39,12 @@ export var MMTheme = {
     kicker: "700 22px Inter, Arial, sans-serif",
     statNumber: "700 22px Inter, Arial, sans-serif",
     endKicker: "700 24px Inter, Arial, sans-serif",
-    endTitle: "700 48px Inter, Arial, sans-serif",
+    endTitle: "700 56px Inter, Arial, sans-serif",
     giantNumber: "700 180px Inter, Arial, sans-serif",
     quote: "700 88px Georgia, serif",
     highlight: "700 40px Inter, Arial, sans-serif",
-    cta: "700 60px Inter, Arial, sans-serif"
+    cta: "700 60px Inter, Arial, sans-serif",
+    endUrl: "700 54px Inter, Arial, sans-serif"
   },
   spacing: {
     paddingX: 58,
