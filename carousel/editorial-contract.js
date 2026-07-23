@@ -7,7 +7,7 @@ export function createEditorialEnvelope(article, diagnosis) {
     diagnosis: normalizeEditorialDiagnosis(diagnosis),
     outputs: {
       carousel: null,
-      reel: null
+      reel: createEmptyReelOutput()
     }
   };
 }
@@ -25,8 +25,19 @@ export function attachCarouselOutput(envelope, carouselPlan, socialCopy) {
 
 export function attachReelOutput(envelope, reelOutput) {
   var next = envelope || createEditorialEnvelope();
-  next.outputs.reel = reelOutput || null;
+  next.outputs.reel = normalizeReelOutput(reelOutput);
   return next;
+}
+
+export function createEmptyReelOutput() {
+  return {
+    format: "reel_silent",
+    hook: "",
+    cover_text: "",
+    caption: "",
+    hashtags: [],
+    scenes: []
+  };
 }
 
 function normalizeEditorialArticle(article) {
@@ -54,6 +65,34 @@ function normalizeEditorialDiagnosis(diagnosis) {
     slide_count: Number(source.slide_count || 0) || 0,
     reason: cleanText(source.reason)
   };
+}
+
+function normalizeReelOutput(reelOutput) {
+  var source = reelOutput || {};
+  return {
+    format: cleanText(source.format) || "reel_silent",
+    hook: cleanText(source.hook),
+    cover_text: cleanText(source.cover_text),
+    caption: cleanText(source.caption),
+    hashtags: Array.isArray(source.hashtags) ? source.hashtags.filter(Boolean) : [],
+    scenes: normalizeReelScenes(source.scenes)
+  };
+}
+
+function normalizeReelScenes(scenes) {
+  if (!Array.isArray(scenes)) return [];
+  return scenes.map(function (scene, index) {
+    var source = scene || {};
+    return {
+      order: Number(source.order || index + 1) || index + 1,
+      duration_ms: Number(source.duration_ms || 0) || 0,
+      visual_type: cleanText(source.visual_type),
+      visual_source: cleanText(source.visual_source),
+      visual_role: cleanText(source.visual_role),
+      text: cleanText(source.text),
+      subtitle: cleanText(source.subtitle)
+    };
+  });
 }
 
 function cleanText(value) {

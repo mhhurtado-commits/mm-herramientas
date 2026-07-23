@@ -123,3 +123,71 @@ export function buildInstagramCaptionPrompt(article, plan) {
     "}"
   );
 }
+
+export function buildReelPrompt(article, diagnosis) {
+  const content = [
+    "Titulo: " + (article.title || ""),
+    "Categoria: " + (article.category || ""),
+    "Resumen: " + (article.summary || ""),
+    "Contenido: " + (article.content || ""),
+    "Imagen principal: " + (article.image || ""),
+    "Cantidad de imagenes internas: " + ((article.images && article.images.length) || 0),
+    "Vertical: " + ((diagnosis && diagnosis.vertical) || ""),
+    "Tono: " + ((diagnosis && diagnosis.tone) || "")
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return (
+    "Genera un plan editorial para un Reel silencioso de Instagram de Media Mendoza basado en esta noticia.\n\n" +
+    content +
+    "\n\nREGLAS:\n" +
+    "- No inventar informacion.\n" +
+    "- No generar locucion ni audio.\n" +
+    "- El Reel debe funcionar solo con imagenes y texto en pantalla.\n" +
+    "- Incluir subtitulos breves por escena.\n" +
+    "- Usar entre 4 y 6 escenas.\n" +
+    "- Cada escena debe indicar si conviene usar imagen principal, imagen interna o placa de texto.\n" +
+    "- Si no hay imagen adecuada, usar placa de texto.\n" +
+    "- Incluir caption para Instagram y hashtags.\n" +
+    "- No escribir estilos, coordenadas ni decisiones tecnicas de render.\n\n" +
+    "Responde SOLO con JSON sin backticks ni markdown.\n" +
+    "Formato exacto:\n" +
+    "{\n" +
+    '  "format":"reel_silent",\n' +
+    '  "hook":"",\n' +
+    '  "cover_text":"",\n' +
+    '  "caption":"",\n' +
+    '  "hashtags":["#uno","#dos","#tres"],\n' +
+    '  "scenes":[\n' +
+    '    {\n' +
+    '      "order":1,\n' +
+    '      "duration_ms":2500,\n' +
+    '      "visual_type":"cover_image",\n' +
+    '      "visual_source":"article.image",\n' +
+    '      "visual_role":"hook",\n' +
+    '      "text":"",\n' +
+    '      "subtitle":""\n' +
+    "    },\n" +
+    '    {\n' +
+    '      "order":2,\n' +
+    '      "duration_ms":3000,\n' +
+    '      "visual_type":"support_image",\n' +
+    '      "visual_source":"article.images[0]",\n' +
+    '      "visual_role":"context",\n' +
+    '      "text":"",\n' +
+    '      "subtitle":""\n' +
+    "    },\n" +
+    '    {\n' +
+    '      "order":3,\n' +
+    '      "duration_ms":3000,\n' +
+    '      "visual_type":"text_card",\n' +
+    '      "visual_source":"generated",\n' +
+    '      "visual_role":"key_fact",\n' +
+    '      "text":"",\n' +
+    '      "subtitle":""\n' +
+    "    }\n" +
+    "  ]\n" +
+    "}"
+  );
+}

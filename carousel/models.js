@@ -11,6 +11,7 @@ export function createCarouselProject() {
     },
     editorialPlan: null,
     editorialPackage: null,
+    reelPlan: null,
     socialCopy: {
       caption: "",
       hashtags: []
