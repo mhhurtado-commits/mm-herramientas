@@ -121,6 +121,13 @@
   line-height: 1.55;
 }
 
+.carousel-copy-text--code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+}
+
 .carousel-panel-header {
   display: flex;
   justify-content: space-between;

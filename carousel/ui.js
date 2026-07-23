@@ -3,8 +3,8 @@ import { setProject, getProject } from "./state.js";
 import { renderCarousel } from "./renderer.js";
 import { renderSlideToCanvas } from "./canvas-renderer.js";
 import { createDemoProject } from "./demo.js";
-import { attachCarouselOutput } from "./editorial-contract.js";
-import { buildInstagramCaptionPrompt } from "./prompts.js";
+import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
+import { buildInstagramCaptionPrompt, buildReelPrompt } from "./prompts.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 var activeSlideIndex = 0;
@@ -14,6 +14,7 @@ export function initUI() {
   window.addEventListener("carousel:asset-ready", handleAssetReady);
   ensureBulkDownloadButton();
   ensureCaptionPanel();
+  ensureReelPanel();
 
   var loadBtn = document.getElementById("loadBtn");
   if (loadBtn) {
@@ -48,6 +49,7 @@ export function initUI() {
         var engine = await import("./carousel-engine.js");
         await engine.generatePlan();
         await generateInstagramCaption(project);
+        await generateReelPlan(project);
 
         activeSlideIndex = 0;
         renderInPreview();
@@ -88,6 +90,7 @@ function renderInPreview() {
     if (preview) preview.innerHTML = "";
     toggleBulkDownloadButton(false);
     renderCaptionPanel(project);
+    renderReelPanel(project);
     return;
   }
 
@@ -141,6 +144,7 @@ function renderInPreview() {
   editor.appendChild(stage);
   carouselPreview.appendChild(editor);
   renderCaptionPanel(project);
+  renderReelPanel(project);
 }
 
 function handleAssetReady() {
@@ -234,6 +238,49 @@ function ensureCaptionPanel() {
   previewPanel.appendChild(panel);
 }
 
+function ensureReelPanel() {
+  var previewPanel = document.getElementById("previewPanel");
+  if (!previewPanel || document.getElementById("reelPlanPanel")) return;
+
+  var panel = document.createElement("div");
+  panel.id = "reelPlanPanel";
+  panel.className = "carousel-copy-panel";
+  panel.hidden = true;
+
+  var header = document.createElement("div");
+  header.className = "carousel-copy-header";
+
+  var titles = document.createElement("div");
+  var label = document.createElement("div");
+  label.className = "carousel-section-label";
+  label.textContent = "Reel";
+  var title = document.createElement("strong");
+  title.className = "carousel-copy-title";
+  title.textContent = "Plan JSON";
+  titles.appendChild(label);
+  titles.appendChild(title);
+
+  var copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.id = "copyReelBtn";
+  copyBtn.className = "mm-btn";
+  copyBtn.textContent = "Copiar JSON";
+  copyBtn.addEventListener("click", copyReelPlanJson);
+
+  header.appendChild(titles);
+  header.appendChild(copyBtn);
+
+  var textarea = document.createElement("textarea");
+  textarea.id = "reelPlanOutput";
+  textarea.className = "carousel-copy-text carousel-copy-text--code";
+  textarea.readOnly = true;
+  textarea.placeholder = "Aca aparecera el ReelPlan JSON generado desde la misma noticia.";
+
+  panel.appendChild(header);
+  panel.appendChild(textarea);
+  previewPanel.appendChild(panel);
+}
+
 function renderCaptionPanel(project) {
   var panel = document.getElementById("captionPanel");
   var textarea = document.getElementById("captionOutput");
@@ -244,12 +291,31 @@ function renderCaptionPanel(project) {
   textarea.value = caption;
 }
 
+function renderReelPanel(project) {
+  var panel = document.getElementById("reelPlanPanel");
+  var textarea = document.getElementById("reelPlanOutput");
+  if (!panel || !textarea) return;
+
+  var reelJson = buildReelPlanText(project);
+  panel.hidden = !reelJson;
+  textarea.value = reelJson;
+}
+
 function buildCaptionText(project) {
   if (!project || !project.socialCopy) return "";
   var caption = String(project.socialCopy.caption || "").trim();
   var hashtags = Array.isArray(project.socialCopy.hashtags) ? project.socialCopy.hashtags.filter(Boolean) : [];
   if (!caption && !hashtags.length) return "";
   return caption + (hashtags.length ? "\n\n" + hashtags.join(" ") : "");
+}
+
+function buildReelPlanText(project) {
+  if (!project || !project.editorialPackage || !project.editorialPackage.outputs || !project.editorialPackage.outputs.reel) {
+    return "";
+  }
+  var reel = project.editorialPackage.outputs.reel;
+  if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) return "";
+  return JSON.stringify(reel, null, 2);
 }
 
 function toggleBulkDownloadButton(visible) {
@@ -267,6 +333,18 @@ async function copyInstagramCaption() {
     setStatus(preview, "Texto de Instagram copiado");
   } catch (error) {
     setStatus(preview, "No se pudo copiar el texto");
+  }
+}
+
+async function copyReelPlanJson() {
+  var preview = document.getElementById("previewContent");
+  var textarea = document.getElementById("reelPlanOutput");
+  if (!textarea || !textarea.value.trim()) return;
+  try {
+    await navigator.clipboard.writeText(textarea.value);
+    setStatus(preview, "ReelPlan copiado");
+  } catch (error) {
+    setStatus(preview, "No se pudo copiar el ReelPlan");
   }
 }
 
@@ -466,6 +544,35 @@ async function generateInstagramCaption(project) {
     project.socialCopy.hashtags = [];
     if (project.editorialPackage && project.editorialPlan) {
       project.editorialPackage = attachCarouselOutput(project.editorialPackage, project.editorialPlan, project.socialCopy);
+    }
+    setProject(project);
+  }
+}
+
+async function generateReelPlan(project) {
+  if (!project || !project.article || !project.editorialPlan || !project.editorialPlan.diagnosis) return;
+  try {
+    const res = await fetch(WORKER + "/social/generar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemPrompt: buildReelPrompt(project.article, project.editorialPlan.diagnosis),
+        userMsg: "Genera el ReelPlan para esta noticia."
+      })
+    });
+
+    const data = await res.json();
+    if (!data.ok || !data.result) return;
+
+    project.reelPlan = data.result;
+    if (project.editorialPackage) {
+      project.editorialPackage = attachReelOutput(project.editorialPackage, data.result);
+    }
+    setProject(project);
+  } catch (error) {
+    project.reelPlan = null;
+    if (project.editorialPackage) {
+      project.editorialPackage = attachReelOutput(project.editorialPackage, null);
     }
     setProject(project);
   }
