@@ -245,13 +245,13 @@ function drawCoverFooter(ctx, panelX, panelY, panelW, panelH) {
 }
 
 function drawCoverLogo(ctx) {
-  var badgeW = 292;
-  var badgeH = 96;
+  var badgeW = 336;
+  var badgeH = 108;
   var badgeX = (W - badgeW) / 2;
-  var badgeY = 112;
-  fillRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 48, "rgba(255,255,255,0.94)");
-  strokeRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 48, "rgba(166,206,57,0.24)", 2);
-  drawLogoLockup(ctx, W / 2, badgeY + 22, 210, true);
+  var badgeY = 96;
+  fillRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 54, "rgba(255,255,255,0.94)");
+  strokeRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 54, "rgba(166,206,57,0.24)", 2);
+  drawLogoLockup(ctx, W / 2, badgeY + 20, 244, true);
 }
 
 function fitCoverTitleFont(ctx, text, maxW, maxLines) {
@@ -308,11 +308,11 @@ function renderCover(ctx, slide, project) {
   var bodyX = pad;
   var maxW = W - pad * 2;
   var titleText = (project.article && project.article.title) || slide.content.title || "";
-  var titleY = 796;
+  var titleY = 824;
   var titleEnd = drawCoverTitle(ctx, titleText, bodyX, titleY, maxW);
 
   var subText = slide.content.subtitle || slide.content.text || "";
-  var subY = titleEnd + 12;
+  var subY = titleEnd + 16;
   drawCoverSubtitle(ctx, subText, bodyX, subY, maxW - 70);
 
   drawCoverFooter(ctx, panelX, panelY, panelW, panelH);
