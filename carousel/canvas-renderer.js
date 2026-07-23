@@ -25,7 +25,7 @@ function drawGradientOverlay(ctx, zone) {
   ctx.fillRect(zone.x, zone.y, zone.w, zone.h);
 }
 
-function loadCoverImage(ctx, slide, project) {
+function loadCoverImage(ctx, slide, project, maxHeight) {
   var imgUrl = slide.content.image || (project.article && project.article.image);
   if (!imgUrl) return;
 
@@ -34,8 +34,10 @@ function loadCoverImage(ctx, slide, project) {
 
   function drawLoaded() {
     var zone = getHeaderZone();
-    drawImageCover(ctx, img, zone.x, zone.y, zone.w, zone.h);
-    drawGradientOverlay(ctx, zone);
+    var headerH = Math.min(zone.h, maxHeight || zone.h);
+    var clippedZone = { x: zone.x, y: zone.y, w: zone.w, h: headerH };
+    drawImageCover(ctx, img, clippedZone.x, clippedZone.y, clippedZone.w, clippedZone.h);
+    drawGradientOverlay(ctx, clippedZone);
   }
 
   if (img.complete && img.naturalWidth > 0) {
@@ -273,7 +275,7 @@ function drawCoverSubtitle(ctx, text, x, y, maxW) {
 function renderCover(ctx, slide, project) {
   calcZones("cover");
   drawWhiteBackground(ctx);
-  loadCoverImage(ctx, slide, project);
+  loadCoverImage(ctx, slide, project, 760);
   drawFrame(ctx);
 
   var cat = project.article && project.article.category;
@@ -428,28 +430,31 @@ function renderEndSlide(ctx, slide, project) {
   var fitted = fitEndTitleFont(ctx, endTitle, titleW, 3);
   ctx.font = fitted.font;
   ctx.fillStyle = MMTheme.colors.textPrimary;
-  ctx.textAlign = "start";
-  wrapText(ctx, endTitle, titleX, panelY + 228, titleW, fitted.lineH);
+  ctx.textAlign = "center";
+  wrapText(ctx, endTitle, W / 2 - titleW / 2, panelY + 228, titleW, fitted.lineH);
 
   ctx.font = MMTheme.fonts.subtitle;
   ctx.fillStyle = MMTheme.colors.textSecondary;
+  ctx.textAlign = "center";
   wrapText(
     ctx,
     slide.content.text || "Desliza para repasar los datos clave y entrar a la nota completa.",
-    titleX,
-    panelY + 430,
+    W / 2 - titleW / 2,
+    panelY + 410,
     titleW,
     44
   );
 
-  var ctaY = panelY + panelH - 194;
-  fillRoundRect(ctx, titleX, ctaY, titleW, 108, 30, MMTheme.colors.surfaceInk);
-  strokeRoundRect(ctx, titleX, ctaY, titleW, 108, 30, "rgba(0,0,0,0.08)", 2);
+  var ctaW = titleW - 40;
+  var ctaX = panelX + (panelW - ctaW) / 2;
+  var ctaY = panelY + panelH - 162;
+  fillRoundRect(ctx, ctaX, ctaY, ctaW, 108, 30, MMTheme.colors.surfaceInk);
+  strokeRoundRect(ctx, ctaX, ctaY, ctaW, 108, 30, "rgba(0,0,0,0.08)", 2);
   ctx.font = MMTheme.fonts.endUrl;
   ctx.fillStyle = MMTheme.colors.white;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("mediamendoza.com", titleX + titleW / 2, ctaY + 54);
+  ctx.fillText("mediamendoza.com", ctaX + ctaW / 2, ctaY + 54);
 
   ctx.textAlign = "start";
   ctx.textBaseline = "top";
