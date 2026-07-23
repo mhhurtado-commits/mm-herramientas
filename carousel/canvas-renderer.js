@@ -1,5 +1,5 @@
 import { createCanvas } from "./core/canvas.js";
-import { calcZones, getHeaderZone, getBodyZone, getFooterZone } from "./core/layout.js";
+import { calcZones, getHeaderZone, getFooterZone } from "./core/layout.js";
 import { drawImageCover } from "./core/image.js";
 import { wrapText } from "./core/text.js";
 import { MMTheme } from "./core/theme.js";
@@ -125,7 +125,7 @@ function drawQuoteMark(ctx, x, y) {
   ctx.font = MMTheme.fonts.quote;
   ctx.fillStyle = "rgba(166,206,57,0.22)";
   ctx.textBaseline = "top";
-  ctx.fillText("“", x, y);
+  ctx.fillText("\"", x, y);
 }
 
 function measureWrappedLines(ctx, text, maxW) {
@@ -164,6 +164,20 @@ function fitEndTitleFont(ctx, text, maxW, maxLines) {
   return options[options.length - 1];
 }
 
+function getHighlightText(text, maxChars) {
+  if (!text) return "";
+  var cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+
+  var sentence = cleaned.split(".")[0] || cleaned;
+  if (sentence.length <= maxChars) return sentence;
+
+  var clipped = sentence.slice(0, maxChars);
+  var lastSpace = clipped.lastIndexOf(" ");
+  if (lastSpace > 20) clipped = clipped.slice(0, lastSpace);
+  return clipped + "...";
+}
+
 function drawCategoryBadge(ctx, label, x, y) {
   if (!label) return;
   ctx.font = MMTheme.fonts.category;
@@ -177,6 +191,44 @@ function drawCategoryBadge(ctx, label, x, y) {
   ctx.fillStyle = MMTheme.colors.white;
   ctx.textBaseline = "middle";
   ctx.fillText(text, x + padX, y + bh / 2);
+}
+
+function drawSwipeHint(ctx, x, y) {
+  var w = 170;
+  var h = 46;
+  fillRoundRect(ctx, x, y, w, h, 23, "#1c1f22");
+  strokeRoundRect(ctx, x, y, w, h, 23, "rgba(255,255,255,0.18)", 2);
+  ctx.font = MMTheme.fonts.kicker;
+  ctx.fillStyle = MMTheme.colors.white;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Desliza", x + w / 2, y + h / 2);
+  ctx.textAlign = "start";
+  ctx.textBaseline = "top";
+}
+
+function drawTextHighlightCard(ctx, title, text, panelX, panelY, panelW, panelH) {
+  var cardX = panelX + 52;
+  var cardW = panelW - 104;
+  var cardH = 248;
+  var cardY = panelY + panelH - cardH - 44;
+
+  fillRoundRect(ctx, cardX, cardY, cardW, cardH, 28, MMTheme.colors.surface);
+  strokeRoundRect(ctx, cardX, cardY, cardW, cardH, 28, "rgba(166,206,57,0.28)", 2);
+  fillRoundRect(ctx, cardX, cardY, 16, cardH, 10, MMTheme.colors.accent);
+
+  ctx.font = MMTheme.fonts.kicker;
+  ctx.fillStyle = MMTheme.colors.accentDark;
+  ctx.textBaseline = "top";
+  ctx.fillText("CLAVE", cardX + 36, cardY + 30);
+
+  ctx.font = MMTheme.fonts.highlight;
+  ctx.fillStyle = MMTheme.colors.textPrimary;
+  wrapText(ctx, title || text, cardX + 36, cardY + 74, cardW - 72, 44);
+
+  ctx.font = MMTheme.fonts.subtitle;
+  ctx.fillStyle = MMTheme.colors.textMuted;
+  wrapText(ctx, text, cardX + 36, cardY + 150, cardW - 72, 38);
 }
 
 function drawCoverTitle(ctx, text, x, y, maxW) {
@@ -204,23 +256,22 @@ function renderCover(ctx, slide, project) {
   var cat = project.article && project.article.category;
   drawCategoryBadge(ctx, cat || "Media Mendoza", 52, 52);
 
-  var body = getBodyZone();
-  var panelX = 28;
-  var panelY = body.y - 24;
+  var panelY = 736;
   var panelH = H - panelY - 28;
-  drawPanel(ctx, panelX, panelY, W - 56, panelH, MMTheme.colors.surface, "rgba(222,216,205,0.86)");
+  drawPanel(ctx, 28, panelY, W - 56, panelH, MMTheme.colors.surface, "rgba(222,216,205,0.86)");
 
   var pad = MMTheme.spacing.paddingCover;
   var bodyX = pad;
   var maxW = W - pad * 2;
   var titleText = slide.content.title || "";
-  var titleY = body.y + 42;
+  var titleY = 778;
   var titleEnd = drawCoverTitle(ctx, titleText, bodyX, titleY, maxW);
 
   var subText = slide.content.subtitle || "";
   var subY = titleEnd + 18;
   drawCoverSubtitle(ctx, subText, bodyX, subY, maxW - 70);
 
+  drawSwipeHint(ctx, 64, H - 126);
   drawLogoBadge(ctx, W - 252, H - 132, 188, 76, false);
 }
 
@@ -262,11 +313,14 @@ function renderTextSlide(ctx, slide, project) {
   var textY = titleY + 36;
   if (text) {
     drawQuoteMark(ctx, gridX - 8, textY - 34);
-    ctx.font = MMTheme.fonts.body;
+    ctx.font = MMTheme.fonts.bodyLarge;
     ctx.fillStyle = MMTheme.colors.textSecondary;
     ctx.textBaseline = "top";
-    wrapText(ctx, text, gridX, textY + 34, maxW - 10, MMTheme.spacing.lineHBody);
+    wrapText(ctx, text, gridX, textY + 34, maxW - 10, 48);
   }
+
+  var highlight = getHighlightText(text, 100);
+  drawTextHighlightCard(ctx, title, highlight || text, panelX, panelY, panelW, panelH);
 
   drawPageNumber(ctx, slide, project);
 }
@@ -288,7 +342,6 @@ function renderStatsSlide(ctx, slide, project) {
   var maxW = panelW - 108;
   var cardW = maxW;
   var cardH = 154;
-  var cardPad = MMTheme.spacing.cardPadding;
   var gap = MMTheme.spacing.cardGap;
 
   var title = slide.content.title || "";
@@ -329,40 +382,51 @@ function renderEndSlide(ctx, slide, project) {
   drawGreenBackground(ctx);
   drawFrame(ctx, "rgba(255,255,255,0.34)");
 
-  var panelW = W - 180;
-  var panelH = 610;
+  var panelW = W - 240;
+  var panelH = 640;
   var panelX = (W - panelW) / 2;
   var panelY = (H - panelH) / 2;
+  var titleX = panelX + 80;
+  var titleW = panelW - 160;
   drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.whiteOverlay, "rgba(255,255,255,0.22)");
 
-  drawLogoBadge(ctx, (W - 220) / 2, panelY + 54, 220, 88, true);
+  drawLogoBadge(ctx, (W - 220) / 2, panelY + 52, 220, 88, true);
 
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-
-  var kicker = slide.content.kicker || "SEGUIR INFORMADO";
   ctx.font = MMTheme.fonts.endKicker;
   ctx.fillStyle = MMTheme.colors.white;
-  ctx.fillText(kicker, W / 2, panelY + 182);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(slide.content.kicker || "SEGUIR INFORMADO", W / 2, panelY + 178);
 
   var endTitle = slide.content.title || "Mas informacion en mediamendoza.com";
-  var fitted = fitEndTitleFont(ctx, endTitle, panelW - 164, 3);
+  var fitted = fitEndTitleFont(ctx, endTitle, titleW, 3);
   ctx.font = fitted.font;
   ctx.fillStyle = MMTheme.colors.white;
-  wrapText(ctx, endTitle, panelX + 82, panelY + 236, panelW - 164, fitted.lineH);
+  ctx.textAlign = "start";
+  wrapText(ctx, endTitle, titleX, panelY + 246, titleW, fitted.lineH);
 
   ctx.font = MMTheme.fonts.subtitle;
   ctx.fillStyle = "rgba(255,255,255,0.92)";
   wrapText(
     ctx,
     slide.content.text || "Desliza para repasar los datos clave y entrar a la nota completa.",
-    panelX + 104,
+    titleX,
     panelY + 420,
-    panelW - 208,
+    titleW,
     MMTheme.spacing.lineHSubtitle
   );
 
+  var ctaY = panelY + panelH - 140;
+  fillRoundRect(ctx, titleX, ctaY, titleW, 92, 26, "#1c1f22");
+  strokeRoundRect(ctx, titleX, ctaY, titleW, 92, 26, "rgba(255,255,255,0.18)", 2);
+  ctx.font = MMTheme.fonts.cta;
+  ctx.fillStyle = MMTheme.colors.white;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("mediamendoza.com", titleX + titleW / 2, ctaY + 46);
+
   ctx.textAlign = "start";
+  ctx.textBaseline = "top";
   drawPageNumber(ctx, slide, project);
 }
 

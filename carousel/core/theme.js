@@ -27,6 +27,7 @@ export var MMTheme = {
     subtitle: "500 28px Inter, Arial, sans-serif",
     body: "35px Inter, Arial, sans-serif",
     list: "31px Inter, Arial, sans-serif",
+    bodyLarge: "400 39px Inter, Arial, sans-serif",
     footer: "600 21px Inter, Arial, sans-serif",
     category: "700 22px Inter, Arial, sans-serif",
     coverTitle: "700 68px Inter, Arial, sans-serif",
@@ -36,7 +37,9 @@ export var MMTheme = {
     endKicker: "700 24px Inter, Arial, sans-serif",
     endTitle: "700 48px Inter, Arial, sans-serif",
     giantNumber: "700 180px Inter, Arial, sans-serif",
-    quote: "700 88px Georgia, serif"
+    quote: "700 88px Georgia, serif",
+    highlight: "700 40px Inter, Arial, sans-serif",
+    cta: "700 60px Inter, Arial, sans-serif"
   },
   spacing: {
     paddingX: 58,
