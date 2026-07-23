@@ -23,10 +23,10 @@ export var MMTheme = {
   },
   fonts: {
     title: "700 52px Inter, Arial, sans-serif",
-    titleCompact: "700 46px Inter, Arial, sans-serif",
+    titleCompact: "700 52px Inter, Arial, sans-serif",
     subtitle: "500 28px Inter, Arial, sans-serif",
-    body: "32px Inter, Arial, sans-serif",
-    list: "29px Inter, Arial, sans-serif",
+    body: "35px Inter, Arial, sans-serif",
+    list: "31px Inter, Arial, sans-serif",
     footer: "600 21px Inter, Arial, sans-serif",
     category: "700 22px Inter, Arial, sans-serif",
     coverTitle: "700 68px Inter, Arial, sans-serif",
@@ -34,7 +34,9 @@ export var MMTheme = {
     kicker: "700 22px Inter, Arial, sans-serif",
     statNumber: "700 22px Inter, Arial, sans-serif",
     endKicker: "700 24px Inter, Arial, sans-serif",
-    endTitle: "700 54px Inter, Arial, sans-serif"
+    endTitle: "700 48px Inter, Arial, sans-serif",
+    giantNumber: "700 180px Inter, Arial, sans-serif",
+    quote: "700 88px Georgia, serif"
   },
   spacing: {
     paddingX: 58,
