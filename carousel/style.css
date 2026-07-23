@@ -107,6 +107,7 @@
   letter-spacing: 1.8px;
   text-transform: uppercase;
   color: var(--v-dark);
+  text-align: right;
 }
 
 #carousel-preview {
@@ -129,6 +130,7 @@
   max-height: 760px;
   overflow-y: auto;
   padding-right: 4px;
+  min-width: 0;
 }
 
 .carousel-thumbs {
@@ -242,6 +244,7 @@
   letter-spacing: 1.8px;
   text-transform: uppercase;
   color: var(--dim);
+  text-align: center;
 }
 
 .carousel-canvas {
@@ -272,8 +275,36 @@
     padding: 22px 14px 32px;
   }
 
+  .carousel-hero {
+    margin-bottom: 18px;
+  }
+
+  .carousel-title {
+    font-size: clamp(2rem, 9vw, 3.4rem);
+    line-height: 0.96;
+  }
+
+  .carousel-subtitle {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
   .carousel-toolbar {
     padding: 16px;
+  }
+
+  .carousel-url-field {
+    flex-basis: 100%;
+  }
+
+  .carousel-actions {
+    width: 100%;
+  }
+
+  .carousel-actions .mm-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
   }
 
   .carousel-panel {
@@ -285,23 +316,39 @@
     flex-direction: column;
   }
 
+  .carousel-status {
+    text-align: left;
+  }
+
   .carousel-editor {
     grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 12px;
   }
 
   .carousel-sidebar {
+    order: 2;
     max-height: none;
     overflow-y: visible;
+    padding-right: 0;
   }
 
   .carousel-thumbs {
+    gap: 12px;
     flex-direction: row;
     overflow-x: auto;
-    padding-bottom: 4px;
+    padding: 2px 2px 8px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
   }
 
   .carousel-thumb {
-    min-width: 220px;
+    min-width: 210px;
+    scroll-snap-align: start;
+  }
+
+  .carousel-stage {
+    order: 1;
   }
 
   .carousel-stage-inner {
@@ -311,5 +358,83 @@
 
   .carousel-canvas {
     width: min(100%, 480px);
+  }
+}
+
+@media (max-width: 640px) {
+  .carousel-app {
+    padding: 16px 10px 24px;
+  }
+
+  .carousel-kicker,
+  .carousel-section-label,
+  .carousel-status,
+  .carousel-stage-meta,
+  .carousel-thumb-index {
+    letter-spacing: 1.4px;
+  }
+
+  .carousel-toolbar {
+    gap: 12px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .carousel-actions {
+    flex-direction: column;
+  }
+
+  .carousel-actions .mm-btn {
+    width: 100%;
+  }
+
+  .carousel-panel {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .carousel-panel-title {
+    font-size: 1.45rem;
+  }
+
+  .carousel-editor {
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .carousel-stage-inner {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .carousel-stage-inner::before {
+    inset: 12px;
+    border-radius: 14px;
+  }
+
+  .carousel-canvas {
+    width: 100%;
+    border-radius: 14px;
+  }
+
+  .carousel-thumb {
+    min-width: 176px;
+    padding: 10px;
+    gap: 10px;
+    border-radius: 16px;
+  }
+
+  .carousel-thumb.is-active::before {
+    border-radius: 16px 0 0 16px;
+  }
+
+  .carousel-thumb-canvas {
+    width: 56px;
+    border-radius: 10px;
+  }
+
+  .carousel-thumb-type {
+    font-size: 13px;
+    line-height: 1.25;
   }
 }
