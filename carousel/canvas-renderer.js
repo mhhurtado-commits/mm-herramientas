@@ -133,6 +133,27 @@ function drawQuoteMark(ctx, x, y) {
   ctx.fillText("\"", x, y);
 }
 
+function drawEyebrow(ctx, x, y, label) {
+  ctx.font = MMTheme.fonts.category;
+  ctx.fillStyle = MMTheme.colors.accentDark;
+  ctx.textBaseline = "top";
+  ctx.fillText((label || "CLAVES").toUpperCase(), x, y);
+  fillRoundRect(ctx, x, y + 38, 124, 8, 4, MMTheme.colors.accent);
+}
+
+function drawHighlightBox(ctx, x, y, w, text) {
+  if (!text) return;
+  drawPanel(ctx, x, y, w, 148, MMTheme.colors.surface, MMTheme.colors.brandLine);
+  fillRoundRect(ctx, x, y, 14, 148, 7, MMTheme.colors.accent);
+  ctx.font = MMTheme.fonts.category;
+  ctx.fillStyle = MMTheme.colors.accentDark;
+  ctx.textBaseline = "top";
+  ctx.fillText("CLAVE", x + 34, y + 26);
+  ctx.font = MMTheme.fonts.subtitle;
+  ctx.fillStyle = MMTheme.colors.textSecondary;
+  wrapText(ctx, text, x + 34, y + 64, w - 68, 38);
+}
+
 function measureWrappedLines(ctx, text, maxW) {
   if (!text) return 0;
   var words = text.split(" ");
@@ -306,7 +327,7 @@ function renderCover(ctx, slide, project) {
   }
   drawCoverLogo(ctx);
 
-  var panelY = 760;
+  var panelY = MMTheme.variant.coverPanelY;
   var panelH = H - panelY - 28;
   var panelX = 28;
   var panelW = W - 56;
@@ -336,15 +357,26 @@ function renderTextSlide(ctx, slide, project) {
   var panelY = 124;
   var panelW = W - 124;
   var panelH = H - 220;
-  drawPanel(ctx, panelX, panelY, panelW, panelH);
-  drawLeftAccent(ctx, panelX + 20, panelY + 24, 284);
-  drawGiantNumber(ctx, (slide.order || 0) + 1, panelX + panelW - 70, panelY + 20, "right");
+  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.variant.textPanelFill, MMTheme.colors.lineSoft);
+  if (MMTheme.variant.leftAccentHeight > 0) {
+    drawLeftAccent(ctx, panelX + 20, panelY + 24, MMTheme.variant.leftAccentHeight);
+  }
+  drawGiantNumber(
+    ctx,
+    (slide.order || 0) + 1,
+    panelX + panelW - 70,
+    panelY + 20,
+    "right",
+    MMTheme.name === "mm_impact" ? "rgba(159,207,34,0.18)" : "rgba(166,206,57,0.12)"
+  );
 
   var gridX = panelX + 70;
-  var maxW = panelW - 150;
+  var maxW = panelW - 150 - MMTheme.variant.textWidthOffset;
   var cat = project.article && project.article.category;
 
-  if (cat && MMTheme.variant.categoryInText) {
+  if (MMTheme.variant.showEyebrow) {
+    drawEyebrow(ctx, gridX, panelY + 42, cat || slide.content.title || "Claves");
+  } else if (cat && MMTheme.variant.categoryInText) {
     ctx.font = MMTheme.fonts.category;
     ctx.fillStyle = MMTheme.colors.accentDark;
     ctx.textBaseline = "top";
@@ -363,11 +395,17 @@ function renderTextSlide(ctx, slide, project) {
   var text = slide.content.text || "";
   var textY = titleY + 36;
   if (text) {
-    drawQuoteMark(ctx, gridX - 8, textY - 34);
+    if (MMTheme.variant.showQuoteMark) {
+      drawQuoteMark(ctx, gridX - 8, textY - 34);
+    }
     ctx.font = MMTheme.fonts.bodyXL;
     ctx.fillStyle = MMTheme.colors.textSecondary;
     ctx.textBaseline = "top";
-    wrapText(ctx, text, gridX, textY + 38, maxW - 10, 56);
+    wrapText(ctx, text, gridX, textY + MMTheme.variant.bodyOffsetY, maxW - 10, MMTheme.spacing.lineHBody + 6);
+  }
+
+  if (MMTheme.name === "mm_briefing") {
+    drawHighlightBox(ctx, gridX, panelY + panelH - 240, panelW - 110, getHighlightText(text, 120));
   }
 
   drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
@@ -385,13 +423,20 @@ function renderStatsSlide(ctx, slide, project) {
   var panelY = 124;
   var panelW = W - 124;
   var panelH = H - 220;
-  drawPanel(ctx, panelX, panelY, panelW, panelH);
-  drawGiantNumber(ctx, (slide.order || 0) + 1, panelX + panelW - 70, panelY + 20, "right");
+  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.variant.textPanelFill, MMTheme.colors.lineSoft);
+  drawGiantNumber(
+    ctx,
+    (slide.order || 0) + 1,
+    panelX + panelW - 70,
+    panelY + 20,
+    "right",
+    MMTheme.name === "mm_impact" ? "rgba(159,207,34,0.18)" : "rgba(166,206,57,0.12)"
+  );
 
   var gridX = panelX + 54;
   var maxW = panelW - 108;
   var cardW = maxW;
-  var cardH = 154;
+  var cardH = MMTheme.variant.statsCardStyle === "rows" ? 120 : MMTheme.variant.statsCardStyle === "impact" ? 170 : 154;
   var gap = MMTheme.spacing.cardGap;
 
   var title = slide.content.title || "";
@@ -410,8 +455,13 @@ function renderStatsSlide(ctx, slide, project) {
     if (cy + cardH > panelY + panelH - 30) break;
 
     drawPanel(ctx, gridX, cy, cardW, cardH, MMTheme.variant.statsCardFill, MMTheme.colors.lineSoft);
-    fillRoundRect(ctx, gridX + 24, cy + 24, 78, 44, 22, MMTheme.colors.accentSoft);
-    fillRoundRect(ctx, gridX + 24, cy + 82, 10, cardH - 106, 6, MMTheme.colors.accent);
+    if (MMTheme.variant.statsCardStyle === "rows") {
+      fillRoundRect(ctx, gridX + 24, cy + 20, 92, 46, 23, MMTheme.colors.accentSoft);
+      fillRoundRect(ctx, gridX + 24, cy + cardH - 26, cardW - 48, 4, 2, MMTheme.colors.brandLine);
+    } else {
+      fillRoundRect(ctx, gridX + 24, cy + 24, 78, 44, 22, MMTheme.colors.accentSoft);
+      fillRoundRect(ctx, gridX + 24, cy + 82, 10, cardH - 106, 6, MMTheme.colors.accent);
+    }
 
     ctx.font = MMTheme.fonts.statNumber;
     ctx.fillStyle = MMTheme.colors.accentDark;
@@ -421,7 +471,14 @@ function renderStatsSlide(ctx, slide, project) {
     ctx.font = MMTheme.fonts.list;
     ctx.fillStyle = MMTheme.colors.textSecondary;
     ctx.textBaseline = "top";
-    wrapText(ctx, items[i], gridX + 126, cy + 28, cardW - 156, 44);
+    wrapText(
+      ctx,
+      items[i],
+      gridX + 126,
+      cy + 28,
+      cardW - 156,
+      MMTheme.variant.statsCardStyle === "impact" ? 42 : 40
+    );
   }
 
   drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
@@ -443,7 +500,7 @@ function renderEndSlide(ctx, slide, project) {
   drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.surface, MMTheme.colors.endPanelStroke);
 
   fillRoundRect(ctx, panelX, panelY, panelW, 22, 22, MMTheme.colors.accent);
-  drawLogoLockup(ctx, W / 2, panelY + 54, 248, true);
+  drawLogoLockup(ctx, W / 2, panelY + 54, MMTheme.name === "mm_briefing" ? 270 : 248, true);
 
   ctx.font = MMTheme.fonts.endKicker;
   ctx.fillStyle = MMTheme.colors.accentDark;
@@ -479,7 +536,7 @@ function renderEndSlide(ctx, slide, project) {
   ctx.fillStyle = MMTheme.colors.endCtaText;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("mediamendoza.com", ctaX + ctaW / 2, ctaY + 54);
+  ctx.fillText(MMTheme.variant.endUrlLabel, ctaX + ctaW / 2, ctaY + 54);
 
   ctx.textAlign = "start";
   ctx.textBaseline = "top";

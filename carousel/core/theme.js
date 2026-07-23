@@ -83,6 +83,7 @@ var BASE_THEME = {
     coverLogoBadgeH: 116,
     coverLogoY: 96,
     coverTitleY: 824,
+    coverPanelY: 760,
     footerLogoWidth: 182,
     footerInset: 54,
     footerY: 88,
@@ -91,7 +92,15 @@ var BASE_THEME = {
     coverSwipeHeight: 46,
     categoryOnCover: true,
     categoryInText: true,
-    statsCardFill: "#ffffff"
+    statsCardFill: "#ffffff",
+    textPanelFill: "#f4f1ea",
+    showQuoteMark: true,
+    showEyebrow: false,
+    leftAccentHeight: 284,
+    bodyOffsetY: 38,
+    textWidthOffset: 10,
+    statsCardStyle: "cards",
+    endUrlLabel: "mediamendoza.com"
   }
 };
 
@@ -130,12 +139,22 @@ var THEME_VARIANTS = {
     variant: {
       coverLogoWidth: 286,
       coverLogoBadgeW: 388,
+      coverLogoBadgeH: 126,
+      coverPanelY: 736,
       footerLogoWidth: 206,
       footerInset: 88,
       footerLineGap: 30,
       categoryOnCover: false,
       categoryInText: false,
-      statsCardFill: "#fdfefe"
+      statsCardFill: "#fdfefe",
+      textPanelFill: "#ffffff",
+      showQuoteMark: false,
+      showEyebrow: true,
+      leftAccentHeight: 0,
+      bodyOffsetY: 18,
+      textWidthOffset: 0,
+      statsCardStyle: "rows",
+      endUrlLabel: "LEER EN MEDIAMENDOZA.COM"
     }
   },
   mm_impact: {
@@ -180,6 +199,7 @@ var THEME_VARIANTS = {
       coverLogoBadgeH: 122,
       coverLogoY: 88,
       coverTitleY: 850,
+      coverPanelY: 730,
       footerLogoWidth: 214,
       footerInset: 82,
       footerLineGap: 28,
@@ -187,7 +207,15 @@ var THEME_VARIANTS = {
       coverSwipeHeight: 50,
       categoryOnCover: true,
       categoryInText: false,
-      statsCardFill: "#ffffff"
+      statsCardFill: "#f8f4ea",
+      textPanelFill: "#f6f0e6",
+      showQuoteMark: true,
+      showEyebrow: true,
+      leftAccentHeight: 392,
+      bodyOffsetY: 34,
+      textWidthOffset: 48,
+      statsCardStyle: "impact",
+      endUrlLabel: "MEDIAMENDOZA.COM"
     }
   }
 };

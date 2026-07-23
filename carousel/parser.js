@@ -1,4 +1,4 @@
-export const CAROUSEL_PLAN_VERSION = "1.1";
+export const CAROUSEL_PLAN_VERSION = "1.2";
 
 const MAX_FACT_ITEMS = 4;
 const ALLOWED_NEWS_TYPES = ["breaking", "service", "institutional", "analysis", "data", "evergreen"];
@@ -6,6 +6,7 @@ const ALLOWED_COMPLEXITIES = ["brief", "medium", "deep"];
 const ALLOWED_TONES = ["informative", "explainer", "chronological", "impact", "utility"];
 const ALLOWED_CAROUSEL_TYPES = ["summary", "explainer", "timeline", "data_points", "service"];
 const ALLOWED_TEMPLATES = ["mm_classic", "mm_briefing", "mm_impact"];
+const ALLOWED_VERTICALS = ["policiales", "servicios", "sociales", "espectaculos", "clima", "deportes", "politica", "economia", "general"];
 
 const CAROUSEL_STRUCTURES = {
   summary: ["context", "facts", "impact", "cta"],
@@ -57,19 +58,22 @@ function normalizeArticle(article) {
 function normalizeDiagnosis(diagnosis, article, errors) {
   const source = isPlainObject(diagnosis) ? diagnosis : {};
   const newsType = pickAllowed(source.news_type, ALLOWED_NEWS_TYPES, inferNewsType(article));
+  const vertical = pickAllowed(source.vertical, ALLOWED_VERTICALS, inferVertical(article));
   const complexity = pickAllowed(source.complexity, ALLOWED_COMPLEXITIES, inferComplexity(article));
-  const tone = pickAllowed(source.tone, ALLOWED_TONES, inferTone(newsType));
-  const carouselType = pickAllowed(source.carousel_type, ALLOWED_CAROUSEL_TYPES, inferCarouselType(newsType, complexity));
-  const template = pickAllowed(source.template, ALLOWED_TEMPLATES, inferTemplate(newsType, carouselType, tone));
-  const slideCount = getSlideCountForCarouselType(carouselType);
-  const reason = cleanText(source.reason) || buildDiagnosisReason(newsType, carouselType, article);
+  const tone = pickAllowed(source.tone, ALLOWED_TONES, inferTone(newsType, vertical));
+  const carouselType = pickAllowed(source.carousel_type, ALLOWED_CAROUSEL_TYPES, inferCarouselType(newsType, complexity, vertical));
+  const template = pickAllowed(source.template, ALLOWED_TEMPLATES, inferTemplate(newsType, carouselType, tone, vertical));
+  const slideCount = getSlideCountForCarouselType(carouselType, { vertical: vertical, complexity: complexity, news_type: newsType });
+  const reason = cleanText(source.reason) || buildDiagnosisReason(newsType, carouselType, vertical, article);
 
   if (!cleanText(source.news_type)) errors.push("diagnosis.news_type faltante");
+  if (!cleanText(source.vertical)) errors.push("diagnosis.vertical faltante");
   if (!cleanText(source.carousel_type)) errors.push("diagnosis.carousel_type faltante");
   if (!cleanText(source.template)) errors.push("diagnosis.template faltante");
 
   return {
     news_type: newsType,
+    vertical: vertical,
     complexity: complexity,
     tone: tone,
     carousel_type: carouselType,
@@ -97,7 +101,7 @@ function normalizeCover(cover, article, diagnosis, errors) {
 function normalizeSlides(slides, article, diagnosis, errors) {
   const sourceSlides = Array.isArray(slides) ? slides : [];
   const buckets = bucketSlidesByType(sourceSlides);
-  const expectedTypes = getExpectedSlideTypes(diagnosis.carousel_type);
+  const expectedTypes = getExpectedSlideTypes(diagnosis.carousel_type, diagnosis);
   const normalized = [];
 
   for (let i = 0; i < expectedTypes.length; i++) {
@@ -143,7 +147,7 @@ function normalizeSlide(type, slide, article, diagnosis, index) {
 
 function getSlideDefaults(type, article, diagnosis, index) {
   const summary = article.summary || article.title || "Informacion principal";
-  const labels = getContextualLabels(diagnosis.carousel_type);
+  const labels = getContextualLabels(diagnosis.carousel_type, diagnosis.vertical);
 
   if (type === "context") {
     return {
@@ -179,7 +183,34 @@ function getSlideDefaults(type, article, diagnosis, index) {
   };
 }
 
-function getContextualLabels(carouselType) {
+function getContextualLabels(carouselType, vertical) {
+  if (vertical === "clima" || vertical === "servicios") {
+    return {
+      context: ["Panorama"],
+      facts: ["Datos utiles", "Recomendaciones"],
+      impact: ["Que cambia"],
+      cta: ["Consulta completa"]
+    };
+  }
+
+  if (vertical === "policiales") {
+    return {
+      context: ["El hecho"],
+      facts: ["Datos del caso", "Puntos bajo investigacion"],
+      impact: ["Como ocurrio", "Estado de la causa"],
+      cta: ["Sigue la cobertura"]
+    };
+  }
+
+  if (vertical === "espectaculos" || vertical === "sociales") {
+    return {
+      context: ["La historia"],
+      facts: ["Claves"],
+      impact: ["Por que se habla de esto"],
+      cta: ["Mas detalles"]
+    };
+  }
+
   switch (carouselType) {
     case "explainer":
       return {
@@ -257,9 +288,9 @@ function buildCoverSubtitle(diagnosis, article) {
   }
 }
 
-function buildDiagnosisReason(newsType, carouselType, article) {
+function buildDiagnosisReason(newsType, carouselType, vertical, article) {
   const base = article.title || article.summary || "nota";
-  return "Se clasifica como " + newsType + " y conviene un carrusel tipo " + carouselType + " por el enfoque de la nota: " + base;
+  return "Se clasifica como " + newsType + " dentro del vertical " + vertical + " y conviene un carrusel tipo " + carouselType + " por el enfoque de la nota: " + base;
 }
 
 function inferNewsType(article) {
@@ -268,8 +299,23 @@ function inferNewsType(article) {
   if (matchesAny(text, ["balance", "estadistica", "datos", "informe", "reporte"])) return "data";
   if (matchesAny(text, ["analisis", "claves", "explicacion"])) return "analysis";
   if (matchesAny(text, ["asociacion", "institucion", "municipio", "escuela"])) return "institutional";
-  if (matchesAny(text, ["alerta", "urgente", "accidente", "incendio", "muerte"])) return "breaking";
-  return "breaking";
+  if (matchesAny(text, ["alerta", "urgente", "accidente", "incendio", "muerte", "fatal", "choque", "siniestro"])) return "breaking";
+  return "evergreen";
+}
+
+function inferVertical(article) {
+  const category = cleanText(article.category).toLowerCase();
+  const text = (article.title + " " + article.summary + " " + article.category).toLowerCase();
+
+  if (matchesAny(category + " " + text, ["policial", "policiales", "accidente", "crimen", "fiscal", "homicidio", "robo"])) return "policiales";
+  if (matchesAny(category + " " + text, ["clima", "meteorologia", "nevadas", "temperatura", "alerta amarilla", "viento", "zonda"])) return "clima";
+  if (matchesAny(category + " " + text, ["servicio", "transito", "cortes", "horarios", "recomendacion", "tramite"])) return "servicios";
+  if (matchesAny(category + " " + text, ["espectaculo", "show", "cine", "serie", "musica", "famos", "artista"])) return "espectaculos";
+  if (matchesAny(category + " " + text, ["social", "sociedad", "comunidad", "vecinos", "solidario", "asociacion civil"])) return "sociales";
+  if (matchesAny(category + " " + text, ["deporte", "futbol", "tenis", "basquet", "liga", "seleccion"])) return "deportes";
+  if (matchesAny(category + " " + text, ["politica", "gobierno", "senado", "diputados", "eleccion"])) return "politica";
+  if (matchesAny(category + " " + text, ["economia", "dolar", "inflacion", "mercado", "salario"])) return "economia";
+  return "general";
 }
 
 function inferComplexity(article) {
@@ -279,7 +325,10 @@ function inferComplexity(article) {
   return "brief";
 }
 
-function inferTone(newsType) {
+function inferTone(newsType, vertical) {
+  if (vertical === "clima" || vertical === "servicios") return "utility";
+  if (vertical === "policiales") return "impact";
+  if (vertical === "espectaculos" || vertical === "sociales") return "chronological";
   switch (newsType) {
     case "service":
       return "utility";
@@ -294,21 +343,27 @@ function inferTone(newsType) {
   }
 }
 
-function inferCarouselType(newsType, complexity) {
-  if (newsType === "service") return "service";
-  if (newsType === "data") return "data_points";
-  if (newsType === "analysis") return "explainer";
+function inferCarouselType(newsType, complexity, vertical) {
+  if (vertical === "clima" || vertical === "servicios" || newsType === "service") return "service";
+  if (vertical === "policiales" && complexity !== "brief") return "timeline";
+  if (vertical === "espectaculos" || vertical === "sociales") return complexity === "deep" ? "explainer" : "summary";
+  if (newsType === "data" || vertical === "economia") return "data_points";
+  if (newsType === "analysis" || vertical === "politica") return "explainer";
   if (complexity === "deep") return "timeline";
   return "summary";
 }
 
-function inferTemplate(newsType, carouselType, tone) {
-  if (newsType === "service" || carouselType === "service" || carouselType === "data_points") {
+function inferTemplate(newsType, carouselType, tone, vertical) {
+  if (vertical === "clima" || vertical === "servicios" || carouselType === "service" || carouselType === "data_points") {
     return "mm_briefing";
   }
 
-  if (newsType === "breaking" || tone === "impact") {
+  if (vertical === "policiales" || newsType === "breaking" || tone === "impact") {
     return "mm_impact";
+  }
+
+  if (vertical === "espectaculos" || vertical === "sociales") {
+    return "mm_classic";
   }
 
   if (newsType === "analysis" || carouselType === "explainer" || carouselType === "timeline") {
@@ -318,12 +373,44 @@ function inferTemplate(newsType, carouselType, tone) {
   return "mm_classic";
 }
 
-function getExpectedSlideTypes(carouselType) {
+function getExpectedSlideTypes(carouselType, diagnosis) {
+  const vertical = diagnosis && diagnosis.vertical;
+  const complexity = diagnosis && diagnosis.complexity;
+  const newsType = diagnosis && diagnosis.news_type;
+
+  if (carouselType === "service") {
+    if (complexity === "deep") return ["context", "facts", "facts", "cta"];
+    return ["context", "facts", "cta"];
+  }
+
+  if (carouselType === "data_points") {
+    if (complexity === "deep" || vertical === "economia") return ["context", "facts", "facts", "impact", "cta"];
+    return ["context", "facts", "facts", "cta"];
+  }
+
+  if (carouselType === "explainer") {
+    if (complexity === "deep" || vertical === "politica") return ["context", "impact", "facts", "impact", "facts", "cta"];
+    return ["context", "impact", "facts", "impact", "cta"];
+  }
+
+  if (carouselType === "timeline") {
+    if (complexity === "deep" || vertical === "policiales" || newsType === "breaking") {
+      return ["context", "impact", "facts", "impact", "facts", "cta"];
+    }
+    return ["context", "impact", "impact", "facts", "cta"];
+  }
+
+  if (carouselType === "summary") {
+    if (vertical === "espectaculos" || vertical === "sociales" || complexity === "brief") {
+      return ["context", "impact", "cta"];
+    }
+  }
+
   return CAROUSEL_STRUCTURES[carouselType] || CAROUSEL_STRUCTURES.summary;
 }
 
-function getSlideCountForCarouselType(carouselType) {
-  return getExpectedSlideTypes(carouselType).length + 1;
+function getSlideCountForCarouselType(carouselType, diagnosis) {
+  return getExpectedSlideTypes(carouselType, diagnosis).length + 1;
 }
 
 function bucketSlidesByType(slides) {

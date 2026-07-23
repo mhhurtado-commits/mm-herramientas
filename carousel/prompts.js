@@ -25,16 +25,18 @@ export function buildCarouselPrompt(article) {
     "- No escribir estilos, colores, coordenadas ni decisiones de diseno.\n" +
     "- Elegir SOLO una opcion valida para cada campo de diagnostico.\n" +
     '- news_type permitido: "breaking", "service", "institutional", "analysis", "data", "evergreen".\n' +
+    '- vertical permitido: "policiales", "servicios", "sociales", "espectaculos", "clima", "deportes", "politica", "economia", "general".\n' +
     '- complexity permitido: "brief", "medium", "deep".\n' +
     '- tone permitido: "informative", "explainer", "chronological", "impact", "utility".\n' +
     '- carousel_type permitido: "summary", "explainer", "timeline", "data_points", "service".\n' +
     '- template permitido: "mm_classic", "mm_briefing", "mm_impact".\n' +
+    "- La cantidad total de slides puede variar entre 4 y 7, segun el diagnostico.\n" +
     "- Estructuras permitidas segun carousel_type:\n" +
-    '  - summary: cover + context + facts + impact + cta\n' +
-    '  - explainer: cover + context + impact + facts + impact + cta\n' +
-    '  - timeline: cover + context + impact + impact + facts + cta\n' +
-    '  - data_points: cover + context + facts + facts + cta\n' +
-    '  - service: cover + context + impact + facts + cta\n' +
+    '  - summary: entre 4 y 5 slides totales\n' +
+    '  - explainer: entre 6 y 7 slides totales\n' +
+    '  - timeline: entre 6 y 7 slides totales\n' +
+    '  - data_points: entre 5 y 6 slides totales\n' +
+    '  - service: entre 4 y 5 slides totales\n' +
     "- Los tipos de slide permitidos son solo: context, facts, impact, cta.\n" +
     "- facts usa items. context, impact y cta usan text.\n\n" +
     "Responde SOLO con JSON sin backticks ni markdown.\n" +
@@ -50,11 +52,12 @@ export function buildCarouselPrompt(article) {
     "  },\n" +
     '  "diagnosis":{\n' +
     '    "news_type":"breaking",\n' +
+    '    "vertical":"policiales",\n' +
     '    "complexity":"medium",\n' +
     '    "tone":"informative",\n' +
     '    "carousel_type":"summary",\n' +
-    '    "template":"mm_briefing",\n' +
-    '    "slide_count":5,\n' +
+    '    "template":"mm_impact",\n' +
+    '    "slide_count":6,\n' +
     '    "reason":""\n' +
     "  },\n" +
     '  "cover":{\n' +
