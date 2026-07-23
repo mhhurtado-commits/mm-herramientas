@@ -10,6 +10,7 @@ var activeSlideIndex = 0;
 export function initUI() {
   window.removeEventListener("carousel:asset-ready", handleAssetReady);
   window.addEventListener("carousel:asset-ready", handleAssetReady);
+  ensureBulkDownloadButton();
 
   var loadBtn = document.getElementById("loadBtn");
   if (loadBtn) {
@@ -74,6 +75,7 @@ function renderInPreview() {
   if (!renderedSlides.length) {
     carouselPreview.innerHTML = '<div class="carousel-empty">Sin diapositivas</div>';
     if (preview) preview.innerHTML = "";
+    toggleBulkDownloadButton(false);
     return;
   }
 
@@ -84,6 +86,7 @@ function renderInPreview() {
   if (preview) {
     preview.innerHTML = renderedSlides.length + " slides generados";
   }
+  toggleBulkDownloadButton(true);
 
   var editor = document.createElement("div");
   editor.className = "carousel-editor";
@@ -133,6 +136,39 @@ function handleAssetReady() {
   var project = getProject();
   if (!project) return;
   renderInPreview();
+}
+
+function ensureBulkDownloadButton() {
+  var header = document.querySelector(".carousel-panel-header");
+  var status = document.getElementById("previewContent");
+  if (!header || !status) return;
+
+  var actions = document.getElementById("previewActions");
+  if (!actions) {
+    actions = document.createElement("div");
+    actions.id = "previewActions";
+    actions.className = "carousel-panel-actions";
+    status.parentNode.insertBefore(actions, status);
+    actions.appendChild(status);
+  }
+
+  var bulkBtn = document.getElementById("downloadAllBtn");
+  if (bulkBtn) return;
+
+  bulkBtn = document.createElement("button");
+  bulkBtn.type = "button";
+  bulkBtn.id = "downloadAllBtn";
+  bulkBtn.className = "mm-btn carousel-bulk-btn";
+  bulkBtn.textContent = "Descargar carrusel";
+  bulkBtn.hidden = true;
+  bulkBtn.addEventListener("click", downloadAllSlides);
+  actions.appendChild(bulkBtn);
+}
+
+function toggleBulkDownloadButton(visible) {
+  var bulkBtn = document.getElementById("downloadAllBtn");
+  if (!bulkBtn) return;
+  bulkBtn.hidden = !visible;
 }
 
 function createSlideSelectHandler(index) {
@@ -237,7 +273,7 @@ async function copySlideImage(item, project) {
   }
 }
 
-async function downloadSlideImage(item, project) {
+async function downloadSlideImage(item, project, silent) {
   var preview = document.getElementById("previewContent");
   try {
     var canvas = renderSlideToCanvas(item.slide, project);
@@ -257,9 +293,13 @@ async function downloadSlideImage(item, project) {
       URL.revokeObjectURL(url);
     }, 1000);
 
-    setStatus(preview, "Descargando " + fileName);
+    if (!silent) {
+      setStatus(preview, "Descargando " + fileName);
+    }
   } catch (error) {
-    setStatus(preview, "No se pudo descargar el slide.");
+    if (!silent) {
+      setStatus(preview, "No se pudo descargar el slide.");
+    }
   }
 }
 
@@ -283,6 +323,31 @@ function buildSlideFileName(item) {
 function setStatus(preview, message) {
   if (!preview) return;
   preview.textContent = message;
+}
+
+async function downloadAllSlides() {
+  var preview = document.getElementById("previewContent");
+  var project = getProject();
+  if (!project || !project.slides || !project.slides.length) return;
+
+  setStatus(preview, "Preparando descarga...");
+
+  for (var i = 0; i < project.slides.length; i++) {
+    var item = {
+      index: i,
+      slide: project.slides[i]
+    };
+    await downloadSlideImage(item, project, true);
+    await wait(180);
+  }
+
+  setStatus(preview, project.slides.length + " slides descargados");
+}
+
+function wait(ms) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, ms);
+  });
 }
 
 function createCoverLogoControls(project) {

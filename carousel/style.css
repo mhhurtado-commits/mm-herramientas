@@ -92,6 +92,13 @@
   margin-bottom: 16px;
 }
 
+.carousel-panel-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
 .carousel-panel-title {
   display: block;
   margin-top: 3px;
@@ -108,6 +115,11 @@
   text-transform: uppercase;
   color: var(--v-dark);
   text-align: right;
+}
+
+.carousel-bulk-btn {
+  min-height: 36px;
+  white-space: nowrap;
 }
 
 #carousel-preview {
@@ -385,6 +397,11 @@
   .carousel-panel-header {
     align-items: start;
     flex-direction: column;
+  }
+
+  .carousel-panel-actions {
+    width: 100%;
+    align-items: stretch;
   }
 
   .carousel-status {
