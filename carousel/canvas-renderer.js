@@ -322,9 +322,18 @@ function drawCoverLogo(ctx, project) {
     badgeY = 610;
   }
 
-  fillRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, MMTheme.colors.logoBadge);
-  strokeRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, "rgba(166,206,57,0.24)", 2);
-  drawLogoLockup(ctx, badgeX + badgeW / 2, badgeY + 18, position === "right" ? MMTheme.variant.coverLogoWidth - 36 : MMTheme.variant.coverLogoWidth, true);
+  if (MMTheme.variant.coverLogoBadgeVisible) {
+    fillRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, MMTheme.colors.logoBadge);
+    strokeRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, "rgba(166,206,57,0.24)", 2);
+  }
+
+  drawLogoLockup(
+    ctx,
+    badgeX + badgeW / 2,
+    badgeY + (MMTheme.variant.coverLogoBadgeVisible ? 18 : 24),
+    position === "right" ? MMTheme.variant.coverLogoWidth - 36 : MMTheme.variant.coverLogoWidth,
+    true
+  );
 }
 
 function fitCoverTitleFont(ctx, text, maxW, maxLines) {
@@ -368,8 +377,8 @@ function renderCover(ctx, slide, project) {
   drawFrame(ctx);
 
   var cat = project.article && project.article.category;
-  if (MMTheme.variant.categoryOnCover) {
-    drawCategoryBadge(ctx, cat || "Media Mendoza", 52, 52);
+  if (MMTheme.variant.categoryOnCover && cat) {
+    drawCategoryBadge(ctx, cat, 52, 52);
   }
   drawCoverLogo(ctx, project);
 
