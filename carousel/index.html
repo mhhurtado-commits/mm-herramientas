@@ -10,16 +10,19 @@
 <body>
 <div id="app">
   <h2>Carrusel para Instagram</h2>
-  <div id="inputArea">
-    <input type="url" id="urlInput" placeholder="https://mediamendoza.com/..." style="width:100%;max-width:400px;padding:8px;font-size:14px;box-sizing:border-box" />
-    <br><br>
-    <button id="loadBtn">Cargar noticia</button>
-    <button id="demoBtn">Cargar Demo</button>
+  <div id="inputArea" class="carousel-toolbar">
+    <input type="url" id="urlInput" class="carousel-url-input" placeholder="https://mediamendoza.com/..." />
+    <div class="carousel-actions">
+      <button id="loadBtn">Cargar noticia</button>
+      <button id="demoBtn">Cargar Demo</button>
+    </div>
   </div>
-  <br>
-  <div id="previewPanel" style="border:1px solid #ccc;padding:16px;min-height:120px;max-width:600px">
-    <strong>Vista previa</strong>
-    <div id="previewContent" style="margin-top:8px;font-size:14px"></div>
+  <div id="previewPanel" class="carousel-panel">
+    <div class="carousel-panel-header">
+      <strong>Editor</strong>
+      <div id="previewContent" class="carousel-status"></div>
+    </div>
+    <div id="carousel-preview"></div>
   </div>
 </div>
 <script type="module" src="app.js"></script>
