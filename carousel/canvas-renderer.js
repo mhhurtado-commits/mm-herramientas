@@ -29,9 +29,8 @@ function drawGradientOverlay(ctx, zone) {
 function loadCoverImage(ctx, slide, project, maxHeight) {
   var imgUrl = slide.content.image || (project.article && project.article.image);
   if (!imgUrl) return;
-
-  var img = new Image();
-  img.crossOrigin = "anonymous";
+  var img = getCachedImage(imgUrl);
+  if (!img) return;
 
   function drawLoaded() {
     var zone = getHeaderZone();
@@ -40,16 +39,7 @@ function loadCoverImage(ctx, slide, project, maxHeight) {
     drawImageCover(ctx, img, clippedZone.x, clippedZone.y, clippedZone.w, clippedZone.h);
     drawGradientOverlay(ctx, clippedZone);
   }
-
-  if (img.complete && img.naturalWidth > 0) {
-    img.crossOrigin = null;
-    drawLoaded();
-    return;
-  }
-
-  img.onload = drawLoaded;
-  img.onerror = function () {};
-  img.src = imgUrl;
+  drawLoaded();
 }
 
 function drawLogo(ctx, src, drawFn) {
@@ -74,6 +64,7 @@ function getCachedImage(src, onReady) {
   }
 
   var img = new Image();
+  img.crossOrigin = "anonymous";
   imageCache[src] = {
     img: img,
     loaded: false,
