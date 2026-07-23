@@ -8,6 +8,7 @@ export function createCarouselProject() {
       summary: "",
       content: ""
     },
+    editorialPlan: null,
     slides: [],
     settings: {
       format: "instagram",
