@@ -441,7 +441,6 @@ function renderTextSlide(ctx, slide, project) {
 
   var gridX = panelX + 70;
   var maxW = panelW - 150 - MMTheme.variant.textWidthOffset;
-  var cat = project.article && project.article.category;
   var supportImage = slide.content && slide.content.supportImage;
   var hasSupportImage = false;
   var imageBox = null;
@@ -460,12 +459,7 @@ function renderTextSlide(ctx, slide, project) {
   }
 
   if (MMTheme.variant.showEyebrow) {
-    drawEyebrow(ctx, gridX, panelY + 42, cat || slide.content.title || "Claves");
-  } else if (cat && MMTheme.variant.categoryInText) {
-    ctx.font = MMTheme.fonts.category;
-    ctx.fillStyle = MMTheme.colors.accentDark;
-    ctx.textBaseline = "top";
-    ctx.fillText(cat.toUpperCase(), gridX, panelY + 42);
+    drawEyebrow(ctx, gridX, panelY + 42, slide.content.title || "Claves");
   }
 
   var title = slide.content.title || "";

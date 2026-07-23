@@ -177,31 +177,62 @@ async function fetchHtml(url,cacheTtl=300){
   if(!res.ok) throw new Error(`Error ${res.status}`);
   return {res,html:await res.text()};
 }
+function extraerAtributoTag(tag,attr){
+  const regex=new RegExp(`${attr}\\s*=\\s*(["'])([\\s\\S]*?)\\1`,"i");
+  const match=tag.match(regex);
+  return limpiarEspacios(match?.[2]||"");
+}
+function extraerMetaTag(html,keyAttr,keyValue){
+  const tags=html.match(/<meta\b[^>]*>/gi)||[];
+  const keyRegex=new RegExp(`${keyAttr}\\s*=\\s*(["'])${keyValue}\\1`,"i");
+  for(const tag of tags){
+    if(!keyRegex.test(tag)) continue;
+    const content=extraerAtributoTag(tag,"content");
+    if(content) return content;
+  }
+  return "";
+}
 function extraerDatosNota(html,url){
-  const title=normalizarTituloSitio(extractMeta(html,/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,300})["']/i,/<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']{1,300})["']/i,/<title[^>]*>([^<]{1,300})<\/title>/i));
-  const description=extractMeta(html,/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']{1,500})["']/i,/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{1,500})["']/i);
-  const image=extractMeta(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']{1,1500})["']/i,/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']{1,1500})["']/i);
-  const category=extractMeta(html,/<meta[^>]+property=["']article:section["'][^>]+content=["']([^"']{1,120})["']/i,/<meta[^>]+name=["']section["'][^>]+content=["']([^"']{1,120})["']/i)||inferirCategoriaDesdeUrl(url);
+  const title=normalizarTituloSitio(extraerMetaTag(html,"property","og:title")||extraerMetaTag(html,"name","twitter:title")||extractMeta(html,/<title[^>]*>([^<]{1,300})<\/title>/i));
+  const description=extraerMetaTag(html,"property","og:description")||extraerMetaTag(html,"name","description");
+  const image=extraerMetaTag(html,"property","og:image")||extraerMetaTag(html,"name","twitter:image");
+  const category=extraerMetaTag(html,"property","article:section")||extraerMetaTag(html,"name","section")||inferirCategoriaDesdeUrl(url);
   const images=extraerImagenesNota(html,url,image);
   return {title,category,description,body:extraerTexto(html),image,url,images};
 }
 
 function extraerImagenesNota(html,baseUrl,coverImage){
-  const matches=[...html.matchAll(/<img[^>]+src=["']([^"']{8,2000})["'][^>]*>/gi)];
+  const tags=html.match(/<img\b[^>]*>/gi)||[];
   const out=[];
   const seen=new Set();
   const coverClean=limpiarUrlImagen(coverImage,baseUrl);
-  for(const match of matches){
-    const abs=limpiarUrlImagen(match[1],baseUrl);
-    if(!abs||seen.has(abs)||abs===coverClean) continue;
-    const lower=abs.toLowerCase();
-    if(!/\.(jpg|jpeg|png|webp|avif)(?:$|\?)/i.test(lower) && lower.indexOf('/image/')<0) continue;
-    if(/logo|avatar|icon|ads|pixel|emoji|favicon|placeholder/i.test(lower)) continue;
-    seen.add(abs);
-    out.push(abs);
-    if(out.length>=6) break;
+  for(const tag of tags){
+    const candidates=[
+      extraerAtributoTag(tag,"src"),
+      extraerAtributoTag(tag,"data-src"),
+      extraerAtributoTag(tag,"data-lazy-src"),
+      extraerAtributoTag(tag,"data-original"),
+      extraerSrcsetPrincipal(tag)
+    ].filter(Boolean);
+    for(const candidate of candidates){
+      const abs=limpiarUrlImagen(candidate,baseUrl);
+      if(!abs||seen.has(abs)||abs===coverClean||abs.startsWith("data:")) continue;
+      const lower=abs.toLowerCase();
+      if(!/\.(jpg|jpeg|png|webp|avif)(?:$|\?)/i.test(lower) && lower.indexOf('/image/')<0 && lower.indexOf('/uploads/')<0) continue;
+      if(/logo|avatar|icon|ads|pixel|emoji|favicon|placeholder|gravatar|banner/i.test(lower)) continue;
+      seen.add(abs);
+      out.push(abs);
+      if(out.length>=6) return out;
+    }
   }
   return out;
+}
+
+function extraerSrcsetPrincipal(tag){
+  const srcset=extraerAtributoTag(tag,"srcset")||extraerAtributoTag(tag,"data-srcset");
+  if(!srcset) return "";
+  const first=srcset.split(",")[0]||"";
+  return limpiarEspacios(first.split(/\s+/)[0]||"");
 }
 
 function limpiarUrlImagen(src,baseUrl){
