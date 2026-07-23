@@ -37,6 +37,7 @@ export function initUI() {
         project.article.images = Array.isArray(data.imagenes) ? data.imagenes : [];
         project.article.content = data.texto || "";
         project.article.summary = data.descripcion || "";
+        project.settings.useSecondaryImages = project.article.images.length > 0;
         setProject(project);
 
         if (preview) preview.innerHTML = "Generando plan editorial...";
