@@ -494,9 +494,9 @@ function renderTextSlide(ctx, slide, project) {
         ctx,
         supportImage,
         gridX,
-        panelY + panelH - 286,
+        panelY + panelH - 326,
         panelW - 140,
-        170
+        210
       );
     } else {
       hasSupportImage = drawSupportImage(
