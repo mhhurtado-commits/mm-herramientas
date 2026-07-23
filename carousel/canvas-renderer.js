@@ -245,13 +245,13 @@ function drawCoverFooter(ctx, panelX, panelY, panelW, panelH) {
 }
 
 function drawCoverLogo(ctx) {
-  var badgeW = 336;
-  var badgeH = 108;
+  var badgeW = 364;
+  var badgeH = 116;
   var badgeX = (W - badgeW) / 2;
   var badgeY = 96;
-  fillRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 54, "rgba(255,255,255,0.94)");
-  strokeRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 54, "rgba(166,206,57,0.24)", 2);
-  drawLogoLockup(ctx, W / 2, badgeY + 20, 244, true);
+  fillRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, "rgba(255,255,255,0.94)");
+  strokeRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, "rgba(166,206,57,0.24)", 2);
+  drawLogoLockup(ctx, W / 2, badgeY + 18, 264, true);
 }
 
 function fitCoverTitleFont(ctx, text, maxW, maxLines) {
