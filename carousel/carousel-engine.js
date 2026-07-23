@@ -3,6 +3,7 @@ import { initUI } from "./ui.js";
 import { buildCarouselPrompt } from "./prompts.js";
 import { createSlide } from "./slide-model.js";
 import { normalizeCarouselPlan } from "./parser.js";
+import { attachCarouselOutput, createEditorialEnvelope } from "./editorial-contract.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 
@@ -81,6 +82,11 @@ export async function generatePlan() {
       const parsed = normalizeCarouselPlan(data.result, project.article);
       project.editorialPlan = parsed.plan;
       project.slides = convertirPlanASlides(parsed.plan, project.article, project.settings);
+      project.editorialPackage = attachCarouselOutput(
+        createEditorialEnvelope(project.article, parsed.plan.diagnosis),
+        parsed.plan,
+        project.socialCopy
+      );
       setProject(project);
 
       console.log("Carousel:");

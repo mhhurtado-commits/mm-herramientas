@@ -10,6 +10,7 @@ export function createCarouselProject() {
       content: ""
     },
     editorialPlan: null,
+    editorialPackage: null,
     socialCopy: {
       caption: "",
       hashtags: []

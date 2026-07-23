@@ -3,6 +3,7 @@ import { setProject, getProject } from "./state.js";
 import { renderCarousel } from "./renderer.js";
 import { renderSlideToCanvas } from "./canvas-renderer.js";
 import { createDemoProject } from "./demo.js";
+import { attachCarouselOutput } from "./editorial-contract.js";
 import { buildInstagramCaptionPrompt } from "./prompts.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
@@ -456,10 +457,16 @@ async function generateInstagramCaption(project) {
 
     project.socialCopy.caption = data.result.caption || "";
     project.socialCopy.hashtags = Array.isArray(data.result.hashtags) ? data.result.hashtags : [];
+    if (project.editorialPackage && project.editorialPlan) {
+      project.editorialPackage = attachCarouselOutput(project.editorialPackage, project.editorialPlan, project.socialCopy);
+    }
     setProject(project);
   } catch (error) {
     project.socialCopy.caption = "";
     project.socialCopy.hashtags = [];
+    if (project.editorialPackage && project.editorialPlan) {
+      project.editorialPackage = attachCarouselOutput(project.editorialPackage, project.editorialPlan, project.socialCopy);
+    }
     setProject(project);
   }
 }
