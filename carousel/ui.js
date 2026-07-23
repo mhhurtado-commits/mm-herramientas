@@ -384,18 +384,40 @@ function createReelSceneCard(scene, project) {
   media.className = "reel-scene-media";
 
   var imgUrl = resolveReelSceneImage(scene, project);
-  if (imgUrl) {
+  if (imgUrl && scene.visual_type !== "text_card") {
     var img = document.createElement("img");
     img.className = "reel-scene-image";
-    img.src = imgUrl;
+    img.src = toRenderableSceneImageUrl(imgUrl);
     img.alt = scene.text || scene.visual_role || "Escena del reel";
     media.appendChild(img);
   } else {
     var placeholder = document.createElement("div");
     placeholder.className = "reel-scene-placeholder";
-    placeholder.textContent = scene.visual_type === "text_card" ? "Placa de texto" : "Sin imagen";
+    placeholder.textContent = scene.visual_type === "text_card" ? "" : "Sin imagen";
     media.appendChild(placeholder);
   }
+
+  var overlay = document.createElement("div");
+  overlay.className = "reel-scene-overlay" + (scene.visual_type === "text_card" ? " is-text-card" : "");
+
+  var roleChip = document.createElement("span");
+  roleChip.className = "reel-scene-chip";
+  roleChip.textContent = scene.visual_role || scene.visual_type || "escena";
+  overlay.appendChild(roleChip);
+
+  var visualTitle = document.createElement("strong");
+  visualTitle.className = "reel-scene-visual-title";
+  visualTitle.textContent = scene.text || "Sin texto principal";
+  overlay.appendChild(visualTitle);
+
+  if (scene.subtitle) {
+    var visualSubtitle = document.createElement("p");
+    visualSubtitle.className = "reel-scene-visual-subtitle";
+    visualSubtitle.textContent = scene.subtitle;
+    overlay.appendChild(visualSubtitle);
+  }
+
+  media.appendChild(overlay);
 
   var body = document.createElement("div");
   body.className = "reel-scene-body";
@@ -461,6 +483,14 @@ function formatSceneDuration(durationMs) {
   var ms = Number(durationMs || 0);
   if (!ms) return "";
   return (ms / 1000).toFixed(ms % 1000 === 0 ? 0 : 1) + " s";
+}
+
+function toRenderableSceneImageUrl(imgUrl) {
+  if (!imgUrl) return "";
+  if (imgUrl.indexOf("data:") === 0 || imgUrl.indexOf("blob:") === 0) return imgUrl;
+  if (imgUrl.indexOf(WORKER + "?image=") === 0) return imgUrl;
+  if (/^https?:\/\//i.test(imgUrl)) return WORKER + "?image=" + encodeURIComponent(imgUrl);
+  return imgUrl;
 }
 
 function toggleBulkDownloadButton(visible) {
