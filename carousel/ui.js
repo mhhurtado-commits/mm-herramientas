@@ -105,9 +105,7 @@ function renderInPreview() {
 
   for (var i = 0; i < renderedSlides.length; i++) {
     var item = renderedSlides[i];
-    var thumbButton = createThumbnailButton(item, i === activeSlideIndex);
-    thumbButton.addEventListener("click", createSlideSelectHandler(i));
-    thumbs.appendChild(thumbButton);
+    thumbs.appendChild(createThumbnailItem(item, i === activeSlideIndex, project));
   }
 
   var activeItem = renderedSlides[activeSlideIndex];
@@ -144,10 +142,14 @@ function createSlideSelectHandler(index) {
   };
 }
 
-function createThumbnailButton(item, isActive) {
+function createThumbnailItem(item, isActive, project) {
+  var wrap = document.createElement("div");
+  wrap.className = "carousel-thumb-card";
+
   var button = document.createElement("button");
   button.type = "button";
   button.className = "carousel-thumb" + (isActive ? " is-active" : "");
+  button.addEventListener("click", createSlideSelectHandler(item.index));
 
   var previewCanvas = item.canvas;
   previewCanvas.className = "carousel-thumb-canvas";
@@ -169,7 +171,10 @@ function createThumbnailButton(item, isActive) {
   button.appendChild(previewCanvas);
   button.appendChild(info);
 
-  return button;
+  wrap.appendChild(button);
+  wrap.appendChild(createThumbActions(item, project));
+
+  return wrap;
 }
 
 function getSlideLabel(item, index) {
@@ -178,6 +183,106 @@ function getSlideLabel(item, index) {
   if (title) return title;
   if (slide.type) return slide.type;
   return "Slide " + (index + 1);
+}
+
+function createThumbActions(item, project) {
+  var actions = document.createElement("div");
+  actions.className = "carousel-thumb-actions";
+
+  var copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "carousel-thumb-action";
+  copyBtn.textContent = "Copiar";
+  copyBtn.addEventListener("click", async function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    await copySlideImage(item, project);
+  });
+
+  var downloadBtn = document.createElement("button");
+  downloadBtn.type = "button";
+  downloadBtn.className = "carousel-thumb-action";
+  downloadBtn.textContent = "PNG";
+  downloadBtn.addEventListener("click", async function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    await downloadSlideImage(item, project);
+  });
+
+  actions.appendChild(copyBtn);
+  actions.appendChild(downloadBtn);
+  return actions;
+}
+
+async function copySlideImage(item, project) {
+  var preview = document.getElementById("previewContent");
+  try {
+    var canvas = renderSlideToCanvas(item.slide, project);
+    if (!canvas) throw new Error("No se pudo renderizar el slide.");
+    var blob = await canvasToBlob(canvas);
+    if (!blob) throw new Error("No se pudo generar la imagen.");
+    if (typeof ClipboardItem !== "function" || !navigator.clipboard || !navigator.clipboard.write) {
+      throw new Error("Clipboard no disponible.");
+    }
+
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        [blob.type || "image/png"]: blob
+      })
+    ]);
+
+    setStatus(preview, "Slide copiado");
+  } catch (error) {
+    setStatus(preview, "No se pudo copiar. Usa PNG.");
+  }
+}
+
+async function downloadSlideImage(item, project) {
+  var preview = document.getElementById("previewContent");
+  try {
+    var canvas = renderSlideToCanvas(item.slide, project);
+    if (!canvas) throw new Error("No se pudo renderizar el slide.");
+    var blob = await canvasToBlob(canvas);
+    if (!blob) throw new Error("No se pudo generar la imagen.");
+
+    var link = document.createElement("a");
+    var url = URL.createObjectURL(blob);
+    var fileName = buildSlideFileName(item);
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 1000);
+
+    setStatus(preview, "Descargando " + fileName);
+  } catch (error) {
+    setStatus(preview, "No se pudo descargar el slide.");
+  }
+}
+
+function canvasToBlob(canvas) {
+  return new Promise(function (resolve) {
+    canvas.toBlob(function (blob) {
+      resolve(blob || null);
+    }, "image/png");
+  });
+}
+
+function buildSlideFileName(item) {
+  var label = getSlideLabel(item, item.index)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 36);
+  return "carousel-slide-" + String(item.index + 1).padStart(2, "0") + (label ? "-" + label : "") + ".png";
+}
+
+function setStatus(preview, message) {
+  if (!preview) return;
+  preview.textContent = message;
 }
 
 function createCoverLogoControls(project) {
