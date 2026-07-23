@@ -430,16 +430,16 @@ function renderEndSlide(ctx, slide, project) {
   var fitted = fitEndTitleFont(ctx, endTitle, titleW, 3);
   ctx.font = fitted.font;
   ctx.fillStyle = MMTheme.colors.textPrimary;
-  ctx.textAlign = "center";
-  wrapText(ctx, endTitle, W / 2 - titleW / 2, panelY + 228, titleW, fitted.lineH);
+  ctx.textAlign = "start";
+  wrapText(ctx, endTitle, titleX, panelY + 228, titleW, fitted.lineH);
 
   ctx.font = MMTheme.fonts.subtitle;
   ctx.fillStyle = MMTheme.colors.textSecondary;
-  ctx.textAlign = "center";
+  ctx.textAlign = "start";
   wrapText(
     ctx,
     slide.content.text || "Desliza para repasar los datos clave y entrar a la nota completa.",
-    W / 2 - titleW / 2,
+    titleX,
     panelY + 410,
     titleW,
     44
