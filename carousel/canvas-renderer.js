@@ -7,6 +7,7 @@ import { MMTheme, applyThemeVariant } from "./core/theme.js";
 var W = 1080;
 var H = 1350;
 var imageCache = {};
+var IMAGE_PROXY = "https://mm-herramientas-worker.mhhurtado.workers.dev?image=";
 
 function drawWhiteBackground(ctx) {
   ctx.fillStyle = MMTheme.colors.background;
@@ -53,7 +54,10 @@ function drawLogo(ctx, src, drawFn) {
 }
 
 function getCachedImage(src, onReady) {
-  var cached = imageCache[src];
+  var normalizedSrc = normalizeImageSource(src);
+  if (!normalizedSrc) return null;
+
+  var cached = imageCache[normalizedSrc];
   if (cached && cached.loaded && cached.img) {
     return cached.img;
   }
@@ -65,14 +69,14 @@ function getCachedImage(src, onReady) {
 
   var img = new Image();
   img.crossOrigin = "anonymous";
-  imageCache[src] = {
+  imageCache[normalizedSrc] = {
     img: img,
     loaded: false,
     listeners: onReady ? [onReady] : []
   };
 
   img.onload = function () {
-    var entry = imageCache[src];
+    var entry = imageCache[normalizedSrc];
     if (!entry) return;
     entry.loaded = true;
     for (var i = 0; i < entry.listeners.length; i++) {
@@ -80,18 +84,27 @@ function getCachedImage(src, onReady) {
     }
     entry.listeners = [];
     if (typeof window !== "undefined" && window.dispatchEvent && typeof CustomEvent === "function") {
-      window.dispatchEvent(new CustomEvent("carousel:asset-ready", { detail: { src: src } }));
+      window.dispatchEvent(new CustomEvent("carousel:asset-ready", { detail: { src: normalizedSrc } }));
     }
   };
 
   img.onerror = function () {
-    var entry = imageCache[src];
+    var entry = imageCache[normalizedSrc];
     if (!entry) return;
     entry.listeners = [];
   };
 
-  img.src = src;
+  img.src = normalizedSrc;
   return null;
+}
+
+function normalizeImageSource(src) {
+  if (!src) return "";
+  if (src.indexOf("data:") === 0 || src.indexOf("blob:") === 0) return src;
+  if (src.indexOf("/assets/") === 0 || src.indexOf("./") === 0 || src.indexOf("../") === 0) return src;
+  if (src.indexOf(IMAGE_PROXY) === 0) return src;
+  if (/^https?:\/\//i.test(src)) return IMAGE_PROXY + encodeURIComponent(src);
+  return src;
 }
 
 function fillRoundRect(ctx, x, y, w, h, r, fill) {
