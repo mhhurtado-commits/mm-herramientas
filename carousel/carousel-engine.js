@@ -2,15 +2,16 @@ import { setDefaultProject, getProject, setProject } from "./state.js";
 import { initUI } from "./ui.js";
 import { buildCarouselPrompt } from "./prompts.js";
 import { createSlide } from "./slide-model.js";
+import { normalizeCarouselPlan } from "./parser.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 
 const TEMPLATE_MAP = {
-  cover:   { template: "cover" },
+  cover: { template: "cover" },
   context: { template: "text" },
-  facts:   { template: "stats" },
-  impact:  { template: "text" },
-  cta:     { template: "end" }
+  facts: { template: "stats" },
+  impact: { template: "text" },
+  cta: { template: "end" }
 };
 
 export function createCarousel() {
@@ -24,27 +25,27 @@ function convertirPlanASlides(plan) {
   let order = 0;
 
   if (plan.cover) {
-    const s = createSlide();
-    s.id = "slide-" + order;
-    s.type = "cover";
-    s.template = "cover";
-    s.order = order++;
-    s.content.title = plan.cover.title || "";
-    s.content.subtitle = plan.cover.subtitle || "";
-    slides.push(s);
+    const slide = createSlide();
+    slide.id = "slide-" + order;
+    slide.type = "cover";
+    slide.template = "cover";
+    slide.order = order++;
+    slide.content.title = plan.cover.title || "";
+    slide.content.subtitle = plan.cover.subtitle || "";
+    slides.push(slide);
   }
 
   for (const item of plan.slides || []) {
     const map = TEMPLATE_MAP[item.type] || { template: "text" };
-    const s = createSlide();
-    s.id = "slide-" + order;
-    s.type = item.type;
-    s.template = map.template;
-    s.order = order++;
-    s.content.title = item.title || "";
-    s.content.text = item.text || "";
-    s.content.items = item.items || [];
-    slides.push(s);
+    const slide = createSlide();
+    slide.id = "slide-" + order;
+    slide.type = item.type;
+    slide.template = map.template;
+    slide.order = order++;
+    slide.content.title = item.title || "";
+    slide.content.text = item.text || "";
+    slide.content.items = item.items || [];
+    slides.push(slide);
   }
 
   return slides;
@@ -52,7 +53,7 @@ function convertirPlanASlides(plan) {
 
 export async function generatePlan() {
   const project = getProject();
-  if (!project) return;
+  if (!project) return { ok: false, errors: ["Proyecto no inicializado"] };
 
   const prompt = buildCarouselPrompt(project.article);
 
@@ -62,30 +63,40 @@ export async function generatePlan() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         systemPrompt: prompt,
-        userMsg: "Generá el plan editorial para el carrusel."
+        userMsg: "Genera el plan editorial para el carrusel."
       })
     });
 
     const data = await res.json();
 
     if (data.ok && data.result) {
-      project.editorialPlan = data.result;
-      project.slides = convertirPlanASlides(data.result);
+      const parsed = normalizeCarouselPlan(data.result, project.article);
+      project.editorialPlan = parsed.plan;
+      project.slides = convertirPlanASlides(parsed.plan);
       setProject(project);
 
       console.log("Carousel:");
-      console.log("Artículo:");
+      console.log("Articulo:");
       console.log(project.article.title || project.article.url);
       console.log("Slides:");
       console.log(project.slides.length);
+
+      if (parsed.errors.length) {
+        console.warn("Carousel plan normalized with warnings:", parsed.errors);
+      }
+
+      return parsed;
     }
   } catch (e) {
     console.error("Error generando plan editorial:", e);
+    return { ok: false, errors: [e.message || "Error generando plan editorial"] };
   }
+
+  return { ok: false, errors: ["No se recibio un plan editorial valido"] };
 }
 
-export function loadTemplate(){}
+export function loadTemplate() {}
 
-export function renderSlide(){}
+export function renderSlide() {}
 
-export function exportCarousel(){}
+export function exportCarousel() {}
