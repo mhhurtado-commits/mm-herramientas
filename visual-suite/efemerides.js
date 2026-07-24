@@ -1316,32 +1316,33 @@ function drawEfeCards(ctx, W, H, br) {
   const drawCard = (e, x, y, cardW, cardH, featured) => {
     const catColor = VS_Colors.CAT_COLORS[e.categoria] || VS_Colors.CAT_DEFAULT;
     const accent = featured ? VS_Colors.GOLD : catColor;
-    const radius = Math.round(cardH * 0.12);
-    const iconSize = Math.round(cardH * (featured ? 0.58 : 0.48));
+    const boxH = cardH - gap;
+    const radius = Math.round(boxH * 0.12);
+    const iconSize = Math.round(boxH * (featured ? 0.58 : 0.48));
     const iconX = x + Math.round(cardW * 0.025);
-    const iconY = y + Math.round((cardH - iconSize) / 2);
+    const iconY = y + Math.round((boxH - iconSize) / 2);
     const textX = iconX + iconSize + Math.round(cardW * 0.035);
     const badgeText = e.categoria || '';
 
     ctx.save();
     ctx.shadowColor = 'rgba(22,32,27,0.14)';
-    ctx.shadowBlur = Math.round(cardH * 0.12);
-    ctx.shadowOffsetY = Math.round(cardH * 0.05);
+    ctx.shadowBlur = Math.round(boxH * 0.12);
+    ctx.shadowOffsetY = Math.round(boxH * 0.05);
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.roundRect(x, y, cardW, cardH - gap, radius);
+    ctx.roundRect(x, y, cardW, boxH, radius);
     ctx.fill();
     ctx.restore();
 
     ctx.strokeStyle = featured ? 'rgba(201,162,39,0.58)' : 'rgba(22,32,27,0.13)';
     ctx.lineWidth = Math.max(2, Math.round(W * 0.0012));
     ctx.beginPath();
-    ctx.roundRect(x, y, cardW, cardH - gap, radius);
+    ctx.roundRect(x, y, cardW, boxH, radius);
     ctx.stroke();
 
     ctx.fillStyle = accent;
     ctx.beginPath();
-    ctx.roundRect(x, y + Math.round(cardH * 0.12), Math.max(10, Math.round(W * 0.006)), cardH * 0.72, 5);
+    ctx.roundRect(x, y + Math.round(boxH * 0.12), Math.max(10, Math.round(W * 0.006)), boxH * 0.72, 5);
     ctx.fill();
 
     ctx.fillStyle = '#183128';
@@ -1364,7 +1365,7 @@ function drawEfeCards(ctx, W, H, br) {
     const badgeW = ctx.measureText(badgeText).width + Math.round(W * 0.025);
     const badgeH = Math.round(W * 0.029);
     const badgeX = x + cardW - badgeW - Math.round(cardW * 0.024);
-    const badgeY = y + Math.round(cardH * 0.12);
+    const badgeY = y + Math.round(boxH * 0.12);
     ctx.fillStyle = VS_Utils.hexToRgba(accent, 0.17);
     ctx.beginPath();
     ctx.roundRect(badgeX, badgeY, badgeW, badgeH, Math.round(badgeH / 2));
@@ -1375,11 +1376,8 @@ function drawEfeCards(ctx, W, H, br) {
 
     const yearText = String(e.anio || '');
     const yearFs = Math.round(W * (featured ? 0.025 : 0.022));
-    const titleFs = Math.round(W * (featured ? 0.025 : 0.021));
-    const descFs = Math.round(W * (featured ? 0.018 : 0.016));
-    const titleY = y + Math.round(cardH * 0.34);
-    const titleLineH = Math.round(titleFs * 1.12);
-    const descLineH = Math.round(descFs * 1.2);
+    let titleFs = Math.round(W * (featured ? 0.025 : 0.021));
+    const titleY = y + Math.round(boxH * 0.3);
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -1392,14 +1390,30 @@ function drawEfeCards(ctx, W, H, br) {
     const textRight = badgeX - Math.round(cardW * 0.026);
     const titleMaxW = Math.max(120, textRight - titleX);
     ctx.fillStyle = VS_Colors.INK;
-    ctx.font = `800 ${titleFs}px Inter, sans-serif`;
-    const titleLines = wrapEfeFullText(ctx, e.titulo || '', titleMaxW);
+    let titleLines = [];
+    do {
+      ctx.font = `800 ${titleFs}px Inter, sans-serif`;
+      titleLines = wrapEfeFullText(ctx, e.titulo || '', titleMaxW);
+      if (titleLines.length <= 2 || titleFs <= Math.round(W * 0.015)) break;
+      titleFs -= 2;
+    } while (titleFs > 0);
+    const titleLineH = Math.round(titleFs * 1.12);
     titleLines.forEach((line, i) => ctx.fillText(line, titleX, titleY + i * titleLineH));
 
-    const descY = y + Math.round(cardH * (titleLines.length > 1 ? 0.69 : 0.64));
+    const descY = titleY + Math.max(0, titleLines.length - 1) * titleLineH
+      + Math.round(boxH * (featured ? 0.18 : 0.12));
+    let descFs = Math.round(W * (featured ? 0.018 : 0.016));
+    let descLines = [];
+    let descLineH = 0;
     ctx.fillStyle = featured ? 'rgba(58,46,18,0.9)' : 'rgba(22,32,27,0.78)';
-    ctx.font = `600 ${descFs}px Inter, sans-serif`;
-    const descLines = wrapEfeFullText(ctx, e.descripcion || '', textRight - textX);
+    do {
+      ctx.font = `600 ${descFs}px Inter, sans-serif`;
+      descLines = wrapEfeFullText(ctx, e.descripcion || '', textRight - textX);
+      descLineH = Math.round(descFs * 1.2);
+      const lastBaseline = descY + Math.max(0, descLines.length - 1) * descLineH;
+      if (lastBaseline <= y + boxH - Math.round(boxH * 0.08) || descFs <= Math.round(W * 0.012)) break;
+      descFs -= 1;
+    } while (descFs > 0);
     descLines.forEach((line, i) => ctx.fillText(line, textX, descY + i * descLineH));
   };
 
