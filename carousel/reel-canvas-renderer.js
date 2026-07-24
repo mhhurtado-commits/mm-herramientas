@@ -138,55 +138,79 @@ function drawSceneText(ctx, scene) {
   var isTextCard = scene.visual_type === "text_card";
   var title = String(scene.text || "").trim() || "Sin texto principal";
   var subtitle = String(scene.subtitle || "").trim();
-  var contentX = 84;
-  var contentW = W - 168;
+  var contentX = 104;
+  var contentW = W - 208;
 
   if (isTextCard) {
-    var panelY = 250;
-    var panelH = H - 414;
-    fillRoundRect(ctx, 64, panelY, W - 128, panelH, 44, "rgba(255,255,255,0.94)");
+    var panelY = 234;
+    var panelH = H - 382;
+    fillRoundRect(ctx, 58, panelY, W - 116, panelH, 46, "rgba(255,255,255,0.95)");
     ctx.strokeStyle = MMTheme.colors.lineSoft;
     ctx.lineWidth = 2;
-    roundRectStroke(ctx, 64, panelY, W - 128, panelH, 44);
+    roundRectStroke(ctx, 58, panelY, W - 116, panelH, 46);
 
-    ctx.font = "700 248px Inter, Arial, sans-serif";
+    ctx.font = "700 226px Inter, Arial, sans-serif";
     ctx.fillStyle = "rgba(166,206,57,0.12)";
     ctx.textAlign = "right";
-    ctx.fillText("0" + String(Math.min(9, Math.max(1, Number(scene.order || 1)))), W - 134, panelY + 34);
+    ctx.fillText("0" + String(Math.min(9, Math.max(1, Number(scene.order || 1)))), W - 112, panelY + 42);
     ctx.textAlign = "start";
 
-    fillRoundRect(ctx, 86, panelY + 42, 20, 420, 10, MMTheme.colors.accent);
+    fillRoundRect(ctx, 86, panelY + 62, 18, 372, 9, MMTheme.colors.accent);
 
-    ctx.font = "700 102px Inter, Arial, sans-serif";
+    var titleStyle = fitReelTextBlock(ctx, title, {
+      maxWidth: contentW - 50,
+      maxLines: 5,
+      fontSizes: [88, 82, 76, 70, 64, 58],
+      lineHeights: [92, 86, 80, 74, 68, 62]
+    });
+    ctx.font = "700 " + titleStyle.fontSize + "px Inter, Arial, sans-serif";
     ctx.fillStyle = MMTheme.colors.textPrimary;
-    var titleEnd = wrapText(ctx, title, 142, panelY + 92, W - 262, 108);
+    var titleEnd = wrapText(ctx, titleStyle.text, 142, panelY + 92, titleStyle.maxWidth, titleStyle.lineHeight);
 
     if (subtitle) {
-      ctx.font = "500 56px Inter, Arial, sans-serif";
+      var subtitleStyle = fitReelTextBlock(ctx, subtitle, {
+        maxWidth: contentW - 50,
+        maxLines: 3,
+        fontSizes: [46, 42, 38, 34],
+        lineHeights: [56, 50, 46, 42]
+      });
+      ctx.font = "500 " + subtitleStyle.fontSize + "px Inter, Arial, sans-serif";
       ctx.fillStyle = MMTheme.colors.textSecondary;
-      wrapText(ctx, subtitle, 142, titleEnd + 46, W - 262, 70);
+      wrapText(ctx, subtitleStyle.text, 142, titleEnd + 34, subtitleStyle.maxWidth, subtitleStyle.lineHeight);
     }
 
-    fillRoundRect(ctx, 142, H - 288, W - 284, 3, 2, MMTheme.colors.brandLine);
+    drawTextCardBase(ctx, scene, panelY + panelH - 214, W - 232);
     return;
   }
 
-  var panelY = H - 660;
-  fillRoundRect(ctx, 28, panelY, W - 56, 632, 42, "rgba(255,255,255,0.97)");
+  var panelY = H - 684;
+  fillRoundRect(ctx, 28, panelY, W - 56, 656, 42, "rgba(255,255,255,0.97)");
   ctx.strokeStyle = "rgba(222,216,205,0.88)";
   ctx.lineWidth = 2;
-  roundRectStroke(ctx, 28, panelY, W - 56, 632, 42);
+  roundRectStroke(ctx, 28, panelY, W - 56, 656, 42);
 
-  fillRoundRect(ctx, 56, panelY + 54, 14, 164, 7, MMTheme.colors.accent);
+  fillRoundRect(ctx, 56, panelY + 52, 14, 174, 7, MMTheme.colors.accent);
 
-  ctx.font = "700 88px Inter, Arial, sans-serif";
+  var visualTitleStyle = fitReelTextBlock(ctx, title, {
+    maxWidth: contentW - 8,
+    maxLines: 3,
+    fontSizes: [82, 76, 70, 64, 58],
+    lineHeights: [88, 82, 76, 70, 64]
+  });
+  ctx.font = "700 " + visualTitleStyle.fontSize + "px Inter, Arial, sans-serif";
   ctx.fillStyle = MMTheme.colors.textPrimary;
-  var titleEnd = wrapText(ctx, title, contentX, panelY + 70, contentW - 24, 94);
+  var titleEnd = wrapText(ctx, visualTitleStyle.text, contentX, panelY + 72, visualTitleStyle.maxWidth, visualTitleStyle.lineHeight);
 
   if (subtitle) {
-    ctx.font = "500 48px Inter, Arial, sans-serif";
+    var visualSubtitleStyle = fitReelTextBlock(ctx, subtitle, {
+      maxWidth: contentW - 12,
+      maxLines: 3,
+      fontSizes: [44, 40, 36, 32],
+      lineHeights: [54, 48, 44, 40]
+    });
+    ctx.font = "500 " + visualSubtitleStyle.fontSize + "px Inter, Arial, sans-serif";
     ctx.fillStyle = MMTheme.colors.textSecondary;
-    wrapText(ctx, subtitle, contentX, titleEnd + 30, contentW - 40, 60);
+    wrapText(ctx, visualSubtitleStyle.text, contentX, titleEnd + 24, visualSubtitleStyle.maxWidth, visualSubtitleStyle.lineHeight);
   }
 }
 
@@ -323,9 +347,9 @@ function formatReelRoleLabel(value) {
     key_fact: "Dato clave",
     facts: "Datos",
     details: "Detalle",
-    investigation: "Investigacion",
+    investigation: "Investigación",
     conclusion: "Cierre",
-    cta: "Llamado",
+    cta: "Llamado a la acción",
     cover_image: "Portada",
     support_image: "Imagen de apoyo",
     text_card: "Placa de texto"
@@ -348,4 +372,122 @@ function humanizeReelLabel(value) {
     .replace(/\b\w/g, function (char) {
       return char.toUpperCase();
     });
+}
+
+function fitReelTextBlock(ctx, text, options) {
+  var settings = options || {};
+  var raw = String(text || "").replace(/\s+/g, " ").trim();
+  var maxWidth = settings.maxWidth || 760;
+  var maxLines = settings.maxLines || 4;
+  var fontSizes = settings.fontSizes || [72, 66, 60, 54];
+  var lineHeights = settings.lineHeights || [78, 72, 66, 60];
+
+  for (var i = 0; i < fontSizes.length; i++) {
+    ctx.font = "700 " + fontSizes[i] + "px Inter, Arial, sans-serif";
+    var lines = estimateWrappedLines(ctx, raw, maxWidth);
+    if (lines <= maxLines) {
+      return {
+        text: raw,
+        fontSize: fontSizes[i],
+        lineHeight: lineHeights[Math.min(i, lineHeights.length - 1)],
+        maxWidth: maxWidth
+      };
+    }
+  }
+
+  var lastIndex = fontSizes.length - 1;
+  ctx.font = "700 " + fontSizes[lastIndex] + "px Inter, Arial, sans-serif";
+  return {
+    text: clampWrappedText(ctx, raw, maxWidth, maxLines),
+    fontSize: fontSizes[lastIndex],
+    lineHeight: lineHeights[Math.min(lastIndex, lineHeights.length - 1)],
+    maxWidth: maxWidth
+  };
+}
+
+function estimateWrappedLines(ctx, text, maxWidth) {
+  var words = String(text || "").split(" ");
+  var lines = 1;
+  var current = "";
+
+  for (var i = 0; i < words.length; i++) {
+    var candidate = current ? current + " " + words[i] : words[i];
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+    } else {
+      lines += 1;
+      current = words[i];
+    }
+  }
+
+  return lines;
+}
+
+function clampWrappedText(ctx, text, maxWidth, maxLines) {
+  var words = String(text || "").split(" ");
+  var lines = [];
+  var current = "";
+
+  for (var i = 0; i < words.length; i++) {
+    var candidate = current ? current + " " + words[i] : words[i];
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+
+    lines.push(current);
+    current = words[i];
+
+    if (lines.length === maxLines - 1) {
+      break;
+    }
+  }
+
+  if (lines.length < maxLines && current) {
+    lines.push(current);
+  }
+
+  var remainingWords = words.slice(lines.join(" ").split(" ").filter(Boolean).length);
+  if (!remainingWords.length) return lines.join(" ");
+
+  var lastLine = lines[Math.max(0, lines.length - 1)] || "";
+  var suffix = remainingWords.join(" ");
+  var merged = (lastLine ? lastLine + " " : "") + suffix;
+  while (merged.length && ctx.measureText(merged + "…").width > maxWidth) {
+    merged = merged.slice(0, -1).trimEnd();
+  }
+  lines[Math.max(0, lines.length - 1)] = merged + "…";
+  return lines.join(" ");
+}
+
+function drawTextCardBase(ctx, scene, baseY, baseW) {
+  var role = formatReelRoleLabel(scene && scene.visual_role ? scene.visual_role : "Escena");
+  var sceneLabel = "Escena " + String(scene && scene.order ? scene.order : 1).padStart(2, "0");
+
+  ctx.fillStyle = MMTheme.colors.textSecondary;
+  ctx.font = "600 24px Inter, Arial, sans-serif";
+  ctx.fillText(role, 142, baseY);
+
+  ctx.textAlign = "right";
+  ctx.fillStyle = MMTheme.colors.footer;
+  ctx.font = "700 24px Inter, Arial, sans-serif";
+  ctx.fillText(sceneLabel, W - 142, baseY);
+  ctx.textAlign = "start";
+
+  fillRoundRect(ctx, 142, baseY + 54, baseW, 3, 2, MMTheme.colors.brandLine);
+
+  var logo = getCachedImage("/assets/logo.png");
+  if (logo) {
+    var logoW = 220;
+    var logoH = logo.height * (logoW / logo.width);
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.drawImage(logo, W / 2 - logoW / 2, baseY + 76, logoW, logoH);
+    ctx.restore();
+    return;
+  }
+
+  ctx.font = "700 30px Inter, Arial, sans-serif";
+  ctx.fillStyle = MMTheme.colors.accentDark;
+  ctx.fillText("Media Mendoza", W / 2 - 110, baseY + 84);
 }
