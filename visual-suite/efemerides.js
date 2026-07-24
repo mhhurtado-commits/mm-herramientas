@@ -8,11 +8,34 @@ let efeBlocks = null;
 let efeActiveBlock = null;
 let efeDrag = null;
 
+function getEfeFechaTexto(value) {
+  if (!value) return '';
+  const d = new Date(value + 'T12:00:00');
+  if (Number.isNaN(d.getTime())) return '';
+  const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  return `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}`;
+}
+
+function syncEfeFechaLabel(forceText) {
+  const lbl = document.getElementById('efeFechaLabel');
+  if (!lbl) return '';
+  if (typeof forceText === 'string') {
+    lbl.textContent = forceText;
+    return forceText;
+  }
+  const fechaEl = document.getElementById('efeFecha');
+  const texto = getEfeFechaTexto(fechaEl && fechaEl.value);
+  lbl.textContent = texto;
+  return texto;
+}
+
 function initEfemerides() {
   const d = new Date();
   const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const el = document.getElementById('efeFecha');
   if (el) el.value = today;
+  syncEfeFechaLabel();
   efemeridesData = [];
   loadEfeBlocks();
   initEfeCanvasEvents();
@@ -102,7 +125,7 @@ function cargarJSONEfemerides() {
   try { parsed = JSON.parse(text); }
   catch (e) { return toast('JSON inválido: ' + e.message); }
 
-  if (parsed.fecha) document.getElementById('efeFechaLabel').textContent = parsed.fecha;
+  if (parsed.fecha) syncEfeFechaLabel(parsed.fecha);
   if (parsed.efemerides && Array.isArray(parsed.efemerides)) {
     efemeridesData = ordenarEfemerides(parsed.efemerides);
     renderizarEfemerides();
@@ -544,8 +567,7 @@ function drawEfeCards(ctx, W, H, br) {
 }
 
 function drawEfeTitle(ctx, W, H, tr) {
-  const fechaLabel = document.getElementById('efeFechaLabel');
-  const fechaTexto = fechaLabel ? fechaLabel.textContent : '';
+  const fechaTexto = syncEfeFechaLabel();
   const sz = Math.round(Math.min(tr.h * 0.42, W * 0.04));
   const cx = tr.x + tr.w / 2;
 
