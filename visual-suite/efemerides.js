@@ -488,15 +488,6 @@ function drawEfeBackground(ctx, W, H) {
   band.addColorStop(1, 'rgba(166,206,57,0)');
   ctx.fillStyle = band;
   ctx.fillRect(0, bandY, W, bandH);
-
-  ctx.strokeStyle = 'rgba(22,32,27,0.08)';
-  ctx.lineWidth = Math.max(1, Math.round(W * 0.001));
-  for (let y = Math.round(H * 0.24); y < H; y += Math.round(H * 0.12)) {
-    ctx.beginPath();
-    ctx.moveTo(Math.round(W * 0.04), y);
-    ctx.lineTo(Math.round(W * 0.96), y);
-    ctx.stroke();
-  }
 }
 
 function getEfeSectionMeta(label) {
@@ -551,14 +542,17 @@ function drawEfeLogoPlate(ctx, W, H) {
   ctx.shadowColor = 'rgba(0,0,0,0.08)';
   ctx.shadowBlur = Math.round(W * 0.01);
   ctx.shadowOffsetY = Math.round(H * 0.004);
-  ctx.fillStyle = 'rgba(255,255,255,0.82)';
+  const g = ctx.createLinearGradient(0, y - padY, 0, y + h + padY);
+  g.addColorStop(0, 'rgba(230,235,224,0.98)');
+  g.addColorStop(1, 'rgba(220,226,214,0.96)');
+  ctx.fillStyle = g;
   ctx.beginPath();
   ctx.roundRect(x - padX, y - padY, w + padX * 2, h + padY * 2, Math.round(h * 0.35));
   ctx.fill();
   ctx.restore();
 
-  ctx.strokeStyle = 'rgba(22,32,27,0.08)';
-  ctx.lineWidth = Math.max(1, Math.round(W * 0.0008));
+  ctx.strokeStyle = 'rgba(22,32,27,0.12)';
+  ctx.lineWidth = Math.max(1, Math.round(W * 0.001));
   ctx.beginPath();
   ctx.roundRect(x - padX, y - padY, w + padX * 2, h + padY * 2, Math.round(h * 0.35));
   ctx.stroke();
@@ -731,10 +725,10 @@ function drawEfeCards(ctx, W, H, br) {
   const itemCount = efemeridesData.filter(e => !e._separator).length;
   const sepCount = efemeridesData.filter(e => e._separator).length;
   const availH = br.h - pad * 2;
-  const sepRatio = 0.3;
-  const itemRatio = 1.06;
+  const sepRatio = 0.26;
+  const itemRatio = 1;
   const totalRatio = itemCount * itemRatio + sepCount * sepRatio;
-  const itemH = Math.round(Math.min(availH / Math.max(totalRatio, 1), W * 0.175));
+  const itemH = Math.round(Math.min(availH / Math.max(totalRatio, 1), W * 0.19));
   const sepH = Math.round(itemH * sepRatio);
   let curY = br.y + pad;
 
@@ -750,14 +744,23 @@ function drawEfeCards(ctx, W, H, br) {
     const y = curY;
     const isDest = e.destacada;
     const catColor = VS_Colors.CAT_COLORS[e.categoria] || VS_Colors.CAT_DEFAULT;
-    const topPad = Math.round(itemH * 0.18);
-    const iconSize = Math.round(itemH * 0.54);
+    const topPad = Math.round(itemH * 0.2);
+    const iconSize = Math.round(itemH * 0.62);
     const iconX = innerX + Math.round(cardW * 0.028);
-    const iconY = y + Math.round(itemH * 0.19);
-    const textX = iconX + iconSize + Math.round(cardW * 0.026);
-    const titleY = y + topPad + Math.round(itemH * 0.24);
-    const descY = titleY + Math.round(itemH * 0.24);
+    const iconY = y + Math.round(itemH * 0.17);
+    const textX = iconX + iconSize + Math.round(cardW * 0.028);
     const badgePadX = Math.round(itemH * 0.12);
+    const badgeText = e.categoria || '';
+    ctx.font = `800 ${Math.round(itemH * 0.12)}px Inter, sans-serif`;
+    const badgeW = ctx.measureText(badgeText).width + badgePadX * 2;
+    const badgeH = Math.round(itemH * 0.2);
+    const badgeX = innerX + cardW - badgeW - Math.round(cardW * 0.022);
+    const badgeY = y + Math.round(itemH * 0.15);
+    const titleStartX = textX + Math.round(itemH * 0.42);
+    const titleMaxW = badgeX - titleStartX - Math.round(cardW * 0.02);
+    const titleY = y + Math.round(itemH * 0.34);
+    const descY = y + Math.round(itemH * 0.62);
+    const descLineH = Math.round(itemH * 0.16);
 
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.18)';
@@ -780,20 +783,26 @@ function drawEfeCards(ctx, W, H, br) {
     ctx.roundRect(innerX, y + Math.round(itemH * 0.12), Math.max(6, Math.round(W * 0.0032)), itemH * 0.72, 3);
     ctx.fill();
 
-    VS_CanvasHelpers.drawIconChip(ctx, iconX, iconY, iconSize, e.emoji || '•', isDest ? VS_Colors.GOLD : catColor);
+    ctx.fillStyle = VS_Utils.hexToRgba(isDest ? VS_Colors.GOLD : catColor, isDest ? 0.16 : 0.14);
+    ctx.beginPath();
+    ctx.roundRect(iconX, iconY, iconSize, iconSize, Math.round(iconSize * 0.3));
+    ctx.fill();
+    ctx.strokeStyle = VS_Utils.hexToRgba(isDest ? VS_Colors.GOLD : catColor, 0.28);
+    ctx.lineWidth = Math.max(1, Math.round(W * 0.0009));
+    ctx.beginPath();
+    ctx.roundRect(iconX, iconY, iconSize, iconSize, Math.round(iconSize * 0.3));
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.round(iconSize * 0.68)}px sans-serif`;
+    ctx.fillText(e.emoji || '•', iconX + iconSize / 2, iconY + iconSize / 2 + Math.round(iconSize * 0.02));
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = isDest ? VS_Colors.GOLD : catColor;
-    ctx.font = `900 ${Math.round(itemH * 0.2)}px Inter, sans-serif`;
-    ctx.fillText(e.anio || '', textX, y + topPad);
+    ctx.font = `900 ${Math.round(itemH * 0.22)}px Inter, sans-serif`;
+    ctx.fillText(e.anio || '', textX, titleY);
 
-    const badgeText = e.categoria || '';
-    ctx.font = `700 ${Math.round(itemH * 0.12)}px Inter, sans-serif`;
-    const badgeW = ctx.measureText(badgeText).width + badgePadX * 2;
-    const badgeH = Math.round(itemH * 0.2);
-    const badgeX = innerX + cardW - badgeW - Math.round(cardW * 0.022);
-    const badgeY = y + Math.round(itemH * 0.16);
     ctx.fillStyle = VS_Utils.hexToRgba(isDest ? VS_Colors.GOLD : catColor, isDest ? 0.18 : 0.16);
     ctx.beginPath();
     ctx.roundRect(badgeX, badgeY, badgeW, badgeH, Math.round(badgeH / 2));
@@ -802,20 +811,15 @@ function drawEfeCards(ctx, W, H, br) {
     ctx.textAlign = 'center';
     ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2);
 
-    const titleMaxW = badgeX - textX - Math.round(cardW * 0.02);
     ctx.textAlign = 'left';
     ctx.fillStyle = VS_Colors.INK;
-    ctx.font = `800 ${Math.round(itemH * 0.21)}px Inter, sans-serif`;
-    const titleLines = VS_Utils.wrapText(ctx, e.titulo || '', titleMaxW, 2);
-    const titleLineH = Math.round(itemH * 0.16);
-    titleLines.forEach((line, i) => {
-      ctx.fillText(line, textX, titleY + i * titleLineH);
-    });
+    ctx.font = `800 ${Math.round(itemH * 0.19)}px Inter, sans-serif`;
+    const titleLines = VS_Utils.wrapText(ctx, e.titulo || '', titleMaxW, 1);
+    ctx.fillText(titleLines[0] || '', titleStartX, titleY);
 
     ctx.fillStyle = isDest ? 'rgba(58,46,18,0.88)' : 'rgba(22,32,27,0.72)';
-    ctx.font = `600 ${Math.round(itemH * 0.14)}px Inter, sans-serif`;
+    ctx.font = `600 ${Math.round(itemH * 0.16)}px Inter, sans-serif`;
     const descLines = VS_Utils.wrapText(ctx, e.descripcion || '', titleMaxW, 2);
-    const descLineH = Math.round(itemH * 0.13);
     descLines.forEach((line, i) => {
       ctx.fillText(line, textX, descY + i * descLineH);
     });
@@ -946,9 +950,10 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
   const tr = getEfeBlockRect('title', W, H);
   if (tr) drawEfeTitle(ctx, W, H, tr);
 
-  VS_CanvasHelpers.drawFooter(ctx, W, H, true);
+  VS_CanvasHelpers.drawFooter(ctx, W, H, false);
 
   if (efeBlocks && efeBlocks.logo) {
+    drawEfeLogoPlate(ctx, W, H);
     VS_Utils.dibujarLogo(ctx, W, H, {
       x: efeBlocks.logo.x,
       y: efeBlocks.logo.y,
