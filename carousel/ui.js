@@ -7,6 +7,7 @@ import { buildInstagramCaptionPrompt, buildReelPrompt } from "./prompts.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 var activeSlideIndex = 0;
+var activeReelSceneIndex = 0;
 var activeWorkspaceTab = "carousel";
 
 export function initUI() {
@@ -15,6 +16,7 @@ export function initUI() {
   ensureWorkspaceTabs();
   ensureBulkDownloadButton();
   ensureCaptionPanel();
+  ensureReelPreviewPanel();
   ensureReelPanel();
   ensureReelStoryboardPanel();
 
@@ -54,6 +56,7 @@ export function initUI() {
         await generateReelPlan(project);
 
         activeSlideIndex = 0;
+        activeReelSceneIndex = 0;
         setActiveWorkspaceTab("carousel");
         renderInPreview();
       } catch (e) {
@@ -84,6 +87,7 @@ function renderInPreview() {
     if (preview) preview.innerHTML = "";
     toggleBulkDownloadButton(false);
     renderCaptionPanel(project);
+    renderReelPreview(project);
     renderReelPanel(project);
     renderReelStoryboard(project);
     return;
@@ -139,6 +143,7 @@ function renderInPreview() {
   editor.appendChild(stage);
   carouselPreview.appendChild(editor);
   renderCaptionPanel(project);
+  renderReelPreview(project);
   renderReelPanel(project);
   renderReelStoryboard(project);
 }
@@ -183,6 +188,8 @@ function syncWorkspaceTabs() {
     var isActivePanel = tabPanels[j].dataset.tabPanel === activeWorkspaceTab;
     tabPanels[j].hidden = !isActivePanel;
   }
+
+  syncBulkDownloadButtonVisibility();
 }
 
 function createStageControls(project, activeItem) {
@@ -222,6 +229,7 @@ function ensureBulkDownloadButton() {
   bulkBtn.id = "downloadAllBtn";
   bulkBtn.className = "mm-btn carousel-bulk-btn";
   bulkBtn.textContent = "Descargar carrusel";
+  bulkBtn.dataset.available = "false";
   bulkBtn.hidden = true;
   bulkBtn.addEventListener("click", downloadAllSlides);
   actions.appendChild(bulkBtn);
@@ -263,10 +271,62 @@ function ensureCaptionPanel() {
   textarea.id = "captionOutput";
   textarea.className = "carousel-copy-text";
   textarea.readOnly = true;
-  textarea.placeholder = "Cuando generes un carrusel desde una nota, aca aparecera el copy sugerido para Instagram.";
+  textarea.placeholder = "Cuando generes una publicacion desde una nota, aca aparecera el copy sugerido para Instagram.";
 
   panel.appendChild(header);
   panel.appendChild(textarea);
+  host.appendChild(panel);
+}
+
+function ensureReelPreviewPanel() {
+  var host = document.getElementById("reelPreviewPanelHost");
+  if (!host || document.getElementById("reelPreviewPanel")) return;
+
+  var panel = document.createElement("div");
+  panel.id = "reelPreviewPanel";
+  panel.className = "carousel-copy-panel";
+  panel.hidden = true;
+
+  var header = document.createElement("div");
+  header.className = "carousel-copy-header";
+
+  var titles = document.createElement("div");
+  var label = document.createElement("div");
+  label.className = "carousel-section-label";
+  label.textContent = "Reel";
+  var title = document.createElement("strong");
+  title.className = "carousel-copy-title";
+  title.textContent = "Vista previa";
+  titles.appendChild(label);
+  titles.appendChild(title);
+
+  var meta = document.createElement("div");
+  meta.id = "reelPreviewMeta";
+  meta.className = "carousel-status carousel-status--inline";
+
+  header.appendChild(titles);
+  header.appendChild(meta);
+
+  var layout = document.createElement("div");
+  layout.className = "reel-preview-layout";
+
+  var thumbs = document.createElement("div");
+  thumbs.id = "reelPreviewThumbs";
+  thumbs.className = "reel-preview-thumbs";
+
+  var stage = document.createElement("div");
+  stage.className = "reel-preview-stage-wrap";
+
+  var frame = document.createElement("div");
+  frame.id = "reelPreviewStage";
+  frame.className = "reel-preview-stage";
+
+  stage.appendChild(frame);
+  layout.appendChild(thumbs);
+  layout.appendChild(stage);
+
+  panel.appendChild(header);
+  panel.appendChild(layout);
   host.appendChild(panel);
 }
 
@@ -366,6 +426,38 @@ function renderReelPanel(project) {
   textarea.value = reelJson;
 }
 
+function renderReelPreview(project) {
+  var panel = document.getElementById("reelPreviewPanel");
+  var thumbs = document.getElementById("reelPreviewThumbs");
+  var stage = document.getElementById("reelPreviewStage");
+  var meta = document.getElementById("reelPreviewMeta");
+  if (!panel || !thumbs || !stage || !meta) return;
+
+  var reel = getReelOutput(project);
+  if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) {
+    panel.hidden = true;
+    thumbs.innerHTML = "";
+    stage.innerHTML = "";
+    meta.textContent = "";
+    return;
+  }
+
+  if (activeReelSceneIndex >= reel.scenes.length) {
+    activeReelSceneIndex = 0;
+  }
+
+  panel.hidden = false;
+  thumbs.innerHTML = "";
+  stage.innerHTML = "";
+
+  for (var i = 0; i < reel.scenes.length; i++) {
+    thumbs.appendChild(createReelPreviewThumb(reel.scenes[i], i, project));
+  }
+
+  stage.appendChild(createReelPreviewFrame(reel.scenes[activeReelSceneIndex], project, false));
+  meta.textContent = "Escena " + String(activeReelSceneIndex + 1).padStart(2, "0") + " de " + reel.scenes.length;
+}
+
 function renderReelStoryboard(project) {
   var panel = document.getElementById("reelStoryboardPanel");
   var grid = document.getElementById("reelStoryboardGrid");
@@ -409,44 +501,7 @@ function createReelSceneCard(scene, project) {
   var card = document.createElement("article");
   card.className = "reel-scene-card";
 
-  var media = document.createElement("div");
-  media.className = "reel-scene-media";
-
-  var imgUrl = resolveReelSceneImage(scene, project);
-  if (imgUrl && scene.visual_type !== "text_card") {
-    var img = document.createElement("img");
-    img.className = "reel-scene-image";
-    img.src = toRenderableSceneImageUrl(imgUrl);
-    img.alt = scene.text || scene.visual_role || "Escena del reel";
-    media.appendChild(img);
-  } else {
-    var placeholder = document.createElement("div");
-    placeholder.className = "reel-scene-placeholder";
-    placeholder.textContent = scene.visual_type === "text_card" ? "" : "Sin imagen";
-    media.appendChild(placeholder);
-  }
-
-  var overlay = document.createElement("div");
-  overlay.className = "reel-scene-overlay" + (scene.visual_type === "text_card" ? " is-text-card" : "");
-
-  var roleChip = document.createElement("span");
-  roleChip.className = "reel-scene-chip";
-  roleChip.textContent = scene.visual_role || scene.visual_type || "escena";
-  overlay.appendChild(roleChip);
-
-  var visualTitle = document.createElement("strong");
-  visualTitle.className = "reel-scene-visual-title";
-  visualTitle.textContent = scene.text || "Sin texto principal";
-  overlay.appendChild(visualTitle);
-
-  if (scene.subtitle) {
-    var visualSubtitle = document.createElement("p");
-    visualSubtitle.className = "reel-scene-visual-subtitle";
-    visualSubtitle.textContent = scene.subtitle;
-    overlay.appendChild(visualSubtitle);
-  }
-
-  media.appendChild(overlay);
+  var media = createReelPreviewFrame(scene, project, true);
 
   var body = document.createElement("div");
   body.className = "reel-scene-body";
@@ -492,6 +547,81 @@ function createReelSceneCard(scene, project) {
   return card;
 }
 
+function createReelPreviewThumb(scene, index, project) {
+  var button = document.createElement("button");
+  button.type = "button";
+  button.className = "reel-preview-thumb" + (index === activeReelSceneIndex ? " is-active" : "");
+  button.addEventListener("click", function () {
+    activeReelSceneIndex = index;
+    renderReelPreview(project);
+  });
+
+  button.appendChild(createReelPreviewFrame(scene, project, true));
+
+  var meta = document.createElement("div");
+  meta.className = "reel-preview-thumb-meta";
+
+  var indexLabel = document.createElement("span");
+  indexLabel.className = "reel-preview-thumb-index";
+  indexLabel.textContent = "Escena " + String(index + 1).padStart(2, "0");
+
+  var label = document.createElement("span");
+  label.className = "reel-preview-thumb-label";
+  label.textContent = scene.visual_role || scene.visual_type || "Escena";
+
+  meta.appendChild(indexLabel);
+  meta.appendChild(label);
+  button.appendChild(meta);
+  return button;
+}
+
+function createReelPreviewFrame(scene, project, compact) {
+  var media = document.createElement("div");
+  media.className = "reel-scene-media" + (compact ? " is-compact" : " is-stage");
+
+  var imgUrl = resolveReelSceneImage(scene, project);
+  if (imgUrl && scene.visual_type !== "text_card") {
+    var img = document.createElement("img");
+    img.className = "reel-scene-image";
+    img.src = toRenderableSceneImageUrl(imgUrl);
+    img.alt = scene.text || scene.visual_role || "Escena del reel";
+    media.appendChild(img);
+  } else {
+    var placeholder = document.createElement("div");
+    placeholder.className = "reel-scene-placeholder";
+    placeholder.textContent = scene.visual_type === "text_card" ? "" : "Sin imagen";
+    media.appendChild(placeholder);
+  }
+
+  var overlay = document.createElement("div");
+  overlay.className = "reel-scene-overlay" + (scene.visual_type === "text_card" ? " is-text-card" : "");
+
+  var roleChip = document.createElement("span");
+  roleChip.className = "reel-scene-chip";
+  roleChip.textContent = scene.visual_role || scene.visual_type || "escena";
+  overlay.appendChild(roleChip);
+
+  var visualTitle = document.createElement("strong");
+  visualTitle.className = "reel-scene-visual-title";
+  visualTitle.textContent = scene.text || "Sin texto principal";
+  overlay.appendChild(visualTitle);
+
+  if (scene.subtitle) {
+    var visualSubtitle = document.createElement("p");
+    visualSubtitle.className = "reel-scene-visual-subtitle";
+    visualSubtitle.textContent = scene.subtitle;
+    overlay.appendChild(visualSubtitle);
+  }
+
+  var footer = document.createElement("div");
+  footer.className = "reel-scene-brand";
+  footer.textContent = "Media Mendoza";
+  overlay.appendChild(footer);
+
+  media.appendChild(overlay);
+  return media;
+}
+
 function resolveReelSceneImage(scene, project) {
   if (!scene || !project || !project.article) return "";
   var article = project.article;
@@ -525,7 +655,15 @@ function toRenderableSceneImageUrl(imgUrl) {
 function toggleBulkDownloadButton(visible) {
   var bulkBtn = document.getElementById("downloadAllBtn");
   if (!bulkBtn) return;
-  bulkBtn.hidden = !visible;
+  bulkBtn.dataset.available = visible ? "true" : "false";
+  syncBulkDownloadButtonVisibility();
+}
+
+function syncBulkDownloadButtonVisibility() {
+  var bulkBtn = document.getElementById("downloadAllBtn");
+  if (!bulkBtn) return;
+  var isAvailable = bulkBtn.dataset.available === "true";
+  bulkBtn.hidden = !isAvailable || activeWorkspaceTab !== "carousel";
 }
 
 async function copyInstagramCaption() {
@@ -719,6 +857,7 @@ function clearCarouselWorkspace() {
   document.getElementById("urlInput").value = "";
   setProject(createCarouselProject());
   activeSlideIndex = 0;
+  activeReelSceneIndex = 0;
   setActiveWorkspaceTab("carousel");
   renderInPreview();
 }
