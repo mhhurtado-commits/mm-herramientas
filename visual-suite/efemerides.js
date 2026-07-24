@@ -35,6 +35,9 @@ function initEfemerides() {
   const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const el = document.getElementById('efeFecha');
   if (el) el.value = today;
+  const fmtEl = document.getElementById('efeFormato');
+  efeFormato = 'square';
+  if (fmtEl) fmtEl.value = 'square';
   syncEfeFechaLabel();
   efemeridesData = [];
   loadEfeBlocks();
@@ -558,6 +561,8 @@ function drawEfeLogoPlate(ctx, W, H) {
   ctx.stroke();
 }
 
+// Legacy experimental redesign kept as reference only.
+// The active WhatsApp-specific layout is redefined near EOF.
 function drawEfeCards(ctx, W, H, br) {
   const pad = Math.round(W * 0.01);
   const cardW = br.w - pad * 2;
@@ -959,6 +964,281 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
       y: efeBlocks.logo.y,
       w: efeBlocks.logo.w
     });
+  }
+}
+
+function ensureEfeWhatsAppFormat() {
+  if (efeFormato !== 'square') {
+    efeFormato = 'square';
+    loadEfeBlocks();
+  }
+  const fmtEl = document.getElementById('efeFormato');
+  if (fmtEl && fmtEl.value !== 'square') fmtEl.value = 'square';
+}
+
+function drawEfeBackground(ctx, W, H) {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#f5f6ef');
+  grad.addColorStop(1, '#e9ece2');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#16201b';
+  ctx.fillRect(0, 0, W, Math.round(H * 0.195));
+
+  const glow = ctx.createRadialGradient(W * 0.5, H * 0.22, 0, W * 0.5, H * 0.22, W * 0.52);
+  glow.addColorStop(0, 'rgba(166,206,57,0.12)');
+  glow.addColorStop(1, 'rgba(166,206,57,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawEfeLogoPlate(ctx, W, H) {
+  if (!efeBlocks || !efeBlocks.logo) return;
+  const b = efeBlocks.logo;
+  const x = b.x * W;
+  const y = b.y * H;
+  const w = b.w * W;
+  const h = (b.h || (b.w * (window.logoState?.ar || 1))) * H;
+  const padX = Math.round(w * 0.11);
+  const padY = Math.round(h * 0.16);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath();
+  ctx.roundRect(x - padX, y - padY, w + padX * 2, h + padY * 2, Math.round(h * 0.34));
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+  ctx.lineWidth = Math.max(1, Math.round(W * 0.001));
+  ctx.beginPath();
+  ctx.roundRect(x - padX, y - padY, w + padX * 2, h + padY * 2, Math.round(h * 0.34));
+  ctx.stroke();
+}
+
+function drawEfeSectionHeader(ctx, x, y, w, h, label) {
+  const meta = getEfeSectionMeta(label);
+  const pillH = Math.round(h * 0.78);
+  const pillY = y + Math.round((h - pillH) / 2);
+  const labelSize = Math.round(h * 0.44);
+  const iconW = Math.round(pillH * (meta.icon.length > 2 ? 2.0 : 1.22));
+
+  ctx.fillStyle = VS_Utils.hexToRgba(meta.accent, 0.14);
+  ctx.beginPath();
+  ctx.roundRect(x, pillY, iconW, pillH, Math.round(pillH / 2));
+  ctx.fill();
+
+  ctx.fillStyle = meta.accent;
+  ctx.font = `800 ${Math.round(pillH * 0.34)}px Inter, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(meta.icon, x + iconW / 2, y + h / 2);
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = VS_Colors.INK;
+  ctx.font = `800 ${labelSize}px Inter, sans-serif`;
+  ctx.fillText(meta.title, x + iconW + Math.round(w * 0.018), y + h / 2);
+}
+
+function drawEfeTitle(ctx, W, H, tr) {
+  const fechaTexto = syncEfeFechaLabel();
+  const eyebrowY = tr.y + Math.round(tr.h * 0.14);
+  const titleY = tr.y + Math.round(tr.h * 0.42);
+  const dateY = tr.y + Math.round(tr.h * 0.74);
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,255,255,0.72)';
+  ctx.font = `800 ${Math.round(H * 0.022)}px Inter, sans-serif`;
+  ctx.fillText('AGENDA DEL DIA', tr.x, eyebrowY);
+
+  ctx.fillStyle = VS_Colors.ACCENT;
+  ctx.font = `900 ${Math.round(H * 0.056)}px Inter, sans-serif`;
+  ctx.fillText('EFEMERIDES', tr.x, titleY);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `700 ${Math.round(H * 0.03)}px Inter, sans-serif`;
+  ctx.fillText(fechaTexto, tr.x, dateY);
+}
+
+function drawEfeCards(ctx, W, H, br) {
+  const pad = Math.round(W * 0.018);
+  const cardW = br.w - pad * 2;
+  const innerX = br.x + pad;
+  const items = efemeridesData.filter(e => !e._separator).length;
+  const seps = efemeridesData.filter(e => e._separator).length;
+  const availH = br.h - pad * 2;
+  const sepRatio = 0.24;
+  const itemRatio = 1;
+  const totalRatio = items * itemRatio + seps * sepRatio;
+  const itemH = Math.round(Math.min(availH / Math.max(totalRatio, 1), W * 0.2));
+  const sepH = Math.round(itemH * sepRatio);
+  let curY = br.y + pad;
+
+  efemeridesData.forEach(e => {
+    if (e._separator) {
+      if (curY + sepH > br.y + br.h) return;
+      drawEfeSectionHeader(ctx, innerX, curY, cardW, sepH, e._separator);
+      curY += sepH;
+      return;
+    }
+    if (curY + itemH > br.y + br.h) return;
+
+    const y = curY;
+    const catColor = VS_Colors.CAT_COLORS[e.categoria] || VS_Colors.CAT_DEFAULT;
+    const isDest = !!e.destacada;
+    const iconSize = Math.round(itemH * 0.54);
+    const iconX = innerX + Math.round(cardW * 0.024);
+    const iconY = y + Math.round(itemH * 0.18);
+    const textX = iconX + iconSize + Math.round(cardW * 0.028);
+    const titleY = y + Math.round(itemH * 0.36);
+    const descY = y + Math.round(itemH * 0.64);
+    const descLineH = Math.round(itemH * 0.145);
+    const yearText = String(e.anio || '');
+    const badgeText = e.categoria || '';
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.08)';
+    ctx.shadowBlur = Math.round(itemH * 0.12);
+    ctx.shadowOffsetY = Math.round(itemH * 0.04);
+    ctx.fillStyle = 'rgba(255,255,255,0.94)';
+    ctx.beginPath();
+    ctx.roundRect(innerX, y, cardW, itemH - Math.round(W * 0.004), Math.round(itemH * 0.1));
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = isDest ? 'rgba(201,162,39,0.42)' : 'rgba(22,32,27,0.08)';
+    ctx.lineWidth = Math.max(1, Math.round(W * 0.001));
+    ctx.beginPath();
+    ctx.roundRect(innerX, y, cardW, itemH - Math.round(W * 0.004), Math.round(itemH * 0.1));
+    ctx.stroke();
+
+    ctx.fillStyle = isDest ? VS_Colors.GOLD : catColor;
+    ctx.beginPath();
+    ctx.roundRect(innerX, y + Math.round(itemH * 0.12), Math.max(8, Math.round(W * 0.004)), itemH * 0.72, 4);
+    ctx.fill();
+
+    ctx.fillStyle = VS_Utils.hexToRgba(isDest ? VS_Colors.GOLD : catColor, 0.16);
+    ctx.beginPath();
+    ctx.roundRect(iconX, iconY, iconSize, iconSize, Math.round(iconSize * 0.28));
+    ctx.fill();
+    ctx.strokeStyle = VS_Utils.hexToRgba(isDest ? VS_Colors.GOLD : catColor, 0.22);
+    ctx.lineWidth = Math.max(1, Math.round(W * 0.0008));
+    ctx.beginPath();
+    ctx.roundRect(iconX, iconY, iconSize, iconSize, Math.round(iconSize * 0.28));
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.round(iconSize * 0.72)}px sans-serif`;
+    ctx.fillText(e.emoji || '•', iconX + iconSize / 2, iconY + iconSize / 2 + Math.round(iconSize * 0.02));
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = isDest ? VS_Colors.GOLD : catColor;
+    ctx.font = `900 ${Math.round(itemH * 0.19)}px Inter, sans-serif`;
+    const yearW = ctx.measureText(yearText).width + Math.round(itemH * 0.14);
+    ctx.fillText(yearText, textX, titleY);
+
+    ctx.font = `700 ${Math.round(itemH * 0.12)}px Inter, sans-serif`;
+    const badgeW = ctx.measureText(badgeText).width + Math.round(itemH * 0.22);
+    const badgeH = Math.round(itemH * 0.2);
+    const badgeX = innerX + cardW - badgeW - Math.round(cardW * 0.024);
+    const badgeY = y + Math.round(itemH * 0.14);
+    ctx.fillStyle = VS_Utils.hexToRgba(isDest ? VS_Colors.GOLD : catColor, 0.14);
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, Math.round(badgeH / 2));
+    ctx.fill();
+    ctx.fillStyle = isDest ? VS_Colors.GOLD : catColor;
+    ctx.textAlign = 'center';
+    ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2);
+
+    const titleX = textX + yearW;
+    const titleMaxW = badgeX - titleX - Math.round(cardW * 0.02);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = VS_Colors.INK;
+    ctx.font = `800 ${Math.round(itemH * 0.175)}px Inter, sans-serif`;
+    const title = VS_Utils.wrapText(ctx, e.titulo || '', titleMaxW, 1)[0] || '';
+    ctx.fillText(title, titleX, titleY);
+
+    ctx.fillStyle = isDest ? 'rgba(58,46,18,0.9)' : 'rgba(22,32,27,0.74)';
+    ctx.font = `600 ${Math.round(itemH * 0.15)}px Inter, sans-serif`;
+    const descLines = VS_Utils.wrapText(ctx, e.descripcion || '', badgeX - textX - Math.round(cardW * 0.02), 2);
+    descLines.forEach((line, i) => {
+      ctx.fillText(line, textX, descY + i * descLineH);
+    });
+
+    curY += itemH;
+  });
+}
+
+function renderizarEfemerides() {
+  ensureEfeWhatsAppFormat();
+  const canvas = document.getElementById('efemeridesCanvas');
+  if (!canvas) return;
+  const badge = document.getElementById('efeCount');
+  if (badge) badge.textContent = (efemeridesData.filter(e => !e._separator).length) + ' efemerides';
+  syncEfeFechaLabel();
+
+  const fmt = VS_Formats.square;
+  const W = fmt.w, H = fmt.h;
+  const cssW = canvas.parentElement.clientWidth || 800;
+  const cssH = cssW;
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  canvas.width = W;
+  canvas.height = H;
+
+  if (!efeBlocks) loadEfeBlocks();
+  if (efeBlocks) {
+    efeBlocks.title = { x: 0.06, y: 0.08, w: 0.52, h: 0.13 };
+    efeBlocks.logo = { x: 0.66, y: 0.045, w: 0.24, h: window.logoState?.ar ? 0.24 * window.logoState.ar : 0.09 };
+    efeBlocks.body = { x: 0.05, y: 0.24, w: 0.9, h: 0.67 };
+  }
+
+  const ctx = canvas.getContext('2d');
+  drawEfeBackground(ctx, W, H);
+  const br = getEfeBlockRect('body', W, H);
+  if (br) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(br.x, br.y, br.w, br.h);
+    ctx.clip();
+    drawEfeCards(ctx, W, H, br);
+    ctx.restore();
+  }
+
+  const tr = getEfeBlockRect('title', W, H);
+  if (tr) drawEfeTitle(ctx, W, H, tr);
+  VS_CanvasHelpers.drawFooter(ctx, W, H, false);
+  if (efeBlocks && efeBlocks.logo) {
+    drawEfeLogoPlate(ctx, W, H);
+    VS_Utils.dibujarLogo(ctx, W, H, { x: efeBlocks.logo.x, y: efeBlocks.logo.y, w: efeBlocks.logo.w });
+  }
+}
+
+function renderizarEfemeridesEnCtx(ctx, W, H) {
+  ensureEfeWhatsAppFormat();
+  if (efeBlocks) {
+    efeBlocks.title = { x: 0.06, y: 0.08, w: 0.52, h: 0.13 };
+    efeBlocks.logo = { x: 0.66, y: 0.045, w: 0.24, h: window.logoState?.ar ? 0.24 * window.logoState.ar : 0.09 };
+    efeBlocks.body = { x: 0.05, y: 0.24, w: 0.9, h: 0.67 };
+  }
+  drawEfeBackground(ctx, W, H);
+  const br = getEfeBlockRect('body', W, H);
+  if (br) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(br.x, br.y, br.w, br.h);
+    ctx.clip();
+    drawEfeCards(ctx, W, H, br);
+    ctx.restore();
+  }
+
+  const tr = getEfeBlockRect('title', W, H);
+  if (tr) drawEfeTitle(ctx, W, H, tr);
+  VS_CanvasHelpers.drawFooter(ctx, W, H, false);
+  if (efeBlocks && efeBlocks.logo) {
+    drawEfeLogoPlate(ctx, W, H);
+    VS_Utils.dibujarLogo(ctx, W, H, { x: efeBlocks.logo.x, y: efeBlocks.logo.y, w: efeBlocks.logo.w });
   }
 }
 
