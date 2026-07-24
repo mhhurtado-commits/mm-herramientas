@@ -276,6 +276,37 @@ function fitEndTitleFont(ctx, text, maxW, maxLines) {
   return options[options.length - 1];
 }
 
+function fitEndUrlFont(ctx, text, maxW) {
+  var options = [
+    { font: MMTheme.fonts.endUrl, lineH: 56 },
+    { font: "700 46px Inter, Arial, sans-serif", lineH: 50 },
+    { font: "700 40px Inter, Arial, sans-serif", lineH: 46 },
+    { font: "700 34px Inter, Arial, sans-serif", lineH: 40 },
+    { font: "700 30px Inter, Arial, sans-serif", lineH: 36 }
+  ];
+
+  for (var i = 0; i < options.length; i++) {
+    ctx.font = options[i].font;
+    if (measureWrappedLines(ctx, text, maxW) <= 2) {
+      return options[i];
+    }
+  }
+
+  return options[options.length - 1];
+}
+
+function getStatsCardHeight(ctx, text, style, cardW) {
+  var maxTextW = cardW - 156;
+  var lineH = style === "impact" ? 42 : 40;
+  var baseHeight = style === "rows" ? 120 : style === "impact" ? 170 : 154;
+  var textLines = measureWrappedLines(ctx, text, maxTextW);
+  var textBlockHeight = Math.max(1, textLines) * lineH;
+  var contentTop = 28;
+  var contentBottom = style === "rows" ? 28 : 34;
+  var dynamicHeight = contentTop + textBlockHeight + contentBottom;
+  return Math.max(baseHeight, dynamicHeight);
+}
+
 function getHighlightText(text, maxChars) {
   if (!text) return "";
   var cleaned = text.replace(/\s+/g, " ").trim();
@@ -587,7 +618,7 @@ function renderStatsSlide(ctx, slide, project) {
   var gridX = panelX + 54;
   var maxW = panelW - 108;
   var cardW = maxW;
-  var cardH = MMTheme.variant.statsCardStyle === "rows" ? 120 : MMTheme.variant.statsCardStyle === "impact" ? 170 : 154;
+  var cardStyle = MMTheme.variant.statsCardStyle;
   var gap = MMTheme.spacing.cardGap;
   var supportImage = slide.content && slide.content.supportImage;
   var titleTop = panelY + 40;
@@ -609,17 +640,20 @@ function renderStatsSlide(ctx, slide, project) {
 
   var items = slide.content.items || [];
   var startY = titleEnd + 34;
+  var currentY = startY;
   for (var i = 0; i < items.length; i++) {
-    var cy = startY + i * (cardH + gap);
+    ctx.font = MMTheme.fonts.list;
+    var cardH = getStatsCardHeight(ctx, items[i], cardStyle, cardW);
+    var cy = currentY;
     if (cy + cardH > panelY + panelH - 30) break;
 
     drawPanel(ctx, gridX, cy, cardW, cardH, MMTheme.variant.statsCardFill, MMTheme.colors.lineSoft);
-    if (MMTheme.variant.statsCardStyle === "rows") {
+    if (cardStyle === "rows") {
       fillRoundRect(ctx, gridX + 24, cy + 20, 92, 46, 23, MMTheme.colors.accentSoft);
       fillRoundRect(ctx, gridX + 24, cy + cardH - 26, cardW - 48, 4, 2, MMTheme.colors.brandLine);
     } else {
       fillRoundRect(ctx, gridX + 24, cy + 24, 78, 44, 22, MMTheme.colors.accentSoft);
-      fillRoundRect(ctx, gridX + 24, cy + 82, 10, cardH - 106, 6, MMTheme.colors.accent);
+      fillRoundRect(ctx, gridX + 24, cy + 82, 10, Math.max(18, cardH - 106), 6, MMTheme.colors.accent);
     }
 
     ctx.font = MMTheme.fonts.statNumber;
@@ -636,8 +670,10 @@ function renderStatsSlide(ctx, slide, project) {
       gridX + 126,
       cy + 28,
       cardW - 156,
-      MMTheme.variant.statsCardStyle === "impact" ? 42 : 40
+      cardStyle === "impact" ? 42 : 40
     );
+
+    currentY += cardH + gap;
   }
 
   drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
@@ -688,14 +724,19 @@ function renderEndSlide(ctx, slide, project) {
 
   var ctaW = titleW - 40;
   var ctaX = panelX + (panelW - ctaW) / 2;
-  var ctaY = panelY + panelH - 162;
-  fillRoundRect(ctx, ctaX, ctaY, ctaW, 108, 30, MMTheme.colors.endCtaFill);
-  strokeRoundRect(ctx, ctaX, ctaY, ctaW, 108, 30, "rgba(0,0,0,0.08)", 2);
-  ctx.font = MMTheme.fonts.endUrl;
+  var ctaText = MMTheme.variant.endUrlLabel;
+  var ctaFit = fitEndUrlFont(ctx, ctaText, ctaW - 52);
+  var ctaLines = measureWrappedLines(ctx, ctaText, ctaW - 52);
+  var ctaH = ctaLines > 1 ? 128 : 108;
+  var ctaY = panelY + panelH - ctaH - 54;
+  fillRoundRect(ctx, ctaX, ctaY, ctaW, ctaH, 30, MMTheme.colors.endCtaFill);
+  strokeRoundRect(ctx, ctaX, ctaY, ctaW, ctaH, 30, "rgba(0,0,0,0.08)", 2);
+  ctx.font = ctaFit.font;
   ctx.fillStyle = MMTheme.colors.endCtaText;
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(MMTheme.variant.endUrlLabel, ctaX + ctaW / 2, ctaY + 54);
+  ctx.textBaseline = "top";
+  var ctaTextY = ctaY + (ctaH - ctaLines * ctaFit.lineH) / 2 - 4;
+  wrapText(ctx, ctaText, ctaX + ctaW / 2, ctaTextY, ctaW - 52, ctaFit.lineH);
 
   ctx.textAlign = "start";
   ctx.textBaseline = "top";
