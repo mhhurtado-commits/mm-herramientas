@@ -1025,7 +1025,8 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
         </div>
         <div>
           <div class="vs-label">Seleccioná una fecha</div>
-          <input class="vs-input" type="date" id="efeFecha" style="margin-top:6px" onchange="renderizarEfemerides()">
+          <input class="vs-input" type="date" id="efeFecha" style="margin-top:6px" onchange="onEfeFechaInputChange()">
+          <div class="vs-label" id="efeFechaPreview" style="margin-top:6px;color:var(--text)">--</div>
           <span id="efeFechaLabel" style="display:none"></span>
         </div>
         <div class="vs-row" style="margin-top:8px">
