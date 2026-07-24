@@ -2,6 +2,7 @@ import { createCarouselProject } from "./models.js";
 import { setProject, getProject } from "./state.js";
 import { renderCarousel } from "./renderer.js";
 import { renderSlideToCanvas } from "./canvas-renderer.js";
+import { renderReelSceneToCanvas } from "./reel-canvas-renderer.js";
 import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
 import { buildInstagramCaptionPrompt, buildReelPrompt } from "./prompts.js";
 
@@ -300,12 +301,45 @@ function ensureReelPreviewPanel() {
   titles.appendChild(label);
   titles.appendChild(title);
 
+  var actions = document.createElement("div");
+  actions.className = "carousel-copy-actions";
+
   var meta = document.createElement("div");
   meta.id = "reelPreviewMeta";
   meta.className = "carousel-status carousel-status--inline";
 
+  var copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.id = "copyReelSceneBtn";
+  copyBtn.className = "mm-btn";
+  copyBtn.textContent = "Copiar escena";
+  copyBtn.addEventListener("click", copyActiveReelScene);
+
+  var pngBtn = document.createElement("button");
+  pngBtn.type = "button";
+  pngBtn.id = "downloadReelSceneBtn";
+  pngBtn.className = "mm-btn";
+  pngBtn.textContent = "PNG";
+  pngBtn.addEventListener("click", downloadActiveReelScene);
+
+  var sequenceBtn = document.createElement("button");
+  sequenceBtn.type = "button";
+  sequenceBtn.id = "downloadAllReelScenesBtn";
+  sequenceBtn.className = "mm-btn";
+  sequenceBtn.textContent = "Secuencia";
+  sequenceBtn.addEventListener("click", downloadAllReelScenes);
+
+  actions.appendChild(copyBtn);
+  actions.appendChild(pngBtn);
+  actions.appendChild(sequenceBtn);
+
+  var side = document.createElement("div");
+  side.className = "carousel-copy-side";
+  side.appendChild(meta);
+  side.appendChild(actions);
+
   header.appendChild(titles);
-  header.appendChild(meta);
+  header.appendChild(side);
 
   var layout = document.createElement("div");
   layout.className = "reel-preview-layout";
@@ -454,8 +488,16 @@ function renderReelPreview(project) {
     thumbs.appendChild(createReelPreviewThumb(reel.scenes[i], i, project));
   }
 
-  stage.appendChild(createReelPreviewFrame(reel.scenes[activeReelSceneIndex], project, false));
-  meta.textContent = "Escena " + String(activeReelSceneIndex + 1).padStart(2, "0") + " de " + reel.scenes.length;
+  var activeScene = reel.scenes[activeReelSceneIndex];
+  var sceneCanvas = renderReelSceneToCanvas(activeScene, project);
+  if (sceneCanvas) {
+    sceneCanvas.className = "reel-preview-canvas";
+    stage.appendChild(sceneCanvas);
+  } else {
+    stage.appendChild(createReelPreviewFrame(activeScene, project, false));
+  }
+
+  meta.textContent = "Escena " + String(activeReelSceneIndex + 1).padStart(2, "0") + " de " + reel.scenes.length + " / 1080 x 1920";
 }
 
 function renderReelStoryboard(project) {
@@ -690,6 +732,63 @@ async function copyReelPlanJson() {
   }
 }
 
+async function copyActiveReelScene() {
+  var project = getProject();
+  var preview = document.getElementById("previewContent");
+  var scene = getActiveReelScene(project);
+  if (!scene) return;
+
+  try {
+    var canvas = renderReelSceneToCanvas(scene, project);
+    if (!canvas) throw new Error("No se pudo renderizar la escena.");
+    var blob = await canvasToBlob(canvas);
+    if (!blob) throw new Error("No se pudo generar la imagen.");
+    if (typeof ClipboardItem !== "function" || !navigator.clipboard || !navigator.clipboard.write) {
+      throw new Error("Clipboard no disponible.");
+    }
+
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        [blob.type || "image/png"]: blob
+      })
+    ]);
+
+    setStatus(preview, "Escena de Reel copiada");
+  } catch (error) {
+    setStatus(preview, "No se pudo copiar la escena");
+  }
+}
+
+async function downloadActiveReelScene() {
+  var project = getProject();
+  var scene = getActiveReelScene(project);
+  if (!scene) return;
+  await downloadReelSceneImage(scene, activeReelSceneIndex, project, false);
+}
+
+async function downloadAllReelScenes() {
+  var preview = document.getElementById("previewContent");
+  var project = getProject();
+  var reel = getReelOutput(project);
+  if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) return;
+
+  setStatus(preview, "Preparando escenas del Reel...");
+
+  for (var i = 0; i < reel.scenes.length; i++) {
+    await downloadReelSceneImage(reel.scenes[i], i, project, true);
+    await wait(180);
+  }
+
+  setStatus(preview, reel.scenes.length + " escenas de Reel descargadas");
+}
+
+function getActiveReelScene(project) {
+  var reel = getReelOutput(project);
+  if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) return null;
+  if (activeReelSceneIndex >= reel.scenes.length) activeReelSceneIndex = 0;
+  return reel.scenes[activeReelSceneIndex];
+}
+
 function createSlideSelectHandler(index) {
   return function () {
     activeSlideIndex = index;
@@ -822,6 +921,36 @@ async function downloadSlideImage(item, project, silent) {
   }
 }
 
+async function downloadReelSceneImage(scene, index, project, silent) {
+  var preview = document.getElementById("previewContent");
+  try {
+    var canvas = renderReelSceneToCanvas(scene, project);
+    if (!canvas) throw new Error("No se pudo renderizar la escena.");
+    var blob = await canvasToBlob(canvas);
+    if (!blob) throw new Error("No se pudo generar la imagen.");
+
+    var link = document.createElement("a");
+    var url = URL.createObjectURL(blob);
+    var fileName = buildReelSceneFileName(scene, index);
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 1000);
+
+    if (!silent) {
+      setStatus(preview, "Descargando " + fileName);
+    }
+  } catch (error) {
+    if (!silent) {
+      setStatus(preview, "No se pudo descargar la escena");
+    }
+  }
+}
+
 function canvasToBlob(canvas) {
   return new Promise(function (resolve) {
     canvas.toBlob(function (blob) {
@@ -837,6 +966,15 @@ function buildSlideFileName(item) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 36);
   return "carousel-slide-" + String(item.index + 1).padStart(2, "0") + (label ? "-" + label : "") + ".png";
+}
+
+function buildReelSceneFileName(scene, index) {
+  var label = String(scene && scene.text ? scene.text : "escena")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 36);
+  return "reel-scene-" + String(index + 1).padStart(2, "0") + (label ? "-" + label : "") + ".png";
 }
 
 function setStatus(preview, message) {

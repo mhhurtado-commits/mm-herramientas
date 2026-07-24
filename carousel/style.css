@@ -141,6 +141,20 @@
   margin-bottom: 12px;
 }
 
+.carousel-copy-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.carousel-copy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .carousel-copy-title {
   display: block;
   margin-top: 3px;
@@ -250,6 +264,15 @@
 
 .reel-preview-stage {
   width: min(100%, 420px);
+}
+
+.reel-preview-canvas {
+  width: min(100%, 420px);
+  height: auto;
+  display: block;
+  border-radius: 26px;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
 }
 
 .reel-storyboard-grid {
@@ -765,6 +788,18 @@
   .carousel-copy-header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .carousel-copy-side {
+    align-items: stretch;
+  }
+
+  .carousel-copy-actions {
+    justify-content: stretch;
+  }
+
+  .carousel-copy-actions .mm-btn {
+    flex: 1 1 0;
   }
 
   .carousel-status--inline {
