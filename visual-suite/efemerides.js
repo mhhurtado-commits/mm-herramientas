@@ -1062,11 +1062,15 @@ function drawEfeSectionHeader(ctx, x, y, w, h, label) {
   ctx.roundRect(x, pillY, iconW, pillH, Math.round(pillH / 2));
   ctx.fill();
 
-  ctx.fillStyle = meta.accent;
-  ctx.font = `900 ${Math.round(pillH * 0.34)}px Inter, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(meta.icon, x + iconW / 2, y + h / 2);
+  if (meta.icon === 'AR') {
+    drawEfeArgentinaFlag(ctx, x + Math.round(iconW * 0.16), pillY + Math.round(pillH * 0.2), Math.round(iconW * 0.68), Math.round(pillH * 0.6));
+  } else {
+    ctx.fillStyle = meta.accent;
+    ctx.font = `900 ${Math.round(pillH * 0.34)}px Inter, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(meta.icon, x + iconW / 2, y + h / 2);
+  }
 
   ctx.textAlign = 'left';
   ctx.fillStyle = VS_Colors.INK;
@@ -1089,6 +1093,34 @@ function wrapEfeFullText(ctx, value, maxWidth) {
   });
   if (line) lines.push(line);
   return lines;
+}
+
+function isEfeArgentinaFlag(value) {
+  const text = String(value || '').trim();
+  return text === 'AR' || text.toLowerCase() === 'argentina' || text.includes(String.fromCodePoint(0x1f1e6, 0x1f1f7));
+}
+
+function drawEfeArgentinaFlag(ctx, x, y, w, h) {
+  const r = Math.min(w, h) * 0.16;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.clip();
+  ctx.fillStyle = '#74acdf';
+  ctx.fillRect(x, y, w, h / 3);
+  ctx.fillRect(x, y + h * 2 / 3, w, h / 3);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(x, y + h / 3, w, h / 3);
+  ctx.fillStyle = '#f6b40e';
+  ctx.beginPath();
+  ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+  ctx.lineWidth = Math.max(1, Math.round(Math.min(w, h) * 0.035));
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.stroke();
 }
 
 function drawEfeTitle(ctx, W, H, tr) {
@@ -1358,14 +1390,18 @@ function drawEfeCards(ctx, W, H, br) {
     ctx.textBaseline = 'middle';
     ctx.font = `${Math.round(iconSize * 0.72)}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(e.emoji || '•', iconX + iconSize / 2, iconY + iconSize / 2);
+    if (isEfeArgentinaFlag(e.emoji)) {
+      drawEfeArgentinaFlag(ctx, iconX + Math.round(iconSize * 0.1), iconY + Math.round(iconSize * 0.23), Math.round(iconSize * 0.8), Math.round(iconSize * 0.54));
+    } else {
+      ctx.fillText(e.emoji || '•', iconX + iconSize / 2, iconY + iconSize / 2);
+    }
 
-    const badgeFs = Math.round(W * (featured ? 0.017 : 0.015));
+    const badgeFs = Math.round(W * (featured ? 0.014 : 0.0125));
     ctx.font = `800 ${badgeFs}px Inter, sans-serif`;
-    const badgeW = ctx.measureText(badgeText).width + Math.round(W * 0.025);
-    const badgeH = Math.round(W * 0.029);
+    const badgeW = ctx.measureText(badgeText).width + Math.round(W * 0.018);
+    const badgeH = Math.round(W * 0.023);
     const badgeX = x + cardW - badgeW - Math.round(cardW * 0.024);
-    const badgeY = y + Math.round(boxH * 0.12);
+    const badgeY = y + Math.round(boxH * 0.08);
     ctx.fillStyle = VS_Utils.hexToRgba(accent, 0.17);
     ctx.beginPath();
     ctx.roundRect(badgeX, badgeY, badgeW, badgeH, Math.round(badgeH / 2));
@@ -1377,7 +1413,7 @@ function drawEfeCards(ctx, W, H, br) {
     const yearText = String(e.anio || '');
     const yearFs = Math.round(W * (featured ? 0.025 : 0.022));
     let titleFs = Math.round(W * (featured ? 0.025 : 0.021));
-    const titleY = y + Math.round(boxH * 0.3);
+    const titleY = y + Math.round(boxH * (featured ? 0.46 : 0.4));
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -1387,7 +1423,7 @@ function drawEfeCards(ctx, W, H, br) {
     ctx.fillText(yearText, textX, titleY);
 
     const titleX = textX + yearW;
-    const textRight = badgeX - Math.round(cardW * 0.026);
+    const textRight = x + cardW - Math.round(cardW * 0.026);
     const titleMaxW = Math.max(120, textRight - titleX);
     ctx.fillStyle = VS_Colors.INK;
     let titleLines = [];
@@ -1401,7 +1437,7 @@ function drawEfeCards(ctx, W, H, br) {
     titleLines.forEach((line, i) => ctx.fillText(line, titleX, titleY + i * titleLineH));
 
     const descY = titleY + Math.max(0, titleLines.length - 1) * titleLineH
-      + Math.round(boxH * (featured ? 0.18 : 0.12));
+      + Math.round(boxH * (featured ? 0.2 : 0.15));
     let descFs = Math.round(W * (featured ? 0.018 : 0.016));
     let descLines = [];
     let descLineH = 0;
