@@ -96,7 +96,7 @@ function drawSceneChrome(ctx, scene) {
   topBar.addColorStop(1, MMTheme.colors.accentBarEnd || "#d9eb97");
   fillRoundRect(ctx, 62, 58, W - 124, 26, 13, topBar);
 
-  drawSceneBadge(ctx, scene.visual_role || scene.visual_type || "escena");
+  drawSceneBadge(ctx, getSceneBadgeLabel(scene, null));
   drawSceneBrand(ctx, scene.visual_type === "text_card");
 }
 
@@ -142,45 +142,57 @@ function drawSceneText(ctx, scene) {
   var contentW = W - 168;
 
   if (isTextCard) {
-    ctx.fillStyle = MMTheme.colors.panel;
-    fillRoundRect(ctx, 64, 248, W - 128, H - 360, 44, MMTheme.colors.panel);
+    var panelY = 250;
+    var panelH = H - 414;
+    fillRoundRect(ctx, 64, panelY, W - 128, panelH, 44, "rgba(255,255,255,0.94)");
     ctx.strokeStyle = MMTheme.colors.lineSoft;
     ctx.lineWidth = 2;
-    roundRectStroke(ctx, 64, 248, W - 128, H - 360, 44);
+    roundRectStroke(ctx, 64, panelY, W - 128, panelH, 44);
 
-    fillRoundRect(ctx, 86, 286, 18, 360, 9, MMTheme.colors.accent);
-    ctx.font = "700 92px Inter, Arial, sans-serif";
+    ctx.font = "700 248px Inter, Arial, sans-serif";
+    ctx.fillStyle = "rgba(166,206,57,0.12)";
+    ctx.textAlign = "right";
+    ctx.fillText("0" + String(Math.min(9, Math.max(1, Number(scene.order || 1)))), W - 134, panelY + 34);
+    ctx.textAlign = "start";
+
+    fillRoundRect(ctx, 86, panelY + 42, 20, 420, 10, MMTheme.colors.accent);
+
+    ctx.font = "700 102px Inter, Arial, sans-serif";
     ctx.fillStyle = MMTheme.colors.textPrimary;
-    var titleEnd = wrapText(ctx, title, 134, 324, W - 250, 98);
+    var titleEnd = wrapText(ctx, title, 142, panelY + 92, W - 262, 108);
 
     if (subtitle) {
-      ctx.font = "500 52px Inter, Arial, sans-serif";
+      ctx.font = "500 56px Inter, Arial, sans-serif";
       ctx.fillStyle = MMTheme.colors.textSecondary;
-      wrapText(ctx, subtitle, 134, titleEnd + 42, W - 250, 64);
+      wrapText(ctx, subtitle, 142, titleEnd + 46, W - 262, 70);
     }
+
+    fillRoundRect(ctx, 142, H - 288, W - 284, 3, 2, MMTheme.colors.brandLine);
     return;
   }
 
-  var panelY = H - 620;
-  fillRoundRect(ctx, 28, panelY, W - 56, 592, 42, "rgba(255,255,255,0.96)");
+  var panelY = H - 660;
+  fillRoundRect(ctx, 28, panelY, W - 56, 632, 42, "rgba(255,255,255,0.97)");
   ctx.strokeStyle = "rgba(222,216,205,0.88)";
   ctx.lineWidth = 2;
-  roundRectStroke(ctx, 28, panelY, W - 56, 592, 42);
+  roundRectStroke(ctx, 28, panelY, W - 56, 632, 42);
 
-  ctx.font = "700 82px Inter, Arial, sans-serif";
+  fillRoundRect(ctx, 56, panelY + 54, 14, 164, 7, MMTheme.colors.accent);
+
+  ctx.font = "700 88px Inter, Arial, sans-serif";
   ctx.fillStyle = MMTheme.colors.textPrimary;
-  var titleEnd = wrapText(ctx, title, contentX, panelY + 72, contentW, 92);
+  var titleEnd = wrapText(ctx, title, contentX, panelY + 70, contentW - 24, 94);
 
   if (subtitle) {
-    ctx.font = "500 46px Inter, Arial, sans-serif";
+    ctx.font = "500 48px Inter, Arial, sans-serif";
     ctx.fillStyle = MMTheme.colors.textSecondary;
-    wrapText(ctx, subtitle, contentX, titleEnd + 26, contentW - 40, 58);
+    wrapText(ctx, subtitle, contentX, titleEnd + 30, contentW - 40, 60);
   }
 }
 
 function drawSceneFooter(ctx, scene) {
   var isTextCard = scene.visual_type === "text_card";
-  var footerY = H - 110;
+  var footerY = H - 104;
 
   ctx.strokeStyle = MMTheme.colors.brandLine;
   ctx.lineWidth = 3;
@@ -191,8 +203,10 @@ function drawSceneFooter(ctx, scene) {
 
   ctx.font = "700 24px Inter, Arial, sans-serif";
   ctx.fillStyle = isTextCard ? MMTheme.colors.footer : "rgba(255,255,255,0.78)";
+  ctx.textAlign = "left";
+  ctx.fillText("Media Mendoza", 84, footerY - 34);
   ctx.textAlign = "right";
-  ctx.fillText("1080 x 1920", W - 86, footerY - 34);
+  ctx.fillText("Escena " + String(scene.order || 1).padStart(2, "0"), W - 86, footerY - 34);
   ctx.textAlign = "start";
 }
 
@@ -204,7 +218,7 @@ function resolveSceneImage(scene, project) {
   if (source === "article.image") return article.image || "";
 
   var match = source.match(/^article\.images\[(\d+)\]$/);
-  if (match && Array.isArray(article.images)) {
+  if (match && project.settings && project.settings.useSecondaryImages && Array.isArray(article.images)) {
     var idx = Number(match[1]);
     return article.images[idx] || "";
   }
@@ -317,6 +331,12 @@ function formatReelRoleLabel(value) {
     text_card: "Placa de texto"
   };
   return labels[key] || humanizeReelLabel(key) || "Escena";
+}
+
+function getSceneBadgeLabel(scene) {
+  if (!scene) return "escena";
+  if (scene.visual_type === "support_image" && !scene.visual_source) return "text_card";
+  return scene.visual_role || scene.visual_type || "escena";
 }
 
 function humanizeReelLabel(value) {

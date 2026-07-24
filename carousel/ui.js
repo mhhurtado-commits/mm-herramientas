@@ -584,7 +584,8 @@ function createReelSceneCard(scene, project) {
 
   var source = document.createElement("div");
   source.className = "reel-scene-source";
-  source.textContent = formatReelSourceLabel(scene.visual_source || "");
+  source.textContent = formatReelSourceLabel(scene, project);
+  source.hidden = !source.textContent;
 
   body.appendChild(top);
   body.appendChild(role);
@@ -617,7 +618,7 @@ function createReelPreviewThumb(scene, index, project) {
 
   var label = document.createElement("span");
   label.className = "reel-preview-thumb-label";
-  label.textContent = formatReelRoleLabel(scene.visual_role || scene.visual_type || "escena");
+  label.textContent = getPreviewSceneLabel(scene, project);
 
   meta.appendChild(indexLabel);
   meta.appendChild(label);
@@ -648,7 +649,7 @@ function createReelPreviewFrame(scene, project, compact) {
 
   var roleChip = document.createElement("span");
   roleChip.className = "reel-scene-chip";
-  roleChip.textContent = formatReelRoleLabel(scene.visual_role || scene.visual_type || "escena");
+  roleChip.textContent = getPreviewSceneLabel(scene, project);
   overlay.appendChild(roleChip);
 
   var visualTitle = document.createElement("strong");
@@ -680,7 +681,7 @@ function resolveReelSceneImage(scene, project) {
   if (source === "article.image") return article.image || "";
 
   var match = source.match(/^article\.images\[(\d+)\]$/);
-  if (match && Array.isArray(article.images)) {
+  if (match && project.settings && project.settings.useSecondaryImages && Array.isArray(article.images)) {
     var idx = Number(match[1]);
     return article.images[idx] || "";
   }
@@ -712,18 +713,27 @@ function formatReelRoleLabel(value) {
   return labels[key] || humanizeReelLabel(key) || "Escena";
 }
 
-function formatReelSourceLabel(value) {
-  var key = String(value || "").trim();
+function formatReelSourceLabel(scene, project) {
+  var key = String(scene && scene.visual_source ? scene.visual_source : "").trim();
   if (!key) return "";
   if (key === "article.image") return "Imagen principal";
-  if (key === "generated") return "Generado";
+  if (key === "generated") return "Placa editorial";
 
   var match = key.match(/^article\.images\[(\d+)\]$/);
   if (match) {
+    if (!resolveReelSceneImage(scene, project)) return "";
     return "Imagen interna " + String(Number(match[1]) + 1).padStart(2, "0");
   }
 
   return humanizeReelLabel(key);
+}
+
+function getPreviewSceneLabel(scene, project) {
+  var hasImage = !!resolveReelSceneImage(scene, project);
+  if (!hasImage && scene && scene.visual_type === "support_image") {
+    return "Placa editorial";
+  }
+  return formatReelRoleLabel(scene.visual_role || scene.visual_type || "escena");
 }
 
 function humanizeReelLabel(value) {
