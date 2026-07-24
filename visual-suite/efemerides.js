@@ -157,7 +157,9 @@ function cargarJSONEfemerides() {
   try { parsed = JSON.parse(text); }
   catch (e) { return toast('JSON inválido: ' + e.message); }
 
+  efeFechaTextoOverride = '';
   if (parsed.fecha) syncEfeFechaLabel(parsed.fecha);
+  else syncEfeFechaLabel();
   if (parsed.efemerides && Array.isArray(parsed.efemerides)) {
     efemeridesData = ordenarEfemerides(parsed.efemerides);
     renderizarEfemerides();
@@ -1050,18 +1052,18 @@ function drawEfeLogoPlate(ctx, W, H) {
 
 function drawEfeSectionHeader(ctx, x, y, w, h, label) {
   const meta = getEfeSectionMeta(label);
-  const pillH = Math.round(h * 0.78);
+  const pillH = Math.min(Math.round(h * 0.78), 40);
   const pillY = y + Math.round((h - pillH) / 2);
-  const labelSize = Math.round(h * 0.44);
+  const labelSize = Math.max(24, Math.round(h * 0.48));
   const iconW = Math.round(pillH * (meta.icon.length > 2 ? 2.0 : 1.22));
 
-  ctx.fillStyle = VS_Utils.hexToRgba(meta.accent, 0.14);
+  ctx.fillStyle = VS_Utils.hexToRgba(meta.accent, 0.2);
   ctx.beginPath();
   ctx.roundRect(x, pillY, iconW, pillH, Math.round(pillH / 2));
   ctx.fill();
 
   ctx.fillStyle = meta.accent;
-  ctx.font = `800 ${Math.round(pillH * 0.34)}px Inter, sans-serif`;
+  ctx.font = `900 ${Math.round(pillH * 0.34)}px Inter, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(meta.icon, x + iconW / 2, y + h / 2);
@@ -1070,6 +1072,23 @@ function drawEfeSectionHeader(ctx, x, y, w, h, label) {
   ctx.fillStyle = VS_Colors.INK;
   ctx.font = `800 ${labelSize}px Inter, sans-serif`;
   ctx.fillText(meta.title, x + iconW + Math.round(w * 0.018), y + h / 2);
+}
+
+function wrapEfeFullText(ctx, value, maxWidth) {
+  const words = String(value || '').trim().split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  words.forEach(word => {
+    const candidate = line ? line + ' ' + word : word;
+    if (line && ctx.measureText(candidate).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  });
+  if (line) lines.push(line);
+  return lines;
 }
 
 function drawEfeTitle(ctx, W, H, tr) {
@@ -1228,7 +1247,7 @@ function renderizarEfemerides() {
   if (efeBlocks) {
     efeBlocks.title = { x: 0.06, y: 0.055, w: 0.48, h: 0.125 };
     efeBlocks.logo = { x: 0.67, y: 0.04, w: 0.25, h: window.logoState?.ar ? 0.25 * window.logoState.ar : 0.09 };
-    efeBlocks.body = { x: 0.05, y: 0.19, w: 0.9, h: 0.73 };
+    efeBlocks.body = { x: 0.05, y: 0.22, w: 0.9, h: 0.72 };
   }
 
   const ctx = canvas.getContext('2d');
@@ -1257,7 +1276,7 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
   if (efeBlocks) {
     efeBlocks.title = { x: 0.06, y: 0.055, w: 0.48, h: 0.125 };
     efeBlocks.logo = { x: 0.67, y: 0.04, w: 0.25, h: window.logoState?.ar ? 0.25 * window.logoState.ar : 0.09 };
-    efeBlocks.body = { x: 0.05, y: 0.19, w: 0.9, h: 0.73 };
+    efeBlocks.body = { x: 0.05, y: 0.22, w: 0.9, h: 0.72 };
   }
   drawEfeBackground(ctx, W, H);
   const br = getEfeBlockRect('body', W, H);
@@ -1277,6 +1296,144 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
     drawEfeLogoPlate(ctx, W, H);
     VS_Utils.dibujarLogo(ctx, W, H, { x: efeBlocks.logo.x, y: efeBlocks.logo.y, w: efeBlocks.logo.w });
   }
+}
+
+// Final WhatsApp composition: large type, two-column secondary sections, and
+// solid emoji chips so the source emoji survives downscaling and PNG export.
+function drawEfeCards(ctx, W, H, br) {
+  const data = getEfeWhatsAppItems();
+  const pad = Math.round(W * 0.016);
+  const gap = Math.round(W * 0.009);
+  const sectionGap = Math.round(W * 0.006);
+  const headerH = Math.round(W * 0.035);
+  const featureH = Math.round(W * 0.094);
+  const regularH = Math.round(W * 0.128);
+  const innerX = br.x + pad;
+  const innerW = br.w - pad * 2;
+  let curY = br.y + pad;
+  let section = null;
+
+  const drawCard = (e, x, y, cardW, cardH, featured) => {
+    const catColor = VS_Colors.CAT_COLORS[e.categoria] || VS_Colors.CAT_DEFAULT;
+    const accent = featured ? VS_Colors.GOLD : catColor;
+    const radius = Math.round(cardH * 0.12);
+    const iconSize = Math.round(cardH * (featured ? 0.58 : 0.48));
+    const iconX = x + Math.round(cardW * 0.025);
+    const iconY = y + Math.round((cardH - iconSize) / 2);
+    const textX = iconX + iconSize + Math.round(cardW * 0.035);
+    const badgeText = e.categoria || '';
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(22,32,27,0.14)';
+    ctx.shadowBlur = Math.round(cardH * 0.12);
+    ctx.shadowOffsetY = Math.round(cardH * 0.05);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(x, y, cardW, cardH - gap, radius);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = featured ? 'rgba(201,162,39,0.58)' : 'rgba(22,32,27,0.13)';
+    ctx.lineWidth = Math.max(2, Math.round(W * 0.0012));
+    ctx.beginPath();
+    ctx.roundRect(x, y, cardW, cardH - gap, radius);
+    ctx.stroke();
+
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.roundRect(x, y + Math.round(cardH * 0.12), Math.max(10, Math.round(W * 0.006)), cardH * 0.72, 5);
+    ctx.fill();
+
+    ctx.fillStyle = '#183128';
+    ctx.beginPath();
+    ctx.roundRect(iconX, iconY, iconSize, iconSize, Math.round(iconSize * 0.25));
+    ctx.fill();
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = Math.max(2, Math.round(W * 0.0015));
+    ctx.beginPath();
+    ctx.roundRect(iconX, iconY, iconSize, iconSize, Math.round(iconSize * 0.25));
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.round(iconSize * 0.72)}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(e.emoji || '•', iconX + iconSize / 2, iconY + iconSize / 2);
+
+    const badgeFs = Math.round(W * (featured ? 0.017 : 0.015));
+    ctx.font = `800 ${badgeFs}px Inter, sans-serif`;
+    const badgeW = ctx.measureText(badgeText).width + Math.round(W * 0.025);
+    const badgeH = Math.round(W * 0.029);
+    const badgeX = x + cardW - badgeW - Math.round(cardW * 0.024);
+    const badgeY = y + Math.round(cardH * 0.12);
+    ctx.fillStyle = VS_Utils.hexToRgba(accent, 0.17);
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, Math.round(badgeH / 2));
+    ctx.fill();
+    ctx.fillStyle = accent;
+    ctx.textAlign = 'center';
+    ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2);
+
+    const yearText = String(e.anio || '');
+    const yearFs = Math.round(W * (featured ? 0.025 : 0.022));
+    const titleFs = Math.round(W * (featured ? 0.025 : 0.021));
+    const descFs = Math.round(W * (featured ? 0.018 : 0.016));
+    const titleY = y + Math.round(cardH * 0.34);
+    const titleLineH = Math.round(titleFs * 1.12);
+    const descLineH = Math.round(descFs * 1.2);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = accent;
+    ctx.font = `900 ${yearFs}px Inter, sans-serif`;
+    const yearW = ctx.measureText(yearText).width + Math.round(W * 0.014);
+    ctx.fillText(yearText, textX, titleY);
+
+    const titleX = textX + yearW;
+    const textRight = badgeX - Math.round(cardW * 0.026);
+    const titleMaxW = Math.max(120, textRight - titleX);
+    ctx.fillStyle = VS_Colors.INK;
+    ctx.font = `800 ${titleFs}px Inter, sans-serif`;
+    const titleLines = wrapEfeFullText(ctx, e.titulo || '', titleMaxW);
+    titleLines.forEach((line, i) => ctx.fillText(line, titleX, titleY + i * titleLineH));
+
+    const descY = y + Math.round(cardH * (titleLines.length > 1 ? 0.69 : 0.64));
+    ctx.fillStyle = featured ? 'rgba(58,46,18,0.9)' : 'rgba(22,32,27,0.78)';
+    ctx.font = `600 ${descFs}px Inter, sans-serif`;
+    const descLines = wrapEfeFullText(ctx, e.descripcion || '', textRight - textX);
+    descLines.forEach((line, i) => ctx.fillText(line, textX, descY + i * descLineH));
+  };
+
+  const flushSection = () => {
+    if (!section) return;
+    const featured = section.label.toLowerCase().includes('destac');
+    const cardH = featured ? featureH : regularH;
+    drawEfeSectionHeader(ctx, innerX, curY, innerW, headerH, section.label);
+    curY += headerH;
+    if (featured) {
+      section.items.forEach(e => {
+        drawCard(e, innerX, curY, innerW, cardH, true);
+        curY += cardH;
+      });
+    } else {
+      const cardW = Math.floor((innerW - gap) / 2);
+      for (let i = 0; i < section.items.length; i += 2) {
+        const row = section.items.slice(i, i + 2);
+        row.forEach((e, j) => drawCard(e, innerX + j * (cardW + gap), curY, cardW, cardH, false));
+        curY += cardH;
+      }
+    }
+    curY += sectionGap;
+  };
+
+  data.forEach(e => {
+    if (e._separator) {
+      flushSection();
+      section = { label: e._separator, items: [] };
+    } else if (section) {
+      section.items.push(e);
+    }
+  });
+  flushSection();
 }
 
 document.addEventListener('DOMContentLoaded', initEfemerides);
