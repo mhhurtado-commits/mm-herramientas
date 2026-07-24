@@ -1019,7 +1019,7 @@ function drawEfeBackground(ctx, W, H) {
   ctx.fillRect(0, 0, W, H);
 
   ctx.fillStyle = '#16201b';
-  ctx.fillRect(0, 0, W, Math.round(H * 0.195));
+  ctx.fillRect(0, 0, W, Math.round(H * 0.18));
 
   const glow = ctx.createRadialGradient(W * 0.5, H * 0.22, 0, W * 0.5, H * 0.22, W * 0.52);
   glow.addColorStop(0, 'rgba(166,206,57,0.12)');
@@ -1279,7 +1279,7 @@ function renderizarEfemerides() {
   if (efeBlocks) {
     efeBlocks.title = { x: 0.06, y: 0.055, w: 0.48, h: 0.125 };
     efeBlocks.logo = { x: 0.67, y: 0.04, w: 0.25, h: window.logoState?.ar ? 0.25 * window.logoState.ar : 0.09 };
-    efeBlocks.body = { x: 0.05, y: 0.22, w: 0.9, h: 0.72 };
+    efeBlocks.body = { x: 0.05, y: 0.205, w: 0.9, h: 0.735 };
   }
 
   const ctx = canvas.getContext('2d');
@@ -1308,7 +1308,7 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
   if (efeBlocks) {
     efeBlocks.title = { x: 0.06, y: 0.055, w: 0.48, h: 0.125 };
     efeBlocks.logo = { x: 0.67, y: 0.04, w: 0.25, h: window.logoState?.ar ? 0.25 * window.logoState.ar : 0.09 };
-    efeBlocks.body = { x: 0.05, y: 0.22, w: 0.9, h: 0.72 };
+    efeBlocks.body = { x: 0.05, y: 0.205, w: 0.9, h: 0.735 };
   }
   drawEfeBackground(ctx, W, H);
   const br = getEfeBlockRect('body', W, H);
@@ -1351,8 +1351,10 @@ function drawEfeCards(ctx, W, H, br) {
     const boxH = cardH - gap;
     const radius = Math.round(boxH * 0.12);
     const iconSize = Math.round(boxH * (featured ? 0.58 : 0.48));
+    const badgeFs = Math.round(W * (featured ? 0.014 : 0.0125));
+    const categoryH = Math.round(W * 0.023);
     const iconX = x + Math.round(cardW * 0.025);
-    const iconY = y + Math.round((boxH - iconSize) / 2);
+    const iconY = y + categoryH + Math.round(boxH * 0.04);
     const textX = iconX + iconSize + Math.round(cardW * 0.035);
     const badgeText = e.categoria || '';
 
@@ -1396,12 +1398,11 @@ function drawEfeCards(ctx, W, H, br) {
       ctx.fillText(e.emoji || '•', iconX + iconSize / 2, iconY + iconSize / 2);
     }
 
-    const badgeFs = Math.round(W * (featured ? 0.014 : 0.0125));
     ctx.font = `800 ${badgeFs}px Inter, sans-serif`;
     const badgeW = ctx.measureText(badgeText).width + Math.round(W * 0.018);
-    const badgeH = Math.round(W * 0.023);
-    const badgeX = x + cardW - badgeW - Math.round(cardW * 0.024);
-    const badgeY = y + Math.round(boxH * 0.08);
+    const badgeH = categoryH;
+    const badgeX = Math.max(x + 8, Math.min(x + cardW - badgeW - 8, iconX + iconSize / 2 - badgeW / 2));
+    const badgeY = y + Math.round(boxH * 0.04);
     ctx.fillStyle = VS_Utils.hexToRgba(accent, 0.17);
     ctx.beginPath();
     ctx.roundRect(badgeX, badgeY, badgeW, badgeH, Math.round(badgeH / 2));
