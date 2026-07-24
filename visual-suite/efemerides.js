@@ -475,26 +475,36 @@ function wrapText(ctx, text, maxWidth) {
 
 function drawEfeBackground(ctx, W, H) {
   const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#10131a');
-  grad.addColorStop(0.55, '#151927');
-  grad.addColorStop(1, '#1b2031');
+  grad.addColorStop(0, '#f7f8f3');
+  grad.addColorStop(0.52, '#f1f3ee');
+  grad.addColorStop(1, '#e8ece5');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  const bandY = Math.round(H * 0.16);
-  const bandH = Math.round(H * 0.2);
+  const bandY = Math.round(H * 0.12);
+  const bandH = Math.round(H * 0.28);
   const band = ctx.createLinearGradient(0, bandY, 0, bandY + bandH);
-  band.addColorStop(0, 'rgba(255,255,255,0.04)');
-  band.addColorStop(1, 'rgba(255,255,255,0)');
+  band.addColorStop(0, 'rgba(166,206,57,0.08)');
+  band.addColorStop(1, 'rgba(166,206,57,0)');
   ctx.fillStyle = band;
   ctx.fillRect(0, bandY, W, bandH);
+
+  ctx.strokeStyle = 'rgba(22,32,27,0.08)';
+  ctx.lineWidth = Math.max(1, Math.round(W * 0.001));
+  for (let y = Math.round(H * 0.24); y < H; y += Math.round(H * 0.12)) {
+    ctx.beginPath();
+    ctx.moveTo(Math.round(W * 0.04), y);
+    ctx.lineTo(Math.round(W * 0.96), y);
+    ctx.stroke();
+  }
 }
 
 function getEfeSectionMeta(label) {
   const text = String(label || '').toLowerCase();
   if (text.includes('destac')) return { icon: '*', title: 'Destacadas', accent: VS_Colors.GOLD };
+  if (text.includes('interna') || text.includes('mundo')) return { icon: 'MUNDO', title: 'Internacionales', accent: '#d9534f' };
   if (text.includes('nacional')) return { icon: 'AR', title: 'Nacionales', accent: VS_Colors.ACCENT };
-  return { icon: 'MUNDO', title: 'Internacionales', accent: '#ff6b6b' };
+  return { icon: 'HITOS', title: 'Efemerides', accent: VS_Colors.INK2 };
 }
 
 function drawEfeSectionHeader(ctx, x, y, w, h, label) {
@@ -502,7 +512,7 @@ function drawEfeSectionHeader(ctx, x, y, w, h, label) {
   const chipH = Math.max(26, Math.round(h * 0.72));
   const chipW = Math.round(chipH * (meta.icon.length > 2 ? 2.15 : 1.25));
 
-  ctx.fillStyle = VS_Utils.hexToRgba(meta.accent, 0.14);
+  ctx.fillStyle = VS_Utils.hexToRgba(meta.accent, 0.12);
   ctx.beginPath();
   ctx.roundRect(x, y + Math.round((h - chipH) / 2), chipW, chipH, Math.round(chipH / 2));
   ctx.fill();
@@ -514,16 +524,43 @@ function drawEfeSectionHeader(ctx, x, y, w, h, label) {
   ctx.fillText(meta.icon, x + chipW / 2, y + h / 2);
 
   ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(255,255,255,0.96)';
+  ctx.fillStyle = VS_Colors.INK;
   ctx.font = `800 ${Math.round(h * 0.44)}px Inter, sans-serif`;
   ctx.fillText(meta.title, x + chipW + Math.round(w * 0.018), y + h / 2);
 
   const lineX = x + chipW + Math.round(w * 0.018) + ctx.measureText(meta.title).width + Math.round(w * 0.018);
-  ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+  ctx.strokeStyle = 'rgba(22,32,27,0.12)';
   ctx.lineWidth = Math.max(1, Math.round(h * 0.04));
   ctx.beginPath();
   ctx.moveTo(lineX, y + h / 2);
   ctx.lineTo(x + w, y + h / 2);
+  ctx.stroke();
+}
+
+function drawEfeLogoPlate(ctx, W, H) {
+  if (!efeBlocks || !efeBlocks.logo) return;
+  const b = efeBlocks.logo;
+  const x = b.x * W;
+  const y = b.y * H;
+  const w = b.w * W;
+  const h = (b.h || (b.w * (window.logoState?.ar || 1))) * H;
+  const padX = Math.round(w * 0.12);
+  const padY = Math.round(h * 0.22);
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.08)';
+  ctx.shadowBlur = Math.round(W * 0.01);
+  ctx.shadowOffsetY = Math.round(H * 0.004);
+  ctx.fillStyle = 'rgba(255,255,255,0.82)';
+  ctx.beginPath();
+  ctx.roundRect(x - padX, y - padY, w + padX * 2, h + padY * 2, Math.round(h * 0.35));
+  ctx.fill();
+  ctx.restore();
+
+  ctx.strokeStyle = 'rgba(22,32,27,0.08)';
+  ctx.lineWidth = Math.max(1, Math.round(W * 0.0008));
+  ctx.beginPath();
+  ctx.roundRect(x - padX, y - padY, w + padX * 2, h + padY * 2, Math.round(h * 0.35));
   ctx.stroke();
 }
 
@@ -675,9 +712,10 @@ function renderizarEfemeridesEnCtx(ctx, W, H) {
   const tr = getEfeBlockRect('title', W, H);
   if (tr) drawEfeTitle(ctx, W, H, tr);
 
-  VS_CanvasHelpers.drawFooter(ctx, W, H, true);
+  VS_CanvasHelpers.drawFooter(ctx, W, H, false);
 
   if (efeBlocks && efeBlocks.logo) {
+    drawEfeLogoPlate(ctx, W, H);
     VS_Utils.dibujarLogo(ctx, W, H, {
       x: efeBlocks.logo.x,
       y: efeBlocks.logo.y,
@@ -713,7 +751,7 @@ function drawEfeCards(ctx, W, H, br) {
     const isDest = e.destacada;
     const catColor = VS_Colors.CAT_COLORS[e.categoria] || VS_Colors.CAT_DEFAULT;
     const topPad = Math.round(itemH * 0.18);
-    const iconSize = Math.round(itemH * 0.46);
+    const iconSize = Math.round(itemH * 0.54);
     const iconX = innerX + Math.round(cardW * 0.028);
     const iconY = y + Math.round(itemH * 0.19);
     const textX = iconX + iconSize + Math.round(cardW * 0.026);
@@ -725,13 +763,13 @@ function drawEfeCards(ctx, W, H, br) {
     ctx.shadowColor = 'rgba(0,0,0,0.18)';
     ctx.shadowBlur = Math.round(itemH * 0.15);
     ctx.shadowOffsetY = Math.round(itemH * 0.05);
-    ctx.fillStyle = isDest ? 'rgba(201,162,39,0.12)' : 'rgba(255,255,255,0.05)';
+    ctx.fillStyle = isDest ? 'rgba(201,162,39,0.08)' : 'rgba(255,255,255,0.72)';
     ctx.beginPath();
     ctx.roundRect(innerX, y, cardW, itemH - Math.round(W * 0.007), Math.round(itemH * 0.1));
     ctx.fill();
     ctx.restore();
 
-    ctx.strokeStyle = isDest ? 'rgba(201,162,39,0.34)' : 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = isDest ? 'rgba(201,162,39,0.42)' : 'rgba(22,32,27,0.08)';
     ctx.lineWidth = Math.max(1, Math.round(W * 0.001));
     ctx.beginPath();
     ctx.roundRect(innerX, y, cardW, itemH - Math.round(W * 0.007), Math.round(itemH * 0.1));
@@ -766,7 +804,7 @@ function drawEfeCards(ctx, W, H, br) {
 
     const titleMaxW = badgeX - textX - Math.round(cardW * 0.02);
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = VS_Colors.INK;
     ctx.font = `800 ${Math.round(itemH * 0.21)}px Inter, sans-serif`;
     const titleLines = VS_Utils.wrapText(ctx, e.titulo || '', titleMaxW, 2);
     const titleLineH = Math.round(itemH * 0.16);
@@ -774,21 +812,13 @@ function drawEfeCards(ctx, W, H, br) {
       ctx.fillText(line, textX, titleY + i * titleLineH);
     });
 
-    ctx.fillStyle = isDest ? 'rgba(255,243,214,0.9)' : 'rgba(255,255,255,0.74)';
+    ctx.fillStyle = isDest ? 'rgba(58,46,18,0.88)' : 'rgba(22,32,27,0.72)';
     ctx.font = `600 ${Math.round(itemH * 0.14)}px Inter, sans-serif`;
     const descLines = VS_Utils.wrapText(ctx, e.descripcion || '', titleMaxW, 2);
     const descLineH = Math.round(itemH * 0.13);
     descLines.forEach((line, i) => {
       ctx.fillText(line, textX, descY + i * descLineH);
     });
-
-    if (e.tipo) {
-      const typeText = String(e.tipo).toLowerCase() === 'nacional' ? 'ARGENTINA' : 'MUNDO';
-      ctx.fillStyle = 'rgba(255,255,255,0.42)';
-      ctx.font = `700 ${Math.round(itemH * 0.11)}px Inter, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(typeText, textX, y + itemH - Math.round(itemH * 0.15));
-    }
 
     if (isDest) {
       ctx.strokeStyle = 'rgba(201,162,39,0.55)';
@@ -822,7 +852,7 @@ function drawEfeTitle(ctx, W, H, tr) {
 
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(255,255,255,0.52)';
+  ctx.fillStyle = 'rgba(22,32,27,0.52)';
   ctx.font = `800 ${eyebrowSize}px Inter, sans-serif`;
   ctx.fillText('AGENDA DEL DIA', tr.x, eyebrowY);
 
@@ -831,7 +861,7 @@ function drawEfeTitle(ctx, W, H, tr) {
   ctx.fillText('EFEMERIDES', tr.x, titleY);
 
   if (fechaTexto) {
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillStyle = VS_Colors.INK;
     ctx.font = `700 ${dateSize}px Inter, sans-serif`;
     ctx.fillText(fechaTexto, tr.x, dateY);
   }
@@ -878,9 +908,10 @@ function renderizarEfemerides() {
   const tr = getEfeBlockRect('title', W, H);
   if (tr) drawEfeTitle(ctx, W, H, tr);
 
-  VS_CanvasHelpers.drawFooter(ctx, W, H, true);
+  VS_CanvasHelpers.drawFooter(ctx, W, H, false);
 
   if (efeBlocks && efeBlocks.logo) {
+    drawEfeLogoPlate(ctx, W, H);
     VS_Utils.dibujarLogo(ctx, W, H, {
       x: efeBlocks.logo.x,
       y: efeBlocks.logo.y,
