@@ -23,6 +23,27 @@ export function renderReelSceneToCanvas(scene, project) {
   return canvas;
 }
 
+export async function preloadReelSceneAssets(scenes, project) {
+  var sources = ["/assets/logo.png"];
+  var list = Array.isArray(scenes) ? scenes : [];
+
+  for (var i = 0; i < list.length; i++) {
+    var imageUrl = resolveSceneImage(list[i], project);
+    if (imageUrl) sources.push(imageUrl);
+  }
+
+  var unique = {};
+  var tasks = [];
+  for (var j = 0; j < sources.length; j++) {
+    var normalized = normalizeImageSource(sources[j]);
+    if (!normalized || unique[normalized]) continue;
+    unique[normalized] = true;
+    tasks.push(loadImage(normalized));
+  }
+
+  await Promise.all(tasks);
+}
+
 function resolveThemeName(project) {
   if (project && project.editorialPlan && project.editorialPlan.diagnosis && project.editorialPlan.diagnosis.template) {
     return project.editorialPlan.diagnosis.template;
@@ -80,7 +101,7 @@ function drawSceneChrome(ctx, scene) {
 }
 
 function drawSceneBadge(ctx, text) {
-  var label = String(text || "escena").replace(/_/g, " ").toUpperCase();
+  var label = formatReelRoleLabel(text || "escena").toUpperCase();
   ctx.font = "700 28px Inter, Arial, sans-serif";
   var textW = ctx.measureText(label).width;
   var badgeW = textW + 52;
@@ -220,6 +241,44 @@ function getCachedImage(src) {
   return null;
 }
 
+function loadImage(normalizedSrc) {
+  return new Promise(function (resolve) {
+    var cached = imageCache[normalizedSrc];
+    if (cached && cached.loaded && cached.img) {
+      resolve(cached.img);
+      return;
+    }
+
+    if (cached && cached.img) {
+      cached.img.addEventListener("load", function handleLoad() {
+        cached.img.removeEventListener("load", handleLoad);
+        resolve(cached.img);
+      });
+      cached.img.addEventListener("error", function handleError() {
+        cached.img.removeEventListener("error", handleError);
+        resolve(null);
+      });
+      return;
+    }
+
+    var img = new Image();
+    img.crossOrigin = "anonymous";
+    imageCache[normalizedSrc] = { img: img, loaded: false };
+
+    img.onload = function () {
+      imageCache[normalizedSrc].loaded = true;
+      resolve(img);
+    };
+
+    img.onerror = function () {
+      delete imageCache[normalizedSrc];
+      resolve(null);
+    };
+
+    img.src = normalizedSrc;
+  });
+}
+
 function normalizeImageSource(src) {
   if (!src) return "";
   if (src.indexOf("data:") === 0 || src.indexOf("blob:") === 0) return src;
@@ -240,4 +299,33 @@ function roundRectStroke(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, r);
   ctx.stroke();
+}
+
+function formatReelRoleLabel(value) {
+  var key = String(value || "").trim().toLowerCase();
+  var labels = {
+    hook: "Apertura",
+    context: "Contexto",
+    key_fact: "Dato clave",
+    facts: "Datos",
+    details: "Detalle",
+    investigation: "Investigacion",
+    conclusion: "Cierre",
+    cta: "Llamado",
+    cover_image: "Portada",
+    support_image: "Imagen de apoyo",
+    text_card: "Placa de texto"
+  };
+  return labels[key] || humanizeReelLabel(key) || "Escena";
+}
+
+function humanizeReelLabel(value) {
+  return String(value || "")
+    .replace(/^article\./, "")
+    .replace(/[_\.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, function (char) {
+      return char.toUpperCase();
+    });
 }

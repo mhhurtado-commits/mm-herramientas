@@ -2,7 +2,7 @@ import { createCarouselProject } from "./models.js";
 import { setProject, getProject } from "./state.js";
 import { renderCarousel } from "./renderer.js";
 import { renderSlideToCanvas } from "./canvas-renderer.js";
-import { renderReelSceneToCanvas } from "./reel-canvas-renderer.js";
+import { preloadReelSceneAssets, renderReelSceneToCanvas } from "./reel-canvas-renderer.js";
 import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
 import { buildInstagramCaptionPrompt, buildReelPrompt } from "./prompts.js";
 
@@ -329,9 +329,17 @@ function ensureReelPreviewPanel() {
   sequenceBtn.textContent = "Secuencia";
   sequenceBtn.addEventListener("click", downloadAllReelScenes);
 
+  var videoBtn = document.createElement("button");
+  videoBtn.type = "button";
+  videoBtn.id = "downloadReelVideoBtn";
+  videoBtn.className = "mm-btn";
+  videoBtn.textContent = "Video WEBM";
+  videoBtn.addEventListener("click", downloadReelVideo);
+
   actions.appendChild(copyBtn);
   actions.appendChild(pngBtn);
   actions.appendChild(sequenceBtn);
+  actions.appendChild(videoBtn);
 
   var side = document.createElement("div");
   side.className = "carousel-copy-side";
@@ -564,7 +572,7 @@ function createReelSceneCard(scene, project) {
 
   var role = document.createElement("div");
   role.className = "reel-scene-role";
-  role.textContent = scene.visual_role || scene.visual_type || "Escena";
+  role.textContent = formatReelRoleLabel(scene.visual_role || scene.visual_type || "escena");
 
   var title = document.createElement("h3");
   title.className = "reel-scene-title";
@@ -576,7 +584,7 @@ function createReelSceneCard(scene, project) {
 
   var source = document.createElement("div");
   source.className = "reel-scene-source";
-  source.textContent = scene.visual_source || "";
+  source.textContent = formatReelSourceLabel(scene.visual_source || "");
 
   body.appendChild(top);
   body.appendChild(role);
@@ -609,7 +617,7 @@ function createReelPreviewThumb(scene, index, project) {
 
   var label = document.createElement("span");
   label.className = "reel-preview-thumb-label";
-  label.textContent = scene.visual_role || scene.visual_type || "Escena";
+  label.textContent = formatReelRoleLabel(scene.visual_role || scene.visual_type || "escena");
 
   meta.appendChild(indexLabel);
   meta.appendChild(label);
@@ -640,7 +648,7 @@ function createReelPreviewFrame(scene, project, compact) {
 
   var roleChip = document.createElement("span");
   roleChip.className = "reel-scene-chip";
-  roleChip.textContent = scene.visual_role || scene.visual_type || "escena";
+  roleChip.textContent = formatReelRoleLabel(scene.visual_role || scene.visual_type || "escena");
   overlay.appendChild(roleChip);
 
   var visualTitle = document.createElement("strong");
@@ -684,6 +692,49 @@ function formatSceneDuration(durationMs) {
   var ms = Number(durationMs || 0);
   if (!ms) return "";
   return (ms / 1000).toFixed(ms % 1000 === 0 ? 0 : 1) + " s";
+}
+
+function formatReelRoleLabel(value) {
+  var key = String(value || "").trim().toLowerCase();
+  var labels = {
+    hook: "Apertura",
+    context: "Contexto",
+    key_fact: "Dato clave",
+    facts: "Datos",
+    details: "Detalle",
+    investigation: "Investigacion",
+    conclusion: "Cierre",
+    cta: "Llamado",
+    cover_image: "Portada",
+    support_image: "Imagen de apoyo",
+    text_card: "Placa de texto"
+  };
+  return labels[key] || humanizeReelLabel(key) || "Escena";
+}
+
+function formatReelSourceLabel(value) {
+  var key = String(value || "").trim();
+  if (!key) return "";
+  if (key === "article.image") return "Imagen principal";
+  if (key === "generated") return "Generado";
+
+  var match = key.match(/^article\.images\[(\d+)\]$/);
+  if (match) {
+    return "Imagen interna " + String(Number(match[1]) + 1).padStart(2, "0");
+  }
+
+  return humanizeReelLabel(key);
+}
+
+function humanizeReelLabel(value) {
+  return String(value || "")
+    .replace(/^article\./, "")
+    .replace(/[_\.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, function (char) {
+      return char.toUpperCase();
+    });
 }
 
 function toRenderableSceneImageUrl(imgUrl) {
@@ -780,6 +831,39 @@ async function downloadAllReelScenes() {
   }
 
   setStatus(preview, reel.scenes.length + " escenas de Reel descargadas");
+}
+
+async function downloadReelVideo() {
+  var preview = document.getElementById("previewContent");
+  var project = getProject();
+  var reel = getReelOutput(project);
+  if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) return;
+
+  if (typeof MediaRecorder !== "function") {
+    setStatus(preview, "Tu navegador no permite exportar video");
+    return;
+  }
+
+  var mimeType = getSupportedReelVideoType();
+  if (!mimeType) {
+    setStatus(preview, "No hay formato de video compatible");
+    return;
+  }
+
+  setStatus(preview, "Preparando video del Reel...");
+
+  try {
+    await preloadReelSceneAssets(reel.scenes, project);
+    var blob = await recordReelVideo(reel.scenes, project, mimeType);
+    if (!blob) throw new Error("No se pudo generar el video.");
+
+    var ext = mimeType.indexOf("webm") >= 0 ? "webm" : "video";
+    var fileName = buildReelVideoFileName(project, ext);
+    downloadBlob(blob, fileName);
+    setStatus(preview, "Video del Reel listo");
+  } catch (error) {
+    setStatus(preview, "No se pudo exportar el video");
+  }
 }
 
 function getActiveReelScene(project) {
@@ -929,17 +1013,8 @@ async function downloadReelSceneImage(scene, index, project, silent) {
     var blob = await canvasToBlob(canvas);
     if (!blob) throw new Error("No se pudo generar la imagen.");
 
-    var link = document.createElement("a");
-    var url = URL.createObjectURL(blob);
     var fileName = buildReelSceneFileName(scene, index);
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(function () {
-      URL.revokeObjectURL(url);
-    }, 1000);
+    downloadBlob(blob, fileName);
 
     if (!silent) {
       setStatus(preview, "Descargando " + fileName);
@@ -975,6 +1050,91 @@ function buildReelSceneFileName(scene, index) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 36);
   return "reel-scene-" + String(index + 1).padStart(2, "0") + (label ? "-" + label : "") + ".png";
+}
+
+function buildReelVideoFileName(project, ext) {
+  var title = String(project && project.article && project.article.title ? project.article.title : "reel")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 42);
+  return "reel-" + (title || "mediamendoza") + "." + ext;
+}
+
+function downloadBlob(blob, fileName) {
+  var link = document.createElement("a");
+  var url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(function () {
+    URL.revokeObjectURL(url);
+  }, 1000);
+}
+
+function getSupportedReelVideoType() {
+  if (typeof MediaRecorder !== "function" || typeof MediaRecorder.isTypeSupported !== "function") {
+    return "video/webm";
+  }
+
+  var types = [
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
+    "video/webm"
+  ];
+
+  for (var i = 0; i < types.length; i++) {
+    if (MediaRecorder.isTypeSupported(types[i])) return types[i];
+  }
+
+  return "";
+}
+
+async function recordReelVideo(scenes, project, mimeType) {
+  var fps = 30;
+  var stageCanvas = document.createElement("canvas");
+  stageCanvas.width = 1080;
+  stageCanvas.height = 1920;
+  var ctx = stageCanvas.getContext("2d");
+  var stream = stageCanvas.captureStream(fps);
+  var chunks = [];
+
+  var recorder = new MediaRecorder(stream, {
+    mimeType: mimeType,
+    videoBitsPerSecond: 8000000
+  });
+
+  recorder.ondataavailable = function (event) {
+    if (event.data && event.data.size) chunks.push(event.data);
+  };
+
+  var stopPromise = new Promise(function (resolve) {
+    recorder.onstop = function () {
+      resolve(new Blob(chunks, { type: mimeType }));
+    };
+  });
+
+  recorder.start();
+
+  for (var i = 0; i < scenes.length; i++) {
+    var frameCanvas = renderReelSceneToCanvas(scenes[i], project);
+    if (!frameCanvas) continue;
+
+    var durationMs = Math.max(1200, Number(scenes[i].duration_ms || 0) || 2500);
+    var frameCount = Math.max(1, Math.round((durationMs / 1000) * fps));
+
+    for (var f = 0; f < frameCount; f++) {
+      ctx.clearRect(0, 0, stageCanvas.width, stageCanvas.height);
+      ctx.drawImage(frameCanvas, 0, 0, stageCanvas.width, stageCanvas.height);
+      await wait(Math.round(1000 / fps));
+    }
+  }
+
+  await wait(160);
+  recorder.stop();
+  return await stopPromise;
 }
 
 function setStatus(preview, message) {
