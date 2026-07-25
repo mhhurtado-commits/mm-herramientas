@@ -10,6 +10,7 @@ const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 var activeSlideIndex = 0;
 var activeReelSceneIndex = 0;
 var activeWorkspaceTab = "carousel";
+var reelPlaybackTimer = null;
 
 export function initUI() {
   window.removeEventListener("carousel:asset-ready", handleAssetReady);
@@ -18,6 +19,7 @@ export function initUI() {
   ensureBulkDownloadButton();
   ensureCaptionPanel();
   ensureReelPreviewPanel();
+  ensureReelCaptionPanel();
   ensureReelPanel();
   ensureReelStoryboardPanel();
 
@@ -89,6 +91,7 @@ function renderInPreview() {
     toggleBulkDownloadButton(false);
     renderCaptionPanel(project);
     renderReelPreview(project);
+    renderReelCaptionPanel(project);
     renderReelPanel(project);
     renderReelStoryboard(project);
     return;
@@ -145,6 +148,7 @@ function renderInPreview() {
   carouselPreview.appendChild(editor);
   renderCaptionPanel(project);
   renderReelPreview(project);
+  renderReelCaptionPanel(project);
   renderReelPanel(project);
   renderReelStoryboard(project);
 }
@@ -172,6 +176,7 @@ function bindWorkspaceTab(buttonId, tabName) {
 
 function setActiveWorkspaceTab(tabName) {
   activeWorkspaceTab = tabName === "reel" ? "reel" : "carousel";
+  if (activeWorkspaceTab !== "reel") stopReelPlayback();
   syncWorkspaceTabs();
 }
 
@@ -315,6 +320,13 @@ function ensureReelPreviewPanel() {
   copyBtn.textContent = "Copiar escena";
   copyBtn.addEventListener("click", copyActiveReelScene);
 
+  var playBtn = document.createElement("button");
+  playBtn.type = "button";
+  playBtn.id = "playReelBtn";
+  playBtn.className = "mm-btn";
+  playBtn.textContent = "Reproducir";
+  playBtn.addEventListener("click", toggleReelPlayback);
+
   var pngBtn = document.createElement("button");
   pngBtn.type = "button";
   pngBtn.id = "downloadReelSceneBtn";
@@ -333,9 +345,10 @@ function ensureReelPreviewPanel() {
   videoBtn.type = "button";
   videoBtn.id = "downloadReelVideoBtn";
   videoBtn.className = "mm-btn";
-  videoBtn.textContent = "Video WEBM";
+  videoBtn.textContent = "Descargar video";
   videoBtn.addEventListener("click", downloadReelVideo);
 
+  actions.appendChild(playBtn);
   actions.appendChild(copyBtn);
   actions.appendChild(pngBtn);
   actions.appendChild(sequenceBtn);
@@ -372,6 +385,48 @@ function ensureReelPreviewPanel() {
   host.appendChild(panel);
 }
 
+function ensureReelCaptionPanel() {
+  var host = document.getElementById("reelCaptionPanelHost");
+  if (!host || document.getElementById("reelCaptionPanel")) return;
+
+  var panel = document.createElement("div");
+  panel.id = "reelCaptionPanel";
+  panel.className = "carousel-copy-panel reel-caption-panel";
+  panel.hidden = true;
+
+  var header = document.createElement("div");
+  header.className = "carousel-copy-header";
+
+  var titles = document.createElement("div");
+  var label = document.createElement("div");
+  label.className = "carousel-section-label";
+  label.textContent = "Instagram";
+  var title = document.createElement("strong");
+  title.className = "carousel-copy-title";
+  title.textContent = "Texto para publicar";
+  titles.appendChild(label);
+  titles.appendChild(title);
+
+  var copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "mm-btn";
+  copyBtn.textContent = "Copiar texto";
+  copyBtn.addEventListener("click", copyReelCaption);
+
+  header.appendChild(titles);
+  header.appendChild(copyBtn);
+
+  var textarea = document.createElement("textarea");
+  textarea.id = "reelCaptionOutput";
+  textarea.className = "carousel-copy-text";
+  textarea.readOnly = true;
+  textarea.placeholder = "Aca aparecera el texto sugerido para publicar el Reel.";
+
+  panel.appendChild(header);
+  panel.appendChild(textarea);
+  host.appendChild(panel);
+}
+
 function ensureReelPanel() {
   var host = document.getElementById("reelPlanPanelHost");
   if (!host || document.getElementById("reelPlanPanel")) return;
@@ -390,7 +445,7 @@ function ensureReelPanel() {
   label.textContent = "Reel";
   var title = document.createElement("strong");
   title.className = "carousel-copy-title";
-  title.textContent = "Plan JSON";
+  title.textContent = "Plan del Reel";
   titles.appendChild(label);
   titles.appendChild(title);
 
@@ -433,7 +488,7 @@ function ensureReelStoryboardPanel() {
   label.textContent = "Reel";
   var title = document.createElement("strong");
   title.className = "carousel-copy-title";
-  title.textContent = "Storyboard";
+  title.textContent = "Secuencia visual";
   titles.appendChild(label);
   titles.appendChild(title);
 
@@ -466,6 +521,16 @@ function renderReelPanel(project) {
   var reelJson = buildReelPlanText(project);
   panel.hidden = !reelJson;
   textarea.value = reelJson;
+}
+
+function renderReelCaptionPanel(project) {
+  var panel = document.getElementById("reelCaptionPanel");
+  var textarea = document.getElementById("reelCaptionOutput");
+  if (!panel || !textarea) return;
+
+  var caption = buildReelCaptionText(project);
+  panel.hidden = !caption;
+  textarea.value = caption;
 }
 
 function renderReelPreview(project) {
@@ -540,6 +605,15 @@ function buildReelPlanText(project) {
   var reel = getReelOutput(project);
   if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) return "";
   return JSON.stringify(reel, null, 2);
+}
+
+function buildReelCaptionText(project) {
+  var reel = getReelOutput(project);
+  if (!reel) return "";
+  var caption = String(reel.caption || "").trim();
+  var hashtags = Array.isArray(reel.hashtags) ? reel.hashtags.filter(Boolean) : [];
+  if (!caption && !hashtags.length) return "";
+  return caption + (hashtags.length ? "\n\n" + hashtags.join(" ") : "");
 }
 
 function getReelOutput(project) {
@@ -779,6 +853,58 @@ async function copyInstagramCaption() {
   } catch (error) {
     setStatus(preview, "No se pudo copiar el texto");
   }
+}
+
+async function copyReelCaption() {
+  var preview = document.getElementById("previewContent");
+  var textarea = document.getElementById("reelCaptionOutput");
+  if (!textarea || !textarea.value.trim()) return;
+  try {
+    await navigator.clipboard.writeText(textarea.value);
+    setStatus(preview, "Texto del Reel copiado");
+  } catch (error) {
+    setStatus(preview, "No se pudo copiar el texto del Reel");
+  }
+}
+
+function toggleReelPlayback() {
+  if (reelPlaybackTimer) {
+    stopReelPlayback();
+    return;
+  }
+
+  var project = getProject();
+  var reel = getReelOutput(project);
+  if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) return;
+
+  var button = document.getElementById("playReelBtn");
+  if (button) button.textContent = "Detener";
+  advanceReelPlayback(project);
+}
+
+function advanceReelPlayback(project) {
+  var reel = getReelOutput(project);
+  if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) {
+    stopReelPlayback();
+    return;
+  }
+
+  renderReelPreview(project);
+  var scene = reel.scenes[activeReelSceneIndex];
+  var duration = Math.max(1200, Number(scene && scene.duration_ms) || 2500);
+  reelPlaybackTimer = window.setTimeout(function () {
+    activeReelSceneIndex = (activeReelSceneIndex + 1) % reel.scenes.length;
+    advanceReelPlayback(project);
+  }, duration);
+}
+
+function stopReelPlayback() {
+  if (reelPlaybackTimer) {
+    window.clearTimeout(reelPlaybackTimer);
+    reelPlaybackTimer = null;
+  }
+  var button = document.getElementById("playReelBtn");
+  if (button) button.textContent = "Reproducir";
 }
 
 async function copyReelPlanJson() {

@@ -456,7 +456,7 @@ function clampWrappedText(ctx, text, maxWidth, maxLines) {
   while (merged.length && ctx.measureText(merged + "…").width > maxWidth) {
     merged = merged.slice(0, -1).trimEnd();
   }
-  lines[Math.max(0, lines.length - 1)] = merged + "…";
+  lines[Math.max(0, lines.length - 1)] = merged + "...";
   return lines.join(" ");
 }
 
