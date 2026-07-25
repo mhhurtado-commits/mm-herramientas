@@ -1338,10 +1338,34 @@ function drawEfeCards(ctx, W, H, br) {
   const gap = Math.round(W * 0.009);
   const sectionGap = Math.round(W * 0.006);
   const headerH = Math.round(W * 0.035);
-  const featureH = Math.round(W * 0.094);
-  const regularH = Math.round(W * 0.128);
   const innerX = br.x + pad;
   const innerW = br.w - pad * 2;
+  let sectionCount = 0;
+  let featuredCount = 0;
+  let regularItems = 0;
+  let currentRegularItems = 0;
+  let currentFeatured = false;
+  data.forEach(e => {
+    if (e._separator) {
+      if (currentRegularItems) regularItems += Math.ceil(currentRegularItems / 2);
+      currentRegularItems = 0;
+      sectionCount++;
+      currentFeatured = String(e._separator).toLowerCase().includes('destac');
+    } else if (currentFeatured) {
+      featuredCount++;
+    } else {
+      currentRegularItems++;
+    }
+  });
+  if (currentRegularItems) regularItems += Math.ceil(currentRegularItems / 2);
+  const desiredFeatureH = Math.round(W * 0.104);
+  const desiredRegularH = Math.round(W * 0.135);
+  const fixedH = sectionCount * (headerH + sectionGap);
+  const desiredCardsH = featuredCount * desiredFeatureH + regularItems * desiredRegularH;
+  const cardBudget = Math.max(1, br.h - pad * 2 - fixedH);
+  const cardScale = desiredCardsH ? Math.min(1, cardBudget / desiredCardsH) : 1;
+  const featureH = Math.round(desiredFeatureH * cardScale);
+  const regularH = Math.round(desiredRegularH * cardScale);
   let curY = br.y + pad;
   let section = null;
 
@@ -1438,7 +1462,7 @@ function drawEfeCards(ctx, W, H, br) {
     titleLines.forEach((line, i) => ctx.fillText(line, titleX, titleY + i * titleLineH));
 
     const descY = titleY + Math.max(0, titleLines.length - 1) * titleLineH
-      + Math.round(boxH * (featured ? 0.2 : 0.15));
+      + Math.round(boxH * (featured ? 0.27 : 0.2));
     let descFs = Math.round(W * (featured ? 0.018 : 0.016));
     let descLines = [];
     let descLineH = 0;
