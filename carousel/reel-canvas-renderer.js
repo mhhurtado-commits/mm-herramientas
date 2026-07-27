@@ -96,7 +96,6 @@ function drawSceneChrome(ctx, scene) {
   topBar.addColorStop(1, MMTheme.colors.accentBarEnd || "#d9eb97");
   fillRoundRect(ctx, 62, 58, W - 124, 26, 13, topBar);
 
-  drawSceneBadge(ctx, getSceneBadgeLabel(scene, null));
   drawSceneBrand(ctx, scene.visual_type === "text_card");
 }
 
@@ -118,11 +117,19 @@ function drawSceneBrand(ctx, invert) {
   if (logo) {
     var logoW = 286;
     var logoH = logo.height * (logoW / logo.width);
+    var logoX = W - logoW - 78;
+    var padX = 18;
+    var padY = 12;
     ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.16)";
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 2;
-    ctx.drawImage(logo, W - logoW - 78, brandY, logoW, logoH);
+    ctx.shadowColor = "rgba(0,0,0,0.2)";
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 3;
+    fillRoundRect(ctx, logoX - padX, brandY - padY, logoW + padX * 2, logoH + padY * 2, 22, "rgba(22,28,30,0.78)");
+    ctx.shadowColor = "transparent";
+    ctx.strokeStyle = "rgba(255,255,255,0.24)";
+    ctx.lineWidth = 2;
+    roundRectStroke(ctx, logoX - padX, brandY - padY, logoW + padX * 2, logoH + padY * 2, 22);
+    ctx.drawImage(logo, logoX, brandY, logoW, logoH);
     ctx.restore();
     return;
   }
@@ -148,12 +155,6 @@ function drawSceneText(ctx, scene) {
     ctx.strokeStyle = MMTheme.colors.lineSoft;
     ctx.lineWidth = 2;
     roundRectStroke(ctx, 58, panelY, W - 116, panelH, 46);
-
-    ctx.font = "700 226px Inter, Arial, sans-serif";
-    ctx.fillStyle = "rgba(166,206,57,0.12)";
-    ctx.textAlign = "right";
-    ctx.fillText("0" + String(Math.min(9, Math.max(1, Number(scene.order || 1)))), W - 112, panelY + 42);
-    ctx.textAlign = "start";
 
     fillRoundRect(ctx, 86, panelY + 62, 18, 372, 9, MMTheme.colors.accent);
 
@@ -215,7 +216,6 @@ function drawSceneText(ctx, scene) {
 }
 
 function drawSceneFooter(ctx, scene) {
-  var isTextCard = scene.visual_type === "text_card";
   var footerY = H - 104;
 
   ctx.strokeStyle = MMTheme.colors.brandLine;
@@ -224,14 +224,6 @@ function drawSceneFooter(ctx, scene) {
   ctx.moveTo(84, footerY);
   ctx.lineTo(W - 84, footerY);
   ctx.stroke();
-
-  ctx.font = "700 24px Inter, Arial, sans-serif";
-  ctx.fillStyle = isTextCard ? MMTheme.colors.footer : "rgba(255,255,255,0.78)";
-  ctx.textAlign = "left";
-  ctx.fillText("Media Mendoza", 84, footerY - 34);
-  ctx.textAlign = "right";
-  ctx.fillText("Escena " + String(scene.order || 1).padStart(2, "0"), W - 86, footerY - 34);
-  ctx.textAlign = "start";
 }
 
 function resolveSceneImage(scene, project) {
@@ -461,33 +453,6 @@ function clampWrappedText(ctx, text, maxWidth, maxLines) {
 }
 
 function drawTextCardBase(ctx, scene, baseY, baseW) {
-  var role = formatReelRoleLabel(scene && scene.visual_role ? scene.visual_role : "Escena");
-  var sceneLabel = "Escena " + String(scene && scene.order ? scene.order : 1).padStart(2, "0");
-
-  ctx.fillStyle = MMTheme.colors.textSecondary;
-  ctx.font = "600 24px Inter, Arial, sans-serif";
-  ctx.fillText(role, 142, baseY);
-
-  ctx.textAlign = "right";
-  ctx.fillStyle = MMTheme.colors.footer;
-  ctx.font = "700 24px Inter, Arial, sans-serif";
-  ctx.fillText(sceneLabel, W - 142, baseY);
-  ctx.textAlign = "start";
-
   fillRoundRect(ctx, 142, baseY + 54, baseW, 3, 2, MMTheme.colors.brandLine);
-
-  var logo = getCachedImage("/assets/logo.png");
-  if (logo) {
-    var logoW = 220;
-    var logoH = logo.height * (logoW / logo.width);
-    ctx.save();
-    ctx.globalAlpha = 0.92;
-    ctx.drawImage(logo, W / 2 - logoW / 2, baseY + 76, logoW, logoH);
-    ctx.restore();
-    return;
-  }
-
-  ctx.font = "700 30px Inter, Arial, sans-serif";
-  ctx.fillStyle = MMTheme.colors.accentDark;
-  ctx.fillText("Media Mendoza", W / 2 - 110, baseY + 84);
+  fillRoundRect(ctx, W / 2 - 44, baseY + 48, 88, 15, 7, MMTheme.colors.accent);
 }
