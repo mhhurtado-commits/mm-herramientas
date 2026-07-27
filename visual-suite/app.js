@@ -197,54 +197,22 @@ async function exportarGrafico() {
     frame.width = cw + M * 2;
     frame.height = ch + headerH + footerH;
     const ctx = frame.getContext('2d');
-
-    // Fondo: IA editorial o papel por defecto
-    if (!dibujarFondoIA(ctx, frame.width, frame.height, 'rgba(255,255,255,0.85)')) {
-      const g = ctx.createLinearGradient(0, 0, 0, frame.height);
-      g.addColorStop(0, '#ffffff');
-      g.addColorStop(1, '#f3f5f2');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, frame.width, frame.height);
-    }
-
-    // Header tinta + regla dorada
-    ctx.fillStyle = '#16201b';
-    ctx.fillRect(0, 0, frame.width, headerH);
-    ctx.fillStyle = '#c9a227';
-    ctx.fillRect(0, headerH - 6, frame.width, 6);
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#c9a227';
-    ctx.font = `700 ${headerH * 0.13}px "Inter", sans-serif`;
-    ctx.fillText('MEDIA MENDOZA · DATOS', M, headerH * 0.36);
     const tEl = document.getElementById('chartTitle');
     const title = (tEl && tEl.value) ? tEl.value : 'Gráfico';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `400 ${headerH * 0.5}px "DM Serif Display", serif`;
-    let t = title;
-    while (ctx.measureText(t).width > frame.width - 2 * M && t.length > 4) t = t.slice(0, -1);
-    if (t.length < title.length) t = t.slice(0, -1) + '…';
-    ctx.fillText(t, M, headerH * 0.84);
+
+    // Fondo y cabecera editorial compartidos por todas las placas.
+    if (!dibujarFondoIA(ctx, frame.width, frame.height, 'rgba(255,255,255,0.85)')) {
+      VS_CanvasHelpers.drawPlateBackground(ctx, frame.width, frame.height, { headerRatio: headerH / frame.height });
+    }
+    VS_CanvasHelpers.drawPlateHeader(ctx, frame.width, frame.height, 'DATOS', title, headerH);
 
     // Gráfico
     ctx.drawImage(img, M, headerH + M * 0.5, cw, ch);
 
-    // Footer
-    const fy = frame.height - footerH * 0.4;
-    ctx.strokeStyle = 'rgba(22,32,27,0.12)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(M, fy - footerH * 0.18);
-    ctx.lineTo(frame.width - M, fy - footerH * 0.18);
-    ctx.stroke();
-    ctx.fillStyle = '#5b665f';
-    ctx.font = `600 ${footerH * 0.18}px "Inter", sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, fy);
-    ctx.textAlign = 'right';
-    ctx.fillText('Generado con Visual Suite', frame.width - M, fy);
+    VS_CanvasHelpers.drawFooter(ctx, frame.width, frame.height, false);
 
     // Logo de marca
-    if (typeof dibujarLogo === 'function') dibujarLogo(ctx, frame.width, frame.height);
+    VS_CanvasHelpers.drawPlateLogo(ctx, frame.width, frame.height);
 
     frame.toBlob(blob => {
       const url = URL.createObjectURL(blob);
@@ -275,47 +243,16 @@ function exportarMapa() {
     frame.width = mapCanvas.width + M * 2;
     frame.height = mapCanvas.height + headerH + footerH;
     const ctx = frame.getContext('2d');
-    const g = ctx.createLinearGradient(0, 0, 0, frame.height);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(1, '#f3f5f2');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, frame.width, frame.height);
-
-    // Header tinta + regla dorada
-    ctx.fillStyle = '#16201b';
-    ctx.fillRect(0, 0, frame.width, headerH);
-    ctx.fillStyle = '#c9a227';
-    ctx.fillRect(0, headerH - 6, frame.width, 6);
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#c9a227';
-    ctx.font = `700 ${headerH * 0.13}px "Inter", sans-serif`;
-    ctx.fillText('MEDIA MENDOZA · MAPA', M, headerH * 0.36);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `400 ${headerH * 0.5}px "DM Serif Display", serif`;
-    let mt = 'Mapa interactivo';
-    while (ctx.measureText(mt).width > frame.width - 2 * M && mt.length > 4) mt = mt.slice(0, -1);
-    ctx.fillText(mt, M, headerH * 0.84);
+    VS_CanvasHelpers.drawPlateBackground(ctx, frame.width, frame.height, { headerRatio: headerH / frame.height });
+    VS_CanvasHelpers.drawPlateHeader(ctx, frame.width, frame.height, 'MAPA', 'Mapa interactivo', headerH);
 
     // Mapa
     ctx.drawImage(mapCanvas, M, headerH + M * 0.5, mapCanvas.width, mapCanvas.height);
 
-    // Footer
-    const fy = frame.height - footerH * 0.4;
-    ctx.strokeStyle = 'rgba(22,32,27,0.12)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(M, fy - footerH * 0.18);
-    ctx.lineTo(frame.width - M, fy - footerH * 0.18);
-    ctx.stroke();
-    ctx.fillStyle = '#5b665f';
-    ctx.font = `600 ${footerH * 0.18}px "Inter", sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText('MEDIA MENDOZA · mmherramientas.media', M, fy);
-    ctx.textAlign = 'right';
-    ctx.fillText('Generado con Visual Suite', frame.width - M, fy);
+    VS_CanvasHelpers.drawFooter(ctx, frame.width, frame.height, false);
 
     // Logo de marca
-    if (typeof dibujarLogo === 'function') dibujarLogo(ctx, frame.width, frame.height);
+    VS_CanvasHelpers.drawPlateLogo(ctx, frame.width, frame.height);
 
     frame.toBlob(blob => {
       const url = URL.createObjectURL(blob);

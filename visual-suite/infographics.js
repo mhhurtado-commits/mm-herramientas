@@ -185,7 +185,7 @@ function renderizarInfografia() {
     default: renderFlyerSimple(ctx, W, H, title, content, color1, color2);
   }
 
-  VS_Utils.dibujarLogo(ctx, W, H);
+  VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
 
   if (titleActive) {
     const s = titleState.x != null ? titleState : TITLE_DEF[templateActual] || TITLE_DEF.simple;
@@ -263,15 +263,14 @@ function getTitleRect(W, H) {
 function renderFlyerSimple(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
   if (!dibujarFondoIA(ctx, W, H, 'rgba(255,255,255,0.85)')) {
-    ctx.fillStyle = '#fafbfa';
-    ctx.fillRect(0, 0, W, H);
-    VS_Utils.drawDotGrid(ctx, W, H, VS_Utils.hexToRgba(c1, 0.08), Math.round(W * 0.045));
+    VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { accent: c1 });
   }
+  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'RESUMEN', '', Math.round(H * 0.16));
 
   ctx.fillStyle = c1;
   ctx.fillRect(0, 0, W, Math.round(H * 0.006));
 
-  drawTitle(ctx, W, H, title, c1, false, 'RESUMEN');
+  drawTitle(ctx, W, H, title, c1, true, null);
 
   const lines = content.split('\n').filter(l => l.trim());
   const maxCards = Math.min(lines.length, 8);
@@ -340,13 +339,9 @@ function renderFlyerSimple(ctx, W, H, title, content, c1, c2) {
 function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
   if (!dibujarFondoIA(ctx, W, H, 'rgba(10,12,22,0.9)')) {
-    const grad = ctx.createRadialGradient(W * 0.3, H * 0.3, 0, W * 0.3, H * 0.3, W * 0.8);
-    grad.addColorStop(0, '#1a1d2e');
-    grad.addColorStop(1, '#0c0e18');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-    VS_Utils.drawDotGrid(ctx, W, H, 'rgba(255,255,255,0.03)', Math.round(W * 0.04));
+    VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { dark: true, accent: c1 });
   }
+  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'COMPARATIVA', '', Math.round(H * 0.16));
 
   const tr = getTitleRect(W, H);
   const headerPad = W * 0.01;
@@ -354,7 +349,7 @@ function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
   ctx.fillRect(0, 0, W, tr.y + tr.h + headerPad);
   ctx.fillStyle = c1;
   ctx.fillRect(0, tr.y + tr.h + headerPad - Math.round(H * 0.005), W, Math.round(H * 0.005));
-  drawTitle(ctx, W, H, title, c1, true, 'COMPARATIVA');
+  drawTitle(ctx, W, H, title, c1, true, null);
 
   const lines = content.split('\n').filter(l => l.trim());
   const leftItems = lines.filter((_, i) => i % 2 === 0);
@@ -423,15 +418,14 @@ function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
 function renderFlyerListado(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
   if (!dibujarFondoIA(ctx, W, H, 'rgba(255,255,255,0.85)')) {
-    ctx.fillStyle = '#fafbfa';
-    ctx.fillRect(0, 0, W, H);
-    VS_Utils.drawDotGrid(ctx, W, H, VS_Utils.hexToRgba(c1, 0.06), Math.round(W * 0.04));
+    VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { accent: c1 });
   }
+  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'LISTADO', '', Math.round(H * 0.16));
 
   ctx.fillStyle = c1;
   ctx.fillRect(0, 0, W, Math.round(H * 0.006));
 
-  drawTitle(ctx, W, H, title, c1, false, 'LISTADO');
+  drawTitle(ctx, W, H, title, c1, true, null);
 
   const items = content.split('\n').filter(l => l.trim());
   const maxN = Math.min(items.length, 10);
@@ -501,18 +495,14 @@ function renderFlyerListado(ctx, W, H, title, content, c1, c2) {
 function renderFlyerDestacado(ctx, W, H, title, content, c1, c2) {
   const M = W * 0.05;
   if (!dibujarFondoIA(ctx, W, H, 'rgba(10,12,22,0.9)')) {
-    const grad = ctx.createRadialGradient(W * 0.5, H * 0.3, 0, W * 0.5, H * 0.3, W * 0.9);
-    grad.addColorStop(0, '#16192b');
-    grad.addColorStop(1, '#080a12');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-    VS_Utils.drawDotGrid(ctx, W, H, 'rgba(255,255,255,0.025)', Math.round(W * 0.05));
+    VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { dark: true, accent: c1 });
   }
+  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'DATOS DESTACADOS', '', Math.round(H * 0.16));
 
   ctx.fillStyle = c1;
   ctx.fillRect(0, 0, Math.round(W * 0.03), H);
 
-  drawTitle(ctx, W, H, title, c1, true, 'DATOS DESTACADOS');
+  drawTitle(ctx, W, H, title, c1, true, null);
 
   const lines = content.split('\n').filter(l => l.trim());
   const maxN = Math.min(lines.length, 8);
@@ -608,7 +598,7 @@ function renderizarInfografiaEnCtx(ctx, W, H) {
     default: renderFlyerSimple(ctx, W, H, title, content, color1, color2);
   }
 
-  VS_Utils.dibujarLogo(ctx, W, H);
+  VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
 }
 
 // ── Chat IA ──

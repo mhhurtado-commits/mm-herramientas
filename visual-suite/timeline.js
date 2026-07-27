@@ -266,21 +266,17 @@ function renderTimelineCanvas(events, W, H, titulo) {
   const M = Math.round(W * 0.045);
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
   const n = Math.max(sorted.length, 1);
+  const headerH = Math.round(H * 0.13);
 
   // Fondo
   if (!dibujarFondoIA(ctx, W, H, 'rgba(253,253,251,0.85)')) {
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-    bgGrad.addColorStop(0, '#fdfdfb');
-    bgGrad.addColorStop(1, '#f1f4f1');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, W, H);
+    VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { headerRatio: headerH / H });
   }
 
   // Header editorial
-  VS_CanvasHelpers.drawExportHeader(ctx, W, H, 'CRONOLOGÍA', titulo || 'Línea de tiempo');
+  VS_CanvasHelpers.drawExportHeader(ctx, W, H, 'CRONOLOGÍA', titulo || 'Línea de tiempo', headerH);
 
   // Geometría de eventos
-  const headerH = Math.round(H * 0.13);
   const spineX = M + Math.round(W * 0.02);
   const topPad = headerH + Math.round(H * 0.05);
   const botPad = Math.round(H * 0.07);
@@ -374,7 +370,7 @@ function renderTimelineCanvas(events, W, H, titulo) {
   VS_CanvasHelpers.drawFooter(ctx, W, H, false);
 
   // Logo
-  VS_Utils.dibujarLogo(ctx, W, H);
+  VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
 
   return canvas;
 }

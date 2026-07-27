@@ -23,6 +23,73 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 }
 
 const VS_CanvasHelpers = {
+  // Shared editorial chrome for every exported plate.
+  drawPlateBackground(ctx, W, H, options) {
+    const o = options || {};
+    const dark = !!o.dark;
+    const accent = o.accent || VS_Colors.ACCENT;
+    const headerRatio = o.headerRatio == null ? 0.16 : o.headerRatio;
+    const headerH = Math.round(H * headerRatio);
+
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    if (dark) {
+      grad.addColorStop(0, VS_Colors.INK);
+      grad.addColorStop(1, '#26342b');
+    } else {
+      grad.addColorStop(0, '#f8faf5');
+      grad.addColorStop(1, '#e8ece5');
+    }
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    if (!dark && typeof VS_Utils !== 'undefined' && VS_Utils.drawDotGrid) {
+      VS_Utils.drawDotGrid(ctx, W, H, VS_Utils.hexToRgba(accent, 0.035), Math.round(W * 0.045), 1);
+    }
+
+    ctx.fillStyle = dark ? VS_Colors.INK : '#16201b';
+    ctx.fillRect(0, 0, W, headerH);
+    ctx.fillStyle = accent;
+    ctx.fillRect(0, headerH - Math.max(4, Math.round(H * 0.004)), W, Math.max(4, Math.round(H * 0.004)));
+  },
+
+  drawPlateHeader(ctx, W, H, label, title, headerH) {
+    const hh = headerH || Math.round(H * 0.16);
+    const M = Math.round(W * 0.045);
+    const baseTL = Math.min(W, H);
+    const kicker = 'MEDIA MENDOZA  ·  ' + (label || 'DATOS');
+
+    ctx.fillStyle = VS_Colors.INK;
+    ctx.fillRect(0, 0, W, hh);
+    ctx.fillStyle = VS_Colors.GOLD;
+    ctx.fillRect(0, hh - Math.max(4, Math.round(H * 0.004)), W, Math.max(4, Math.round(H * 0.004)));
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = VS_Colors.GOLD;
+    ctx.font = `700 ${Math.round(baseTL * 0.018)}px "Inter", sans-serif`;
+    ctx.fillText(kicker, M, hh * 0.36);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `400 ${Math.round(baseTL * 0.055)}px "DM Serif Display", serif`;
+    let t = title || '';
+    const wide = W / H > 1.2;
+    const logoLeft = W * (wide ? 0.76 : 0.67);
+    const titleMaxW = Math.max(W * 0.34, logoLeft - M * 1.35);
+    while (ctx.measureText(t).width > titleMaxW && t.length > 4) t = t.slice(0, -1);
+    if (t.length < (title || '').length) t = t.slice(0, -1) + '…';
+    ctx.fillText(t, M, hh * 0.84);
+    ctx.textBaseline = 'alphabetic';
+  },
+
+  drawPlateLogo(ctx, W, H, options) {
+    const o = options || {};
+    const wide = W / H > 1.2;
+    const w = o.w == null ? (wide ? 0.18 : 0.25) : o.w;
+    const x = o.x == null ? (wide ? 0.76 : 0.67) : o.x;
+    const y = o.y == null ? 0.03 : o.y;
+    VS_Utils.dibujarLogo(ctx, W, H, { x, y, w });
+  },
+
   // ── Editorial Footer ──
   drawFooter(ctx, W, H, dark) {
     const M = Math.round(W * 0.05);
@@ -128,26 +195,7 @@ const VS_CanvasHelpers = {
 
   // ── Editorial Header for Export Plates ──
   drawExportHeader(ctx, W, H, label, title, headerH) {
-    const hh = headerH || Math.round(H * 0.16);
-    const M = Math.round(W * 0.045);
-
-    ctx.fillStyle = VS_Colors.INK;
-    ctx.fillRect(0, 0, W, hh);
-    ctx.fillStyle = VS_Colors.GOLD;
-    ctx.fillRect(0, hh - 6, W, 6);
-
-    const baseTL = Math.min(W, H);
-    ctx.textAlign = 'left';
-    ctx.fillStyle = VS_Colors.GOLD;
-    ctx.font = `700 ${Math.round(baseTL * 0.018)}px "Inter", sans-serif`;
-    ctx.fillText('MEDIA MENDOZA  ·  ' + (label || 'DATOS'), M, hh * 0.36);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `400 ${Math.round(baseTL * 0.055)}px "DM Serif Display", serif`;
-    let t = title || '';
-    while (ctx.measureText(t).width > W - 2 * M && t.length > 4) t = t.slice(0, -1);
-    if (t.length < (title || '').length) t = t.slice(0, -1) + '…';
-    ctx.fillText(t, M, hh * 0.84);
+    this.drawPlateHeader(ctx, W, H, label, title, headerH);
   },
 
   // ── Icon Chip for Canvas ──

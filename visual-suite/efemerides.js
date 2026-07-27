@@ -1012,14 +1012,10 @@ function getEfeWhatsAppItems() {
 }
 
 function drawEfeBackground(ctx, W, H) {
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#f5f6ef');
-  grad.addColorStop(1, '#e9ece2');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.fillStyle = '#16201b';
-  ctx.fillRect(0, 0, W, Math.round(H * 0.18));
+  VS_CanvasHelpers.drawPlateBackground(ctx, W, H, {
+    headerRatio: 0.18,
+    accent: VS_Colors.GOLD
+  });
 
   const glow = ctx.createRadialGradient(W * 0.5, H * 0.22, 0, W * 0.5, H * 0.22, W * 0.52);
   glow.addColorStop(0, 'rgba(166,206,57,0.12)');
