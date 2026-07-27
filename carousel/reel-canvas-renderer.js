@@ -17,7 +17,7 @@ export function renderReelSceneToCanvas(scene, project) {
 
   drawBackground(ctx, scene, project);
   drawSceneChrome(ctx, scene, project);
-  drawSceneText(ctx, scene);
+  drawSceneText(ctx, scene, project);
   drawSceneFooter(ctx, scene);
 
   return canvas;
@@ -149,8 +149,8 @@ function drawLogoWithBackdrop(ctx, logo, centerX, y, logoW, centeredY) {
   ctx.restore();
 }
 
-function drawSceneText(ctx, scene) {
-  var isTextCard = scene.visual_type === "text_card";
+function drawSceneText(ctx, scene, project) {
+  var isTextCard = scene.visual_type === "text_card" || !resolveSceneImage(scene, project);
   var title = String(scene.text || "").trim() || "Sin texto principal";
   var subtitle = String(scene.subtitle || "").trim();
   var contentX = 104;
@@ -286,11 +286,11 @@ function drawContactTextCard(ctx, title, subtitle, items, panelY, panelH, conten
 }
 
 function drawCalloutTextCard(ctx, title, subtitle, panelY, panelH, contentX, contentW, layout) {
-  var boxY = panelY + 430;
-  var boxH = 560;
-  fillRoundRect(ctx, contentX + 18, boxY, contentW - 36, boxH, 34, layout === "quote" ? "#f4f1ea" : "#ffffff");
-  fillRoundRect(ctx, contentX + 18, boxY, contentW - 36, 18, 9, MMTheme.colors.accent);
-  ctx.strokeStyle = MMTheme.colors.brandLine;
+  var boxY = panelY + 390;
+  var boxH = 640;
+  var boxFill = layout === "quote" ? "#f4f1ea" : MMTheme.colors.accent;
+  fillRoundRect(ctx, contentX + 18, boxY, contentW - 36, boxH, 34, boxFill);
+  ctx.strokeStyle = layout === "quote" ? MMTheme.colors.brandLine : MMTheme.colors.accent;
   ctx.lineWidth = 2;
   roundRectStroke(ctx, contentX + 18, boxY, contentW - 36, boxH, 34);
 
@@ -308,6 +308,12 @@ function drawCalloutTextCard(ctx, title, subtitle, panelY, panelH, contentX, con
     ctx.font = "500 34px Inter, Arial, sans-serif";
     ctx.fillStyle = MMTheme.colors.textSecondary;
     wrapText(ctx, subtitle, W / 2, titleEnd + 28, contentW - 120, 44);
+  }
+  if (layout === "cta") {
+    fillRoundRect(ctx, W / 2 - 210, boxY + boxH - 126, 420, 64, 32, "#1f2326");
+    ctx.font = "700 24px Inter, Arial, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("SEGUI INFORMADO", W / 2, boxY + boxH - 86);
   }
   ctx.textAlign = "start";
 }
