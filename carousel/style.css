@@ -264,6 +264,14 @@
     linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface2) 88%, var(--bg2)) 100%);
 }
 
+.reel-preview-controls {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface2) 82%, transparent);
+}
+
 .reel-caption-panel {
   border-color: color-mix(in srgb, var(--v) 26%, var(--line));
   background:

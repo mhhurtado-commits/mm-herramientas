@@ -16,7 +16,7 @@ export function renderReelSceneToCanvas(scene, project) {
   var ctx = canvas.getContext("2d");
 
   drawBackground(ctx, scene, project);
-  drawSceneChrome(ctx, scene);
+  drawSceneChrome(ctx, scene, project);
   drawSceneText(ctx, scene);
   drawSceneFooter(ctx, scene);
 
@@ -86,7 +86,7 @@ function drawBackground(ctx, scene, project) {
   ctx.fillRect(0, 0, W, H);
 }
 
-function drawSceneChrome(ctx, scene) {
+function drawSceneChrome(ctx, scene, project) {
   ctx.strokeStyle = "rgba(255,255,255,0.72)";
   ctx.lineWidth = 2;
   roundRectStroke(ctx, 28, 28, W - 56, H - 56, 36);
@@ -96,7 +96,9 @@ function drawSceneChrome(ctx, scene) {
   topBar.addColorStop(1, MMTheme.colors.accentBarEnd || "#d9eb97");
   fillRoundRect(ctx, 62, 58, W - 124, 26, 13, topBar);
 
-  drawSceneBrand(ctx, scene.visual_type === "text_card");
+  if (isCoverScene(scene)) {
+    drawSceneBrand(ctx, scene, project);
+  }
 }
 
 function drawSceneBadge(ctx, text) {
@@ -111,34 +113,52 @@ function drawSceneBadge(ctx, text) {
   ctx.textBaseline = "top";
 }
 
-function drawSceneBrand(ctx, invert) {
-  var brandY = 122;
+function drawSceneBrand(ctx, scene, project) {
   var logo = getCachedImage("/assets/logo.png");
+  var position = project && project.settings && project.settings.coverLogoPosition || "center";
+  var logoW = 286;
+  var logoH = logo ? logo.height * (logoW / logo.width) : 52;
+  var logoX = W / 2;
+  var logoY = 122;
+
+  if (position === "right") {
+    logoX = W - logoW / 2 - 78;
+    logoY = 112;
+  } else if (position === "image-footer") {
+    logoX = W / 2;
+    logoY = 1110;
+  }
+
   if (logo) {
-    var logoW = 286;
-    var logoH = logo.height * (logoW / logo.width);
-    var logoX = W - logoW - 78;
-    var padX = 18;
-    var padY = 12;
-    ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.2)";
-    ctx.shadowBlur = 14;
-    ctx.shadowOffsetY = 3;
-    fillRoundRect(ctx, logoX - padX, brandY - padY, logoW + padX * 2, logoH + padY * 2, 22, "rgba(22,28,30,0.78)");
-    ctx.shadowColor = "transparent";
-    ctx.strokeStyle = "rgba(255,255,255,0.24)";
-    ctx.lineWidth = 2;
-    roundRectStroke(ctx, logoX - padX, brandY - padY, logoW + padX * 2, logoH + padY * 2, 22);
-    ctx.drawImage(logo, logoX, brandY, logoW, logoH);
-    ctx.restore();
+    drawLogoWithBackdrop(ctx, logo, logoX, logoY, logoW, true);
     return;
   }
 
   ctx.font = "700 26px Inter, Arial, sans-serif";
-  ctx.fillStyle = invert ? MMTheme.colors.accentDark : "#ffffff";
-  ctx.textAlign = "right";
-  ctx.fillText("MEDIA MENDOZA", W - 82, brandY + 8);
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.fillText("MEDIA MENDOZA", logoX, logoY + 8);
   ctx.textAlign = "start";
+}
+
+function drawLogoWithBackdrop(ctx, logo, centerX, y, logoW, centeredY) {
+  var logoH = logo.height * (logoW / logo.width);
+  var drawX = centerX - logoW / 2;
+  var padX = 18;
+  var padY = 12;
+  var boxY = centeredY ? y - logoH / 2 - padY : y - padY;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.28)";
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 3;
+  fillRoundRect(ctx, drawX - padX, boxY, logoW + padX * 2, logoH + padY * 2, 22, "rgba(22,28,30,0.82)");
+  ctx.shadowColor = "transparent";
+  ctx.strokeStyle = "rgba(255,255,255,0.28)";
+  ctx.lineWidth = 2;
+  roundRectStroke(ctx, drawX - padX, boxY, logoW + padX * 2, logoH + padY * 2, 22);
+  ctx.drawImage(logo, drawX, centeredY ? y - logoH / 2 : y, logoW, logoH);
+  ctx.restore();
 }
 
 function drawSceneText(ctx, scene) {
@@ -180,7 +200,6 @@ function drawSceneText(ctx, scene) {
       wrapText(ctx, subtitleStyle.text, 142, titleEnd + 34, subtitleStyle.maxWidth, subtitleStyle.lineHeight);
     }
 
-    drawTextCardBase(ctx, scene, panelY + panelH - 214, W - 232);
     return;
   }
 
@@ -217,13 +236,32 @@ function drawSceneText(ctx, scene) {
 
 function drawSceneFooter(ctx, scene) {
   var footerY = H - 104;
+  var logo = getCachedImage("/assets/logo.png");
+  var logoW = 270;
+  var logoH = logo ? logo.height * (logoW / logo.width) : 52;
+  var gap = 26;
 
   ctx.strokeStyle = MMTheme.colors.brandLine;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(84, footerY);
-  ctx.lineTo(W - 84, footerY);
+  if (isCoverScene(scene)) {
+    ctx.moveTo(84, footerY);
+    ctx.lineTo(W - 84, footerY);
+  } else {
+    ctx.moveTo(84, footerY);
+    ctx.lineTo(W / 2 - logoW / 2 - gap, footerY);
+    ctx.moveTo(W / 2 + logoW / 2 + gap, footerY);
+    ctx.lineTo(W - 84, footerY);
+  }
   ctx.stroke();
+
+  if (logo && !isCoverScene(scene)) {
+    drawLogoWithBackdrop(ctx, logo, W / 2, footerY, logoW, true);
+  }
+}
+
+function isCoverScene(scene) {
+  return !!scene && (scene.visual_type === "cover_image" || scene.visual_role === "hook");
 }
 
 function resolveSceneImage(scene, project) {

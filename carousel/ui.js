@@ -372,6 +372,11 @@ function ensureReelPreviewPanel() {
   var stage = document.createElement("div");
   stage.className = "reel-preview-stage-wrap";
 
+  var controls = document.createElement("div");
+  controls.id = "reelPreviewControls";
+  controls.className = "reel-preview-controls";
+  controls.hidden = true;
+
   var frame = document.createElement("div");
   frame.id = "reelPreviewStage";
   frame.className = "reel-preview-stage";
@@ -381,6 +386,7 @@ function ensureReelPreviewPanel() {
   layout.appendChild(stage);
 
   panel.appendChild(header);
+  panel.appendChild(controls);
   panel.appendChild(layout);
   host.appendChild(panel);
 }
@@ -538,6 +544,7 @@ function renderReelPreview(project) {
   var thumbs = document.getElementById("reelPreviewThumbs");
   var stage = document.getElementById("reelPreviewStage");
   var meta = document.getElementById("reelPreviewMeta");
+  var controls = document.getElementById("reelPreviewControls");
   if (!panel || !thumbs || !stage || !meta) return;
 
   var reel = getReelOutput(project);
@@ -562,6 +569,13 @@ function renderReelPreview(project) {
   }
 
   var activeScene = reel.scenes[activeReelSceneIndex];
+  if (controls) {
+    controls.innerHTML = "";
+    controls.hidden = !isReelCoverScene(activeScene);
+    if (isReelCoverScene(activeScene)) {
+      controls.appendChild(createCoverLogoControls(project));
+    }
+  }
   var sceneCanvas = renderReelSceneToCanvas(activeScene, project);
   if (sceneCanvas) {
     sceneCanvas.className = "reel-preview-canvas";
@@ -571,6 +585,10 @@ function renderReelPreview(project) {
   }
 
   meta.textContent = "Escena " + String(activeReelSceneIndex + 1).padStart(2, "0") + " de " + reel.scenes.length + " / 1080 x 1920";
+}
+
+function isReelCoverScene(scene) {
+  return !!scene && (scene.visual_type === "cover_image" || scene.visual_role === "hook");
 }
 
 function renderReelStoryboard(project) {
