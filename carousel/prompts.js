@@ -147,7 +147,12 @@ export function buildReelPrompt(article, diagnosis) {
     "- El Reel debe funcionar solo con imagenes y texto en pantalla.\n" +
     "- Incluir subtitulos breves por escena.\n" +
     "- Usar entre 4 y 6 escenas.\n" +
+    "- Usar titulos de hasta 7 palabras y subtitulos de hasta 16 palabras.\n" +
     "- Cada escena debe indicar si conviene usar imagen principal, imagen interna o placa de texto.\n" +
+    "- Elegir layout segun el contenido: default, list, contact, quote o cta.\n" +
+    "- Para listas, pedidos o pasos, usar items separados; no unirlos con guiones dentro de text.\n" +
+    "- Para contactos, separar telefono, direccion u horario en items.\n" +
+    "- No repetir en subtitle lo que ya aparece en text o items.\n" +
     "- Si no hay imagen adecuada, usar placa de texto.\n" +
     "- Incluir caption para Instagram y hashtags.\n" +
     "- No escribir estilos, coordenadas ni decisiones tecnicas de render.\n\n" +
@@ -166,8 +171,10 @@ export function buildReelPrompt(article, diagnosis) {
     '      "visual_type":"cover_image",\n' +
     '      "visual_source":"article.image",\n' +
     '      "visual_role":"hook",\n' +
+    '      "layout":"default",\n' +
     '      "text":"",\n' +
-    '      "subtitle":""\n' +
+    '      "subtitle":"",\n' +
+    '      "items":[]\n' +
     "    },\n" +
     '    {\n' +
     '      "order":2,\n' +
@@ -184,8 +191,10 @@ export function buildReelPrompt(article, diagnosis) {
     '      "visual_type":"text_card",\n' +
     '      "visual_source":"generated",\n' +
     '      "visual_role":"key_fact",\n' +
+    '      "layout":"default",\n' +
     '      "text":"",\n' +
-    '      "subtitle":""\n' +
+    '      "subtitle":"",\n' +
+    '      "items":[]\n' +
     "    }\n" +
     "  ]\n" +
     "}"

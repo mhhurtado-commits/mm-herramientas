@@ -89,10 +89,31 @@ function normalizeReelScenes(scenes) {
       visual_type: cleanText(source.visual_type),
       visual_source: cleanText(source.visual_source),
       visual_role: cleanText(source.visual_role),
+      layout: cleanText(source.layout),
       text: cleanText(source.text),
-      subtitle: cleanText(source.subtitle)
+      subtitle: cleanText(source.subtitle),
+      items: normalizeReelItems(source.items)
     };
   });
+}
+
+function normalizeReelItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map(function (item) {
+      if (typeof item === "string") {
+        return { label: "", text: cleanText(item) };
+      }
+      var source = item || {};
+      return {
+        label: cleanText(source.label),
+        text: cleanText(source.text || source.value)
+      };
+    })
+    .filter(function (item) {
+      return item.text;
+    })
+    .slice(0, 5);
 }
 
 function cleanText(value) {

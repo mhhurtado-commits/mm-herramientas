@@ -101,18 +101,6 @@ function drawSceneChrome(ctx, scene, project) {
   }
 }
 
-function drawSceneBadge(ctx, text) {
-  var label = formatReelRoleLabel(text || "escena").toUpperCase();
-  ctx.font = "700 28px Inter, Arial, sans-serif";
-  var textW = ctx.measureText(label).width;
-  var badgeW = textW + 52;
-  fillRoundRect(ctx, 76, 126, badgeW, 56, 28, MMTheme.colors.accent);
-  ctx.fillStyle = "#ffffff";
-  ctx.textBaseline = "middle";
-  ctx.fillText(label, 102, 154);
-  ctx.textBaseline = "top";
-}
-
 function drawSceneBrand(ctx, scene, project) {
   var logo = getCachedImage("/assets/logo.png");
   var position = project && project.settings && project.settings.coverLogoPosition || "center";
@@ -178,26 +166,16 @@ function drawSceneText(ctx, scene) {
 
     fillRoundRect(ctx, 86, panelY + 62, 18, 372, 9, MMTheme.colors.accent);
 
-    var titleStyle = fitReelTextBlock(ctx, title, {
-      maxWidth: contentW - 50,
-      maxLines: 5,
-      fontSizes: [88, 82, 76, 70, 64, 58],
-      lineHeights: [92, 86, 80, 74, 68, 62]
-    });
-    ctx.font = "700 " + titleStyle.fontSize + "px Inter, Arial, sans-serif";
-    ctx.fillStyle = MMTheme.colors.textPrimary;
-    var titleEnd = wrapText(ctx, titleStyle.text, 142, panelY + 92, titleStyle.maxWidth, titleStyle.lineHeight);
-
-    if (subtitle) {
-      var subtitleStyle = fitReelTextBlock(ctx, subtitle, {
-        maxWidth: contentW - 50,
-        maxLines: 3,
-        fontSizes: [46, 42, 38, 34],
-        lineHeights: [56, 50, 46, 42]
-      });
-      ctx.font = "500 " + subtitleStyle.fontSize + "px Inter, Arial, sans-serif";
-      ctx.fillStyle = MMTheme.colors.textSecondary;
-      wrapText(ctx, subtitleStyle.text, 142, titleEnd + 34, subtitleStyle.maxWidth, subtitleStyle.lineHeight);
+    var content = getStructuredSceneContent(scene);
+    var layout = resolveSceneLayout(scene, content.items);
+    if (layout === "list") {
+      drawListTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
+    } else if (layout === "contact") {
+      drawContactTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
+    } else if (layout === "cta" || layout === "quote") {
+      drawCalloutTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW, layout);
+    } else {
+      drawDefaultTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW);
     }
 
     return;
@@ -214,8 +192,8 @@ function drawSceneText(ctx, scene) {
   var visualTitleStyle = fitReelTextBlock(ctx, title, {
     maxWidth: contentW - 8,
     maxLines: 3,
-    fontSizes: [82, 76, 70, 64, 58],
-    lineHeights: [88, 82, 76, 70, 64]
+    fontSizes: [68, 64, 60, 56, 52],
+    lineHeights: [76, 72, 68, 64, 60]
   });
   ctx.font = "700 " + visualTitleStyle.fontSize + "px Inter, Arial, sans-serif";
   ctx.fillStyle = MMTheme.colors.textPrimary;
@@ -225,13 +203,175 @@ function drawSceneText(ctx, scene) {
     var visualSubtitleStyle = fitReelTextBlock(ctx, subtitle, {
       maxWidth: contentW - 12,
       maxLines: 3,
-      fontSizes: [44, 40, 36, 32],
-      lineHeights: [54, 48, 44, 40]
+      fontSizes: [36, 34, 32, 30],
+      lineHeights: [46, 42, 40, 38]
     });
     ctx.font = "500 " + visualSubtitleStyle.fontSize + "px Inter, Arial, sans-serif";
     ctx.fillStyle = MMTheme.colors.textSecondary;
     wrapText(ctx, visualSubtitleStyle.text, contentX, titleEnd + 24, visualSubtitleStyle.maxWidth, visualSubtitleStyle.lineHeight);
   }
+}
+
+function drawDefaultTextCard(ctx, title, subtitle, panelY, panelH, contentX, contentW) {
+  var titleStyle = fitReelTextBlock(ctx, title, {
+    maxWidth: contentW - 50,
+    maxLines: 4,
+    fontSizes: [68, 64, 60, 56, 52],
+    lineHeights: [76, 72, 68, 64, 60]
+  });
+  var subtitleStyle = subtitle ? fitReelTextBlock(ctx, subtitle, {
+    maxWidth: contentW - 50,
+    maxLines: 2,
+    fontSizes: [36, 34, 32, 30],
+    lineHeights: [46, 42, 40, 38]
+  }) : null;
+  var totalH = titleStyle.lineCount * titleStyle.lineHeight + (subtitleStyle ? subtitleStyle.lineCount * subtitleStyle.lineHeight + 30 : 0);
+  var startY = panelY + Math.min(390, Math.max(150, (panelH - totalH) / 2 - 40));
+
+  ctx.font = "700 " + titleStyle.fontSize + "px Inter, Arial, sans-serif";
+  ctx.fillStyle = MMTheme.colors.textPrimary;
+  var titleEnd = wrapText(ctx, titleStyle.text, contentX + 38, startY, titleStyle.maxWidth, titleStyle.lineHeight);
+
+  if (subtitleStyle) {
+    ctx.font = "500 " + subtitleStyle.fontSize + "px Inter, Arial, sans-serif";
+    ctx.fillStyle = MMTheme.colors.textSecondary;
+    wrapText(ctx, subtitleStyle.text, contentX + 38, titleEnd + 30, subtitleStyle.maxWidth, subtitleStyle.lineHeight);
+  }
+}
+
+function drawListTextCard(ctx, title, subtitle, items, panelY, panelH, contentX, contentW) {
+  var titleStyle = fitReelTextBlock(ctx, title, {
+    maxWidth: contentW - 50,
+    maxLines: 2,
+    fontSizes: [62, 58, 54, 50],
+    lineHeights: [70, 66, 62, 58]
+  });
+  ctx.font = "700 " + titleStyle.fontSize + "px Inter, Arial, sans-serif";
+  ctx.fillStyle = MMTheme.colors.textPrimary;
+  var titleEnd = wrapText(ctx, titleStyle.text, contentX + 38, panelY + 110, titleStyle.maxWidth, titleStyle.lineHeight);
+  var cursorY = titleEnd + 24;
+
+  if (subtitle) {
+    ctx.font = "500 32px Inter, Arial, sans-serif";
+    ctx.fillStyle = MMTheme.colors.textSecondary;
+    cursorY = wrapText(ctx, subtitle, contentX + 38, cursorY, contentW - 76, 42) + 32;
+  }
+
+  var rowH = 116;
+  var gap = 18;
+  var minY = panelY + 470;
+  var listH = items.length * rowH + Math.max(0, items.length - 1) * gap;
+  var startY = Math.max(cursorY + 38, Math.min(minY, panelY + panelH - listH - 170));
+  for (var i = 0; i < items.length; i++) {
+    drawListItem(ctx, items[i], contentX + 28, startY + i * (rowH + gap), contentW - 56, rowH, i + 1);
+  }
+}
+
+function drawContactTextCard(ctx, title, subtitle, items, panelY, panelH, contentX, contentW) {
+  drawDefaultTextCard(ctx, title, subtitle, panelY, Math.min(panelH, 720), contentX, contentW);
+  var contactItems = items.slice();
+  var phone = extractPhone(title + " " + subtitle);
+  if (phone && !contactItems.some(function (item) { return item.text.indexOf(phone) >= 0; })) {
+    contactItems.push({ label: "Contacto", text: phone });
+  }
+  if (!contactItems.length) return;
+
+  var boxY = panelY + 820;
+  var rowH = Math.min(132, Math.max(104, 520 / contactItems.length));
+  for (var i = 0; i < contactItems.length; i++) {
+    drawListItem(ctx, contactItems[i], contentX + 28, boxY + i * (rowH + 16), contentW - 56, rowH, 0);
+  }
+}
+
+function drawCalloutTextCard(ctx, title, subtitle, panelY, panelH, contentX, contentW, layout) {
+  var boxY = panelY + 470;
+  var boxH = 460;
+  fillRoundRect(ctx, contentX + 18, boxY, contentW - 36, boxH, 34, layout === "quote" ? "#f4f1ea" : MMTheme.colors.accentSoft);
+  ctx.strokeStyle = MMTheme.colors.brandLine;
+  ctx.lineWidth = 2;
+  roundRectStroke(ctx, contentX + 18, boxY, contentW - 36, boxH, 34);
+
+  var titleStyle = fitReelTextBlock(ctx, title, {
+    maxWidth: contentW - 110,
+    maxLines: 3,
+    fontSizes: [60, 56, 52, 48],
+    lineHeights: [68, 64, 60, 56]
+  });
+  ctx.textAlign = "center";
+  ctx.font = "700 " + titleStyle.fontSize + "px Inter, Arial, sans-serif";
+  ctx.fillStyle = MMTheme.colors.textPrimary;
+  var titleEnd = wrapText(ctx, titleStyle.text, W / 2, boxY + 86, titleStyle.maxWidth, titleStyle.lineHeight);
+  if (subtitle) {
+    ctx.font = "500 34px Inter, Arial, sans-serif";
+    ctx.fillStyle = MMTheme.colors.textSecondary;
+    wrapText(ctx, subtitle, W / 2, titleEnd + 28, contentW - 120, 44);
+  }
+  ctx.textAlign = "start";
+}
+
+function drawListItem(ctx, item, x, y, w, h, number) {
+  fillRoundRect(ctx, x, y, w, h, 28, "rgba(246,250,236,0.96)");
+  ctx.strokeStyle = MMTheme.colors.brandLine;
+  ctx.lineWidth = 2;
+  roundRectStroke(ctx, x, y, w, h, 28);
+  fillRoundRect(ctx, x + 22, y + 24, 68, h - 48, 20, MMTheme.colors.accent);
+  if (number) {
+    ctx.font = "700 28px Inter, Arial, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.fillText(String(number).padStart(2, "0"), x + 56, y + h / 2 - 16);
+    ctx.textAlign = "start";
+  }
+  var text = item && item.text ? item.text : "";
+  var label = item && item.label ? String(item.label).trim() : "";
+  var style = fitReelTextBlock(ctx, text, {
+    maxWidth: w - 142,
+    maxLines: 2,
+    fontSizes: [32, 29, 26],
+    lineHeights: [40, 36, 33]
+  });
+  ctx.font = "500 " + style.fontSize + "px Inter, Arial, sans-serif";
+  ctx.fillStyle = MMTheme.colors.textSecondary;
+  var textY = y + Math.max(24, (h - style.lineCount * style.lineHeight) / 2);
+  if (label) {
+    ctx.font = "700 22px Inter, Arial, sans-serif";
+    ctx.fillStyle = MMTheme.colors.accentDark;
+    ctx.fillText(label.toUpperCase(), x + 122, y + 22);
+    ctx.font = "500 " + style.fontSize + "px Inter, Arial, sans-serif";
+    ctx.fillStyle = MMTheme.colors.textSecondary;
+    textY = y + 54;
+  }
+  wrapText(ctx, style.text, x + 122, textY, style.maxWidth, style.lineHeight);
+}
+
+function getStructuredSceneContent(scene) {
+  var title = String(scene && scene.text || "").trim() || "Sin texto principal";
+  var items = Array.isArray(scene && scene.items) ? scene.items.filter(function (item) { return item && item.text; }) : [];
+  if (items.length) return { title: title, items: items };
+
+  var parts = title.split(/\s+-\s+/).map(function (part) { return part.trim(); }).filter(Boolean);
+  if (parts.length >= 3) {
+    return {
+      title: parts.shift(),
+      items: parts.map(function (part) { return { label: "", text: part }; })
+    };
+  }
+  return { title: title, items: [] };
+}
+
+function resolveSceneLayout(scene, items) {
+  var layout = String(scene && scene.layout || "").toLowerCase();
+  if (["list", "contact", "quote", "cta", "default"].indexOf(layout) >= 0) return layout;
+  var role = String(scene && scene.visual_role || "").toLowerCase();
+  if (role === "cta" || role === "conclusion") return "cta";
+  if (items && items.length) return "list";
+  if (/contact|telefono|llam|direccion|retir/.test(String(scene && scene.text || "").toLowerCase())) return "contact";
+  return "default";
+}
+
+function extractPhone(text) {
+  var match = String(text || "").match(/\b\d{4}\s?\d{2}[-\s]?\d{4}\b/);
+  return match ? match[0] : "";
 }
 
 function drawSceneFooter(ctx, scene) {
@@ -420,7 +560,8 @@ function fitReelTextBlock(ctx, text, options) {
         text: raw,
         fontSize: fontSizes[i],
         lineHeight: lineHeights[Math.min(i, lineHeights.length - 1)],
-        maxWidth: maxWidth
+        maxWidth: maxWidth,
+        lineCount: lines
       };
     }
   }
@@ -431,7 +572,8 @@ function fitReelTextBlock(ctx, text, options) {
     text: clampWrappedText(ctx, raw, maxWidth, maxLines),
     fontSize: fontSizes[lastIndex],
     lineHeight: lineHeights[Math.min(lastIndex, lineHeights.length - 1)],
-    maxWidth: maxWidth
+    maxWidth: maxWidth,
+    lineCount: maxLines
   };
 }
 
@@ -488,9 +630,4 @@ function clampWrappedText(ctx, text, maxWidth, maxLines) {
   }
   lines[Math.max(0, lines.length - 1)] = merged + "...";
   return lines.join(" ");
-}
-
-function drawTextCardBase(ctx, scene, baseY, baseW) {
-  fillRoundRect(ctx, 142, baseY + 54, baseW, 3, 2, MMTheme.colors.brandLine);
-  fillRoundRect(ctx, W / 2 - 44, baseY + 48, 88, 15, 7, MMTheme.colors.accent);
 }
