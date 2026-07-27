@@ -159,12 +159,13 @@ function drawSceneText(ctx, scene) {
   if (isTextCard) {
     var panelY = 234;
     var panelH = H - 382;
-    fillRoundRect(ctx, 58, panelY, W - 116, panelH, 46, "rgba(255,255,255,0.95)");
+    fillRoundRect(ctx, 58, panelY, W - 116, panelH, 46, MMTheme.colors.panel);
     ctx.strokeStyle = MMTheme.colors.lineSoft;
     ctx.lineWidth = 2;
     roundRectStroke(ctx, 58, panelY, W - 116, panelH, 46);
 
-    fillRoundRect(ctx, 86, panelY + 62, 18, 372, 9, MMTheme.colors.accent);
+    fillRoundRect(ctx, 86, panelY + 62, 18, 300, 9, MMTheme.colors.accent);
+    fillRoundRect(ctx, 58, panelY, W - 116, 24, 12, MMTheme.colors.accent);
 
     var content = getStructuredSceneContent(scene);
     var layout = resolveSceneLayout(scene, content.items);
@@ -259,9 +260,9 @@ function drawListTextCard(ctx, title, subtitle, items, panelY, panelH, contentX,
 
   var rowH = 116;
   var gap = 18;
-  var minY = panelY + 470;
   var listH = items.length * rowH + Math.max(0, items.length - 1) * gap;
-  var startY = Math.max(cursorY + 38, Math.min(minY, panelY + panelH - listH - 170));
+  var centeredY = panelY + Math.max(390, (panelH - listH) / 2 - 40);
+  var startY = Math.max(cursorY + 38, Math.min(centeredY, panelY + panelH - listH - 170));
   for (var i = 0; i < items.length; i++) {
     drawListItem(ctx, items[i], contentX + 28, startY + i * (rowH + gap), contentW - 56, rowH, i + 1);
   }
@@ -276,7 +277,8 @@ function drawContactTextCard(ctx, title, subtitle, items, panelY, panelH, conten
   }
   if (!contactItems.length) return;
 
-  var boxY = panelY + 820;
+  var contactH = contactItems.length * 132 + Math.max(0, contactItems.length - 1) * 16;
+  var boxY = panelY + Math.max(560, (panelH - contactH) / 2 + 120);
   var rowH = Math.min(132, Math.max(104, 520 / contactItems.length));
   for (var i = 0; i < contactItems.length; i++) {
     drawListItem(ctx, contactItems[i], contentX + 28, boxY + i * (rowH + 16), contentW - 56, rowH, 0);
@@ -284,9 +286,10 @@ function drawContactTextCard(ctx, title, subtitle, items, panelY, panelH, conten
 }
 
 function drawCalloutTextCard(ctx, title, subtitle, panelY, panelH, contentX, contentW, layout) {
-  var boxY = panelY + 470;
-  var boxH = 460;
-  fillRoundRect(ctx, contentX + 18, boxY, contentW - 36, boxH, 34, layout === "quote" ? "#f4f1ea" : MMTheme.colors.accentSoft);
+  var boxY = panelY + 430;
+  var boxH = 560;
+  fillRoundRect(ctx, contentX + 18, boxY, contentW - 36, boxH, 34, layout === "quote" ? "#f4f1ea" : "#ffffff");
+  fillRoundRect(ctx, contentX + 18, boxY, contentW - 36, 18, 9, MMTheme.colors.accent);
   ctx.strokeStyle = MMTheme.colors.brandLine;
   ctx.lineWidth = 2;
   roundRectStroke(ctx, contentX + 18, boxY, contentW - 36, boxH, 34);
