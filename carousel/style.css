@@ -176,13 +176,6 @@
   line-height: 1.55;
 }
 
-.carousel-copy-text--code {
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre;
-}
-
 .carousel-status--inline {
   text-align: right;
 }
@@ -290,23 +283,6 @@
   border-radius: 26px;
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.08);
   background: #ffffff;
-}
-
-.reel-storyboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.reel-scene-card {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at top, rgba(166, 206, 57, 0.10), transparent 32%),
-    color-mix(in srgb, var(--surface) 97%, transparent);
 }
 
 .reel-scene-media {
@@ -429,54 +405,6 @@
   width: 100%;
   padding-top: 12px;
   border-top: 2px solid color-mix(in srgb, var(--v) 38%, white);
-}
-
-.reel-scene-body {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  padding: 14px 14px 16px;
-}
-
-.reel-scene-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-
-.reel-scene-role {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--v-dark);
-}
-
-.reel-scene-title {
-  margin: 0;
-  font-size: 18px;
-  line-height: 1.18;
-  color: var(--text);
-}
-
-.reel-scene-subtitle {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.reel-scene-source {
-  margin-top: auto;
-  font-size: 10px;
-  line-height: 1.35;
-  color: var(--dim);
-  word-break: break-word;
 }
 
 .carousel-panel-header {

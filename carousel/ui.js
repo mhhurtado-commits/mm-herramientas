@@ -20,8 +20,6 @@ export function initUI() {
   ensureCaptionPanel();
   ensureReelPreviewPanel();
   ensureReelCaptionPanel();
-  ensureReelPanel();
-  ensureReelStoryboardPanel();
 
   var loadBtn = document.getElementById("loadBtn");
   if (loadBtn) {
@@ -92,8 +90,6 @@ function renderInPreview() {
     renderCaptionPanel(project);
     renderReelPreview(project);
     renderReelCaptionPanel(project);
-    renderReelPanel(project);
-    renderReelStoryboard(project);
     return;
   }
 
@@ -149,8 +145,6 @@ function renderInPreview() {
   renderCaptionPanel(project);
   renderReelPreview(project);
   renderReelCaptionPanel(project);
-  renderReelPanel(project);
-  renderReelStoryboard(project);
 }
 
 function handleAssetReady() {
@@ -302,7 +296,7 @@ function ensureReelPreviewPanel() {
   label.textContent = "Reel";
   var title = document.createElement("strong");
   title.className = "carousel-copy-title";
-  title.textContent = "Vista previa";
+  title.textContent = "Escenas del Reel";
   titles.appendChild(label);
   titles.appendChild(title);
 
@@ -331,14 +325,14 @@ function ensureReelPreviewPanel() {
   pngBtn.type = "button";
   pngBtn.id = "downloadReelSceneBtn";
   pngBtn.className = "mm-btn";
-  pngBtn.textContent = "PNG";
+  pngBtn.textContent = "Descargar PNG";
   pngBtn.addEventListener("click", downloadActiveReelScene);
 
   var sequenceBtn = document.createElement("button");
   sequenceBtn.type = "button";
   sequenceBtn.id = "downloadAllReelScenesBtn";
   sequenceBtn.className = "mm-btn";
-  sequenceBtn.textContent = "Secuencia";
+  sequenceBtn.textContent = "Descargar escenas";
   sequenceBtn.addEventListener("click", downloadAllReelScenes);
 
   var videoBtn = document.createElement("button");
@@ -433,82 +427,6 @@ function ensureReelCaptionPanel() {
   host.appendChild(panel);
 }
 
-function ensureReelPanel() {
-  var host = document.getElementById("reelPlanPanelHost");
-  if (!host || document.getElementById("reelPlanPanel")) return;
-
-  var panel = document.createElement("div");
-  panel.id = "reelPlanPanel";
-  panel.className = "carousel-copy-panel";
-  panel.hidden = true;
-
-  var header = document.createElement("div");
-  header.className = "carousel-copy-header";
-
-  var titles = document.createElement("div");
-  var label = document.createElement("div");
-  label.className = "carousel-section-label";
-  label.textContent = "Reel";
-  var title = document.createElement("strong");
-  title.className = "carousel-copy-title";
-  title.textContent = "Plan del Reel";
-  titles.appendChild(label);
-  titles.appendChild(title);
-
-  var copyBtn = document.createElement("button");
-  copyBtn.type = "button";
-  copyBtn.id = "copyReelBtn";
-  copyBtn.className = "mm-btn";
-  copyBtn.textContent = "Copiar JSON";
-  copyBtn.addEventListener("click", copyReelPlanJson);
-
-  header.appendChild(titles);
-  header.appendChild(copyBtn);
-
-  var textarea = document.createElement("textarea");
-  textarea.id = "reelPlanOutput";
-  textarea.className = "carousel-copy-text carousel-copy-text--code";
-  textarea.readOnly = true;
-  textarea.placeholder = "Aca aparecera el ReelPlan JSON generado desde la misma noticia.";
-
-  panel.appendChild(header);
-  panel.appendChild(textarea);
-  host.appendChild(panel);
-}
-
-function ensureReelStoryboardPanel() {
-  var host = document.getElementById("reelStoryboardPanelHost");
-  if (!host || document.getElementById("reelStoryboardPanel")) return;
-
-  var panel = document.createElement("div");
-  panel.id = "reelStoryboardPanel";
-  panel.className = "carousel-copy-panel";
-  panel.hidden = true;
-
-  var header = document.createElement("div");
-  header.className = "carousel-copy-header";
-
-  var titles = document.createElement("div");
-  var label = document.createElement("div");
-  label.className = "carousel-section-label";
-  label.textContent = "Reel";
-  var title = document.createElement("strong");
-  title.className = "carousel-copy-title";
-  title.textContent = "Secuencia visual";
-  titles.appendChild(label);
-  titles.appendChild(title);
-
-  header.appendChild(titles);
-
-  var grid = document.createElement("div");
-  grid.id = "reelStoryboardGrid";
-  grid.className = "reel-storyboard-grid";
-
-  panel.appendChild(header);
-  panel.appendChild(grid);
-  host.appendChild(panel);
-}
-
 function renderCaptionPanel(project) {
   var panel = document.getElementById("captionPanel");
   var textarea = document.getElementById("captionOutput");
@@ -517,16 +435,6 @@ function renderCaptionPanel(project) {
   var caption = buildCaptionText(project);
   panel.hidden = !caption;
   textarea.value = caption;
-}
-
-function renderReelPanel(project) {
-  var panel = document.getElementById("reelPlanPanel");
-  var textarea = document.getElementById("reelPlanOutput");
-  if (!panel || !textarea) return;
-
-  var reelJson = buildReelPlanText(project);
-  panel.hidden = !reelJson;
-  textarea.value = reelJson;
 }
 
 function renderReelCaptionPanel(project) {
@@ -584,31 +492,11 @@ function renderReelPreview(project) {
     stage.appendChild(createReelPreviewFrame(activeScene, project, false));
   }
 
-  meta.textContent = "Escena " + String(activeReelSceneIndex + 1).padStart(2, "0") + " de " + reel.scenes.length + " / 1080 x 1920";
+  meta.textContent = "Escena " + String(activeReelSceneIndex + 1).padStart(2, "0") + " de " + reel.scenes.length;
 }
 
 function isReelCoverScene(scene) {
   return !!scene && (scene.visual_type === "cover_image" || scene.visual_role === "hook");
-}
-
-function renderReelStoryboard(project) {
-  var panel = document.getElementById("reelStoryboardPanel");
-  var grid = document.getElementById("reelStoryboardGrid");
-  if (!panel || !grid) return;
-
-  var reel = getReelOutput(project);
-  if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) {
-    panel.hidden = true;
-    grid.innerHTML = "";
-    return;
-  }
-
-  panel.hidden = false;
-  grid.innerHTML = "";
-
-  for (var i = 0; i < reel.scenes.length; i++) {
-    grid.appendChild(createReelSceneCard(reel.scenes[i], project));
-  }
 }
 
 function buildCaptionText(project) {
@@ -617,12 +505,6 @@ function buildCaptionText(project) {
   var hashtags = Array.isArray(project.socialCopy.hashtags) ? project.socialCopy.hashtags.filter(Boolean) : [];
   if (!caption && !hashtags.length) return "";
   return caption + (hashtags.length ? "\n\n" + hashtags.join(" ") : "");
-}
-
-function buildReelPlanText(project) {
-  var reel = getReelOutput(project);
-  if (!reel || !Array.isArray(reel.scenes) || !reel.scenes.length) return "";
-  return JSON.stringify(reel, null, 2);
 }
 
 function buildReelCaptionText(project) {
@@ -637,57 +519,6 @@ function buildReelCaptionText(project) {
 function getReelOutput(project) {
   if (!project || !project.editorialPackage || !project.editorialPackage.outputs) return null;
   return project.editorialPackage.outputs.reel || null;
-}
-
-function createReelSceneCard(scene, project) {
-  var card = document.createElement("article");
-  card.className = "reel-scene-card";
-
-  var media = createReelPreviewFrame(scene, project, true);
-
-  var body = document.createElement("div");
-  body.className = "reel-scene-body";
-
-  var top = document.createElement("div");
-  top.className = "reel-scene-top";
-
-  var index = document.createElement("span");
-  index.className = "reel-scene-index";
-  index.textContent = "Escena " + String(scene.order || 0).padStart(2, "0");
-
-  var timing = document.createElement("span");
-  timing.className = "reel-scene-timing";
-  timing.textContent = formatSceneDuration(scene.duration_ms);
-
-  top.appendChild(index);
-  top.appendChild(timing);
-
-  var role = document.createElement("div");
-  role.className = "reel-scene-role";
-  role.textContent = formatReelRoleLabel(scene.visual_role || scene.visual_type || "escena");
-
-  var title = document.createElement("h3");
-  title.className = "reel-scene-title";
-  title.textContent = scene.text || "Sin texto principal";
-
-  var subtitle = document.createElement("p");
-  subtitle.className = "reel-scene-subtitle";
-  subtitle.textContent = scene.subtitle || "";
-
-  var source = document.createElement("div");
-  source.className = "reel-scene-source";
-  source.textContent = formatReelSourceLabel(scene, project);
-  source.hidden = !source.textContent;
-
-  body.appendChild(top);
-  body.appendChild(role);
-  body.appendChild(title);
-  body.appendChild(subtitle);
-  body.appendChild(source);
-
-  card.appendChild(media);
-  card.appendChild(body);
-  return card;
 }
 
 function createReelPreviewThumb(scene, index, project) {
@@ -923,18 +754,6 @@ function stopReelPlayback() {
   }
   var button = document.getElementById("playReelBtn");
   if (button) button.textContent = "Reproducir";
-}
-
-async function copyReelPlanJson() {
-  var preview = document.getElementById("previewContent");
-  var textarea = document.getElementById("reelPlanOutput");
-  if (!textarea || !textarea.value.trim()) return;
-  try {
-    await navigator.clipboard.writeText(textarea.value);
-    setStatus(preview, "ReelPlan copiado");
-  } catch (error) {
-    setStatus(preview, "No se pudo copiar el ReelPlan");
-  }
 }
 
 async function copyActiveReelScene() {
