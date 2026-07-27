@@ -56,9 +56,10 @@ function drawBackground(ctx, scene, project) {
   var isTextCard = scene.visual_type === "text_card" || !imageUrl;
 
   if (isTextCard) {
+    var layout = resolveSceneLayout(scene, getStructuredSceneContent(scene).items);
     var bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, "#ffffff");
-    bg.addColorStop(1, MMTheme.colors.surfaceSoft || "#f8f6f1");
+    bg.addColorStop(0, layout === "cta" ? "#eef6d6" : "#ffffff");
+    bg.addColorStop(1, layout === "cta" ? "#f8fbeF" : (MMTheme.colors.surfaceSoft || "#f8f6f1"));
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
@@ -286,6 +287,11 @@ function drawContactTextCard(ctx, title, subtitle, items, panelY, panelH, conten
 }
 
 function drawCalloutTextCard(ctx, title, subtitle, panelY, panelH, contentX, contentW, layout) {
+  if (layout === "cta") {
+    drawReelCtaCard(ctx, title, subtitle, panelY, contentX, contentW);
+    return;
+  }
+
   var boxY = panelY + 390;
   var boxH = 640;
   var boxFill = layout === "quote" ? "#f4f1ea" : MMTheme.colors.accent;
@@ -315,6 +321,55 @@ function drawCalloutTextCard(ctx, title, subtitle, panelY, panelH, contentX, con
     ctx.fillStyle = "#ffffff";
     ctx.fillText("SEGUI INFORMADO", W / 2, boxY + boxH - 86);
   }
+  ctx.textAlign = "start";
+}
+
+function drawReelCtaCard(ctx, title, subtitle, panelY, contentX, contentW) {
+  var boxY = panelY + 250;
+  var boxH = 860;
+  var boxX = contentX - 14;
+  var boxW = contentW + 28;
+  fillRoundRect(ctx, boxX, boxY, boxW, boxH, 42, "#ffffff");
+  ctx.strokeStyle = MMTheme.colors.lineSoft;
+  ctx.lineWidth = 2;
+  roundRectStroke(ctx, boxX, boxY, boxW, boxH, 42);
+  fillRoundRect(ctx, boxX, boxY, boxW, 22, 11, MMTheme.colors.accent);
+
+  var logo = getCachedImage("/assets/logo.png");
+  if (logo) drawLogoWithBackdrop(ctx, logo, W / 2, boxY + 104, 250, true);
+
+  ctx.textAlign = "center";
+  ctx.font = "700 30px Inter, Arial, sans-serif";
+  ctx.fillStyle = MMTheme.colors.accentDark;
+  ctx.fillText("SEGUIR INFORMADO", W / 2, boxY + 198);
+
+  var titleStyle = fitReelTextBlock(ctx, title, {
+    maxWidth: contentW - 90,
+    maxLines: 2,
+    fontSizes: [58, 54, 50, 46],
+    lineHeights: [66, 62, 58, 54]
+  });
+  ctx.font = "700 " + titleStyle.fontSize + "px Inter, Arial, sans-serif";
+  ctx.fillStyle = MMTheme.colors.textPrimary;
+  var titleEnd = wrapText(ctx, titleStyle.text, W / 2, boxY + 278, titleStyle.maxWidth, titleStyle.lineHeight);
+
+  if (subtitle) {
+    var subtitleStyle = fitReelTextBlock(ctx, subtitle, {
+      maxWidth: contentW - 112,
+      maxLines: 4,
+      fontSizes: [32, 30, 28],
+      lineHeights: [42, 38, 36]
+    });
+    ctx.font = "500 " + subtitleStyle.fontSize + "px Inter, Arial, sans-serif";
+    ctx.fillStyle = MMTheme.colors.textSecondary;
+    wrapText(ctx, subtitleStyle.text, W / 2, titleEnd + 42, subtitleStyle.maxWidth, subtitleStyle.lineHeight);
+  }
+
+  var webY = boxY + boxH - 148;
+  fillRoundRect(ctx, W / 2 - 300, webY, 600, 92, 30, "#1f2326");
+  ctx.font = "700 42px Inter, Arial, sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("mediamendoza.com", W / 2, webY + 58);
   ctx.textAlign = "start";
 }
 
@@ -384,6 +439,9 @@ function extractPhone(text) {
 }
 
 function drawSceneFooter(ctx, scene) {
+  var content = getStructuredSceneContent(scene);
+  if (resolveSceneLayout(scene, content.items) === "cta") return;
+
   var footerY = H - 104;
   var logo = getCachedImage("/assets/logo.png");
   var logoW = 270;
