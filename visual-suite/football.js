@@ -31,6 +31,61 @@ function footballAssetKeyFromName(value) {
   return raw.replace(/\b(fc|fbc|club|club de futbol)\b/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+function footballDisplayName(value) {
+  const raw = String(value || '').trim();
+  const normalized = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const aliases = {
+    'sarmiento de junin': 'Sarmiento (J)',
+    'sarmiento (j)': 'Sarmiento (J)',
+    'gimnasia y esgrima (mendoza)': 'Gimnasia (Mza.)',
+    'gimnasia de mendoza': 'Gimnasia (Mza.)',
+    'gimnasia (mza.)': 'Gimnasia (Mza.)',
+    'nacional de uruguay': 'Nacional (URU)',
+    'nacional (uru)': 'Nacional (URU)',
+    'argentinos juniors': 'Argentinos Jrs.',
+    'argentinos jrs.': 'Argentinos Jrs.',
+    'estudiantes de rio cuarto': 'Estudiantes (RC)',
+    'estudiantes (rio cuarto)': 'Estudiantes (RC)',
+    'universidad central de venezuela': 'UCV',
+    'universidad central de venezuela fc': 'UCV',
+    'ucv': 'UCV',
+    'santos futebol clube': 'Santos'
+  };
+  return aliases[normalized] || raw;
+}
+
+function drawFootballTeamName(ctx, value, centerX, baselineY, maxWidth, dark) {
+  const label = footballDisplayName(value);
+  const words = label.split(/\s+/);
+  let fontSize = Math.max(14, Math.round(Math.min(maxWidth, 240) * 0.105));
+  const minFont = Math.max(11, Math.round(fontSize * 0.72));
+  const family = '"Inter", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
+  ctx.font = `700 ${fontSize}px ${family}`;
+  while (ctx.measureText(label).width > maxWidth && fontSize > minFont) {
+    fontSize -= 1;
+    ctx.font = `700 ${fontSize}px ${family}`;
+  }
+  if (ctx.measureText(label).width <= maxWidth) {
+    ctx.fillText(label, centerX, baselineY);
+  } else {
+    const lines = [];
+    let line = '';
+    words.forEach(word => {
+      const candidate = line ? `${line} ${word}` : word;
+      if (ctx.measureText(candidate).width <= maxWidth || !line) line = candidate;
+      else { lines.push(line); line = word; }
+    });
+    if (line) lines.push(line);
+    const visible = lines.slice(0, 2);
+    const lineHeight = fontSize * 1.08;
+    const firstY = baselineY - (visible.length - 1) * lineHeight * .5;
+    visible.forEach((text, i) => ctx.fillText(text, centerX, firstY + i * lineHeight));
+  }
+  ctx.textAlign = 'left';
+}
+
 function footballCompetitionKey(value) {
   const raw = String(value || '').toLowerCase();
   if (raw.includes('sudamericana')) return 'copa-sudamericana';
@@ -278,16 +333,13 @@ function dibujarFootballCanvas(ctx, W, H) {
     const competitionImg = getFootballImage('competencias', competitionKey);
     if (competitionImg) drawFootballImageContain(ctx, competitionImg, x + cardW * .79, y + cardH * .04, cardW * .16, cardH * .15);
     ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
-    ctx.font = `700 ${Math.max(16, Math.round(Math.min(W, H) * 0.021))}px "Inter", sans-serif`;
     const mid = x + cardW * .5;
-    ctx.textAlign = 'center';
-    ctx.fillText(p.local, x + cardW * .25, y + cardH * .82);
+    drawFootballTeamName(ctx, p.local, x + cardW * .25, y + cardH * .82, cardW * .40, dark);
     ctx.fillStyle = dark ? 'rgba(255,255,255,.65)' : VS_Colors.INK2;
     ctx.font = `500 ${Math.max(12, Math.round(Math.min(W, H) * 0.014))}px "Inter", sans-serif`;
+    ctx.textAlign = 'center';
     ctx.fillText(p.resultado || 'vs', mid, y + cardH * .58);
-    ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
-    ctx.font = `700 ${Math.max(16, Math.round(Math.min(W, H) * 0.021))}px "Inter", sans-serif`;
-    ctx.fillText(p.visitante, x + cardW * .75, y + cardH * .82);
+    drawFootballTeamName(ctx, p.visitante, x + cardW * .75, y + cardH * .82, cardW * .40, dark);
     ctx.textAlign = 'left';
     ctx.fillStyle = dark ? 'rgba(255,255,255,.58)' : VS_Colors.INK2;
     ctx.font = `600 ${Math.max(10, Math.round(Math.min(W, H) * 0.011))}px "Inter", sans-serif`;
@@ -346,6 +398,7 @@ if (typeof window !== 'undefined') {
   window.validarFootballData = validarFootballData;
   window.esCompeticionFootballPermitida = esCompeticionFootballPermitida;
   window.footballAssetKeyFromName = footballAssetKeyFromName;
+  window.footballDisplayName = footballDisplayName;
   window.initFootball = initFootball;
   window.generarPromptFootball = generarPromptFootball;
   window.copiarPromptFootball = copiarPromptFootball;
@@ -356,4 +409,4 @@ if (typeof window !== 'undefined') {
   window.limpiarFootball = limpiarFootball;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, esCompeticionFootballPermitida };
+if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, footballDisplayName, esCompeticionFootballPermitida };

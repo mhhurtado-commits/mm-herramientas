@@ -2,7 +2,8 @@ const {
   normalizarFootballJSON,
   validarFootballData,
   footballAssetKeyFromName,
-  esCompeticionFootballPermitida
+  esCompeticionFootballPermitida,
+  footballDisplayName
 } = require('./football.js');
 
 const valido = normalizarFootballJSON({
@@ -33,6 +34,17 @@ if (esCompeticionFootballPermitida('Primera División de Paraguay')) {
 }
 if (!esCompeticionFootballPermitida('Copa Sudamericana')) {
   throw new Error('Se rechazó una competencia CONMEBOL válida');
+}
+const displayNames = {
+  'Sarmiento de Junín': 'Sarmiento (J)',
+  'Gimnasia y Esgrima (Mendoza)': 'Gimnasia (Mza.)',
+  'Nacional de Uruguay': 'Nacional (URU)',
+  'Argentinos Juniors': 'Argentinos Jrs.',
+  'Estudiantes de Río Cuarto': 'Estudiantes (RC)',
+  'Universidad Central de Venezuela': 'UCV'
+};
+for (const [full, expected] of Object.entries(displayNames)) {
+  if (footballDisplayName(full) !== expected) throw new Error(`Abreviatura incorrecta para ${full}`);
 }
 
 console.log('football.test.js: OK');
