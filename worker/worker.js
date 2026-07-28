@@ -3,6 +3,11 @@
 // ============================================================
 // @ts-nocheck
 
+import {
+  normalizarFixtureAPIFootball,
+  deduplicarYOrdenarPartidos,
+} from './football-daily.mjs';
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS",
@@ -1701,6 +1706,86 @@ async function obtenerPartidosAPIFootballFutbol(env, fecha, competicionKey) {
 }
 
 // Obtener posiciones para cualquier competición
+// Consulta diaria de API-Football: una respuesta acotada por competencia y fecha.
+// Una respuesta vacÃ­a vÃ¡lida no debe reemplazarse por un fallback parcial.
+async function obtenerPartidosAPIFootballDiarios(env, fecha, competicionKey) {
+  const apiKey = env.API_FOOTBALL_KEY;
+  if (!apiKey) return { error: 'API-Football key no configurada' };
+
+  const comp = getCompeticion(competicionKey);
+  const leagueId = comp.apiFootball?.league;
+  const season = comp.apiFootball?.season;
+  if (!leagueId || !season) return { error: `${comp.nombre} no disponible en API-Football` };
+
+  const ahoraAR = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const fechaBase = fecha || ahoraAR.toISOString().split('T')[0];
+  const cacheKey = `futbol:af:diario:${competicionKey}:${fechaBase}`;
+
+  try {
+    if (env.KV) {
+      const cached = await env.KV.get(cacheKey, 'json');
+      if (cached?.partidos && Date.now() - (cached._cachedAt || 0) < 6 * 60 * 60 * 1000) {
+        return { partidos: cached.partidos, fecha: fechaBase, fuente: 'api-football-cache', completa: true };
+      }
+    }
+  } catch (e) {}
+
+  const params = new URLSearchParams({
+    league: String(leagueId),
+    season: String(season),
+    date: fechaBase,
+    timezone: 'America/Argentina/Buenos_Aires',
+  });
+
+  let res;
+  try {
+    res = await fetch(`${API_FOOTBALL_URL}/fixtures?${params}`, {
+      headers: { 'x-apisports-key': apiKey },
+    });
+  } catch (e) {
+    return { error: `Error de conexiÃ³n API-Football: ${e.message}` };
+  }
+
+  const rawText = await res.text();
+  let data;
+  try { data = JSON.parse(rawText); } catch (e) {
+    return { error: 'Error parseando respuesta de API-Football', _debug: { status: res.status } };
+  }
+  if (!res.ok) return { error: `Error API-Football: ${res.status}` };
+  if (data.errors && Object.keys(data.errors).length > 0) {
+    if (data.errors.rateLimit || data.errors.Requests) return { error: 'Rate limit API-Football: esperÃ¡ unos minutos' };
+    return { error: `API-Football: ${Object.values(data.errors).join(', ')}` };
+  }
+
+  const partidos = deduplicarYOrdenarPartidos((data.response || [])
+    .map(raw => {
+      const partido = normalizarFixtureAPIFootball(raw, fechaBase);
+      if (!partido) return null;
+      return {
+        ...partido,
+        banderaLocal: getFlagPais(partido.local),
+        banderaVisitante: getFlagPais(partido.visitante),
+        estado: traducirEstadoAPIFootball(partido.estado),
+        grupo: null,
+        etapa: null,
+        arbitro: raw.fixture?.referee || null,
+        golesHTLocal: null,
+        golesHTVisitante: null,
+        goleadores: [],
+        _fechaPartido: partido.fecha,
+      };
+    })
+    .filter(Boolean));
+
+  try {
+    if (env.KV) {
+      await env.KV.put(cacheKey, JSON.stringify({ partidos, _cachedAt: Date.now() }), { expirationTtl: 21600 });
+    }
+  } catch (e) {}
+
+  return { partidos, fecha: fechaBase, fuente: 'api-football', completa: true };
+}
+
 async function obtenerPosicionesFutbol(env, competicionKey) {
   const comp = getCompeticion(competicionKey);
 
@@ -1825,6 +1910,12 @@ async function obtenerGoleadoresFutbol(env, competicionKey) {
 async function obtenerPartidosCombinadosFutbol(env, fecha, competicionKey) {
   const comp = getCompeticion(competicionKey);
   const resultados = { partidos: [], fecha: fecha || null, fuentes: [], competicion: comp.nombre };
+  const afDiario = await obtenerPartidosAPIFootballDiarios(env, fecha, competicionKey);
+  if (!afDiario.error && afDiario.completa) {
+    resultados.fuentes.push(afDiario.fuente || 'api-football');
+    resultados.fecha = afDiario.fecha;
+    return { ...resultados, partidos: afDiario.partidos };
+  }
 
   // 0) OANOR como fuente principal (datos más completos, una llamada por fecha)
   const oanorAll = await obtenerPartidosOANOR(env, fecha);
