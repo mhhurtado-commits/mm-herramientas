@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "actualizado": "2026-07-28",
+  "fuentes": {
+    "principal": "https://www.footylogos.com/",
+    "alternativa": "https://commons.wikimedia.org/"
+  },
+  "equipos": {
+    "aldosivi": {
+      "nombre": "aldosivi",
+      "archivo": "assets/futbol/equipos/aldosivi.png",
+      "fuente": "https://www.footylogos.com/es/logos/aldosivi",
+      "estado": "ok"
+    },
+    "argentinos-juniors": {
+      "nombre": "argentinos-juniors",
+      "archivo": "assets/futbol/equipos/argentinos-juniors.png",
+      "fuente": "https://www.footylogos.com/es/logos/argentinos-juniors",
+      "estado": "ok"
+    },
+    "atletico-platense": {
+      "nombre": "atletico-platense",
+      "archivo": "assets/futbol/equipos/atletico-platense.png",
+      "fuente": "https://www.footylogos.com/es/logos/atletico-platense",
+      "estado": "ok"
+    },
+    "atletico-tucuman": {
+      "nombre": "atletico-tucuman",
+      "archivo": "assets/futbol/equipos/atletico-tucuman.png",
+      "fuente": "https://www.footylogos.com/es/logos/atletico-tucuman",
+      "estado": "ok"
+    },
+    "banfield": {
+      "nombre": "banfield",
+      "archivo": "assets/futbol/equipos/banfield.png",
+      "fuente": "https://www.footylogos.com/es/logos/banfield",
+      "estado": "ok"
+    },
+    "barracas-central": {
+      "nombre": "barracas-central",
+      "archivo": "assets/futbol/equipos/barracas-central.png",
+      "fuente": "https://www.footylogos.com/es/logos/barracas-central",
+      "estado": "ok"
+    },
+    "belgrano": {
+      "nombre": "belgrano",
+      "archivo": "assets/futbol/equipos/belgrano.png",
+      "fuente": "https://www.footylogos.com/es/logos/belgrano",
+      "estado": "ok"
+    },
+    "boca-juniors": {
+      "nombre": "boca-juniors",
+      "archivo": "assets/futbol/equipos/boca-juniors.png",
+      "fuente": "https://www.footylogos.com/es/logos/boca-juniors",
+      "estado": "ok"
+    },
+    "bolivar": {
+      "nombre": "bolivar",
+      "archivo": "assets/futbol/equipos/bolivar.png",
+      "fuente": "https://www.footylogos.com/es/logos/bolivar",
+      "estado": "ok"
+    },
+    "bragantino": {
+      "nombre": "bragantino",
+      "archivo": "assets/futbol/equipos/bragantino.png",
+      "fuente": "https://www.footylogos.com/es/logos/bragantino",
+      "estado": "ok"
+    },
+    "caracas": {
+      "nombre": "caracas",
+      "archivo": "assets/futbol/equipos/caracas.png",
+      "fuente": "https://www.footylogos.com/es/logos/caracas",
+      "estado": "ok"
+    },
+    "central-cordoba-se": {
+      "nombre": "central-cordoba-se",
+      "archivo": "assets/futbol/equipos/central-cordoba-se.png",
+      "fuente": "https://www.footylogos.com/es/logos/central-cordoba-se",
+      "estado": "ok"
+    },
+    "cienciano": {
+      "nombre": "cienciano",
+      "archivo": "assets/futbol/equipos/cienciano.png",
+      "fuente": "https://www.footylogos.com/es/logos/cienciano",
+      "estado": "ok"
+    },
+    "defensa-y-justicia": {
+      "nombre": "defensa-y-justicia",
+      "archivo": "assets/futbol/equipos/defensa-y-justicia.png",
+      "fuente": "https://www.footylogos.com/es/logos/defensa-y-justicia",
+      "estado": "ok"
+    },
+    "deportivo-riestra": {
+      "nombre": "deportivo-riestra",
+      "archivo": "assets/futbol/equipos/deportivo-riestra.png",
+      "fuente": "https://www.footylogos.com/es/logos/deportivo-riestra",
+      "estado": "ok"
+    },
+    "estudiantes-de-la-plata": {
+      "nombre": "estudiantes-de-la-plata",
+      "archivo": "assets/futbol/equipos/estudiantes-de-la-plata.png",
+      "fuente": "https://www.footylogos.com/es/logos/estudiantes-de-la-plata",
+      "estado": "ok"
+    },
+    "estudiantes-de-rio-cuarto": {
+      "nombre": "estudiantes-de-rio-cuarto",
+      "archivo": "assets/futbol/equipos/estudiantes-de-rio-cuarto.png",
+      "fuente": "https://www.footylogos.com/es/logos/estudiantes-de-rio-cuarto",
+      "estado": "ok"
+    },
+    "gimnasia-y-esgrima-lp": {
+      "nombre": "gimnasia-y-esgrima-lp",
+      "archivo": "assets/futbol/equipos/gimnasia-y-esgrima-lp.png",
+      "fuente": "https://www.footylogos.com/es/logos/gimnasia-y-esgrima-lp",
+      "estado": "ok"
+    },
+    "gimnasia-y-esgrima": {
+      "nombre": "gimnasia-y-esgrima",
+      "archivo": "assets/futbol/equipos/gimnasia-y-esgrima.png",
+      "fuente": "https://www.footylogos.com/es/logos/gimnasia-y-esgrima",
+      "estado": "ok"
+    },
+    "gremio": {
+      "nombre": "gremio",
+      "archivo": "assets/futbol/equipos/gremio.png",
+      "fuente": "https://www.footylogos.com/es/logos/gremio",
+      "estado": "ok"
+    },
+    "huracan": {
+      "nombre": "huracan",
+      "archivo": "assets/futbol/equipos/huracan.png",
+      "fuente": "https://www.footylogos.com/es/logos/huracan",
+      "estado": "ok"
+    },
+    "independiente-medellin": {
+      "nombre": "independiente-medellin",
+      "archivo": "assets/futbol/equipos/independiente-medellin.png",
+      "fuente": "https://www.footylogos.com/es/logos/independiente-medellin",
+      "estado": "ok"
+    },
+    "independiente-rivadavia": {
+      "nombre": "independiente-rivadavia",
+      "archivo": "assets/futbol/equipos/independiente-rivadavia.png",
+      "fuente": "https://www.footylogos.com/es/logos/independiente-rivadavia",
+      "estado": "ok"
+    },
+    "independiente": {
+      "nombre": "independiente",
+      "archivo": "assets/futbol/equipos/independiente.png",
+      "fuente": "https://www.footylogos.com/es/logos/independiente",
+      "estado": "ok"
+    },
+    "instituto-cordoba": {
+      "nombre": "instituto-cordoba",
+      "archivo": "assets/futbol/equipos/instituto-cordoba.png",
+      "fuente": "https://www.footylogos.com/es/logos/instituto-cordoba",
+      "estado": "ok"
+    },
+    "lanus": {
+      "nombre": "lanus",
+      "archivo": "assets/futbol/equipos/lanus.png",
+      "fuente": "https://www.footylogos.com/es/logos/lanus",
+      "estado": "ok"
+    },
+    "nacional-uru": {
+      "nombre": "nacional-uru",
+      "archivo": "assets/futbol/equipos/nacional-uru.png",
+      "fuente": "https://www.footylogos.com/es/logos/nacional-uru",
+      "estado": "ok"
+    },
+    "newells-old-boys": {
+      "nombre": "newells-old-boys",
+      "archivo": "assets/futbol/equipos/newells-old-boys.png",
+      "fuente": "https://www.footylogos.com/es/logos/newells-old-boys",
+      "estado": "ok"
+    },
+    "ohiggins": {
+      "nombre": "ohiggins",
+      "archivo": "assets/futbol/equipos/ohiggins.png",
+      "fuente": "https://www.footylogos.com/es/logos/ohiggins",
+      "estado": "ok"
+    },
+    "racing-club": {
+      "nombre": "racing-club",
+      "archivo": "assets/futbol/equipos/racing-club.png",
+      "fuente": "https://www.footylogos.com/es/logos/racing-club",
+      "estado": "ok"
+    },
+    "river-plate": {
+      "nombre": "river-plate",
+      "archivo": "assets/futbol/equipos/river-plate.png",
+      "fuente": "https://www.footylogos.com/es/logos/river-plate",
+      "estado": "ok"
+    },
+    "rosario-central": {
+      "nombre": "rosario-central",
+      "archivo": "assets/futbol/equipos/rosario-central.png",
+      "fuente": "https://www.footylogos.com/es/logos/rosario-central",
+      "estado": "ok"
+    },
+    "san-lorenzo": {
+      "nombre": "san-lorenzo",
+      "archivo": "assets/futbol/equipos/san-lorenzo.png",
+      "fuente": "https://www.footylogos.com/es/logos/san-lorenzo",
+      "estado": "ok"
+    },
+    "santa-fe": {
+      "nombre": "santa-fe",
+      "archivo": "assets/futbol/equipos/santa-fe.png",
+      "fuente": "https://www.footylogos.com/es/logos/santa-fe",
+      "estado": "ok"
+    },
+    "santos": {
+      "nombre": "santos",
+      "archivo": "assets/futbol/equipos/santos.png",
+      "fuente": "https://www.footylogos.com/es/logos/santos",
+      "estado": "ok"
+    },
+    "sarmiento": {
+      "nombre": "sarmiento",
+      "archivo": "assets/futbol/equipos/sarmiento.png",
+      "fuente": "https://www.footylogos.com/es/logos/sarmiento",
+      "estado": "ok"
+    },
+    "sporting-cristal": {
+      "nombre": "sporting-cristal",
+      "archivo": "assets/futbol/equipos/sporting-cristal.png",
+      "fuente": "https://www.footylogos.com/es/logos/sporting-cristal",
+      "estado": "ok"
+    },
+    "talleres": {
+      "nombre": "talleres",
+      "archivo": "assets/futbol/equipos/talleres.png",
+      "fuente": "https://www.footylogos.com/es/logos/talleres",
+      "estado": "ok"
+    },
+    "tigre": {
+      "nombre": "tigre",
+      "archivo": "assets/futbol/equipos/tigre.png",
+      "fuente": "https://www.footylogos.com/es/logos/tigre",
+      "estado": "ok"
+    },
+    "union": {
+      "nombre": "union",
+      "archivo": "assets/futbol/equipos/union.png",
+      "fuente": "https://www.footylogos.com/es/logos/union",
+      "estado": "ok"
+    },
+    "universidad-central-venezuela": {
+      "nombre": "universidad-central-venezuela",
+      "archivo": "assets/futbol/equipos/universidad-central-venezuela.png",
+      "fuente": "https://www.footylogos.com/es/logos/universidad-central-venezuela",
+      "estado": "ok"
+    },
+    "vasco-da-gama": {
+      "nombre": "vasco-da-gama",
+      "archivo": "assets/futbol/equipos/vasco-da-gama.png",
+      "fuente": "https://www.footylogos.com/es/logos/vasco-da-gama",
+      "estado": "ok"
+    },
+    "velez-sarsfield": {
+      "nombre": "velez-sarsfield",
+      "archivo": "assets/futbol/equipos/velez-sarsfield.png",
+      "fuente": "https://www.footylogos.com/es/logos/velez-sarsfield",
+      "estado": "ok"
+    }
+  },
+  "competencias": {
+    "liga-profesional-argentina": {
+      "nombre": "liga-profesional-argentina",
+      "archivo": "assets/futbol/competencias/liga-profesional-argentina.png",
+      "fuente": "https://www.footylogos.com/",
+      "estado": "ok"
+    },
+    "liga-profesional": {
+      "nombre": "liga-profesional",
+      "archivo": "assets/futbol/competencias/liga-profesional.png",
+      "fuente": "https://www.footylogos.com/",
+      "estado": "ok"
+    }
+  }
+}

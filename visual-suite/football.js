@@ -4,6 +4,99 @@
 
 let footballData = { fecha: '', titulo: 'Partidos de hoy', subtitulo: '', partidos: [] };
 let footballFormat = 'landscape';
+const footballAssets = new Map();
+const footballAssetImages = new Map();
+let footballRenderToken = 0;
+
+function footballAssetKeyFromName(value) {
+  const raw = String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const aliases = {
+    'gimnasia y esgrima (mendoza)': 'gimnasia-y-esgrima',
+    'gimnasia de mendoza': 'gimnasia-y-esgrima',
+    'gimnasia (mza.)': 'gimnasia-y-esgrima',
+    'estudiantes (rio cuarto)': 'estudiantes-de-rio-cuarto',
+    'estudiantes de rio cuarto': 'estudiantes-de-rio-cuarto',
+    'nacional': 'nacional-uru',
+    'nacional de uruguay': 'nacional-uru',
+    'ucv': 'universidad-central-venezuela',
+    'universidad central': 'universidad-central-venezuela',
+    'santos fc': 'santos',
+    'santos futebol clube': 'santos',
+    'independiente medellin': 'independiente-medellin',
+    'independiente santa fe': 'santa-fe',
+    'o’higgins': 'ohiggins',
+    "o'higgins": 'ohiggins'
+  };
+  if (aliases[raw]) return aliases[raw];
+  return raw.replace(/\b(fc|fbc|club|club de futbol)\b/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function footballCompetitionKey(value) {
+  const raw = String(value || '').toLowerCase();
+  if (raw.includes('sudamericana')) return 'copa-sudamericana';
+  if (raw.includes('liga') || raw.includes('clausura') || raw.includes('profesional')) return 'liga-profesional';
+  return footballAssetKeyFromName(value);
+}
+
+function footballAssetUrl(type, key, ext) {
+  if (!key) return '';
+  return `../assets/futbol/${type}/${key}.${ext || 'png'}`;
+}
+
+function loadFootballAsset(type, key) {
+  const cacheKey = `${type}:${key}`;
+  if (!key) return Promise.resolve(null);
+  if (footballAssets.has(cacheKey)) return footballAssets.get(cacheKey);
+  const promise = new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => { footballAssetImages.set(cacheKey, img); resolve(img); };
+    img.onerror = () => resolve(null);
+    img.src = footballAssetUrl(type, key, type === 'competencias' && key === 'copa-sudamericana' ? 'svg' : 'png');
+  });
+  footballAssets.set(cacheKey, promise);
+  return promise;
+}
+
+function getFootballImage(type, key) {
+  return footballAssetImages.get(`${type}:${key}`) || null;
+}
+
+function drawFootballImageContain(ctx, img, x, y, w, h) {
+  if (!img || !img.naturalWidth) return false;
+  const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
+  const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  return true;
+}
+
+function drawFootballBadge(ctx, key, label, x, y, size, dark) {
+  const img = getFootballImage('equipos', key);
+  if (drawFootballImageContain(ctx, img, x, y, size, size)) return;
+  const initials = String(label || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || '?';
+  ctx.fillStyle = dark ? 'rgba(255,255,255,.14)' : 'rgba(22,32,27,.08)';
+  ctx.strokeStyle = '#a6ce39';
+  ctx.lineWidth = Math.max(2, size * .025);
+  ctx.beginPath(); ctx.arc(x + size / 2, y + size / 2, size * .42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
+  ctx.font = `700 ${Math.max(14, size * .2)}px "Inter", sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(initials, x + size / 2, y + size / 2);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+
+function footballAssetKeyForMatch(match, side) {
+  const explicit = side === 'local' ? match.escudoLocal : match.escudoVisitante;
+  return footballAssetKeyFromName(explicit || (side === 'local' ? match.local : match.visitante));
+}
+
+async function preloadFootballAssets(data) {
+  const jobs = [];
+  (data.partidos || []).forEach(match => {
+    jobs.push(loadFootballAsset('equipos', footballAssetKeyForMatch(match, 'local')));
+    jobs.push(loadFootballAsset('equipos', footballAssetKeyForMatch(match, 'visitante')));
+    jobs.push(loadFootballAsset('competencias', footballCompetitionKey(match.competicion)));
+  });
+  await Promise.all(jobs);
+}
 
 function normalizarFootballJSON(input) {
   const data = input && typeof input === 'object' ? input : {};
@@ -22,7 +115,10 @@ function normalizarFootballJSON(input) {
       estadio: String(p?.estadio || '').trim(),
       estado: String(p?.estado || 'programado').trim().toLowerCase(),
       resultado: String(p?.resultado || '').trim(),
-      destacado: Boolean(p?.destacado)
+      destacado: Boolean(p?.destacado),
+      escudoLocal: String(p?.escudoLocal || '').trim(),
+      escudoVisitante: String(p?.escudoVisitante || '').trim(),
+      logoCompetencia: String(p?.logoCompetencia || '').trim()
     }))
   };
 }
@@ -79,16 +175,19 @@ Respondé SOLO JSON válido, sin markdown ni explicaciones, con esta estructura 
       "competicion": "Liga Profesional",
       "pais": "Argentina",
       "local": "Equipo local",
+      "escudoLocal": "clave-del-equipo-local",
       "visitante": "Equipo visitante",
+      "escudoVisitante": "clave-del-equipo-visitante",
       "estadio": "Estadio",
       "estado": "programado",
       "resultado": "",
+      "logoCompetencia": "liga-profesional",
       "destacado": false
     }
   ]
 }
 
-Reglas: usar horario de Argentina; incluir todas las competiciones encontradas sin duplicados; estado permitido: programado, en vivo, finalizado, suspendido o cancelado; si es un resultado, completar "resultado"; no rellenar con suposiciones.`;
+Reglas: usar horario de Argentina; incluir todas las competiciones encontradas sin duplicados; estado permitido: programado, en vivo, finalizado, suspendido o cancelado; si es un resultado, completar "resultado"; no rellenar con suposiciones. Para los campos de recursos usar claves simples, no URLs: liga-profesional, copa-sudamericana, racing-club, tigre, nacional-uru, etc.`;
   const field = document.getElementById('footballPrompt');
   if (field) field.value = prompt;
   toast('✅ Prompt de fútbol generado');
@@ -158,17 +257,25 @@ function dibujarFootballCanvas(ctx, W, H) {
     ctx.fillStyle = '#a6ce39';
     ctx.font = `700 ${Math.max(18, Math.round(Math.min(W, H) * 0.022))}px "Inter", sans-serif`;
     ctx.fillText(p.hora, x + cardW * .045, y + cardH * .25);
+    const localKey = footballAssetKeyForMatch(p, 'local');
+    const visitanteKey = footballAssetKeyForMatch(p, 'visitante');
+    const badgeSize = Math.min(cardW * .18, cardH * .38);
+    drawFootballBadge(ctx, localKey, p.local, x + cardW * .08, y + cardH * .34, badgeSize, dark);
+    drawFootballBadge(ctx, visitanteKey, p.visitante, x + cardW * .74, y + cardH * .34, badgeSize, dark);
+    const competitionKey = p.logoCompetencia || footballCompetitionKey(p.competicion);
+    const competitionImg = getFootballImage('competencias', competitionKey);
+    if (competitionImg) drawFootballImageContain(ctx, competitionImg, x + cardW * .79, y + cardH * .04, cardW * .16, cardH * .15);
     ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
     ctx.font = `700 ${Math.max(16, Math.round(Math.min(W, H) * 0.021))}px "Inter", sans-serif`;
     const mid = x + cardW * .5;
     ctx.textAlign = 'center';
-    ctx.fillText(p.local, mid, y + cardH * .53);
+    ctx.fillText(p.local, x + cardW * .25, y + cardH * .82);
     ctx.fillStyle = dark ? 'rgba(255,255,255,.65)' : VS_Colors.INK2;
     ctx.font = `500 ${Math.max(12, Math.round(Math.min(W, H) * 0.014))}px "Inter", sans-serif`;
-    ctx.fillText(p.resultado || 'vs', mid, y + cardH * .69);
+    ctx.fillText(p.resultado || 'vs', mid, y + cardH * .58);
     ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
     ctx.font = `700 ${Math.max(16, Math.round(Math.min(W, H) * 0.021))}px "Inter", sans-serif`;
-    ctx.fillText(p.visitante, mid, y + cardH * .86);
+    ctx.fillText(p.visitante, x + cardW * .75, y + cardH * .82);
     ctx.textAlign = 'left';
     ctx.fillStyle = dark ? 'rgba(255,255,255,.58)' : VS_Colors.INK2;
     ctx.font = `600 ${Math.max(10, Math.round(Math.min(W, H) * 0.011))}px "Inter", sans-serif`;
@@ -194,13 +301,18 @@ function renderFootball() {
   canvas.height = format.h;
   canvas.style.width = width + 'px';
   canvas.style.height = Math.round(width / ratio) + 'px';
+  const token = ++footballRenderToken;
   dibujarFootballCanvas(canvas.getContext('2d'), format.w, format.h);
+  preloadFootballAssets(footballData).then(() => {
+    if (token === footballRenderToken) dibujarFootballCanvas(canvas.getContext('2d'), format.w, format.h);
+  });
   const count = document.getElementById('footballCount');
   if (count) count.textContent = `${footballData.partidos.length} partido${footballData.partidos.length === 1 ? '' : 's'}`;
 }
 
-function exportarFootball() {
+async function exportarFootball() {
   const format = VS_Formats[footballFormat] || VS_Formats.landscape;
+  await preloadFootballAssets(footballData);
   const canvas = document.createElement('canvas');
   canvas.width = format.w; canvas.height = format.h;
   dibujarFootballCanvas(canvas.getContext('2d'), format.w, format.h);
@@ -220,6 +332,7 @@ function limpiarFootball() {
 if (typeof window !== 'undefined') {
   window.normalizarFootballJSON = normalizarFootballJSON;
   window.validarFootballData = validarFootballData;
+  window.footballAssetKeyFromName = footballAssetKeyFromName;
   window.initFootball = initFootball;
   window.generarPromptFootball = generarPromptFootball;
   window.copiarPromptFootball = copiarPromptFootball;
@@ -230,4 +343,4 @@ if (typeof window !== 'undefined') {
   window.limpiarFootball = limpiarFootball;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData };
+if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName };
