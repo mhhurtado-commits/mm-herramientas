@@ -1,7 +1,8 @@
 const {
   normalizarFootballJSON,
   validarFootballData,
-  footballAssetKeyFromName
+  footballAssetKeyFromName,
+  esCompeticionFootballPermitida
 } = require('./football.js');
 
 const valido = normalizarFootballJSON({
@@ -26,6 +27,12 @@ if (footballAssetKeyFromName('Gimnasia y Esgrima (Mendoza)') !== 'gimnasia-y-esg
 }
 if (footballAssetKeyFromName('Estudiantes de Río Cuarto') !== 'estudiantes-de-rio-cuarto') {
   throw new Error('No se normalizaron acentos en el nombre del equipo');
+}
+if (esCompeticionFootballPermitida('Primera División de Paraguay')) {
+  throw new Error('Se permitió una liga nacional extranjera');
+}
+if (!esCompeticionFootballPermitida('Copa Sudamericana')) {
+  throw new Error('Se rechazó una competencia CONMEBOL válida');
 }
 
 console.log('football.test.js: OK');

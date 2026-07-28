@@ -38,6 +38,13 @@ function footballCompetitionKey(value) {
   return footballAssetKeyFromName(value);
 }
 
+function esCompeticionFootballPermitida(value) {
+  const competition = String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const countryLeague = /(paraguay|brasil|brazil|uruguay|chile|colombia|peru|ecuador|bolivia|venezuela|mexico|usa|espana|italia|inglaterra|alemania)/;
+  if (countryLeague.test(competition)) return false;
+  return /(liga profesional|torneo clausura|torneo apertura|copa argentina|primera division argentina|copa libertadores|libertadores|copa sudamericana|sudamericana|recopa sudamericana)/.test(competition);
+}
+
 function footballAssetUrl(type, key, ext) {
   if (!key) return '';
   return `../assets/futbol/${type}/${key}.${ext || 'png'}`;
@@ -130,6 +137,9 @@ function validarFootballData(data) {
   if (!d.partidos.length) errores.push('No hay partidos');
   d.partidos.forEach((p, i) => {
     if (!p.local || !p.visitante) errores.push(`Partido ${i + 1}: faltan equipos`);
+    if (p.competicion && !esCompeticionFootballPermitida(p.competicion)) {
+      errores.push(`Partido ${i + 1}: competencia fuera del alcance (${p.competicion})`);
+    }
   });
   return { ok: errores.length === 0, errores, data: d };
 }
@@ -154,7 +164,8 @@ function initFootball() {
 
 function generarPromptFootball() {
   const fecha = document.getElementById('footballFecha')?.value || '';
-  const alcance = document.getElementById('footballAlcance')?.value || 'Argentina y CONMEBOL';
+  const alcanceBase = document.getElementById('footballAlcance')?.value || 'Argentina y CONMEBOL';
+  const alcance = `${alcanceBase}. SOLO Liga Profesional/Torneo Clausura argentino y torneos internacionales de clubes CONMEBOL (Libertadores, Sudamericana o Recopa). EXCLUIR ligas nacionales extranjeras: Liga Paraguaya, Brasileirao, Liga Uruguaya, Liga Chilena, Liga Colombiana, Liga Peruana, Liga Ecuatoriana, Liga Boliviana y Liga Venezolana.`;
   const tipo = document.getElementById('footballTipo')?.value || 'partidos del día';
   const extra = document.getElementById('footballTema')?.value?.trim() || '';
   if (!fecha) return toast('Seleccioná una fecha para generar el prompt');
@@ -166,6 +177,7 @@ Verificá cada partido en fuentes confiables. No inventes partidos, horarios, co
 Respondé SOLO JSON válido, sin markdown ni explicaciones, con esta estructura exacta:
 {
   "fecha": "${footballDateLabel(fecha)}",
+  "alcance": "Argentina: Liga Profesional + torneos CONMEBOL de clubes",
   "titulo": "Partidos de hoy",
   "subtitulo": "Argentina y CONMEBOL",
   "fuente": "Fuentes consultadas",
@@ -332,6 +344,7 @@ function limpiarFootball() {
 if (typeof window !== 'undefined') {
   window.normalizarFootballJSON = normalizarFootballJSON;
   window.validarFootballData = validarFootballData;
+  window.esCompeticionFootballPermitida = esCompeticionFootballPermitida;
   window.footballAssetKeyFromName = footballAssetKeyFromName;
   window.initFootball = initFootball;
   window.generarPromptFootball = generarPromptFootball;
@@ -343,4 +356,4 @@ if (typeof window !== 'undefined') {
   window.limpiarFootball = limpiarFootball;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName };
+if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, esCompeticionFootballPermitida };
