@@ -26,6 +26,9 @@
   margin: 20px 0 24px;
   overflow-x: auto;
 }
+.vs-nav-group { display:inline-flex; align-items:center; gap:2px; padding-left:8px; margin-left:4px; border-left:1px solid var(--line2); }
+.vs-nav-group:first-child { border-left:0; margin-left:0; padding-left:0; }
+.vs-nav-label { align-self:center; padding:0 6px; color:var(--dim); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; white-space:nowrap; }
 .vs-tab {
   font-size: 11px;
   font-weight: 700;
@@ -202,6 +205,11 @@
 .vs-btn-danger:hover { background: var(--red); color: #fff; }
 .vs-btn-accent { background: var(--surface2); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
 .vs-btn-accent:hover { background: #3b82f6; color: #fff; }
+.vs-football-status { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:11px; }
+.vs-football-status .dot { width:8px; height:8px; border-radius:50%; background:var(--v); }
+.vs-json-help { color:var(--muted); font-size:11px; line-height:1.5; }
+.vs-football-area { max-width:900px; }
+.vs-football-area canvas { width:100%; height:auto; display:block; border-radius:var(--radius); }
 
 .vs-url-bar {
   display: flex;
@@ -674,12 +682,19 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
 
   <!-- tabs -->
   <div class="vs-tabs" id="vsTabs">
-    <button class="vs-tab active" data-tab="charts"><span class="vs-tab-icon">📊</span>Gráficos</button>
-    <button class="vs-tab" data-tab="maps"><span class="vs-tab-icon">🗺️</span>Mapas</button>
-    <button class="vs-tab" data-tab="timeline"><span class="vs-tab-icon">📅</span>Línea de Tiempo</button>
-    <button class="vs-tab" data-tab="infographics"><span class="vs-tab-icon">🎨</span>Infografías</button>
-    <button class="vs-tab" data-tab="efemerides"><span class="vs-tab-icon">📆</span>Efemérides</button>
-    <button class="vs-tab" data-tab="editor"><span class="vs-tab-icon">🖊️</span>Editor</button>
+    <div class="vs-nav-group">
+      <span class="vs-nav-label">Generar</span>
+      <button class="vs-tab active" data-tab="charts"><span class="vs-tab-icon">&#128202;</span>Gráficos</button>
+      <button class="vs-tab" data-tab="maps"><span class="vs-tab-icon">&#128506;</span>Mapas</button>
+      <button class="vs-tab" data-tab="timeline"><span class="vs-tab-icon">&#128197;</span>Timeline</button>
+      <button class="vs-tab" data-tab="infographics"><span class="vs-tab-icon">&#127912;</span>Infografías</button>
+      <button class="vs-tab" data-tab="efemerides"><span class="vs-tab-icon">&#128467;</span>Efemérides</button>
+      <button class="vs-tab" data-tab="football"><span class="vs-tab-icon">&#9917;</span>Fútbol</button>
+    </div>
+    <div class="vs-nav-group">
+      <span class="vs-nav-label">Componer</span>
+      <button class="vs-tab" data-tab="editor"><span class="vs-tab-icon">&#128395;</span>Editor</button>
+    </div>
   </div>
 
   <!-- PANEL: GRÁFICOS -->
@@ -769,6 +784,42 @@ Mayo, 70</textarea>
           <canvas id="chartCanvas"></canvas>
           <div class="vs-logo-overlay" id="logoOverlayCharts" style="display:none"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL: FÚTBOL MANUAL -->
+  <div class="vs-panel" id="panel-football">
+    <div class="vs-tab-header">
+      <div class="vs-tab-header-title"><span>&#9917;</span> Fútbol</div>
+      <div class="vs-tab-header-actions">
+        <div class="vs-football-status"><span class="dot"></span> Fuente manual · sin API</div>
+        <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarFootball()">⬇ Exportar PNG</button>
+        <button class="vs-btn vs-btn-danger vs-btn-sm" onclick="limpiarFootball()">🗑 Limpiar</button>
+      </div>
+    </div>
+    <div class="vs-grid">
+      <div class="vs-card accent">
+        <div class="vs-card-header"><span class="vs-card-title">Datos de la jornada</span></div>
+        <div><div class="vs-label">Fecha</div><input class="vs-input" type="date" id="footballFecha" lang="es-AR" style="margin-top:6px"></div>
+        <div class="vs-row">
+          <div style="flex:1;min-width:180px"><div class="vs-label">Alcance</div><select class="vs-select" id="footballAlcance" style="width:100%;margin-top:6px"><option>Argentina y CONMEBOL</option><option>Fútbol argentino</option><option>Competiciones CONMEBOL</option><option>Internacional</option></select></div>
+          <div style="flex:1;min-width:180px"><div class="vs-label">Tipo de placa</div><select class="vs-select" id="footballTipo" style="width:100%;margin-top:6px"><option>partidos del día</option><option>resultados de la jornada</option><option>partido destacado</option><option>agenda del torneo</option></select></div>
+        </div>
+        <div><div class="vs-label">Tema o indicación adicional</div><input class="vs-input" id="footballTema" placeholder="Ej: priorizar equipos argentinos" style="margin-top:6px"></div>
+        <div><div class="vs-label">Formato</div><select class="vs-select" id="footballFormato" onchange="cambiarFormatoFootball()" style="margin-top:6px"><option value="landscape">Horizontal 16:9</option><option value="square">Cuadrado 1:1</option><option value="portrait">Vertical 4:5</option><option value="story">Historia 9:16</option></select></div>
+        <button class="vs-chat-toggle open" onclick="toggleChatIA('football')"><span class="arrow">▸</span> Trabajar con prompt y JSON</button>
+        <div class="vs-chat-body open" id="chat-football">
+          <div class="vs-json-help">Generá el prompt, consultalo en Gemini u otro asistente con acceso a internet y pegá la respuesta JSON verificada.</div>
+          <button class="vs-btn vs-btn-secondary" onclick="generarPromptFootball()">🤖 Generar prompt</button>
+          <div style="display:flex;gap:6px"><textarea class="vs-textarea" id="footballPrompt" style="flex:1;min-height:150px;font-family:monospace;font-size:11px" placeholder="Acá aparecerá el prompt..."></textarea><button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptFootball()" style="align-self:flex-start">📋 Copiar</button></div>
+          <div><div class="vs-label">JSON devuelto por el asistente</div><textarea class="vs-textarea" id="footballJson" style="margin-top:6px;min-height:150px;font-family:monospace;font-size:11px" placeholder='{"fecha":"martes 28 de julio de 2026","titulo":"Partidos de hoy","partidos":[{"hora":"19:00","local":"Equipo A","visitante":"Equipo B","competicion":"Liga Profesional"}]}'></textarea></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarJSONFootball()">📋 Cargar JSON</button><label class="vs-btn vs-btn-secondary vs-btn-sm" style="cursor:pointer">📁 Archivo<input type="file" accept=".json,application/json" style="display:none" onchange="cargarArchivoJSONFootball(this)"></label></div>
+        </div>
+      </div>
+      <div class="vs-card">
+        <div class="vs-card-header"><span class="vs-card-title">Placa de fútbol</span><span class="vs-badge" id="footballCount">0 partidos</span></div>
+        <div class="vs-infografia-area vs-football-area" id="footballArea"><canvas id="footballCanvas"></canvas></div>
       </div>
     </div>
   </div>
@@ -1191,6 +1242,7 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
 <script src="infographics.js"></script>
 <script src="recursos.js"></script>
 <script src="efemerides.js"></script>
+<script src="football.js"></script>
 <script src="publicacion.js"></script>
 <script src="editor.js"></script>
 </body>

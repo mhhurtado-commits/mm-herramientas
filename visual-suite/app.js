@@ -141,6 +141,7 @@ function cambiarTab(tab) {
   actualizarLogoOverlay();
   if (tab === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
   if (tab === 'efemerides' && typeof renderizarEfemerides === 'function') renderizarEfemerides();
+  if (tab === 'football' && typeof initFootball === 'function') initFootball();
   if (tab === 'editor' && typeof renderEditor === 'function') {
     if (!window.pubState || !window.pubState.secciones.length) generarBasePublicacion();
     renderEditor();
@@ -170,6 +171,9 @@ function exportarVisual() {
       break;
     case 'efemerides':
       if (typeof exportarEfemerides === 'function') exportarEfemerides();
+      break;
+    case 'football':
+      if (typeof exportarFootball === 'function') exportarFootball();
       break;
   }
 }
@@ -677,6 +681,7 @@ async function extraerDeUrl() {
 
 function initApp() {
   initLogo();
+  if (typeof initFootball === 'function') initFootball();
   // Enter en URL input
   document.getElementById('urlInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') extraerDeUrl();
@@ -698,5 +703,8 @@ window.addEventListener('resize', () => {
   }
   if (document.querySelector('#panel-efemerides.active') && typeof renderizarEfemerides === 'function') {
     renderizarEfemerides();
+  }
+  if (document.querySelector('#panel-football.active') && typeof renderFootball === 'function') {
+    renderFootball();
   }
 });
