@@ -1,0 +1,93 @@
+﻿diff --git a/carousel/ui.js b/carousel/ui.js
+index 67669ae..33fcf76 100644
+--- a/carousel/ui.js
++++ b/carousel/ui.js
+@@ -1047,6 +1047,31 @@ function downloadBlob(blob, fileName) {
+   }, 1000);
+ }
+ 
++var TRANSITION_MS = 420;
++var TRANSITION_FPS = 30;
++
++function easeOutCubic(value) {
++  return 1 - Math.pow(1 - value, 3);
++}
++
++function drawReelTransitionFrame(ctx, currentCanvas, nextCanvas, progress, direction) {
++  var easedProgress = easeOutCubic(progress);
++  var nextOffset = direction * (1 - easedProgress) * 28;
++
++  ctx.save();
++  ctx.globalAlpha = 1 - progress;
++  ctx.drawImage(currentCanvas, 0, 0, 1080, 1920);
++  ctx.globalAlpha = progress;
++  ctx.drawImage(nextCanvas, 0, nextOffset, 1080, 1920);
++  ctx.restore();
++}
++
++function isReelCtaScene(scene) {
++  var layout = String(scene && scene.layout || "").toLowerCase();
++  var role = String(scene && scene.visual_role || "").toLowerCase();
++  return layout === "cta" || role === "cta" || role === "conclusion";
++}
++
+ function getSupportedReelVideoType() {
+   if (typeof MediaRecorder !== "function" || typeof MediaRecorder.isTypeSupported !== "function") {
+     return "video/webm";
+@@ -1066,7 +1091,18 @@ function getSupportedReelVideoType() {
+ }
+ 
+ async function recordReelVideo(scenes, project, mimeType) {
+-  var fps = 30;
++  var fps = TRANSITION_FPS;
++  var renderedScenes = [];
++
++  for (var i = 0; i < scenes.length; i++) {
++    var renderedCanvas = renderReelSceneToCanvas(scenes[i], project);
++    if (renderedCanvas) {
++      renderedScenes.push({ scene: scenes[i], canvas: renderedCanvas });
++    }
++  }
++
++  if (!renderedScenes.length) return null;
++
+   var stageCanvas = document.createElement("canvas");
+   stageCanvas.width = 1080;
+   stageCanvas.height = 1920;
+@@ -1091,18 +1127,30 @@ async function recordReelVideo(scenes, project, mimeType) {
+ 
+   recorder.start();
+ 
+-  for (var i = 0; i < scenes.length; i++) {
+-    var frameCanvas = renderReelSceneToCanvas(scenes[i], project);
+-    if (!frameCanvas) continue;
+-
+-    var durationMs = Math.max(1200, Number(scenes[i].duration_ms || 0) || 2500);
++  for (var i = 0; i < renderedScenes.length; i++) {
++    var current = renderedScenes[i];
++    var durationMs = Math.max(1200, Number(current.scene.duration_ms || 0) || 2500);
+     var frameCount = Math.max(1, Math.round((durationMs / 1000) * fps));
+ 
+     for (var f = 0; f < frameCount; f++) {
+       ctx.clearRect(0, 0, stageCanvas.width, stageCanvas.height);
+-      ctx.drawImage(frameCanvas, 0, 0, stageCanvas.width, stageCanvas.height);
++      ctx.drawImage(current.canvas, 0, 0, stageCanvas.width, stageCanvas.height);
+       await wait(Math.round(1000 / fps));
+     }
++
++    var next = renderedScenes[i + 1];
++    if (next) {
++      var transitionDurationMs = TRANSITION_MS;
++      var transitionFrameCount = Math.max(1, Math.round((transitionDurationMs / 1000) * fps));
++      var direction = isReelCtaScene(next.scene) ? 0 : (i % 2 === 0 ? 1 : -1);
++
++      for (var t = 0; t < transitionFrameCount; t++) {
++        var progress = (t + 1) / transitionFrameCount;
++        ctx.clearRect(0, 0, stageCanvas.width, stageCanvas.height);
++        drawReelTransitionFrame(ctx, current.canvas, next.canvas, progress, direction);
++        await wait(Math.round(1000 / fps));
++      }
++    }
+   }
+ 
+   await wait(160);

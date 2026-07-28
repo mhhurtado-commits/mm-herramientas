@@ -1,0 +1,144 @@
+﻿diff --git a/carousel/reel-canvas-renderer.js b/carousel/reel-canvas-renderer.js
+index 6e95fca..4c13efd 100644
+--- a/carousel/reel-canvas-renderer.js
++++ b/carousel/reel-canvas-renderer.js
+@@ -14,11 +14,12 @@ export function renderReelSceneToCanvas(scene, project) {
+   applyThemeVariant(resolveThemeName(project));
+   var canvas = createCanvas(W, H);
+   var ctx = canvas.getContext("2d");
++  var family = resolveReelSceneFamily(scene, project);
+ 
+-  drawBackground(ctx, scene, project);
+-  drawSceneChrome(ctx, scene, project);
+-  drawSceneText(ctx, scene, project);
+-  drawSceneFooter(ctx, scene);
++  drawBackground(ctx, scene, project, family);
++  drawSceneChrome(ctx, scene, project, family);
++  drawSceneText(ctx, scene, project, family);
++  drawSceneFooter(ctx, scene, family);
+ 
+   return canvas;
+ }
+@@ -51,15 +52,14 @@ function resolveThemeName(project) {
+   return "mm_classic";
+ }
+ 
+-function drawBackground(ctx, scene, project) {
++function drawBackground(ctx, scene, project, family) {
+   var imageUrl = resolveSceneImage(scene, project);
+-  var isTextCard = scene.visual_type === "text_card" || !imageUrl;
++  var isTextFamily = ["list", "contact", "cta", "quote", "text"].indexOf(family) >= 0;
+ 
+-  if (isTextCard) {
+-    var layout = resolveSceneLayout(scene, getStructuredSceneContent(scene).items);
++  if (isTextFamily) {
+     var bg = ctx.createLinearGradient(0, 0, W, H);
+-    bg.addColorStop(0, layout === "cta" ? "#eef6d6" : "#ffffff");
+-    bg.addColorStop(1, layout === "cta" ? "#f8fbeF" : (MMTheme.colors.surfaceSoft || "#f8f6f1"));
++    bg.addColorStop(0, family === "cta" ? "#eef6d6" : "#ffffff");
++    bg.addColorStop(1, family === "cta" ? "#f8fbeF" : (MMTheme.colors.surfaceSoft || "#f8f6f1"));
+     ctx.fillStyle = bg;
+     ctx.fillRect(0, 0, W, H);
+ 
+@@ -87,7 +87,7 @@ function drawBackground(ctx, scene, project) {
+   ctx.fillRect(0, 0, W, H);
+ }
+ 
+-function drawSceneChrome(ctx, scene, project) {
++function drawSceneChrome(ctx, scene, project, family) {
+   ctx.strokeStyle = "rgba(255,255,255,0.72)";
+   ctx.lineWidth = 2;
+   roundRectStroke(ctx, 28, 28, W - 56, H - 56, 36);
+@@ -97,7 +97,7 @@ function drawSceneChrome(ctx, scene, project) {
+   topBar.addColorStop(1, MMTheme.colors.accentBarEnd || "#d9eb97");
+   fillRoundRect(ctx, 62, 58, W - 124, 26, 13, topBar);
+ 
+-  if (isCoverScene(scene)) {
++  if (family === "cover") {
+     drawSceneBrand(ctx, scene, project);
+   }
+ }
+@@ -150,14 +150,14 @@ function drawLogoWithBackdrop(ctx, logo, centerX, y, logoW, centeredY) {
+   ctx.restore();
+ }
+ 
+-function drawSceneText(ctx, scene, project) {
+-  var isTextCard = scene.visual_type === "text_card" || !resolveSceneImage(scene, project);
++function drawSceneText(ctx, scene, project, family) {
++  var isTextFamily = ["list", "contact", "cta", "quote", "text"].indexOf(family) >= 0;
+   var title = String(scene.text || "").trim() || "Sin texto principal";
+   var subtitle = String(scene.subtitle || "").trim();
+   var contentX = 104;
+   var contentW = W - 208;
+ 
+-  if (isTextCard) {
++  if (isTextFamily) {
+     var panelY = 234;
+     var panelH = H - 382;
+     fillRoundRect(ctx, 58, panelY, W - 116, panelH, 46, MMTheme.colors.panel);
+@@ -169,13 +169,12 @@ function drawSceneText(ctx, scene, project) {
+     fillRoundRect(ctx, 58, panelY, W - 116, 24, 12, MMTheme.colors.accent);
+ 
+     var content = getStructuredSceneContent(scene);
+-    var layout = resolveSceneLayout(scene, content.items);
+-    if (layout === "list") {
++    if (family === "list") {
+       drawListTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
+-    } else if (layout === "contact") {
++    } else if (family === "contact") {
+       drawContactTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
+-    } else if (layout === "cta" || layout === "quote") {
+-      drawCalloutTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW, layout);
++    } else if (family === "cta" || family === "quote") {
++      drawCalloutTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW, family);
+     } else {
+       drawDefaultTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW);
+     }
+@@ -438,9 +437,8 @@ function extractPhone(text) {
+   return match ? match[0] : "";
+ }
+ 
+-function drawSceneFooter(ctx, scene) {
+-  var content = getStructuredSceneContent(scene);
+-  if (resolveSceneLayout(scene, content.items) === "cta") return;
++function drawSceneFooter(ctx, scene, family) {
++  if (family === "cta") return;
+ 
+   var footerY = H - 104;
+   var logo = getCachedImage("/assets/logo.png");
+@@ -451,7 +449,7 @@ function drawSceneFooter(ctx, scene) {
+   ctx.strokeStyle = MMTheme.colors.brandLine;
+   ctx.lineWidth = 3;
+   ctx.beginPath();
+-  if (isCoverScene(scene)) {
++  if (family === "cover") {
+     ctx.moveTo(84, footerY);
+     ctx.lineTo(W - 84, footerY);
+   } else {
+@@ -462,7 +460,7 @@ function drawSceneFooter(ctx, scene) {
+   }
+   ctx.stroke();
+ 
+-  if (logo && !isCoverScene(scene)) {
++  if (logo && family !== "cover") {
+     drawLogoWithBackdrop(ctx, logo, W / 2, footerY, logoW, true);
+   }
+ }
+@@ -471,6 +469,17 @@ function isCoverScene(scene) {
+   return !!scene && (scene.visual_type === "cover_image" || scene.visual_role === "hook");
+ }
+ 
++export function resolveReelSceneFamily(scene, project) {
++  var content = getStructuredSceneContent(scene || {});
++  var layout = resolveSceneLayout(scene, content.items);
++  var imageUrl = resolveSceneImage(scene, project);
++
++  if (["list", "contact", "cta", "quote"].indexOf(layout) >= 0) return layout;
++  if (isCoverScene(scene) && imageUrl) return "cover";
++  if (imageUrl && scene.visual_type !== "text_card") return "image";
++  return "text";
++}
++
+ function resolveSceneImage(scene, project) {
+   if (!scene || !project || !project.article) return "";
+   var article = project.article;

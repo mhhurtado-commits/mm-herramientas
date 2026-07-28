@@ -14,11 +14,12 @@ export function renderReelSceneToCanvas(scene, project) {
   applyThemeVariant(resolveThemeName(project));
   var canvas = createCanvas(W, H);
   var ctx = canvas.getContext("2d");
+  var family = resolveReelSceneFamily(scene, project);
 
-  drawBackground(ctx, scene, project);
-  drawSceneChrome(ctx, scene, project);
-  drawSceneText(ctx, scene, project);
-  drawSceneFooter(ctx, scene);
+  drawBackground(ctx, scene, project, family);
+  drawSceneChrome(ctx, scene, project, family);
+  drawSceneText(ctx, scene, project, family);
+  drawSceneFooter(ctx, scene, family);
 
   return canvas;
 }
@@ -51,15 +52,14 @@ function resolveThemeName(project) {
   return "mm_classic";
 }
 
-function drawBackground(ctx, scene, project) {
+function drawBackground(ctx, scene, project, family) {
   var imageUrl = resolveSceneImage(scene, project);
-  var isTextCard = scene.visual_type === "text_card" || !imageUrl;
+  var isTextFamily = ["list", "contact", "cta", "quote", "text"].indexOf(family) >= 0;
 
-  if (isTextCard) {
-    var layout = resolveSceneLayout(scene, getStructuredSceneContent(scene).items);
+  if (isTextFamily) {
     var bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, layout === "cta" ? "#eef6d6" : "#ffffff");
-    bg.addColorStop(1, layout === "cta" ? "#f8fbeF" : (MMTheme.colors.surfaceSoft || "#f8f6f1"));
+    bg.addColorStop(0, family === "cta" ? "#eef6d6" : "#ffffff");
+    bg.addColorStop(1, family === "cta" ? "#f8fbeF" : (MMTheme.colors.surfaceSoft || "#f8f6f1"));
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
@@ -87,7 +87,7 @@ function drawBackground(ctx, scene, project) {
   ctx.fillRect(0, 0, W, H);
 }
 
-function drawSceneChrome(ctx, scene, project) {
+function drawSceneChrome(ctx, scene, project, family) {
   ctx.strokeStyle = "rgba(255,255,255,0.72)";
   ctx.lineWidth = 2;
   roundRectStroke(ctx, 28, 28, W - 56, H - 56, 36);
@@ -97,7 +97,7 @@ function drawSceneChrome(ctx, scene, project) {
   topBar.addColorStop(1, MMTheme.colors.accentBarEnd || "#d9eb97");
   fillRoundRect(ctx, 62, 58, W - 124, 26, 13, topBar);
 
-  if (isCoverScene(scene)) {
+  if (family === "cover") {
     drawSceneBrand(ctx, scene, project);
   }
 }
@@ -150,14 +150,19 @@ function drawLogoWithBackdrop(ctx, logo, centerX, y, logoW, centeredY) {
   ctx.restore();
 }
 
-function drawSceneText(ctx, scene, project) {
-  var isTextCard = scene.visual_type === "text_card" || !resolveSceneImage(scene, project);
+function drawSceneText(ctx, scene, project, family) {
+  var isTextFamily = ["list", "contact", "cta", "quote", "text"].indexOf(family) >= 0;
   var title = String(scene.text || "").trim() || "Sin texto principal";
   var subtitle = String(scene.subtitle || "").trim();
   var contentX = 104;
   var contentW = W - 208;
 
-  if (isTextCard) {
+  if (isTextFamily) {
+    if (family === "cta") {
+      drawReelCtaCard(ctx, title, subtitle, 234, contentX, contentW);
+      return;
+    }
+
     var panelY = 234;
     var panelH = H - 382;
     fillRoundRect(ctx, 58, panelY, W - 116, panelH, 46, MMTheme.colors.panel);
@@ -169,13 +174,12 @@ function drawSceneText(ctx, scene, project) {
     fillRoundRect(ctx, 58, panelY, W - 116, 24, 12, MMTheme.colors.accent);
 
     var content = getStructuredSceneContent(scene);
-    var layout = resolveSceneLayout(scene, content.items);
-    if (layout === "list") {
+    if (family === "list") {
       drawListTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
-    } else if (layout === "contact") {
+    } else if (family === "contact") {
       drawContactTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
-    } else if (layout === "cta" || layout === "quote") {
-      drawCalloutTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW, layout);
+    } else if (family === "quote") {
+      drawCalloutTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW, family);
     } else {
       drawDefaultTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW);
     }
@@ -254,18 +258,28 @@ function drawListTextCard(ctx, title, subtitle, items, panelY, panelH, contentX,
   var cursorY = titleEnd + 24;
 
   if (subtitle) {
-    ctx.font = "500 32px Inter, Arial, sans-serif";
+    var subtitleStyle = fitReelTextBlock(ctx, subtitle, {
+      maxWidth: contentW - 76,
+      maxLines: 2,
+      fontSizes: [32, 29, 26],
+      lineHeights: [42, 38, 34]
+    });
+    ctx.font = "500 " + subtitleStyle.fontSize + "px Inter, Arial, sans-serif";
     ctx.fillStyle = MMTheme.colors.textSecondary;
-    cursorY = wrapText(ctx, subtitle, contentX + 38, cursorY, contentW - 76, 42) + 32;
+    cursorY = wrapText(ctx, subtitleStyle.text, contentX + 38, cursorY, subtitleStyle.maxWidth, subtitleStyle.lineHeight) + 32;
   }
 
-  var rowH = 116;
   var gap = 18;
-  var listH = items.length * rowH + Math.max(0, items.length - 1) * gap;
-  var centeredY = panelY + Math.max(390, (panelH - listH) / 2 - 40);
-  var startY = Math.max(cursorY + 38, Math.min(centeredY, panelY + panelH - listH - 170));
-  for (var i = 0; i < items.length; i++) {
-    drawListItem(ctx, items[i], contentX + 28, startY + i * (rowH + gap), contentW - 56, rowH, i + 1);
+  var availableTop = cursorY + 38;
+  var availableBottom = panelY + panelH - 90;
+  var availableH = Math.max(0, availableBottom - availableTop);
+  var maxRows = Math.floor((availableH + gap) / (88 + gap));
+  var visibleItems = items.slice(0, Math.max(0, maxRows));
+  var rowH = visibleItems.length ? Math.min(116, Math.floor((availableH - Math.max(0, visibleItems.length - 1) * gap) / visibleItems.length)) : 0;
+  var listH = visibleItems.length * rowH + Math.max(0, visibleItems.length - 1) * gap;
+  var startY = availableTop + Math.max(0, (availableH - listH) / 2);
+  for (var i = 0; i < visibleItems.length; i++) {
+    drawListItem(ctx, visibleItems[i], contentX + 28, startY + i * (rowH + gap), contentW - 56, rowH, i + 1);
   }
 }
 
@@ -278,11 +292,16 @@ function drawContactTextCard(ctx, title, subtitle, items, panelY, panelH, conten
   }
   if (!contactItems.length) return;
 
-  var contactH = contactItems.length * 132 + Math.max(0, contactItems.length - 1) * 16;
-  var boxY = panelY + Math.max(560, (panelH - contactH) / 2 + 120);
-  var rowH = Math.min(132, Math.max(104, 520 / contactItems.length));
-  for (var i = 0; i < contactItems.length; i++) {
-    drawListItem(ctx, contactItems[i], contentX + 28, boxY + i * (rowH + 16), contentW - 56, rowH, 0);
+  var gap = 16;
+  var availableTop = panelY + 680;
+  var availableBottom = panelY + panelH - 90;
+  var availableH = Math.max(0, availableBottom - availableTop);
+  var maxRows = Math.max(1, Math.floor((availableH + gap) / (132 + gap)));
+  var visibleItems = contactItems.slice(0, maxRows);
+  var rowH = Math.min(132, Math.max(88, Math.floor((availableH - Math.max(0, visibleItems.length - 1) * gap) / Math.max(1, visibleItems.length))));
+  var boxY = availableTop + Math.max(0, (availableH - (visibleItems.length * rowH + Math.max(0, visibleItems.length - 1) * gap)) / 2);
+  for (var i = 0; i < visibleItems.length; i++) {
+    drawListItem(ctx, visibleItems[i], contentX + 28, boxY + i * (rowH + gap), contentW - 56, rowH, 0);
   }
 }
 
@@ -388,22 +407,23 @@ function drawListItem(ctx, item, x, y, w, h, number) {
   }
   var text = item && item.text ? item.text : "";
   var label = item && item.label ? String(item.label).trim() : "";
+  var compact = !!label && h < 120;
   var style = fitReelTextBlock(ctx, text, {
     maxWidth: w - 142,
-    maxLines: 2,
-    fontSizes: [32, 29, 26],
-    lineHeights: [40, 36, 33]
+    maxLines: compact ? 1 : 2,
+    fontSizes: compact ? [26, 24, 22] : [32, 29, 26],
+    lineHeights: compact ? [30, 27, 24] : [40, 36, 33]
   });
   ctx.font = "500 " + style.fontSize + "px Inter, Arial, sans-serif";
   ctx.fillStyle = MMTheme.colors.textSecondary;
   var textY = y + Math.max(24, (h - style.lineCount * style.lineHeight) / 2);
   if (label) {
-    ctx.font = "700 22px Inter, Arial, sans-serif";
+    ctx.font = "700 " + (compact ? 16 : 22) + "px Inter, Arial, sans-serif";
     ctx.fillStyle = MMTheme.colors.accentDark;
-    ctx.fillText(label.toUpperCase(), x + 122, y + 22);
+    ctx.fillText(label.toUpperCase(), x + 122, y + (compact ? 14 : 22));
     ctx.font = "500 " + style.fontSize + "px Inter, Arial, sans-serif";
     ctx.fillStyle = MMTheme.colors.textSecondary;
-    textY = y + 54;
+    textY = y + (compact ? 38 : 54);
   }
   wrapText(ctx, style.text, x + 122, textY, style.maxWidth, style.lineHeight);
 }
@@ -438,9 +458,8 @@ function extractPhone(text) {
   return match ? match[0] : "";
 }
 
-function drawSceneFooter(ctx, scene) {
-  var content = getStructuredSceneContent(scene);
-  if (resolveSceneLayout(scene, content.items) === "cta") return;
+function drawSceneFooter(ctx, scene, family) {
+  if (family === "cta") return;
 
   var footerY = H - 104;
   var logo = getCachedImage("/assets/logo.png");
@@ -451,7 +470,7 @@ function drawSceneFooter(ctx, scene) {
   ctx.strokeStyle = MMTheme.colors.brandLine;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  if (isCoverScene(scene)) {
+  if (family === "cover") {
     ctx.moveTo(84, footerY);
     ctx.lineTo(W - 84, footerY);
   } else {
@@ -462,13 +481,25 @@ function drawSceneFooter(ctx, scene) {
   }
   ctx.stroke();
 
-  if (logo && !isCoverScene(scene)) {
+  if (logo && family !== "cover") {
     drawLogoWithBackdrop(ctx, logo, W / 2, footerY, logoW, true);
   }
 }
 
 function isCoverScene(scene) {
   return !!scene && (scene.visual_type === "cover_image" || scene.visual_role === "hook");
+}
+
+export function resolveReelSceneFamily(scene, project) {
+  var content = getStructuredSceneContent(scene || {});
+  var layout = resolveSceneLayout(scene, content.items);
+  var imageUrl = resolveSceneImage(scene, project);
+  var imageFailed = isImageLoadFailed(imageUrl);
+
+  if (["list", "contact", "cta", "quote"].indexOf(layout) >= 0) return layout;
+  if (isCoverScene(scene) && imageUrl && !imageFailed) return "cover";
+  if (imageUrl && !imageFailed && scene.visual_type !== "text_card") return "image";
+  return "text";
 }
 
 function resolveSceneImage(scene, project) {
@@ -509,7 +540,12 @@ function getCachedImage(src) {
   };
 
   img.onerror = function () {
-    delete imageCache[normalizedSrc];
+    var entry = imageCache[normalizedSrc];
+    if (!entry) return;
+    entry.failed = true;
+    if (typeof window !== "undefined" && window.dispatchEvent && typeof CustomEvent === "function") {
+      window.dispatchEvent(new CustomEvent("carousel:asset-error", { detail: { src: normalizedSrc } }));
+    }
   };
 
   img.src = normalizedSrc;
@@ -519,6 +555,10 @@ function getCachedImage(src) {
 function loadImage(normalizedSrc) {
   return new Promise(function (resolve) {
     var cached = imageCache[normalizedSrc];
+    if (cached && cached.failed) {
+      resolve(null);
+      return;
+    }
     if (cached && cached.loaded && cached.img) {
       resolve(cached.img);
       return;
@@ -546,12 +586,18 @@ function loadImage(normalizedSrc) {
     };
 
     img.onerror = function () {
-      delete imageCache[normalizedSrc];
+      var entry = imageCache[normalizedSrc];
+      if (entry) entry.failed = true;
       resolve(null);
     };
 
     img.src = normalizedSrc;
   });
+}
+
+function isImageLoadFailed(src) {
+  var normalizedSrc = normalizeImageSource(src);
+  return !!(normalizedSrc && imageCache[normalizedSrc] && imageCache[normalizedSrc].failed);
 }
 
 function normalizeImageSource(src) {

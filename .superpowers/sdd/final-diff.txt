@@ -1,0 +1,360 @@
+﻿diff --git a/carousel/reel-canvas-renderer.js b/carousel/reel-canvas-renderer.js
+index 6e95fca..4c13efd 100644
+--- a/carousel/reel-canvas-renderer.js
++++ b/carousel/reel-canvas-renderer.js
+@@ -7,25 +7,26 @@ var W = 1080;
+ var H = 1920;
+ var IMAGE_PROXY = "https://mm-herramientas-worker.mhhurtado.workers.dev?image=";
+ var imageCache = {};
+ 
+ export function renderReelSceneToCanvas(scene, project) {
+   if (!scene) return null;
+ 
+   applyThemeVariant(resolveThemeName(project));
+   var canvas = createCanvas(W, H);
+   var ctx = canvas.getContext("2d");
++  var family = resolveReelSceneFamily(scene, project);
+ 
+-  drawBackground(ctx, scene, project);
+-  drawSceneChrome(ctx, scene, project);
+-  drawSceneText(ctx, scene, project);
+-  drawSceneFooter(ctx, scene);
++  drawBackground(ctx, scene, project, family);
++  drawSceneChrome(ctx, scene, project, family);
++  drawSceneText(ctx, scene, project, family);
++  drawSceneFooter(ctx, scene, family);
+ 
+   return canvas;
+ }
+ 
+ export async function preloadReelSceneAssets(scenes, project) {
+   var sources = ["/assets/logo.png"];
+   var list = Array.isArray(scenes) ? scenes : [];
+ 
+   for (var i = 0; i < list.length; i++) {
+     var imageUrl = resolveSceneImage(list[i], project);
+@@ -44,29 +45,28 @@ export async function preloadReelSceneAssets(scenes, project) {
+   await Promise.all(tasks);
+ }
+ 
+ function resolveThemeName(project) {
+   if (project && project.editorialPlan && project.editorialPlan.diagnosis && project.editorialPlan.diagnosis.template) {
+     return project.editorialPlan.diagnosis.template;
+   }
+   return "mm_classic";
+ }
+ 
+-function drawBackground(ctx, scene, project) {
++function drawBackground(ctx, scene, project, family) {
+   var imageUrl = resolveSceneImage(scene, project);
+-  var isTextCard = scene.visual_type === "text_card" || !imageUrl;
++  var isTextFamily = ["list", "contact", "cta", "quote", "text"].indexOf(family) >= 0;
+ 
+-  if (isTextCard) {
+-    var layout = resolveSceneLayout(scene, getStructuredSceneContent(scene).items);
++  if (isTextFamily) {
+     var bg = ctx.createLinearGradient(0, 0, W, H);
+-    bg.addColorStop(0, layout === "cta" ? "#eef6d6" : "#ffffff");
+-    bg.addColorStop(1, layout === "cta" ? "#f8fbeF" : (MMTheme.colors.surfaceSoft || "#f8f6f1"));
++    bg.addColorStop(0, family === "cta" ? "#eef6d6" : "#ffffff");
++    bg.addColorStop(1, family === "cta" ? "#f8fbeF" : (MMTheme.colors.surfaceSoft || "#f8f6f1"));
+     ctx.fillStyle = bg;
+     ctx.fillRect(0, 0, W, H);
+ 
+     var glow = ctx.createRadialGradient(W * 0.5, 180, 40, W * 0.5, 180, 420);
+     glow.addColorStop(0, "rgba(166,206,57,0.22)");
+     glow.addColorStop(1, "rgba(166,206,57,0)");
+     ctx.fillStyle = glow;
+     ctx.fillRect(0, 0, W, H);
+     return;
+   }
+@@ -80,31 +80,31 @@ function drawBackground(ctx, scene, project) {
+   }
+ 
+   var overlay = ctx.createLinearGradient(0, 0, 0, H);
+   overlay.addColorStop(0, "rgba(0,0,0,0.18)");
+   overlay.addColorStop(0.48, "rgba(0,0,0,0.22)");
+   overlay.addColorStop(1, "rgba(0,0,0,0.76)");
+   ctx.fillStyle = overlay;
+   ctx.fillRect(0, 0, W, H);
+ }
+ 
+-function drawSceneChrome(ctx, scene, project) {
++function drawSceneChrome(ctx, scene, project, family) {
+   ctx.strokeStyle = "rgba(255,255,255,0.72)";
+   ctx.lineWidth = 2;
+   roundRectStroke(ctx, 28, 28, W - 56, H - 56, 36);
+ 
+   var topBar = ctx.createLinearGradient(62, 82, W - 62, 82);
+   topBar.addColorStop(0, MMTheme.colors.accent);
+   topBar.addColorStop(1, MMTheme.colors.accentBarEnd || "#d9eb97");
+   fillRoundRect(ctx, 62, 58, W - 124, 26, 13, topBar);
+ 
+-  if (isCoverScene(scene)) {
++  if (family === "cover") {
+     drawSceneBrand(ctx, scene, project);
+   }
+ }
+ 
+ function drawSceneBrand(ctx, scene, project) {
+   var logo = getCachedImage("/assets/logo.png");
+   var position = project && project.settings && project.settings.coverLogoPosition || "center";
+   var logoW = 286;
+   var logoH = logo ? logo.height * (logoW / logo.width) : 52;
+   var logoX = W / 2;
+@@ -143,46 +143,45 @@ function drawLogoWithBackdrop(ctx, logo, centerX, y, logoW, centeredY) {
+   ctx.shadowOffsetY = 3;
+   fillRoundRect(ctx, drawX - padX, boxY, logoW + padX * 2, logoH + padY * 2, 22, "rgba(22,28,30,0.82)");
+   ctx.shadowColor = "transparent";
+   ctx.strokeStyle = "rgba(255,255,255,0.28)";
+   ctx.lineWidth = 2;
+   roundRectStroke(ctx, drawX - padX, boxY, logoW + padX * 2, logoH + padY * 2, 22);
+   ctx.drawImage(logo, drawX, centeredY ? y - logoH / 2 : y, logoW, logoH);
+   ctx.restore();
+ }
+ 
+-function drawSceneText(ctx, scene, project) {
+-  var isTextCard = scene.visual_type === "text_card" || !resolveSceneImage(scene, project);
++function drawSceneText(ctx, scene, project, family) {
++  var isTextFamily = ["list", "contact", "cta", "quote", "text"].indexOf(family) >= 0;
+   var title = String(scene.text || "").trim() || "Sin texto principal";
+   var subtitle = String(scene.subtitle || "").trim();
+   var contentX = 104;
+   var contentW = W - 208;
+ 
+-  if (isTextCard) {
++  if (isTextFamily) {
+     var panelY = 234;
+     var panelH = H - 382;
+     fillRoundRect(ctx, 58, panelY, W - 116, panelH, 46, MMTheme.colors.panel);
+     ctx.strokeStyle = MMTheme.colors.lineSoft;
+     ctx.lineWidth = 2;
+     roundRectStroke(ctx, 58, panelY, W - 116, panelH, 46);
+ 
+     fillRoundRect(ctx, 86, panelY + 62, 18, 300, 9, MMTheme.colors.accent);
+     fillRoundRect(ctx, 58, panelY, W - 116, 24, 12, MMTheme.colors.accent);
+ 
+     var content = getStructuredSceneContent(scene);
+-    var layout = resolveSceneLayout(scene, content.items);
+-    if (layout === "list") {
++    if (family === "list") {
+       drawListTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
+-    } else if (layout === "contact") {
++    } else if (family === "contact") {
+       drawContactTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
+-    } else if (layout === "cta" || layout === "quote") {
+-      drawCalloutTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW, layout);
++    } else if (family === "cta" || family === "quote") {
++      drawCalloutTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW, family);
+     } else {
+       drawDefaultTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW);
+     }
+ 
+     return;
+   }
+ 
+   var panelY = H - 684;
+   fillRoundRect(ctx, 28, panelY, W - 56, 656, 42, "rgba(255,255,255,0.97)");
+   ctx.strokeStyle = "rgba(222,216,205,0.88)";
+@@ -431,53 +430,63 @@ function resolveSceneLayout(scene, items) {
+   if (items && items.length) return "list";
+   if (/contact|telefono|llam|direccion|retir/.test(String(scene && scene.text || "").toLowerCase())) return "contact";
+   return "default";
+ }
+ 
+ function extractPhone(text) {
+   var match = String(text || "").match(/\b\d{4}\s?\d{2}[-\s]?\d{4}\b/);
+   return match ? match[0] : "";
+ }
+ 
+-function drawSceneFooter(ctx, scene) {
+-  var content = getStructuredSceneContent(scene);
+-  if (resolveSceneLayout(scene, content.items) === "cta") return;
++function drawSceneFooter(ctx, scene, family) {
++  if (family === "cta") return;
+ 
+   var footerY = H - 104;
+   var logo = getCachedImage("/assets/logo.png");
+   var logoW = 270;
+   var logoH = logo ? logo.height * (logoW / logo.width) : 52;
+   var gap = 26;
+ 
+   ctx.strokeStyle = MMTheme.colors.brandLine;
+   ctx.lineWidth = 3;
+   ctx.beginPath();
+-  if (isCoverScene(scene)) {
++  if (family === "cover") {
+     ctx.moveTo(84, footerY);
+     ctx.lineTo(W - 84, footerY);
+   } else {
+     ctx.moveTo(84, footerY);
+     ctx.lineTo(W / 2 - logoW / 2 - gap, footerY);
+     ctx.moveTo(W / 2 + logoW / 2 + gap, footerY);
+     ctx.lineTo(W - 84, footerY);
+   }
+   ctx.stroke();
+ 
+-  if (logo && !isCoverScene(scene)) {
++  if (logo && family !== "cover") {
+     drawLogoWithBackdrop(ctx, logo, W / 2, footerY, logoW, true);
+   }
+ }
+ 
+ function isCoverScene(scene) {
+   return !!scene && (scene.visual_type === "cover_image" || scene.visual_role === "hook");
+ }
+ 
++export function resolveReelSceneFamily(scene, project) {
++  var content = getStructuredSceneContent(scene || {});
++  var layout = resolveSceneLayout(scene, content.items);
++  var imageUrl = resolveSceneImage(scene, project);
++
++  if (["list", "contact", "cta", "quote"].indexOf(layout) >= 0) return layout;
++  if (isCoverScene(scene) && imageUrl) return "cover";
++  if (imageUrl && scene.visual_type !== "text_card") return "image";
++  return "text";
++}
++
+ function resolveSceneImage(scene, project) {
+   if (!scene || !project || !project.article) return "";
+   var article = project.article;
+   var source = String(scene.visual_source || "");
+ 
+   if (source === "article.image") return article.image || "";
+ 
+   var match = source.match(/^article\.images\[(\d+)\]$/);
+   if (match && project.settings && project.settings.useSecondaryImages && Array.isArray(article.images)) {
+     var idx = Number(match[1]);
+diff --git a/carousel/ui.js b/carousel/ui.js
+index 67669ae..33fcf76 100644
+--- a/carousel/ui.js
++++ b/carousel/ui.js
+@@ -1040,40 +1040,76 @@ function downloadBlob(blob, fileName) {
+   link.href = url;
+   link.download = fileName;
+   document.body.appendChild(link);
+   link.click();
+   link.remove();
+   setTimeout(function () {
+     URL.revokeObjectURL(url);
+   }, 1000);
+ }
+ 
++var TRANSITION_MS = 420;
++var TRANSITION_FPS = 30;
++
++function easeOutCubic(value) {
++  return 1 - Math.pow(1 - value, 3);
++}
++
++function drawReelTransitionFrame(ctx, currentCanvas, nextCanvas, progress, direction) {
++  var easedProgress = easeOutCubic(progress);
++  var nextOffset = direction * (1 - easedProgress) * 28;
++
++  ctx.save();
++  ctx.globalAlpha = 1 - progress;
++  ctx.drawImage(currentCanvas, 0, 0, 1080, 1920);
++  ctx.globalAlpha = progress;
++  ctx.drawImage(nextCanvas, 0, nextOffset, 1080, 1920);
++  ctx.restore();
++}
++
++function isReelCtaScene(scene) {
++  var layout = String(scene && scene.layout || "").toLowerCase();
++  var role = String(scene && scene.visual_role || "").toLowerCase();
++  return layout === "cta" || role === "cta" || role === "conclusion";
++}
++
+ function getSupportedReelVideoType() {
+   if (typeof MediaRecorder !== "function" || typeof MediaRecorder.isTypeSupported !== "function") {
+     return "video/webm";
+   }
+ 
+   var types = [
+     "video/webm;codecs=vp9",
+     "video/webm;codecs=vp8",
+     "video/webm"
+   ];
+ 
+   for (var i = 0; i < types.length; i++) {
+     if (MediaRecorder.isTypeSupported(types[i])) return types[i];
+   }
+ 
+   return "";
+ }
+ 
+ async function recordReelVideo(scenes, project, mimeType) {
+-  var fps = 30;
++  var fps = TRANSITION_FPS;
++  var renderedScenes = [];
++
++  for (var i = 0; i < scenes.length; i++) {
++    var renderedCanvas = renderReelSceneToCanvas(scenes[i], project);
++    if (renderedCanvas) {
++      renderedScenes.push({ scene: scenes[i], canvas: renderedCanvas });
++    }
++  }
++
++  if (!renderedScenes.length) return null;
++
+   var stageCanvas = document.createElement("canvas");
+   stageCanvas.width = 1080;
+   stageCanvas.height = 1920;
+   var ctx = stageCanvas.getContext("2d");
+   var stream = stageCanvas.captureStream(fps);
+   var chunks = [];
+ 
+   var recorder = new MediaRecorder(stream, {
+     mimeType: mimeType,
+     videoBitsPerSecond: 8000000
+@@ -1084,32 +1120,44 @@ async function recordReelVideo(scenes, project, mimeType) {
+   };
+ 
+   var stopPromise = new Promise(function (resolve) {
+     recorder.onstop = function () {
+       resolve(new Blob(chunks, { type: mimeType }));
+     };
+   });
+ 
+   recorder.start();
+ 
+-  for (var i = 0; i < scenes.length; i++) {
+-    var frameCanvas = renderReelSceneToCanvas(scenes[i], project);
+-    if (!frameCanvas) continue;
+-
+-    var durationMs = Math.max(1200, Number(scenes[i].duration_ms || 0) || 2500);
++  for (var i = 0; i < renderedScenes.length; i++) {
++    var current = renderedScenes[i];
++    var durationMs = Math.max(1200, Number(current.scene.duration_ms || 0) || 2500);
+     var frameCount = Math.max(1, Math.round((durationMs / 1000) * fps));
+ 
+     for (var f = 0; f < frameCount; f++) {
+       ctx.clearRect(0, 0, stageCanvas.width, stageCanvas.height);
+-      ctx.drawImage(frameCanvas, 0, 0, stageCanvas.width, stageCanvas.height);
++      ctx.drawImage(current.canvas, 0, 0, stageCanvas.width, stageCanvas.height);
+       await wait(Math.round(1000 / fps));
+     }
++
++    var next = renderedScenes[i + 1];
++    if (next) {
++      var transitionDurationMs = TRANSITION_MS;
++      var transitionFrameCount = Math.max(1, Math.round((transitionDurationMs / 1000) * fps));
++      var direction = isReelCtaScene(next.scene) ? 0 : (i % 2 === 0 ? 1 : -1);
++
++      for (var t = 0; t < transitionFrameCount; t++) {
++        var progress = (t + 1) / transitionFrameCount;
++        ctx.clearRect(0, 0, stageCanvas.width, stageCanvas.height);
++        drawReelTransitionFrame(ctx, current.canvas, next.canvas, progress, direction);
++        await wait(Math.round(1000 / fps));
++      }
++    }
+   }
+ 
+   await wait(160);
+   recorder.stop();
+   return await stopPromise;
+ }
+ 
+ function setStatus(preview, message) {
+   if (!preview) return;
+   preview.textContent = message;

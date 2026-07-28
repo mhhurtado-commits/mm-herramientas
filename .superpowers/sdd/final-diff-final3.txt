@@ -1,0 +1,666 @@
+﻿diff --git a/carousel/reel-canvas-renderer.js b/carousel/reel-canvas-renderer.js
+index 6e95fca..9766693 100644
+--- a/carousel/reel-canvas-renderer.js
++++ b/carousel/reel-canvas-renderer.js
+@@ -7,25 +7,26 @@ var W = 1080;
+ var H = 1920;
+ var IMAGE_PROXY = "https://mm-herramientas-worker.mhhurtado.workers.dev?image=";
+ var imageCache = {};
+ 
+ export function renderReelSceneToCanvas(scene, project) {
+   if (!scene) return null;
+ 
+   applyThemeVariant(resolveThemeName(project));
+   var canvas = createCanvas(W, H);
+   var ctx = canvas.getContext("2d");
++  var family = resolveReelSceneFamily(scene, project);
+ 
+-  drawBackground(ctx, scene, project);
+-  drawSceneChrome(ctx, scene, project);
+-  drawSceneText(ctx, scene, project);
+-  drawSceneFooter(ctx, scene);
++  drawBackground(ctx, scene, project, family);
++  drawSceneChrome(ctx, scene, project, family);
++  drawSceneText(ctx, scene, project, family);
++  drawSceneFooter(ctx, scene, family);
+ 
+   return canvas;
+ }
+ 
+ export async function preloadReelSceneAssets(scenes, project) {
+   var sources = ["/assets/logo.png"];
+   var list = Array.isArray(scenes) ? scenes : [];
+ 
+   for (var i = 0; i < list.length; i++) {
+     var imageUrl = resolveSceneImage(list[i], project);
+@@ -44,29 +45,28 @@ export async function preloadReelSceneAssets(scenes, project) {
+   await Promise.all(tasks);
+ }
+ 
+ function resolveThemeName(project) {
+   if (project && project.editorialPlan && project.editorialPlan.diagnosis && project.editorialPlan.diagnosis.template) {
+     return project.editorialPlan.diagnosis.template;
+   }
+   return "mm_classic";
+ }
+ 
+-function drawBackground(ctx, scene, project) {
++function drawBackground(ctx, scene, project, family) {
+   var imageUrl = resolveSceneImage(scene, project);
+-  var isTextCard = scene.visual_type === "text_card" || !imageUrl;
++  var isTextFamily = ["list", "contact", "cta", "quote", "text"].indexOf(family) >= 0;
+ 
+-  if (isTextCard) {
+-    var layout = resolveSceneLayout(scene, getStructuredSceneContent(scene).items);
++  if (isTextFamily) {
+     var bg = ctx.createLinearGradient(0, 0, W, H);
+-    bg.addColorStop(0, layout === "cta" ? "#eef6d6" : "#ffffff");
+-    bg.addColorStop(1, layout === "cta" ? "#f8fbeF" : (MMTheme.colors.surfaceSoft || "#f8f6f1"));
++    bg.addColorStop(0, family === "cta" ? "#eef6d6" : "#ffffff");
++    bg.addColorStop(1, family === "cta" ? "#f8fbeF" : (MMTheme.colors.surfaceSoft || "#f8f6f1"));
+     ctx.fillStyle = bg;
+     ctx.fillRect(0, 0, W, H);
+ 
+     var glow = ctx.createRadialGradient(W * 0.5, 180, 40, W * 0.5, 180, 420);
+     glow.addColorStop(0, "rgba(166,206,57,0.22)");
+     glow.addColorStop(1, "rgba(166,206,57,0)");
+     ctx.fillStyle = glow;
+     ctx.fillRect(0, 0, W, H);
+     return;
+   }
+@@ -80,31 +80,31 @@ function drawBackground(ctx, scene, project) {
+   }
+ 
+   var overlay = ctx.createLinearGradient(0, 0, 0, H);
+   overlay.addColorStop(0, "rgba(0,0,0,0.18)");
+   overlay.addColorStop(0.48, "rgba(0,0,0,0.22)");
+   overlay.addColorStop(1, "rgba(0,0,0,0.76)");
+   ctx.fillStyle = overlay;
+   ctx.fillRect(0, 0, W, H);
+ }
+ 
+-function drawSceneChrome(ctx, scene, project) {
++function drawSceneChrome(ctx, scene, project, family) {
+   ctx.strokeStyle = "rgba(255,255,255,0.72)";
+   ctx.lineWidth = 2;
+   roundRectStroke(ctx, 28, 28, W - 56, H - 56, 36);
+ 
+   var topBar = ctx.createLinearGradient(62, 82, W - 62, 82);
+   topBar.addColorStop(0, MMTheme.colors.accent);
+   topBar.addColorStop(1, MMTheme.colors.accentBarEnd || "#d9eb97");
+   fillRoundRect(ctx, 62, 58, W - 124, 26, 13, topBar);
+ 
+-  if (isCoverScene(scene)) {
++  if (family === "cover") {
+     drawSceneBrand(ctx, scene, project);
+   }
+ }
+ 
+ function drawSceneBrand(ctx, scene, project) {
+   var logo = getCachedImage("/assets/logo.png");
+   var position = project && project.settings && project.settings.coverLogoPosition || "center";
+   var logoW = 286;
+   var logoH = logo ? logo.height * (logoW / logo.width) : 52;
+   var logoX = W / 2;
+@@ -143,46 +143,50 @@ function drawLogoWithBackdrop(ctx, logo, centerX, y, logoW, centeredY) {
+   ctx.shadowOffsetY = 3;
+   fillRoundRect(ctx, drawX - padX, boxY, logoW + padX * 2, logoH + padY * 2, 22, "rgba(22,28,30,0.82)");
+   ctx.shadowColor = "transparent";
+   ctx.strokeStyle = "rgba(255,255,255,0.28)";
+   ctx.lineWidth = 2;
+   roundRectStroke(ctx, drawX - padX, boxY, logoW + padX * 2, logoH + padY * 2, 22);
+   ctx.drawImage(logo, drawX, centeredY ? y - logoH / 2 : y, logoW, logoH);
+   ctx.restore();
+ }
+ 
+-function drawSceneText(ctx, scene, project) {
+-  var isTextCard = scene.visual_type === "text_card" || !resolveSceneImage(scene, project);
++function drawSceneText(ctx, scene, project, family) {
++  var isTextFamily = ["list", "contact", "cta", "quote", "text"].indexOf(family) >= 0;
+   var title = String(scene.text || "").trim() || "Sin texto principal";
+   var subtitle = String(scene.subtitle || "").trim();
+   var contentX = 104;
+   var contentW = W - 208;
+ 
+-  if (isTextCard) {
++  if (isTextFamily) {
++    if (family === "cta") {
++      drawReelCtaCard(ctx, title, subtitle, 234, contentX, contentW);
++      return;
++    }
++
+     var panelY = 234;
+     var panelH = H - 382;
+     fillRoundRect(ctx, 58, panelY, W - 116, panelH, 46, MMTheme.colors.panel);
+     ctx.strokeStyle = MMTheme.colors.lineSoft;
+     ctx.lineWidth = 2;
+     roundRectStroke(ctx, 58, panelY, W - 116, panelH, 46);
+ 
+     fillRoundRect(ctx, 86, panelY + 62, 18, 300, 9, MMTheme.colors.accent);
+     fillRoundRect(ctx, 58, panelY, W - 116, 24, 12, MMTheme.colors.accent);
+ 
+     var content = getStructuredSceneContent(scene);
+-    var layout = resolveSceneLayout(scene, content.items);
+-    if (layout === "list") {
++    if (family === "list") {
+       drawListTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
+-    } else if (layout === "contact") {
++    } else if (family === "contact") {
+       drawContactTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
+-    } else if (layout === "cta" || layout === "quote") {
+-      drawCalloutTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW, layout);
++    } else if (family === "quote") {
++      drawCalloutTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW, family);
+     } else {
+       drawDefaultTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW);
+     }
+ 
+     return;
+   }
+ 
+   var panelY = H - 684;
+   fillRoundRect(ctx, 28, panelY, W - 56, 656, 42, "rgba(255,255,255,0.97)");
+   ctx.strokeStyle = "rgba(222,216,205,0.88)";
+@@ -247,49 +251,64 @@ function drawListTextCard(ctx, title, subtitle, items, panelY, panelH, contentX,
+     maxLines: 2,
+     fontSizes: [62, 58, 54, 50],
+     lineHeights: [70, 66, 62, 58]
+   });
+   ctx.font = "700 " + titleStyle.fontSize + "px Inter, Arial, sans-serif";
+   ctx.fillStyle = MMTheme.colors.textPrimary;
+   var titleEnd = wrapText(ctx, titleStyle.text, contentX + 38, panelY + 110, titleStyle.maxWidth, titleStyle.lineHeight);
+   var cursorY = titleEnd + 24;
+ 
+   if (subtitle) {
+-    ctx.font = "500 32px Inter, Arial, sans-serif";
++    var subtitleStyle = fitReelTextBlock(ctx, subtitle, {
++      maxWidth: contentW - 76,
++      maxLines: 2,
++      fontSizes: [32, 29, 26],
++      lineHeights: [42, 38, 34]
++    });
++    ctx.font = "500 " + subtitleStyle.fontSize + "px Inter, Arial, sans-serif";
+     ctx.fillStyle = MMTheme.colors.textSecondary;
+-    cursorY = wrapText(ctx, subtitle, contentX + 38, cursorY, contentW - 76, 42) + 32;
++    cursorY = wrapText(ctx, subtitleStyle.text, contentX + 38, cursorY, subtitleStyle.maxWidth, subtitleStyle.lineHeight) + 32;
+   }
+ 
+-  var rowH = 116;
+   var gap = 18;
+-  var listH = items.length * rowH + Math.max(0, items.length - 1) * gap;
+-  var centeredY = panelY + Math.max(390, (panelH - listH) / 2 - 40);
+-  var startY = Math.max(cursorY + 38, Math.min(centeredY, panelY + panelH - listH - 170));
+-  for (var i = 0; i < items.length; i++) {
+-    drawListItem(ctx, items[i], contentX + 28, startY + i * (rowH + gap), contentW - 56, rowH, i + 1);
++  var availableTop = cursorY + 38;
++  var availableBottom = panelY + panelH - 90;
++  var availableH = Math.max(0, availableBottom - availableTop);
++  var maxRows = Math.floor((availableH + gap) / (88 + gap));
++  var visibleItems = items.slice(0, Math.max(0, maxRows));
++  var rowH = visibleItems.length ? Math.min(116, Math.floor((availableH - Math.max(0, visibleItems.length - 1) * gap) / visibleItems.length)) : 0;
++  var listH = visibleItems.length * rowH + Math.max(0, visibleItems.length - 1) * gap;
++  var startY = availableTop + Math.max(0, (availableH - listH) / 2);
++  for (var i = 0; i < visibleItems.length; i++) {
++    drawListItem(ctx, visibleItems[i], contentX + 28, startY + i * (rowH + gap), contentW - 56, rowH, i + 1);
+   }
+ }
+ 
+ function drawContactTextCard(ctx, title, subtitle, items, panelY, panelH, contentX, contentW) {
+   drawDefaultTextCard(ctx, title, subtitle, panelY, Math.min(panelH, 720), contentX, contentW);
+   var contactItems = items.slice();
+   var phone = extractPhone(title + " " + subtitle);
+   if (phone && !contactItems.some(function (item) { return item.text.indexOf(phone) >= 0; })) {
+     contactItems.push({ label: "Contacto", text: phone });
+   }
+   if (!contactItems.length) return;
+ 
+-  var contactH = contactItems.length * 132 + Math.max(0, contactItems.length - 1) * 16;
+-  var boxY = panelY + Math.max(560, (panelH - contactH) / 2 + 120);
+-  var rowH = Math.min(132, Math.max(104, 520 / contactItems.length));
+-  for (var i = 0; i < contactItems.length; i++) {
+-    drawListItem(ctx, contactItems[i], contentX + 28, boxY + i * (rowH + 16), contentW - 56, rowH, 0);
++  var gap = 16;
++  var availableTop = panelY + 680;
++  var availableBottom = panelY + panelH - 90;
++  var availableH = Math.max(0, availableBottom - availableTop);
++  var maxRows = Math.max(1, Math.floor((availableH + gap) / (132 + gap)));
++  var visibleItems = contactItems.slice(0, maxRows);
++  var rowH = Math.min(132, Math.max(88, Math.floor((availableH - Math.max(0, visibleItems.length - 1) * gap) / Math.max(1, visibleItems.length))));
++  var boxY = availableTop + Math.max(0, (availableH - (visibleItems.length * rowH + Math.max(0, visibleItems.length - 1) * gap)) / 2);
++  for (var i = 0; i < visibleItems.length; i++) {
++    drawListItem(ctx, visibleItems[i], contentX + 28, boxY + i * (rowH + gap), contentW - 56, rowH, 0);
+   }
+ }
+ 
+ function drawCalloutTextCard(ctx, title, subtitle, panelY, panelH, contentX, contentW, layout) {
+   if (layout === "cta") {
+     drawReelCtaCard(ctx, title, subtitle, panelY, contentX, contentW);
+     return;
+   }
+ 
+   var boxY = panelY + 390;
+@@ -381,36 +400,37 @@ function drawListItem(ctx, item, x, y, w, h, number) {
+   fillRoundRect(ctx, x + 22, y + 24, 68, h - 48, 20, MMTheme.colors.accent);
+   if (number) {
+     ctx.font = "700 28px Inter, Arial, sans-serif";
+     ctx.fillStyle = "#ffffff";
+     ctx.textAlign = "center";
+     ctx.fillText(String(number).padStart(2, "0"), x + 56, y + h / 2 - 16);
+     ctx.textAlign = "start";
+   }
+   var text = item && item.text ? item.text : "";
+   var label = item && item.label ? String(item.label).trim() : "";
++  var compact = !!label && h < 120;
+   var style = fitReelTextBlock(ctx, text, {
+     maxWidth: w - 142,
+-    maxLines: 2,
+-    fontSizes: [32, 29, 26],
+-    lineHeights: [40, 36, 33]
++    maxLines: compact ? 1 : 2,
++    fontSizes: compact ? [26, 24, 22] : [32, 29, 26],
++    lineHeights: compact ? [30, 27, 24] : [40, 36, 33]
+   });
+   ctx.font = "500 " + style.fontSize + "px Inter, Arial, sans-serif";
+   ctx.fillStyle = MMTheme.colors.textSecondary;
+   var textY = y + Math.max(24, (h - style.lineCount * style.lineHeight) / 2);
+   if (label) {
+-    ctx.font = "700 22px Inter, Arial, sans-serif";
++    ctx.font = "700 " + (compact ? 16 : 22) + "px Inter, Arial, sans-serif";
+     ctx.fillStyle = MMTheme.colors.accentDark;
+-    ctx.fillText(label.toUpperCase(), x + 122, y + 22);
++    ctx.fillText(label.toUpperCase(), x + 122, y + (compact ? 14 : 22));
+     ctx.font = "500 " + style.fontSize + "px Inter, Arial, sans-serif";
+     ctx.fillStyle = MMTheme.colors.textSecondary;
+-    textY = y + 54;
++    textY = y + (compact ? 38 : 54);
+   }
+   wrapText(ctx, style.text, x + 122, textY, style.maxWidth, style.lineHeight);
+ }
+ 
+ function getStructuredSceneContent(scene) {
+   var title = String(scene && scene.text || "").trim() || "Sin texto principal";
+   var items = Array.isArray(scene && scene.items) ? scene.items.filter(function (item) { return item && item.text; }) : [];
+   if (items.length) return { title: title, items: items };
+ 
+   var parts = title.split(/\s+-\s+/).map(function (part) { return part.trim(); }).filter(Boolean);
+@@ -431,53 +451,64 @@ function resolveSceneLayout(scene, items) {
+   if (items && items.length) return "list";
+   if (/contact|telefono|llam|direccion|retir/.test(String(scene && scene.text || "").toLowerCase())) return "contact";
+   return "default";
+ }
+ 
+ function extractPhone(text) {
+   var match = String(text || "").match(/\b\d{4}\s?\d{2}[-\s]?\d{4}\b/);
+   return match ? match[0] : "";
+ }
+ 
+-function drawSceneFooter(ctx, scene) {
+-  var content = getStructuredSceneContent(scene);
+-  if (resolveSceneLayout(scene, content.items) === "cta") return;
++function drawSceneFooter(ctx, scene, family) {
++  if (family === "cta") return;
+ 
+   var footerY = H - 104;
+   var logo = getCachedImage("/assets/logo.png");
+   var logoW = 270;
+   var logoH = logo ? logo.height * (logoW / logo.width) : 52;
+   var gap = 26;
+ 
+   ctx.strokeStyle = MMTheme.colors.brandLine;
+   ctx.lineWidth = 3;
+   ctx.beginPath();
+-  if (isCoverScene(scene)) {
++  if (family === "cover") {
+     ctx.moveTo(84, footerY);
+     ctx.lineTo(W - 84, footerY);
+   } else {
+     ctx.moveTo(84, footerY);
+     ctx.lineTo(W / 2 - logoW / 2 - gap, footerY);
+     ctx.moveTo(W / 2 + logoW / 2 + gap, footerY);
+     ctx.lineTo(W - 84, footerY);
+   }
+   ctx.stroke();
+ 
+-  if (logo && !isCoverScene(scene)) {
++  if (logo && family !== "cover") {
+     drawLogoWithBackdrop(ctx, logo, W / 2, footerY, logoW, true);
+   }
+ }
+ 
+ function isCoverScene(scene) {
+   return !!scene && (scene.visual_type === "cover_image" || scene.visual_role === "hook");
+ }
+ 
++export function resolveReelSceneFamily(scene, project) {
++  var content = getStructuredSceneContent(scene || {});
++  var layout = resolveSceneLayout(scene, content.items);
++  var imageUrl = resolveSceneImage(scene, project);
++  var imageFailed = isImageLoadFailed(imageUrl);
++
++  if (["list", "contact", "cta", "quote"].indexOf(layout) >= 0) return layout;
++  if (isCoverScene(scene) && imageUrl && !imageFailed) return "cover";
++  if (imageUrl && !imageFailed && scene.visual_type !== "text_card") return "image";
++  return "text";
++}
++
+ function resolveSceneImage(scene, project) {
+   if (!scene || !project || !project.article) return "";
+   var article = project.article;
+   var source = String(scene.visual_source || "");
+ 
+   if (source === "article.image") return article.image || "";
+ 
+   var match = source.match(/^article\.images\[(\d+)\]$/);
+   if (match && project.settings && project.settings.useSecondaryImages && Array.isArray(article.images)) {
+     var idx = Number(match[1]);
+@@ -502,30 +533,39 @@ function getCachedImage(src) {
+   img.onload = function () {
+     var entry = imageCache[normalizedSrc];
+     if (!entry) return;
+     entry.loaded = true;
+     if (typeof window !== "undefined" && window.dispatchEvent && typeof CustomEvent === "function") {
+       window.dispatchEvent(new CustomEvent("carousel:asset-ready", { detail: { src: normalizedSrc } }));
+     }
+   };
+ 
+   img.onerror = function () {
+-    delete imageCache[normalizedSrc];
++    var entry = imageCache[normalizedSrc];
++    if (!entry) return;
++    entry.failed = true;
++    if (typeof window !== "undefined" && window.dispatchEvent && typeof CustomEvent === "function") {
++      window.dispatchEvent(new CustomEvent("carousel:asset-error", { detail: { src: normalizedSrc } }));
++    }
+   };
+ 
+   img.src = normalizedSrc;
+   return null;
+ }
+ 
+ function loadImage(normalizedSrc) {
+   return new Promise(function (resolve) {
+     var cached = imageCache[normalizedSrc];
++    if (cached && cached.failed) {
++      resolve(null);
++      return;
++    }
+     if (cached && cached.loaded && cached.img) {
+       resolve(cached.img);
+       return;
+     }
+ 
+     if (cached && cached.img) {
+       cached.img.addEventListener("load", function handleLoad() {
+         cached.img.removeEventListener("load", handleLoad);
+         resolve(cached.img);
+       });
+@@ -539,28 +579,34 @@ function loadImage(normalizedSrc) {
+     var img = new Image();
+     img.crossOrigin = "anonymous";
+     imageCache[normalizedSrc] = { img: img, loaded: false };
+ 
+     img.onload = function () {
+       imageCache[normalizedSrc].loaded = true;
+       resolve(img);
+     };
+ 
+     img.onerror = function () {
+-      delete imageCache[normalizedSrc];
++      var entry = imageCache[normalizedSrc];
++      if (entry) entry.failed = true;
+       resolve(null);
+     };
+ 
+     img.src = normalizedSrc;
+   });
+ }
+ 
++function isImageLoadFailed(src) {
++  var normalizedSrc = normalizeImageSource(src);
++  return !!(normalizedSrc && imageCache[normalizedSrc] && imageCache[normalizedSrc].failed);
++}
++
+ function normalizeImageSource(src) {
+   if (!src) return "";
+   if (src.indexOf("data:") === 0 || src.indexOf("blob:") === 0) return src;
+   if (src.indexOf("/assets/") === 0 || src.indexOf("./") === 0 || src.indexOf("../") === 0) return src;
+   if (src.indexOf(IMAGE_PROXY) === 0) return src;
+   if (/^https?:\/\//i.test(src)) return IMAGE_PROXY + encodeURIComponent(src);
+   return src;
+ }
+ 
+ function fillRoundRect(ctx, x, y, w, h, r, fill) {
+diff --git a/carousel/ui.js b/carousel/ui.js
+index 67669ae..5aad019 100644
+--- a/carousel/ui.js
++++ b/carousel/ui.js
+@@ -1,27 +1,29 @@
+ import { createCarouselProject } from "./models.js";
+ import { setProject, getProject } from "./state.js";
+ import { renderCarousel } from "./renderer.js";
+ import { renderSlideToCanvas } from "./canvas-renderer.js";
+-import { preloadReelSceneAssets, renderReelSceneToCanvas } from "./reel-canvas-renderer.js";
++import { preloadReelSceneAssets, renderReelSceneToCanvas, resolveReelSceneFamily } from "./reel-canvas-renderer.js";
+ import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
+ import { buildInstagramCaptionPrompt, buildReelPrompt } from "./prompts.js";
+ 
+ const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
+ var activeSlideIndex = 0;
+ var activeReelSceneIndex = 0;
+ var activeWorkspaceTab = "carousel";
+ var reelPlaybackTimer = null;
+ 
+ export function initUI() {
+   window.removeEventListener("carousel:asset-ready", handleAssetReady);
+   window.addEventListener("carousel:asset-ready", handleAssetReady);
++  window.removeEventListener("carousel:asset-error", handleAssetReady);
++  window.addEventListener("carousel:asset-error", handleAssetReady);
+   ensureWorkspaceTabs();
+   ensureBulkDownloadButton();
+   ensureCaptionPanel();
+   ensureReelPreviewPanel();
+   ensureReelCaptionPanel();
+ 
+   var loadBtn = document.getElementById("loadBtn");
+   if (loadBtn) {
+     loadBtn.addEventListener("click", async function () {
+       const url = document.getElementById("urlInput").value.trim();
+@@ -546,37 +548,50 @@ function createReelPreviewThumb(scene, index, project) {
+   meta.appendChild(indexLabel);
+   meta.appendChild(label);
+   button.appendChild(meta);
+   return button;
+ }
+ 
+ function createReelPreviewFrame(scene, project, compact) {
+   var media = document.createElement("div");
+   media.className = "reel-scene-media" + (compact ? " is-compact" : " is-stage");
+ 
++  var family = resolveReelSceneFamily(scene, project);
+   var imgUrl = resolveReelSceneImage(scene, project);
+-  if (imgUrl && scene.visual_type !== "text_card") {
++  var hasImageFamily = family === "cover" || family === "image";
++
++  var overlay = document.createElement("div");
++  overlay.className = "reel-scene-overlay" + (hasImageFamily ? "" : " is-text-card");
++
++  if (imgUrl && hasImageFamily) {
+     var img = document.createElement("img");
+     img.className = "reel-scene-image";
+-    img.src = toRenderableSceneImageUrl(imgUrl);
+     img.alt = scene.text || scene.visual_role || "Escena del reel";
++    img.onerror = function () {
++      if (!img.parentNode) return;
++      img.remove();
++
++      var placeholder = document.createElement("div");
++      placeholder.className = "reel-scene-placeholder is-text-card";
++      placeholder.textContent = "";
++      media.insertBefore(placeholder, overlay);
++      overlay.classList.add("is-text-card");
++    };
+     media.appendChild(img);
++    img.src = toRenderableSceneImageUrl(imgUrl);
+   } else {
+     var placeholder = document.createElement("div");
+-    placeholder.className = "reel-scene-placeholder";
+-    placeholder.textContent = scene.visual_type === "text_card" ? "" : "Sin imagen";
++    placeholder.className = "reel-scene-placeholder" + (hasImageFamily ? "" : " is-text-card");
++    placeholder.textContent = "";
+     media.appendChild(placeholder);
+   }
+ 
+-  var overlay = document.createElement("div");
+-  overlay.className = "reel-scene-overlay" + (scene.visual_type === "text_card" ? " is-text-card" : "");
+-
+   var roleChip = document.createElement("span");
+   roleChip.className = "reel-scene-chip";
+   roleChip.textContent = getPreviewSceneLabel(scene, project);
+   overlay.appendChild(roleChip);
+ 
+   var visualTitle = document.createElement("strong");
+   visualTitle.className = "reel-scene-visual-title";
+   visualTitle.textContent = scene.text || "Sin texto principal";
+   overlay.appendChild(visualTitle);
+ 
+@@ -1040,40 +1055,88 @@ function downloadBlob(blob, fileName) {
+   link.href = url;
+   link.download = fileName;
+   document.body.appendChild(link);
+   link.click();
+   link.remove();
+   setTimeout(function () {
+     URL.revokeObjectURL(url);
+   }, 1000);
+ }
+ 
++var COVER_TRANSITION_MS = 520;
++var INTERNAL_TRANSITION_MS = 360;
++var CTA_TRANSITION_MS = 620;
++var TRANSITION_FPS = 30;
++
++function easeOutCubic(value) {
++  return 1 - Math.pow(1 - value, 3);
++}
++
++function drawReelTransitionFrame(ctx, currentCanvas, nextCanvas, progress, direction) {
++  var easedProgress = easeOutCubic(progress);
++  var nextOffset = direction * (1 - easedProgress) * 28;
++
++  ctx.save();
++  ctx.globalAlpha = 1 - progress;
++  ctx.drawImage(currentCanvas, 0, 0, 1080, 1920);
++  ctx.globalAlpha = progress;
++  ctx.drawImage(nextCanvas, 0, nextOffset, 1080, 1920);
++  ctx.restore();
++}
++
++function isReelCtaScene(scene) {
++  var layout = String(scene && scene.layout || "").toLowerCase();
++  var role = String(scene && scene.visual_role || "").toLowerCase();
++  return layout === "cta" || role === "cta" || role === "conclusion";
++}
++
++function isReelCoverSceneForTransition(scene) {
++  return !!scene && (scene.visual_type === "cover_image" || scene.visual_role === "hook");
++}
++
++function getReelTransitionDurationMs(scene) {
++  if (isReelCtaScene(scene)) return CTA_TRANSITION_MS;
++  if (isReelCoverSceneForTransition(scene)) return COVER_TRANSITION_MS;
++  return INTERNAL_TRANSITION_MS;
++}
++
+ function getSupportedReelVideoType() {
+   if (typeof MediaRecorder !== "function" || typeof MediaRecorder.isTypeSupported !== "function") {
+     return "video/webm";
+   }
+ 
+   var types = [
+     "video/webm;codecs=vp9",
+     "video/webm;codecs=vp8",
+     "video/webm"
+   ];
+ 
+   for (var i = 0; i < types.length; i++) {
+     if (MediaRecorder.isTypeSupported(types[i])) return types[i];
+   }
+ 
+   return "";
+ }
+ 
+ async function recordReelVideo(scenes, project, mimeType) {
+-  var fps = 30;
++  var fps = TRANSITION_FPS;
++  var renderedScenes = [];
++
++  for (var i = 0; i < scenes.length; i++) {
++    var renderedCanvas = renderReelSceneToCanvas(scenes[i], project);
++    if (renderedCanvas) {
++      renderedScenes.push({ scene: scenes[i], canvas: renderedCanvas });
++    }
++  }
++
++  if (!renderedScenes.length) return null;
++
+   var stageCanvas = document.createElement("canvas");
+   stageCanvas.width = 1080;
+   stageCanvas.height = 1920;
+   var ctx = stageCanvas.getContext("2d");
+   var stream = stageCanvas.captureStream(fps);
+   var chunks = [];
+ 
+   var recorder = new MediaRecorder(stream, {
+     mimeType: mimeType,
+     videoBitsPerSecond: 8000000
+@@ -1084,32 +1147,44 @@ async function recordReelVideo(scenes, project, mimeType) {
+   };
+ 
+   var stopPromise = new Promise(function (resolve) {
+     recorder.onstop = function () {
+       resolve(new Blob(chunks, { type: mimeType }));
+     };
+   });
+ 
+   recorder.start();
+ 
+-  for (var i = 0; i < scenes.length; i++) {
+-    var frameCanvas = renderReelSceneToCanvas(scenes[i], project);
+-    if (!frameCanvas) continue;
+-
+-    var durationMs = Math.max(1200, Number(scenes[i].duration_ms || 0) || 2500);
++  for (var i = 0; i < renderedScenes.length; i++) {
++    var current = renderedScenes[i];
++    var durationMs = Math.max(1200, Number(current.scene.duration_ms || 0) || 2500);
+     var frameCount = Math.max(1, Math.round((durationMs / 1000) * fps));
+ 
+     for (var f = 0; f < frameCount; f++) {
+       ctx.clearRect(0, 0, stageCanvas.width, stageCanvas.height);
+-      ctx.drawImage(frameCanvas, 0, 0, stageCanvas.width, stageCanvas.height);
++      ctx.drawImage(current.canvas, 0, 0, stageCanvas.width, stageCanvas.height);
+       await wait(Math.round(1000 / fps));
+     }
++
++    var next = renderedScenes[i + 1];
++    if (next) {
++      var transitionDurationMs = getReelTransitionDurationMs(next.scene);
++      var transitionFrameCount = Math.max(1, Math.round((transitionDurationMs / 1000) * fps));
++      var direction = isReelCtaScene(next.scene) ? 0.35 : (i % 2 === 0 ? 1 : -1);
++
++      for (var t = 0; t < transitionFrameCount; t++) {
++        var progress = (t + 1) / transitionFrameCount;
++        ctx.clearRect(0, 0, stageCanvas.width, stageCanvas.height);
++        drawReelTransitionFrame(ctx, current.canvas, next.canvas, progress, direction);
++        await wait(Math.round(1000 / fps));
++      }
++    }
+   }
+ 
+   await wait(160);
+   recorder.stop();
+   return await stopPromise;
+ }
+ 
+ function setStatus(preview, message) {
+   if (!preview) return;
+   preview.textContent = message;

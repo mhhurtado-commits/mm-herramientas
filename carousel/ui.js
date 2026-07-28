@@ -2,7 +2,7 @@ import { createCarouselProject } from "./models.js";
 import { setProject, getProject } from "./state.js";
 import { renderCarousel } from "./renderer.js";
 import { renderSlideToCanvas } from "./canvas-renderer.js";
-import { preloadReelSceneAssets, renderReelSceneToCanvas } from "./reel-canvas-renderer.js";
+import { preloadReelSceneAssets, renderReelSceneToCanvas, resolveReelSceneFamily } from "./reel-canvas-renderer.js";
 import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
 import { buildInstagramCaptionPrompt, buildReelPrompt } from "./prompts.js";
 
@@ -15,6 +15,8 @@ var reelPlaybackTimer = null;
 export function initUI() {
   window.removeEventListener("carousel:asset-ready", handleAssetReady);
   window.addEventListener("carousel:asset-ready", handleAssetReady);
+  window.removeEventListener("carousel:asset-error", handleAssetReady);
+  window.addEventListener("carousel:asset-error", handleAssetReady);
   ensureWorkspaceTabs();
   ensureBulkDownloadButton();
   ensureCaptionPanel();
@@ -553,22 +555,35 @@ function createReelPreviewFrame(scene, project, compact) {
   var media = document.createElement("div");
   media.className = "reel-scene-media" + (compact ? " is-compact" : " is-stage");
 
+  var family = resolveReelSceneFamily(scene, project);
   var imgUrl = resolveReelSceneImage(scene, project);
-  if (imgUrl && scene.visual_type !== "text_card") {
-    var img = document.createElement("img");
-    img.className = "reel-scene-image";
-    img.src = toRenderableSceneImageUrl(imgUrl);
-    img.alt = scene.text || scene.visual_role || "Escena del reel";
-    media.appendChild(img);
-  } else {
-    var placeholder = document.createElement("div");
-    placeholder.className = "reel-scene-placeholder";
-    placeholder.textContent = scene.visual_type === "text_card" ? "" : "Sin imagen";
-    media.appendChild(placeholder);
-  }
+  var hasImageFamily = family === "cover" || family === "image";
 
   var overlay = document.createElement("div");
-  overlay.className = "reel-scene-overlay" + (scene.visual_type === "text_card" ? " is-text-card" : "");
+  overlay.className = "reel-scene-overlay" + (hasImageFamily ? "" : " is-text-card");
+
+  if (imgUrl && hasImageFamily) {
+    var img = document.createElement("img");
+    img.className = "reel-scene-image";
+    img.alt = scene.text || scene.visual_role || "Escena del reel";
+    img.onerror = function () {
+      if (!img.parentNode) return;
+      img.remove();
+
+      var placeholder = document.createElement("div");
+      placeholder.className = "reel-scene-placeholder is-text-card";
+      placeholder.textContent = "";
+      media.insertBefore(placeholder, overlay);
+      overlay.classList.add("is-text-card");
+    };
+    media.appendChild(img);
+    img.src = toRenderableSceneImageUrl(imgUrl);
+  } else {
+    var placeholder = document.createElement("div");
+    placeholder.className = "reel-scene-placeholder" + (hasImageFamily ? "" : " is-text-card");
+    placeholder.textContent = "";
+    media.appendChild(placeholder);
+  }
 
   var roleChip = document.createElement("span");
   roleChip.className = "reel-scene-chip";
@@ -1047,6 +1062,43 @@ function downloadBlob(blob, fileName) {
   }, 1000);
 }
 
+var COVER_TRANSITION_MS = 520;
+var INTERNAL_TRANSITION_MS = 360;
+var CTA_TRANSITION_MS = 620;
+var TRANSITION_FPS = 30;
+
+function easeOutCubic(value) {
+  return 1 - Math.pow(1 - value, 3);
+}
+
+function drawReelTransitionFrame(ctx, currentCanvas, nextCanvas, progress, direction) {
+  var easedProgress = easeOutCubic(progress);
+  var nextOffset = direction * (1 - easedProgress) * 28;
+
+  ctx.save();
+  ctx.globalAlpha = 1 - progress;
+  ctx.drawImage(currentCanvas, 0, 0, 1080, 1920);
+  ctx.globalAlpha = progress;
+  ctx.drawImage(nextCanvas, 0, nextOffset, 1080, 1920);
+  ctx.restore();
+}
+
+function isReelCtaScene(scene) {
+  var layout = String(scene && scene.layout || "").toLowerCase();
+  var role = String(scene && scene.visual_role || "").toLowerCase();
+  return layout === "cta" || role === "cta" || role === "conclusion";
+}
+
+function isReelCoverSceneForTransition(scene) {
+  return !!scene && (scene.visual_type === "cover_image" || scene.visual_role === "hook");
+}
+
+function getReelTransitionDurationMs(scene) {
+  if (isReelCtaScene(scene)) return CTA_TRANSITION_MS;
+  if (isReelCoverSceneForTransition(scene)) return COVER_TRANSITION_MS;
+  return INTERNAL_TRANSITION_MS;
+}
+
 function getSupportedReelVideoType() {
   if (typeof MediaRecorder !== "function" || typeof MediaRecorder.isTypeSupported !== "function") {
     return "video/webm";
@@ -1066,7 +1118,18 @@ function getSupportedReelVideoType() {
 }
 
 async function recordReelVideo(scenes, project, mimeType) {
-  var fps = 30;
+  var fps = TRANSITION_FPS;
+  var renderedScenes = [];
+
+  for (var i = 0; i < scenes.length; i++) {
+    var renderedCanvas = renderReelSceneToCanvas(scenes[i], project);
+    if (renderedCanvas) {
+      renderedScenes.push({ scene: scenes[i], canvas: renderedCanvas });
+    }
+  }
+
+  if (!renderedScenes.length) return null;
+
   var stageCanvas = document.createElement("canvas");
   stageCanvas.width = 1080;
   stageCanvas.height = 1920;
@@ -1091,17 +1154,29 @@ async function recordReelVideo(scenes, project, mimeType) {
 
   recorder.start();
 
-  for (var i = 0; i < scenes.length; i++) {
-    var frameCanvas = renderReelSceneToCanvas(scenes[i], project);
-    if (!frameCanvas) continue;
-
-    var durationMs = Math.max(1200, Number(scenes[i].duration_ms || 0) || 2500);
+  for (var i = 0; i < renderedScenes.length; i++) {
+    var current = renderedScenes[i];
+    var durationMs = Math.max(1200, Number(current.scene.duration_ms || 0) || 2500);
     var frameCount = Math.max(1, Math.round((durationMs / 1000) * fps));
 
     for (var f = 0; f < frameCount; f++) {
       ctx.clearRect(0, 0, stageCanvas.width, stageCanvas.height);
-      ctx.drawImage(frameCanvas, 0, 0, stageCanvas.width, stageCanvas.height);
+      ctx.drawImage(current.canvas, 0, 0, stageCanvas.width, stageCanvas.height);
       await wait(Math.round(1000 / fps));
+    }
+
+    var next = renderedScenes[i + 1];
+    if (next) {
+      var transitionDurationMs = getReelTransitionDurationMs(next.scene);
+      var transitionFrameCount = Math.max(1, Math.round((transitionDurationMs / 1000) * fps));
+      var direction = isReelCtaScene(next.scene) ? 0.35 : (i % 2 === 0 ? 1 : -1);
+
+      for (var t = 0; t < transitionFrameCount; t++) {
+        var progress = (t + 1) / transitionFrameCount;
+        ctx.clearRect(0, 0, stageCanvas.width, stageCanvas.height);
+        drawReelTransitionFrame(ctx, current.canvas, next.canvas, progress, direction);
+        await wait(Math.round(1000 / fps));
+      }
     }
   }
 
