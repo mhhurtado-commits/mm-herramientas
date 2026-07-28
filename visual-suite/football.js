@@ -12,6 +12,10 @@ function footballAssetKeyFromName(value) {
   const raw = String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const aliases = {
     'gimnasia y esgrima (mendoza)': 'gimnasia-y-esgrima',
+    'gimnasia y esgrima (mza.)': 'gimnasia-y-esgrima',
+    'gimnasia y esgrima (mza)': 'gimnasia-y-esgrima',
+    'gimnasia y esgrima mendoza': 'gimnasia-y-esgrima',
+    'gimnasia mendoza': 'gimnasia-y-esgrima',
     'gimnasia de mendoza': 'gimnasia-y-esgrima',
     'gimnasia (mza.)': 'gimnasia-y-esgrima',
     'gimnasia-mza': 'gimnasia-y-esgrima',
@@ -25,6 +29,8 @@ function footballAssetKeyFromName(value) {
     'estudiantes-rio-cuarto': 'estudiantes-de-rio-cuarto',
     'racing': 'racing-club',
     'racing club': 'racing-club',
+    'racing club de avellaneda': 'racing-club',
+    'racing de avellaneda': 'racing-club',
     'nacional': 'nacional-uru',
     'nacional de uruguay': 'nacional-uru',
     'ucv': 'universidad-central-venezuela',
@@ -47,6 +53,8 @@ function footballDisplayName(value) {
     'sarmiento de junin': 'Sarmiento (J)',
     'sarmiento (j)': 'Sarmiento (J)',
     'gimnasia y esgrima (mendoza)': 'Gimnasia (Mza.)',
+    'gimnasia y esgrima (mza.)': 'Gimnasia (Mza.)',
+    'gimnasia y esgrima (mza)': 'Gimnasia (Mza.)',
     'gimnasia de mendoza': 'Gimnasia (Mza.)',
     'gimnasia (mza.)': 'Gimnasia (Mza.)',
     'nacional de uruguay': 'Nacional (URU)',
