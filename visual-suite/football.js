@@ -20,6 +20,8 @@ function footballAssetKeyFromName(value) {
     'gimnasia (mza.)': 'gimnasia-y-esgrima',
     'gimnasia-mza': 'gimnasia-y-esgrima',
     'gimnasia-mza.': 'gimnasia-y-esgrima',
+    'gimnasia-mendoza': 'gimnasia-y-esgrima',
+    'gimnasia-mendoza-fc': 'gimnasia-y-esgrima',
     'gimnasia mza': 'gimnasia-y-esgrima',
     'estudiantes (rio cuarto)': 'estudiantes-de-rio-cuarto',
     'estudiantes de rio cuarto': 'estudiantes-de-rio-cuarto',
@@ -273,7 +275,7 @@ Respondé SOLO JSON válido, sin markdown ni explicaciones, con esta estructura 
   ]
 }
 
-Reglas: usar horario de Argentina; incluir todas las competiciones encontradas sin duplicados; estado permitido: programado, en vivo, finalizado, suspendido o cancelado; si es un resultado, completar "resultado"; no rellenar con suposiciones. Para los campos de recursos usar claves simples, no URLs: liga-profesional, copa-sudamericana, racing-club, tigre, nacional-uru, etc.`;
+Reglas: usar horario de Argentina; incluir todas las competiciones encontradas sin duplicados; estado permitido: programado, en vivo, finalizado, suspendido o cancelado; si es un resultado, completar "resultado"; no rellenar con suposiciones. Para los campos de recursos usar únicamente claves simples y canónicas, no URLs. Ejemplos obligatorios: Gimnasia y Esgrima (Mendoza) = gimnasia-y-esgrima; Racing Club = racing-club; Estudiantes de Río Cuarto = estudiantes-de-rio-cuarto; Santos FC = santos; Universidad Central de Venezuela = universidad-central-venezuela; Nacional de Uruguay = nacional-uru; Liga Profesional = liga-profesional; Copa Sudamericana = copa-sudamericana. No usar variantes como gimnasia-mendoza, racing, estudiantes-rio-cuarto o nombres largos.`;
   const field = document.getElementById('footballPrompt');
   if (field) field.value = prompt;
   toast('✅ Prompt de fútbol generado');

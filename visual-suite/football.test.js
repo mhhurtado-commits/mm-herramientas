@@ -37,6 +37,7 @@ if (!esCompeticionFootballPermitida('Copa Sudamericana')) {
 }
 const assetAliases = {
   'gimnasia-mza': 'gimnasia-y-esgrima',
+  'gimnasia-mendoza': 'gimnasia-y-esgrima',
   'racing': 'racing-club',
   'estudiantes-rc': 'estudiantes-de-rio-cuarto'
 };
