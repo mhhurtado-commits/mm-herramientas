@@ -11,6 +11,7 @@ var activeSlideIndex = 0;
 var activeReelSceneIndex = 0;
 var activeWorkspaceTab = "carousel";
 var reelPlaybackTimer = null;
+var reelPlaybackAnimationFrame = null;
 
 export function initUI() {
   window.removeEventListener("carousel:asset-ready", handleAssetReady);
@@ -528,6 +529,7 @@ function createReelPreviewThumb(scene, index, project) {
   button.type = "button";
   button.className = "reel-preview-thumb" + (index === activeReelSceneIndex ? " is-active" : "");
   button.addEventListener("click", function () {
+    if (reelPlaybackTimer || reelPlaybackAnimationFrame) stopReelPlayback();
     activeReelSceneIndex = index;
     renderReelPreview(project);
   });
@@ -757,15 +759,77 @@ function advanceReelPlayback(project) {
   var scene = reel.scenes[activeReelSceneIndex];
   var duration = Math.max(1200, Number(scene && scene.duration_ms) || 2500);
   reelPlaybackTimer = window.setTimeout(function () {
-    activeReelSceneIndex = (activeReelSceneIndex + 1) % reel.scenes.length;
-    advanceReelPlayback(project);
+    reelPlaybackTimer = null;
+    var nextIndex = (activeReelSceneIndex + 1) % reel.scenes.length;
+    animateReelPreviewTransition(
+      project,
+      scene,
+      reel.scenes[nextIndex],
+      getReelTransitionDurationMs(reel.scenes[nextIndex]),
+      nextIndex,
+      function () {
+        advanceReelPlayback(project);
+      }
+    );
   }, duration);
+}
+
+function animateReelPreviewTransition(project, currentScene, nextScene, durationMs, nextIndex, onComplete) {
+  var stage = document.getElementById("reelPreviewStage");
+  if (!stage || !currentScene || !nextScene) {
+    activeReelSceneIndex = nextIndex;
+    if (onComplete) onComplete();
+    return;
+  }
+
+  var currentCanvas = renderReelSceneToCanvas(currentScene, project);
+  var nextCanvas = renderReelSceneToCanvas(nextScene, project);
+  if (!currentCanvas || !nextCanvas) {
+    activeReelSceneIndex = nextIndex;
+    if (onComplete) onComplete();
+    return;
+  }
+
+  var transitionCanvas = document.createElement("canvas");
+  transitionCanvas.width = 1080;
+  transitionCanvas.height = 1920;
+  transitionCanvas.className = "reel-preview-canvas";
+  var ctx = transitionCanvas.getContext("2d");
+  stage.innerHTML = "";
+  stage.appendChild(transitionCanvas);
+
+  var startedAt = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+  var direction = isReelCtaScene(nextScene) ? 0.35 : (nextIndex % 2 === 0 ? 1 : -1);
+  var transitionLength = Math.max(240, Number(durationMs) || INTERNAL_TRANSITION_MS);
+
+  function drawFrame(timestamp) {
+    var now = timestamp || (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now());
+    var progress = Math.min(1, (now - startedAt) / transitionLength);
+    ctx.clearRect(0, 0, 1080, 1920);
+    drawReelTransitionFrame(ctx, currentCanvas, nextCanvas, progress, direction);
+
+    if (progress < 1 && reelPlaybackAnimationFrame !== null) {
+      reelPlaybackAnimationFrame = window.requestAnimationFrame(drawFrame);
+      return;
+    }
+
+    reelPlaybackAnimationFrame = null;
+    activeReelSceneIndex = nextIndex;
+    renderReelPreview(project);
+    if (onComplete) onComplete();
+  }
+
+  reelPlaybackAnimationFrame = window.requestAnimationFrame(drawFrame);
 }
 
 function stopReelPlayback() {
   if (reelPlaybackTimer) {
     window.clearTimeout(reelPlaybackTimer);
     reelPlaybackTimer = null;
+  }
+  if (reelPlaybackAnimationFrame !== null) {
+    window.cancelAnimationFrame(reelPlaybackAnimationFrame);
+    reelPlaybackAnimationFrame = null;
   }
   var button = document.getElementById("playReelBtn");
   if (button) button.textContent = "Reproducir";
