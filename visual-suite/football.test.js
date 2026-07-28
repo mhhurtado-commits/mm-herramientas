@@ -35,13 +35,23 @@ if (esCompeticionFootballPermitida('Primera División de Paraguay')) {
 if (!esCompeticionFootballPermitida('Copa Sudamericana')) {
   throw new Error('Se rechazó una competencia CONMEBOL válida');
 }
+const assetAliases = {
+  'gimnasia-mza': 'gimnasia-y-esgrima',
+  'racing': 'racing-club',
+  'estudiantes-rc': 'estudiantes-de-rio-cuarto'
+};
+for (const [input, expected] of Object.entries(assetAliases)) {
+  if (footballAssetKeyFromName(input) !== expected) throw new Error(`Alias de escudo incorrecto para ${input}`);
+}
+
 const displayNames = {
   'Sarmiento de Junín': 'Sarmiento (J)',
   'Gimnasia y Esgrima (Mendoza)': 'Gimnasia (Mza.)',
   'Nacional de Uruguay': 'Nacional (URU)',
   'Argentinos Juniors': 'Argentinos Jrs.',
   'Estudiantes de Río Cuarto': 'Estudiantes (RC)',
-  'Universidad Central de Venezuela': 'UCV'
+  'Universidad Central de Venezuela': 'UCV',
+  'Santos FC': 'Santos'
 };
 for (const [full, expected] of Object.entries(displayNames)) {
   if (footballDisplayName(full) !== expected) throw new Error(`Abreviatura incorrecta para ${full}`);

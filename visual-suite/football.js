@@ -14,8 +14,17 @@ function footballAssetKeyFromName(value) {
     'gimnasia y esgrima (mendoza)': 'gimnasia-y-esgrima',
     'gimnasia de mendoza': 'gimnasia-y-esgrima',
     'gimnasia (mza.)': 'gimnasia-y-esgrima',
+    'gimnasia-mza': 'gimnasia-y-esgrima',
+    'gimnasia-mza.': 'gimnasia-y-esgrima',
+    'gimnasia mza': 'gimnasia-y-esgrima',
     'estudiantes (rio cuarto)': 'estudiantes-de-rio-cuarto',
     'estudiantes de rio cuarto': 'estudiantes-de-rio-cuarto',
+    'estudiantes (rc)': 'estudiantes-de-rio-cuarto',
+    'estudiantes rc': 'estudiantes-de-rio-cuarto',
+    'estudiantes-rc': 'estudiantes-de-rio-cuarto',
+    'estudiantes-rio-cuarto': 'estudiantes-de-rio-cuarto',
+    'racing': 'racing-club',
+    'racing club': 'racing-club',
     'nacional': 'nacional-uru',
     'nacional de uruguay': 'nacional-uru',
     'ucv': 'universidad-central-venezuela',
@@ -49,6 +58,8 @@ function footballDisplayName(value) {
     'universidad central de venezuela': 'UCV',
     'universidad central de venezuela fc': 'UCV',
     'ucv': 'UCV',
+    'santos fc': 'Santos',
+    'santos-fc': 'Santos',
     'santos futebol clube': 'Santos'
   };
   return aliases[normalized] || raw;
@@ -331,7 +342,16 @@ function dibujarFootballCanvas(ctx, W, H) {
     drawFootballBadge(ctx, visitanteKey, p.visitante, x + cardW * .74, y + cardH * .34, badgeSize, dark);
     const competitionKey = p.logoCompetencia || footballCompetitionKey(p.competicion);
     const competitionImg = getFootballImage('competencias', competitionKey);
-    if (competitionImg) drawFootballImageContain(ctx, competitionImg, x + cardW * .79, y + cardH * .04, cardW * .16, cardH * .15);
+    if (competitionImg) {
+      drawFootballImageContain(
+        ctx,
+        competitionImg,
+        x + cardW * .72,
+        y + cardH * .025,
+        cardW * .24,
+        cardH * .27
+      );
+    }
     ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
     const mid = x + cardW * .5;
     drawFootballTeamName(ctx, p.local, x + cardW * .25, y + cardH * .82, cardW * .40, dark);
