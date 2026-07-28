@@ -39,6 +39,7 @@ const assetAliases = {
   'gimnasia-mza': 'gimnasia-y-esgrima',
   'gimnasia-mendoza': 'gimnasia-y-esgrima',
   'racing': 'racing-club',
+  'racing-club': 'racing-club',
   'estudiantes-rc': 'estudiantes-de-rio-cuarto'
 };
 for (const [input, expected] of Object.entries(assetAliases)) {

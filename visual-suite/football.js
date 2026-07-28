@@ -31,6 +31,7 @@ function footballAssetKeyFromName(value) {
     'estudiantes-rio-cuarto': 'estudiantes-de-rio-cuarto',
     'racing': 'racing-club',
     'racing club': 'racing-club',
+    'racing-club': 'racing-club',
     'racing club de avellaneda': 'racing-club',
     'racing de avellaneda': 'racing-club',
     'nacional': 'nacional-uru',
