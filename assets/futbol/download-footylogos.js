@@ -41,12 +41,19 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   const links = new Map();
-  await page.goto('https://www.footylogos.com/es/competition/liga-profesional', { waitUntil: 'domcontentloaded', timeout: 30000 });
-  const leagueLinks = await page.locator('a[href*="/es/logos/"]').evaluateAll(as => as.map(a => ({ href: a.href, name: (a.innerText || '').trim() })));
-  leagueLinks.forEach(item => {
-    const slug = item.href.split('/').filter(Boolean).pop();
-    if (slug && !slug.includes('monocromo') && !links.has(slug)) links.set(slug, item);
-  });
+  const sourcePages = [
+    'https://www.footylogos.com/es/competition/liga-profesional',
+    'https://www.footylogos.com/es/competition/copa-libertadores',
+    'https://www.footylogos.com/es/country/argentina'
+  ];
+  for (const sourcePage of sourcePages) {
+    await page.goto(sourcePage, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const pageLinks = await page.locator('a[href*="/es/logos/"]').evaluateAll(as => as.map(a => ({ href: a.href, name: (a.innerText || '').trim() })));
+    pageLinks.forEach(item => {
+      const slug = item.href.split('/').filter(Boolean).pop();
+      if (slug && !slug.includes('monocromo') && !['copa-libertadores', 'copa-sudamericana', 'liga-profesional-argentina'].includes(slug) && !links.has(slug)) links.set(slug, item);
+    });
+  }
   extraTeams.forEach(([key, href]) => { if (!links.has(key)) links.set(key, { href, name: key }); });
 
   const catalog = { version: 1, actualizado: new Date().toISOString().slice(0, 10), fuentes: { principal: 'https://www.footylogos.com/', referencia: 'https://www.footylogos.com/es/competition/liga-profesional' }, equipos: {}, competencias: {} };
@@ -67,7 +74,8 @@ async function main() {
 
   const competitionPages = [
     ['liga-profesional', 'Liga Profesional Argentina', 'https://www.footylogos.com/es/logos/liga-profesional-argentina'],
-    ['copa-sudamericana', 'Copa Sudamericana', 'https://www.footylogos.com/es/logos/copa-sudamericana']
+    ['copa-sudamericana', 'Copa Sudamericana', 'https://www.footylogos.com/es/logos/copa-sudamericana'],
+    ['copa-libertadores', 'Copa Libertadores', 'https://www.footylogos.com/es/competition/copa-libertadores']
   ];
   for (const [key, name, href] of competitionPages) {
     try {
