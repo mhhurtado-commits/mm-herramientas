@@ -35,6 +35,12 @@ if (esCompeticionFootballPermitida('Primera División de Paraguay')) {
 if (!esCompeticionFootballPermitida('Copa Sudamericana')) {
   throw new Error('Se rechazó una competencia CONMEBOL válida');
 }
+if (!esCompeticionFootballPermitida('Copa Libertadores')) {
+  throw new Error('Se rechazó Copa Libertadores');
+}
+if (!esCompeticionFootballPermitida('Copa Argentina')) {
+  throw new Error('Se rechazó Copa Argentina');
+}
 const assetAliases = {
   'gimnasia-mza': 'gimnasia-y-esgrima',
   'gimnasia-mendoza': 'gimnasia-y-esgrima',
