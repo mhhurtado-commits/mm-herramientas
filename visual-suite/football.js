@@ -308,14 +308,53 @@ function cambiarFormatoFootball() {
   renderFootball();
 }
 
+function dibujarFondoCanchaFootball(ctx, W, H, dark) {
+  const field = ctx.createLinearGradient(0, 0, 0, H);
+  field.addColorStop(0, dark ? '#0b2b20' : '#164d32');
+  field.addColorStop(0.48, dark ? '#0d3828' : '#1b603b');
+  field.addColorStop(1, dark ? '#061c15' : '#103d29');
+  ctx.fillStyle = field;
+  ctx.fillRect(0, 0, W, H);
+
+  const stripeW = W / 12;
+  for (let i = 0; i < 12; i += 1) {
+    if (i % 2 === 0) {
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.018)' : 'rgba(255,255,255,.035)';
+      ctx.fillRect(i * stripeW, 0, stripeW, H);
+    }
+  }
+
+  ctx.save();
+  ctx.strokeStyle = dark ? 'rgba(255,255,255,.075)' : 'rgba(255,255,255,.13)';
+  ctx.lineWidth = Math.max(2, W * 0.0022);
+  const left = W * 0.055, right = W * 0.945, top = H * 0.19, bottom = H * 0.91;
+  const midY = (top + bottom) / 2;
+  ctx.beginPath();
+  ctx.moveTo(left, midY); ctx.lineTo(right, midY);
+  ctx.moveTo(W / 2, top); ctx.lineTo(W / 2, bottom);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(W / 2, midY, Math.min(W, H) * 0.105, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeRect(W * 0.055, midY - H * 0.14, W * 0.12, H * 0.28);
+  ctx.strokeRect(W * 0.825, midY - H * 0.14, W * 0.12, H * 0.28);
+  ctx.restore();
+
+  const veil = ctx.createLinearGradient(0, 0, 0, H);
+  veil.addColorStop(0, 'rgba(0,0,0,.22)');
+  veil.addColorStop(0.25, 'rgba(0,0,0,.04)');
+  veil.addColorStop(0.78, 'rgba(0,0,0,.04)');
+  veil.addColorStop(1, 'rgba(0,0,0,.3)');
+  ctx.fillStyle = veil;
+  ctx.fillRect(0, 0, W, H);
+}
+
 function dibujarFootballCanvas(ctx, W, H) {
   const d = footballData;
   const format = VS_Formats[footballFormat] || VS_Formats.landscape;
   const headerH = Math.round(H * 0.18);
   const dark = footballFormat === 'story';
-  if (!dibujarFondoIA(ctx, W, H, dark ? 'rgba(16,27,21,.78)' : 'rgba(255,255,255,.82)')) {
-    VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { dark, accent: '#a6ce39', headerRatio: headerH / H });
-  }
+  dibujarFondoCanchaFootball(ctx, W, H, dark);
   VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'FÚTBOL', d.titulo || 'Partidos de hoy', headerH);
 
   const M = W * 0.055;

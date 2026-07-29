@@ -56,7 +56,7 @@ const VS_CanvasHelpers = {
     const hh = headerH || Math.round(H * 0.16);
     const M = Math.round(W * 0.045);
     const baseTL = Math.min(W, H);
-    const kicker = 'MEDIA MENDOZA  ·  ' + (label || 'DATOS');
+    const kicker = 'MEDIAMENDOZA  ·  ' + (label || 'DATOS');
 
     ctx.fillStyle = VS_Colors.INK;
     ctx.fillRect(0, 0, W, hh);
