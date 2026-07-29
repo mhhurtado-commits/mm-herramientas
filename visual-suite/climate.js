@@ -105,12 +105,22 @@ function climateIsDay(weather, sun) {
   return minutes >= sunrise && minutes < sunset;
 }
 
+function climateSunData(root, payload) {
+  const candidates = [root?.sun, payload?.sun, root?.data?.sun, payload?.data?.sun];
+  for (const candidate of candidates) {
+    const sun = candidate?.sun || candidate;
+    if (sun?.sunrise || sun?.sunset) return sun;
+  }
+  return {};
+}
+
 function normalizarClimateSMN(payload, ciudad) {
   const root = payload?.data || payload || {};
   const weather = root.weather || {};
   const wind = weather.wind || {};
   const code = weather.weather?.id ?? weather.weather?.code ?? 3;
-  const isDay = climateIsDay(weather, root.sun || payload?.sun);
+  const sun = climateSunData(root, payload);
+  const isDay = climateIsDay(weather, sun);
   const type = climateTypeFromSmnCode(code, isDay);
   const forecastDays = Array.isArray(root.forecast?.forecast) ? root.forecast.forecast : [];
   const periods = forecastDays.flatMap(day => [
@@ -141,7 +151,7 @@ function normalizarClimateSMN(payload, ciudad) {
       description: weather.weather?.description || CLIMATE_WMO[type].label,
       isDay
     },
-    sun: root.sun || payload?.sun || {},
+    sun,
     georef: root.georef || payload?.georef || null,
     periods,
     days,
@@ -349,6 +359,11 @@ function climateDrawHeroStat(ctx, x, y, w, h, label, value, detail = '') {
   }
 }
 
+function climateForecastLayout(W, H, count, square) {
+  const columns = square ? Math.min(2, Math.max(1, count)) : Math.max(1, count);
+  return { columns, rows: Math.ceil(Math.max(0, count) / columns) };
+}
+
 function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
   ctx.fillStyle = index === 0 ? 'rgba(166,206,57,.17)' : 'rgba(255,255,255,.075)';
   ctx.strokeStyle = index === 0 ? VS_Colors.ACCENT : 'rgba(255,255,255,.12)';
@@ -363,8 +378,8 @@ function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
   const allSegments = day.segments || [];
   const segments = index === 0 ? allSegments : allSegments.filter(segment => /mañana|morning|tarde|afternoon/i.test(segment.label || ''));
   const visible = segments.length ? segments : allSegments.slice(0, index === 0 ? 4 : 2);
-  const rowTop = y + h * .36;
-  const rowH = Math.max(h * .145, (h * .58) / Math.max(visible.length, 1));
+  const rowTop = y + h * .38;
+  const rowH = (h * .56) / Math.max(visible.length, 1);
   visible.forEach((segment, segmentIndex) => {
     const rowY = rowTop + segmentIndex * rowH;
     ctx.fillStyle = 'rgba(255,255,255,.07)';
@@ -398,9 +413,9 @@ function dibujarClimateCanvas(ctx, W, H) {
     return;
   }
 
-  const bodyTop = headerH + H * .06;
-  const heroY = bodyTop + H * .015;
-  const heroH = H * (format.cssAR === '1 / 1' ? .285 : .245);
+  const bodyTop = headerH + H * .04;
+  const heroY = bodyTop + H * .01;
+  const heroH = H * (format.cssAR === '1 / 1' ? .205 : .245);
   const config = CLIMATE_WMO[actual.type] || CLIMATE_WMO.cloud;
   ctx.fillStyle = 'rgba(8,17,30,.56)'; ctx.strokeStyle = `${config.color}99`; ctx.lineWidth = Math.max(2, W * .0015);
   ctx.beginPath(); ctx.roundRect(M, heroY, W - M * 2, heroH, Math.min(24, W * .025)); ctx.fill(); ctx.stroke();
@@ -414,32 +429,42 @@ function dibujarClimateCanvas(ctx, W, H) {
   const statX = M + W * .56;
   const statY = heroY + heroH * .16;
   const statGap = W * .014;
-  const statW = (W * .38 - statGap) / 2;
+  const statAreaW = W - M - statX;
+  const statW = (statAreaW - statGap) / 2;
   const statH = heroH * .29;
   climateDrawHeroStat(ctx, statX, statY, statW, statH, 'Sensación', actual.feelsLike != null ? `${actual.feelsLike}°` : '—');
-  climateDrawHeroStat(ctx, statX + statW + statGap, statY, statW, statH, 'Humedad', actual.humidity != null ? `${actual.humidity}%` : '—');
-  climateDrawHeroStat(ctx, statX, statY + statH + statGap, statW, statH, 'Viento', actual.wind != null ? `${actual.wind}` : '—', 'km/h');
-  climateDrawHeroStat(ctx, statX + statW + statGap, statY + statH + statGap, statW, statH, 'Dirección', actual.windDirection || '—');
+  climateDrawHeroStat(ctx, statX + statW + statGap, statY, statW, statH, 'Presión', actual.pressure != null ? `${actual.pressure}` : '—', 'hPa');
+  const sun = climateData.sun || {};
+  climateDrawHeroStat(ctx, statX, statY + statH + statGap, statW, statH, 'Salida del sol', sun.sunrise || '—');
+  climateDrawHeroStat(ctx, statX + statW + statGap, statY + statH + statGap, statW, statH, 'Puesta del sol', sun.sunset || '—');
 
-  const metricsY = heroY + heroH + H * .035;
+  const metricsY = heroY + heroH + H * .025;
   const metricGap = W * .018;
   const metricW = (W - M * 2 - metricGap * 3) / 4;
-  const metricH = Math.min(metricW * .72, H * .105);
+  const metricH = Math.min(metricW * .72, H * .08);
   climateDrawMetric(ctx, M, metricsY, metricW, 'Humedad', actual.humidity != null ? `${actual.humidity}%` : '—', '◌', dark, metricH);
-  climateDrawMetric(ctx, M + metricW + metricGap, metricsY, metricW, 'Presión', actual.pressure != null ? `${actual.pressure} hPa` : '—', '⌁', dark, metricH);
+  climateDrawMetric(ctx, M + metricW + metricGap, metricsY, metricW, 'Viento', actual.wind != null ? `${actual.wind} km/h` : '—', '↗', dark, metricH);
   climateDrawMetric(ctx, M + (metricW + metricGap) * 2, metricsY, metricW, 'Ráfagas', actual.gust != null ? `${actual.gust} km/h` : '—', '↗', dark, metricH);
   climateDrawMetric(ctx, M + (metricW + metricGap) * 3, metricsY, metricW, 'Visibilidad', actual.visibility ? `${actual.visibility} km` : '—', '◉', dark, metricH);
 
   const days = climateData.days.slice(0, format.cssAR === '9 / 16' ? 6 : 4);
-  const forecastY = metricsY + metricH + H * .035;
+  const square = format.cssAR === '1 / 1';
+  const forecastY = metricsY + metricH + H * .025;
   ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Pronóstico diario', M, forecastY);
   if (days.length) {
-    const gap = W * .014; const cardW = (W - M * 2 - gap * (days.length - 1)) / days.length;
-    const cardY = forecastY + H * .025;
-    const footerReserve = H * .105;
-    const desiredCardH = format.cssAR === '1 / 1' ? H * .18 : H * .17;
-    const cardH = Math.min(desiredCardH, Math.max(H * .135, H - cardY - footerReserve));
-    days.forEach((day, index) => climateDrawDayCard(ctx, M + index * (cardW + gap), cardY, cardW, cardH, day, index, dark));
+    const layout = climateForecastLayout(W, H, days.length, square);
+    const gap = W * .014;
+    const rowGap = H * .014;
+    const cardW = (W - M * 2 - gap * (layout.columns - 1)) / layout.columns;
+    const cardY = forecastY + H * .012;
+    const footerReserve = H * .09;
+    const desiredCardH = square ? H * .18 : H * .17;
+    const cardH = Math.min(desiredCardH, Math.max(H * .12, (H - cardY - footerReserve - rowGap * (layout.rows - 1)) / layout.rows));
+    days.forEach((day, index) => {
+      const column = index % layout.columns;
+      const row = Math.floor(index / layout.columns);
+      climateDrawDayCard(ctx, M + column * (cardW + gap), cardY + row * (cardH + rowGap), cardW, cardH, day, index, dark);
+    });
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `500 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px Inter, sans-serif`; ctx.fillText('El SMN no devolvió períodos de pronóstico para esta consulta.', M, forecastY + H * .06);
   }
@@ -502,4 +527,4 @@ if (typeof window !== 'undefined') {
   window.normalizarClimateSMN = normalizarClimateSMN;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode };
+if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout };
