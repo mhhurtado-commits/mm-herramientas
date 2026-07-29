@@ -651,6 +651,12 @@
       "archivo": "assets/futbol/competencias/copa-libertadores.png",
       "fuente": "https://www.footylogos.com/es/competition/copa-libertadores",
       "estado": "ok"
+    },
+    "copa-argentina": {
+      "nombre": "Copa Argentina",
+      "archivo": "assets/futbol/competencias/copa-argentina.png",
+      "fuente": "https://www.copaargentina.org/",
+      "estado": "ok"
     }
   }
 }
