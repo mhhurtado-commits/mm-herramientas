@@ -667,29 +667,49 @@ function drawFootballDetailBody(ctx, W, H, bodyTop, dark, design) {
   if (p.arbitro?.var) ctx.fillText(`VAR: ${p.arbitro.var}`, M, infoY + H * .054);
 
   const lineY = infoY + H * .095;
-  const cols = narrow ? 1 : 2;
-  const colW = (W - M * 2 - (cols - 1) * W * .025) / cols;
+  // Las formaciones son dos tarjetas hermanas: una debajo de cada escudo.
+  // Mantenerlas en dos columnas evita que la segunda se vaya fuera del lienzo
+  // en formatos cuadrados o verticales.
+  const cols = 2;
+  const colW = (W - M * 2 - W * .025) / cols;
   const lineups = [
     { title: footballDisplayName(p.local), data: p.probablesFormaciones?.local || {} },
     { title: footballDisplayName(p.visitante), data: p.probablesFormaciones?.visitante || {} }
   ];
+  const maxPlayers = Math.max(...lineups.map(lineup => (lineup.data.jugadores || []).length), 0);
+  const lineupCardH = maxPlayers ? Math.min(H * .245, Math.max(H * .18, H * (.09 + maxPlayers * .014))) : H * .115;
   lineups.forEach((lineup, index) => {
     const x = M + (index % cols) * (colW + W * .025);
-    const y = lineY + Math.floor(index / cols) * (H * .25);
+    const y = lineY;
     ctx.fillStyle = dark ? 'rgba(255,255,255,.1)' : 'rgba(250,253,248,.96)';
     ctx.strokeStyle = dark ? 'rgba(166,206,57,.4)' : 'rgba(22,32,27,.15)';
-    ctx.beginPath(); ctx.roundRect(x, y, colW, H * .22, Math.min(14, colW * .025)); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(x, y, colW, lineupCardH, Math.min(14, colW * .025)); ctx.fill(); ctx.stroke();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(x, y, colW, lineupCardH, Math.min(14, colW * .025)); ctx.clip();
     ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
-    ctx.font = `700 ${Math.max(13, Math.round(Math.min(W, H) * .015))}px "Inter", sans-serif`;
-    ctx.fillText(`${lineup.title}${lineup.data.formacion ? ` · ${lineup.data.formacion}` : ''}`, x + colW * .05, y + H * .045);
-    ctx.font = `500 ${Math.max(10, Math.round(Math.min(W, H) * .0105))}px "Inter", sans-serif`;
-    (lineup.data.jugadores || []).slice(0, 11).forEach((player, playerIndex) => {
-      ctx.fillText(`${playerIndex + 1}. ${player}`, x + colW * .05, y + H * (.075 + playerIndex * .012));
-    });
-    if (!(lineup.data.jugadores || []).length) {
+    ctx.textAlign = 'center';
+    ctx.font = `700 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px "Inter", sans-serif`;
+    ctx.fillText(lineup.title, x + colW / 2, y + H * .038);
+    ctx.fillStyle = design.accent;
+    ctx.font = `700 ${Math.max(11, Math.round(Math.min(W, H) * .012))}px "Inter", sans-serif`;
+    ctx.fillText(lineup.data.formacion ? `Formación ${lineup.data.formacion}` : 'Formación no informada', x + colW / 2, y + H * .068);
+    const players = (lineup.data.jugadores || []).slice(0, 11);
+    if (players.length) {
+      const playerAreaH = lineupCardH - H * .082;
+      const playerLineH = Math.min(H * .018, playerAreaH / players.length);
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.82)' : VS_Colors.INK2;
+      ctx.font = `500 ${Math.max(9, Math.round(Math.min(W, H) * .0095))}px "Inter", sans-serif`;
+      players.forEach((player, playerIndex) => {
+        const label = `${playerIndex + 1}. ${player}`;
+        const lines = VS_Utils.wrapText(ctx, label, colW * .84, 1);
+        ctx.fillText(lines[0] || label, x + colW / 2, y + H * .094 + playerIndex * playerLineH);
+      });
+    } else {
       ctx.fillStyle = dark ? 'rgba(255,255,255,.6)' : VS_Colors.INK2;
-      ctx.fillText('Formación no informada', x + colW * .05, y + H * .085);
+      ctx.font = `500 ${Math.max(10, Math.round(Math.min(W, H) * .0105))}px "Inter", sans-serif`;
+      ctx.fillText('Sin jugadores informados', x + colW / 2, y + H * .103);
     }
+    ctx.restore();
   });
   ctx.textAlign = 'left';
 }
