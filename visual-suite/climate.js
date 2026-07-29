@@ -9,6 +9,8 @@ let climateData = null;
 let climateFormat = 'square';
 let climateLoading = false;
 let climateRequestId = 0;
+const climateIconCache = new Map();
+const climateIconPromises = new Map();
 
 const CLIMATE_WMO = {
   sun: { label: 'Despejado', glyph: '☀', color: '#ffd166' },
@@ -59,12 +61,42 @@ function climatePeriod(period, fallbackDate = '') {
   };
 }
 
+function climateDay(day) {
+  if (!day) return null;
+  const representative = day.afternoon || day.morning || day.night || day.early_morning;
+  const period = climatePeriod(representative, day.date);
+  if (!period) return null;
+  const periods = [day.early_morning, day.morning, day.afternoon, day.night].filter(Boolean);
+  const rainValues = periods.map(item => Array.isArray(item.rain_prob_range) ? item.rain_prob_range[1] : null).filter(value => value != null);
+  return {
+    ...period,
+    min: climateNumber(day.temp_min ?? day.temperature_min ?? period.min),
+    max: climateNumber(day.temp_max ?? day.temperature_max ?? period.max),
+    rain: rainValues.length ? Math.max(...rainValues) : period.rain
+  };
+}
+
+function climateIsDay(weather, sun) {
+  if (typeof weather?.is_day === 'boolean') return weather.is_day;
+  const rawSun = sun?.sun || sun || {};
+  const toMinutes = value => {
+    const match = String(value || '').match(/(\d{1,2}):(\d{2})/);
+    return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+  };
+  const sunrise = toMinutes(rawSun.sunrise);
+  const sunset = toMinutes(rawSun.sunset);
+  if (sunrise == null || sunset == null) return true;
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  return minutes >= sunrise && minutes < sunset;
+}
+
 function normalizarClimateSMN(payload, ciudad) {
   const root = payload?.data || payload || {};
   const weather = root.weather || {};
   const wind = weather.wind || {};
   const code = weather.weather?.id ?? weather.weather?.code ?? 3;
-  const isDay = weather.is_day !== false;
+  const isDay = climateIsDay(weather, root.sun || payload?.sun);
   const type = climateTypeFromSmnCode(code, isDay);
   const forecastDays = Array.isArray(root.forecast?.forecast) ? root.forecast.forecast : [];
   const periods = forecastDays.flatMap(day => [
@@ -74,6 +106,7 @@ function normalizarClimateSMN(payload, ciudad) {
     climatePeriod(day.night, day.date)
   ]).filter(Boolean);
 
+  const days = forecastDays.map(climateDay).filter(Boolean);
   return {
     ciudad: payload?.ciudad || ciudad || 'San Rafael',
     actualizado: new Date(),
@@ -94,11 +127,41 @@ function normalizarClimateSMN(payload, ciudad) {
     },
     sun: root.sun || payload?.sun || {},
     periods,
+    days,
     alerts: [root.warning_alert, root.warning_shortterm, root.warning_heat]
       .filter(Boolean)
       .map(alert => alert.title || alert.name || alert.description || alert.text || '')
       .filter(Boolean)
   };
+}
+
+function preloadClimateIcon(code) {
+  const key = String(code || '');
+  if (!key) return Promise.resolve(null);
+  if (climateIconCache.has(key)) return Promise.resolve(climateIconCache.get(key));
+  if (climateIconPromises.has(key)) return climateIconPromises.get(key);
+  const promise = new Promise(resolve => {
+    const img = new Image();
+    let triedWebp = false;
+    img.onload = () => { climateIconCache.set(key, img); resolve(img); };
+    img.onerror = () => {
+      if (!triedWebp) {
+        triedWebp = true;
+        img.src = `../placas/icons/${key}.webp`;
+      } else {
+        climateIconCache.set(key, null); resolve(null);
+      }
+    };
+    img.src = `../placas/icons/${key}.png`;
+  });
+  climateIconPromises.set(key, promise);
+  return promise;
+}
+
+function preloadClimateIcons(data) {
+  if (!data) return Promise.resolve();
+  const codes = [data.actual?.code, ...(data.days || []).map(day => day.code)].filter(Boolean);
+  return Promise.all(codes.map(preloadClimateIcon)).then(() => undefined);
 }
 
 function climateFormatConfig() {
@@ -168,9 +231,19 @@ function climateDrawText(ctx, text, x, y, maxWidth, options = {}) {
 function climateDrawAtmosphere(ctx, W, H, actual) {
   const config = CLIMATE_WMO[actual?.type] || CLIMATE_WMO.cloud;
   const gradient = ctx.createLinearGradient(0, 0, W, H);
-  gradient.addColorStop(0, '#101b32');
-  gradient.addColorStop(.46, actual?.type === 'storm' ? '#242446' : '#17485c');
-  gradient.addColorStop(1, '#0b202d');
+  if (!actual?.isDay) {
+    gradient.addColorStop(0, '#070b1c');
+    gradient.addColorStop(.46, actual?.type === 'storm' ? '#211d3d' : '#152644');
+    gradient.addColorStop(1, '#050b16');
+  } else if (actual?.type === 'storm' || actual?.type === 'rain-heavy') {
+    gradient.addColorStop(0, '#1a304b');
+    gradient.addColorStop(.46, '#25465b');
+    gradient.addColorStop(1, '#0b202d');
+  } else {
+    gradient.addColorStop(0, '#102847');
+    gradient.addColorStop(.46, '#176078');
+    gradient.addColorStop(1, '#0b202d');
+  }
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, W, H);
 
@@ -183,21 +256,48 @@ function climateDrawAtmosphere(ctx, W, H, actual) {
   const seed = `${actual?.code || 3}-${actual?.temp || 0}`.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
   const rand = index => ((seed * (index + 17) * 9301 + 49297) % 233280) / 233280;
   ctx.save();
-  ctx.globalAlpha = .16;
+  ctx.globalAlpha = actual?.type === 'rain' || actual?.type === 'rain-light' || actual?.type === 'rain-heavy' || actual?.type === 'storm' ? .25 : .16;
   ctx.strokeStyle = config.color;
   ctx.lineWidth = Math.max(1, W * .001);
   for (let i = 0; i < 12; i++) {
     const x = rand(i) * W;
     ctx.beginPath(); ctx.moveTo(x, H * .18); ctx.lineTo(x + W * .06, H * .86); ctx.stroke();
   }
+  if (actual?.type === 'rain' || actual?.type === 'rain-light' || actual?.type === 'rain-heavy' || actual?.type === 'storm') {
+    ctx.globalAlpha = .2;
+    for (let i = 0; i < 34; i++) {
+      const x = rand(i + 30) * W;
+      const y = H * .18 + rand(i + 40) * H * .72;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - W * .012, y + H * .045); ctx.stroke();
+    }
+  }
+  if (!actual?.isDay) {
+    ctx.fillStyle = 'rgba(255,255,255,.65)';
+    for (let i = 0; i < 28; i++) {
+      ctx.beginPath(); ctx.arc(rand(i + 80) * W, H * .12 + rand(i + 90) * H * .48, Math.max(1, W * .0012), 0, Math.PI * 2); ctx.fill();
+    }
+  }
   ctx.restore();
 }
 
-function climateDrawMetric(ctx, x, y, w, label, value, icon, dark = true) {
+function climateDrawIcon(ctx, code, type, x, y, size) {
+  const image = climateIconCache.get(String(code || ''));
+  if (image) {
+    ctx.drawImage(image, x - size / 2, y - size / 2, size, size);
+    return;
+  }
+  const config = CLIMATE_WMO[type] || CLIMATE_WMO.cloud;
+  ctx.fillStyle = config.color;
+  ctx.font = `${Math.round(size * .75)}px sans-serif`;
+  ctx.textAlign = 'center'; ctx.fillText(config.glyph, x, y + size * .25); ctx.textAlign = 'left';
+}
+
+function climateDrawMetric(ctx, x, y, w, label, value, icon, dark = true, height = null) {
+  const cardH = height || w * .72;
   ctx.fillStyle = dark ? 'rgba(255,255,255,.09)' : 'rgba(255,255,255,.72)';
   ctx.strokeStyle = dark ? 'rgba(255,255,255,.14)' : 'rgba(22,32,27,.1)';
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.roundRect(x, y, w, w * .72, Math.min(16, w * .08)); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(x, y, w, cardH, Math.min(16, w * .08)); ctx.fill(); ctx.stroke();
   ctx.fillStyle = dark ? 'rgba(255,255,255,.64)' : VS_Colors.INK2;
   ctx.font = `700 ${Math.max(11, Math.round(w * .075))}px Inter, sans-serif`;
   ctx.fillText(icon, x + w * .12, y + w * .2);
@@ -205,7 +305,7 @@ function climateDrawMetric(ctx, x, y, w, label, value, icon, dark = true) {
   ctx.fillText(label.toUpperCase(), x + w * .12, y + w * .43);
   ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
   ctx.font = `700 ${Math.max(16, Math.round(w * .13))}px Inter, sans-serif`;
-  ctx.fillText(value || '—', x + w * .12, y + w * .67);
+  ctx.fillText(value || '—', x + w * .12, y + cardH * .78);
 }
 
 function climateDrawPeriod(ctx, x, y, w, h, period, index, dark = true) {
@@ -215,14 +315,13 @@ function climateDrawPeriod(ctx, x, y, w, h, period, index, dark = true) {
   ctx.lineWidth = Math.max(1, w * .006);
   ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(16, w * .06)); ctx.fill(); ctx.stroke();
   climateDrawText(ctx, climateShortDate(period.date) || period.label || '—', x + w / 2, y + h * .2, w * .86, { align: 'center', font: `700 ${Math.max(11, Math.round(w * .09))}px Inter, sans-serif`, color: dark ? '#fff' : VS_Colors.INK, clipX: x, clipY: y, clipW: w, clipH: h });
-  ctx.fillStyle = config.color;
-  ctx.font = `${Math.max(25, Math.round(Math.min(w, h) * .25))}px sans-serif`;
-  ctx.textAlign = 'center'; ctx.fillText(config.glyph, x + w / 2, y + h * .57);
+  climateDrawIcon(ctx, period.code, period.type, x + w / 2, y + h * .49, Math.min(w, h) * .48);
+  ctx.textAlign = 'center';
   ctx.fillStyle = dark ? 'rgba(255,255,255,.78)' : VS_Colors.INK2;
   ctx.font = `600 ${Math.max(10, Math.round(w * .075))}px Inter, sans-serif`;
-  ctx.fillText(`${period.min ?? '—'}° / ${period.max ?? '—'}°`, x + w / 2, y + h * .79);
+  ctx.fillText(`${period.min ?? '—'}° / ${period.max ?? '—'}°`, x + w / 2, y + h * .76);
   ctx.font = `500 ${Math.max(9, Math.round(w * .06))}px Inter, sans-serif`;
-  ctx.fillText(period.rain != null ? `Lluvia ${period.rain}%` : period.description, x + w / 2, y + h * .93);
+  ctx.fillText(period.rain != null ? `Lluvia ${period.rain}%` : period.description, x + w / 2, y + h * .91);
   ctx.textAlign = 'left';
 }
 
@@ -251,7 +350,8 @@ function dibujarClimateCanvas(ctx, W, H) {
   ctx.beginPath(); ctx.roundRect(M, heroY, W - M * 2, heroH, Math.min(24, W * .025)); ctx.fill(); ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.font = `700 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px Inter, sans-serif`;
   ctx.fillText('AHORA', M + W * .035, heroY + heroH * .17);
-  ctx.fillStyle = config.color; ctx.font = `${Math.round(heroH * .43)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(config.glyph, M + W * .16, heroY + heroH * .66);
+  climateDrawIcon(ctx, actual.code, actual.type, M + W * .16, heroY + heroH * .55, heroH * .34);
+  ctx.textAlign = 'center';
   ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(Math.min(W, H) * .092)}px Inter, sans-serif`; ctx.fillText(actual.temp != null ? `${actual.temp}°` : '—', M + W * .36, heroY + heroH * .63);
   ctx.fillStyle = 'rgba(255,255,255,.76)'; ctx.font = `600 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText(actual.description, M + W * .36, heroY + heroH * .82);
   ctx.textAlign = 'left';
@@ -264,17 +364,18 @@ function dibujarClimateCanvas(ctx, W, H) {
   const metricsY = heroY + heroH + H * .035;
   const metricGap = W * .018;
   const metricW = (W - M * 2 - metricGap * 3) / 4;
-  climateDrawMetric(ctx, M, metricsY, metricW, 'Humedad', actual.humidity != null ? `${actual.humidity}%` : '—', '◌');
-  climateDrawMetric(ctx, M + metricW + metricGap, metricsY, metricW, 'Presión', actual.pressure != null ? `${actual.pressure}` : '—', '⌁');
-  climateDrawMetric(ctx, M + (metricW + metricGap) * 2, metricsY, metricW, 'Ráfagas', actual.gust != null ? `${actual.gust}` : '—', '↗');
-  climateDrawMetric(ctx, M + (metricW + metricGap) * 3, metricsY, metricW, 'Visibilidad', actual.visibility || '—', '◉');
+  const metricH = Math.min(metricW * .72, H * .105);
+  climateDrawMetric(ctx, M, metricsY, metricW, 'Humedad', actual.humidity != null ? `${actual.humidity}%` : '—', '◌', dark, metricH);
+  climateDrawMetric(ctx, M + metricW + metricGap, metricsY, metricW, 'Presión', actual.pressure != null ? `${actual.pressure} hPa` : '—', '⌁', dark, metricH);
+  climateDrawMetric(ctx, M + (metricW + metricGap) * 2, metricsY, metricW, 'Ráfagas', actual.gust != null ? `${actual.gust} km/h` : '—', '↗', dark, metricH);
+  climateDrawMetric(ctx, M + (metricW + metricGap) * 3, metricsY, metricW, 'Visibilidad', actual.visibility ? `${actual.visibility} km` : '—', '◉', dark, metricH);
 
-  const periods = climateData.periods.slice(0, format.cssAR === '9 / 16' ? 8 : 6);
-  const forecastY = metricsY + metricW * .72 + H * .04;
-  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Evolución prevista', M, forecastY);
-  if (periods.length) {
-    const gap = W * .014; const cardW = (W - M * 2 - gap * (periods.length - 1)) / periods.length; const cardH = H * .17;
-    periods.forEach((period, index) => climateDrawPeriod(ctx, M + index * (cardW + gap), forecastY + H * .025, cardW, cardH, period, index, dark));
+  const days = climateData.days.slice(0, format.cssAR === '9 / 16' ? 6 : format.cssAR === '1 / 1' ? 4 : 6);
+  const forecastY = metricsY + metricH + H * .035;
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Pronóstico diario', M, forecastY);
+  if (days.length) {
+    const gap = W * .014; const cardW = (W - M * 2 - gap * (days.length - 1)) / days.length; const cardH = format.cssAR === '1 / 1' ? H * .145 : H * .17;
+    days.forEach((day, index) => climateDrawPeriod(ctx, M + index * (cardW + gap), forecastY + H * .025, cardW, cardH, day, index, dark));
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `500 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px Inter, sans-serif`; ctx.fillText('El SMN no devolvió períodos de pronóstico para esta consulta.', M, forecastY + H * .06);
   }
@@ -297,10 +398,14 @@ function renderClimate() {
   const width = Math.max(280, area.clientWidth || 700);
   canvas.width = format.w; canvas.height = format.h; canvas.style.width = '100%'; canvas.style.height = `${Math.round(width / ratio)}px`;
   dibujarClimateCanvas(canvas.getContext('2d'), format.w, format.h);
+  preloadClimateIcons(climateData).then(() => {
+    if (document.getElementById('climateCanvas') === canvas) dibujarClimateCanvas(canvas.getContext('2d'), format.w, format.h);
+  });
 }
 
 async function exportarClimate() {
   const format = climateFormatConfig();
+  await preloadClimateIcons(climateData);
   const canvas = document.createElement('canvas'); canvas.width = format.w; canvas.height = format.h;
   dibujarClimateCanvas(canvas.getContext('2d'), format.w, format.h);
   canvas.toBlob(blob => {
