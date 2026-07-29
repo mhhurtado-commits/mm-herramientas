@@ -8,6 +8,7 @@ const footballAssets = new Map();
 const footballAssetImages = new Map();
 let footballRenderToken = 0;
 let footballSelectedIndexes = new Set();
+let footballDetailData = null;
 
 const ARGENTINE_FOOTBALL_KEYS = new Set([
   'aldosivi', 'argentinos-juniors', 'atletico-platense', 'atletico-tucuman', 'banfield',
@@ -98,6 +99,7 @@ function renderFootballSelection() {
   const list = document.getElementById('footballSelectionList');
   if (!panel || !list) return;
   panel.hidden = !footballData.partidos.length;
+  footballDetailPanelRefresh();
   list.innerHTML = '';
   footballData.partidos.forEach((match, index) => {
     const label = document.createElement('label');
@@ -120,12 +122,14 @@ function renderFootballSelection() {
 function actualizarSeleccionFootball(index, selected) {
   if (selected) footballSelectedIndexes.add(index);
   else footballSelectedIndexes.delete(index);
+  if (getSelectedFootballMatches().length !== 1) footballDetailData = null;
   renderFootballSelection();
   renderFootball();
 }
 
 function seleccionarTodosFootball() {
   footballSelectedIndexes = new Set(footballData.partidos.map((_, index) => index));
+  footballDetailData = null;
   renderFootballSelection();
   renderFootball();
 }
@@ -134,13 +138,117 @@ function seleccionarArgentinosFootball() {
   footballSelectedIndexes = new Set(footballData.partidos
     .map((match, index) => footballMatchIncludesArgentine(match) ? index : null)
     .filter(index => index !== null));
+  footballDetailData = null;
   renderFootballSelection();
   renderFootball();
 }
 
 function deseleccionarTodosFootball() {
   footballSelectedIndexes.clear();
+  footballDetailData = null;
   renderFootballSelection();
+  renderFootball();
+}
+
+function getSingleSelectedFootballMatch() {
+  const selected = getSelectedFootballMatches();
+  return selected.length === 1 ? selected[0] : null;
+}
+
+function footballDetailPanelRefresh() {
+  const panel = document.getElementById('footballDetailPanel');
+  if (panel) panel.hidden = !footballData.partidos.length;
+}
+
+function generarPromptFootballDetalle(showToast = true) {
+  const match = getSingleSelectedFootballMatch();
+  if (!match) return toast('Seleccioná exactamente un partido para pedir el detalle');
+  const fecha = document.getElementById('footballFecha')?.value || footballData.fecha;
+  const prompt = `Buscá en internet información REAL, actualizada y verificable sobre este partido de fútbol del ${fecha}: ${match.local} vs ${match.visitante}, ${match.competicion}, horario ${match.hora}. Consultá fuentes deportivas confiables y priorizá fuentes oficiales de la competencia o los clubes.
+
+Respondé SOLO JSON válido, sin markdown ni explicaciones. No inventes datos: si un dato no está confirmado, devolvé una cadena vacía, una lista vacía o null según corresponda.
+
+{
+  "fecha": "${footballData.fecha}",
+  "partido": {
+    "hora": "${match.hora}",
+    "competicion": "${match.competicion}",
+    "local": "${match.local}",
+    "escudoLocal": "${match.escudoLocal || footballAssetKeyFromName(match.local)}",
+    "visitante": "${match.visitante}",
+    "escudoVisitante": "${match.escudoVisitante || footballAssetKeyFromName(match.visitante)}",
+    "estadio": "",
+    "arbitro": { "principal": "", "asistentes": [], "cuartoArbitro": "", "var": "" },
+    "probablesFormaciones": {
+      "local": { "formacion": "", "jugadores": [] },
+      "visitante": { "formacion": "", "jugadores": [] }
+    },
+    "claves": [],
+    "fuentesDetalle": []
+  }
+}
+
+Reglas: informar estadio, árbitro y probables formaciones solo si están confirmados o publicados por fuentes confiables; distinguir probable de confirmado; usar nombres completos; mantener horario de Argentina; no completar con suposiciones.`;
+  const field = document.getElementById('footballDetailPrompt');
+  if (field) field.value = prompt;
+  if (showToast) toast('✅ Prompt detallado generado');
+}
+
+function normalizarFootballDetalle(input) {
+  const raw = input && typeof input === 'object' ? input : {};
+  const p = raw.partido && typeof raw.partido === 'object' ? raw.partido : raw;
+  const formaciones = p.probablesFormaciones && typeof p.probablesFormaciones === 'object' ? p.probablesFormaciones : {};
+  return {
+    ...p,
+    estadio: String(p.estadio || '').trim(),
+    arbitro: {
+      principal: String(p.arbitro?.principal || '').trim(),
+      asistentes: Array.isArray(p.arbitro?.asistentes) ? p.arbitro.asistentes.map(String) : [],
+      cuartoArbitro: String(p.arbitro?.cuartoArbitro || '').trim(),
+      var: String(p.arbitro?.var || '').trim()
+    },
+    probablesFormaciones: {
+      local: {
+        formacion: String(formaciones.local?.formacion || '').trim(),
+        jugadores: Array.isArray(formaciones.local?.jugadores) ? formaciones.local.jugadores.map(String) : []
+      },
+      visitante: {
+        formacion: String(formaciones.visitante?.formacion || '').trim(),
+        jugadores: Array.isArray(formaciones.visitante?.jugadores) ? formaciones.visitante.jugadores.map(String) : []
+      }
+    },
+    claves: Array.isArray(p.claves) ? p.claves.map(String) : [],
+    fuentesDetalle: Array.isArray(p.fuentesDetalle) ? p.fuentesDetalle.map(String) : []
+  };
+}
+
+function cargarJSONFootballDetalle() {
+  if (!getSingleSelectedFootballMatch()) return toast('Seleccioná exactamente un partido antes de cargar el detalle');
+  const field = document.getElementById('footballDetailJson');
+  const text = (field?.value || '').trim();
+  if (!text) return toast('Pegá el JSON detallado en el cuadro de entrada');
+  try {
+    footballDetailData = {
+      ...getSingleSelectedFootballMatch(),
+      ...normalizarFootballDetalle(JSON.parse(text))
+    };
+  } catch (error) {
+    return toast('JSON detallado inválido: ' + error.message);
+  }
+  renderFootball();
+  toast('✅ Detalle cargado en la placa');
+}
+
+function copiarPromptFootballDetalle() {
+  VS_Utils.copiarAlPortapapeles(document.getElementById('footballDetailPrompt')?.value, '✅ Prompt detallado copiado');
+}
+
+function limpiarFootballDetalle() {
+  footballDetailData = null;
+  const prompt = document.getElementById('footballDetailPrompt');
+  const json = document.getElementById('footballDetailJson');
+  if (prompt) prompt.value = '';
+  if (json) json.value = '';
   renderFootball();
 }
 
@@ -433,6 +541,7 @@ function cargarJSONFootball() {
   if (!result.ok) return toast('JSON incompleto: ' + result.errores.join(' · '));
   footballData = result.data;
   footballSelectedIndexes = new Set(footballData.partidos.map((_, index) => index));
+  footballDetailData = null;
   renderFootballSelection();
   renderFootball();
   toast(`✅ ${footballData.partidos.length} partidos cargados`);
@@ -520,6 +629,71 @@ function dibujarFondoCanchaFootball(ctx, W, H, dark, design) {
   ctx.fillRect(0, 0, W, H);
 }
 
+function drawFootballDetailBody(ctx, W, H, bodyTop, dark, design) {
+  const p = footballDetailData || {};
+  const M = W * 0.055;
+  const narrow = W / H < 1.2;
+  const heroY = bodyTop + H * 0.075;
+  const heroH = narrow ? H * 0.25 : H * 0.28;
+  const fill = dark ? 'rgba(255,255,255,.1)' : design.cardFill;
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = dark ? 'rgba(166,206,57,.55)' : design.accent;
+  ctx.lineWidth = Math.max(2, W * 0.0015);
+  ctx.beginPath(); ctx.roundRect(M, heroY, W - M * 2, heroH, Math.min(20, W * .025)); ctx.fill(); ctx.stroke();
+
+  const badgeSize = Math.min(W * (narrow ? .2 : .13), heroH * .42);
+  drawFootballBadge(ctx, footballAssetKeyFromName(p.escudoLocal || p.local), p.local, M + W * .1, heroY + heroH * .22, badgeSize, dark);
+  drawFootballBadge(ctx, footballAssetKeyFromName(p.escudoVisitante || p.visitante), p.visitante, W - M - W * .1 - badgeSize, heroY + heroH * .22, badgeSize, dark);
+  ctx.fillStyle = design.accent;
+  ctx.font = `700 ${Math.max(18, Math.round(Math.min(W, H) * .028))}px "Inter", sans-serif`;
+  ctx.textAlign = 'center'; ctx.fillText(p.hora || 'A confirmar', W / 2, heroY + heroH * .24);
+  ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
+  ctx.font = `700 ${Math.max(17, Math.round(Math.min(W, H) * .022))}px "Inter", sans-serif`;
+  ctx.fillText(footballDisplayName(p.local), M + W * .2, heroY + heroH * .78);
+  ctx.fillText(footballDisplayName(p.visitante), W - M - W * .2, heroY + heroH * .78);
+  ctx.fillStyle = dark ? 'rgba(255,255,255,.7)' : VS_Colors.INK2;
+  ctx.font = `600 ${Math.max(11, Math.round(Math.min(W, H) * .012))}px "Inter", sans-serif`;
+  ctx.fillText(p.competicion || 'Partido destacado', W / 2, heroY + heroH * .48);
+  ctx.font = `500 ${Math.max(11, Math.round(Math.min(W, H) * .011))}px "Inter", sans-serif`;
+  ctx.fillText('vs', W / 2, heroY + heroH * .75);
+
+  const infoY = heroY + heroH + H * .035;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = dark ? 'rgba(255,255,255,.82)' : '#eef7eb';
+  ctx.font = `600 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px "Inter", sans-serif`;
+  const referee = p.arbitro?.principal || 'No informado';
+  ctx.fillText(`Estadio: ${p.estadio || 'No informado'}`, M, infoY);
+  ctx.fillText(`Árbitro: ${referee}`, M, infoY + H * .027);
+  if (p.arbitro?.var) ctx.fillText(`VAR: ${p.arbitro.var}`, M, infoY + H * .054);
+
+  const lineY = infoY + H * .095;
+  const cols = narrow ? 1 : 2;
+  const colW = (W - M * 2 - (cols - 1) * W * .025) / cols;
+  const lineups = [
+    { title: footballDisplayName(p.local), data: p.probablesFormaciones?.local || {} },
+    { title: footballDisplayName(p.visitante), data: p.probablesFormaciones?.visitante || {} }
+  ];
+  lineups.forEach((lineup, index) => {
+    const x = M + (index % cols) * (colW + W * .025);
+    const y = lineY + Math.floor(index / cols) * (H * .25);
+    ctx.fillStyle = dark ? 'rgba(255,255,255,.1)' : 'rgba(250,253,248,.96)';
+    ctx.strokeStyle = dark ? 'rgba(166,206,57,.4)' : 'rgba(22,32,27,.15)';
+    ctx.beginPath(); ctx.roundRect(x, y, colW, H * .22, Math.min(14, colW * .025)); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
+    ctx.font = `700 ${Math.max(13, Math.round(Math.min(W, H) * .015))}px "Inter", sans-serif`;
+    ctx.fillText(`${lineup.title}${lineup.data.formacion ? ` · ${lineup.data.formacion}` : ''}`, x + colW * .05, y + H * .045);
+    ctx.font = `500 ${Math.max(10, Math.round(Math.min(W, H) * .0105))}px "Inter", sans-serif`;
+    (lineup.data.jugadores || []).slice(0, 11).forEach((player, playerIndex) => {
+      ctx.fillText(`${playerIndex + 1}. ${player}`, x + colW * .05, y + H * (.075 + playerIndex * .012));
+    });
+    if (!(lineup.data.jugadores || []).length) {
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.6)' : VS_Colors.INK2;
+      ctx.fillText('Formación no informada', x + colW * .05, y + H * .085);
+    }
+  });
+  ctx.textAlign = 'left';
+}
+
 function dibujarFootballCanvas(ctx, W, H) {
   const d = footballData;
   const format = VS_Formats[footballFormat] || VS_Formats.landscape;
@@ -541,6 +715,12 @@ function dibujarFootballCanvas(ctx, W, H) {
     ctx.fillStyle = dark ? 'rgba(255,255,255,.7)' : 'rgba(239,247,234,.82)';
     ctx.font = `500 ${Math.max(15, Math.round(Math.min(W, H) * 0.017))}px "Inter", sans-serif`;
     ctx.fillText(d.subtitulo, M, bodyTop + H * 0.035);
+  }
+  if (footballDetailData) {
+    drawFootballDetailBody(ctx, W, H, bodyTop, dark, design);
+    VS_CanvasHelpers.drawFooter(ctx, W, H, dark, { onField: !dark });
+    VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
+    return;
   }
 
   const columns = format.cssAR === '9 / 16' ? 1 : 2;
@@ -620,7 +800,9 @@ function renderFootball() {
   canvas.style.height = Math.round(width / ratio) + 'px';
   const token = ++footballRenderToken;
   dibujarFootballCanvas(canvas.getContext('2d'), format.w, format.h);
-  const selectedData = getSelectedFootballData();
+  const selectedData = footballDetailData
+    ? { ...footballData, partidos: [footballDetailData] }
+    : getSelectedFootballData();
   preloadFootballAssets(selectedData).then(() => {
     if (token === footballRenderToken) dibujarFootballCanvas(canvas.getContext('2d'), format.w, format.h);
   });
@@ -630,7 +812,10 @@ function renderFootball() {
 
 async function exportarFootball() {
   const format = VS_Formats[footballFormat] || VS_Formats.landscape;
-  await preloadFootballAssets(getSelectedFootballData());
+  const exportData = footballDetailData
+    ? { ...footballData, partidos: [footballDetailData] }
+    : getSelectedFootballData();
+  await preloadFootballAssets(exportData);
   const canvas = document.createElement('canvas');
   canvas.width = format.w; canvas.height = format.h;
   dibujarFootballCanvas(canvas.getContext('2d'), format.w, format.h);
@@ -643,6 +828,7 @@ async function exportarFootball() {
 function limpiarFootball() {
   footballData = { fecha: '', titulo: 'Partidos de hoy', subtitulo: '', partidos: [] };
   footballSelectedIndexes.clear();
+  footballDetailData = null;
   const json = document.getElementById('footballJson');
   if (json) json.value = '';
   renderFootballSelection();
@@ -660,6 +846,11 @@ if (typeof window !== 'undefined') {
   window.seleccionarArgentinosFootball = seleccionarArgentinosFootball;
   window.deseleccionarTodosFootball = deseleccionarTodosFootball;
   window.actualizarSeleccionFootball = actualizarSeleccionFootball;
+  window.generarPromptFootballDetalle = generarPromptFootballDetalle;
+  window.normalizarFootballDetalle = normalizarFootballDetalle;
+  window.cargarJSONFootballDetalle = cargarJSONFootballDetalle;
+  window.copiarPromptFootballDetalle = copiarPromptFootballDetalle;
+  window.limpiarFootballDetalle = limpiarFootballDetalle;
   window.initFootball = initFootball;
   window.generarPromptFootball = generarPromptFootball;
   window.copiarPromptFootball = copiarPromptFootball;
@@ -671,4 +862,4 @@ if (typeof window !== 'undefined') {
   window.limpiarFootball = limpiarFootball;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, footballDisplayName, esCompeticionFootballPermitida, footballDesignPreset, footballPromptConfig, esEquipoFootballArgentino };
+if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, footballDisplayName, esCompeticionFootballPermitida, footballDesignPreset, footballPromptConfig, esEquipoFootballArgentino, normalizarFootballDetalle };

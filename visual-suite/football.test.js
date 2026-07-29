@@ -6,7 +6,8 @@ const {
   footballDisplayName,
   footballDesignPreset,
   footballPromptConfig,
-  esEquipoFootballArgentino
+  esEquipoFootballArgentino,
+  normalizarFootballDetalle
 } = require('./football.js');
 
 const valido = normalizarFootballJSON({
@@ -90,6 +91,20 @@ const displayNames = {
 };
 for (const [full, expected] of Object.entries(displayNames)) {
   if (footballDisplayName(full) !== expected) throw new Error(`Abreviatura incorrecta para ${full}`);
+}
+
+const detalle = normalizarFootballDetalle({
+  partido: {
+    estadio: 'Estadio Monumental',
+    arbitro: { principal: 'Árbitro Principal', asistentes: ['Asistente 1'], var: 'VAR 1' },
+    probablesFormaciones: {
+      local: { formacion: '4-3-3', jugadores: ['Jugador local'] },
+      visitante: { formacion: '4-4-2', jugadores: ['Jugador visitante'] }
+    }
+  }
+});
+if (detalle.estadio !== 'Estadio Monumental' || detalle.arbitro.principal !== 'Árbitro Principal' || detalle.probablesFormaciones.local.jugadores.length !== 1) {
+  throw new Error('No se normalizó el JSON detallado del partido destacado');
 }
 
 console.log('football.test.js: OK');
