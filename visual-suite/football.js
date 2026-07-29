@@ -248,24 +248,57 @@ function initFootball() {
   renderFootball();
 }
 
-function generarPromptFootball() {
+function footballPromptConfig(alcance, tipo) {
+  const scope = String(alcance || 'Argentina y CONMEBOL');
+  const kind = String(tipo || 'partidos del día');
+  const config = {
+    scopeText: 'INCLUIR Liga Profesional, Copa Argentina y torneos CONMEBOL de clubes: Libertadores, Sudamericana y Recopa',
+    jsonScope: 'Argentina: Liga Profesional + Copa Argentina + torneos CONMEBOL de clubes',
+    subtitle: 'Argentina y CONMEBOL',
+    competitionRule: 'incluir todas las competiciones permitidas encontradas',
+    typeRule: 'listar los partidos programados, en vivo o finalizados de ese día'
+  };
+  if (scope === 'Fútbol argentino') {
+    config.scopeText = 'INCLUIR SOLO Liga Profesional, Torneo Apertura/Clausura y Copa Argentina; EXCLUIR Libertadores, Sudamericana, Recopa y toda competencia extranjera';
+    config.jsonScope = 'Argentina: Liga Profesional + Copa Argentina';
+    config.subtitle = 'Fútbol argentino';
+    config.competitionRule = 'incluir solo Liga Profesional, Torneo Apertura/Clausura y Copa Argentina';
+  } else if (scope === 'Competiciones CONMEBOL') {
+    config.scopeText = 'INCLUIR SOLO torneos CONMEBOL de clubes: Libertadores, Sudamericana y Recopa; EXCLUIR Liga Profesional, Copa Argentina y ligas nacionales';
+    config.jsonScope = 'Torneos CONMEBOL de clubes';
+    config.subtitle = 'CONMEBOL';
+    config.competitionRule = 'incluir solo Libertadores, Sudamericana y Recopa';
+  } else if (scope === 'Internacional') {
+    config.scopeText = 'INCLUIR torneos internacionales de clubes, priorizando CONMEBOL; EXCLUIR ligas nacionales extranjeras salvo que sean necesarias para completar la agenda';
+    config.jsonScope = 'Fútbol internacional de clubes';
+    config.subtitle = 'Fútbol internacional';
+    config.competitionRule = 'incluir las competiciones internacionales encontradas, sin ligas nacionales extranjeras';
+  }
+  if (kind === 'resultados de la jornada') config.typeRule = 'priorizar partidos finalizados y completar el resultado; incluir también los que sigan en vivo o estén programados';
+  if (kind === 'partido destacado') config.typeRule = 'incluir los partidos del día y marcar como destacado el cruce de mayor relevancia, sin inventar prioridades';
+  if (kind === 'agenda del torneo') config.typeRule = 'listar la agenda programada del torneo para ese día, agrupada por competencia';
+  return config;
+}
+
+function generarPromptFootball(showToast = true) {
   const fecha = document.getElementById('footballFecha')?.value || '';
   const alcanceBase = document.getElementById('footballAlcance')?.value || 'Argentina y CONMEBOL';
-  const alcance = `${alcanceBase}. SOLO Liga Profesional/Torneo Clausura y Copa Argentina, además de torneos internacionales de clubes CONMEBOL (Libertadores, Sudamericana o Recopa). EXCLUIR ligas nacionales extranjeras: Liga Paraguaya, Brasileirao, Liga Uruguaya, Liga Chilena, Liga Colombiana, Liga Peruana, Liga Ecuatoriana, Liga Boliviana y Liga Venezolana.`;
   const tipo = document.getElementById('footballTipo')?.value || 'partidos del día';
+  const config = footballPromptConfig(alcanceBase, tipo);
+  const alcance = `${alcanceBase}. ${config.scopeText}. EXCLUIR ligas nacionales extranjeras: Liga Paraguaya, Brasileirao, Liga Uruguaya, Liga Chilena, Liga Colombiana, Liga Peruana, Liga Ecuatoriana, Liga Boliviana y Liga Venezolana`;
   const extra = document.getElementById('footballTema')?.value?.trim() || '';
   if (!fecha) return toast('Seleccioná una fecha para generar el prompt');
 
-  const prompt = `Buscá en internet información REAL y actualizada sobre ${tipo} del ${footballDateLabel(fecha)}. Alcance: ${alcance}. ${extra}
+  const prompt = `Buscá en internet información REAL y actualizada sobre ${tipo} del ${footballDateLabel(fecha)}. Alcance: ${alcance}. ${config.typeRule}. ${extra}
 
 Verificá cada partido en fuentes confiables. No inventes partidos, horarios, competencias ni resultados. Si no encontrás datos suficientes, devolvé únicamente los partidos confirmados y aclaralo en el campo "fuente".
 
 Respondé SOLO JSON válido, sin markdown ni explicaciones, con esta estructura exacta:
 {
   "fecha": "${footballDateLabel(fecha)}",
-  "alcance": "Argentina: Liga Profesional + Copa Argentina + torneos CONMEBOL de clubes",
+  "alcance": "${config.jsonScope}",
   "titulo": "Partidos de hoy",
-  "subtitulo": "Argentina y CONMEBOL",
+  "subtitulo": "${config.subtitle}",
   "fuente": "Fuentes consultadas",
   "partidos": [
     {
@@ -285,7 +318,7 @@ Respondé SOLO JSON válido, sin markdown ni explicaciones, con esta estructura 
   ]
 }
 
-Reglas: usar horario de Argentina; incluir todas las competiciones encontradas sin duplicados; estado permitido: programado, en vivo, finalizado, suspendido o cancelado; si es un resultado, completar "resultado"; no rellenar con suposiciones. Para los campos de recursos usar únicamente claves simples y canónicas, no URLs. Ejemplos obligatorios: Gimnasia y Esgrima (Mendoza) = gimnasia-y-esgrima; Racing Club = racing-club; Estudiantes de Río Cuarto = estudiantes-de-rio-cuarto; Santos FC = santos; Universidad Central de Venezuela = universidad-central-venezuela; Nacional de Uruguay = nacional-uru; Liga Profesional = liga-profesional; Copa Argentina = copa-argentina; Copa Libertadores = copa-libertadores; Copa Sudamericana = copa-sudamericana. No usar variantes como gimnasia-mendoza, racing, estudiantes-rio-cuarto o nombres largos.`;
+Reglas: usar horario de Argentina; ${config.competitionRule}; ${config.typeRule}; incluir todas las competiciones sin duplicados; estado permitido: programado, en vivo, finalizado, suspendido o cancelado; si es un resultado, completar "resultado"; no rellenar con suposiciones. Para los campos de recursos usar únicamente claves simples y canónicas, no URLs. Ejemplos obligatorios: Gimnasia y Esgrima (Mendoza) = gimnasia-y-esgrima; Racing Club = racing-club; Estudiantes de Río Cuarto = estudiantes-de-rio-cuarto; Santos FC = santos; Universidad Central de Venezuela = universidad-central-venezuela; Nacional de Uruguay = nacional-uru; Liga Profesional = liga-profesional; Copa Argentina = copa-argentina; Copa Libertadores = copa-libertadores; Copa Sudamericana = copa-sudamericana. No usar variantes como gimnasia-mendoza, racing, estudiantes-rio-cuarto o nombres largos.`;
   const field = document.getElementById('footballPrompt');
   if (field) field.value = prompt;
   toast('✅ Prompt de fútbol generado');
@@ -345,6 +378,7 @@ function footballDesignPreset(alcance, tipo) {
 
 function actualizarConfiguracionFootball() {
   renderFootball();
+  if (document.getElementById('footballFecha')?.value) generarPromptFootball(false);
 }
 
 function dibujarFondoCanchaFootball(ctx, W, H, dark, design) {
@@ -524,4 +558,4 @@ if (typeof window !== 'undefined') {
   window.limpiarFootball = limpiarFootball;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, footballDisplayName, esCompeticionFootballPermitida, footballDesignPreset };
+if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, footballDisplayName, esCompeticionFootballPermitida, footballDesignPreset, footballPromptConfig };
