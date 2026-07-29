@@ -61,6 +61,7 @@ const assetAliases = {
   'gimnasia-mza': 'gimnasia-y-esgrima',
   'gimnasia-mendoza': 'gimnasia-y-esgrima',
   'gimnasia-lp': 'gimnasia-y-esgrima-lp',
+  'gimnasia-la-plata': 'gimnasia-y-esgrima-lp',
   'racing': 'racing-club',
   'racing-club': 'racing-club',
   'estudiantes-rc': 'estudiantes-de-rio-cuarto',
