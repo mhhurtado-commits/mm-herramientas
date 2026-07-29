@@ -12,6 +12,10 @@ function footballAssetKeyFromName(value) {
   const raw = String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const aliases = {
     'gimnasia y esgrima (mendoza)': 'gimnasia-y-esgrima',
+    'gimnasia y esgrima la plata': 'gimnasia-y-esgrima-lp',
+    'gimnasia y esgrima (la plata)': 'gimnasia-y-esgrima-lp',
+    'gimnasia lp': 'gimnasia-y-esgrima-lp',
+    'gimnasia-lp': 'gimnasia-y-esgrima-lp',
     'gimnasia y esgrima (mza.)': 'gimnasia-y-esgrima',
     'gimnasia y esgrima (mza)': 'gimnasia-y-esgrima',
     'gimnasia y esgrima mendoza': 'gimnasia-y-esgrima',
@@ -34,6 +38,11 @@ function footballAssetKeyFromName(value) {
     'racing-club': 'racing-club',
     'racing club de avellaneda': 'racing-club',
     'racing de avellaneda': 'racing-club',
+    'instituto': 'instituto-cordoba',
+    'instituto cordoba': 'instituto-cordoba',
+    'instituto atletico central cordoba': 'instituto-cordoba',
+    'platense': 'atletico-platense',
+    'club atletico platense': 'atletico-platense',
     'nacional': 'nacional-uru',
     'nacional de uruguay': 'nacional-uru',
     'ucv': 'universidad-central-venezuela',

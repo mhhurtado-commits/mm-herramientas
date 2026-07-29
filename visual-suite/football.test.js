@@ -60,9 +60,12 @@ if (conmebolPrompt.jsonScope !== 'Torneos CONMEBOL de clubes' || !conmebolPrompt
 const assetAliases = {
   'gimnasia-mza': 'gimnasia-y-esgrima',
   'gimnasia-mendoza': 'gimnasia-y-esgrima',
+  'gimnasia-lp': 'gimnasia-y-esgrima-lp',
   'racing': 'racing-club',
   'racing-club': 'racing-club',
-  'estudiantes-rc': 'estudiantes-de-rio-cuarto'
+  'estudiantes-rc': 'estudiantes-de-rio-cuarto',
+  'instituto': 'instituto-cordoba',
+  'platense': 'atletico-platense'
 };
 for (const [input, expected] of Object.entries(assetAliases)) {
   if (footballAssetKeyFromName(input) !== expected) throw new Error(`Alias de escudo incorrecto para ${input}`);
