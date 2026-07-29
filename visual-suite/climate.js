@@ -347,14 +347,14 @@ function climateDrawHeroStat(ctx, x, y, w, h, label, value, detail = '') {
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(12, w * .04)); ctx.fill(); ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,.62)';
-  ctx.font = `700 ${Math.max(10, Math.round(Math.min(w, h) * .12))}px Inter, sans-serif`;
+  ctx.font = `700 ${Math.max(12, Math.round(Math.min(w * .07, h * .19)))}px Inter, sans-serif`;
   ctx.fillText(label.toUpperCase(), x + w * .09, y + h * .3);
   ctx.fillStyle = '#fff';
-  ctx.font = `700 ${Math.max(14, Math.round(Math.min(w, h) * .2))}px Inter, sans-serif`;
+  ctx.font = `700 ${Math.max(18, Math.round(Math.min(w * .13, h * .3)))}px Inter, sans-serif`;
   ctx.fillText(value || '—', x + w * .09, y + h * .72);
   if (detail) {
     ctx.fillStyle = 'rgba(255,255,255,.58)';
-    ctx.font = `500 ${Math.max(9, Math.round(Math.min(w, h) * .1))}px Inter, sans-serif`;
+    ctx.font = `500 ${Math.max(10, Math.round(Math.min(w * .06, h * .16)))}px Inter, sans-serif`;
     ctx.fillText(detail, x + w * .56, y + h * .72);
   }
 }
@@ -365,13 +365,14 @@ function climateForecastLayout(W, H, count, square) {
 }
 
 function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
+  const base = Math.min(w, h);
   ctx.fillStyle = index === 0 ? 'rgba(166,206,57,.17)' : 'rgba(255,255,255,.075)';
   ctx.strokeStyle = index === 0 ? VS_Colors.ACCENT : 'rgba(255,255,255,.12)';
   ctx.lineWidth = Math.max(1, w * .006);
   ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(16, w * .06)); ctx.fill(); ctx.stroke();
-  climateDrawText(ctx, climateShortDate(day.date) || '—', x + w / 2, y + h * .16, w * .86, { align: 'center', font: `700 ${Math.max(11, Math.round(w * .075))}px Inter, sans-serif`, color: dark ? '#fff' : VS_Colors.INK, clipX: x, clipY: y, clipW: w, clipH: h });
+  climateDrawText(ctx, climateShortDate(day.date) || '—', x + w / 2, y + h * .16, w * .86, { align: 'center', font: `700 ${Math.max(16, Math.round(base * .18))}px Inter, sans-serif`, color: dark ? '#fff' : VS_Colors.INK, clipX: x, clipY: y, clipW: w, clipH: h });
   ctx.fillStyle = dark ? 'rgba(255,255,255,.62)' : VS_Colors.INK2;
-  ctx.font = `600 ${Math.max(9, Math.round(w * .052))}px Inter, sans-serif`;
+  ctx.font = `600 ${Math.max(12, Math.round(base * .13))}px Inter, sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillText(`${day.min ?? '—'}° / ${day.max ?? '—'}°`, x + w / 2, y + h * .29);
 
@@ -387,10 +388,10 @@ function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
     climateDrawIcon(ctx, segment.code, segment.type, x + w * .18, rowY + rowH * .39, rowH * .65);
     ctx.textAlign = 'left';
     ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
-    ctx.font = `700 ${Math.max(10, Math.round(w * .052))}px Inter, sans-serif`;
+    ctx.font = `700 ${Math.max(12, Math.round(base * .12))}px Inter, sans-serif`;
     ctx.fillText(segment.label || 'Período', x + w * .31, rowY + rowH * .34);
     ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2;
-    ctx.font = `500 ${Math.max(9, Math.round(w * .045))}px Inter, sans-serif`;
+    ctx.font = `500 ${Math.max(10, Math.round(base * .095))}px Inter, sans-serif`;
     ctx.fillText(segment.rain != null ? `${segment.rain}% lluvia` : segment.description, x + w * .31, rowY + rowH * .67);
   });
   ctx.textAlign = 'left';
