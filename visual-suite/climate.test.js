@@ -9,7 +9,7 @@ const normalized = normalizarClimateSMN({
       feels_like: 17.1,
       humidity: 64,
       pressure: 1008,
-      visibility: 'Buena',
+      visibility: 20,
       wind: { speed: 13, gust: 24, direction: 'Oeste' },
       weather: { id: 1, description: 'Algo nublado' }
     },

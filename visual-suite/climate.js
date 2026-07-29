@@ -46,7 +46,9 @@ function climatePeriod(period, fallbackDate = '') {
   const code = period.weather?.id ?? period.weather?.code ?? 3;
   const type = climateTypeFromSmnCode(code, true);
   const wind = period.wind || {};
-  const rain = Array.isArray(period.rain_prob_range) ? period.rain_prob_range[1] : period.rain_prob;
+  const rainRange = Array.isArray(period.rain_prob_range) ? period.rain_prob_range : null;
+  const gustRange = Array.isArray(period.gust_range) ? period.gust_range : null;
+  const visibility = period.visibility?.value ?? period.visibility ?? '';
   return {
     label: period.name || period.period || '',
     date: period.date || fallbackDate,
@@ -56,9 +58,13 @@ function climatePeriod(period, fallbackDate = '') {
     temp: climateNumber(period.temperature ?? period.temp),
     min: climateNumber(period.temperature?.min ?? period.temp_min ?? period.temperature_min),
     max: climateNumber(period.temperature?.max ?? period.temp_max ?? period.temperature_max),
-    rain: climateNumber(rain),
+    rain: climateNumber(rainRange?.[1] ?? period.rain_prob),
+    rainRange,
+    rain06h: climateNumber(period.rain06h),
     wind: climateNumber(wind.speed ?? wind.speed_range?.[1]),
-    windDirection: wind.direction || ''
+    windDirection: wind.direction || '',
+    gust: climateNumber(wind.gust ?? gustRange?.[1]),
+    visibility
   };
 }
 
@@ -74,7 +80,7 @@ function climateDay(day) {
   const period = climatePeriod(representative, day.date);
   if (!period) return null;
   const periods = namedPeriods.map(([label, item]) => ({ ...climatePeriod(item, day.date), label }));
-  const rainValues = periods.map(item => Array.isArray(item.rain_prob_range) ? item.rain_prob_range[1] : null).filter(value => value != null);
+  const rainValues = periods.map(item => item.rain).filter(value => value != null);
   return {
     ...period,
     segments: periods,
@@ -128,12 +134,15 @@ function normalizarClimateSMN(payload, ciudad) {
       wind: climateNumber(wind.speed),
       gust: climateNumber(wind.gust),
       windDirection: wind.direction || '',
+      rain: climateNumber(weather.rain),
+      visibility: weather.visibility?.value ?? weather.visibility ?? '',
       code,
       type,
       description: weather.weather?.description || CLIMATE_WMO[type].label,
       isDay
     },
     sun: root.sun || payload?.sun || {},
+    georef: root.georef || payload?.georef || null,
     periods,
     days,
     alerts: [root.warning_alert, root.warning_shortterm, root.warning_heat]
@@ -425,8 +434,12 @@ function dibujarClimateCanvas(ctx, W, H) {
   const forecastY = metricsY + metricH + H * .035;
   ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Pronóstico diario', M, forecastY);
   if (days.length) {
-    const gap = W * .014; const cardW = (W - M * 2 - gap * (days.length - 1)) / days.length; const cardH = format.cssAR === '1 / 1' ? H * .18 : H * .17;
-    days.forEach((day, index) => climateDrawDayCard(ctx, M + index * (cardW + gap), forecastY + H * .025, cardW, cardH, day, index, dark));
+    const gap = W * .014; const cardW = (W - M * 2 - gap * (days.length - 1)) / days.length;
+    const cardY = forecastY + H * .025;
+    const footerReserve = H * .105;
+    const desiredCardH = format.cssAR === '1 / 1' ? H * .18 : H * .17;
+    const cardH = Math.min(desiredCardH, Math.max(H * .135, H - cardY - footerReserve));
+    days.forEach((day, index) => climateDrawDayCard(ctx, M + index * (cardW + gap), cardY, cardW, cardH, day, index, dark));
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `500 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px Inter, sans-serif`; ctx.fillText('El SMN no devolvió períodos de pronóstico para esta consulta.', M, forecastY + H * .06);
   }
