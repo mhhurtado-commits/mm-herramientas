@@ -327,9 +327,9 @@ function climateDrawMetric(ctx, x, y, w, label, value, icon, dark = true, height
   ctx.beginPath(); ctx.roundRect(x, y, w, cardH, Math.min(16, w * .08)); ctx.fill(); ctx.stroke();
   ctx.fillStyle = dark ? 'rgba(255,255,255,.64)' : VS_Colors.INK2;
   ctx.font = `700 ${Math.max(11, Math.round(w * .075))}px Inter, sans-serif`;
-  ctx.fillText(icon, x + w * .12, y + w * .2);
+  ctx.fillText(icon, x + w * .12, y + cardH * .2);
   ctx.font = `600 ${Math.max(10, Math.round(w * .075))}px Inter, sans-serif`;
-  ctx.fillText(label.toUpperCase(), x + w * .12, y + cardH * .51);
+  ctx.fillText(label.toUpperCase(), x + w * .12, y + cardH * .55);
   ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
   const valueText = value || '—';
   let valueSize = Math.max(15, Math.round(w * .13));
@@ -391,7 +391,7 @@ function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
     ctx.fillText(segment.label || 'Período', x + w * .31, rowY + rowH * .34);
     ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2;
     ctx.font = `500 ${Math.max(9, Math.round(w * .045))}px Inter, sans-serif`;
-    ctx.fillText(`${segment.temp != null ? `${segment.temp}°` : '—'} · ${segment.rain != null ? `${segment.rain}% lluvia` : segment.description}`, x + w * .31, rowY + rowH * .67);
+    ctx.fillText(segment.rain != null ? `${segment.rain}% lluvia` : segment.description, x + w * .31, rowY + rowH * .67);
   });
   ctx.textAlign = 'left';
 }
@@ -426,12 +426,12 @@ function dibujarClimateCanvas(ctx, W, H) {
   ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(Math.min(W, H) * .092)}px Inter, sans-serif`; ctx.fillText(actual.temp != null ? `${actual.temp}°` : '—', M + W * .36, heroY + heroH * .63);
   ctx.fillStyle = 'rgba(255,255,255,.76)'; ctx.font = `600 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText(actual.description, M + W * .36, heroY + heroH * .82);
   ctx.textAlign = 'left';
-  const statX = M + W * .56;
+  const statX = M + W * .52;
   const statY = heroY + heroH * .16;
   const statGap = W * .014;
   const statAreaW = W - M - statX;
   const statW = (statAreaW - statGap) / 2;
-  const statH = heroH * .29;
+  const statH = heroH * .34;
   climateDrawHeroStat(ctx, statX, statY, statW, statH, 'Sensación', actual.feelsLike != null ? `${actual.feelsLike}°` : '—');
   climateDrawHeroStat(ctx, statX + statW + statGap, statY, statW, statH, 'Presión', actual.pressure != null ? `${actual.pressure}` : '—', 'hPa');
   const sun = climateData.sun || {};
