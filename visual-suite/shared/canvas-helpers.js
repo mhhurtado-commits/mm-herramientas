@@ -52,7 +52,8 @@ const VS_CanvasHelpers = {
     ctx.fillRect(0, headerH - Math.max(4, Math.round(H * 0.004)), W, Math.max(4, Math.round(H * 0.004)));
   },
 
-  drawPlateHeader(ctx, W, H, label, title, headerH) {
+  drawPlateHeader(ctx, W, H, label, title, headerH, options) {
+    const o = options || {};
     const hh = headerH || Math.round(H * 0.16);
     const M = Math.round(W * 0.045);
     const baseTL = Math.min(W, H);
@@ -60,12 +61,12 @@ const VS_CanvasHelpers = {
 
     ctx.fillStyle = VS_Colors.INK;
     ctx.fillRect(0, 0, W, hh);
-    ctx.fillStyle = VS_Colors.GOLD;
+    ctx.fillStyle = o.accent || VS_Colors.GOLD;
     ctx.fillRect(0, hh - Math.max(4, Math.round(H * 0.004)), W, Math.max(4, Math.round(H * 0.004)));
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = VS_Colors.GOLD;
+    ctx.fillStyle = o.accent || VS_Colors.GOLD;
     ctx.font = `700 ${Math.round(baseTL * 0.018)}px "Inter", sans-serif`;
     ctx.fillText(kicker, M, hh * 0.36);
 

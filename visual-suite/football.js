@@ -317,11 +317,42 @@ function cambiarFormatoFootball() {
   renderFootball();
 }
 
-function dibujarFondoCanchaFootball(ctx, W, H, dark) {
+function footballDesignPreset(alcance, tipo) {
+  const scope = String(alcance || 'Argentina y CONMEBOL');
+  const kind = String(tipo || 'partidos del día');
+  const preset = {
+    accent: '#a6ce39',
+    fieldTop: '#1b5c39',
+    fieldMid: '#247047',
+    fieldBottom: '#15482f',
+    lineAlpha: 0.06,
+    cardFill: 'rgba(250,253,248,.97)',
+    cardStroke: 'rgba(22,32,27,.18)',
+    resultColor: '#5d6b63'
+  };
+  if (scope === 'Fútbol argentino') {
+    Object.assign(preset, { accent: '#59c4d5', fieldTop: '#174f3a', fieldMid: '#216b49', fieldBottom: '#123d31', lineAlpha: 0.055 });
+  } else if (scope === 'Competiciones CONMEBOL') {
+    Object.assign(preset, { accent: '#52c7d8', fieldTop: '#102f42', fieldMid: '#164b57', fieldBottom: '#0b2836', lineAlpha: 0.045, cardFill: 'rgba(246,251,250,.97)' });
+  } else if (scope === 'Internacional') {
+    Object.assign(preset, { accent: '#d8b34a', fieldTop: '#192b3c', fieldMid: '#29455a', fieldBottom: '#111f2e', lineAlpha: 0.04, cardFill: 'rgba(248,250,252,.97)' });
+  }
+  if (kind === 'resultados de la jornada') preset.resultColor = preset.accent;
+  if (kind === 'partido destacado') preset.cardFill = 'rgba(255,255,255,.99)';
+  if (kind === 'agenda del torneo') preset.cardFill = 'rgba(244,249,243,.94)';
+  return { ...preset, tipo: kind };
+}
+
+function actualizarConfiguracionFootball() {
+  renderFootball();
+}
+
+function dibujarFondoCanchaFootball(ctx, W, H, dark, design) {
+  const style = design || footballDesignPreset();
   const field = ctx.createLinearGradient(0, 0, 0, H);
-  field.addColorStop(0, dark ? '#0b2b20' : '#1b5c39');
-  field.addColorStop(0.48, dark ? '#0d3828' : '#247047');
-  field.addColorStop(1, dark ? '#061c15' : '#15482f');
+  field.addColorStop(0, dark ? '#0b2b20' : style.fieldTop);
+  field.addColorStop(0.48, dark ? '#0d3828' : style.fieldMid);
+  field.addColorStop(1, dark ? '#061c15' : style.fieldBottom);
   ctx.fillStyle = field;
   ctx.fillRect(0, 0, W, H);
 
@@ -334,7 +365,7 @@ function dibujarFondoCanchaFootball(ctx, W, H, dark) {
   }
 
   ctx.save();
-  ctx.strokeStyle = dark ? 'rgba(255,255,255,.045)' : 'rgba(255,255,255,.06)';
+  ctx.strokeStyle = dark ? 'rgba(255,255,255,.045)' : `rgba(255,255,255,${style.lineAlpha})`;
   ctx.lineWidth = Math.max(2, W * 0.0022);
   const left = W * 0.055, right = W * 0.945, top = H * 0.19, bottom = H * 0.91;
   const midY = (top + bottom) / 2;
@@ -363,8 +394,11 @@ function dibujarFootballCanvas(ctx, W, H) {
   const format = VS_Formats[footballFormat] || VS_Formats.landscape;
   const headerH = Math.round(H * 0.18);
   const dark = footballFormat === 'story';
-  dibujarFondoCanchaFootball(ctx, W, H, dark);
-  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'FÚTBOL', d.titulo || 'Partidos de hoy', headerH);
+  const alcance = document.getElementById('footballAlcance')?.value || 'Argentina y CONMEBOL';
+  const tipo = document.getElementById('footballTipo')?.value || 'partidos del día';
+  const design = footballDesignPreset(alcance, tipo);
+  dibujarFondoCanchaFootball(ctx, W, H, dark, design);
+  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'FÚTBOL', d.titulo || 'Partidos de hoy', headerH, { accent: design.accent });
 
   const M = W * 0.055;
   const bodyTop = headerH + H * 0.055;
@@ -387,11 +421,12 @@ function dibujarFootballCanvas(ctx, W, H) {
     const row = Math.floor(i / columns);
     const x = M + col * (cardW + gap);
     const y = startY + row * (cardH + H * 0.02);
-    ctx.fillStyle = dark ? 'rgba(255,255,255,.1)' : 'rgba(250,253,248,.97)';
-    ctx.strokeStyle = dark ? 'rgba(166,206,57,.55)' : 'rgba(22,32,27,.18)';
+    const destacado = tipo === 'partido destacado' && (p.destacado || i === 0);
+    ctx.fillStyle = dark ? 'rgba(255,255,255,.1)' : (destacado ? 'rgba(255,255,255,.99)' : design.cardFill);
+    ctx.strokeStyle = dark ? 'rgba(166,206,57,.55)' : (destacado ? design.accent : design.cardStroke);
     ctx.lineWidth = Math.max(2, W * 0.0012);
     ctx.beginPath(); ctx.roundRect(x, y, cardW, cardH, Math.min(18, cardW * .025)); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#a6ce39';
+    ctx.fillStyle = design.accent;
     ctx.font = `700 ${Math.max(18, Math.round(Math.min(W, H) * 0.022))}px "Inter", sans-serif`;
     ctx.fillText(p.hora, x + cardW * .045, y + cardH * .25);
     const localKey = footballAssetKeyForMatch(p, 'local');
@@ -414,7 +449,7 @@ function dibujarFootballCanvas(ctx, W, H) {
     ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
     const mid = x + cardW * .5;
     drawFootballTeamName(ctx, p.local, x + cardW * .25, y + cardH * .82, cardW * .40, dark);
-    ctx.fillStyle = dark ? 'rgba(255,255,255,.65)' : VS_Colors.INK2;
+    ctx.fillStyle = dark ? 'rgba(255,255,255,.65)' : design.resultColor;
     ctx.font = `500 ${Math.max(12, Math.round(Math.min(W, H) * 0.014))}px "Inter", sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillText(p.resultado || 'vs', mid, y + cardH * .58);
@@ -484,8 +519,9 @@ if (typeof window !== 'undefined') {
   window.cargarJSONFootball = cargarJSONFootball;
   window.cargarArchivoJSONFootball = cargarArchivoJSONFootball;
   window.cambiarFormatoFootball = cambiarFormatoFootball;
+  window.actualizarConfiguracionFootball = actualizarConfiguracionFootball;
   window.exportarFootball = exportarFootball;
   window.limpiarFootball = limpiarFootball;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, footballDisplayName, esCompeticionFootballPermitida };
+if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, footballDisplayName, esCompeticionFootballPermitida, footballDesignPreset };

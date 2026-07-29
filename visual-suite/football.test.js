@@ -3,7 +3,8 @@ const {
   validarFootballData,
   footballAssetKeyFromName,
   esCompeticionFootballPermitida,
-  footballDisplayName
+  footballDisplayName,
+  footballDesignPreset
 } = require('./football.js');
 
 const valido = normalizarFootballJSON({
@@ -40,6 +41,12 @@ if (!esCompeticionFootballPermitida('Copa Libertadores')) {
 }
 if (!esCompeticionFootballPermitida('Copa Argentina')) {
   throw new Error('Se rechazó Copa Argentina');
+}
+if (footballDesignPreset('Competiciones CONMEBOL', 'resultados de la jornada').accent !== '#52c7d8') {
+  throw new Error('No se aplicó el preset visual CONMEBOL');
+}
+if (footballDesignPreset('Fútbol argentino', 'partido destacado').cardFill !== 'rgba(255,255,255,.99)') {
+  throw new Error('No se aplicó el preset de partido destacado');
 }
 const assetAliases = {
   'gimnasia-mza': 'gimnasia-y-esgrima',
