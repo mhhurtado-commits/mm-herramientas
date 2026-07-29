@@ -216,6 +216,9 @@
 .vs-football-detail { border-top:1px solid var(--line2); padding-top:12px; }
 .vs-football-area { max-width:900px; }
 .vs-football-area canvas { width:100%; height:auto; display:block; border-radius:var(--radius); }
+.vs-climate-area { max-width:900px; }
+.vs-climate-area canvas { width:100%; height:auto; display:block; border-radius:var(--radius); }
+.vs-climate-status { min-height:18px; padding:8px 0 0; color:var(--muted); font-size:11px; line-height:1.35; }
 
 .vs-url-bar {
   display: flex;
@@ -675,6 +678,8 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   #panel-football .vs-football-area { margin: 0 -2px; max-width: none; }
   #panel-football .vs-football-area canvas { width: 100% !important; height: auto !important; }
   #panel-football .vs-json-help { font-size: 10px; }
+  #panel-climate .vs-climate-area { margin: 0 -2px; max-width: none; }
+  #panel-climate .vs-climate-area canvas { width: 100% !important; height: auto !important; }
 
   .vs-url-bar { gap: 6px; }
   .vs-url-input { min-width: 0; }
@@ -733,6 +738,7 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
       <button class="vs-tab" data-tab="timeline"><span class="vs-tab-icon">&#128197;</span>Timeline</button>
       <button class="vs-tab" data-tab="infographics"><span class="vs-tab-icon">&#127912;</span>Infografías</button>
       <button class="vs-tab" data-tab="efemerides"><span class="vs-tab-icon">&#128467;</span>Efemérides</button>
+      <button class="vs-tab" data-tab="climate"><span class="vs-tab-icon">&#9729;</span>Clima</button>
       <button class="vs-tab" data-tab="football"><span class="vs-tab-icon">&#9917;</span>Fútbol</button>
     </div>
     <div class="vs-nav-group">
@@ -828,6 +834,43 @@ Mayo, 70</textarea>
           <canvas id="chartCanvas"></canvas>
           <div class="vs-logo-overlay" id="logoOverlayCharts" style="display:none"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL: CLIMA SMN -->
+  <div class="vs-panel" id="panel-climate">
+    <div class="vs-tab-header">
+      <div class="vs-tab-header-title"><span>☁</span> Clima</div>
+      <div class="vs-tab-header-actions">
+        <div class="vs-football-status"><span class="dot"></span> Servicio Meteorológico Nacional</div>
+        <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="exportarClimate()">⬇ Exportar PNG</button>
+      </div>
+    </div>
+    <div class="vs-grid">
+      <div class="vs-card accent">
+        <div class="vs-card-header"><span class="vs-card-title">Consulta meteorológica</span></div>
+        <div>
+          <div class="vs-label">Ciudad</div>
+          <select class="vs-select" id="climateCity" style="width:100%;margin-top:6px" onchange="obtenerClimaVisual(this.value)">
+            <option>San Rafael</option><option>General Alvear</option><option>Malargüe</option><option>Mendoza</option><option>San Juan</option><option>San Luis</option><option>Neuquén</option>
+          </select>
+        </div>
+        <div>
+          <div class="vs-label">Formato de placa</div>
+          <select class="vs-select" id="climateFormat" style="width:100%;margin-top:6px" onchange="cambiarFormatoClimate()">
+            <option value="square">Cuadrado 1:1</option><option value="portrait">Vertical 4:5</option><option value="story">Historia 9:16</option><option value="landscape">Horizontal 16:9</option>
+          </select>
+        </div>
+        <button class="vs-btn vs-btn-accent" id="climateRefresh" onclick="obtenerClimaVisual()">↻ Actualizar</button>
+        <div class="vs-climate-status" id="climateStatus">Listo para consultar el SMN.</div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line2);font-size:11px;color:var(--muted);line-height:1.45">
+          La placa usa datos oficiales del SMN obtenidos por el Worker. El token se actualiza mediante el proceso externo de renovación.
+        </div>
+      </div>
+      <div class="vs-card">
+        <div class="vs-card-header"><span class="vs-card-title">Ventana atmosférica</span><span class="vs-badge" id="climateSourceBadge">SMN</span></div>
+        <div class="vs-infografia-area vs-climate-area" id="climateArea"><canvas id="climateCanvas"></canvas></div>
       </div>
     </div>
   </div>
@@ -1306,6 +1349,7 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
 <script src="infographics.js"></script>
 <script src="recursos.js"></script>
 <script src="efemerides.js"></script>
+<script src="climate.js"></script>
 <script src="football.js"></script>
 <script src="publicacion.js"></script>
 <script src="editor.js"></script>

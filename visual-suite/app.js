@@ -141,6 +141,7 @@ function cambiarTab(tab) {
   actualizarLogoOverlay();
   if (tab === 'infographics' && typeof renderizarInfografia === 'function') renderizarInfografia();
   if (tab === 'efemerides' && typeof renderizarEfemerides === 'function') renderizarEfemerides();
+  if (tab === 'climate' && typeof initClimate === 'function') initClimate();
   if (tab === 'football' && typeof initFootball === 'function') initFootball();
   if (tab === 'editor' && typeof renderEditor === 'function') {
     if (!window.pubState || !window.pubState.secciones.length) generarBasePublicacion();
@@ -174,6 +175,9 @@ function exportarVisual() {
       break;
     case 'football':
       if (typeof exportarFootball === 'function') exportarFootball();
+      break;
+    case 'climate':
+      if (typeof exportarClimate === 'function') exportarClimate();
       break;
   }
 }
@@ -706,5 +710,8 @@ window.addEventListener('resize', () => {
   }
   if (document.querySelector('#panel-football.active') && typeof renderFootball === 'function') {
     renderFootball();
+  }
+  if (document.querySelector('#panel-climate.active') && typeof renderClimate === 'function') {
+    renderClimate();
   }
 });
