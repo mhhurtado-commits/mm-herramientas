@@ -634,7 +634,7 @@ function drawFootballDetailBody(ctx, W, H, bodyTop, dark, design) {
   const M = W * 0.055;
   const narrow = W / H < 1.2;
   const heroY = bodyTop + H * 0.075;
-  const heroH = narrow ? H * 0.25 : H * 0.28;
+  const heroH = narrow ? H * 0.235 : H * 0.28;
   const fill = dark ? 'rgba(255,255,255,.1)' : design.cardFill;
   ctx.fillStyle = fill;
   ctx.strokeStyle = dark ? 'rgba(166,206,57,.55)' : design.accent;
@@ -695,14 +695,20 @@ function drawFootballDetailBody(ctx, W, H, bodyTop, dark, design) {
     ctx.fillText(lineup.data.formacion ? `Formación ${lineup.data.formacion}` : 'Formación no informada', x + colW / 2, y + H * .068);
     const players = (lineup.data.jugadores || []).slice(0, 11);
     if (players.length) {
+      const playerCols = colW >= W * .28 ? 2 : 1;
+      const playersPerCol = Math.ceil(players.length / playerCols);
       const playerAreaH = lineupCardH - H * .082;
-      const playerLineH = Math.min(H * .018, playerAreaH / players.length);
+      const playerLineH = Math.min(H * .023, playerAreaH / playersPerCol);
+      const playerColW = colW / playerCols;
       ctx.fillStyle = dark ? 'rgba(255,255,255,.82)' : VS_Colors.INK2;
-      ctx.font = `500 ${Math.max(9, Math.round(Math.min(W, H) * .0095))}px "Inter", sans-serif`;
+      ctx.font = `500 ${Math.max(11, Math.round(Math.min(W, H) * .012))}px "Inter", sans-serif`;
       players.forEach((player, playerIndex) => {
         const label = `${playerIndex + 1}. ${player}`;
-        const lines = VS_Utils.wrapText(ctx, label, colW * .84, 1);
-        ctx.fillText(lines[0] || label, x + colW / 2, y + H * .094 + playerIndex * playerLineH);
+        const col = Math.floor(playerIndex / playersPerCol);
+        const row = playerIndex % playersPerCol;
+        const textX = x + col * playerColW + playerColW / 2;
+        const lines = VS_Utils.wrapText(ctx, label, playerColW * .86, 1);
+        ctx.fillText(lines[0] || label, textX, y + H * .094 + row * playerLineH);
       });
     } else {
       ctx.fillStyle = dark ? 'rgba(255,255,255,.6)' : VS_Colors.INK2;
