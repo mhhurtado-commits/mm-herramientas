@@ -635,6 +635,44 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
   .vs-tab-header-actions { width: 100%; }
   .vs-tab-header-actions .vs-btn { flex: 1; justify-content: center; }
 }
+
+/* Ajustes finales para teléfonos: controles legibles y sin desbordes. */
+@media (max-width: 480px) {
+  body { overflow-x: hidden; }
+  .mm-header-brand { padding: 0 10px; gap: 7px; }
+  .mm-header-logo { height: 21px; }
+  .mm-header-name { font-size: .9rem; letter-spacing: 1px; }
+  .mm-header-section { padding: 0 10px; }
+  .mm-header-label { font-size: 8px; letter-spacing: 1.5px; }
+  .mm-header-status { padding: 0 10px; }
+  .mm-status-txt { display: none; }
+
+  .vs-main { padding-left: 8px; padding-right: 8px; }
+  .vs-tabs { margin-top: 12px; margin-bottom: 16px; padding-bottom: 2px; }
+  .vs-nav-group { border-left: 0; margin-left: 0; padding-left: 0; }
+  .vs-nav-label { display: none; }
+  .vs-tab { padding: 10px 9px; font-size: 8px; letter-spacing: .6px; }
+  .vs-tab-icon { margin-right: 3px; }
+  .vs-card { padding: 10px; border-radius: var(--radius-lg); }
+  .vs-card-title { font-size: 1rem; }
+  .vs-card-header { gap: 7px; }
+  .vs-card-header .vs-badge { align-self: flex-start; }
+  .vs-btn { width: 100%; justify-content: center; }
+  .vs-btn-sm { width: auto; }
+
+  #panel-football .vs-row > div { flex: 1 1 100% !important; min-width: 0 !important; }
+  #panel-football .vs-select,
+  #panel-football .vs-input,
+  #panel-football .vs-textarea { max-width: 100%; box-sizing: border-box; }
+  #panel-football .vs-textarea { min-width: 0; }
+  #panel-football .vs-textarea + .vs-btn { flex: 0 0 100%; }
+  #panel-football .vs-football-area { margin: 0 -2px; max-width: none; }
+  #panel-football .vs-football-area canvas { width: 100% !important; height: auto !important; }
+  #panel-football .vs-json-help { font-size: 10px; }
+
+  .vs-url-bar { gap: 6px; }
+  .vs-url-input { min-width: 0; }
+}
 </style>
 </head>
 <body>
