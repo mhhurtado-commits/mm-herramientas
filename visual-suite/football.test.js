@@ -5,7 +5,8 @@ const {
   esCompeticionFootballPermitida,
   footballDisplayName,
   footballDesignPreset,
-  footballPromptConfig
+  footballPromptConfig,
+  esEquipoFootballArgentino
 } = require('./football.js');
 
 const valido = normalizarFootballJSON({
@@ -56,6 +57,12 @@ if (argentinaPrompt.jsonScope !== 'Argentina: Liga Profesional + Copa Argentina'
 const conmebolPrompt = footballPromptConfig('Competiciones CONMEBOL', 'resultados de la jornada');
 if (conmebolPrompt.jsonScope !== 'Torneos CONMEBOL de clubes' || !conmebolPrompt.typeRule.includes('resultado')) {
   throw new Error('El prompt CONMEBOL no refleja alcance y tipo');
+}
+if (!esEquipoFootballArgentino('Racing Club') || !esEquipoFootballArgentino('Instituto', 'Argentina')) {
+  throw new Error('No se identificó un equipo argentino');
+}
+if (esEquipoFootballArgentino('Cienciano', 'Perú')) {
+  throw new Error('Se identificó incorrectamente un equipo extranjero');
 }
 const assetAliases = {
   'gimnasia-mza': 'gimnasia-y-esgrima',

@@ -7,6 +7,20 @@ let footballFormat = 'landscape';
 const footballAssets = new Map();
 const footballAssetImages = new Map();
 let footballRenderToken = 0;
+let footballSelectedIndexes = new Set();
+
+const ARGENTINE_FOOTBALL_KEYS = new Set([
+  'aldosivi', 'argentinos-juniors', 'atletico-platense', 'atletico-tucuman', 'banfield',
+  'barracas-central', 'belgrano', 'boca-juniors', 'central-cordoba-se', 'defensa-y-justicia',
+  'deportivo-riestra', 'estudiantes-de-la-plata', 'estudiantes-de-rio-cuarto',
+  'gimnasia-y-esgrima', 'gimnasia-y-esgrima-lp', 'godoy-cruz', 'huracan', 'independiente',
+  'independiente-rivadavia', 'instituto-cordoba', 'lanus', 'newells-old-boys', 'racing-club',
+  'river-plate', 'rosario-central', 'san-lorenzo', 'san-martin-sj', 'sarmiento', 'talleres',
+  'tigre', 'union', 'velez-sarsfield', 'agropecuario-argentino', 'all-boys', 'almagro',
+  'atlanta', 'chaco-for-ever', 'deportivo-madryn', 'deportivo-maipu', 'deportivo-moron',
+  'estudiantes-de-buenos-aires', 'gimnasia-de-jujuy', 'gimnasia-y-tiro', 'patronato',
+  'quilmes', 'san-miguel', 'san-telmo', 'temperley', 'tristan-suarez'
+]);
 
 function footballAssetKeyFromName(value) {
   const raw = String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -60,6 +74,74 @@ function footballAssetKeyFromName(value) {
   };
   if (aliases[raw]) return aliases[raw];
   return raw.replace(/\b(fc|fbc|club|club de futbol)\b/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function esEquipoFootballArgentino(value, pais) {
+  if (String(pais || '').toLowerCase().includes('argentina')) return true;
+  return ARGENTINE_FOOTBALL_KEYS.has(footballAssetKeyFromName(value));
+}
+
+function footballMatchIncludesArgentine(match) {
+  return esEquipoFootballArgentino(match.local, match.pais) || esEquipoFootballArgentino(match.visitante, match.pais);
+}
+
+function getSelectedFootballMatches() {
+  return footballData.partidos.filter((_, index) => footballSelectedIndexes.has(index));
+}
+
+function getSelectedFootballData() {
+  return { ...footballData, partidos: getSelectedFootballMatches() };
+}
+
+function renderFootballSelection() {
+  const panel = document.getElementById('footballSelectionPanel');
+  const list = document.getElementById('footballSelectionList');
+  if (!panel || !list) return;
+  panel.hidden = !footballData.partidos.length;
+  list.innerHTML = '';
+  footballData.partidos.forEach((match, index) => {
+    const label = document.createElement('label');
+    label.className = 'vs-football-selection-item';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = footballSelectedIndexes.has(index);
+    checkbox.addEventListener('change', () => actualizarSeleccionFootball(index, checkbox.checked));
+    const text = document.createElement('span');
+    const title = document.createElement('strong');
+    title.textContent = `${footballDisplayName(match.local)} vs ${footballDisplayName(match.visitante)}`;
+    const meta = document.createElement('small');
+    meta.textContent = `${match.hora} · ${match.competicion}${footballMatchIncludesArgentine(match) ? ' · incluye equipo argentino' : ''}`;
+    text.append(title, meta);
+    label.append(checkbox, text);
+    list.appendChild(label);
+  });
+}
+
+function actualizarSeleccionFootball(index, selected) {
+  if (selected) footballSelectedIndexes.add(index);
+  else footballSelectedIndexes.delete(index);
+  renderFootballSelection();
+  renderFootball();
+}
+
+function seleccionarTodosFootball() {
+  footballSelectedIndexes = new Set(footballData.partidos.map((_, index) => index));
+  renderFootballSelection();
+  renderFootball();
+}
+
+function seleccionarArgentinosFootball() {
+  footballSelectedIndexes = new Set(footballData.partidos
+    .map((match, index) => footballMatchIncludesArgentine(match) ? index : null)
+    .filter(index => index !== null));
+  renderFootballSelection();
+  renderFootball();
+}
+
+function deseleccionarTodosFootball() {
+  footballSelectedIndexes.clear();
+  renderFootballSelection();
+  renderFootball();
 }
 
 function footballDisplayName(value) {
@@ -350,6 +432,8 @@ function cargarJSONFootball() {
   const result = validarFootballData(parsed);
   if (!result.ok) return toast('JSON incompleto: ' + result.errores.join(' · '));
   footballData = result.data;
+  footballSelectedIndexes = new Set(footballData.partidos.map((_, index) => index));
+  renderFootballSelection();
   renderFootball();
   toast(`✅ ${footballData.partidos.length} partidos cargados`);
 }
@@ -444,6 +528,7 @@ function dibujarFootballCanvas(ctx, W, H) {
   const alcance = document.getElementById('footballAlcance')?.value || 'Argentina y CONMEBOL';
   const tipo = document.getElementById('footballTipo')?.value || 'partidos del día';
   const design = footballDesignPreset(alcance, tipo);
+  const partidos = getSelectedFootballMatches();
   dibujarFondoCanchaFootball(ctx, W, H, dark, design);
   VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'FÚTBOL', d.titulo || 'Partidos de hoy', headerH, { accent: design.accent });
 
@@ -461,9 +546,9 @@ function dibujarFootballCanvas(ctx, W, H) {
   const columns = format.cssAR === '9 / 16' ? 1 : 2;
   const gap = W * 0.025;
   const cardW = (W - M * 2 - gap * (columns - 1)) / columns;
-  const cardH = Math.min(H * 0.17, Math.max(110, (H - bodyTop - H * 0.16) / Math.ceil(Math.max(d.partidos.length, 1) / columns) - H * 0.02));
+  const cardH = Math.min(H * 0.17, Math.max(110, (H - bodyTop - H * 0.16) / Math.ceil(Math.max(partidos.length, 1) / columns) - H * 0.02));
   const startY = bodyTop + H * 0.075;
-  d.partidos.forEach((p, i) => {
+  partidos.forEach((p, i) => {
     const col = i % columns;
     const row = Math.floor(i / columns);
     const x = M + col * (cardW + gap);
@@ -506,6 +591,13 @@ function dibujarFootballCanvas(ctx, W, H) {
     ctx.font = `600 ${Math.max(10, Math.round(Math.min(W, H) * 0.011))}px "Inter", sans-serif`;
     ctx.fillText(`${p.competicion}${p.estado ? ' · ' + p.estado : ''}`, x + cardW * .045, y + cardH * .12);
   });
+  if (!partidos.length) {
+    ctx.fillStyle = 'rgba(239,247,234,.86)';
+    ctx.font = `600 ${Math.max(16, Math.round(Math.min(W, H) * 0.018))}px "Inter", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Seleccioná al menos un partido para generar la placa', W / 2, bodyTop + H * 0.19);
+    ctx.textAlign = 'left';
+  }
   if (d.fuente) {
     ctx.fillStyle = dark ? 'rgba(255,255,255,.5)' : 'rgba(239,247,234,.78)';
     ctx.font = `500 ${Math.max(10, Math.round(Math.min(W, H) * 0.01))}px "Inter", sans-serif`;
@@ -528,16 +620,17 @@ function renderFootball() {
   canvas.style.height = Math.round(width / ratio) + 'px';
   const token = ++footballRenderToken;
   dibujarFootballCanvas(canvas.getContext('2d'), format.w, format.h);
-  preloadFootballAssets(footballData).then(() => {
+  const selectedData = getSelectedFootballData();
+  preloadFootballAssets(selectedData).then(() => {
     if (token === footballRenderToken) dibujarFootballCanvas(canvas.getContext('2d'), format.w, format.h);
   });
   const count = document.getElementById('footballCount');
-  if (count) count.textContent = `${footballData.partidos.length} partido${footballData.partidos.length === 1 ? '' : 's'}`;
+  if (count) count.textContent = `${getSelectedFootballMatches().length} de ${footballData.partidos.length} partidos`;
 }
 
 async function exportarFootball() {
   const format = VS_Formats[footballFormat] || VS_Formats.landscape;
-  await preloadFootballAssets(footballData);
+  await preloadFootballAssets(getSelectedFootballData());
   const canvas = document.createElement('canvas');
   canvas.width = format.w; canvas.height = format.h;
   dibujarFootballCanvas(canvas.getContext('2d'), format.w, format.h);
@@ -549,8 +642,10 @@ async function exportarFootball() {
 
 function limpiarFootball() {
   footballData = { fecha: '', titulo: 'Partidos de hoy', subtitulo: '', partidos: [] };
+  footballSelectedIndexes.clear();
   const json = document.getElementById('footballJson');
   if (json) json.value = '';
+  renderFootballSelection();
   renderFootball();
 }
 
@@ -560,6 +655,11 @@ if (typeof window !== 'undefined') {
   window.esCompeticionFootballPermitida = esCompeticionFootballPermitida;
   window.footballAssetKeyFromName = footballAssetKeyFromName;
   window.footballDisplayName = footballDisplayName;
+  window.esEquipoFootballArgentino = esEquipoFootballArgentino;
+  window.seleccionarTodosFootball = seleccionarTodosFootball;
+  window.seleccionarArgentinosFootball = seleccionarArgentinosFootball;
+  window.deseleccionarTodosFootball = deseleccionarTodosFootball;
+  window.actualizarSeleccionFootball = actualizarSeleccionFootball;
   window.initFootball = initFootball;
   window.generarPromptFootball = generarPromptFootball;
   window.copiarPromptFootball = copiarPromptFootball;
@@ -571,4 +671,4 @@ if (typeof window !== 'undefined') {
   window.limpiarFootball = limpiarFootball;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, footballDisplayName, esCompeticionFootballPermitida, footballDesignPreset, footballPromptConfig };
+if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, footballDisplayName, esCompeticionFootballPermitida, footballDesignPreset, footballPromptConfig, esEquipoFootballArgentino };

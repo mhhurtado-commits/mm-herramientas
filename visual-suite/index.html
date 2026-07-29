@@ -208,6 +208,11 @@
 .vs-football-status { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:11px; }
 .vs-football-status .dot { width:8px; height:8px; border-radius:50%; background:var(--v); }
 .vs-json-help { color:var(--muted); font-size:11px; line-height:1.5; }
+.vs-football-selection { border-top:1px solid var(--line2); padding-top:12px; }
+.vs-football-selection-list { display:grid; gap:6px; margin-top:8px; max-height:230px; overflow-y:auto; }
+.vs-football-selection-item { display:flex; align-items:flex-start; gap:8px; padding:8px 10px; background:var(--surface2); border:1px solid var(--line2); border-radius:var(--radius); color:var(--text); font-size:12px; line-height:1.3; cursor:pointer; }
+.vs-football-selection-item input { margin-top:2px; accent-color:var(--v); flex:0 0 auto; }
+.vs-football-selection-item small { display:block; color:var(--muted); font-size:10px; margin-top:2px; }
 .vs-football-area { max-width:900px; }
 .vs-football-area canvas { width:100%; height:auto; display:block; border-radius:var(--radius); }
 
@@ -853,6 +858,15 @@ Mayo, 70</textarea>
           <div style="display:flex;gap:6px"><textarea class="vs-textarea" id="footballPrompt" style="flex:1;min-height:150px;font-family:monospace;font-size:11px" placeholder="Acá aparecerá el prompt..."></textarea><button class="vs-btn vs-btn-accent vs-btn-sm" onclick="copiarPromptFootball()" style="align-self:flex-start">📋 Copiar</button></div>
           <div><div class="vs-label">JSON devuelto por el asistente</div><textarea class="vs-textarea" id="footballJson" style="margin-top:6px;min-height:150px;font-family:monospace;font-size:11px" placeholder='{"fecha":"martes 28 de julio de 2026","titulo":"Partidos de hoy","partidos":[{"hora":"19:00","local":"Equipo A","visitante":"Equipo B","competicion":"Liga Profesional"}]}'></textarea></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="vs-btn vs-btn-accent vs-btn-sm" onclick="cargarJSONFootball()">📋 Cargar JSON</button><label class="vs-btn vs-btn-secondary vs-btn-sm" style="cursor:pointer">📁 Archivo<input type="file" accept=".json,application/json" style="display:none" onchange="cargarArchivoJSONFootball(this)"></label></div>
+          <div class="vs-football-selection" id="footballSelectionPanel" hidden>
+            <div class="vs-label">Partidos que van a la placa</div>
+            <div class="vs-row" style="margin-top:6px">
+              <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="seleccionarTodosFootball()">Todos</button>
+              <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="seleccionarArgentinosFootball()">Solo argentinos</button>
+              <button class="vs-btn vs-btn-secondary vs-btn-sm" onclick="deseleccionarTodosFootball()">Ninguno</button>
+            </div>
+            <div class="vs-football-selection-list" id="footballSelectionList"></div>
+          </div>
         </div>
       </div>
       <div class="vs-card">
