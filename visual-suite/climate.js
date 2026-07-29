@@ -53,6 +53,7 @@ function climatePeriod(period, fallbackDate = '') {
     type,
     code,
     description: period.weather?.description || CLIMATE_WMO[type].label,
+    temp: climateNumber(period.temperature ?? period.temp),
     min: climateNumber(period.temperature?.min ?? period.temp_min ?? period.temperature_min),
     max: climateNumber(period.temperature?.max ?? period.temp_max ?? period.temperature_max),
     rain: climateNumber(rain),
@@ -63,13 +64,20 @@ function climatePeriod(period, fallbackDate = '') {
 
 function climateDay(day) {
   if (!day) return null;
+  const namedPeriods = [
+    ['Madrugada', day.early_morning],
+    ['Mañana', day.morning],
+    ['Tarde', day.afternoon],
+    ['Noche', day.night]
+  ].filter(([, period]) => period);
   const representative = day.afternoon || day.morning || day.night || day.early_morning;
   const period = climatePeriod(representative, day.date);
   if (!period) return null;
-  const periods = [day.early_morning, day.morning, day.afternoon, day.night].filter(Boolean);
+  const periods = namedPeriods.map(([label, item]) => ({ ...climatePeriod(item, day.date), label }));
   const rainValues = periods.map(item => Array.isArray(item.rain_prob_range) ? item.rain_prob_range[1] : null).filter(value => value != null);
   return {
     ...period,
+    segments: periods,
     min: climateNumber(day.temp_min ?? day.temperature_min ?? period.min),
     max: climateNumber(day.temp_max ?? day.temperature_max ?? period.max),
     rain: rainValues.length ? Math.max(...rainValues) : period.rain
@@ -302,26 +310,47 @@ function climateDrawMetric(ctx, x, y, w, label, value, icon, dark = true, height
   ctx.font = `700 ${Math.max(11, Math.round(w * .075))}px Inter, sans-serif`;
   ctx.fillText(icon, x + w * .12, y + w * .2);
   ctx.font = `600 ${Math.max(10, Math.round(w * .075))}px Inter, sans-serif`;
-  ctx.fillText(label.toUpperCase(), x + w * .12, y + w * .43);
+  ctx.fillText(label.toUpperCase(), x + w * .12, y + cardH * .51);
   ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
-  ctx.font = `700 ${Math.max(16, Math.round(w * .13))}px Inter, sans-serif`;
-  ctx.fillText(value || '—', x + w * .12, y + cardH * .78);
+  const valueText = value || '—';
+  let valueSize = Math.max(15, Math.round(w * .13));
+  ctx.font = `700 ${valueSize}px Inter, sans-serif`;
+  while (ctx.measureText(valueText).width > w * .78 && valueSize > 12) {
+    valueSize -= 1;
+    ctx.font = `700 ${valueSize}px Inter, sans-serif`;
+  }
+  ctx.fillText(valueText, x + w * .12, y + cardH * .84);
 }
 
-function climateDrawPeriod(ctx, x, y, w, h, period, index, dark = true) {
-  const config = CLIMATE_WMO[period.type] || CLIMATE_WMO.cloud;
+function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
   ctx.fillStyle = index === 0 ? 'rgba(166,206,57,.17)' : 'rgba(255,255,255,.075)';
   ctx.strokeStyle = index === 0 ? VS_Colors.ACCENT : 'rgba(255,255,255,.12)';
   ctx.lineWidth = Math.max(1, w * .006);
   ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(16, w * .06)); ctx.fill(); ctx.stroke();
-  climateDrawText(ctx, climateShortDate(period.date) || period.label || '—', x + w / 2, y + h * .2, w * .86, { align: 'center', font: `700 ${Math.max(11, Math.round(w * .09))}px Inter, sans-serif`, color: dark ? '#fff' : VS_Colors.INK, clipX: x, clipY: y, clipW: w, clipH: h });
-  climateDrawIcon(ctx, period.code, period.type, x + w / 2, y + h * .49, Math.min(w, h) * .48);
+  climateDrawText(ctx, climateShortDate(day.date) || '—', x + w / 2, y + h * .16, w * .86, { align: 'center', font: `700 ${Math.max(11, Math.round(w * .075))}px Inter, sans-serif`, color: dark ? '#fff' : VS_Colors.INK, clipX: x, clipY: y, clipW: w, clipH: h });
+  ctx.fillStyle = dark ? 'rgba(255,255,255,.62)' : VS_Colors.INK2;
+  ctx.font = `600 ${Math.max(9, Math.round(w * .052))}px Inter, sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillStyle = dark ? 'rgba(255,255,255,.78)' : VS_Colors.INK2;
-  ctx.font = `600 ${Math.max(10, Math.round(w * .075))}px Inter, sans-serif`;
-  ctx.fillText(`${period.min ?? '—'}° / ${period.max ?? '—'}°`, x + w / 2, y + h * .76);
-  ctx.font = `500 ${Math.max(9, Math.round(w * .06))}px Inter, sans-serif`;
-  ctx.fillText(period.rain != null ? `Lluvia ${period.rain}%` : period.description, x + w / 2, y + h * .91);
+  ctx.fillText(`${day.min ?? '—'}° / ${day.max ?? '—'}°`, x + w / 2, y + h * .29);
+
+  const allSegments = day.segments || [];
+  const segments = index === 0 ? allSegments : allSegments.filter(segment => /mañana|morning|tarde|afternoon/i.test(segment.label || ''));
+  const visible = segments.length ? segments : allSegments.slice(0, index === 0 ? 4 : 2);
+  const rowTop = y + h * .36;
+  const rowH = Math.min(h * .145, (h * .56) / Math.max(visible.length, 1));
+  visible.forEach((segment, segmentIndex) => {
+    const rowY = rowTop + segmentIndex * rowH;
+    ctx.fillStyle = 'rgba(255,255,255,.07)';
+    ctx.beginPath(); ctx.roundRect(x + w * .07, rowY, w * .86, rowH * .82, 8); ctx.fill();
+    climateDrawIcon(ctx, segment.code, segment.type, x + w * .18, rowY + rowH * .39, rowH * .65);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
+    ctx.font = `700 ${Math.max(9, Math.round(w * .047))}px Inter, sans-serif`;
+    ctx.fillText(segment.label || 'Período', x + w * .31, rowY + rowH * .34);
+    ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2;
+    ctx.font = `500 ${Math.max(8, Math.round(w * .043))}px Inter, sans-serif`;
+    ctx.fillText(`${segment.temp != null ? `${segment.temp}°` : '—'} · ${segment.rain != null ? `${segment.rain}% lluvia` : segment.description}`, x + w * .31, rowY + rowH * .67);
+  });
   ctx.textAlign = 'left';
 }
 
@@ -334,6 +363,12 @@ function dibujarClimateCanvas(ctx, W, H) {
   climateDrawAtmosphere(ctx, W, H, actual);
   VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'CLIMA', climateData?.ciudad || 'El tiempo ahora', headerH, { accent: VS_Colors.ACCENT });
   VS_CanvasHelpers.drawPlateLogo(ctx, W, H, { w: W / H > 1.2 ? .18 : .24 });
+  if (climateData) {
+    const updated = climateData.actualizado instanceof Date ? climateData.actualizado : new Date(climateData.actualizado);
+    ctx.fillStyle = 'rgba(255,255,255,.66)';
+    ctx.font = `600 ${Math.max(11, Math.round(Math.min(W, H) * .011))}px Inter, sans-serif`;
+    ctx.fillText(`Fuente: ${climateData.fuente} · Actualizado ${updated.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`, M, headerH * .58);
+  }
 
   if (!climateData) {
     ctx.fillStyle = '#fff'; ctx.font = `600 ${Math.round(Math.min(W, H) * .035)}px Inter, sans-serif`; ctx.textAlign = 'center';
@@ -370,12 +405,12 @@ function dibujarClimateCanvas(ctx, W, H) {
   climateDrawMetric(ctx, M + (metricW + metricGap) * 2, metricsY, metricW, 'Ráfagas', actual.gust != null ? `${actual.gust} km/h` : '—', '↗', dark, metricH);
   climateDrawMetric(ctx, M + (metricW + metricGap) * 3, metricsY, metricW, 'Visibilidad', actual.visibility ? `${actual.visibility} km` : '—', '◉', dark, metricH);
 
-  const days = climateData.days.slice(0, format.cssAR === '9 / 16' ? 6 : format.cssAR === '1 / 1' ? 4 : 6);
+  const days = climateData.days.slice(0, format.cssAR === '9 / 16' ? 6 : 4);
   const forecastY = metricsY + metricH + H * .035;
   ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Pronóstico diario', M, forecastY);
   if (days.length) {
-    const gap = W * .014; const cardW = (W - M * 2 - gap * (days.length - 1)) / days.length; const cardH = format.cssAR === '1 / 1' ? H * .145 : H * .17;
-    days.forEach((day, index) => climateDrawPeriod(ctx, M + index * (cardW + gap), forecastY + H * .025, cardW, cardH, day, index, dark));
+    const gap = W * .014; const cardW = (W - M * 2 - gap * (days.length - 1)) / days.length; const cardH = format.cssAR === '1 / 1' ? H * .19 : H * .17;
+    days.forEach((day, index) => climateDrawDayCard(ctx, M + index * (cardW + gap), forecastY + H * .025, cardW, cardH, day, index, dark));
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `500 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px Inter, sans-serif`; ctx.fillText('El SMN no devolvió períodos de pronóstico para esta consulta.', M, forecastY + H * .06);
   }
