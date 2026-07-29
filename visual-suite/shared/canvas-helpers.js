@@ -91,17 +91,19 @@ const VS_CanvasHelpers = {
   },
 
   // ── Editorial Footer ──
-  drawFooter(ctx, W, H, dark) {
+  drawFooter(ctx, W, H, dark, options) {
+    const o = options || {};
     const M = Math.round(W * 0.05);
     const y = H - Math.round(H * 0.035);
     const fs = Math.min(W, H) * 0.018;
-    ctx.strokeStyle = dark ? 'rgba(255,255,255,0.15)' : 'rgba(22,32,27,0.12)';
+    const onField = !!o.onField;
+    ctx.strokeStyle = dark || onField ? 'rgba(255,255,255,0.2)' : 'rgba(22,32,27,0.12)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(M, y - Math.round(H * 0.02));
     ctx.lineTo(W - M, y - Math.round(H * 0.02));
     ctx.stroke();
-    ctx.fillStyle = dark ? 'rgba(255,255,255,0.6)' : VS_Colors.INK2;
+    ctx.fillStyle = dark || onField ? 'rgba(255,255,255,0.72)' : VS_Colors.INK2;
     ctx.font = `600 ${fs}px "Inter", sans-serif`;
     ctx.textAlign = 'left';
     ctx.fillText('Mediamendoza · Noticias confiables del sur mendocino', M, y);

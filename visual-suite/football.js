@@ -310,22 +310,22 @@ function cambiarFormatoFootball() {
 
 function dibujarFondoCanchaFootball(ctx, W, H, dark) {
   const field = ctx.createLinearGradient(0, 0, 0, H);
-  field.addColorStop(0, dark ? '#0b2b20' : '#164d32');
-  field.addColorStop(0.48, dark ? '#0d3828' : '#1b603b');
-  field.addColorStop(1, dark ? '#061c15' : '#103d29');
+  field.addColorStop(0, dark ? '#0b2b20' : '#1b5c39');
+  field.addColorStop(0.48, dark ? '#0d3828' : '#247047');
+  field.addColorStop(1, dark ? '#061c15' : '#15482f');
   ctx.fillStyle = field;
   ctx.fillRect(0, 0, W, H);
 
   const stripeW = W / 12;
   for (let i = 0; i < 12; i += 1) {
     if (i % 2 === 0) {
-      ctx.fillStyle = dark ? 'rgba(255,255,255,.018)' : 'rgba(255,255,255,.035)';
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.014)' : 'rgba(255,255,255,.022)';
       ctx.fillRect(i * stripeW, 0, stripeW, H);
     }
   }
 
   ctx.save();
-  ctx.strokeStyle = dark ? 'rgba(255,255,255,.075)' : 'rgba(255,255,255,.13)';
+  ctx.strokeStyle = dark ? 'rgba(255,255,255,.045)' : 'rgba(255,255,255,.06)';
   ctx.lineWidth = Math.max(2, W * 0.0022);
   const left = W * 0.055, right = W * 0.945, top = H * 0.19, bottom = H * 0.91;
   const midY = (top + bottom) / 2;
@@ -341,10 +341,10 @@ function dibujarFondoCanchaFootball(ctx, W, H, dark) {
   ctx.restore();
 
   const veil = ctx.createLinearGradient(0, 0, 0, H);
-  veil.addColorStop(0, 'rgba(0,0,0,.22)');
-  veil.addColorStop(0.25, 'rgba(0,0,0,.04)');
-  veil.addColorStop(0.78, 'rgba(0,0,0,.04)');
-  veil.addColorStop(1, 'rgba(0,0,0,.3)');
+  veil.addColorStop(0, 'rgba(0,0,0,.16)');
+  veil.addColorStop(0.25, 'rgba(0,0,0,.015)');
+  veil.addColorStop(0.78, 'rgba(0,0,0,.015)');
+  veil.addColorStop(1, 'rgba(0,0,0,.22)');
   ctx.fillStyle = veil;
   ctx.fillRect(0, 0, W, H);
 }
@@ -359,11 +359,11 @@ function dibujarFootballCanvas(ctx, W, H) {
 
   const M = W * 0.055;
   const bodyTop = headerH + H * 0.055;
-  ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
+  ctx.fillStyle = dark ? '#fff' : '#f2f7ed';
   ctx.font = `700 ${Math.max(22, Math.round(Math.min(W, H) * 0.026))}px "Inter", sans-serif`;
   ctx.fillText(d.fecha || 'Fecha sin especificar', M, bodyTop);
   if (d.subtitulo) {
-    ctx.fillStyle = dark ? 'rgba(255,255,255,.7)' : VS_Colors.INK2;
+    ctx.fillStyle = dark ? 'rgba(255,255,255,.7)' : 'rgba(239,247,234,.82)';
     ctx.font = `500 ${Math.max(15, Math.round(Math.min(W, H) * 0.017))}px "Inter", sans-serif`;
     ctx.fillText(d.subtitulo, M, bodyTop + H * 0.035);
   }
@@ -378,8 +378,8 @@ function dibujarFootballCanvas(ctx, W, H) {
     const row = Math.floor(i / columns);
     const x = M + col * (cardW + gap);
     const y = startY + row * (cardH + H * 0.02);
-    ctx.fillStyle = dark ? 'rgba(255,255,255,.1)' : 'rgba(255,255,255,.86)';
-    ctx.strokeStyle = dark ? 'rgba(166,206,57,.55)' : 'rgba(22,32,27,.15)';
+    ctx.fillStyle = dark ? 'rgba(255,255,255,.1)' : 'rgba(250,253,248,.97)';
+    ctx.strokeStyle = dark ? 'rgba(166,206,57,.55)' : 'rgba(22,32,27,.18)';
     ctx.lineWidth = Math.max(2, W * 0.0012);
     ctx.beginPath(); ctx.roundRect(x, y, cardW, cardH, Math.min(18, cardW * .025)); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#a6ce39';
@@ -416,11 +416,11 @@ function dibujarFootballCanvas(ctx, W, H) {
     ctx.fillText(`${p.competicion}${p.estado ? ' · ' + p.estado : ''}`, x + cardW * .045, y + cardH * .12);
   });
   if (d.fuente) {
-    ctx.fillStyle = dark ? 'rgba(255,255,255,.5)' : VS_Colors.INK2;
+    ctx.fillStyle = dark ? 'rgba(255,255,255,.5)' : 'rgba(239,247,234,.78)';
     ctx.font = `500 ${Math.max(10, Math.round(Math.min(W, H) * 0.01))}px "Inter", sans-serif`;
     ctx.fillText('Fuente: ' + d.fuente, M, H - H * 0.07);
   }
-  VS_CanvasHelpers.drawFooter(ctx, W, H, dark);
+  VS_CanvasHelpers.drawFooter(ctx, W, H, dark, { onField: !dark });
   VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
 }
 
