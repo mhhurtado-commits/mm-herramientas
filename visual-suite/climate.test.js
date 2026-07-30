@@ -41,6 +41,6 @@ if (heroMetrics.statX >= heroMetrics.tempX + heroMetrics.tempMaxW + heroMetrics.
 if (heroMetrics.statValueSize < 20 || heroMetrics.infoValueSize < 17) throw new Error('Las estadísticas del bloque actual siguen siendo demasiado chicas');
 const todayPeriods = climateCardPeriods({ segments: [{ label: 'Tarde' }, { label: 'Noche' }] });
 if (todayPeriods.length !== 2 || todayPeriods[0].label !== 'Tarde' || todayPeriods[1].label !== 'Noche') throw new Error('La evolución no conserva sus dos períodos reales');
-if (climateVisibleDays([1, 2, 3, 4, 5, 6, 7], true).length !== 6) throw new Error('La grilla cuadrada no contempla seis tarjetas');
+if (climateVisibleDays([1, 2, 3, 4, 5, 6, 7], true).length !== 5) throw new Error('La grilla cuadrada no limita el pronóstico a cuatro días');
 
 console.log('climate.test.js: OK');

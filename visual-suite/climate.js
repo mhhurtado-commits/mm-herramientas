@@ -290,7 +290,7 @@ function climateCardPeriods(day) {
 }
 
 function climateVisibleDays(days, square) {
-  return (days || []).slice(0, square ? 6 : 7);
+  return (days || []).slice(0, square ? 5 : 7);
 }
 
 function climateDrawText(ctx, text, x, y, maxWidth, options = {}) {
@@ -400,14 +400,14 @@ function climateDrawHeroStat(ctx, x, y, w, h, label, value, detail = '') {
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(12, w * .04)); ctx.fill(); ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,.62)';
-  ctx.font = `700 ${Math.max(13, Math.round(Math.min(w * .07, h * .24)))}px Inter, sans-serif`;
+  ctx.font = `700 ${Math.max(15, Math.round(Math.min(w * .08, h * .27)))}px Inter, sans-serif`;
   ctx.fillText(label.toUpperCase(), x + w * .09, y + h * .3);
   ctx.fillStyle = '#fff';
-  ctx.font = `700 ${Math.max(20, Math.round(Math.min(w * .13, h * .42)))}px Inter, sans-serif`;
+  ctx.font = `700 ${Math.max(24, Math.round(Math.min(w * .16, h * .48)))}px Inter, sans-serif`;
   ctx.fillText(value || '—', x + w * .09, y + h * .72);
   if (detail) {
     ctx.fillStyle = 'rgba(255,255,255,.58)';
-    ctx.font = `500 ${Math.max(11, Math.round(Math.min(w * .06, h * .18)))}px Inter, sans-serif`;
+    ctx.font = `500 ${Math.max(12, Math.round(Math.min(w * .07, h * .2)))}px Inter, sans-serif`;
     ctx.fillText(detail, x + w * .56, y + h * .72);
   }
 }
@@ -440,8 +440,8 @@ function climateForecastLayout(W, H, count, square) {
 function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true, today = false) {
   const base = Math.min(w, h);
   const metrics = climateDayCardMetrics(w, h);
-  ctx.fillStyle = index === 0 ? 'rgba(166,206,57,.17)' : 'rgba(255,255,255,.075)';
-  ctx.strokeStyle = index === 0 ? VS_Colors.ACCENT : 'rgba(255,255,255,.12)';
+  ctx.fillStyle = today ? 'rgba(166,206,57,.17)' : 'rgba(255,255,255,.075)';
+  ctx.strokeStyle = today ? VS_Colors.ACCENT : 'rgba(255,255,255,.12)';
   ctx.lineWidth = Math.max(1, w * .006);
   ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(16, w * .06)); ctx.fill(); ctx.stroke();
   climateDrawText(ctx, today ? 'Hoy' : (climateLongDate(day.date) || '—'), x + w / 2, y + metrics.titleY, w * .86, { align: 'center', font: `700 ${Math.max(16, Math.round(base * .18))}px Inter, sans-serif`, color: dark ? '#fff' : VS_Colors.INK, clipX: x, clipY: y, clipW: w, clipH: h });
@@ -478,6 +478,7 @@ function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true, today = fa
 }
 
 function climateDrawTodayCard(ctx, x, y, w, h, day, dark = true) {
+  return climateDrawDayCard(ctx, x, y, w, h, day, 0, dark, true);
   ctx.fillStyle = 'rgba(255,255,255,.08)';
   ctx.strokeStyle = 'rgba(255,255,255,.16)';
   ctx.lineWidth = 1;
@@ -557,18 +558,23 @@ function dibujarClimateCanvas(ctx, W, H) {
   climateDrawHeroStat(ctx, statX, statY + statH + statGap, statW, statH, 'Viento', actual.wind != null ? `${actual.wind}` : '—', actual.windDirection || '');
   climateDrawHeroStat(ctx, statX + statW + statGap, statY + statH + statGap, statW, statH, 'Visibilidad', actual.visibility ? `${actual.visibility}` : '—', 'km');
   const sun = climateData.sun || {};
-  const infoY = heroY + heroH * .82;
+  const infoY = heroY + heroH * .70;
   const infoGap = W * .014;
   const infoAreaW = W - M - statX;
   const infoW = infoAreaW * .3;
-  climateDrawHeroStat(ctx, statX, infoY, infoW, heroH * .15, 'Presión', actual.pressure != null ? `${actual.pressure}` : '—', 'hPa');
-  climateDrawSunCard(ctx, statX + infoW + infoGap, infoY, W - M - statX - infoW - infoGap, heroH * .15, sun, dark);
+  climateDrawHeroStat(ctx, statX, infoY, infoW, heroH * .235, 'Presión', actual.pressure != null ? `${actual.pressure}` : '—', 'hPa');
+  climateDrawSunCard(ctx, statX + infoW + infoGap, infoY, W - M - statX - infoW - infoGap, heroH * .235, sun, dark);
 
   const evolutionTitleY = heroY + heroH + H * .035;
-  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Evolución y pronóstico', M, evolutionTitleY);
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Evolución de hoy', M, evolutionTitleY);
 
-  const days = climateVisibleDays(climateData.days, square);
-  const forecastY = evolutionTitleY + H * .035;
+  const evolutionY = evolutionTitleY + H * .018;
+  const evolutionH = square ? H * .13 : H * .12;
+  if (climateData.days[0]) climateDrawTodayCard(ctx, M, evolutionY, W - M * 2, evolutionH, climateData.days[0], dark);
+
+  const days = climateData.days.slice(1, square ? 5 : 7);
+  const forecastY = evolutionY + evolutionH + H * .035;
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Pronóstico diario', M, forecastY);
   if (days.length) {
     const layout = climateForecastLayout(W, H, days.length, square);
     const gap = W * .014;
@@ -576,12 +582,12 @@ function dibujarClimateCanvas(ctx, W, H) {
     const cardW = (W - M * 2 - gap * (layout.columns - 1)) / layout.columns;
     const cardY = forecastY + H * .012;
     const footerReserve = H * .075;
-    const desiredCardH = square ? H * .13 : H * .17;
-    const cardH = Math.min(desiredCardH, Math.max(H * .1, (H - cardY - footerReserve - rowGap * (layout.rows - 1)) / layout.rows));
+    const desiredCardH = square ? H * .18 : H * .17;
+    const cardH = Math.min(desiredCardH, Math.max(H * .12, (H - cardY - footerReserve - rowGap * (layout.rows - 1)) / layout.rows));
     days.forEach((day, index) => {
       const column = index % layout.columns;
       const row = Math.floor(index / layout.columns);
-      climateDrawDayCard(ctx, M + column * (cardW + gap), cardY + row * (cardH + rowGap), cardW, cardH, day, index, dark, index === 0);
+      climateDrawDayCard(ctx, M + column * (cardW + gap), cardY + row * (cardH + rowGap), cardW, cardH, day, index, dark, false);
     });
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `500 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px Inter, sans-serif`; ctx.fillText('El SMN no devolvió períodos de pronóstico para esta consulta.', M, forecastY + H * .06);
