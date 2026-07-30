@@ -26,6 +26,13 @@ const ARGENTINE_FOOTBALL_KEYS = new Set([
 function footballAssetKeyFromName(value) {
   const raw = String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const aliases = {
+    'central cordoba': 'central-cordoba-se',
+    'central cordoba se': 'central-cordoba-se',
+    'central cordoba (se)': 'central-cordoba-se',
+    'central cordoba de santiago del estero': 'central-cordoba-se',
+    'central cordoba santiago del estero': 'central-cordoba-se',
+    'central-cordoba': 'central-cordoba-se',
+    'central-cordoba-santiago-del-estero': 'central-cordoba-se',
     'gimnasia y esgrima (mendoza)': 'gimnasia-y-esgrima',
     'gimnasia y esgrima la plata': 'gimnasia-y-esgrima-lp',
     'gimnasia y esgrima (la plata)': 'gimnasia-y-esgrima-lp',

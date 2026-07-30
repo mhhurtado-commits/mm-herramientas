@@ -107,4 +107,8 @@ if (detalle.estadio !== 'Estadio Monumental' || detalle.arbitro.principal !== '�
   throw new Error('No se normalizó el JSON detallado del partido destacado');
 }
 
+if (footballAssetKeyFromName('Central Córdoba de Santiago del Estero') !== 'central-cordoba-se') {
+  throw new Error('No se resolvió la clave de Central Córdoba (SE)');
+}
+
 console.log('football.test.js: OK');
