@@ -36,6 +36,18 @@ function climateTypeFromSmnCode(code, isDay = true) {
   return isDay ? 'sun' : 'cloud';
 }
 
+// El SMN publica pares de recursos distintos para día y noche. El estado
+// semántico puede ser el mismo, pero el archivo del escudo meteorológico no.
+function climateIconCodeForTime(code, isDay = true) {
+  const n = Number(code);
+  const pairs = { 3: 5, 5: 3, 13: 14, 14: 13, 19: 20, 20: 19, 25: 26, 26: 25, 37: 38, 38: 37 };
+  if (!Number.isFinite(n)) return String(code || '');
+  if (n === 3 || n === 5) return isDay ? '3' : '5';
+  if (isDay && [14, 20, 26, 38].includes(n)) return String(pairs[n]);
+  if (!isDay && [13, 19, 25, 37].includes(n)) return String(pairs[n]);
+  return String(n);
+}
+
 function climateNumber(value, fallback = null) {
   if (value === null || value === undefined || value === '') return fallback;
   const number = Number(value);
@@ -92,7 +104,8 @@ function climateDay(day) {
 }
 
 function climateIsDay(weather, sun) {
-  if (typeof weather?.is_day === 'boolean') return weather.is_day;
+  if (weather?.is_day === true || weather?.is_day === 1 || weather?.is_day === '1') return true;
+  if (weather?.is_day === false || weather?.is_day === 0 || weather?.is_day === '0') return false;
   const rawSun = sun?.sun || sun || {};
   const toMinutes = value => {
     const match = String(value || '').match(/(\d{1,2}):(\d{2})/);
@@ -188,7 +201,8 @@ function preloadClimateIcon(code) {
 
 function preloadClimateIcons(data) {
   if (!data) return Promise.resolve();
-  const codes = [data.actual?.code, ...(data.days || []).map(day => day.code)].filter(Boolean);
+  const actualCode = data.actual ? climateIconCodeForTime(data.actual.code, data.actual.isDay) : null;
+  const codes = [actualCode, ...(data.days || []).map(day => day.code)].filter(Boolean);
   return Promise.all(codes.map(preloadClimateIcon)).then(() => undefined);
 }
 
@@ -542,7 +556,8 @@ function dibujarClimateCanvas(ctx, W, H) {
   ctx.fillStyle = 'rgba(8,17,30,.56)'; ctx.strokeStyle = `${config.color}99`; ctx.lineWidth = Math.max(2, W * .0015);
   ctx.beginPath(); ctx.roundRect(M, heroY, W - M * 2, heroH, Math.min(24, W * .025)); ctx.fill(); ctx.stroke();
   const heroLayout = climateHeroLayout(W, H);
-  climateDrawIcon(ctx, actual.code, actual.type, M + W * .14, heroY + heroH * .52, heroH * .5);
+  const actualIconCode = climateIconCodeForTime(actual.code, actual.isDay);
+  climateDrawIcon(ctx, actualIconCode, actual.type, M + W * .14, heroY + heroH * .52, heroH * .5);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(Math.min(W, H) * .095)}px Inter, sans-serif`; ctx.fillText(actual.temp != null ? `${actual.temp}°` : '—', heroLayout.tempX, heroY + heroH * .62);
   ctx.fillStyle = 'rgba(255,255,255,.76)'; ctx.font = `600 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText(actual.description, heroLayout.tempX, heroY + heroH * .79);
@@ -645,4 +660,4 @@ if (typeof window !== 'undefined') {
   window.normalizarClimateSMN = normalizarClimateSMN;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays };
+if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays };

@@ -1,4 +1,4 @@
-const { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays } = require('./climate.js');
+const { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays } = require('./climate.js');
 
 const normalized = normalizarClimateSMN({
   ok: true,
@@ -29,6 +29,8 @@ if (normalized.sun.sunrise !== '08:12' || normalized.sun.sunset !== '18:44') thr
 const squareLayout = climateForecastLayout(1000, 1000, 4, true);
 if (squareLayout.columns !== 2 || squareLayout.rows !== 2) throw new Error('El pronÃ³stico cuadrado no usa una grilla legible');
 if (climateTypeFromSmnCode(95) !== 'storm' || climateTypeFromSmnCode(71) !== 'snow') throw new Error('No se mapearon códigos SMN');
+if (climateIconCodeForTime(13, false) !== '14' || climateIconCodeForTime(14, true) !== '13') throw new Error('No se seleccionó el par día/noche del SMN');
+if (climateIconCodeForTime(19, false) !== '20' || climateIconCodeForTime(3, false) !== '5') throw new Error('No se seleccionaron los iconos nocturnos del SMN');
 if (climateLongDate('2026-07-31') !== 'viernes 31') throw new Error('No se formateó la fecha completa del pronóstico');
 
 const meta = climateHeaderMeta('Servicio Meteorológico Nacional', new Date('2026-07-30T17:24:00-03:00'));
