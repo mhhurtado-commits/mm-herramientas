@@ -1,4 +1,4 @@
-const { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics } = require('./climate.js');
+const { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout } = require('./climate.js');
 
 const normalized = normalizarClimateSMN({
   ok: true,
@@ -36,5 +36,8 @@ if (meta !== 'SMN · Actualizado 05:24 p. m.') throw new Error('La metadata del 
 const cardMetrics = climateDayCardMetrics(500, 180);
 if (cardMetrics.periodY.some(value => value >= cardMetrics.tempY) || cardMetrics.rainY <= cardMetrics.tempY) throw new Error('La tarjeta de pronóstico tiene posiciones encimadas');
 if (cardMetrics.todayLabelSize < 22 || cardMetrics.todayTempSize < 24) throw new Error('La evolución de hoy tiene jerarquía insuficiente');
+const heroMetrics = climateHeroLayout(1000, 1000);
+if (heroMetrics.statX >= heroMetrics.tempX + heroMetrics.tempMaxW + heroMetrics.gap) throw new Error('El bloque actual no aprovecha bien el espacio horizontal');
+if (heroMetrics.statValueSize < 20 || heroMetrics.infoValueSize < 17) throw new Error('Las estadísticas del bloque actual siguen siendo demasiado chicas');
 
 console.log('climate.test.js: OK');

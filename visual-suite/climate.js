@@ -260,12 +260,28 @@ function climateDayCardMetrics(w, h) {
   return {
     titleY: h * .18,
     dividerY: h * .29,
-    periodY: [h * .4, h * .4],
-    iconY: h * .57,
-    tempY: h * .76,
-    rainY: h * .9,
+    periodY: [h * .36, h * .36],
+    iconY: h * .53,
+    tempY: h * .72,
+    rainY: h * .87,
     todayLabelSize: Math.max(22, Math.round(base * .13)),
     todayTempSize: Math.max(24, Math.round(base * .16))
+  };
+}
+
+function climateHeroLayout(W, H) {
+  const M = W * .055;
+  const statX = M + W * .47;
+  const tempX = M + W * .32;
+  const tempMaxW = W * .19;
+  const gap = W * .018;
+  return {
+    statX,
+    tempX,
+    tempMaxW,
+    gap,
+    statValueSize: Math.max(20, Math.round(Math.min(W * .04, H * .026))),
+    infoValueSize: Math.max(18, Math.round(Math.min(W * .03, H * .02)))
   };
 }
 
@@ -376,14 +392,14 @@ function climateDrawHeroStat(ctx, x, y, w, h, label, value, detail = '') {
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(12, w * .04)); ctx.fill(); ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,.62)';
-  ctx.font = `700 ${Math.max(12, Math.round(Math.min(w * .07, h * .19)))}px Inter, sans-serif`;
+  ctx.font = `700 ${Math.max(13, Math.round(Math.min(w * .07, h * .24)))}px Inter, sans-serif`;
   ctx.fillText(label.toUpperCase(), x + w * .09, y + h * .3);
   ctx.fillStyle = '#fff';
-  ctx.font = `700 ${Math.max(18, Math.round(Math.min(w * .13, h * .3)))}px Inter, sans-serif`;
+  ctx.font = `700 ${Math.max(20, Math.round(Math.min(w * .13, h * .42)))}px Inter, sans-serif`;
   ctx.fillText(value || '—', x + w * .09, y + h * .72);
   if (detail) {
     ctx.fillStyle = 'rgba(255,255,255,.58)';
-    ctx.font = `500 ${Math.max(10, Math.round(Math.min(w * .06, h * .16)))}px Inter, sans-serif`;
+    ctx.font = `500 ${Math.max(11, Math.round(Math.min(w * .06, h * .18)))}px Inter, sans-serif`;
     ctx.fillText(detail, x + w * .56, y + h * .72);
   }
 }
@@ -416,15 +432,15 @@ function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
     const label = column ? 'Tarde' : 'Mañana';
     ctx.textAlign = 'center';
     ctx.fillStyle = dark ? 'rgba(255,255,255,.82)' : VS_Colors.INK2;
-    ctx.font = `700 ${Math.max(12, Math.round(base * .13))}px Inter, sans-serif`;
+    ctx.font = `700 ${Math.max(12, Math.round(base * .12))}px Inter, sans-serif`;
     ctx.fillText(label, cx, y + metrics.periodY[column]);
     if (segment) {
-      climateDrawIcon(ctx, segment.code, segment.type, cx, y + metrics.iconY, Math.min(h * .27, cellW * .24));
+      climateDrawIcon(ctx, segment.code, segment.type, cx, y + metrics.iconY, Math.min(h * .22, cellW * .21));
       ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
-      ctx.font = `700 ${Math.max(14, Math.round(base * .16))}px Inter, sans-serif`;
+      ctx.font = `700 ${Math.max(14, Math.round(base * .14))}px Inter, sans-serif`;
       ctx.fillText(segment.temp != null ? `${segment.temp}°` : '—', cx, y + metrics.tempY);
       ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2;
-      ctx.font = `500 ${Math.max(10, Math.round(base * .11))}px Inter, sans-serif`;
+      ctx.font = `500 ${Math.max(10, Math.round(base * .1))}px Inter, sans-serif`;
       ctx.fillText(segment.rain != null ? `${segment.rain}% lluvia` : '—', cx, y + metrics.rainY);
     } else {
       ctx.fillStyle = 'rgba(255,255,255,.52)';
@@ -498,12 +514,13 @@ function dibujarClimateCanvas(ctx, W, H) {
   const config = CLIMATE_WMO[actual.type] || CLIMATE_WMO.cloud;
   ctx.fillStyle = 'rgba(8,17,30,.56)'; ctx.strokeStyle = `${config.color}99`; ctx.lineWidth = Math.max(2, W * .0015);
   ctx.beginPath(); ctx.roundRect(M, heroY, W - M * 2, heroH, Math.min(24, W * .025)); ctx.fill(); ctx.stroke();
-  climateDrawIcon(ctx, actual.code, actual.type, M + W * .17, heroY + heroH * .52, heroH * .5);
+  const heroLayout = climateHeroLayout(W, H);
+  climateDrawIcon(ctx, actual.code, actual.type, M + W * .14, heroY + heroH * .52, heroH * .5);
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(Math.min(W, H) * .095)}px Inter, sans-serif`; ctx.fillText(actual.temp != null ? `${actual.temp}°` : '—', M + W * .36, heroY + heroH * .62);
-  ctx.fillStyle = 'rgba(255,255,255,.76)'; ctx.font = `600 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText(actual.description, M + W * .36, heroY + heroH * .79);
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(Math.min(W, H) * .095)}px Inter, sans-serif`; ctx.fillText(actual.temp != null ? `${actual.temp}°` : '—', heroLayout.tempX, heroY + heroH * .62);
+  ctx.fillStyle = 'rgba(255,255,255,.76)'; ctx.font = `600 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText(actual.description, heroLayout.tempX, heroY + heroH * .79);
   ctx.textAlign = 'left';
-  const statX = M + W * .52;
+  const statX = heroLayout.statX;
   const statY = heroY + heroH * .16;
   const statGap = W * .014;
   const statAreaW = W - M - statX;
@@ -602,4 +619,4 @@ if (typeof window !== 'undefined') {
   window.normalizarClimateSMN = normalizarClimateSMN;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics };
+if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout };
