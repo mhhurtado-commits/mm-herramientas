@@ -1,4 +1,4 @@
-const { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout } = require('./climate.js');
+const { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate } = require('./climate.js');
 
 const normalized = normalizarClimateSMN({
   ok: true,
@@ -29,5 +29,6 @@ if (normalized.sun.sunrise !== '08:12' || normalized.sun.sunset !== '18:44') thr
 const squareLayout = climateForecastLayout(1000, 1000, 4, true);
 if (squareLayout.columns !== 2 || squareLayout.rows !== 2) throw new Error('El pronÃ³stico cuadrado no usa una grilla legible');
 if (climateTypeFromSmnCode(95) !== 'storm' || climateTypeFromSmnCode(71) !== 'snow') throw new Error('No se mapearon códigos SMN');
+if (climateLongDate('2026-07-31') !== 'viernes 31') throw new Error('No se formateó la fecha completa del pronóstico');
 
 console.log('climate.test.js: OK');

@@ -241,6 +241,13 @@ function climateShortDate(value) {
   return date.toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit' }).replace('.', '');
 }
 
+function climateLongDate(value) {
+  if (!value) return '';
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit' }).replace(/^./, char => char.toLowerCase());
+}
+
 function climateDrawText(ctx, text, x, y, maxWidth, options = {}) {
   const value = String(text || '');
   ctx.save();
@@ -371,29 +378,37 @@ function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
   ctx.strokeStyle = index === 0 ? VS_Colors.ACCENT : 'rgba(255,255,255,.12)';
   ctx.lineWidth = Math.max(1, w * .006);
   ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(16, w * .06)); ctx.fill(); ctx.stroke();
-  climateDrawText(ctx, climateShortDate(day.date) || '—', x + w / 2, y + h * .16, w * .86, { align: 'center', font: `700 ${Math.max(16, Math.round(base * .18))}px Inter, sans-serif`, color: dark ? '#fff' : VS_Colors.INK, clipX: x, clipY: y, clipW: w, clipH: h });
-  ctx.fillStyle = dark ? 'rgba(255,255,255,.62)' : VS_Colors.INK2;
-  ctx.font = `600 ${Math.max(12, Math.round(base * .13))}px Inter, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText(`${day.min ?? '—'}° / ${day.max ?? '—'}°`, x + w / 2, y + h * .29);
+  climateDrawText(ctx, climateLongDate(day.date) || '—', x + w / 2, y + h * .18, w * .86, { align: 'center', font: `700 ${Math.max(16, Math.round(base * .18))}px Inter, sans-serif`, color: dark ? '#fff' : VS_Colors.INK, clipX: x, clipY: y, clipW: w, clipH: h });
+  ctx.strokeStyle = 'rgba(255,255,255,.18)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x + w / 2, y + h * .28); ctx.lineTo(x + w / 2, y + h * .94); ctx.stroke();
 
-  const allSegments = day.segments || [];
-  const segments = allSegments.filter(segment => /mañana|morning|tarde|afternoon/i.test(segment.label || ''));
-  const visible = segments.length ? segments : allSegments.slice(0, 2);
-  const rowTop = y + h * .38;
-  const rowH = (h * .56) / Math.max(visible.length, 1);
-  visible.forEach((segment, segmentIndex) => {
-    const rowY = rowTop + segmentIndex * rowH;
-    ctx.fillStyle = 'rgba(255,255,255,.07)';
-    ctx.beginPath(); ctx.roundRect(x + w * .07, rowY, w * .86, rowH * .82, 8); ctx.fill();
-    climateDrawIcon(ctx, segment.code, segment.type, x + w * .18, rowY + rowH * .39, rowH * .65);
-    ctx.textAlign = 'left';
-    ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
-    ctx.font = `700 ${Math.max(12, Math.round(base * .12))}px Inter, sans-serif`;
-    ctx.fillText(segment.label || 'Período', x + w * .31, rowY + rowH * .34);
-    ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2;
-    ctx.font = `500 ${Math.max(10, Math.round(base * .095))}px Inter, sans-serif`;
-    ctx.fillText(segment.rain != null ? `${segment.rain}% lluvia` : segment.description, x + w * .31, rowY + rowH * .67);
+  const segments = day.segments || [];
+  const periods = [
+    segments.find(segment => /mañana|morning/i.test(segment.label || '')),
+    segments.find(segment => /tarde|afternoon/i.test(segment.label || ''))
+  ];
+  periods.forEach((segment, column) => {
+    const cx = x + w * (column ? .75 : .25);
+    const cellW = w * .42;
+    const label = column ? 'Tarde' : 'Mañana';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = dark ? 'rgba(255,255,255,.82)' : VS_Colors.INK2;
+    ctx.font = `700 ${Math.max(12, Math.round(base * .13))}px Inter, sans-serif`;
+    ctx.fillText(label, cx, y + h * .38);
+    if (segment) {
+      climateDrawIcon(ctx, segment.code, segment.type, cx, y + h * .56, Math.min(h * .27, cellW * .24));
+      ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
+      ctx.font = `700 ${Math.max(14, Math.round(base * .16))}px Inter, sans-serif`;
+      ctx.fillText(segment.temp != null ? `${segment.temp}°` : '—', cx, y + h * .76);
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2;
+      ctx.font = `500 ${Math.max(10, Math.round(base * .11))}px Inter, sans-serif`;
+      ctx.fillText(segment.rain != null ? `${segment.rain}% lluvia` : '—', cx, y + h * .9);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,.52)';
+      ctx.font = `500 ${Math.max(11, Math.round(base * .11))}px Inter, sans-serif`;
+      ctx.fillText('—', cx, y + h * .62);
+    }
   });
   ctx.textAlign = 'left';
 }
@@ -563,4 +578,4 @@ if (typeof window !== 'undefined') {
   window.normalizarClimateSMN = normalizarClimateSMN;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout };
+if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate };
