@@ -1,4 +1,4 @@
-const { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate } = require('./climate.js');
+const { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics } = require('./climate.js');
 
 const normalized = normalizarClimateSMN({
   ok: true,
@@ -30,5 +30,11 @@ const squareLayout = climateForecastLayout(1000, 1000, 4, true);
 if (squareLayout.columns !== 2 || squareLayout.rows !== 2) throw new Error('El pronÃ³stico cuadrado no usa una grilla legible');
 if (climateTypeFromSmnCode(95) !== 'storm' || climateTypeFromSmnCode(71) !== 'snow') throw new Error('No se mapearon códigos SMN');
 if (climateLongDate('2026-07-31') !== 'viernes 31') throw new Error('No se formateó la fecha completa del pronóstico');
+
+const meta = climateHeaderMeta('Servicio Meteorológico Nacional', new Date('2026-07-30T17:24:00-03:00'));
+if (meta !== 'SMN · Actualizado 05:24 p. m.') throw new Error('La metadata del header no está compacta');
+const cardMetrics = climateDayCardMetrics(500, 180);
+if (cardMetrics.periodY.some(value => value >= cardMetrics.tempY) || cardMetrics.rainY <= cardMetrics.tempY) throw new Error('La tarjeta de pronóstico tiene posiciones encimadas');
+if (cardMetrics.todayLabelSize < 22 || cardMetrics.todayTempSize < 24) throw new Error('La evolución de hoy tiene jerarquía insuficiente');
 
 console.log('climate.test.js: OK');
