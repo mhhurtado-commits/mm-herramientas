@@ -6,7 +6,7 @@ const normalized = normalizarClimateSMN({
   data: {
     weather: {
       temperature: 18.4,
-      feels_like: 17.1,
+      feels_like: null,
       humidity: 64,
       pressure: 1008,
       visibility: 20,
@@ -21,6 +21,7 @@ const normalized = normalizarClimateSMN({
 
 if (normalized.ciudad !== 'San Rafael') throw new Error('No se conservó la ciudad SMN');
 if (normalized.actual.temp !== 18.4 || normalized.actual.type !== 'sun-cloud') throw new Error('No se normalizó el estado actual');
+if (normalized.actual.feelsLike !== null) throw new Error('Un dato faltante no debe convertirse en cero');
 if (normalized.periods.length !== 2 || normalized.days[0].max !== 15 || normalized.days[0].rain !== 70) throw new Error('No se normalizó el pronóstico');
 if (!Array.isArray(normalized.days[0].segments) || normalized.days[0].segments.length !== 2 || normalized.days[0].segments[0].label !== 'Mañana') throw new Error('No se conservaron los períodos del día');
 if (normalized.alerts[0] !== 'Alerta de prueba') throw new Error('No se normalizaron las alertas');

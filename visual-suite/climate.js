@@ -37,6 +37,7 @@ function climateTypeFromSmnCode(code, isDay = true) {
 }
 
 function climateNumber(value, fallback = null) {
+  if (value === null || value === undefined || value === '') return fallback;
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
 }
@@ -377,8 +378,8 @@ function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
   ctx.fillText(`${day.min ?? '—'}° / ${day.max ?? '—'}°`, x + w / 2, y + h * .29);
 
   const allSegments = day.segments || [];
-  const segments = index === 0 ? allSegments : allSegments.filter(segment => /mañana|morning|tarde|afternoon/i.test(segment.label || ''));
-  const visible = segments.length ? segments : allSegments.slice(0, index === 0 ? 4 : 2);
+  const segments = allSegments.filter(segment => /mañana|morning|tarde|afternoon/i.test(segment.label || ''));
+  const visible = segments.length ? segments : allSegments.slice(0, 2);
   const rowTop = y + h * .38;
   const rowH = (h * .56) / Math.max(visible.length, 1);
   visible.forEach((segment, segmentIndex) => {
@@ -393,6 +394,37 @@ function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
     ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2;
     ctx.font = `500 ${Math.max(10, Math.round(base * .095))}px Inter, sans-serif`;
     ctx.fillText(segment.rain != null ? `${segment.rain}% lluvia` : segment.description, x + w * .31, rowY + rowH * .67);
+  });
+  ctx.textAlign = 'left';
+}
+
+function climateDrawTodayCard(ctx, x, y, w, h, day, dark = true) {
+  ctx.fillStyle = 'rgba(255,255,255,.08)';
+  ctx.strokeStyle = 'rgba(255,255,255,.16)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(16, w * .025)); ctx.fill(); ctx.stroke();
+  const segments = (day?.segments || []).slice(0, 4);
+  const titleSize = Math.max(14, Math.round(Math.min(w, h) * .075));
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 ${titleSize}px Inter, sans-serif`;
+  ctx.fillText('Hoy', x + w * .025, y + h * .3);
+  ctx.fillStyle = 'rgba(255,255,255,.62)';
+  ctx.font = `600 ${Math.max(11, Math.round(Math.min(w, h) * .055))}px Inter, sans-serif`;
+  ctx.font = `700 ${Math.max(14, Math.round(Math.min(w, h) * .09))}px Inter, sans-serif`;
+  ctx.fillText(`${day?.min ?? '—'}° / ${day?.max ?? '—'}°`, x + w * .025, y + h * .7);
+  if (!segments.length) return;
+  const startX = x + w * .23;
+  const cellW = (w * .72) / segments.length;
+  segments.forEach((segment, index) => {
+    const cx = startX + cellW * index + cellW / 2;
+    climateDrawIcon(ctx, segment.code, segment.type, cx, y + h * .37, Math.min(h * .42, cellW * .24));
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.font = `700 ${Math.max(11, Math.round(Math.min(cellW, h) * .16))}px Inter, sans-serif`;
+    ctx.fillText(segment.label || 'Período', cx, y + h * .68);
+    ctx.fillStyle = 'rgba(255,255,255,.68)';
+    ctx.font = `500 ${Math.max(10, Math.round(Math.min(cellW, h) * .12))}px Inter, sans-serif`;
+    ctx.fillText(segment.rain != null ? `${segment.rain}% lluvia` : segment.description, cx, y + h * .86);
   });
   ctx.textAlign = 'left';
 }
@@ -414,43 +446,52 @@ function dibujarClimateCanvas(ctx, W, H) {
     return;
   }
 
+  const updatedHeader = climateData.actualizado instanceof Date ? climateData.actualizado : new Date(climateData.actualizado);
+  ctx.fillStyle = 'rgba(255,255,255,.68)';
+  ctx.font = `600 ${Math.max(11, Math.round(Math.min(W, H) * .012))}px Inter, sans-serif`;
+  ctx.fillText(`Fuente: ${climateData.fuente} · Actualizado ${updatedHeader.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`, M, headerH * .96);
+
   const bodyTop = headerH + H * .04;
   const heroY = bodyTop + H * .01;
-  const heroH = H * (format.cssAR === '1 / 1' ? .205 : .245);
+  const square = format.cssAR === '1 / 1';
+  const heroH = H * (square ? .255 : .245);
   const config = CLIMATE_WMO[actual.type] || CLIMATE_WMO.cloud;
   ctx.fillStyle = 'rgba(8,17,30,.56)'; ctx.strokeStyle = `${config.color}99`; ctx.lineWidth = Math.max(2, W * .0015);
   ctx.beginPath(); ctx.roundRect(M, heroY, W - M * 2, heroH, Math.min(24, W * .025)); ctx.fill(); ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.font = `700 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px Inter, sans-serif`;
   ctx.fillText('AHORA', M + W * .035, heroY + heroH * .17);
-  climateDrawIcon(ctx, actual.code, actual.type, M + W * .16, heroY + heroH * .55, heroH * .34);
+  climateDrawIcon(ctx, actual.code, actual.type, M + W * .17, heroY + heroH * .52, heroH * .5);
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(Math.min(W, H) * .092)}px Inter, sans-serif`; ctx.fillText(actual.temp != null ? `${actual.temp}°` : '—', M + W * .36, heroY + heroH * .63);
-  ctx.fillStyle = 'rgba(255,255,255,.76)'; ctx.font = `600 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText(actual.description, M + W * .36, heroY + heroH * .82);
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(Math.min(W, H) * .095)}px Inter, sans-serif`; ctx.fillText(actual.temp != null ? `${actual.temp}°` : '—', M + W * .36, heroY + heroH * .62);
+  ctx.fillStyle = 'rgba(255,255,255,.76)'; ctx.font = `600 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText(actual.description, M + W * .36, heroY + heroH * .79);
   ctx.textAlign = 'left';
   const statX = M + W * .52;
   const statY = heroY + heroH * .16;
   const statGap = W * .014;
   const statAreaW = W - M - statX;
   const statW = (statAreaW - statGap) / 2;
-  const statH = heroH * .34;
+  const statH = heroH * .235;
   climateDrawHeroStat(ctx, statX, statY, statW, statH, 'Sensación', actual.feelsLike != null ? `${actual.feelsLike}°` : '—');
-  climateDrawHeroStat(ctx, statX + statW + statGap, statY, statW, statH, 'Presión', actual.pressure != null ? `${actual.pressure}` : '—', 'hPa');
+  climateDrawHeroStat(ctx, statX + statW + statGap, statY, statW, statH, 'Humedad', actual.humidity != null ? `${actual.humidity}%` : '—');
+  climateDrawHeroStat(ctx, statX, statY + statH + statGap, statW, statH, 'Viento', actual.wind != null ? `${actual.wind}` : '—', actual.windDirection || '');
+  climateDrawHeroStat(ctx, statX + statW + statGap, statY + statH + statGap, statW, statH, 'Visibilidad', actual.visibility ? `${actual.visibility}` : '—', 'km');
   const sun = climateData.sun || {};
-  climateDrawHeroStat(ctx, statX, statY + statH + statGap, statW, statH, 'Salida del sol', sun.sunrise || '—');
-  climateDrawHeroStat(ctx, statX + statW + statGap, statY + statH + statGap, statW, statH, 'Puesta del sol', sun.sunset || '—');
+  const infoY = heroY + heroH * .82;
+  const infoGap = W * .014;
+  const infoW = (W * .42 - infoGap * 2) / 3;
+  climateDrawHeroStat(ctx, statX, infoY, infoW, heroH * .12, 'Presión', actual.pressure != null ? `${actual.pressure}` : '—', 'hPa');
+  climateDrawHeroStat(ctx, statX + infoW + infoGap, infoY, infoW, heroH * .12, 'Salida', sun.sunrise || '—');
+  climateDrawHeroStat(ctx, statX + (infoW + infoGap) * 2, infoY, infoW, heroH * .12, 'Puesta', sun.sunset || '—');
 
-  const metricsY = heroY + heroH + H * .025;
-  const metricGap = W * .018;
-  const metricW = (W - M * 2 - metricGap * 3) / 4;
-  const metricH = Math.min(metricW * .72, H * .08);
-  climateDrawMetric(ctx, M, metricsY, metricW, 'Humedad', actual.humidity != null ? `${actual.humidity}%` : '—', '◌', dark, metricH);
-  climateDrawMetric(ctx, M + metricW + metricGap, metricsY, metricW, 'Viento', actual.wind != null ? `${actual.wind} km/h` : '—', '↗', dark, metricH);
-  climateDrawMetric(ctx, M + (metricW + metricGap) * 2, metricsY, metricW, 'Ráfagas', actual.gust != null ? `${actual.gust} km/h` : '—', '↗', dark, metricH);
-  climateDrawMetric(ctx, M + (metricW + metricGap) * 3, metricsY, metricW, 'Visibilidad', actual.visibility ? `${actual.visibility} km` : '—', '◉', dark, metricH);
+  const today = climateData.days[0];
+  const evolutionTitleY = heroY + heroH + H * .035;
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Evolución de hoy', M, evolutionTitleY);
+  const evolutionY = evolutionTitleY + H * .018;
+  const evolutionH = square ? H * .105 : H * .12;
+  if (today) climateDrawTodayCard(ctx, M, evolutionY, W - M * 2, evolutionH, today, dark);
 
-  const days = climateData.days.slice(0, format.cssAR === '9 / 16' ? 6 : 4);
-  const square = format.cssAR === '1 / 1';
-  const forecastY = metricsY + metricH + H * .025;
+  const days = climateData.days.slice(1, square ? 5 : 7);
+  const forecastY = evolutionY + evolutionH + H * .035;
   ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Pronóstico diario', M, forecastY);
   if (days.length) {
     const layout = climateForecastLayout(W, H, days.length, square);
@@ -458,7 +499,7 @@ function dibujarClimateCanvas(ctx, W, H) {
     const rowGap = H * .014;
     const cardW = (W - M * 2 - gap * (layout.columns - 1)) / layout.columns;
     const cardY = forecastY + H * .012;
-    const footerReserve = H * .09;
+    const footerReserve = H * .05;
     const desiredCardH = square ? H * .18 : H * .17;
     const cardH = Math.min(desiredCardH, Math.max(H * .12, (H - cardY - footerReserve - rowGap * (layout.rows - 1)) / layout.rows));
     days.forEach((day, index) => {
@@ -475,12 +516,6 @@ function dibujarClimateCanvas(ctx, W, H) {
     ctx.fillStyle = 'rgba(255,190,80,.16)'; ctx.strokeStyle = 'rgba(255,210,110,.55)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.roundRect(M, alertY, W - M * 2, H * .055, 12); ctx.fill(); ctx.stroke();
     climateDrawText(ctx, `⚠ ${climateData.alerts[0]}`, M + W * .025, alertY + H * .035, W - M * 2 - W * .05, { font: `600 ${Math.max(11, Math.round(Math.min(W, H) * .012))}px Inter, sans-serif`, color: '#ffe5a8', clipX: M, clipY: alertY, clipW: W - M * 2, clipH: H * .055 });
-  }
-  if (climateData) {
-    const updated = climateData.actualizado instanceof Date ? climateData.actualizado : new Date(climateData.actualizado);
-    ctx.fillStyle = 'rgba(255,255,255,.78)';
-    ctx.font = `600 ${Math.max(16, Math.round(Math.min(W, H) * .015))}px Inter, sans-serif`;
-    ctx.fillText(`Fuente: ${climateData.fuente} · Actualizado ${updated.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`, M, H - H * .078);
   }
   VS_CanvasHelpers.drawFooter(ctx, W, H, dark, { onField: true });
 }
