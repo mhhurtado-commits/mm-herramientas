@@ -462,9 +462,9 @@ function dibujarClimateCanvas(ctx, W, H) {
   }
 
   const updatedHeader = climateData.actualizado instanceof Date ? climateData.actualizado : new Date(climateData.actualizado);
-  ctx.fillStyle = 'rgba(255,255,255,.68)';
+  ctx.fillStyle = 'rgba(255,255,255,.72)';
   ctx.font = `600 ${Math.max(11, Math.round(Math.min(W, H) * .012))}px Inter, sans-serif`;
-  ctx.fillText(`Fuente: ${climateData.fuente} · Actualizado ${updatedHeader.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`, M, headerH * .96);
+  ctx.fillText(`Fuente: ${climateData.fuente} · Actualizado ${updatedHeader.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`, M, headerH * .55);
 
   const bodyTop = headerH + H * .04;
   const heroY = bodyTop + H * .01;
@@ -473,8 +473,6 @@ function dibujarClimateCanvas(ctx, W, H) {
   const config = CLIMATE_WMO[actual.type] || CLIMATE_WMO.cloud;
   ctx.fillStyle = 'rgba(8,17,30,.56)'; ctx.strokeStyle = `${config.color}99`; ctx.lineWidth = Math.max(2, W * .0015);
   ctx.beginPath(); ctx.roundRect(M, heroY, W - M * 2, heroH, Math.min(24, W * .025)); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.font = `700 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px Inter, sans-serif`;
-  ctx.fillText('AHORA', M + W * .035, heroY + heroH * .17);
   climateDrawIcon(ctx, actual.code, actual.type, M + W * .17, heroY + heroH * .52, heroH * .5);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(Math.min(W, H) * .095)}px Inter, sans-serif`; ctx.fillText(actual.temp != null ? `${actual.temp}°` : '—', M + W * .36, heroY + heroH * .62);
@@ -493,7 +491,8 @@ function dibujarClimateCanvas(ctx, W, H) {
   const sun = climateData.sun || {};
   const infoY = heroY + heroH * .82;
   const infoGap = W * .014;
-  const infoW = (W * .42 - infoGap * 2) / 3;
+  const infoAreaW = W - M - statX;
+  const infoW = (infoAreaW - infoGap * 2) / 3;
   climateDrawHeroStat(ctx, statX, infoY, infoW, heroH * .12, 'Presión', actual.pressure != null ? `${actual.pressure}` : '—', 'hPa');
   climateDrawHeroStat(ctx, statX + infoW + infoGap, infoY, infoW, heroH * .12, 'Salida', sun.sunrise || '—');
   climateDrawHeroStat(ctx, statX + (infoW + infoGap) * 2, infoY, infoW, heroH * .12, 'Puesta', sun.sunset || '—');
@@ -514,7 +513,7 @@ function dibujarClimateCanvas(ctx, W, H) {
     const rowGap = H * .014;
     const cardW = (W - M * 2 - gap * (layout.columns - 1)) / layout.columns;
     const cardY = forecastY + H * .012;
-    const footerReserve = H * .05;
+    const footerReserve = H * .075;
     const desiredCardH = square ? H * .18 : H * .17;
     const cardH = Math.min(desiredCardH, Math.max(H * .12, (H - cardY - footerReserve - rowGap * (layout.rows - 1)) / layout.rows));
     days.forEach((day, index) => {
