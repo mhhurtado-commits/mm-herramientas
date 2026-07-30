@@ -1,4 +1,4 @@
-const { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout } = require('./climate.js');
+const { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays } = require('./climate.js');
 
 const normalized = normalizarClimateSMN({
   ok: true,
@@ -39,5 +39,8 @@ if (cardMetrics.todayLabelSize < 22 || cardMetrics.todayTempSize < 24) throw new
 const heroMetrics = climateHeroLayout(1000, 1000);
 if (heroMetrics.statX >= heroMetrics.tempX + heroMetrics.tempMaxW + heroMetrics.gap) throw new Error('El bloque actual no aprovecha bien el espacio horizontal');
 if (heroMetrics.statValueSize < 20 || heroMetrics.infoValueSize < 17) throw new Error('Las estadísticas del bloque actual siguen siendo demasiado chicas');
+const todayPeriods = climateCardPeriods({ segments: [{ label: 'Tarde' }, { label: 'Noche' }] });
+if (todayPeriods.length !== 2 || todayPeriods[0].label !== 'Tarde' || todayPeriods[1].label !== 'Noche') throw new Error('La evolución no conserva sus dos períodos reales');
+if (climateVisibleDays([1, 2, 3, 4, 5, 6, 7], true).length !== 6) throw new Error('La grilla cuadrada no contempla seis tarjetas');
 
 console.log('climate.test.js: OK');

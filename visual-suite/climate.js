@@ -285,6 +285,14 @@ function climateHeroLayout(W, H) {
   };
 }
 
+function climateCardPeriods(day) {
+  return (day?.segments || []).slice(0, 2);
+}
+
+function climateVisibleDays(days, square) {
+  return (days || []).slice(0, square ? 6 : 7);
+}
+
 function climateDrawText(ctx, text, x, y, maxWidth, options = {}) {
   const value = String(text || '');
   ctx.save();
@@ -404,28 +412,45 @@ function climateDrawHeroStat(ctx, x, y, w, h, label, value, detail = '') {
   }
 }
 
+function climateDrawSunCard(ctx, x, y, w, h, sun, dark = true) {
+  ctx.fillStyle = 'rgba(255,255,255,.075)';
+  ctx.strokeStyle = 'rgba(255,255,255,.14)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(12, w * .025)); ctx.fill(); ctx.stroke();
+  const divider = x + w / 2;
+  ctx.strokeStyle = 'rgba(255,255,255,.14)';
+  ctx.beginPath(); ctx.moveTo(divider, y + h * .22); ctx.lineTo(divider, y + h * .88); ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = dark ? 'rgba(255,255,255,.68)' : VS_Colors.INK2;
+  ctx.font = `700 ${Math.max(12, Math.round(Math.min(w / 2, h) * .2))}px Inter, sans-serif`;
+  ctx.fillText('SALIDA DEL SOL', x + w * .25, y + h * .32);
+  ctx.fillText('PUESTA DEL SOL', x + w * .75, y + h * .32);
+  ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
+  ctx.font = `700 ${Math.max(18, Math.round(Math.min(w / 2, h) * .34))}px Inter, sans-serif`;
+  ctx.fillText(sun?.sunrise || '—', x + w * .25, y + h * .76);
+  ctx.fillText(sun?.sunset || '—', x + w * .75, y + h * .76);
+  ctx.textAlign = 'left';
+}
+
 function climateForecastLayout(W, H, count, square) {
   const columns = square ? Math.min(2, Math.max(1, count)) : Math.max(1, count);
   return { columns, rows: Math.ceil(Math.max(0, count) / columns) };
 }
 
-function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
+function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true, today = false) {
   const base = Math.min(w, h);
   const metrics = climateDayCardMetrics(w, h);
   ctx.fillStyle = index === 0 ? 'rgba(166,206,57,.17)' : 'rgba(255,255,255,.075)';
   ctx.strokeStyle = index === 0 ? VS_Colors.ACCENT : 'rgba(255,255,255,.12)';
   ctx.lineWidth = Math.max(1, w * .006);
   ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(16, w * .06)); ctx.fill(); ctx.stroke();
-  climateDrawText(ctx, climateLongDate(day.date) || '—', x + w / 2, y + metrics.titleY, w * .86, { align: 'center', font: `700 ${Math.max(16, Math.round(base * .18))}px Inter, sans-serif`, color: dark ? '#fff' : VS_Colors.INK, clipX: x, clipY: y, clipW: w, clipH: h });
+  climateDrawText(ctx, today ? 'Hoy' : (climateLongDate(day.date) || '—'), x + w / 2, y + metrics.titleY, w * .86, { align: 'center', font: `700 ${Math.max(16, Math.round(base * .18))}px Inter, sans-serif`, color: dark ? '#fff' : VS_Colors.INK, clipX: x, clipY: y, clipW: w, clipH: h });
   ctx.strokeStyle = 'rgba(255,255,255,.18)';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(x + w / 2, y + metrics.dividerY); ctx.lineTo(x + w / 2, y + h * .94); ctx.stroke();
 
-  const segments = day.segments || [];
-  const periods = [
-    segments.find(segment => /mañana|morning/i.test(segment.label || '')),
-    segments.find(segment => /tarde|afternoon/i.test(segment.label || ''))
-  ];
+  const segments = climateCardPeriods(day);
+  const periods = segments;
   periods.forEach((segment, column) => {
     const cx = x + w * (column ? .75 : .25);
     const cellW = w * .42;
@@ -433,7 +458,8 @@ function climateDrawDayCard(ctx, x, y, w, h, day, index, dark = true) {
     ctx.textAlign = 'center';
     ctx.fillStyle = dark ? 'rgba(255,255,255,.82)' : VS_Colors.INK2;
     ctx.font = `700 ${Math.max(12, Math.round(base * .12))}px Inter, sans-serif`;
-    ctx.fillText(label, cx, y + metrics.periodY[column]);
+    const displayLabel = segment?.label || label;
+    ctx.fillText(displayLabel, cx, y + metrics.periodY[column]);
     if (segment) {
       climateDrawIcon(ctx, segment.code, segment.type, cx, y + metrics.iconY, Math.min(h * .22, cellW * .21));
       ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
@@ -534,21 +560,15 @@ function dibujarClimateCanvas(ctx, W, H) {
   const infoY = heroY + heroH * .82;
   const infoGap = W * .014;
   const infoAreaW = W - M - statX;
-  const infoW = (infoAreaW - infoGap * 2) / 3;
-  climateDrawHeroStat(ctx, statX, infoY, infoW, heroH * .12, 'Presión', actual.pressure != null ? `${actual.pressure}` : '—', 'hPa');
-  climateDrawHeroStat(ctx, statX + infoW + infoGap, infoY, infoW, heroH * .12, 'Salida', sun.sunrise || '—');
-  climateDrawHeroStat(ctx, statX + (infoW + infoGap) * 2, infoY, infoW, heroH * .12, 'Puesta', sun.sunset || '—');
+  const infoW = infoAreaW * .3;
+  climateDrawHeroStat(ctx, statX, infoY, infoW, heroH * .15, 'Presión', actual.pressure != null ? `${actual.pressure}` : '—', 'hPa');
+  climateDrawSunCard(ctx, statX + infoW + infoGap, infoY, W - M - statX - infoW - infoGap, heroH * .15, sun, dark);
 
-  const today = climateData.days[0];
   const evolutionTitleY = heroY + heroH + H * .035;
-  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Evolución de hoy', M, evolutionTitleY);
-  const evolutionY = evolutionTitleY + H * .018;
-  const evolutionH = square ? H * .13 : H * .12;
-  if (today) climateDrawTodayCard(ctx, M, evolutionY, W - M * 2, evolutionH, today, dark);
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Evolución y pronóstico', M, evolutionTitleY);
 
-  const days = climateData.days.slice(1, square ? 5 : 7);
-  const forecastY = evolutionY + evolutionH + H * .035;
-  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * .018))}px Inter, sans-serif`; ctx.fillText('Pronóstico diario', M, forecastY);
+  const days = climateVisibleDays(climateData.days, square);
+  const forecastY = evolutionTitleY + H * .035;
   if (days.length) {
     const layout = climateForecastLayout(W, H, days.length, square);
     const gap = W * .014;
@@ -556,12 +576,12 @@ function dibujarClimateCanvas(ctx, W, H) {
     const cardW = (W - M * 2 - gap * (layout.columns - 1)) / layout.columns;
     const cardY = forecastY + H * .012;
     const footerReserve = H * .075;
-    const desiredCardH = square ? H * .18 : H * .17;
-    const cardH = Math.min(desiredCardH, Math.max(H * .12, (H - cardY - footerReserve - rowGap * (layout.rows - 1)) / layout.rows));
+    const desiredCardH = square ? H * .13 : H * .17;
+    const cardH = Math.min(desiredCardH, Math.max(H * .1, (H - cardY - footerReserve - rowGap * (layout.rows - 1)) / layout.rows));
     days.forEach((day, index) => {
       const column = index % layout.columns;
       const row = Math.floor(index / layout.columns);
-      climateDrawDayCard(ctx, M + column * (cardW + gap), cardY + row * (cardH + rowGap), cardW, cardH, day, index, dark);
+      climateDrawDayCard(ctx, M + column * (cardW + gap), cardY + row * (cardH + rowGap), cardW, cardH, day, index, dark, index === 0);
     });
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `500 ${Math.max(12, Math.round(Math.min(W, H) * .014))}px Inter, sans-serif`; ctx.fillText('El SMN no devolvió períodos de pronóstico para esta consulta.', M, forecastY + H * .06);
@@ -619,4 +639,4 @@ if (typeof window !== 'undefined') {
   window.normalizarClimateSMN = normalizarClimateSMN;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout };
+if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays };
