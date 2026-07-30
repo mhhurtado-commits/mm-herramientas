@@ -723,14 +723,14 @@ function drawFootballDetailBody(ctx, W, H, bodyTop, dark, design) {
 function dibujarFootballCanvas(ctx, W, H) {
   const d = footballData;
   const format = VS_Formats[footballFormat] || VS_Formats.landscape;
-  const headerH = Math.round(H * 0.18);
+  const headerH = VS_CanvasHelpers.plateHeaderHeight(W, H);
   const dark = footballFormat === 'story';
   const alcance = document.getElementById('footballAlcance')?.value || 'Argentina y CONMEBOL';
   const tipo = document.getElementById('footballTipo')?.value || 'partidos del día';
   const design = footballDesignPreset(alcance, tipo);
   const partidos = getSelectedFootballMatches();
   dibujarFondoCanchaFootball(ctx, W, H, dark, design);
-  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'FÚTBOL', d.titulo || 'Partidos de hoy', headerH, { accent: design.accent });
+  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'FÚTBOL', d.titulo || 'Partidos de hoy', headerH);
 
   const M = W * 0.055;
   const bodyTop = headerH + H * 0.055;

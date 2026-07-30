@@ -199,7 +199,7 @@ async function exportarGrafico() {
     if (!cw || !ch) { toast('Error al exportar gráfico'); return; }
     // ── Marco editorial de la placa (colores solo de la placa) ──
     const M = Math.round(cw * 0.06);
-    const headerH = Math.round(ch * 0.18);
+    const headerH = VS_CanvasHelpers.plateHeaderHeight(cw, ch);
     const footerH = Math.round(ch * 0.12);
     const frame = document.createElement('canvas');
     frame.width = cw + M * 2;
@@ -245,7 +245,7 @@ function exportarMapa() {
   }).then(mapCanvas => {
     // ── Marco editorial de la placa (colores solo de la placa) ──
     const M = Math.round(mapCanvas.width * 0.04);
-    const headerH = Math.round(mapCanvas.height * 0.16);
+    const headerH = VS_CanvasHelpers.plateHeaderHeight(mapCanvas.width, mapCanvas.height);
     const footerH = Math.round(mapCanvas.height * 0.10);
     const frame = document.createElement('canvas');
     frame.width = mapCanvas.width + M * 2;

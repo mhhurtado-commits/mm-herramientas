@@ -432,7 +432,7 @@ function climateDrawTodayCard(ctx, x, y, w, h, day, dark = true) {
 function dibujarClimateCanvas(ctx, W, H) {
   const format = climateFormatConfig();
   const dark = true;
-  const headerH = Math.round(H * .18);
+  const headerH = VS_CanvasHelpers.plateHeaderHeight(W, H);
   const M = W * .055;
   const actual = climateData?.actual || { type: 'cloud', description: 'Esperando datos' };
   climateDrawAtmosphere(ctx, W, H, actual);

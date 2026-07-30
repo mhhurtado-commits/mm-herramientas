@@ -265,7 +265,7 @@ function renderFlyerSimple(ctx, W, H, title, content, c1, c2) {
   if (!dibujarFondoIA(ctx, W, H, 'rgba(255,255,255,0.85)')) {
     VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { accent: c1 });
   }
-  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'RESUMEN', '', Math.round(H * 0.16));
+    VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'RESUMEN', '', VS_CanvasHelpers.plateHeaderHeight(W, H));
 
   ctx.fillStyle = c1;
   ctx.fillRect(0, 0, W, Math.round(H * 0.006));
@@ -341,7 +341,7 @@ function renderFlyerComparativa(ctx, W, H, title, content, c1, c2) {
   if (!dibujarFondoIA(ctx, W, H, 'rgba(10,12,22,0.9)')) {
     VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { dark: true, accent: c1 });
   }
-  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'COMPARATIVA', '', Math.round(H * 0.16));
+    VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'COMPARATIVA', '', VS_CanvasHelpers.plateHeaderHeight(W, H));
 
   const tr = getTitleRect(W, H);
   const headerPad = W * 0.01;
@@ -420,7 +420,7 @@ function renderFlyerListado(ctx, W, H, title, content, c1, c2) {
   if (!dibujarFondoIA(ctx, W, H, 'rgba(255,255,255,0.85)')) {
     VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { accent: c1 });
   }
-  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'LISTADO', '', Math.round(H * 0.16));
+    VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'LISTADO', '', VS_CanvasHelpers.plateHeaderHeight(W, H));
 
   ctx.fillStyle = c1;
   ctx.fillRect(0, 0, W, Math.round(H * 0.006));
@@ -497,7 +497,7 @@ function renderFlyerDestacado(ctx, W, H, title, content, c1, c2) {
   if (!dibujarFondoIA(ctx, W, H, 'rgba(10,12,22,0.9)')) {
     VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { dark: true, accent: c1 });
   }
-  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'DATOS DESTACADOS', '', Math.round(H * 0.16));
+    VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'DATOS DESTACADOS', '', VS_CanvasHelpers.plateHeaderHeight(W, H));
 
   ctx.fillStyle = c1;
   ctx.fillRect(0, 0, Math.round(W * 0.03), H);

@@ -23,12 +23,18 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 }
 
 const VS_CanvasHelpers = {
+  // Compact editorial chrome shared by every Visual Suite plate.
+  plateHeaderHeight(W, H) {
+    const ratio = W / H > 1.2 ? 0.14 : 0.15;
+    return Math.round(H * ratio);
+  },
+
   // Shared editorial chrome for every exported plate.
   drawPlateBackground(ctx, W, H, options) {
     const o = options || {};
     const dark = !!o.dark;
     const accent = o.accent || VS_Colors.ACCENT;
-    const headerRatio = o.headerRatio == null ? 0.16 : o.headerRatio;
+    const headerRatio = o.headerRatio == null ? VS_CanvasHelpers.plateHeaderHeight(W, H) / H : o.headerRatio;
     const headerH = Math.round(H * headerRatio);
 
     const grad = ctx.createLinearGradient(0, 0, 0, H);
@@ -54,19 +60,19 @@ const VS_CanvasHelpers = {
 
   drawPlateHeader(ctx, W, H, label, title, headerH, options) {
     const o = options || {};
-    const hh = headerH || Math.round(H * 0.16);
+    const hh = headerH || VS_CanvasHelpers.plateHeaderHeight(W, H);
     const M = Math.round(W * 0.045);
     const baseTL = Math.min(W, H);
     const kicker = 'MEDIAMENDOZA  ·  ' + (label || 'DATOS');
 
     ctx.fillStyle = VS_Colors.INK;
     ctx.fillRect(0, 0, W, hh);
-    ctx.fillStyle = o.accent || VS_Colors.GOLD;
+    ctx.fillStyle = o.accent || VS_Colors.ACCENT;
     ctx.fillRect(0, hh - Math.max(4, Math.round(H * 0.004)), W, Math.max(4, Math.round(H * 0.004)));
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = o.accent || VS_Colors.GOLD;
+    ctx.fillStyle = o.accent || VS_Colors.ACCENT;
     ctx.font = `700 ${Math.round(baseTL * 0.018)}px "Inter", sans-serif`;
     ctx.fillText(kicker, M, hh * 0.36);
 

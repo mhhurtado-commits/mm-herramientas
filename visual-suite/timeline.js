@@ -266,7 +266,7 @@ function renderTimelineCanvas(events, W, H, titulo) {
   const M = Math.round(W * 0.045);
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
   const n = Math.max(sorted.length, 1);
-  const headerH = Math.round(H * 0.13);
+    const headerH = VS_CanvasHelpers.plateHeaderHeight(W, H);
 
   // Fondo
   if (!dibujarFondoIA(ctx, W, H, 'rgba(253,253,251,0.85)')) {
