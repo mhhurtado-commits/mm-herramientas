@@ -115,6 +115,12 @@ function ajustarTextoCanvas(ctx, text, maxWidth, maxLines = 3, fontSize = 30) {
   return { lines, fontSize: size, height: Math.round(size * 1.2 * lines.length) };
 }
 
+function dibujarTextoAjustado(ctx, text, maxWidth, maxLines, fontSize, x, y, lineHeight = 1.2) {
+  const fitted = ajustarTextoCanvas(ctx, text, maxWidth, maxLines, fontSize);
+  fitted.lines.forEach((line, index) => ctx.fillText(line, x, y + index * fitted.fontSize * lineHeight));
+  return fitted;
+}
+
 function infografiaBloqueRect(tipo, index, total, W, H, template = 'simple') {
   const margin = W * .055;
   const gap = Math.max(14, W * .018);
@@ -299,7 +305,7 @@ function drawInfoCard(ctx, rect, color, dark = true) {
   ctx.beginPath(); ctx.roundRect(rect.x, rect.y, Math.max(8, rect.w * .012), rect.h, Math.min(22, rect.w * .025)); ctx.fill();
 }
 
-function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
+function drawInfografiaBlockLegacy(ctx, rect, bloque, data, dark = true) {
   const color = bloque.color || data.color1;
   const ink = dark ? '#fff' : VS_Colors.INK;
   const muted = dark ? 'rgba(255,255,255,.7)' : VS_Colors.INK2;
@@ -310,9 +316,11 @@ function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
   if (bloque.tipo === 'dato') {
     const chip = Math.min(rect.h * .45, rect.w * .18);
     VS_CanvasHelpers.drawIconChip(ctx, innerX, rect.y + rect.h * .2, chip, bloque.icono || VS_Utils.detectarEmoji(`${bloque.etiqueta} ${bloque.valor}`), color);
-    ctx.fillStyle = muted; ctx.font = `700 ${Math.max(18, rect.h * .12)}px Inter, sans-serif`; ctx.fillText(bloque.etiqueta || 'Dato', innerX + chip + pad * .45, rect.y + rect.h * .34);
+    const textX = innerX + chip + pad * .45;
+    const textW = rect.x + rect.w - pad - textX;
+    ctx.fillStyle = muted; ctx.font = `700 ${Math.max(18, rect.h * .12)}px Inter, sans-serif`; dibujarTextoAjustado(ctx, bloque.etiqueta || 'Dato', textW, 2, Math.max(18, rect.h * .12), textX, rect.y + rect.h * .34, 1.05);
     ctx.fillStyle = ink; ctx.font = `800 ${Math.max(28, rect.h * .27)}px Inter, sans-serif`; ctx.fillText(bloque.valor || '—', innerX + chip + pad * .45, rect.y + rect.h * .67);
-    if (bloque.detalle) { ctx.fillStyle = color; ctx.font = `600 ${Math.max(16, rect.h * .1)}px Inter, sans-serif`; ctx.fillText(bloque.detalle, innerX + chip + pad * .45, rect.y + rect.h * .84); }
+    if (bloque.detalle) { ctx.fillStyle = color; ctx.font = `600 ${Math.max(16, rect.h * .1)}px Inter, sans-serif`; dibujarTextoAjustado(ctx, bloque.detalle, textW, 2, Math.max(16, rect.h * .1), textX, rect.y + rect.h * .84, 1.05); }
     return;
   }
   if (bloque.tipo === 'texto') {
@@ -327,7 +335,7 @@ function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
     items.slice(0, 6).forEach((item, index) => {
       const y = rect.y + rect.h * .36 + index * rowH;
       const pct = Math.max(0, Math.min(100, Number(item.valor) || 0));
-      ctx.fillStyle = muted; ctx.font = `600 ${Math.max(14, rowH * .35)}px Inter, sans-serif`; ctx.fillText(item.nombre, innerX, y);
+      ctx.fillStyle = muted; ctx.font = `600 ${Math.max(14, rowH * .35)}px Inter, sans-serif`; dibujarTextoAjustado(ctx, item.nombre, innerW * .7, 1, Math.max(14, rowH * .35), innerX, y);
       ctx.textAlign = 'right'; ctx.fillText(`${item.valor}%`, rect.x + rect.w - pad, y); ctx.textAlign = 'left';
       ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.roundRect(innerX, y + rowH * .18, innerW, Math.max(6, rowH * .16), 8); ctx.fill();
       ctx.fillStyle = color; ctx.roundRect(innerX, y + rowH * .18, innerW * pct / 100, Math.max(6, rowH * .16), 8); ctx.fill();
@@ -340,7 +348,7 @@ function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
     items.slice(0, 6).forEach((item, index) => {
       const y = rect.y + rect.h * .38 + index * rowH;
       ctx.fillStyle = color; ctx.font = `800 ${Math.max(18, rowH * .46)}px Inter, sans-serif`; ctx.fillText(String(index + 1).padStart(2, '0'), innerX, y);
-      ctx.fillStyle = ink; ctx.font = `600 ${Math.max(16, rowH * .34)}px Inter, sans-serif`; ctx.fillText(item.nombre, innerX + rect.w * .12, y);
+      ctx.fillStyle = ink; ctx.font = `600 ${Math.max(16, rowH * .34)}px Inter, sans-serif`; dibujarTextoAjustado(ctx, item.nombre, innerW * .63, 1, Math.max(16, rowH * .34), innerX + rect.w * .12, y);
       ctx.textAlign = 'right'; ctx.fillStyle = muted; ctx.fillText(String(item.valor ?? ''), rect.x + rect.w - pad, y); ctx.textAlign = 'left';
     });
     return;
@@ -365,13 +373,101 @@ function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
   ctx.fillStyle = ink; ctx.font = `700 ${Math.max(18, rect.h * .13)}px Inter, sans-serif`; ctx.fillText(bloque.etiqueta || 'Información', innerX, rect.y + rect.h * .3);
 }
 
+// Safe replacement for the first renderer: every text field is constrained to its card.
+function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
+  const color = bloque.color || data.color1;
+  const ink = dark ? '#fff' : VS_Colors.INK;
+  const muted = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2;
+  drawInfoCard(ctx, rect, color, dark);
+  const pad = rect.w * .06;
+  const innerX = rect.x + pad;
+  const innerW = rect.w - pad * 2;
+  const base = Math.max(14, rect.h * .1);
+  const text = (value, width, lines, size, x, y, colorValue = ink, align = 'left') => {
+    ctx.fillStyle = colorValue;
+    ctx.font = `600 ${size}px Inter, sans-serif`;
+    ctx.textAlign = align;
+    dibujarTextoAjustado(ctx, value, width, lines, size, align === 'center' ? x - width / 2 : x, y, 1.05);
+    ctx.textAlign = 'left';
+  };
+
+  if (bloque.tipo === 'dato') {
+    const chip = Math.min(rect.h * .4, rect.w * .16);
+    const textX = innerX + chip + pad * .45;
+    const textW = Math.max(40, rect.x + rect.w - pad - textX);
+    VS_CanvasHelpers.drawIconChip(ctx, innerX, rect.y + rect.h * .2, chip, bloque.icono || VS_Utils.detectarEmoji(`${bloque.etiqueta} ${bloque.valor}`), color);
+    text(bloque.etiqueta || 'Dato', textW, 2, Math.max(18, rect.h * .105), textX, rect.y + rect.h * .34, muted);
+    text(bloque.valor || '--', textW, 1, Math.max(28, rect.h * .24), textX, rect.y + rect.h * .65, ink);
+    if (bloque.detalle) text(bloque.detalle, textW, 2, Math.max(15, rect.h * .085), textX, rect.y + rect.h * .83, color);
+    return;
+  }
+  if (bloque.tipo === 'texto') {
+    text(bloque.texto, innerW, 5, Math.max(18, rect.h * .12), innerX, rect.y + rect.h * .3, ink);
+    return;
+  }
+  if (bloque.tipo === 'barra') {
+    text(bloque.etiqueta || 'Distribucion', innerW, 2, Math.max(18, rect.h * .11), innerX, rect.y + rect.h * .2, ink);
+    const items = (bloque.items || []).slice(0, 6);
+    const rowH = rect.h * .58 / Math.max(items.length, 1);
+    items.forEach((item, index) => {
+      const y = rect.y + rect.h * .35 + index * rowH;
+      const pct = Math.max(0, Math.min(100, Number(item.valor) || 0));
+      text(item.nombre, innerW * .68, 1, Math.max(14, rowH * .3), innerX, y, muted);
+      text(`${item.valor}%`, innerW * .25, 1, Math.max(14, rowH * .3), rect.x + rect.w - pad, y, muted, 'right');
+      ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.roundRect(innerX, y + rowH * .18, innerW, Math.max(6, rowH * .14), 8); ctx.fill();
+      ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(innerX, y + rowH * .18, innerW * pct / 100, Math.max(6, rowH * .14), 8); ctx.fill();
+    });
+    return;
+  }
+  if (bloque.tipo === 'ranking') {
+    text(bloque.etiqueta || 'Ranking', innerW, 2, Math.max(18, rect.h * .11), innerX, rect.y + rect.h * .2, ink);
+    const items = (bloque.items || []).slice(0, 6);
+    const rowH = rect.h * .62 / Math.max(items.length, 1);
+    items.forEach((item, index) => {
+      const y = rect.y + rect.h * .36 + index * rowH;
+      text(String(index + 1).padStart(2, '0'), innerW * .1, 1, Math.max(16, rowH * .4), innerX, y, color);
+      text(item.nombre, innerW * .58, 1, Math.max(15, rowH * .3), innerX + rect.w * .12, y, ink);
+      text(String(item.valor ?? ''), innerW * .22, 1, Math.max(15, rowH * .3), rect.x + rect.w - pad, y, muted, 'right');
+    });
+    return;
+  }
+  if (bloque.tipo === 'comparacion') {
+    const items = (bloque.items || []).slice(0, 2);
+    const mid = rect.x + rect.w / 2;
+    ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.moveTo(mid, rect.y + rect.h * .18); ctx.lineTo(mid, rect.y + rect.h * .86); ctx.stroke();
+    items.forEach((item, index) => {
+      const cx = rect.x + rect.w * (index ? .72 : .28);
+      text(item.nombre, rect.w * .38, 2, Math.max(16, rect.h * .1), cx, rect.y + rect.h * .3, muted, 'center');
+      text(String(item.valor ?? '--'), rect.w * .38, 1, Math.max(28, rect.h * .24), cx, rect.y + rect.h * .6, ink, 'center');
+    });
+    return;
+  }
+  if (bloque.tipo === 'pasos') {
+    const items = (bloque.items || []).slice(0, 6);
+    const rowH = rect.h * .68 / Math.max(items.length, 1);
+    ctx.strokeStyle = color; ctx.lineWidth = Math.max(3, rect.w * .004); ctx.beginPath(); ctx.moveTo(innerX + rect.w * .04, rect.y + rect.h * .27); ctx.lineTo(innerX + rect.w * .04, rect.y + rect.h * .27 + rowH * Math.max(items.length - 1, 0)); ctx.stroke();
+    items.forEach((item, index) => {
+      const cy = rect.y + rect.h * .27 + index * rowH;
+      ctx.fillStyle = color; ctx.beginPath(); ctx.arc(innerX + rect.w * .04, cy, Math.max(10, rect.w * .018), 0, Math.PI * 2); ctx.fill();
+      text(item.nombre, innerW * .82, 1, Math.max(16, rowH * .25), innerX + rect.w * .1, cy + rowH * .06, ink);
+      if (item.detalle) text(item.detalle, innerW * .82, 1, Math.max(13, rowH * .17), innerX + rect.w * .1, cy + rowH * .3, muted);
+    });
+    return;
+  }
+  text(bloque.etiqueta || 'Informacion', innerW, 2, base, innerX, rect.y + rect.h * .3, ink);
+}
+
 function renderInfografiaModular(ctx, W, H, data) {
   const dark = data.template !== 'simple' && data.template !== 'datos';
   VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { dark, accent: data.color1 });
   VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'INFOGRAFÍA', '', VS_CanvasHelpers.plateHeaderHeight(W, H));
   ctx.fillStyle = data.color1; ctx.fillRect(0, 0, W, Math.max(8, H * .006));
-  ctx.fillStyle = dark ? '#fff' : VS_Colors.INK; ctx.font = `400 ${Math.max(42, H * .065)}px DM Serif Display, serif`; ctx.fillText(data.titulo, W * .055, H * .14);
-  if (data.bajada) { ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2; ctx.font = `500 ${Math.max(18, H * .022)}px Inter, sans-serif`; ctx.fillText(data.bajada, W * .055, H * .2); }
+  const titleX = W * .055;
+  const titleW = W * .89;
+  ctx.fillStyle = '#fff'; ctx.font = `400 ${Math.max(34, H * .055)}px DM Serif Display, serif`;
+  const titleFit = ajustarTextoCanvas(ctx, data.titulo, titleW, 2, Math.max(34, H * .055));
+  dibujarTextoAjustado(ctx, data.titulo, titleW, 2, titleFit.fontSize, titleX, H * .14, 1.05);
+  if (data.bajada) { ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : 'rgba(255,255,255,.82)'; ctx.font = `500 ${Math.max(18, H * .022)}px Inter, sans-serif`; dibujarTextoAjustado(ctx, data.bajada, titleW, 2, Math.max(18, H * .022), titleX, H * .2, 1.05); }
   const layout = calcularInfografiaLayout(W, H, data);
   data.bloques.slice(0, layout.blocks.length).forEach((bloque, index) => drawInfografiaBlock(ctx, layout.blocks[index], bloque, data, dark));
   drawInfografiaSource(ctx, W, H, data.fuente, dark);
@@ -915,4 +1011,4 @@ function cargarJSONdeChatInfografia() {
 
 if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initInfographics);
 
-if (typeof module !== 'undefined') module.exports = { normalizarInfografia, validarBloque, normalizarLinea, calcularInfografiaLayout, infografiaBloqueRect, ajustarTextoCanvas };
+if (typeof module !== 'undefined') module.exports = { normalizarInfografia, validarBloque, normalizarLinea, calcularInfografiaLayout, infografiaBloqueRect, ajustarTextoCanvas, dibujarTextoAjustado };

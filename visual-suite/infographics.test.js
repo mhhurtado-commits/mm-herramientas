@@ -4,7 +4,8 @@ const {
   normalizarLinea,
   calcularInfografiaLayout,
   infografiaBloqueRect,
-  ajustarTextoCanvas
+  ajustarTextoCanvas,
+  dibujarTextoAjustado
 } = require('./infographics.js');
 
 const textData = normalizarInfografia({
@@ -47,5 +48,15 @@ if (storyRect.x < 0 || storyRect.y < 0 || storyRect.x + storyRect.w > 1080 || st
 const fakeCtx = { font: '', measureText: value => ({ width: String(value).length * 20 }) };
 const fitted = ajustarTextoCanvas(fakeCtx, 'Este texto debe ajustarse', 100, 2, 30);
 if (fitted.lines.length > 2 || fitted.fontSize < 10) throw new Error('El ajuste de texto no respeta límites');
+
+const drawCalls = [];
+const drawCtx = {
+  font: '',
+  measureText: value => ({ width: String(value).length * 10 }),
+  fillText: (text, x, y) => drawCalls.push({ text, x, y })
+};
+dibujarTextoAjustado(drawCtx, 'Controles vehiculares y siniestralidad vial', 180, 2, 30, 14, 10, 20);
+if (drawCalls.length > 2) throw new Error('Long text must respect available lines');
+if (drawCalls.some(call => call.x > 194)) throw new Error('Adjusted text must stay within its area');
 
 console.log('infographics.test.js: OK');
