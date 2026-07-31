@@ -87,6 +87,59 @@ function normalizarInfografia(input) {
   };
 }
 
+function ajustarTextoCanvas(ctx, text, maxWidth, maxLines = 3, fontSize = 30) {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  let size = Math.max(10, Number(fontSize) || 30);
+  let lines = [];
+  while (size >= 10) {
+    ctx.font = `${size}px Inter, sans-serif`;
+    lines = [];
+    let current = '';
+    words.forEach(word => {
+      const candidate = current ? `${current} ${word}` : word;
+      if (ctx.measureText(candidate).width <= maxWidth || !current) current = candidate;
+      else { lines.push(current); current = word; }
+    });
+    if (current) lines.push(current);
+    if (lines.length <= maxLines) break;
+    size -= 1;
+  }
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    const last = lines.length - 1;
+    while (ctx.measureText(`${lines[last]}…`).width > maxWidth && lines[last].length > 3) lines[last] = lines[last].slice(0, -1);
+    lines[last] += '…';
+  }
+  size = Math.max(10, size);
+  return { lines, fontSize: size, height: Math.round(size * 1.2 * lines.length) };
+}
+
+function infografiaBloqueRect(tipo, index, total, W, H, template = 'simple') {
+  const margin = W * .055;
+  const gap = Math.max(14, W * .018);
+  const top = H * .27;
+  const bottom = H * .9;
+  const story = H > W * 1.1;
+  const columns = story ? 1 : (template === 'comparativa' || total > 1 ? 2 : 1);
+  const rows = Math.max(1, Math.ceil(Math.max(1, total) / columns));
+  const cardW = (W - margin * 2 - gap * (columns - 1)) / columns;
+  const cardH = (bottom - top - gap * (rows - 1)) / rows;
+  const column = index % columns;
+  const row = Math.floor(index / columns);
+  return { x: margin + column * (cardW + gap), y: top + row * (cardH + gap), w: cardW, h: cardH };
+}
+
+function calcularInfografiaLayout(W, H, data) {
+  const total = Math.min(Array.isArray(data?.bloques) ? data.bloques.length : 0, 8);
+  const blocks = Array.from({ length: total }, (_, index) => infografiaBloqueRect(data?.bloques?.[index]?.tipo || 'dato', index, total, W, H, data?.template || 'simple'));
+  return {
+    header: { x: 0, y: 0, w: W, h: H * .23 },
+    blocks,
+    source: { x: W * .055, y: H * .92, w: W * .89, h: H * .035 },
+    footer: { x: W * .055, y: H * .96, w: W * .89, h: H * .025 }
+  };
+}
+
 function resetTitlePos() {
   const d = TITLE_DEF[templateActual] || TITLE_DEF.simple;
   titleState = { ...d };
@@ -749,4 +802,4 @@ function cargarJSONdeChatInfografia() {
 
 if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initInfographics);
 
-if (typeof module !== 'undefined') module.exports = { normalizarInfografia, validarBloque, normalizarLinea };
+if (typeof module !== 'undefined') module.exports = { normalizarInfografia, validarBloque, normalizarLinea, calcularInfografiaLayout, infografiaBloqueRect, ajustarTextoCanvas };

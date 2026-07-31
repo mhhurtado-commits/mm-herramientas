@@ -1,7 +1,10 @@
 const {
   normalizarInfografia,
   validarBloque,
-  normalizarLinea
+  normalizarLinea,
+  calcularInfografiaLayout,
+  infografiaBloqueRect,
+  ajustarTextoCanvas
 } = require('./infographics.js');
 
 const textData = normalizarInfografia({
@@ -36,5 +39,13 @@ if (badColor.color1 !== '#a6ce39' || !badColor.warnings.length) throw new Error(
 
 const line = normalizarLinea('Población: 230.000');
 if (line.tipo !== 'dato' || line.valor !== '230.000') throw new Error('normalizarLinea no separa etiqueta y valor');
+
+const layout = calcularInfografiaLayout(1600, 1600, { bloques: modularData.bloques, template: 'datos' });
+if (!layout.blocks.length || layout.blocks.some(rect => rect.x < 0 || rect.y < 0 || rect.x + rect.w > 1600 || rect.y + rect.h > 1600)) throw new Error('El layout cuadrado desborda el canvas');
+const storyRect = infografiaBloqueRect('dato', 5, 6, 1080, 1920, 'simple');
+if (storyRect.x < 0 || storyRect.y < 0 || storyRect.x + storyRect.w > 1080 || storyRect.y + storyRect.h > 1920) throw new Error('El layout story desborda el canvas');
+const fakeCtx = { font: '', measureText: value => ({ width: String(value).length * 20 }) };
+const fitted = ajustarTextoCanvas(fakeCtx, 'Este texto debe ajustarse', 100, 2, 30);
+if (fitted.lines.length > 2 || fitted.fontSize < 10) throw new Error('El ajuste de texto no respeta límites');
 
 console.log('infographics.test.js: OK');
