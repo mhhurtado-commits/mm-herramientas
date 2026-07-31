@@ -41,6 +41,11 @@ if (badColor.color1 !== '#a6ce39' || !badColor.warnings.length) throw new Error(
 const line = normalizarLinea('Población: 230.000');
 if (line.tipo !== 'dato' || line.valor !== '230.000') throw new Error('normalizarLinea no separa etiqueta y valor');
 
+const comparisonData = normalizarInfografia({ bloques: [
+  { tipo: 'comparacion', izquierda: { titulo: 'Vehiculos 2025', valor: '2.928' }, derecha: { titulo: 'Vehiculos 2026', valor: '6.077' } }
+] });
+if (comparisonData.bloques[0].tipo !== 'comparacion' || comparisonData.bloques[0].items.length !== 2) throw new Error('Left/right comparison must become two columns');
+
 const layout = calcularInfografiaLayout(1600, 1600, { bloques: modularData.bloques, template: 'datos' });
 if (!layout.blocks.length || layout.blocks.some(rect => rect.x < 0 || rect.y < 0 || rect.x + rect.w > 1600 || rect.y + rect.h > 1600)) throw new Error('El layout cuadrado desborda el canvas');
 const storyRect = infografiaBloqueRect('dato', 5, 6, 1080, 1920, 'simple');

@@ -46,10 +46,24 @@ function validarBloque(bloque) {
       valor: Number.isFinite(Number(item.valor)) ? Number(item.valor) : String(item.valor || '')
     })) : [];
   }
+  if (tipo === 'comparacion' && !normalized.items.length) {
+    const sides = [bloque.izquierda, bloque.derecha].filter(Boolean);
+    normalized.items = sides.map(side => ({
+      nombre: String(side.nombre || side.titulo || side.etiqueta || '').trim(),
+      valor: Number.isFinite(Number(side.valor)) ? Number(side.valor) : String(side.valor || '')
+    })).filter(item => item.nombre || item.valor);
+  }
   if (tipo === 'dato') {
     normalized.etiqueta = String(bloque.etiqueta || '').trim();
     normalized.valor = String(bloque.valor ?? '').trim();
     normalized.detalle = String(bloque.detalle || '').trim();
+    if (Array.isArray(bloque.items) && bloque.items.length >= 2) {
+      normalized.tipo = 'comparacion';
+      normalized.items = bloque.items.slice(0, 2).map(item => ({
+        nombre: String(item.nombre || item.titulo || item.etiqueta || '').trim(),
+        valor: Number.isFinite(Number(item.valor)) ? Number(item.valor) : String(item.valor || '')
+      })).filter(item => item.nombre || item.valor);
+    }
   }
   if (tipo === 'texto') normalized.texto = String(bloque.texto || bloque.contenido || '').trim();
   if (tipo === 'pasos') normalized.items = Array.isArray(bloque.items) ? bloque.items.map(item => ({ ...item, nombre: String(item.nombre || item.titulo || '').trim(), detalle: String(item.detalle || item.descripcion || '').trim() })).filter(item => item.nombre) : [];
