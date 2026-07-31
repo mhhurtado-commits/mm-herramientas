@@ -1,4 +1,4 @@
-const { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays } = require('./climate.js');
+const { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays } = require('./climate.js');
 
 const normalized = normalizarClimateSMN({
   ok: true,
@@ -44,6 +44,8 @@ if (heroMetrics.statValueSize < 20 || heroMetrics.infoValueSize < 17) throw new 
 const todayPeriods = climateCardPeriods({ segments: [{ label: 'Tarde' }, { label: 'Noche' }] });
 const evolutionPeriods = climateCardPeriods({ segments: [{ label: 'Madrugada' }, { label: 'Manana' }, { label: 'Tarde' }, { label: 'Noche' }] }, 4);
 if (evolutionPeriods.length !== 4 || evolutionPeriods[0].label !== 'Madrugada' || evolutionPeriods[3].label !== 'Noche') throw new Error('La evoluciÃ³n diaria no conserva los cuatro perÃ­odos del SMN');
+const todayMetrics = climateTodayCardMetrics(500, 180);
+if (todayMetrics.iconBottom >= todayMetrics.tempY || todayMetrics.tempY >= todayMetrics.rainY) throw new Error('La tarjeta Hoy encima iconos, temperatura y lluvia');
 if (todayPeriods.length !== 2 || todayPeriods[0].label !== 'Tarde' || todayPeriods[1].label !== 'Noche') throw new Error('La evolución no conserva sus dos períodos reales');
 if (climateVisibleDays([1, 2, 3, 4, 5, 6, 7], true).length !== 5) throw new Error('La grilla cuadrada no limita el pronóstico a cuatro días');
 

@@ -283,6 +283,23 @@ function climateDayCardMetrics(w, h) {
   };
 }
 
+function climateTodayCardMetrics(w, h) {
+  const base = Math.min(w, h);
+  const iconSize = Math.min(h * .16, (w / 4) * .18);
+  return {
+    titleY: h * .2,
+    periodY: h * .47,
+    iconY: h * .61,
+    iconSize,
+    iconBottom: h * .61 + iconSize / 2,
+    tempY: h * .8,
+    rainY: h * .94,
+    labelSize: Math.max(12, Math.round(base * .14)),
+    tempSize: Math.max(15, Math.round(base * .16)),
+    rainSize: Math.max(10, Math.round(base * .1))
+  };
+}
+
 function climateHeroLayout(W, H) {
   const M = W * .055;
   const statX = M + W * .47;
@@ -526,6 +543,7 @@ function climateDrawTodayCardLegacy(ctx, x, y, w, h, day, dark = true) {
 
 function climateDrawTodayCard(ctx, x, y, w, h, day, dark = true) {
   const segments = climateCardPeriods(day, 4);
+  const metrics = climateTodayCardMetrics(w, h);
   ctx.fillStyle = 'rgba(166,206,57,.17)';
   ctx.strokeStyle = VS_Colors.ACCENT;
   ctx.lineWidth = Math.max(1, w * .004);
@@ -533,7 +551,7 @@ function climateDrawTodayCard(ctx, x, y, w, h, day, dark = true) {
   ctx.textAlign = 'center';
   ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
   ctx.font = `700 ${Math.max(22, Math.round(Math.min(w, h) * .13))}px Inter, sans-serif`;
-  ctx.fillText('Hoy', x + w / 2, y + h * .2);
+  ctx.fillText('Hoy', x + w / 2, y + metrics.titleY);
   if (!segments.length) { ctx.textAlign = 'left'; return; }
   const cellW = w / segments.length;
   ctx.strokeStyle = 'rgba(255,255,255,.18)';
@@ -547,7 +565,7 @@ function climateDrawTodayCard(ctx, x, y, w, h, day, dark = true) {
     ctx.fillStyle = dark ? 'rgba(255,255,255,.82)' : VS_Colors.INK2;
     ctx.font = `700 ${Math.max(12, Math.round(Math.min(cellW, h) * .14))}px Inter, sans-serif`;
     ctx.fillText(segment.label || 'PerÃ­odo', cx, y + h * .54);
-    climateDrawIcon(ctx, segment.code, segment.type, cx, y + h * .65, Math.min(h * .27, cellW * .24));
+    climateDrawIcon(ctx, segment.code, segment.type, cx, y + metrics.iconY, metrics.iconSize);
     ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
     ctx.font = `700 ${Math.max(15, Math.round(Math.min(cellW, h) * .16))}px Inter, sans-serif`;
     ctx.fillText(segment.temp != null ? `${segment.temp}Â°` : 'â€”', cx, y + h * .82);
@@ -694,4 +712,4 @@ if (typeof window !== 'undefined') {
   window.normalizarClimateSMN = normalizarClimateSMN;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays };
+if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays };
