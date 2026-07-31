@@ -281,6 +281,102 @@ function seleccionarTemplate(template) {
   renderizarInfografia();
 }
 
+function drawInfografiaSource(ctx, W, H, fuente, dark = true) {
+  const M = W * .055;
+  ctx.fillStyle = dark ? 'rgba(255,255,255,.68)' : VS_Colors.INK2;
+  ctx.font = `500 ${Math.max(18, Math.round(H * .014))}px Inter, sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`Fuente: ${fuente || 'Fuente no especificada'}`, M, H * .945);
+}
+
+function drawInfoCard(ctx, rect, color, dark = true) {
+  ctx.fillStyle = dark ? 'rgba(255,255,255,.075)' : 'rgba(255,255,255,.78)';
+  ctx.strokeStyle = dark ? 'rgba(255,255,255,.16)' : 'rgba(22,32,27,.12)';
+  ctx.lineWidth = Math.max(2, rect.w * .0015);
+  ctx.beginPath(); ctx.roundRect(rect.x, rect.y, rect.w, rect.h, Math.min(22, rect.w * .025)); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.roundRect(rect.x, rect.y, Math.max(8, rect.w * .012), rect.h, Math.min(22, rect.w * .025)); ctx.fill();
+}
+
+function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
+  const color = bloque.color || data.color1;
+  const ink = dark ? '#fff' : VS_Colors.INK;
+  const muted = dark ? 'rgba(255,255,255,.7)' : VS_Colors.INK2;
+  drawInfoCard(ctx, rect, color, dark);
+  const pad = rect.w * .06;
+  const innerX = rect.x + pad;
+  const innerW = rect.w - pad * 2;
+  if (bloque.tipo === 'dato') {
+    const chip = Math.min(rect.h * .45, rect.w * .18);
+    VS_CanvasHelpers.drawIconChip(ctx, innerX, rect.y + rect.h * .2, chip, bloque.icono || VS_Utils.detectarEmoji(`${bloque.etiqueta} ${bloque.valor}`), color);
+    ctx.fillStyle = muted; ctx.font = `700 ${Math.max(18, rect.h * .12)}px Inter, sans-serif`; ctx.fillText(bloque.etiqueta || 'Dato', innerX + chip + pad * .45, rect.y + rect.h * .34);
+    ctx.fillStyle = ink; ctx.font = `800 ${Math.max(28, rect.h * .27)}px Inter, sans-serif`; ctx.fillText(bloque.valor || '—', innerX + chip + pad * .45, rect.y + rect.h * .67);
+    if (bloque.detalle) { ctx.fillStyle = color; ctx.font = `600 ${Math.max(16, rect.h * .1)}px Inter, sans-serif`; ctx.fillText(bloque.detalle, innerX + chip + pad * .45, rect.y + rect.h * .84); }
+    return;
+  }
+  if (bloque.tipo === 'texto') {
+    ctx.fillStyle = ink; ctx.font = `600 ${Math.max(18, rect.h * .13)}px Inter, sans-serif`;
+    const fitted = ajustarTextoCanvas(ctx, bloque.texto, innerW, 5, Math.max(18, rect.h * .13));
+    fitted.lines.forEach((line, index) => ctx.fillText(line, innerX, rect.y + rect.h * .32 + index * fitted.fontSize * 1.22));
+    return;
+  }
+  if (bloque.tipo === 'barra') {
+    ctx.fillStyle = ink; ctx.font = `700 ${Math.max(18, rect.h * .13)}px Inter, sans-serif`; ctx.fillText(bloque.etiqueta || 'Distribución', innerX, rect.y + rect.h * .23);
+    const items = bloque.items || []; const rowH = rect.h * .55 / Math.max(items.length, 1);
+    items.slice(0, 6).forEach((item, index) => {
+      const y = rect.y + rect.h * .36 + index * rowH;
+      const pct = Math.max(0, Math.min(100, Number(item.valor) || 0));
+      ctx.fillStyle = muted; ctx.font = `600 ${Math.max(14, rowH * .35)}px Inter, sans-serif`; ctx.fillText(item.nombre, innerX, y);
+      ctx.textAlign = 'right'; ctx.fillText(`${item.valor}%`, rect.x + rect.w - pad, y); ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.roundRect(innerX, y + rowH * .18, innerW, Math.max(6, rowH * .16), 8); ctx.fill();
+      ctx.fillStyle = color; ctx.roundRect(innerX, y + rowH * .18, innerW * pct / 100, Math.max(6, rowH * .16), 8); ctx.fill();
+    });
+    return;
+  }
+  if (bloque.tipo === 'ranking') {
+    ctx.fillStyle = ink; ctx.font = `700 ${Math.max(18, rect.h * .13)}px Inter, sans-serif`; ctx.fillText(bloque.etiqueta || 'Ranking', innerX, rect.y + rect.h * .22);
+    const items = bloque.items || []; const rowH = rect.h * .65 / Math.max(items.length, 1);
+    items.slice(0, 6).forEach((item, index) => {
+      const y = rect.y + rect.h * .38 + index * rowH;
+      ctx.fillStyle = color; ctx.font = `800 ${Math.max(18, rowH * .46)}px Inter, sans-serif`; ctx.fillText(String(index + 1).padStart(2, '0'), innerX, y);
+      ctx.fillStyle = ink; ctx.font = `600 ${Math.max(16, rowH * .34)}px Inter, sans-serif`; ctx.fillText(item.nombre, innerX + rect.w * .12, y);
+      ctx.textAlign = 'right'; ctx.fillStyle = muted; ctx.fillText(String(item.valor ?? ''), rect.x + rect.w - pad, y); ctx.textAlign = 'left';
+    });
+    return;
+  }
+  if (bloque.tipo === 'comparacion') {
+    const items = bloque.items || []; const mid = rect.x + rect.w / 2;
+    ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.moveTo(mid, rect.y + rect.h * .2); ctx.lineTo(mid, rect.y + rect.h * .86); ctx.stroke();
+    items.slice(0, 2).forEach((item, index) => {
+      const cx = rect.x + rect.w * (index ? .72 : .28); ctx.textAlign = 'center'; ctx.fillStyle = muted; ctx.font = `700 ${Math.max(16, rect.h * .12)}px Inter, sans-serif`; ctx.fillText(item.nombre, cx, rect.y + rect.h * .32);
+      ctx.fillStyle = ink; ctx.font = `800 ${Math.max(28, rect.h * .28)}px Inter, sans-serif`; ctx.fillText(String(item.valor ?? '—'), cx, rect.y + rect.h * .62);
+    }); ctx.textAlign = 'left'; return;
+  }
+  if (bloque.tipo === 'pasos') {
+    const items = bloque.items || []; const rowH = rect.h * .7 / Math.max(items.length, 1);
+    ctx.strokeStyle = color; ctx.lineWidth = Math.max(3, rect.w * .004); ctx.beginPath(); ctx.moveTo(innerX + rect.w * .04, rect.y + rect.h * .28); ctx.lineTo(innerX + rect.w * .04, rect.y + rect.h * .28 + rowH * Math.max(items.length - 1, 0)); ctx.stroke();
+    items.slice(0, 6).forEach((item, index) => {
+      const cy = rect.y + rect.h * .28 + index * rowH; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(innerX + rect.w * .04, cy, Math.max(10, rect.w * .018), 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = ink; ctx.font = `700 ${Math.max(16, rowH * .28)}px Inter, sans-serif`; ctx.fillText(item.nombre, innerX + rect.w * .1, cy + rowH * .08);
+      if (item.detalle) { ctx.fillStyle = muted; ctx.font = `500 ${Math.max(13, rowH * .2)}px Inter, sans-serif`; ctx.fillText(item.detalle, innerX + rect.w * .1, cy + rowH * .34); }
+    }); return;
+  }
+  ctx.fillStyle = ink; ctx.font = `700 ${Math.max(18, rect.h * .13)}px Inter, sans-serif`; ctx.fillText(bloque.etiqueta || 'Información', innerX, rect.y + rect.h * .3);
+}
+
+function renderInfografiaModular(ctx, W, H, data) {
+  const dark = data.template !== 'simple' && data.template !== 'datos';
+  VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { dark, accent: data.color1 });
+  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'INFOGRAFÍA', '', VS_CanvasHelpers.plateHeaderHeight(W, H));
+  ctx.fillStyle = data.color1; ctx.fillRect(0, 0, W, Math.max(8, H * .006));
+  ctx.fillStyle = dark ? '#fff' : VS_Colors.INK; ctx.font = `400 ${Math.max(42, H * .065)}px DM Serif Display, serif`; ctx.fillText(data.titulo, W * .055, H * .14);
+  if (data.bajada) { ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2; ctx.font = `500 ${Math.max(18, H * .022)}px Inter, sans-serif`; ctx.fillText(data.bajada, W * .055, H * .2); }
+  const layout = calcularInfografiaLayout(W, H, data);
+  data.bloques.slice(0, layout.blocks.length).forEach((bloque, index) => drawInfografiaBlock(ctx, layout.blocks[index], bloque, data, dark));
+  drawInfografiaSource(ctx, W, H, data.fuente, dark);
+  VS_CanvasHelpers.drawFooter(ctx, W, H, dark);
+}
+
 function renderizarInfografia() {
   const canvas = document.getElementById('infografiaCanvas');
   const fmt = VS_Formats[formatoActual] || VS_Formats.landscape;
