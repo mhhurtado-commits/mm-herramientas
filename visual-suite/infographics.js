@@ -401,7 +401,7 @@ function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
     ctx.fillStyle = colorValue;
     ctx.font = `600 ${size}px Inter, sans-serif`;
     ctx.textAlign = align;
-    dibujarTextoAjustado(ctx, value, width, lines, size, align === 'center' ? x - width / 2 : x, y, 1.05);
+    dibujarTextoAjustado(ctx, value, width, lines, size, x, y, 1.05);
     ctx.textAlign = 'left';
   };
 
