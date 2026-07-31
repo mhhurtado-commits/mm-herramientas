@@ -254,6 +254,34 @@ Cada solapa tiene:
 
 Worker URL: `https://mm-herramientas-worker.mhhurtado.workers.dev`
 
+## Infografias modulares
+
+La herramienta acepta JSON estructurado para construir la placa a partir de bloques visuales. El flujo normal es generar el prompt, consultar al asistente, pegar el JSON devuelto y revisar la previsualizacion antes de exportar.
+
+Formato minimo:
+
+```json
+{
+  "titulo": "Indicadores de Mendoza",
+  "bajada": "Resumen de la jornada",
+  "fecha": "31 de julio de 2026",
+  "fuente": "Fuente consultada",
+  "template_sugerido": "datos",
+  "color1": "#a6ce39",
+  "color2": "#16201b",
+  "bloques": [
+    {"tipo": "dato", "etiqueta": "Poblacion", "valor": "2,1 M", "detalle": "estimada"},
+    {"tipo": "barra", "titulo": "Distribucion", "items": [{"nombre": "A", "valor": 60}, {"nombre": "B", "valor": 40}]},
+    {"tipo": "comparacion", "titulo": "Antes / ahora", "izquierda": {"titulo": "Antes", "valor": "42"}, "derecha": {"titulo": "Ahora", "valor": "58"}},
+    {"tipo": "ranking", "titulo": "Top 3", "items": [{"nombre": "Primero", "valor": "100"}]},
+    {"tipo": "pasos", "titulo": "Proceso", "items": [{"nombre": "Inicio", "valor": "Paso 1"}]},
+    {"tipo": "texto", "texto": "Conclusion breve"}
+  ]
+}
+```
+
+Tipos disponibles: `dato`, `barra`, `comparacion`, `ranking`, `pasos`, `texto` y `fuente`. Tambien se mantienen los formatos anteriores con `lineas`, `contenido` o `content`, que se convierten automaticamente a bloques compatibles.
+
 ## Dependencias Externas
 
 - **Chart.js** 4.4.7 — Gráficos interactivos

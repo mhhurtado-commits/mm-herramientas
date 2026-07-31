@@ -9,6 +9,7 @@ let titleState = { x: null, y: null, w: null, h: null };
 let titleAction = null;
 let titleActive = false;
 let scale = 1;
+let infografiaDataOverride = null;
 const TITLE_DEF = {
   simple:      { x: 0.05, y: 0.09, w: 0.9,  h: 0.1 },
   listado:     { x: 0.05, y: 0.09, w: 0.9,  h: 0.1 },
@@ -276,7 +277,7 @@ function seleccionarTemplate(template) {
   document.querySelectorAll('.vs-infografia-template').forEach(el => {
     el.classList.toggle('active', el.dataset.template === template);
   });
-  const nombres = { simple: 'Flyer Simple', comparativa: 'Comparativa', listado: 'Listado', destacado: 'Destacado' };
+  const nombres = { simple: 'Flyer Simple', comparativa: 'Comparativa', listado: 'Listado', destacado: 'Destacado', datos: 'Datos', pasos: 'Pasos' };
   document.getElementById('infoTemplateBadge').textContent = nombres[template] || 'Flyer Simple';
   renderizarInfografia();
 }
@@ -397,13 +398,8 @@ function renderizarInfografia() {
 
   ctx.clearRect(0, 0, W, H);
 
-  switch (templateActual) {
-    case 'simple': renderFlyerSimple(ctx, W, H, title, content, color1, color2); break;
-    case 'comparativa': renderFlyerComparativa(ctx, W, H, title, content, color1, color2); break;
-    case 'listado': renderFlyerListado(ctx, W, H, title, content, color1, color2); break;
-    case 'destacado': renderFlyerDestacado(ctx, W, H, title, content, color1, color2); break;
-    default: renderFlyerSimple(ctx, W, H, title, content, color1, color2);
-  }
+  const data = normalizarInfografia({ ...(infografiaDataOverride || {}), titulo: title, contenido: infografiaDataOverride ? undefined : content, fuente: infografiaDataOverride?.fuente || 'Media Mendoza', template: templateActual, color1, color2 });
+  renderInfografiaModular(ctx, W, H, data);
 
   VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
 
@@ -810,19 +806,14 @@ function renderizarInfografiaEnCtx(ctx, W, H) {
 
   ctx.clearRect(0, 0, W, H);
 
-  switch (templateActual) {
-    case 'simple': renderFlyerSimple(ctx, W, H, title, content, color1, color2); break;
-    case 'comparativa': renderFlyerComparativa(ctx, W, H, title, content, color1, color2); break;
-    case 'listado': renderFlyerListado(ctx, W, H, title, content, color1, color2); break;
-    case 'destacado': renderFlyerDestacado(ctx, W, H, title, content, color1, color2); break;
-    default: renderFlyerSimple(ctx, W, H, title, content, color1, color2);
-  }
+  const data = normalizarInfografia({ ...(infografiaDataOverride || {}), titulo: title, contenido: infografiaDataOverride ? undefined : content, fuente: infografiaDataOverride?.fuente || 'Media Mendoza', template: templateActual, color1, color2 });
+  renderInfografiaModular(ctx, W, H, data);
 
   VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
 }
 
 // ── Chat IA ──
-const TEMPLATE_NOMBRES = { simple: 'Simple', comparativa: 'Comparativa', listado: 'Listado', destacado: 'Destacado' };
+const TEMPLATE_NOMBRES = { simple: 'Simple', comparativa: 'Comparativa', listado: 'Listado', destacado: 'Destacado', datos: 'Datos', pasos: 'Pasos' };
 
 function generarPromptInfografia() {
   const tema = document.getElementById('infoTema').value.trim();
@@ -862,9 +853,30 @@ Reglas estrictas:
 - Elegí el template que mejor represente los datos
 - Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;
 
+  const modularPrompt = `Buscá en internet datos reales y verificables sobre el tema: "${tema}".
+
+Respondé SOLO JSON válido, sin markdown, usando esta estructura:
+{
+  "titulo": "Título editorial",
+  "bajada": "Contexto breve",
+  "fecha": "Fecha de los datos",
+  "fuente": "Fuente oficial consultada",
+  "template_sugerido": "simple | datos | comparativa | listado | pasos | destacado",
+  "color_principal": "#a6ce39",
+  "color_secundario": "#16201b",
+  "bloques": [
+    { "tipo": "dato", "icono": "emoji", "etiqueta": "Nombre", "valor": "Valor", "detalle": "Variación" },
+    { "tipo": "barra", "etiqueta": "Distribución", "items": [{ "nombre": "Categoría", "valor": 50 }] },
+    { "tipo": "ranking", "etiqueta": "Ranking", "items": [{ "nombre": "Elemento", "valor": 1 }] },
+    { "tipo": "comparacion", "items": [{ "nombre": "A", "valor": "Valor" }, { "nombre": "B", "valor": "Valor" }] },
+    { "tipo": "pasos", "items": [{ "nombre": "Paso 1", "detalle": "Descripción breve" }] }
+  ]
+}
+
+Reglas: verificá cada dato en fuentes confiables, no inventes cifras, usá entre 2 y 8 bloques, incluí la fuente y elegí el tipo de bloque que mejor explique la información.`;
   const ta = document.getElementById('infoPrompt');
   if (ta) {
-    ta.value = prompt;
+    ta.value = modularPrompt;
     toast('✅ Prompt generado. Copialo con el botón y pegalo en Gemini Chat.');
   }
 }
@@ -883,9 +895,14 @@ function cargarJSONdeChatInfografia() {
   try { parsed = JSON.parse(text); }
   catch (e) { return toast('JSON inválido: ' + e.message); }
 
+  if (parsed.error) return toast(String(parsed.error));
+  infografiaDataOverride = parsed;
   if (parsed.titulo) document.getElementById('infoTitle').value = parsed.titulo;
   if (parsed.lineas && Array.isArray(parsed.lineas)) {
     document.getElementById('infoContent').value = parsed.lineas.join('\n');
+  }
+  if (parsed.bloques && Array.isArray(parsed.bloques)) {
+    document.getElementById('infoContent').value = parsed.bajada || 'Contenido modular cargado desde JSON';
   }
   if (parsed.template_sugerido && TEMPLATE_NOMBRES[parsed.template_sugerido]) {
     seleccionarTemplate(parsed.template_sugerido);
