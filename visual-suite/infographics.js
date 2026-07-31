@@ -465,9 +465,9 @@ function renderInfografiaModular(ctx, W, H, data) {
   const titleX = W * .055;
   const titleW = W * .89;
   ctx.fillStyle = '#fff'; ctx.font = `400 ${Math.max(34, H * .055)}px DM Serif Display, serif`;
-  const titleFit = ajustarTextoCanvas(ctx, data.titulo, titleW, 2, Math.max(34, H * .055));
-  dibujarTextoAjustado(ctx, data.titulo, titleW, 2, titleFit.fontSize, titleX, H * .14, 1.05);
-  if (data.bajada) { ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : 'rgba(255,255,255,.82)'; ctx.font = `500 ${Math.max(18, H * .022)}px Inter, sans-serif`; dibujarTextoAjustado(ctx, data.bajada, titleW, 2, Math.max(18, H * .022), titleX, H * .2, 1.05); }
+  const titleFit = ajustarTextoCanvas(ctx, data.titulo, titleW, 1, Math.max(34, H * .055));
+  dibujarTextoAjustado(ctx, data.titulo, titleW, 1, titleFit.fontSize, titleX, H * .14, 1.05);
+  if (data.bajada) { ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2; ctx.font = `500 ${Math.max(18, H * .022)}px Inter, sans-serif`; dibujarTextoAjustado(ctx, data.bajada, titleW, 2, Math.max(18, H * .022), titleX, H * .2, 1.05); }
   const layout = calcularInfografiaLayout(W, H, data);
   data.bloques.slice(0, layout.blocks.length).forEach((bloque, index) => drawInfografiaBlock(ctx, layout.blocks[index], bloque, data, dark));
   drawInfografiaSource(ctx, W, H, data.fuente, dark);
@@ -499,10 +499,6 @@ function renderizarInfografia() {
 
   VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
 
-  if (titleActive) {
-    const s = titleState.x != null ? titleState : TITLE_DEF[templateActual] || TITLE_DEF.simple;
-    VS_CanvasHelpers.drawActiveUI(ctx, W, H, { x: s.x * W, y: s.y * H, w: s.w * W, h: s.h * H });
-  }
 }
 
 function drawGradientBg(ctx, W, H, c1, c2, diagonal) {
@@ -904,8 +900,8 @@ function renderizarInfografiaEnCtx(ctx, W, H) {
 
   const data = normalizarInfografia({ ...(infografiaDataOverride || {}), titulo: title, contenido: infografiaDataOverride ? undefined : content, fuente: infografiaDataOverride?.fuente || 'Media Mendoza', template: templateActual, color1, color2 });
   renderInfografiaModular(ctx, W, H, data);
-
   VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
+
 }
 
 // ── Chat IA ──

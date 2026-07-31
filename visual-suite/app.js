@@ -322,7 +322,7 @@ function toggleLogo() {
 
 function actualizarLogoOverlay() {
   if (!logoState.loaded) return;
-  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia'].forEach(id => {
+  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     if (!logoState.visible) { el.style.display = 'none'; return; }
@@ -355,7 +355,7 @@ function limpiarEfemerides() {
 let logoDragInitialized = false;
 function initLogoDrag() {
   if (logoDragInitialized) return;
-  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline', 'logoOverlayInfografia'].forEach(id => {
+  ['logoOverlayCharts', 'logoOverlayMaps', 'logoOverlayTimeline'].forEach(id => {
     const overlay = document.getElementById(id);
     if (!overlay) return;
     overlay.addEventListener('mousedown', onLogoDown);
