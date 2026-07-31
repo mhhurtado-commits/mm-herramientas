@@ -146,7 +146,7 @@ function infografiaBloqueRect(tipo, index, total, W, H, template = 'simple') {
   const margin = W * .055;
   const gap = Math.max(14, W * .018);
   const top = H * .27;
-  const bottom = H * .9;
+  const bottom = H * .86;
   const story = H > W * 1.1;
   const columns = story ? 1 : (template === 'comparativa' || total > 1 ? 2 : 1);
   const rows = Math.max(1, Math.ceil(Math.max(1, total) / columns));
@@ -163,7 +163,7 @@ function calcularInfografiaLayout(W, H, data) {
   return {
     header: { x: 0, y: 0, w: W, h: H * .23 },
     blocks,
-    source: { x: W * .055, y: H * .915, w: W * .89, h: H * .035 },
+    source: { x: W * .055, y: H * .89, w: W * .89, h: H * .035 },
     footer: { x: W * .055, y: H * .96, w: W * .89, h: H * .025 }
   };
 }
@@ -458,8 +458,8 @@ function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
     ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.moveTo(mid, rect.y + rect.h * .18); ctx.lineTo(mid, rect.y + rect.h * .86); ctx.stroke();
     items.forEach((item, index) => {
       const cx = rect.x + rect.w * (index ? .72 : .28);
-      text(item.nombre, rect.w * .38, 2, Math.max(16, rect.h * .1), cx, rect.y + rect.h * .3, muted, 'center');
-      text(String(item.valor ?? '--'), rect.w * .38, 1, Math.max(28, rect.h * .24), cx, rect.y + rect.h * .6, ink, 'center');
+      text(item.nombre, rect.w * .42, 2, Math.max(20, rect.h * .14), cx, rect.y + rect.h * .3, muted, 'center');
+      text(String(item.valor ?? '--'), rect.w * .42, 1, Math.max(34, rect.h * .31), cx, rect.y + rect.h * .62, ink, 'center');
     });
     return;
   }
@@ -470,8 +470,8 @@ function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
     items.forEach((item, index) => {
       const cy = rect.y + rect.h * .27 + index * rowH;
       ctx.fillStyle = color; ctx.beginPath(); ctx.arc(innerX + rect.w * .04, cy, Math.max(10, rect.w * .018), 0, Math.PI * 2); ctx.fill();
-      text(item.nombre, innerW * .82, 1, Math.max(20, rowH * .34), innerX + rect.w * .1, cy + rowH * .05, ink);
-      if (item.detalle) text(item.detalle, innerW * .82, 2, Math.max(15, rowH * .22), innerX + rect.w * .1, cy + rowH * .3, muted);
+      text(item.nombre, innerW * .82, 1, Math.max(24, rowH * .42), innerX + rect.w * .1, cy + rowH * .04, ink);
+      if (item.detalle) text(item.detalle, innerW * .82, 2, Math.max(17, rowH * .27), innerX + rect.w * .1, cy + rowH * .32, muted);
     });
     return;
   }
@@ -488,7 +488,8 @@ function renderInfografiaModular(ctx, W, H, data) {
   ctx.fillStyle = '#fff'; ctx.font = `400 ${Math.max(34, H * .055)}px DM Serif Display, serif`;
   const displayTitle = resumirTituloInfografia(data.titulo);
   const titleFit = ajustarTextoCanvas(ctx, displayTitle, titleW, 1, Math.max(34, H * .055));
-  dibujarTextoAjustado(ctx, displayTitle, titleW, 1, titleFit.fontSize, titleX, H * .14, 1.05);
+  const titleSize = Math.max(Math.round(H * .045), titleFit.fontSize);
+  dibujarTextoAjustado(ctx, displayTitle, titleW, 1, titleSize, titleX, H * .14, 1.05);
   if (data.bajada) { ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2; ctx.font = `500 ${Math.max(18, H * .022)}px Inter, sans-serif`; dibujarTextoAjustado(ctx, data.bajada, titleW, 2, Math.max(18, H * .022), titleX, H * .2, 1.05); }
   const layout = calcularInfografiaLayout(W, H, data);
   data.bloques.slice(0, layout.blocks.length).forEach((bloque, index) => drawInfografiaBlock(ctx, layout.blocks[index], bloque, data, dark));
@@ -988,9 +989,18 @@ Respondé SOLO JSON válido, sin markdown, usando esta estructura:
 }
 
 Reglas: verificá cada dato en fuentes confiables, no inventes cifras, usá entre 2 y 8 bloques, incluí la fuente y elegí el tipo de bloque que mejor explique la información.`;
+  const editorialRules = `
+
+REGLAS EDITORIALES OBLIGATORIAS PARA EL TITULO:
+- El campo titulo debe tener como maximo 48 caracteres contando espacios.
+- Priorizá un titulo breve, claro y periodistico; no agregues bajadas ni contexto dentro de titulo.
+- Si el titulo original es mas largo, resumilo antes de devolver el JSON.
+- La interfaz solo puede reducir el tamano del titulo hasta un 82% del tamano base; no uses titulos extensos para forzar una reduccion mayor.
+- La bajada debe contener el contexto adicional.
+`;
   const ta = document.getElementById('infoPrompt');
   if (ta) {
-    ta.value = modularPrompt;
+    ta.value = modularPrompt + editorialRules;
     toast('✅ Prompt generado. Copialo con el botón y pegalo en Gemini Chat.');
   }
 }
