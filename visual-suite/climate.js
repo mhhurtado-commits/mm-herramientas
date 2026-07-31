@@ -560,6 +560,7 @@ function climateDrawTodayCard(ctx, x, y, w, h, day, dark = true) {
     const dividerX = x + cellW * index;
     ctx.beginPath(); ctx.moveTo(dividerX, y + h * .31); ctx.lineTo(dividerX, y + h * .92); ctx.stroke();
   }
+  return climateDrawTodaySegments(ctx, x, y, w, h, segments, metrics, dark);
   segments.forEach((segment, index) => {
     const cx = x + cellW * index + cellW / 2;
     ctx.fillStyle = dark ? 'rgba(255,255,255,.82)' : VS_Colors.INK2;
@@ -572,6 +573,27 @@ function climateDrawTodayCard(ctx, x, y, w, h, day, dark = true) {
     ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2;
     ctx.font = `500 ${Math.max(10, Math.round(Math.min(cellW, h) * .1))}px Inter, sans-serif`;
     ctx.fillText(segment.rain != null ? `${segment.rain}% lluvia` : 'â€”', cx, y + h * .94);
+  });
+  ctx.textAlign = 'left';
+}
+
+function climateDrawTodaySegments(ctx, x, y, w, h, segments, metrics, dark = true) {
+  const degree = String.fromCharCode(176);
+  const dash = String.fromCharCode(8212);
+  const cellW = w / segments.length;
+  segments.forEach((segment, index) => {
+    const cx = x + cellW * index + cellW / 2;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = dark ? 'rgba(255,255,255,.82)' : VS_Colors.INK2;
+    ctx.font = `700 ${metrics.labelSize}px Inter, sans-serif`;
+    ctx.fillText(segment.label || 'Periodo', cx, y + metrics.periodY);
+    climateDrawIcon(ctx, segment.code, segment.type, cx, y + metrics.iconY, metrics.iconSize);
+    ctx.fillStyle = dark ? '#fff' : VS_Colors.INK;
+    ctx.font = `700 ${metrics.tempSize}px Inter, sans-serif`;
+    ctx.fillText(segment.temp != null ? `${segment.temp}${degree}` : dash, cx, y + metrics.tempY);
+    ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2;
+    ctx.font = `500 ${metrics.rainSize}px Inter, sans-serif`;
+    ctx.fillText(segment.rain != null ? `${segment.rain}% lluvia` : dash, cx, y + metrics.rainY);
   });
   ctx.textAlign = 'left';
 }
