@@ -5,7 +5,8 @@ const {
   calcularInfografiaLayout,
   infografiaBloqueRect,
   ajustarTextoCanvas,
-  dibujarTextoAjustado
+  dibujarTextoAjustado,
+  resumirTituloInfografia
 } = require('./infographics.js');
 
 const textData = normalizarInfografia({
@@ -48,6 +49,8 @@ if (comparisonData.bloques[0].tipo !== 'comparacion' || comparisonData.bloques[0
 
 const layout = calcularInfografiaLayout(1600, 1600, { bloques: modularData.bloques, template: 'datos' });
 if (!layout.blocks.length || layout.blocks.some(rect => rect.x < 0 || rect.y < 0 || rect.x + rect.w > 1600 || rect.y + rect.h > 1600)) throw new Error('El layout cuadrado desborda el canvas');
+if (layout.source.y >= layout.footer.y - layout.footer.h) throw new Error('La fuente debe quedar separada del footer');
+if (resumirTituloInfografia('Un titulo demasiado largo que debe conservar jerarquia y no achicarse', 42).length > 42) throw new Error('El titulo debe limitarse con elipsis');
 const storyRect = infografiaBloqueRect('dato', 5, 6, 1080, 1920, 'simple');
 if (storyRect.x < 0 || storyRect.y < 0 || storyRect.x + storyRect.w > 1080 || storyRect.y + storyRect.h > 1920) throw new Error('El layout story desborda el canvas');
 const fakeCtx = { font: '', measureText: value => ({ width: String(value).length * 20 }) };

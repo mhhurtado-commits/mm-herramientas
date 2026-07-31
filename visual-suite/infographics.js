@@ -102,6 +102,13 @@ function normalizarInfografia(input) {
   };
 }
 
+function resumirTituloInfografia(text, maxChars = 48) {
+  const value = String(text || '').trim();
+  if (value.length <= maxChars) return value;
+  const shortened = value.slice(0, Math.max(1, maxChars - 1)).replace(/\s+\S*$/, '').trim();
+  return `${shortened}…`;
+}
+
 function ajustarTextoCanvas(ctx, text, maxWidth, maxLines = 3, fontSize = 30) {
   const words = String(text || '').split(/\s+/).filter(Boolean);
   let size = Math.max(10, Number(fontSize) || 30);
@@ -156,7 +163,7 @@ function calcularInfografiaLayout(W, H, data) {
   return {
     header: { x: 0, y: 0, w: W, h: H * .23 },
     blocks,
-    source: { x: W * .055, y: H * .92, w: W * .89, h: H * .035 },
+    source: { x: W * .055, y: H * .915, w: W * .89, h: H * .035 },
     footer: { x: W * .055, y: H * .96, w: W * .89, h: H * .025 }
   };
 }
@@ -463,8 +470,8 @@ function drawInfografiaBlock(ctx, rect, bloque, data, dark = true) {
     items.forEach((item, index) => {
       const cy = rect.y + rect.h * .27 + index * rowH;
       ctx.fillStyle = color; ctx.beginPath(); ctx.arc(innerX + rect.w * .04, cy, Math.max(10, rect.w * .018), 0, Math.PI * 2); ctx.fill();
-      text(item.nombre, innerW * .82, 1, Math.max(16, rowH * .25), innerX + rect.w * .1, cy + rowH * .06, ink);
-      if (item.detalle) text(item.detalle, innerW * .82, 1, Math.max(13, rowH * .17), innerX + rect.w * .1, cy + rowH * .3, muted);
+      text(item.nombre, innerW * .82, 1, Math.max(20, rowH * .34), innerX + rect.w * .1, cy + rowH * .05, ink);
+      if (item.detalle) text(item.detalle, innerW * .82, 2, Math.max(15, rowH * .22), innerX + rect.w * .1, cy + rowH * .3, muted);
     });
     return;
   }
@@ -479,8 +486,9 @@ function renderInfografiaModular(ctx, W, H, data) {
   const titleX = W * .055;
   const titleW = W * .89;
   ctx.fillStyle = '#fff'; ctx.font = `400 ${Math.max(34, H * .055)}px DM Serif Display, serif`;
-  const titleFit = ajustarTextoCanvas(ctx, data.titulo, titleW, 1, Math.max(34, H * .055));
-  dibujarTextoAjustado(ctx, data.titulo, titleW, 1, titleFit.fontSize, titleX, H * .14, 1.05);
+  const displayTitle = resumirTituloInfografia(data.titulo);
+  const titleFit = ajustarTextoCanvas(ctx, displayTitle, titleW, 1, Math.max(34, H * .055));
+  dibujarTextoAjustado(ctx, displayTitle, titleW, 1, titleFit.fontSize, titleX, H * .14, 1.05);
   if (data.bajada) { ctx.fillStyle = dark ? 'rgba(255,255,255,.72)' : VS_Colors.INK2; ctx.font = `500 ${Math.max(18, H * .022)}px Inter, sans-serif`; dibujarTextoAjustado(ctx, data.bajada, titleW, 2, Math.max(18, H * .022), titleX, H * .2, 1.05); }
   const layout = calcularInfografiaLayout(W, H, data);
   data.bloques.slice(0, layout.blocks.length).forEach((bloque, index) => drawInfografiaBlock(ctx, layout.blocks[index], bloque, data, dark));
@@ -1021,4 +1029,4 @@ function cargarJSONdeChatInfografia() {
 
 if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initInfographics);
 
-if (typeof module !== 'undefined') module.exports = { normalizarInfografia, validarBloque, normalizarLinea, calcularInfografiaLayout, infografiaBloqueRect, ajustarTextoCanvas, dibujarTextoAjustado };
+if (typeof module !== 'undefined') module.exports = { normalizarInfografia, validarBloque, normalizarLinea, calcularInfografiaLayout, infografiaBloqueRect, ajustarTextoCanvas, dibujarTextoAjustado, resumirTituloInfografia };
