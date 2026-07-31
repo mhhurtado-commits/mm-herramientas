@@ -42,6 +42,8 @@ const heroMetrics = climateHeroLayout(1000, 1000);
 if (heroMetrics.statX >= heroMetrics.tempX + heroMetrics.tempMaxW + heroMetrics.gap) throw new Error('El bloque actual no aprovecha bien el espacio horizontal');
 if (heroMetrics.statValueSize < 20 || heroMetrics.infoValueSize < 17) throw new Error('Las estadísticas del bloque actual siguen siendo demasiado chicas');
 const todayPeriods = climateCardPeriods({ segments: [{ label: 'Tarde' }, { label: 'Noche' }] });
+const evolutionPeriods = climateCardPeriods({ segments: [{ label: 'Madrugada' }, { label: 'Manana' }, { label: 'Tarde' }, { label: 'Noche' }] }, 4);
+if (evolutionPeriods.length !== 4 || evolutionPeriods[0].label !== 'Madrugada' || evolutionPeriods[3].label !== 'Noche') throw new Error('La evoluciÃ³n diaria no conserva los cuatro perÃ­odos del SMN');
 if (todayPeriods.length !== 2 || todayPeriods[0].label !== 'Tarde' || todayPeriods[1].label !== 'Noche') throw new Error('La evolución no conserva sus dos períodos reales');
 if (climateVisibleDays([1, 2, 3, 4, 5, 6, 7], true).length !== 5) throw new Error('La grilla cuadrada no limita el pronóstico a cuatro días');
 
