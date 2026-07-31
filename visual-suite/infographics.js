@@ -16,6 +16,77 @@ const TITLE_DEF = {
   destacado:   { x: 0.05, y: 0.07, w: 0.9,  h: 0.1 }
 };
 
+const INFO_BLOCK_TYPES = new Set(['dato', 'barra', 'comparacion', 'ranking', 'pasos', 'texto', 'fuente']);
+const INFO_TEMPLATE_ALIASES = { simple: 'simple', comparativa: 'comparativa', listado: 'listado', destacado: 'destacado', datos: 'datos', pasos: 'pasos' };
+const INFO_DEFAULTS = { color1: '#a6ce39', color2: '#16201b' };
+
+function infoColor(value, fallback) {
+  return /^#[0-9a-f]{6}$/i.test(String(value || '')) ? String(value) : fallback;
+}
+
+function normalizarLinea(linea) {
+  const text = String(linea || '').trim();
+  if (!text) return { tipo: 'texto', texto: '' };
+  const separator = text.indexOf(':');
+  if (separator > 0) {
+    return { tipo: 'dato', etiqueta: text.slice(0, separator).trim(), valor: text.slice(separator + 1).trim(), icono: '' };
+  }
+  return { tipo: 'texto', texto: text };
+}
+
+function validarBloque(bloque) {
+  if (!bloque || typeof bloque !== 'object') return { ok: false, warning: 'Bloque inválido' };
+  const tipo = String(bloque.tipo || '').toLowerCase();
+  if (!INFO_BLOCK_TYPES.has(tipo)) return { ok: false, warning: `Tipo de bloque no soportado: ${tipo || 'vacío'}` };
+  const normalized = { ...bloque, tipo };
+  if (tipo === 'barra' || tipo === 'comparacion' || tipo === 'ranking') {
+    normalized.items = Array.isArray(bloque.items) ? bloque.items.filter(item => item && String(item.nombre || '').trim()).map(item => ({
+      nombre: String(item.nombre).trim(),
+      valor: Number.isFinite(Number(item.valor)) ? Number(item.valor) : String(item.valor || '')
+    })) : [];
+  }
+  if (tipo === 'dato') {
+    normalized.etiqueta = String(bloque.etiqueta || '').trim();
+    normalized.valor = String(bloque.valor ?? '').trim();
+    normalized.detalle = String(bloque.detalle || '').trim();
+  }
+  if (tipo === 'texto') normalized.texto = String(bloque.texto || bloque.contenido || '').trim();
+  if (tipo === 'pasos') normalized.items = Array.isArray(bloque.items) ? bloque.items.map(item => ({ ...item, nombre: String(item.nombre || item.titulo || '').trim(), detalle: String(item.detalle || item.descripcion || '').trim() })).filter(item => item.nombre) : [];
+  normalized.icono = String(bloque.icono || '').trim();
+  normalized.color = infoColor(bloque.color, '');
+  return { ok: true, bloque: normalized };
+}
+
+function normalizarInfografia(input) {
+  const source = typeof input === 'string' ? { contenido: input } : (input && typeof input === 'object' ? input : {});
+  const warnings = [];
+  const rawBlocks = Array.isArray(source.bloques)
+    ? source.bloques
+    : Array.isArray(source.lineas)
+      ? source.lineas.map(normalizarLinea)
+      : String(source.contenido || source.content || '').split(/\r?\n/).filter(Boolean).map(normalizarLinea);
+  const bloques = [];
+  rawBlocks.forEach(block => {
+    const result = validarBloque(block);
+    if (result.ok) bloques.push(result.bloque);
+    else warnings.push(result.warning);
+  });
+  if ((source.color_principal || source.color1) && !/^#[0-9a-f]{6}$/i.test(String(source.color_principal || source.color1))) warnings.push('Color principal inválido: se aplicó la paleta de marca');
+  if ((source.color_secundario || source.color2) && !/^#[0-9a-f]{6}$/i.test(String(source.color_secundario || source.color2))) warnings.push('Color secundario inválido: se aplicó la paleta de marca');
+  const requestedTemplate = String(source.template_sugerido || source.template || 'simple').toLowerCase();
+  return {
+    titulo: String(source.titulo || source.title || 'Infografía').trim(),
+    bajada: String(source.bajada || source.subtitulo || '').trim(),
+    fecha: String(source.fecha || '').trim(),
+    fuente: String(source.fuente || 'Fuente no especificada').trim(),
+    template: INFO_TEMPLATE_ALIASES[requestedTemplate] || 'simple',
+    color1: infoColor(source.color_principal || source.color1, INFO_DEFAULTS.color1),
+    color2: infoColor(source.color_secundario || source.color2, INFO_DEFAULTS.color2),
+    bloques,
+    warnings
+  };
+}
+
 function resetTitlePos() {
   const d = TITLE_DEF[templateActual] || TITLE_DEF.simple;
   titleState = { ...d };
@@ -676,4 +747,6 @@ function cargarJSONdeChatInfografia() {
   toast('✅ Infografía cargada desde Chat IA');
 }
 
-document.addEventListener('DOMContentLoaded', initInfographics);
+if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initInfographics);
+
+if (typeof module !== 'undefined') module.exports = { normalizarInfografia, validarBloque, normalizarLinea };
