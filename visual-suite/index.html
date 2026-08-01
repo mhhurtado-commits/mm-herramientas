@@ -98,6 +98,16 @@
   height: auto !important;
   max-height: 380px;
 }
+.vs-chart-source { display:none !important; }
+.vs-chart-plate-preview {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 720px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface2);
+}
+.vs-chart-plate-preview canvas { width:100% !important; height:100% !important; display:block; }
 .vs-map-container {
   position: relative;
   width: 100%;
@@ -799,6 +809,15 @@ body.dark-theme .leaflet-control-attribution { background: var(--surface); color
           </select>
         </div>
         <div>
+          <div class="vs-label">Formato de placa</div>
+          <select class="vs-select" id="chartFormat" style="width:100%;margin-top:6px" onchange="actualizarGrafico()">
+            <option value="square">Cuadrado 1:1</option>
+            <option value="landscape">Horizontal 16:9</option>
+            <option value="portrait">Vertical 4:5</option>
+            <option value="story">Historia 9:16</option>
+          </select>
+        </div>
+        <div>
           <div class="vs-label">Título</div>
           <input class="vs-input" id="chartTitle" value="Título del gráfico" style="margin-top:6px" oninput="actualizarGrafico()">
         </div>
@@ -856,8 +875,10 @@ Mayo, 70</textarea>
           <span class="vs-badge" id="chartTypeBadge">Barras</span>
         </div>
         <div class="vs-chart-container" id="chartContainer">
-          <canvas id="chartCanvas"></canvas>
-          <div class="vs-logo-overlay" id="logoOverlayCharts" style="display:none"></div>
+          <div class="vs-chart-source"><canvas id="chartCanvas"></canvas></div>
+          <div class="vs-chart-plate-preview" id="chartPlatePreview">
+            <canvas id="chartPlateCanvas" aria-label="Vista previa de placa de gráfico"></canvas>
+          </div>
         </div>
       </div>
     </div>

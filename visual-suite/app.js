@@ -184,6 +184,14 @@ function exportarVisual() {
 
 async function exportarGrafico() {
   const nombreBase = 'visual-media-mendoza';
+  const plate = document.getElementById('chartPlateCanvas');
+  if (plate && typeof chartInstance !== 'undefined' && chartInstance) {
+    document.fonts.ready.then(() => plate.toBlob(blob => {
+      if (!blob) return toast('Error al exportar gráfico');
+      mostrarExportPreview(URL.createObjectURL(blob), nombreBase);
+    }, 'image/png', 1));
+    return;
+  }
   const src = document.getElementById('chartCanvas');
   if (!src) return toast('No hay gráfico para exportar');
   if (!chartInstance) return toast('No hay gráfico para exportar');

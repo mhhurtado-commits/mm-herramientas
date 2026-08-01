@@ -3,10 +3,34 @@
 // ============================================================
 
 let chartInstance = null;
+let chartRenderToken = 0;
 const TIPO_NOMBRE = {
   bar: 'Barras', line: 'Líneas', pie: 'Torta',
   doughnut: 'Donut', radar: 'Radar', polarArea: 'Área Polar'
 };
+
+function calcularGraficoLayout(W, H, formato) {
+  const headerH = typeof VS_CanvasHelpers !== 'undefined' && VS_CanvasHelpers.plateHeaderHeight
+    ? VS_CanvasHelpers.plateHeaderHeight(W, H) : Math.round(H * 0.15);
+  const M = Math.round(Math.min(W, H) * 0.055);
+  const contentTop = headerH + Math.round(H * 0.075);
+  const footerH = Math.round(H * 0.065);
+  const bottom = H - footerH - M;
+  const card = { x: M, y: contentTop, w: W - M * 2, h: bottom - contentTop };
+  const inner = Math.round(Math.min(W, H) * 0.035);
+  return {
+    headerH,
+    footerH,
+    card,
+    chart: {
+      x: card.x + inner,
+      y: card.y + inner + Math.round(Math.min(W, H) * 0.045),
+      w: card.w - inner * 2,
+      h: card.h - inner * 2 - Math.round(Math.min(W, H) * 0.045)
+    },
+    formato
+  };
+}
 
 const bgPlugin = {
   id: 'customBg',
@@ -65,10 +89,14 @@ const labelPlugin = {
   }
 };
 
-Chart.register(bgPlugin);
-Chart.register(labelPlugin);
+if (typeof Chart !== 'undefined') {
+  Chart.register(bgPlugin);
+  Chart.register(labelPlugin);
+}
 
 function initCharts() {
+  const fmt = document.getElementById('chartFormat');
+  if (fmt && !fmt.value) fmt.value = 'square';
   actualizarGrafico();
 }
 
@@ -134,7 +162,11 @@ function actualizarGrafico() {
   const { labels, values } = parseChartData(rawData);
   if (!labels.length) return;
 
-  const ctx = document.getElementById('chartCanvas').getContext('2d');
+  const source = document.getElementById('chartCanvas');
+  if (!source || typeof Chart === 'undefined') return;
+  source.width = 1200;
+  source.height = 650;
+  const ctx = source.getContext('2d');
 
   if (chartInstance) chartInstance.destroy();
 
@@ -186,12 +218,7 @@ function actualizarGrafico() {
         intersect: false
       },
       plugins: {
-        title: {
-          display: !!title,
-          text: title,
-          color: textPrimary,
-          font: { family: "'BebasNeue', sans-serif", size: 20, weight: '600' }
-        },
+        title: { display: false },
         legend: {
           display: isPie || isPolar || type === 'radar',
           position: 'bottom',
@@ -280,13 +307,61 @@ function actualizarGrafico() {
           }
         }
       },
-      responsivePlugin: false,
+      responsive: false,
       animation: {
-        duration: 500,
+        duration: 0,
         easing: 'easeInOutQuart'
       }
     }
   });
+  renderizarPlacaGrafico();
+}
+
+function renderizarPlacaGrafico() {
+  const canvas = document.getElementById('chartPlateCanvas');
+  if (!canvas || !chartInstance) return;
+  const fmtKey = document.getElementById('chartFormat')?.value || 'square';
+  const fmt = (typeof VS_Formats !== 'undefined' && VS_Formats[fmtKey]) || { w: 1600, h: 1600 };
+  const W = fmt.w, H = fmt.h;
+  const layout = calcularGraficoLayout(W, H, fmtKey);
+  const preview = document.getElementById('chartPlatePreview');
+  if (preview) preview.style.aspectRatio = fmt.cssAR || `${W} / ${H}`;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const token = ++chartRenderToken;
+  const bg = document.getElementById('chartBgColor')?.value || '#ffffff';
+
+  VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { headerRatio: layout.headerH / H });
+  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'GRÁFICOS', document.getElementById('chartTitle')?.value || 'Gráfico', layout.headerH, {
+    titleMaxChars: 42,
+    titleMinScale: 0.82,
+    titleMaxWidth: W * 0.56
+  });
+  VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.roundRect(layout.card.x, layout.card.y, layout.card.w, layout.card.h, Math.round(Math.min(W, H) * 0.018));
+  ctx.fill();
+  ctx.strokeStyle = VS_Utils.hexToRgba(VS_Colors.ACCENT, 0.32);
+  ctx.lineWidth = Math.max(2, Math.round(Math.min(W, H) * 0.002));
+  ctx.stroke();
+  ctx.fillStyle = VS_Colors.INK2;
+  ctx.font = `700 ${Math.round(Math.min(W, H) * 0.022)}px "Inter", sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText('Visualización de datos', layout.chart.x, layout.card.y + Math.round(Math.min(W, H) * 0.065));
+
+  const image = new Image();
+  image.onload = () => {
+    if (token !== chartRenderToken) return;
+    ctx.fillStyle = bg;
+    ctx.fillRect(layout.chart.x, layout.chart.y, layout.chart.w, layout.chart.h);
+    ctx.drawImage(image, layout.chart.x, layout.chart.y, layout.chart.w, layout.chart.h);
+    VS_CanvasHelpers.drawFooter(ctx, W, H, false);
+  };
+  image.onerror = () => toast('No se pudo renderizar el gráfico');
+  image.src = chartInstance.toBase64Image();
 }
 
 function generarPromptChart() {
@@ -357,4 +432,8 @@ async function cargarJSONdeChat() {
   toast(`✅ Gráfico cargado: ${parsed.razon || 'listo'}`);
 }
 
-document.addEventListener('DOMContentLoaded', initCharts);
+if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initCharts);
+
+if (typeof module !== 'undefined') {
+  module.exports = { calcularGraficoLayout, parseChartData, parsearNumero };
+}
