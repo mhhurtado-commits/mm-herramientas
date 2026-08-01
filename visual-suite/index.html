@@ -348,6 +348,31 @@
   position: relative;
   padding: 20px 0;
 }
+.vs-timeline-preview {
+  margin: 0 0 16px;
+  padding: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+}
+.vs-timeline-preview canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: calc(var(--radius) - 2px);
+  background: #eef1ed;
+}
+.vs-timeline-events-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
 .vs-timeline-line {
   position: absolute;
   left: 24px;
@@ -1017,7 +1042,7 @@ Mayo, 70</textarea>
           <div class="vs-chat-body" id="chat-timeline">
             <div>
               <div class="vs-label">Tema</div>
-              <input class="vs-input" id="tlTema" placeholder="Ej: Goles Messi Mundial 2026" style="margin-top:6px">
+              <input class="vs-input" id="tlTema" placeholder="Ej: Goles Messi Mundial 2026" style="margin-top:6px" oninput="renderizarTimelinePreview()">
             </div>
             <button class="vs-btn vs-btn-secondary" onclick="generarPromptChat()">🤖 Generar prompt para Chat IA</button>
             <div style="display:flex;gap:6px">
@@ -1055,6 +1080,13 @@ Mayo, 70</textarea>
               <option value="story">Historia 9:16</option>
             </select>
           </div>
+        </div>
+        <div class="vs-timeline-preview" aria-label="Vista previa de la placa">
+          <canvas id="timelineCanvas" aria-label="Vista previa de línea de tiempo"></canvas>
+        </div>
+        <div class="vs-timeline-events-heading">
+          <span>Eventos cargados</span>
+          <span>La preview se actualiza automáticamente</span>
         </div>
         <div class="vs-timeline-container" id="timelineContainer">
           <div class="vs-timeline-line"></div>

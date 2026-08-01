@@ -9,11 +9,13 @@ function cambiarFormatoTimeline() {
   const fmt = document.getElementById('tlFormato').value;
   if (!VS_Formats[fmt]) return;
   tlFormatoActual = fmt;
+  renderizarTimelinePreview();
   toast(`Formato: ${VS_Formats[fmt].label}`);
 }
 
 function initTimeline() {
   document.getElementById('tlDate').valueAsDate = new Date();
+  renderizarTimelinePreview();
 }
 
 function agregarEventoTimeline() {
@@ -43,6 +45,7 @@ function renderizarTimeline() {
   if (!timelineEvents.length) {
     container.innerHTML = '<p style="font-size:12px;color:var(--dim);padding:20px 0 20px 56px">Agregá eventos para construir la línea de tiempo.</p>';
     document.getElementById('tlCount').textContent = '0 eventos';
+    renderizarTimelinePreview();
     return;
   }
 
@@ -66,6 +69,31 @@ function renderizarTimeline() {
 
   container.innerHTML = html;
   document.getElementById('tlCount').textContent = `${timelineEvents.length} eventos`;
+  renderizarTimelinePreview();
+}
+
+function calcularTimelineCanvasSize(formato, cantidad) {
+  const fmt = VS_Formats[formato] || VS_Formats.landscape;
+  const count = Math.max(1, cantidad);
+  return {
+    width: fmt.w,
+    height: formato === 'square' ? fmt.h : Math.max(fmt.h, count * fmt.cardH + 300)
+  };
+}
+
+function renderizarTimelinePreview() {
+  const canvas = document.getElementById('timelineCanvas');
+  if (!canvas || typeof renderTimelineCanvas !== 'function') return;
+
+  const size = calcularTimelineCanvasSize(tlFormatoActual, timelineEvents.length);
+  const titulo = document.getElementById('tlTema')?.value.trim() || 'LÃ­nea de tiempo';
+  const events = [...timelineEvents].sort((a, b) => a.date.localeCompare(b.date));
+  const rendered = renderTimelineCanvas(events, size.width, size.height, titulo);
+  canvas.width = rendered.width;
+  canvas.height = rendered.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(rendered, 0, 0);
 }
 
 function limpiarTimeline() {
@@ -507,7 +535,7 @@ async function exportarTimelineComoFlyer() {
 
   const fmt = VS_Formats[tlFormatoActual] || VS_Formats.landscape;
   const W = fmt.w;
-  const H = tlFormatoActual === 'square' ? fmt.h : Math.max(fmt.h, sorted.length * fmt.cardH + 300);
+  const H = calcularTimelineCanvasSize(tlFormatoActual, sorted.length).height;
   const titulo = document.getElementById('tlTema').value.trim() || 'Línea de tiempo';
   const canvas = renderTimelineCanvas(sorted, W, H, titulo);
 
