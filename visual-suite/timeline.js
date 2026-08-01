@@ -11,7 +11,9 @@ const TIMELINE_SECTION_LABEL = 'CRONOLOG\u00cdA';
 function normalizarTituloTimeline(value) {
   const title = String(value || '').replace(/\s+/g, ' ').trim();
   if (!title) return TIMELINE_DEFAULT_TITLE;
-  return title.length > 48 ? `${title.slice(0, 45).trimEnd()}...` : title;
+  if (title.length <= 48) return title;
+  const shortened = title.slice(0, 47).replace(/\s+\S*$/, '').trim();
+  return `${shortened}…`;
 }
 
 function obtenerTituloTimeline() {
@@ -291,6 +293,7 @@ Pasos:
 2. Armá el JSON con los datos encontrados
 3. Incluí la fuente al final de cada descripción entre paréntesis
 4. El campo "titulo" debe resumir el tema en no más de 48 caracteres incluyendo espacios
+5. La interfaz puede reducir el tamaño del título hasta un 82% del tamaño base; mantenelo breve para evitar truncamientos
 
 Reglas:
 - Cada evento es una entrada individual
@@ -502,7 +505,7 @@ function renderTimelineCanvas(events, W, H, titulo) {
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
 
   VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { headerRatio: layout.headerH / H });
-  VS_CanvasHelpers.drawExportHeader(ctx, W, H, TIMELINE_SECTION_LABEL, normalizarTituloTimeline(titulo), layout.headerH);
+  VS_CanvasHelpers.drawExportHeader(ctx, W, H, TIMELINE_SECTION_LABEL, normalizarTituloTimeline(titulo), layout.headerH, { titleMaxChars: 48, titleMinScale: 0.82 });
 
   ctx.strokeStyle = VS_Utils.hexToRgba(VS_Colors.ACCENT, 0.55);
   ctx.lineWidth = Math.max(3, W * 0.0025);
@@ -545,10 +548,13 @@ function renderTimelineCanvas(events, W, H, titulo) {
     titleFit.lines.forEach((line, k) => ctx.fillText(line, textX, slot.y + slot.h * .47 + k * titleFit.fontSize * 1.08));
 
     if (ev.desc) {
-      const descSize = Math.max(20, slot.h * (format === 'square' ? .13 : .155));
+      const descY = slot.y + slot.h * .70;
+      ctx.fillStyle = VS_Utils.hexToRgba(VS_Colors.ACCENT, 0.07);
+      ctx.beginPath(); ctx.roundRect(textX - slot.w * .015, descY - slot.h * .07, textW + slot.w * .015, slot.h * .22, 10); ctx.fill();
+      const descSize = Math.max(26, slot.h * (format === 'square' ? .16 : .17));
       const descFit = ajustarLineasTimeline(ctx, ev.desc, textW, format === 'square' ? 2 : 2, descSize);
       ctx.fillStyle = VS_Colors.INK2; ctx.font = `400 ${descFit.fontSize}px Inter, sans-serif`;
-      descFit.lines.forEach((line, k) => ctx.fillText(line, textX, slot.y + slot.h * .76 + k * descFit.fontSize * 1.08));
+      descFit.lines.forEach((line, k) => ctx.fillText(line, textX, descY + k * descFit.fontSize * 1.08));
     }
     ctx.fillStyle = VS_Utils.hexToRgba(VS_Colors.INK, 0.06);
     ctx.font = `900 ${Math.max(28, slot.h * .55)}px Inter, sans-serif`;

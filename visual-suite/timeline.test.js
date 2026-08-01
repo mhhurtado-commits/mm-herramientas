@@ -10,6 +10,6 @@ const lines = ajustarLineasTimeline(fakeCtx, 'Un texto de evento demasiado largo
 if (lines.length > 2) throw new Error('El texto de timeline debe respetar el maximo de lineas');
 
 const title = normalizarTituloTimeline('Un título extremadamente largo que debe ajustarse al encabezado de la placa');
-if (title.length > 48 || !title.endsWith('...')) throw new Error('El título de timeline debe limitarse a 48 caracteres');
+if (title.length > 48 || !title.endsWith('…')) throw new Error('El título de timeline debe limitarse a 48 caracteres');
 
 console.log('timeline.test.js: OK');

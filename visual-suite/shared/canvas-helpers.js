@@ -77,11 +77,24 @@ const VS_CanvasHelpers = {
     ctx.fillText(kicker, M, hh * 0.36);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = `400 ${Math.round(baseTL * 0.055)}px "DM Serif Display", serif`;
-    let t = title || '';
+    const baseTitleSize = Math.round(baseTL * 0.055);
+    const minTitleScale = Number.isFinite(Number(o.titleMinScale)) ? Number(o.titleMinScale) : 0.82;
+    const minTitleSize = Math.max(10, Math.round(baseTitleSize * minTitleScale));
+    const maxTitleChars = Number.isFinite(Number(o.titleMaxChars)) ? Number(o.titleMaxChars) : Infinity;
+    let t = String(title || '').trim();
+    if (t.length > maxTitleChars) {
+      const cut = Math.max(1, Math.floor(maxTitleChars) - 1);
+      t = `${t.slice(0, cut).replace(/\s+\S*$/, '').trim()}…`;
+    }
+    let titleSize = baseTitleSize;
+    ctx.font = `400 ${titleSize}px "DM Serif Display", serif`;
     const wide = W / H > 1.2;
     const logoLeft = W * (wide ? 0.76 : 0.67);
     const titleMaxW = Math.max(W * 0.34, logoLeft - M * 1.35);
+    while (ctx.measureText(t).width > titleMaxW && titleSize > minTitleSize) {
+      titleSize -= 1;
+      ctx.font = `400 ${titleSize}px "DM Serif Display", serif`;
+    }
     while (ctx.measureText(t).width > titleMaxW && t.length > 4) t = t.slice(0, -1);
     if (t.length < (title || '').length) t = t.slice(0, -1) + '…';
     ctx.fillText(t, M, hh * 0.84);
@@ -203,8 +216,8 @@ const VS_CanvasHelpers = {
   },
 
   // ── Editorial Header for Export Plates ──
-  drawExportHeader(ctx, W, H, label, title, headerH) {
-    this.drawPlateHeader(ctx, W, H, label, title, headerH);
+  drawExportHeader(ctx, W, H, label, title, headerH, options) {
+    this.drawPlateHeader(ctx, W, H, label, title, headerH, options);
   },
 
   // ── Icon Chip for Canvas ──
