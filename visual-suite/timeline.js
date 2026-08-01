@@ -4,6 +4,20 @@
 
 let timelineEvents = [];
 let tlFormatoActual = 'landscape';
+let tlTituloActual = '';
+const TIMELINE_DEFAULT_TITLE = '\u004c\u00ednea de tiempo';
+const TIMELINE_SECTION_LABEL = 'CRONOLOG\u00cdA';
+
+function normalizarTituloTimeline(value) {
+  const title = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!title) return TIMELINE_DEFAULT_TITLE;
+  return title.length > 48 ? `${title.slice(0, 45).trimEnd()}...` : title;
+}
+
+function obtenerTituloTimeline() {
+  const input = document.getElementById('tlTema');
+  return normalizarTituloTimeline(input?.value || tlTituloActual);
+}
 
 function cambiarFormatoTimeline() {
   const fmt = document.getElementById('tlFormato').value;
@@ -86,7 +100,7 @@ function renderizarTimelinePreview() {
   if (!canvas || typeof renderTimelineCanvas !== 'function') return;
 
   const size = calcularTimelineCanvasSize(tlFormatoActual, timelineEvents.length);
-  const titulo = document.getElementById('tlTema')?.value.trim() || 'LÃ­nea de tiempo';
+  const titulo = obtenerTituloTimeline();
   const events = [...timelineEvents].sort((a, b) => a.date.localeCompare(b.date));
   const rendered = renderTimelineCanvas(events, size.width, size.height, titulo);
   canvas.width = rendered.width;
@@ -99,6 +113,7 @@ function renderizarTimelinePreview() {
 function limpiarTimeline() {
   if (!confirm('¿Limpiar toda la línea de tiempo? Se borrarán los eventos, el tema, el prompt y el JSON.')) return;
   timelineEvents.length = 0;
+  tlTituloActual = '';
   document.getElementById('tlTema').value = '';
   document.getElementById('tlPrompt').value = '';
   document.getElementById('tlJson').value = '';
@@ -230,6 +245,12 @@ async function cargarTimelineDesdeJSON() {
   if (!Array.isArray(items) || !items.length) return toast('No se encontraron eventos en el JSON');
 
   timelineEvents.length = 0;
+  const tituloJSON = data.titulo || data.title || data.tema || data.topic;
+  if (tituloJSON) {
+    tlTituloActual = normalizarTituloTimeline(tituloJSON);
+    const temaInput = document.getElementById('tlTema');
+    if (temaInput) temaInput.value = tlTituloActual;
+  }
   let count = 0;
   items.forEach(it => {
     const { f, title, desc } = normalizarEventoJSON(it);
@@ -257,19 +278,26 @@ function generarPromptChat() {
 
 Tema: "${tema}"
 
-Formato:
-{ "eventos": [ { "fecha": "YYYY-MM-DD", "titulo": "...", "descripcion": "..." } ] }
+Formato exacto:
+{
+  "titulo": "Título breve de la línea de tiempo (máximo 48 caracteres)",
+  "eventos": [
+    { "fecha": "YYYY-MM-DD", "titulo": "...", "descripcion": "..." }
+  ]
+}
 
 Pasos:
 1. Buscá en Google los eventos reales del tema
 2. Armá el JSON con los datos encontrados
 3. Incluí la fuente al final de cada descripción entre paréntesis
+4. El campo "titulo" debe resumir el tema en no más de 48 caracteres incluyendo espacios
 
 Reglas:
 - Cada evento es una entrada individual
 - Orden cronológico estricto
 - Usá datos verificados, no inventes
 - Si no encontrás info para un campo, dejalo vacío
+- No devuelvas texto fuera del JSON
 - Respondé SOLO el JSON`;
 
   const ta = document.getElementById('tlPrompt');
@@ -474,7 +502,7 @@ function renderTimelineCanvas(events, W, H, titulo) {
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
 
   VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { headerRatio: layout.headerH / H });
-  VS_CanvasHelpers.drawExportHeader(ctx, W, H, 'CRONOLOGÍA', titulo || 'Línea de tiempo', layout.headerH);
+  VS_CanvasHelpers.drawExportHeader(ctx, W, H, TIMELINE_SECTION_LABEL, normalizarTituloTimeline(titulo), layout.headerH);
 
   ctx.strokeStyle = VS_Utils.hexToRgba(VS_Colors.ACCENT, 0.55);
   ctx.lineWidth = Math.max(3, W * 0.0025);
@@ -483,6 +511,10 @@ function renderTimelineCanvas(events, W, H, titulo) {
   sorted.forEach((ev, i) => {
     const slot = layout.cards[i];
     const cy = slot.y + slot.h / 2;
+    const connectorEnd = slot.side === 0 ? slot.x + slot.w : slot.x;
+    ctx.strokeStyle = VS_Utils.hexToRgba(VS_Colors.ACCENT, 0.55);
+    ctx.lineWidth = Math.max(3, W * 0.0025);
+    ctx.beginPath(); ctx.moveTo(layout.spineX, cy); ctx.lineTo(connectorEnd, cy); ctx.stroke();
     ctx.fillStyle = VS_Colors.ACCENT;
     ctx.beginPath(); ctx.arc(layout.spineX, cy, Math.max(9, W * 0.009), 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = VS_Colors.PAPER;
@@ -513,10 +545,10 @@ function renderTimelineCanvas(events, W, H, titulo) {
     titleFit.lines.forEach((line, k) => ctx.fillText(line, textX, slot.y + slot.h * .47 + k * titleFit.fontSize * 1.08));
 
     if (ev.desc) {
-      const descSize = Math.max(15, slot.h * (format === 'square' ? .095 : .155));
+      const descSize = Math.max(20, slot.h * (format === 'square' ? .13 : .155));
       const descFit = ajustarLineasTimeline(ctx, ev.desc, textW, format === 'square' ? 2 : 2, descSize);
       ctx.fillStyle = VS_Colors.INK2; ctx.font = `400 ${descFit.fontSize}px Inter, sans-serif`;
-      descFit.lines.forEach((line, k) => ctx.fillText(line, textX, slot.y + slot.h * .74 + k * descFit.fontSize * 1.08));
+      descFit.lines.forEach((line, k) => ctx.fillText(line, textX, slot.y + slot.h * .76 + k * descFit.fontSize * 1.08));
     }
     ctx.fillStyle = VS_Utils.hexToRgba(VS_Colors.INK, 0.06);
     ctx.font = `900 ${Math.max(28, slot.h * .55)}px Inter, sans-serif`;
@@ -536,7 +568,7 @@ async function exportarTimelineComoFlyer() {
   const fmt = VS_Formats[tlFormatoActual] || VS_Formats.landscape;
   const W = fmt.w;
   const H = calcularTimelineCanvasSize(tlFormatoActual, sorted.length).height;
-  const titulo = document.getElementById('tlTema').value.trim() || 'Línea de tiempo';
+  const titulo = obtenerTituloTimeline();
   const canvas = renderTimelineCanvas(sorted, W, H, titulo);
 
   canvas.toBlob(blob => {
@@ -546,4 +578,4 @@ async function exportarTimelineComoFlyer() {
 }
 
 if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initTimeline);
-if (typeof module !== 'undefined') module.exports = { calcularTimelineLayout, ajustarLineasTimeline };
+if (typeof module !== 'undefined') module.exports = { calcularTimelineLayout, ajustarLineasTimeline, normalizarTituloTimeline };
