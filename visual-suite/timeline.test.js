@@ -1,4 +1,4 @@
-const { calcularTimelineLayout, ajustarLineasTimeline, normalizarTituloTimeline, resumirDescripcionTimeline } = require('./timeline.js');
+const { calcularTimelineLayout, ajustarLineasTimeline, normalizarTituloTimeline } = require('./timeline.js');
 
 const layout = calcularTimelineLayout(1600, 1600, 6, 'square');
 if (layout.columns !== 2 || layout.rows !== 3) throw new Error('El formato cuadrado debe usar dos columnas alternadas');
@@ -11,7 +11,4 @@ if (lines.length > 2) throw new Error('El texto de timeline debe respetar el max
 
 const title = normalizarTituloTimeline('Un título extremadamente largo que debe ajustarse al encabezado de la placa');
 if (title.length > 48 || !title.endsWith('…')) throw new Error('El título de timeline debe limitarse a 48 caracteres');
-const desc = resumirDescripcionTimeline('Una descripción muy extensa que debe reducirse para poder mantener una tipografía legible dentro de la tarjeta de la línea de tiempo', 60);
-if (desc.length > 60 || !desc.endsWith('…')) throw new Error('La descripción de timeline debe limitarse para conservar legibilidad');
-
 console.log('timeline.test.js: OK');

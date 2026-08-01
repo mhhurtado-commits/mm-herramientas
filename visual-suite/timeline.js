@@ -21,12 +21,6 @@ function obtenerTituloTimeline() {
   return normalizarTituloTimeline(input?.value || tlTituloActual);
 }
 
-function resumirDescripcionTimeline(value, maxChars = 150) {
-  const text = String(value || '').replace(/\s+/g, ' ').trim();
-  if (text.length <= maxChars) return text;
-  return `${text.slice(0, maxChars - 1).replace(/\s+\S*$/, '').trim()}…`;
-}
-
 function cambiarFormatoTimeline() {
   const fmt = document.getElementById('tlFormato').value;
   if (!VS_Formats[fmt]) return;
@@ -300,6 +294,7 @@ Pasos:
 3. Incluí la fuente al final de cada descripción entre paréntesis
 4. El campo "titulo" debe resumir el tema en no más de 48 caracteres incluyendo espacios
 5. La interfaz puede reducir el tamaño del título hasta un 82% del tamaño base; mantenelo breve para evitar truncamientos
+6. Cada "descripcion" debe ser una síntesis completa de entre 100 y 140 caracteres: conservar qué ocurrió, dónde o a quién afecta y el dato clave; no uses puntos suspensivos
 
 Reglas:
 - Cada evento es una entrada individual
@@ -557,8 +552,8 @@ function renderTimelineCanvas(events, W, H, titulo) {
       const descY = slot.y + slot.h * .70;
       ctx.fillStyle = VS_Utils.hexToRgba(VS_Colors.ACCENT, 0.07);
       ctx.beginPath(); ctx.roundRect(textX - slot.w * .015, descY - slot.h * .07, textW + slot.w * .015, slot.h * .28, 10); ctx.fill();
-      const descSize = Math.max(26, slot.h * (format === 'square' ? .15 : .17));
-      const descFit = ajustarLineasTimeline(ctx, resumirDescripcionTimeline(ev.desc), textW, format === 'square' ? 3 : 2, descSize);
+      const descSize = Math.max(28, slot.h * (format === 'square' ? .17 : .18));
+      const descFit = ajustarLineasTimeline(ctx, ev.desc, textW, format === 'square' ? 3 : 2, descSize);
       ctx.fillStyle = VS_Colors.INK2; ctx.font = `400 ${descFit.fontSize}px Inter, sans-serif`;
       descFit.lines.forEach((line, k) => ctx.fillText(line, textX, descY + k * descFit.fontSize * 1.08));
     }
@@ -590,4 +585,4 @@ async function exportarTimelineComoFlyer() {
 }
 
 if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initTimeline);
-if (typeof module !== 'undefined') module.exports = { calcularTimelineLayout, ajustarLineasTimeline, normalizarTituloTimeline, resumirDescripcionTimeline };
+if (typeof module !== 'undefined') module.exports = { calcularTimelineLayout, ajustarLineasTimeline, normalizarTituloTimeline };
