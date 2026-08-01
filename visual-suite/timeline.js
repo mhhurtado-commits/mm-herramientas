@@ -257,7 +257,69 @@ function copiarPrompt() {
 }
 
 // ── Canvas export ──
-function renderTimelineCanvas(events, W, H, titulo) {
+function calcularTimelineLayout(W, H, count, format = 'landscape') {
+  const n = Math.max(Number(count) || 0, 1);
+  const M = Math.round(W * 0.045);
+  const headerH = typeof VS_CanvasHelpers !== 'undefined' ? VS_CanvasHelpers.plateHeaderHeight(W, H) : Math.round(H * 0.15);
+  const top = headerH + Math.round(H * (format === 'square' ? 0.07 : 0.05));
+  const bottom = Math.round(H * 0.08);
+  const areaH = Math.max(1, H - top - bottom);
+  if (format === 'square') {
+    const columns = 2;
+    const rows = Math.ceil(n / columns);
+    const spineGap = Math.round(W * 0.045);
+    const cardW = (W - M * 2 - spineGap) / 2;
+    const spacing = areaH / rows;
+    const cardH = Math.min(spacing * 0.82, H * 0.205);
+    return {
+      format, columns, rows, headerH, top, bottom, areaH, spineX: W / 2,
+      card: { w: cardW, h: cardH },
+      cards: Array.from({ length: n }, (_, index) => {
+        const row = Math.floor(index / columns);
+        const side = index % columns;
+        const x = side === 0 ? M : W / 2 + spineGap / 2;
+        return { index, row, side, x, y: top + row * spacing + (spacing - cardH) / 2, w: cardW, h: cardH };
+      })
+    };
+  }
+  const spineX = M + Math.round(W * 0.02);
+  const cardX = spineX + Math.round(W * 0.05);
+  const spacing = areaH / n;
+  const cardH = Math.min(spacing * 0.84, Math.round(H * 0.16));
+  return {
+    format, columns: 1, rows: n, headerH, top, bottom, areaH, spineX,
+    card: { w: W - M - cardX, h: cardH },
+    cards: Array.from({ length: n }, (_, index) => ({ index, row: index, side: 1, x: cardX, y: top + spacing * index + (spacing - cardH) / 2, w: W - M - cardX, h: cardH }))
+  };
+}
+
+function ajustarLineasTimeline(ctx, text, maxWidth, maxLines = 2, fontSize = 30) {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  let size = Math.max(10, Number(fontSize) || 30);
+  let lines = [];
+  while (size >= 10) {
+    ctx.font = `${size}px Inter, sans-serif`;
+    lines = [];
+    let current = '';
+    words.forEach(word => {
+      const candidate = current ? `${current} ${word}` : word;
+      if (!current || ctx.measureText(candidate).width <= maxWidth) current = candidate;
+      else { lines.push(current); current = word; }
+    });
+    if (current) lines.push(current);
+    if (lines.length <= maxLines) break;
+    size -= 1;
+  }
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    const last = lines.length - 1;
+    while (ctx.measureText(`${lines[last]}…`).width > maxWidth && lines[last].length > 3) lines[last] = lines[last].slice(0, -1);
+    lines[last] += '…';
+  }
+  return { lines, fontSize: size };
+}
+
+function renderTimelineCanvasLegacy(events, W, H, titulo) {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -375,6 +437,69 @@ function renderTimelineCanvas(events, W, H, titulo) {
   return canvas;
 }
 
+function renderTimelineCanvas(events, W, H, titulo) {
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const format = Math.abs(W - H) < 2 ? 'square' : (W / H > 1.2 ? 'landscape' : 'portrait');
+  const layout = calcularTimelineLayout(W, H, events.length, format);
+  const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
+
+  VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { headerRatio: layout.headerH / H });
+  VS_CanvasHelpers.drawExportHeader(ctx, W, H, 'CRONOLOGÍA', titulo || 'Línea de tiempo', layout.headerH);
+
+  ctx.strokeStyle = VS_Utils.hexToRgba(VS_Colors.ACCENT, 0.55);
+  ctx.lineWidth = Math.max(3, W * 0.0025);
+  ctx.beginPath(); ctx.moveTo(layout.spineX, layout.top); ctx.lineTo(layout.spineX, layout.top + layout.areaH); ctx.stroke();
+
+  sorted.forEach((ev, i) => {
+    const slot = layout.cards[i];
+    const cy = slot.y + slot.h / 2;
+    ctx.fillStyle = VS_Colors.ACCENT;
+    ctx.beginPath(); ctx.arc(layout.spineX, cy, Math.max(9, W * 0.009), 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = VS_Colors.PAPER;
+    ctx.beginPath(); ctx.arc(layout.spineX, cy, Math.max(5, W * 0.005), 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = 'rgba(20,32,27,0.10)'; ctx.beginPath(); ctx.roundRect(slot.x + 4, slot.y + 8, slot.w, slot.h, 18); ctx.fill();
+    ctx.fillStyle = VS_Colors.PAPER; ctx.beginPath(); ctx.roundRect(slot.x, slot.y, slot.w, slot.h, 18); ctx.fill();
+    ctx.fillStyle = VS_Colors.ACCENT; ctx.beginPath(); ctx.roundRect(slot.x, slot.y, Math.round(W * 0.006), slot.h, [18, 0, 0, 18]); ctx.fill();
+
+    const chip = Math.min(slot.h * (format === 'square' ? .38 : .62), slot.w * .18);
+    const chipX = format === 'square' ? slot.x + slot.w * .06 : slot.x + W * .02;
+    const chipY = cy - chip / 2;
+    VS_CanvasHelpers.drawIconChip(ctx, chipX, chipY, chip, VS_Utils.detectarEmoji(`${ev.title} ${ev.desc}`), VS_Colors.ACCENT);
+    const textX = chipX + chip + (format === 'square' ? slot.w * .045 : W * .025);
+    const textW = slot.x + slot.w - (format === 'square' ? slot.w * .05 : W * .02) - textX;
+    const fecha = new Date(ev.date + 'T12:00:00');
+    const fechaStr = fecha.getDate() === 1
+      ? fecha.toLocaleDateString('es-AR', { year: 'numeric', month: 'long' })
+      : fecha.toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' });
+    ctx.textAlign = 'left';
+    const dateSize = Math.max(16, slot.h * (format === 'square' ? .105 : .15));
+    ctx.fillStyle = VS_Colors.ACCENT; ctx.font = `700 ${dateSize}px Inter, sans-serif`;
+    ctx.fillText(fechaStr.toUpperCase(), textX, slot.y + slot.h * .25);
+
+    const titleSize = Math.max(20, slot.h * (format === 'square' ? .18 : .21));
+    const titleFit = ajustarLineasTimeline(ctx, ev.title, textW, format === 'square' ? 2 : 2, titleSize);
+    ctx.fillStyle = VS_Colors.INK; ctx.font = `700 ${titleFit.fontSize}px Inter, sans-serif`;
+    titleFit.lines.forEach((line, k) => ctx.fillText(line, textX, slot.y + slot.h * .47 + k * titleFit.fontSize * 1.08));
+
+    if (ev.desc) {
+      const descSize = Math.max(15, slot.h * (format === 'square' ? .095 : .155));
+      const descFit = ajustarLineasTimeline(ctx, ev.desc, textW, format === 'square' ? 2 : 2, descSize);
+      ctx.fillStyle = VS_Colors.INK2; ctx.font = `400 ${descFit.fontSize}px Inter, sans-serif`;
+      descFit.lines.forEach((line, k) => ctx.fillText(line, textX, slot.y + slot.h * .74 + k * descFit.fontSize * 1.08));
+    }
+    ctx.fillStyle = VS_Utils.hexToRgba(VS_Colors.INK, 0.06);
+    ctx.font = `900 ${Math.max(28, slot.h * .55)}px Inter, sans-serif`;
+    ctx.textAlign = 'right'; ctx.fillText(String(i + 1).padStart(2, '0'), slot.x + slot.w - W * .02, slot.y + slot.h * .82);
+  });
+  ctx.textAlign = 'left';
+  VS_CanvasHelpers.drawFooter(ctx, W, H, false);
+  VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
+  return canvas;
+}
+
 async function exportarTimelineComoFlyer() {
   const sorted = [...timelineEvents].sort((a, b) => a.date.localeCompare(b.date));
   if (!sorted.length) return toast('No hay eventos para exportar');
@@ -382,7 +507,7 @@ async function exportarTimelineComoFlyer() {
 
   const fmt = VS_Formats[tlFormatoActual] || VS_Formats.landscape;
   const W = fmt.w;
-  const H = Math.max(fmt.h, sorted.length * fmt.cardH + 300);
+  const H = tlFormatoActual === 'square' ? fmt.h : Math.max(fmt.h, sorted.length * fmt.cardH + 300);
   const titulo = document.getElementById('tlTema').value.trim() || 'Línea de tiempo';
   const canvas = renderTimelineCanvas(sorted, W, H, titulo);
 
@@ -392,4 +517,5 @@ async function exportarTimelineComoFlyer() {
   }, 'image/png', 1);
 }
 
-document.addEventListener('DOMContentLoaded', initTimeline);
+if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initTimeline);
+if (typeof module !== 'undefined') module.exports = { calcularTimelineLayout, ajustarLineasTimeline };
