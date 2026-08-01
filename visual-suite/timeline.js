@@ -21,6 +21,12 @@ function obtenerTituloTimeline() {
   return normalizarTituloTimeline(input?.value || tlTituloActual);
 }
 
+function resumirDescripcionTimeline(value, maxChars = 150) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, maxChars - 1).replace(/\s+\S*$/, '').trim()}…`;
+}
+
 function cambiarFormatoTimeline() {
   const fmt = document.getElementById('tlFormato').value;
   if (!VS_Formats[fmt]) return;
@@ -505,7 +511,7 @@ function renderTimelineCanvas(events, W, H, titulo) {
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
 
   VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { headerRatio: layout.headerH / H });
-  VS_CanvasHelpers.drawExportHeader(ctx, W, H, TIMELINE_SECTION_LABEL, normalizarTituloTimeline(titulo), layout.headerH, { titleMaxChars: 48, titleMinScale: 0.82 });
+  VS_CanvasHelpers.drawExportHeader(ctx, W, H, TIMELINE_SECTION_LABEL, normalizarTituloTimeline(titulo), layout.headerH, { titleMaxChars: 48, titleMinScale: 0.82, titleMaxWidth: W * 0.89 });
 
   ctx.strokeStyle = VS_Utils.hexToRgba(VS_Colors.ACCENT, 0.55);
   ctx.lineWidth = Math.max(3, W * 0.0025);
@@ -550,9 +556,9 @@ function renderTimelineCanvas(events, W, H, titulo) {
     if (ev.desc) {
       const descY = slot.y + slot.h * .70;
       ctx.fillStyle = VS_Utils.hexToRgba(VS_Colors.ACCENT, 0.07);
-      ctx.beginPath(); ctx.roundRect(textX - slot.w * .015, descY - slot.h * .07, textW + slot.w * .015, slot.h * .22, 10); ctx.fill();
-      const descSize = Math.max(26, slot.h * (format === 'square' ? .16 : .17));
-      const descFit = ajustarLineasTimeline(ctx, ev.desc, textW, format === 'square' ? 2 : 2, descSize);
+      ctx.beginPath(); ctx.roundRect(textX - slot.w * .015, descY - slot.h * .07, textW + slot.w * .015, slot.h * .28, 10); ctx.fill();
+      const descSize = Math.max(26, slot.h * (format === 'square' ? .15 : .17));
+      const descFit = ajustarLineasTimeline(ctx, resumirDescripcionTimeline(ev.desc), textW, format === 'square' ? 3 : 2, descSize);
       ctx.fillStyle = VS_Colors.INK2; ctx.font = `400 ${descFit.fontSize}px Inter, sans-serif`;
       descFit.lines.forEach((line, k) => ctx.fillText(line, textX, descY + k * descFit.fontSize * 1.08));
     }
@@ -584,4 +590,4 @@ async function exportarTimelineComoFlyer() {
 }
 
 if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initTimeline);
-if (typeof module !== 'undefined') module.exports = { calcularTimelineLayout, ajustarLineasTimeline, normalizarTituloTimeline };
+if (typeof module !== 'undefined') module.exports = { calcularTimelineLayout, ajustarLineasTimeline, normalizarTituloTimeline, resumirDescripcionTimeline };

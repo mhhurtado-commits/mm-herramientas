@@ -90,7 +90,7 @@ const VS_CanvasHelpers = {
     ctx.font = `400 ${titleSize}px "DM Serif Display", serif`;
     const wide = W / H > 1.2;
     const logoLeft = W * (wide ? 0.76 : 0.67);
-    const titleMaxW = Math.max(W * 0.34, logoLeft - M * 1.35);
+    const titleMaxW = o.titleMaxWidth || Math.max(W * 0.34, logoLeft - M * 1.35);
     while (ctx.measureText(t).width > titleMaxW && titleSize > minTitleSize) {
       titleSize -= 1;
       ctx.font = `400 ${titleSize}px "DM Serif Display", serif`;
