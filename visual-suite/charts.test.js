@@ -2,13 +2,15 @@ const {
   calcularGraficoLayout,
   normalizarTituloGrafico,
   obtenerPreviewAspectRatio,
-  obtenerEstiloGrafico
+  obtenerEstiloGrafico,
+  construirPromptGrafico
 } = require('./charts.js');
 
 const square = calcularGraficoLayout(1600, 1600, 'square');
 if (square.chart.x < 0 || square.chart.y < 0) throw new Error('El gráfico cuadrado no debe desbordar por arriba o izquierda');
 if (square.chart.x + square.chart.w > 1600 || square.chart.y + square.chart.h > 1600) throw new Error('El gráfico cuadrado no debe desbordar el canvas');
 if (square.chart.w < 900 || square.chart.h < 480) throw new Error('El gráfico cuadrado debe conservar una superficie legible');
+if (square.card.h <= 1100) throw new Error('La placa debe aprovechar mejor el espacio vertical disponible');
 
 const portrait = calcularGraficoLayout(1350, 1688, 'portrait');
 if (portrait.chart.x + portrait.chart.w > 1350 || portrait.chart.y + portrait.chart.h > 1688) throw new Error('El gráfico vertical no debe desbordar el canvas');
@@ -23,5 +25,9 @@ const lineStyle = obtenerEstiloGrafico('line', 6);
 if (!lineStyle.fill || lineStyle.borderWidth < 2 || lineStyle.pointRadius < 4) throw new Error('El estilo de líneas debe ser visual y legible');
 const barStyle = obtenerEstiloGrafico('bar', 6);
 if (barStyle.borderRadius < 6 || barStyle.borderWidth < 2) throw new Error('El estilo de barras debe tener volumen visual');
+
+const prompt = construirPromptGrafico('Inflación mensual argentina 2026');
+if (!prompt.includes('42 caracteres') || !prompt.includes('tratamiento_visual')) throw new Error('El prompt debe guiar título y tratamiento visual');
+if (!prompt.includes('NO uses puntos suspensivos')) throw new Error('El prompt debe evitar títulos truncados');
 
 console.log('charts.test.js: OK');

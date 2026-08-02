@@ -38,20 +38,20 @@ function calcularGraficoLayout(W, H, formato) {
   const headerH = typeof VS_CanvasHelpers !== 'undefined' && VS_CanvasHelpers.plateHeaderHeight
     ? VS_CanvasHelpers.plateHeaderHeight(W, H) : Math.round(H * 0.15);
   const M = Math.round(Math.min(W, H) * 0.055);
-  const contentTop = headerH + Math.round(H * 0.075);
-  const footerH = Math.round(H * 0.065);
+  const contentTop = headerH + Math.round(H * 0.035);
+  const footerH = Math.round(H * 0.05);
   const bottom = H - footerH - M;
   const card = { x: M, y: contentTop, w: W - M * 2, h: bottom - contentTop };
-  const inner = Math.round(Math.min(W, H) * 0.035);
+  const inner = Math.round(Math.min(W, H) * 0.025);
   return {
     headerH,
     footerH,
     card,
     chart: {
       x: card.x + inner,
-      y: card.y + inner + Math.round(Math.min(W, H) * 0.045),
+      y: card.y + inner + Math.round(Math.min(W, H) * 0.035),
       w: card.w - inner * 2,
-      h: card.h - inner * 2 - Math.round(Math.min(W, H) * 0.045)
+      h: card.h - inner * 2 - Math.round(Math.min(W, H) * 0.035)
     },
     formato
   };
@@ -394,6 +394,32 @@ function renderizarPlacaGrafico() {
   image.src = chartInstance.toBase64Image();
 }
 
+function construirPromptGrafico(tema) {
+  return `INSTRUCCIÓN CRÍTICA: buscá en internet datos reales, actuales y verificables sobre el tema indicado. No inventes cifras. Respondé únicamente JSON válido, sin markdown ni explicaciones.
+
+Tema: "${String(tema || '').trim()}"
+
+Devolvé exactamente esta estructura:
+{
+  "titulo": "título editorial breve",
+  "tipo_sugerido": "bar | line | pie | doughnut | radar | polarArea",
+  "datos_ordenados": [{"etiqueta": "etiqueta breve", "valor": 123}],
+  "fuente": "fuente consultada",
+  "razon": "por qué este tipo representa mejor los datos",
+  "tratamiento_visual": {"enfoque": "descripción breve", "indice_destacado": 0, "mostrar_valores": true}
+}
+
+Reglas editoriales y visuales:
+- El campo "titulo" debe tener como máximo 42 caracteres incluyendo espacios.
+- Debe ser corto, informativo y publicable en una placa cuadrada; eliminá fechas, aclaraciones entre paréntesis y frases introductorias innecesarias.
+- NO uses puntos suspensivos, cortes, abreviaturas confusas ni títulos truncados.
+- Elegí el tipo según la relación: evolución temporal = line, comparación = bar, composición = pie o doughnut, múltiples variables = radar, magnitudes radiales = polarArea.
+- En "tratamiento_visual", indicá qué dato o categoría conviene destacar y cómo crear jerarquía visual sin alterar los datos.
+- Usá entre 5 y 8 datos, con etiquetas breves y valores numéricos comparables.
+- Consultá fuentes oficiales o periodísticas reconocidas y escribí el nombre de la fuente.
+- Si no hay datos verificados, devolvé únicamente {"error":"No se encontraron datos verificados para este tema"}.`;
+}
+
 function generarPromptChart() {
   const tema = document.getElementById('chartTema').value.trim();
   if (!tema) return toast('Ingresá un tema para generar el prompt');
@@ -429,9 +455,10 @@ Reglas estrictas:
 - Elegí el tipo de gráfico que mejor represente los datos
 - Respondé SOLO el JSON, sin texto antes ni después, ni bloques de código`;
 
+  const optimizedPrompt = construirPromptGrafico(tema);
   const ta = document.getElementById('chartPrompt');
   if (ta) {
-    ta.value = prompt;
+    ta.value = optimizedPrompt;
     toast('✅ Prompt generado. Copialo con el botón y pegalo en Gemini Chat.');
   }
 }
@@ -465,5 +492,5 @@ async function cargarJSONdeChat() {
 if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initCharts);
 
 if (typeof module !== 'undefined') {
-  module.exports = { calcularGraficoLayout, parseChartData, parsearNumero, normalizarTituloGrafico, obtenerPreviewAspectRatio, obtenerEstiloGrafico };
+  module.exports = { calcularGraficoLayout, parseChartData, parsearNumero, normalizarTituloGrafico, obtenerPreviewAspectRatio, obtenerEstiloGrafico, construirPromptGrafico };
 }
