@@ -90,8 +90,7 @@
 .vs-chart-container {
   position: relative;
   width: 100%;
-  max-height: 400px;
-  min-height: 250px;
+  min-height: 0;
 }
 .vs-chart-container canvas {
   width: 100% !important;
@@ -102,12 +101,20 @@
 .vs-chart-plate-preview {
   width: 100%;
   aspect-ratio: 1 / 1;
-  max-height: 720px;
+  height: auto;
+  max-height: none;
   overflow: hidden;
   border-radius: var(--radius);
   background: var(--surface2);
+  line-height: 0;
 }
-.vs-chart-plate-preview canvas { width:100% !important; height:100% !important; display:block; }
+.vs-chart-plate-preview canvas {
+  width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  display: block;
+  aspect-ratio: auto;
+}
 .vs-map-container {
   position: relative;
   width: 100%;

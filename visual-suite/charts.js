@@ -4,6 +4,31 @@
 
 let chartInstance = null;
 let chartRenderToken = 0;
+function normalizarTituloGrafico(value) {
+  const title = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!title) return 'Gráfico';
+  if (title.length <= 48) return title;
+  const shortened = title.slice(0, 47).replace(/\s+\S*$/, '').trim();
+  return `${shortened}\u2026`;
+}
+
+function obtenerPreviewAspectRatio(formato) {
+  return ({ square: '1 / 1', landscape: '16 / 9', portrait: '4 / 5', story: '9 / 16' })[formato] || '1 / 1';
+}
+
+function obtenerEstiloGrafico(type, count) {
+  const points = Math.max(1, Number(count) || 1);
+  const isLine = type === 'line';
+  const isRadial = type === 'pie' || type === 'doughnut' || type === 'polarArea';
+  return {
+    fill: isLine,
+    borderWidth: isRadial ? 2 : 3,
+    borderRadius: type === 'bar' ? 10 : 0,
+    pointRadius: isLine ? Math.max(5, Math.min(8, 12 - points / 2)) : 0,
+    pointHoverRadius: isLine ? 9 : 0,
+    tension: isLine ? 0.34 : 0
+  };
+}
 const TIPO_NOMBRE = {
   bar: 'Barras', line: 'Líneas', pie: 'Torta',
   doughnut: 'Donut', radar: 'Radar', polarArea: 'Área Polar'
@@ -69,13 +94,13 @@ const labelPlugin = {
           const x = arc.x + Math.cos(angle) * radius;
           const y = arc.y + Math.sin(angle) * radius;
           ctx.fillStyle = '#fff';
-          ctx.font = `bold 13px "Inter", sans-serif`;
+          ctx.font = `bold 16px "Inter", sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(text, x, y);
         } else {
           ctx.fillStyle = textColor;
-          ctx.font = `bold 12px "Inter", sans-serif`;
+          ctx.font = `bold 16px "Inter", sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
           const x = el.x;
@@ -191,18 +216,22 @@ function actualizarGrafico() {
   const gridColor = getComputedStyle(document.body).getPropertyValue('--line').trim();
   const gridSoftColor = getComputedStyle(document.body).getPropertyValue('--line3').trim();
 
+  const style = obtenerEstiloGrafico(type, values.length);
   const datasets = [{
     label: title || 'Datos',
     data: values,
-    backgroundColor: isPie || isPolar ? colors : colors.map(c => c + '33'),
+    backgroundColor: isPie || isPolar ? colors : colors.map(c => c + (type === 'line' ? '30' : 'b8')),
     borderColor: isPie || isPolar ? '#ffffff' : colors,
-    borderWidth: 1,
+    borderWidth: style.borderWidth,
+    borderRadius: style.borderRadius,
+    borderSkipped: false,
     pointBackgroundColor: colors,
     pointBorderColor: '#ffffff',
-    pointRadius: type === 'line' ? 3 : 0,
-    pointHoverRadius: type === 'line' ? 5 : 0,
-    fill: type === 'line',
-    tension: type === 'line' ? 0.3 : 0,
+    pointRadius: style.pointRadius,
+    pointHoverRadius: style.pointHoverRadius,
+    pointBorderWidth: type === 'line' ? 3 : 0,
+    fill: style.fill,
+    tension: style.tension,
     hoverBackgroundColor: color2,
     hoverBorderColor: '#ffffff'
   }];
@@ -224,7 +253,7 @@ function actualizarGrafico() {
           position: 'bottom',
           labels: {
             color: textSecondary,
-            font: { size: 12, weight: '500' },
+            font: { size: 14, weight: '600' },
             padding: 20,
             generateLabels: function(chart) {
               const data = chart.data;
@@ -272,7 +301,7 @@ function actualizarGrafico() {
         x: {
           ticks: {
             color: textSecondary,
-            font: { size: 11, weight: '500' },
+            font: { size: 14, weight: '600' },
             pad: 10,
             maxRotation: 45,
             minRotation: 0
@@ -291,7 +320,7 @@ function actualizarGrafico() {
           beginAtZero: true,
           ticks: {
             color: textSecondary,
-            font: { size: 11, weight: '500' },
+            font: { size: 14, weight: '600' },
             pad: 10,
             callback: function(value) {
               return value.toLocaleString();
@@ -325,18 +354,19 @@ function renderizarPlacaGrafico() {
   const W = fmt.w, H = fmt.h;
   const layout = calcularGraficoLayout(W, H, fmtKey);
   const preview = document.getElementById('chartPlatePreview');
-  if (preview) preview.style.aspectRatio = fmt.cssAR || `${W} / ${H}`;
+  if (preview) preview.style.aspectRatio = obtenerPreviewAspectRatio(fmtKey);
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
   const token = ++chartRenderToken;
   const bg = document.getElementById('chartBgColor')?.value || '#ffffff';
+  const displayTitle = normalizarTituloGrafico(document.getElementById('chartTitle')?.value || 'Gráfico');
 
   VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { headerRatio: layout.headerH / H });
-  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'GRÁFICOS', document.getElementById('chartTitle')?.value || 'Gráfico', layout.headerH, {
-    titleMaxChars: 42,
+  VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'GRÁFICOS', displayTitle, layout.headerH, {
+    titleMaxChars: 48,
     titleMinScale: 0.82,
-    titleMaxWidth: W * 0.56
+    titleMaxWidth: W * 0.89
   });
   VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
 
@@ -435,5 +465,5 @@ async function cargarJSONdeChat() {
 if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initCharts);
 
 if (typeof module !== 'undefined') {
-  module.exports = { calcularGraficoLayout, parseChartData, parsearNumero };
+  module.exports = { calcularGraficoLayout, parseChartData, parsearNumero, normalizarTituloGrafico, obtenerPreviewAspectRatio, obtenerEstiloGrafico };
 }
