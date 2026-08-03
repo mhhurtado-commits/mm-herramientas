@@ -101,19 +101,6 @@ function renderizarTimelinePreview() {
   const canvas = document.getElementById('timelineCanvas');
   if (!canvas || typeof renderTimelineCanvas !== 'function') return;
 
-  const editorial = document.getElementById('timelineEditorialPreview');
-  if (editorial && ['square', 'portrait'].includes(tlFormatoActual) && typeof VS_EditorialPlate !== 'undefined') {
-    const fmt = ['square', 'portrait'].includes(tlFormatoActual) ? tlFormatoActual : 'square';
-    window.timelineEditorialModel = {
-      format: fmt, section: 'CRONOLOGÍA', title: obtenerTituloTimeline(), source: 'Mediamendoza · Línea de tiempo', type: 'timeline',
-      events: [...timelineEvents].sort((a, b) => a.date.localeCompare(b.date)).map(event => ({ date: event.date, title: event.title, description: event.desc }))
-    };
-    VS_EditorialPlate.mount(editorial, window.timelineEditorialModel);
-    return;
-  }
-  window.timelineEditorialModel = null;
-  if (editorial) editorial.replaceChildren();
-
   const size = calcularTimelineCanvasSize(tlFormatoActual, timelineEvents.length);
   const titulo = obtenerTituloTimeline();
   const events = [...timelineEvents].sort((a, b) => a.date.localeCompare(b.date));
@@ -580,10 +567,6 @@ function renderTimelineCanvas(events, W, H, titulo) {
 }
 
 async function exportarTimelineComoFlyer() {
-  if (window.timelineEditorialModel && typeof VS_EditorialPlate !== 'undefined') {
-    const blob = await VS_EditorialPlate.exportPNG(window.timelineEditorialModel);
-    if (blob) { mostrarExportPreview(URL.createObjectURL(blob), 'timeline-flyer-media-mendoza'); return; }
-  }
   const sorted = [...timelineEvents].sort((a, b) => a.date.localeCompare(b.date));
   if (!sorted.length) return toast('No hay eventos para exportar');
   await document.fonts.ready;

@@ -696,14 +696,6 @@ function renderClimate() {
   const area = document.getElementById('climateArea');
   if (!canvas || !area) return;
   const format = climateFormatConfig();
-  const editorial = document.getElementById('climateEditorialPreview');
-  if (editorial && (format.cssAR === '1 / 1' || format.cssAR === '4 / 5') && typeof VS_EditorialPlate !== 'undefined') {
-    window.climateEditorialModel = VS_EditorialPlate.climateModel(climateData, format.cssAR === '4 / 5' ? 'portrait' : 'square');
-    VS_EditorialPlate.mount(editorial, window.climateEditorialModel);
-    return;
-  }
-  window.climateEditorialModel = null;
-  if (editorial) editorial.replaceChildren();
   const ratio = format.w / format.h;
   const width = Math.max(280, area.clientWidth || 700);
   canvas.width = format.w; canvas.height = format.h; canvas.style.width = '100%'; canvas.style.height = `${Math.round(width / ratio)}px`;
@@ -714,10 +706,6 @@ function renderClimate() {
 }
 
 async function exportarClimate() {
-  if (window.climateEditorialModel && typeof VS_EditorialPlate !== 'undefined') {
-    const blob = await VS_EditorialPlate.exportPNG(window.climateEditorialModel);
-    if (blob) { mostrarExportPreview(URL.createObjectURL(blob), 'clima-mediamendoza'); return; }
-  }
   const format = climateFormatConfig();
   await preloadClimateIcons(climateData);
   const canvas = document.createElement('canvas'); canvas.width = format.w; canvas.height = format.h;

@@ -6,7 +6,6 @@
 <title>Visual Suite — Media Mendoza</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="shared/editorial-plate.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -883,7 +882,6 @@ Mayo, 70</textarea>
           <div class="vs-chart-plate-preview" id="chartPlatePreview">
             <canvas id="chartPlateCanvas" aria-label="Vista previa de placa de gráfico"></canvas>
           </div>
-          <div class="vs-chart-plate-preview vs-editorial-plate" id="chartEditorialPreview" aria-label="Vista previa editorial de placa de gráfico"></div>
         </div>
       </div>
     </div>
@@ -921,7 +919,7 @@ Mayo, 70</textarea>
       </div>
       <div class="vs-card">
         <div class="vs-card-header"><span class="vs-card-title">Ventana atmosférica</span><span class="vs-badge" id="climateSourceBadge">SMN</span></div>
-        <div class="vs-infografia-area vs-climate-area" id="climateArea"><canvas id="climateCanvas"></canvas><div class="vs-editorial-plate" id="climateEditorialPreview"></div></div>
+        <div class="vs-infografia-area vs-climate-area" id="climateArea"><canvas id="climateCanvas"></canvas></div>
       </div>
     </div>
   </div>
@@ -977,7 +975,7 @@ Mayo, 70</textarea>
       </div>
       <div class="vs-card">
         <div class="vs-card-header"><span class="vs-card-title">Placa de fútbol</span><span class="vs-badge" id="footballCount">0 partidos</span></div>
-        <div class="vs-infografia-area vs-football-area" id="footballArea"><canvas id="footballCanvas"></canvas><div class="vs-editorial-plate" id="footballEditorialPreview"></div></div>
+        <div class="vs-infografia-area vs-football-area" id="footballArea"><canvas id="footballCanvas"></canvas></div>
       </div>
     </div>
   </div>
@@ -1109,7 +1107,6 @@ Mayo, 70</textarea>
         </div>
         <div class="vs-timeline-preview" aria-label="Vista previa de la placa">
           <canvas id="timelineCanvas" aria-label="Vista previa de línea de tiempo"></canvas>
-          <div class="vs-editorial-plate" id="timelineEditorialPreview"></div>
         </div>
         <div class="vs-timeline-events-heading">
           <span>Eventos cargados</span>
@@ -1228,7 +1225,6 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
         </div>
         <div class="vs-infografia-area" id="infografiaArea">
           <canvas id="infografiaCanvas"></canvas>
-          <div class="vs-editorial-plate" id="infografiaEditorialPreview"></div>
         </div>
       </div>
     </div>
@@ -1297,7 +1293,6 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
         </div>
         <div class="vs-infografia-area" id="efemeridesArea">
           <canvas id="efemeridesCanvas"></canvas>
-          <div class="vs-editorial-plate" id="efemeridesEditorialPreview"></div>
           <div class="vs-logo-overlay" id="logoOverlayEfemerides" style="display:none"></div>
         </div>
       </div>
@@ -1410,7 +1405,6 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
 <script src="shared/formats.js"></script>
 <script src="shared/utils.js"></script>
 <script src="shared/canvas-helpers.js"></script>
-<script src="shared/editorial-plate.js"></script>
 <script src="app.js"></script>
 <script src="charts.js"></script>
 <script src="maps.js"></script>

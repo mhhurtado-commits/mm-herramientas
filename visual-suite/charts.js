@@ -4,7 +4,6 @@
 
 let chartInstance = null;
 let chartRenderToken = 0;
-let editorialChartModel = null;
 function normalizarTituloGrafico(value) {
   const title = String(value || '').replace(/\s+/g, ' ').trim();
   if (!title) return 'Gráfico';
@@ -361,31 +360,9 @@ function actualizarGrafico() {
 }
 
 function renderizarPlacaGrafico() {
-  const fmtKey = document.getElementById('chartFormat')?.value || 'square';
-  const parsed = parseChartData(document.getElementById('chartData')?.value || '');
-  const chartType = document.getElementById('chartType')?.value || 'bar';
-  editorialChartModel = {
-    format: ['square', 'portrait'].includes(fmtKey) ? fmtKey : 'square',
-    section: 'GRÁFICOS',
-    title: document.getElementById('chartTitle')?.value || 'Gráfico',
-    source: 'Mediamendoza · Datos visualizados para redes',
-    type: 'chart',
-    chartType: ['bar', 'line', 'pie', 'doughnut', 'polarArea'].includes(chartType) ? chartType : 'line',
-    labels: parsed.labels,
-    values: parsed.values
-  };
-  const editorialPreview = document.getElementById('chartEditorialPreview');
-  if (editorialPreview && ['square', 'portrait'].includes(fmtKey) && typeof VS_EditorialPlate !== 'undefined') {
-    window.editorialChartModel = editorialChartModel;
-    editorialPreview.style.aspectRatio = VS_EditorialPlate.getFormat(editorialChartModel.format).ratio;
-    editorialPreview.classList.add('is-editorial');
-    VS_EditorialPlate.mount(editorialPreview, editorialChartModel);
-    return;
-  }
-  window.editorialChartModel = null;
-  if (editorialPreview) editorialPreview.replaceChildren();
   const canvas = document.getElementById('chartPlateCanvas');
   if (!canvas || !chartInstance) return;
+  const fmtKey = document.getElementById('chartFormat')?.value || 'square';
   const fmt = (typeof VS_Formats !== 'undefined' && VS_Formats[fmtKey]) || { w: 1600, h: 1600 };
   const W = fmt.w, H = fmt.h;
   const layout = calcularGraficoLayout(W, H, fmtKey);

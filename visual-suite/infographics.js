@@ -499,7 +499,6 @@ function renderInfografiaModular(ctx, W, H, data) {
 
 function renderizarInfografia() {
   const canvas = document.getElementById('infografiaCanvas');
-  const editorial = document.getElementById('infografiaEditorialPreview');
   const fmt = VS_Formats[formatoActual] || VS_Formats.landscape;
   const W = fmt.w, H = fmt.h;
   const cssW = canvas.parentElement.clientWidth || 800;
@@ -519,13 +518,6 @@ function renderizarInfografia() {
   ctx.clearRect(0, 0, W, H);
 
   const data = normalizarInfografia({ ...(infografiaDataOverride || {}), titulo: title, contenido: infografiaDataOverride ? undefined : content, fuente: infografiaDataOverride?.fuente || 'Media Mendoza', template: templateActual, color1, color2 });
-  if (editorial && (fmt.cssAR === '1 / 1' || fmt.cssAR === '4 / 5') && typeof VS_EditorialPlate !== 'undefined') {
-    window.infographicEditorialModel = VS_EditorialPlate.infographicModel(data, fmt.cssAR === '4 / 5' ? 'portrait' : 'square');
-    VS_EditorialPlate.mount(editorial, window.infographicEditorialModel);
-    return;
-  }
-  window.infographicEditorialModel = null;
-  if (editorial) editorial.replaceChildren();
   renderInfografiaModular(ctx, W, H, data);
 
   VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
@@ -916,10 +908,6 @@ function renderFlyerDestacado(ctx, W, H, title, content, c1, c2) {
 }
 
 async function exportarInfografia() {
-  if (window.infographicEditorialModel && typeof VS_EditorialPlate !== 'undefined') {
-    const blob = await VS_EditorialPlate.exportPNG(window.infographicEditorialModel);
-    if (blob) { mostrarExportPreview(URL.createObjectURL(blob), 'infografia-flyer-media-mendoza'); return; }
-  }
   const canvas = document.getElementById('infografiaCanvas');
   await VS_Utils.exportCanvasToPNG(canvas, renderizarInfografiaEnCtx, 'infografia-flyer-media-mendoza', 3);
   renderizarInfografia();
