@@ -4,6 +4,7 @@ const {
   obtenerPreviewAspectRatio,
   obtenerEstiloGrafico,
   obtenerEscalaGrafico,
+  calcularPosicionEtiqueta,
   construirPromptGrafico
 } = require('./charts.js');
 const fs = require('fs');
@@ -35,6 +36,10 @@ if (!lineStyle.fill || lineStyle.borderWidth < 2 || lineStyle.pointRadius < 4) t
 const barStyle = obtenerEstiloGrafico('bar', 6);
 if (barStyle.borderRadius < 6 || barStyle.borderWidth < 2) throw new Error('El estilo de barras debe tener volumen visual');
 if (obtenerEscalaGrafico(1400, 1400) < 1.3) throw new Error('La tipografía del gráfico cuadrado debe escalar con el canvas final');
+const labelPosition = calcularPosicionEtiqueta({ x: 120, y: 240 }, { top: 100, bottom: 500 }, 24, 'line');
+if (labelPosition.y <= 200 || labelPosition.y >= 240 || labelPosition.baseline !== 'bottom') throw new Error('Las etiquetas de línea deben permanecer junto al punto');
+const topLabelPosition = calcularPosicionEtiqueta({ x: 120, y: 104 }, { top: 100, bottom: 500 }, 24, 'line');
+if (topLabelPosition.y <= 104 || topLabelPosition.baseline !== 'top') throw new Error('Las etiquetas superiores deben bajar para no chocar con el eje');
 
 const prompt = construirPromptGrafico('Inflación mensual argentina 2026');
 if (!prompt.includes('42 caracteres') || !prompt.includes('tratamiento_visual')) throw new Error('El prompt debe guiar título y tratamiento visual');

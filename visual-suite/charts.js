@@ -33,6 +33,18 @@ function obtenerEstiloGrafico(type, count) {
 function obtenerEscalaGrafico(width, height) {
   return Math.max(0.9, Math.min(2, Math.min(Number(width) || 0, Number(height) || 0) / 1000));
 }
+
+function calcularPosicionEtiqueta(element, chartArea, fontSize) {
+  const size = Math.max(12, Number(fontSize) || 12);
+  const above = element.y - Math.round(size * 0.45);
+  const minAbove = chartArea.top + Math.round(size * 0.75);
+  if (above >= minAbove) return { x: element.x, y: above, baseline: 'bottom' };
+  return {
+    x: element.x,
+    y: Math.min(element.y + Math.round(size * 0.8), chartArea.bottom - Math.round(size * 0.35)),
+    baseline: 'top'
+  };
+}
 const TIPO_NOMBRE = {
   bar: 'Barras', line: 'Líneas', pie: 'Torta',
   doughnut: 'Donut', radar: 'Radar', polarArea: 'Área Polar'
@@ -63,19 +75,6 @@ function calcularGraficoLayout(W, H, formato) {
   };
 }
 
-const bgPlugin = {
-  id: 'customBg',
-  beforeDraw: (chart) => {
-    const bg = document.getElementById('chartBgColor').value;
-    const ctx = chart.canvas.getContext('2d');
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-over';
-    ctx.fillStyle = VS_Utils.hexToRgba(bg, 0.42);
-    ctx.fillRect(0, 0, chart.canvas.width, chart.canvas.height);
-    ctx.restore();
-  }
-};
-
 // Plugin para mostrar valores en barras y segmentos
 const labelPlugin = {
   id: 'dataLabels',
@@ -101,18 +100,17 @@ const labelPlugin = {
           const x = arc.x + Math.cos(angle) * radius;
           const y = arc.y + Math.sin(angle) * radius;
           ctx.fillStyle = '#fff';
-          ctx.font = `bold ${Math.round(16 * scale)}px "Inter", sans-serif`;
+          ctx.font = `bold ${Math.round(20 * scale)}px "Inter", sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(text, x, y);
         } else {
           ctx.fillStyle = textColor;
-          ctx.font = `bold ${Math.round(16 * scale)}px "Inter", sans-serif`;
+          const position = calcularPosicionEtiqueta(el, chart.chartArea, Math.round(20 * scale));
+          ctx.font = `bold ${Math.round(20 * scale)}px "Inter", sans-serif`;
           ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          const x = el.x;
-          const y = Math.min(el.y - 4, chart.chartArea.top + 8);
-          ctx.fillText(text, x, y);
+          ctx.textBaseline = position.baseline;
+          ctx.fillText(text, position.x, position.y);
         }
 
         ctx.restore();
@@ -121,10 +119,7 @@ const labelPlugin = {
   }
 };
 
-if (typeof Chart !== 'undefined') {
-  Chart.register(bgPlugin);
-  Chart.register(labelPlugin);
-}
+if (typeof Chart !== 'undefined') Chart.register(labelPlugin);
 
 function initCharts() {
   const fmt = document.getElementById('chartFormat');
@@ -272,7 +267,7 @@ function actualizarGrafico() {
           position: 'bottom',
           labels: {
             color: textSecondary,
-            font: { size: Math.round(14 * chartScale), weight: '600' },
+            font: { size: Math.round(18 * chartScale), weight: '600' },
             padding: Math.round(18 * chartScale),
             generateLabels: function(chart) {
               const data = chart.data;
@@ -320,7 +315,7 @@ function actualizarGrafico() {
         x: {
           ticks: {
             color: textSecondary,
-            font: { size: Math.round(14 * chartScale), weight: '600' },
+            font: { size: Math.round(18 * chartScale), weight: '600' },
             pad: 10,
             maxRotation: 45,
             minRotation: 0
@@ -339,7 +334,7 @@ function actualizarGrafico() {
           beginAtZero: true,
           ticks: {
             color: textSecondary,
-            font: { size: Math.round(14 * chartScale), weight: '600' },
+            font: { size: Math.round(18 * chartScale), weight: '600' },
             pad: 10,
             callback: function(value) {
               return value.toLocaleString();
@@ -377,7 +372,6 @@ function renderizarPlacaGrafico() {
   canvas.height = H;
   const ctx = canvas.getContext('2d');
   const token = ++chartRenderToken;
-  const bg = document.getElementById('chartBgColor')?.value || '#ffffff';
   const displayTitle = normalizarTituloGrafico(document.getElementById('chartTitle')?.value || 'Gráfico');
 
   VS_CanvasHelpers.drawPlateBackground(ctx, W, H, { headerRatio: layout.headerH / H });
@@ -496,5 +490,5 @@ async function cargarJSONdeChat() {
 if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initCharts);
 
 if (typeof module !== 'undefined') {
-  module.exports = { calcularGraficoLayout, parseChartData, parsearNumero, normalizarTituloGrafico, obtenerPreviewAspectRatio, obtenerEstiloGrafico, obtenerEscalaGrafico, construirPromptGrafico };
+  module.exports = { calcularGraficoLayout, parseChartData, parsearNumero, normalizarTituloGrafico, obtenerPreviewAspectRatio, obtenerEstiloGrafico, obtenerEscalaGrafico, calcularPosicionEtiqueta, construirPromptGrafico };
 }
