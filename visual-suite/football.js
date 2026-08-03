@@ -825,6 +825,17 @@ function renderFootball() {
   const area = document.getElementById('footballArea');
   if (!canvas || !area) return;
   const format = VS_Formats[footballFormat] || VS_Formats.landscape;
+  const editorial = document.getElementById('footballEditorialPreview');
+  if (editorial && (format.cssAR === '1 / 1' || format.cssAR === '4 / 5') && typeof VS_EditorialPlate !== 'undefined') {
+    const matches = footballDetailData ? [footballDetailData] : getSelectedFootballMatches();
+    window.footballEditorialModel = VS_EditorialPlate.footballModel(footballData, matches, format.cssAR === '4 / 5' ? 'portrait' : 'square');
+    VS_EditorialPlate.mount(editorial, window.footballEditorialModel);
+    const count = document.getElementById('footballCount');
+    if (count) count.textContent = `${matches.length} de ${footballData.partidos.length} partidos`;
+    return;
+  }
+  window.footballEditorialModel = null;
+  if (editorial) editorial.replaceChildren();
   const width = Math.max(320, Math.min(area.clientWidth || 760, 900));
   const ratio = format.w / format.h;
   canvas.width = format.w;
@@ -844,6 +855,10 @@ function renderFootball() {
 }
 
 async function exportarFootball() {
+  if (window.footballEditorialModel && typeof VS_EditorialPlate !== 'undefined') {
+    const blob = await VS_EditorialPlate.exportPNG(window.footballEditorialModel);
+    if (blob) { mostrarExportPreview(URL.createObjectURL(blob), 'futbol-media-mendoza'); return; }
+  }
   const format = VS_Formats[footballFormat] || VS_Formats.landscape;
   const exportData = footballDetailData
     ? { ...footballData, partidos: [footballDetailData] }

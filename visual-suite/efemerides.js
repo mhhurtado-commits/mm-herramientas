@@ -714,6 +714,10 @@ function drawEfeTitle(ctx, W, H, tr) {
 }
 
 async function exportarEfemerides() {
+  if (window.efemeridesEditorialModel && typeof VS_EditorialPlate !== 'undefined') {
+    const blob = await VS_EditorialPlate.exportPNG(window.efemeridesEditorialModel);
+    if (blob) { mostrarExportPreview(URL.createObjectURL(blob), 'efemerides-media-mendoza'); return; }
+  }
   const canvas = document.getElementById('efemeridesCanvas');
   await VS_Utils.exportCanvasToPNG(canvas, renderizarEfemeridesEnCtx, 'efemerides-media-mendoza', 3);
   renderizarEfemerides();
@@ -1258,6 +1262,12 @@ function renderizarEfemerides() {
   ensureEfeWhatsAppFormat();
   const canvas = document.getElementById('efemeridesCanvas');
   if (!canvas) return;
+  const editorial = document.getElementById('efemeridesEditorialPreview');
+  if (editorial && typeof VS_EditorialPlate !== 'undefined') {
+    window.efemeridesEditorialModel = VS_EditorialPlate.efemeridesModel(efemeridesData, 'square');
+    VS_EditorialPlate.mount(editorial, window.efemeridesEditorialModel);
+    return;
+  }
   const badge = document.getElementById('efeCount');
   if (badge) badge.textContent = (efemeridesData.filter(e => !e._separator).length) + ' efemerides';
   syncEfeFechaLabel();

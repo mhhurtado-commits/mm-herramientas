@@ -184,6 +184,16 @@ function exportarVisual() {
 
 async function exportarGrafico() {
   const nombreBase = 'visual-media-mendoza';
+  if (window.editorialChartModel && typeof VS_EditorialPlate !== 'undefined') {
+    try {
+      const blob = await VS_EditorialPlate.exportPNG(window.editorialChartModel);
+      if (!blob) throw new Error('PNG vacío');
+      mostrarExportPreview(URL.createObjectURL(blob), nombreBase);
+      return;
+    } catch (error) {
+      console.warn('Fallback de exportación Canvas para gráfico', error);
+    }
+  }
   const plate = document.getElementById('chartPlateCanvas');
   if (plate && typeof chartInstance !== 'undefined' && chartInstance) {
     document.fonts.ready.then(() => plate.toBlob(blob => {
