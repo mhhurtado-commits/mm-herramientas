@@ -3,6 +3,7 @@ const {
   normalizarTituloGrafico,
   obtenerPreviewAspectRatio,
   obtenerEstiloGrafico,
+  obtenerEscalaGrafico,
   construirPromptGrafico
 } = require('./charts.js');
 const fs = require('fs');
@@ -33,6 +34,7 @@ const lineStyle = obtenerEstiloGrafico('line', 6);
 if (!lineStyle.fill || lineStyle.borderWidth < 2 || lineStyle.pointRadius < 4) throw new Error('El estilo de líneas debe ser visual y legible');
 const barStyle = obtenerEstiloGrafico('bar', 6);
 if (barStyle.borderRadius < 6 || barStyle.borderWidth < 2) throw new Error('El estilo de barras debe tener volumen visual');
+if (obtenerEscalaGrafico(1400, 1400) < 1.3) throw new Error('La tipografía del gráfico cuadrado debe escalar con el canvas final');
 
 const prompt = construirPromptGrafico('Inflación mensual argentina 2026');
 if (!prompt.includes('42 caracteres') || !prompt.includes('tratamiento_visual')) throw new Error('El prompt debe guiar título y tratamiento visual');

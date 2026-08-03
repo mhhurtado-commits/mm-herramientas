@@ -29,6 +29,10 @@ function obtenerEstiloGrafico(type, count) {
     tension: isLine ? 0.34 : 0
   };
 }
+
+function obtenerEscalaGrafico(width, height) {
+  return Math.max(0.9, Math.min(2, Math.min(Number(width) || 0, Number(height) || 0) / 1000));
+}
 const TIPO_NOMBRE = {
   bar: 'Barras', line: 'Líneas', pie: 'Torta',
   doughnut: 'Donut', radar: 'Radar', polarArea: 'Área Polar'
@@ -66,7 +70,7 @@ const bgPlugin = {
     const ctx = chart.canvas.getContext('2d');
     ctx.save();
     ctx.globalCompositeOperation = 'destination-over';
-    ctx.fillStyle = bg;
+    ctx.fillStyle = VS_Utils.hexToRgba(bg, 0.42);
     ctx.fillRect(0, 0, chart.canvas.width, chart.canvas.height);
     ctx.restore();
   }
@@ -79,6 +83,7 @@ const labelPlugin = {
     const ctx = chart.ctx;
     const type = chart.config.type;
     const isPie = type === 'pie' || type === 'doughnut' || type === 'polarArea';
+    const scale = obtenerEscalaGrafico(chart.width, chart.height);
     const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#000';
 
     chart.data.datasets.forEach((ds, i) => {
@@ -96,13 +101,13 @@ const labelPlugin = {
           const x = arc.x + Math.cos(angle) * radius;
           const y = arc.y + Math.sin(angle) * radius;
           ctx.fillStyle = '#fff';
-          ctx.font = `bold 16px "Inter", sans-serif`;
+          ctx.font = `bold ${Math.round(16 * scale)}px "Inter", sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(text, x, y);
         } else {
           ctx.fillStyle = textColor;
-          ctx.font = `bold 16px "Inter", sans-serif`;
+          ctx.font = `bold ${Math.round(16 * scale)}px "Inter", sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
           const x = el.x;
@@ -220,6 +225,7 @@ function actualizarGrafico() {
   const textSecondary = getComputedStyle(document.body).getPropertyValue('--muted').trim();
   const gridColor = getComputedStyle(document.body).getPropertyValue('--line').trim();
   const gridSoftColor = getComputedStyle(document.body).getPropertyValue('--line3').trim();
+  const chartScale = obtenerEscalaGrafico(source.width, source.height);
 
   const style = obtenerEstiloGrafico(type, values.length);
   const datasets = [{
@@ -248,7 +254,12 @@ function actualizarGrafico() {
       responsive: false,
       maintainAspectRatio: false,
       layout: {
-        padding: { top: 28, right: 22, bottom: 24, left: 22 }
+        padding: {
+          top: Math.round(28 * chartScale),
+          right: Math.round(22 * chartScale),
+          bottom: Math.round(24 * chartScale),
+          left: Math.round(22 * chartScale)
+        }
       },
       interaction: {
         mode: 'index',
@@ -261,8 +272,8 @@ function actualizarGrafico() {
           position: 'bottom',
           labels: {
             color: textSecondary,
-            font: { size: 14, weight: '600' },
-            padding: 20,
+            font: { size: Math.round(14 * chartScale), weight: '600' },
+            padding: Math.round(18 * chartScale),
             generateLabels: function(chart) {
               const data = chart.data;
               if (data.datasets.length === 0) return [];
@@ -309,7 +320,7 @@ function actualizarGrafico() {
         x: {
           ticks: {
             color: textSecondary,
-            font: { size: 14, weight: '600' },
+            font: { size: Math.round(14 * chartScale), weight: '600' },
             pad: 10,
             maxRotation: 45,
             minRotation: 0
@@ -328,7 +339,7 @@ function actualizarGrafico() {
           beginAtZero: true,
           ticks: {
             color: textSecondary,
-            font: { size: 14, weight: '600' },
+            font: { size: Math.round(14 * chartScale), weight: '600' },
             pad: 10,
             callback: function(value) {
               return value.toLocaleString();
@@ -380,8 +391,6 @@ function renderizarPlacaGrafico() {
   const image = new Image();
   image.onload = () => {
     if (token !== chartRenderToken) return;
-    ctx.fillStyle = bg;
-    ctx.fillRect(layout.chartSafeArea.x, layout.chartSafeArea.y, layout.chartSafeArea.w, layout.chartSafeArea.h);
     ctx.drawImage(image, layout.chartSafeArea.x, layout.chartSafeArea.y, layout.chartSafeArea.w, layout.chartSafeArea.h);
     VS_CanvasHelpers.drawFooter(ctx, W, H, false);
   };
@@ -487,5 +496,5 @@ async function cargarJSONdeChat() {
 if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', initCharts);
 
 if (typeof module !== 'undefined') {
-  module.exports = { calcularGraficoLayout, parseChartData, parsearNumero, normalizarTituloGrafico, obtenerPreviewAspectRatio, obtenerEstiloGrafico, construirPromptGrafico };
+  module.exports = { calcularGraficoLayout, parseChartData, parsearNumero, normalizarTituloGrafico, obtenerPreviewAspectRatio, obtenerEstiloGrafico, obtenerEscalaGrafico, construirPromptGrafico };
 }
