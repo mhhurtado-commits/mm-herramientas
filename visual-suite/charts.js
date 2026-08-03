@@ -42,16 +42,18 @@ function calcularGraficoLayout(W, H, formato) {
   const footerH = Math.round(H * 0.05);
   const bottom = H - footerH - M;
   const card = { x: M, y: contentTop, w: W - M * 2, h: bottom - contentTop };
+  const chartSafeArea = { ...card };
   const inner = Math.round(Math.min(W, H) * 0.025);
   return {
     headerH,
     footerH,
     card,
+    chartSafeArea,
     chart: {
-      x: card.x + inner,
-      y: card.y + inner + Math.round(Math.min(W, H) * 0.035),
-      w: card.w - inner * 2,
-      h: card.h - inner * 2 - Math.round(Math.min(W, H) * 0.035)
+      x: chartSafeArea.x + inner,
+      y: chartSafeArea.y + inner,
+      w: chartSafeArea.w - inner * 2,
+      h: chartSafeArea.h - inner * 2
     },
     formato
   };
@@ -189,8 +191,11 @@ function actualizarGrafico() {
 
   const source = document.getElementById('chartCanvas');
   if (!source || typeof Chart === 'undefined') return;
-  source.width = 1200;
-  source.height = 650;
+  const formatKey = document.getElementById('chartFormat')?.value || 'square';
+  const format = (typeof VS_Formats !== 'undefined' && VS_Formats[formatKey]) || { w: 1600, h: 1600 };
+  const sourceLayout = calcularGraficoLayout(format.w, format.h, formatKey);
+  source.width = sourceLayout.chartSafeArea.w;
+  source.height = sourceLayout.chartSafeArea.h;
   const ctx = source.getContext('2d');
 
   if (chartInstance) chartInstance.destroy();
@@ -240,8 +245,11 @@ function actualizarGrafico() {
     type,
     data: { labels, datasets },
     options: {
-      responsive: true,
-      maintainAspectRatio: true,
+      responsive: false,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { top: 28, right: 22, bottom: 24, left: 22 }
+      },
       interaction: {
         mode: 'index',
         intersect: false
@@ -336,7 +344,6 @@ function actualizarGrafico() {
           }
         }
       },
-      responsive: false,
       animation: {
         duration: 0,
         easing: 'easeInOutQuart'
@@ -370,24 +377,12 @@ function renderizarPlacaGrafico() {
   });
   VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
 
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.roundRect(layout.card.x, layout.card.y, layout.card.w, layout.card.h, Math.round(Math.min(W, H) * 0.018));
-  ctx.fill();
-  ctx.strokeStyle = VS_Utils.hexToRgba(VS_Colors.ACCENT, 0.32);
-  ctx.lineWidth = Math.max(2, Math.round(Math.min(W, H) * 0.002));
-  ctx.stroke();
-  ctx.fillStyle = VS_Colors.INK2;
-  ctx.font = `700 ${Math.round(Math.min(W, H) * 0.022)}px "Inter", sans-serif`;
-  ctx.textAlign = 'left';
-  ctx.fillText('Visualización de datos', layout.chart.x, layout.card.y + Math.round(Math.min(W, H) * 0.065));
-
   const image = new Image();
   image.onload = () => {
     if (token !== chartRenderToken) return;
     ctx.fillStyle = bg;
-    ctx.fillRect(layout.chart.x, layout.chart.y, layout.chart.w, layout.chart.h);
-    ctx.drawImage(image, layout.chart.x, layout.chart.y, layout.chart.w, layout.chart.h);
+    ctx.fillRect(layout.chartSafeArea.x, layout.chartSafeArea.y, layout.chartSafeArea.w, layout.chartSafeArea.h);
+    ctx.drawImage(image, layout.chartSafeArea.x, layout.chartSafeArea.y, layout.chartSafeArea.w, layout.chartSafeArea.h);
     VS_CanvasHelpers.drawFooter(ctx, W, H, false);
   };
   image.onerror = () => toast('No se pudo renderizar el gráfico');
