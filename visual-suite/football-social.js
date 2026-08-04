@@ -29,8 +29,8 @@ function footballSocialStateLabel(status, result) {
 
 function footballSocialLayoutFor(format, count) {
   const n = Math.max(0, Number(count) || 0);
-  if (format === 'story') return { columns: 1, hero: n > 0, compact: n > 1 };
-  return { columns: 2, hero: n > 0, compact: n > 1 };
+  if (format === 'story') return { columns: 1, hero: n > 0, compact: n > 1, featuredPlacement: 'top' };
+  return { columns: 2, hero: n > 0, compact: n > 1, featuredPlacement: 'left' };
 }
 
 function footballSocialData() {
@@ -66,6 +66,17 @@ function socialText(ctx, text, x, y, size, color, weight, align) {
   ctx.fillStyle = color || FOOTBALL_SOCIAL_COLORS.white;
   ctx.font = `${weight || 600} ${Math.round(size)}px "Inter", sans-serif`;
   ctx.textAlign = align || 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(String(text || ''), x, y);
+}
+
+function socialTextFit(ctx, text, x, y, size, maxWidth, color, weight, align) {
+  let fitted = Math.max(12, Math.round(size));
+  const value = String(text || '');
+  while (fitted > 12) {
+    ctx.font = `${weight || 600} ${fitted}px "Inter", sans-serif`;
+    if (ctx.measureText(value).width <= maxWidth) break;
+    fitted -= 1;
+  }
+  socialText(ctx, value, x, y, fitted, color, weight, align);
 }
 
 function socialDrawBackground(ctx, W, H) {
@@ -126,6 +137,27 @@ function socialDrawMatchHero(ctx, match, x, y, w, h, featured) {
   }
 }
 
+function socialDrawFeatureColumn(ctx, match, x, y, w, h) {
+  const s = Math.min(w, h) / 520;
+  const pad = Math.max(22, w * .07);
+  socialRoundRect(ctx, x, y, w, h, 28 * s, 'rgba(7,19,29,.92)', FOOTBALL_SOCIAL_COLORS.lime, 4 * s);
+  ctx.save(); ctx.globalAlpha = .16; ctx.fillStyle = FOOTBALL_SOCIAL_COLORS.cyan;
+  ctx.beginPath(); ctx.arc(x + w * .78, y + h * .2, Math.min(w, h) * .32, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  socialDrawCompetition(ctx, match, x + pad, y + pad, w - pad * 2, 42 * s);
+  socialDrawStatus(ctx, match, x + pad, y + pad + 54 * s, w - pad * 2, s);
+  socialText(ctx, match.hora || 'A confirmar', x + w / 2, y + h * .27, Math.max(30, h * .055), '#fff', 800, 'center');
+  const badge = Math.min(w * .36, h * .16);
+  const local = typeof footballDisplayName === 'function' ? footballDisplayName(match.local) : match.local;
+  const visitante = typeof footballDisplayName === 'function' ? footballDisplayName(match.visitante) : match.visitante;
+  socialDrawBadge(ctx, match, 'local', x + (w - badge) / 2, y + h * .32, badge);
+  socialTextFit(ctx, local, x + w / 2, y + h * .32 + badge * 1.18, Math.max(22, w * .075), w - pad * 2, '#fff', 800, 'center');
+  socialText(ctx, 'VS', x + w / 2, y + h * .5, Math.max(18, w * .06), FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
+  socialDrawBadge(ctx, match, 'visitante', x + (w - badge) / 2, y + h * .55, badge);
+  socialTextFit(ctx, visitante, x + w / 2, y + h * .55 + badge * 1.18, Math.max(22, w * .075), w - pad * 2, '#fff', 800, 'center');
+  const details = [match.estadio, match.arbitro?.principal || match.arbitro].filter(Boolean).join('  ·  ');
+  if (details) socialTextFit(ctx, details, x + w / 2, y + h - pad, Math.max(13, w * .035), w - pad * 2, FOOTBALL_SOCIAL_COLORS.muted, 600, 'center');
+}
+
 function socialDrawMatchCompact(ctx, match, x, y, w, h, featured) {
   const s = Math.min(w, h) / 360;
   socialRoundRect(ctx, x, y, w, h, 20 * s, featured ? 'rgba(25,71,82,.95)' : 'rgba(7,19,29,.83)', featured ? FOOTBALL_SOCIAL_COLORS.lime : 'rgba(255,255,255,.16)', featured ? 3 * s : 2 * s);
@@ -137,7 +169,7 @@ function socialDrawMatchCompact(ctx, match, x, y, w, h, featured) {
   const local = typeof footballDisplayName === 'function' ? footballDisplayName(match.local) : match.local;
   const visitante = typeof footballDisplayName === 'function' ? footballDisplayName(match.visitante) : match.visitante;
   const fs = Math.max(16, Math.min(26, w * .032));
-  socialText(ctx, local, x + w * .205, middle + badge * .68, fs, '#fff', 750, 'center'); socialText(ctx, visitante, x + w * .795, middle + badge * .68, fs, '#fff', 750, 'center');
+  socialTextFit(ctx, local, x + w * .205, middle + badge * .68, fs, w * .38, '#fff', 750, 'center'); socialTextFit(ctx, visitante, x + w * .795, middle + badge * .68, fs, w * .38, '#fff', 750, 'center');
   socialText(ctx, match.resultado || 'VS', x + w / 2, middle + 8 * s, Math.max(15, 18 * s), match.resultado ? '#fff' : FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
   socialText(ctx, match.competicion || 'Fútbol', x + pad, y + h - pad * .65, Math.max(12, 15 * s), FOOTBALL_SOCIAL_COLORS.muted, 600, 'left');
 }
@@ -160,14 +192,32 @@ function drawFootballSocial(ctx, W, H, data) {
     socialRoundRect(ctx, M, y, W - M * 2, Math.min(H - y - 180, 280), 24, 'rgba(7,19,29,.76)', 'rgba(255,255,255,.16)', 2);
     socialText(ctx, 'Seleccioná al menos un partido', W / 2, y + 120, Math.min(W, H) * .035, '#fff', 700, 'center');
   } else if (layout.hero) {
-    const featured = footballSocialSelectFeaturedMatch(matches); const matchH = Math.min(Math.round(H * .34), bodyBottom - y - gap);
+    const featured = footballSocialSelectFeaturedMatch(matches);
+    const rest = matches.filter(m => m !== featured);
     socialText(ctx, 'PARTIDO DESTACADO', M, y - Math.round(H * .012), Math.min(W, H) * .018, FOOTBALL_SOCIAL_COLORS.lime, 800, 'left');
-    socialDrawMatchHero(ctx, featured, M, y, W - M * 2, matchH, true);
-    const rest = matches.filter(m => m !== featured); const cols = layout.columns || 1; const cw = (W - M * 2 - gap * (cols - 1)) / cols;
-    const rows = Math.max(1, Math.ceil(rest.length / cols));
-    const remaining = Math.max(0, bodyBottom - y - matchH - gap * 2);
-    const ch = Math.max(112, Math.min(245, (remaining - gap * (rows - 1)) / rows));
-    rest.forEach((match, i) => socialDrawMatchCompact(ctx, match, M + (i % cols) * (cw + gap), y + matchH + gap + Math.floor(i / cols) * (ch + gap), cw, ch, false));
+    if (layout.featuredPlacement === 'left') {
+      const contentH = bodyBottom - y;
+      const contentW = W - M * 2;
+      const featureW = Math.min(contentW * .43, contentH * .82);
+      socialDrawFeatureColumn(ctx, featured, M, y, featureW, contentH);
+      if (rest.length) {
+        const rightX = M + featureW + gap;
+        const rightW = contentW - featureW - gap;
+        const cols = Math.min(2, rest.length);
+        const rows = Math.ceil(rest.length / cols);
+        const cw = (rightW - gap * (cols - 1)) / cols;
+        const ch = Math.max(112, (contentH - gap * (rows - 1)) / rows);
+        rest.forEach((match, i) => socialDrawMatchCompact(ctx, match, rightX + (i % cols) * (cw + gap), y + Math.floor(i / cols) * (ch + gap), cw, ch, false));
+      }
+    } else {
+      const matchH = Math.min(Math.round(H * .34), bodyBottom - y - gap);
+      socialDrawMatchHero(ctx, featured, M, y, W - M * 2, matchH, true);
+      const cols = layout.columns || 1; const cw = (W - M * 2 - gap * (cols - 1)) / cols;
+      const rows = Math.max(1, Math.ceil(rest.length / cols));
+      const remaining = Math.max(0, bodyBottom - y - matchH - gap * 2);
+      const ch = Math.max(112, Math.min(245, (remaining - gap * (rows - 1)) / rows));
+      rest.forEach((match, i) => socialDrawMatchCompact(ctx, match, M + (i % cols) * (cw + gap), y + matchH + gap + Math.floor(i / cols) * (ch + gap), cw, ch, false));
+    }
   } else {
     const cols = layout.columns || 1; const rows = Math.ceil(matches.length / cols); const cw = (W - M * 2 - gap * (cols - 1)) / cols;
     const ch = Math.max(150, Math.min(300, (bodyBottom - y - gap * (rows - 1)) / rows));
