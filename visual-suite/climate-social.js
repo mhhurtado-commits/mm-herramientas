@@ -31,11 +31,15 @@ function climateSocialPhoto(key) {
 }
 
 function socialBackgroundKey(actual = {}) {
-  if (actual.isDay === false) return 'noche';
+  if (typeof window !== 'undefined' && typeof window.climateSocialBackgroundKey === 'function') {
+    return window.climateSocialBackgroundKey(actual);
+  }
   if (actual.type === 'storm') return 'tormenta';
-  if (['rain', 'rain-light', 'rain-heavy'].includes(actual.type)) return 'lluvia';
-  if (actual.type === 'sun' || actual.type === 'sun-cloud') return 'despejado';
-  return 'nublado';
+  const suffix = actual.isDay === false ? 'noche' : 'dia';
+  if (['rain', 'rain-light', 'rain-heavy'].includes(actual.type)) return `lluvia-${suffix}`;
+  if (actual.type === 'sun') return `despejado-${suffix}`;
+  if (actual.type === 'sun-cloud') return `parcial-${suffix}`;
+  return `nublado-${suffix}`;
 }
 
 function socialVisibleDays(days) {
@@ -142,8 +146,8 @@ function socialDrawAtmosphere(ctx, W, H, actual, image) {
 
 function socialMetric(ctx, x, y, w, h, label, value, accent) {
   socialRoundRect(ctx, x, y, w, h, Math.min(22, w * .06), 'rgba(7,17,29,.56)', 'rgba(255,255,255,.18)', Math.max(1, w * .002));
-  socialText(ctx, label.toUpperCase(), x + w * .1, y + h * .32, w * .8, { size: Math.max(16, Math.round(Math.min(w, h) * .10)), weight: 700, color: 'rgba(255,255,255,.68)' });
-  socialText(ctx, value || '--', x + w * .1, y + h * .75, w * .8, { size: Math.max(24, Math.round(Math.min(w, h) * .23)), weight: 800, color: accent || '#fff' });
+  socialText(ctx, label.toUpperCase(), x + w * .1, y + h * .32, w * .8, { size: Math.max(19, Math.round(Math.min(w, h) * .12)), weight: 700, color: 'rgba(255,255,255,.72)' });
+  socialText(ctx, value || '--', x + w * .1, y + h * .75, w * .8, { size: Math.max(30, Math.round(Math.min(w, h) * .28)), weight: 800, color: accent || '#fff' });
 }
 
 function socialSunMetric(ctx, x, y, w, h, sun) {
@@ -154,10 +158,10 @@ function socialSunMetric(ctx, x, y, w, h, sun) {
   ctx.lineWidth = Math.max(1, w * .0015);
   ctx.beginPath(); ctx.moveTo(divider, y + h * .18); ctx.lineTo(divider, y + h * .86); ctx.stroke();
   ctx.restore();
-  socialText(ctx, 'SALIDA', x + w * .25, y + h * .30, w * .38, { size: Math.max(15, Math.round(Math.min(w, h) * .085)), weight: 700, color: 'rgba(255,255,255,.68)', align: 'center' });
-  socialText(ctx, 'PUESTA', x + w * .75, y + h * .30, w * .38, { size: Math.max(15, Math.round(Math.min(w, h) * .085)), weight: 700, color: 'rgba(255,255,255,.68)', align: 'center' });
-  socialText(ctx, sun?.sunrise || '--', x + w * .25, y + h * .76, w * .38, { size: Math.max(22, Math.round(Math.min(w, h) * .18)), weight: 800, align: 'center' });
-  socialText(ctx, sun?.sunset || '--', x + w * .75, y + h * .76, w * .38, { size: Math.max(22, Math.round(Math.min(w, h) * .18)), weight: 800, align: 'center' });
+  socialText(ctx, 'SALIDA', x + w * .25, y + h * .30, w * .38, { size: Math.max(18, Math.round(Math.min(w, h) * .10)), weight: 700, color: 'rgba(255,255,255,.72)', align: 'center' });
+  socialText(ctx, 'PUESTA', x + w * .75, y + h * .30, w * .38, { size: Math.max(18, Math.round(Math.min(w, h) * .10)), weight: 700, color: 'rgba(255,255,255,.72)', align: 'center' });
+  socialText(ctx, sun?.sunrise || '--', x + w * .25, y + h * .76, w * .38, { size: Math.max(28, Math.round(Math.min(w, h) * .22)), weight: 800, align: 'center' });
+  socialText(ctx, sun?.sunset || '--', x + w * .75, y + h * .76, w * .38, { size: Math.max(28, Math.round(Math.min(w, h) * .22)), weight: 800, align: 'center' });
 }
 
 function socialDrawHero(ctx, data, x, y, w, h, format) {
@@ -201,7 +205,7 @@ function socialForecastCard(ctx, x, y, w, h, day, index, highlight) {
   const degree = String.fromCharCode(176);
   socialRoundRect(ctx, x, y, w, h, Math.min(28, w * .05), highlight ? 'rgba(166,206,57,.22)' : 'rgba(5,16,29,.54)', highlight ? accent : 'rgba(255,255,255,.18)', Math.max(2, w * .002));
   const title = index === 0 ? 'Hoy' : (typeof window !== 'undefined' && typeof window.climateLongDate === 'function' ? window.climateLongDate(day?.date) : day?.date || '--');
-  socialText(ctx, title, x + w / 2, y + h * .2, w * .86, { size: Math.max(23, Math.round(Math.min(w, h) * .1)), weight: 800, align: 'center' });
+  socialText(ctx, title, x + w / 2, y + h * .18, w * .86, { size: Math.max(30, Math.round(Math.min(w, h) * .115)), weight: 800, align: 'center' });
   const periods = socialPeriod(day);
   const cellW = w / Math.max(1, periods.length || 2);
   ctx.save();
@@ -212,12 +216,12 @@ function socialForecastCard(ctx, x, y, w, h, day, index, highlight) {
   const labels = ['Mañana', 'Tarde'];
   (periods.length ? periods : [null, null]).forEach((period, periodIndex) => {
     const cx = x + cellW * periodIndex + cellW / 2;
-    socialText(ctx, period?.label || labels[periodIndex], cx, y + h * .39, cellW * .82, { size: Math.max(16, Math.round(Math.min(cellW, h) * .085)), weight: 700, align: 'center', color: 'rgba(255,255,255,.75)' });
-    if (!period) { socialText(ctx, '--', cx, y + h * .67, cellW * .7, { size: Math.max(24, Math.round(Math.min(cellW, h) * .16)), weight: 800, align: 'center' }); return; }
+    socialText(ctx, period?.label || labels[periodIndex], cx, y + h * .37, cellW * .82, { size: Math.max(24, Math.round(Math.min(cellW, h) * .12)), weight: 700, align: 'center', color: 'rgba(255,255,255,.82)' });
+    if (!period) { socialText(ctx, '--', cx, y + h * .67, cellW * .7, { size: Math.max(30, Math.round(Math.min(cellW, h) * .18)), weight: 800, align: 'center' }); return; }
     const iconCode = period.code;
-    if (typeof window !== 'undefined' && typeof window.climateDrawIcon === 'function') window.climateDrawIcon(ctx, iconCode, period.type, cx, y + h * .59, Math.min(cellW * .25, h * .23));
-    socialText(ctx, period.temp != null ? `${period.temp}${degree}` : '--', cx, y + h * .78, cellW * .8, { size: Math.max(24, Math.round(Math.min(cellW, h) * .14)), weight: 800, align: 'center' });
-    socialText(ctx, period.rain != null ? `${period.rain}% lluvia` : '--', cx, y + h * .91, cellW * .8, { size: Math.max(14, Math.round(Math.min(cellW, h) * .07)), weight: 700, align: 'center', color: 'rgba(255,255,255,.78)' });
+    if (typeof window !== 'undefined' && typeof window.climateDrawIcon === 'function') window.climateDrawIcon(ctx, iconCode, period.type, cx, y + h * .56, Math.min(cellW * .28, h * .24));
+    socialText(ctx, period.temp != null ? `${period.temp}${degree}` : '--', cx, y + h * .77, cellW * .8, { size: Math.max(32, Math.round(Math.min(cellW, h) * .18)), weight: 800, align: 'center' });
+    socialText(ctx, period.rain != null ? `${period.rain}% lluvia` : '--', cx, y + h * .92, cellW * .8, { size: Math.max(19, Math.round(Math.min(cellW, h) * .085)), weight: 700, align: 'center', color: 'rgba(255,255,255,.82)' });
   });
 }
 

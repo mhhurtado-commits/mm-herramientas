@@ -27,12 +27,14 @@ const CLIMATE_WMO = {
 
 function climateTypeFromSmnCode(code, isDay = true) {
   const n = Number(code);
-  if ([1, 2].includes(n)) return 'sun-cloud';
-  if (n === 3) return 'cloud';
+  // El worker devuelve los códigos nativos del SMN, no códigos WMO.
+  if ([0, 1, 3, 4].includes(n)) return 'sun';
+  if ([5, 6, 13, 19, 25].includes(n)) return 'sun-cloud';
+  if ([7, 8, 37, 43].includes(n)) return 'cloud';
   if ([45, 48].includes(n)) return 'fog';
-  if (n >= 51 && n <= 57) return 'rain-light';
-  if (n >= 61 && n <= 67) return 'rain';
-  if (n >= 71 && n <= 86) return 'snow';
+  if ([51, 53, 55].includes(n)) return n === 55 ? 'rain' : 'rain-light';
+  if ([61, 63, 65, 74].includes(n)) return n === 65 ? 'rain-heavy' : 'rain';
+  if (n >= 71 && n <= 79) return 'snow';
   if (n >= 95) return 'storm';
   return isDay ? 'sun' : 'cloud';
 }
@@ -333,12 +335,13 @@ function climateVisibleDays(days, square) {
 }
 
 function climateSocialBackgroundKey(actual = {}) {
-  if (actual.isDay === false) return 'noche';
   if (actual.type === 'storm') return 'tormenta';
-  if (['rain', 'rain-light', 'rain-heavy'].includes(actual.type)) return 'lluvia';
-  if (actual.type === 'sun' || actual.type === 'sun-cloud') return 'despejado';
-  if (actual.type === 'snow') return 'nublado';
-  return 'nublado';
+  const suffix = actual.isDay === false ? 'noche' : 'dia';
+  if (['rain', 'rain-light', 'rain-heavy'].includes(actual.type)) return `lluvia-${suffix}`;
+  if (actual.type === 'sun') return `despejado-${suffix}`;
+  if (actual.type === 'sun-cloud') return `parcial-${suffix}`;
+  if (actual.type === 'snow' || actual.type === 'fog') return `nublado-${suffix}`;
+  return `nublado-${suffix}`;
 }
 
 function climateSocialVisibleDays(days) {

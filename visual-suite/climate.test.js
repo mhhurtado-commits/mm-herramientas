@@ -20,7 +20,7 @@ const normalized = normalizarClimateSMN({
 }, 'Mendoza');
 
 if (normalized.ciudad !== 'San Rafael') throw new Error('No se conservó la ciudad SMN');
-if (normalized.actual.temp !== 18.4 || normalized.actual.type !== 'sun-cloud') throw new Error('No se normalizó el estado actual');
+if (normalized.actual.temp !== 18.4 || normalized.actual.type !== 'sun') throw new Error('No se normalizó el estado actual');
 if (normalized.actual.feelsLike !== null) throw new Error('Un dato faltante no debe convertirse en cero');
 if (normalized.periods.length !== 2 || normalized.days[0].max !== 15 || normalized.days[0].rain !== 70) throw new Error('No se normalizó el pronóstico');
 if (!Array.isArray(normalized.days[0].segments) || normalized.days[0].segments.length !== 2 || normalized.days[0].segments[0].label !== 'Mañana') throw new Error('No se conservaron los períodos del día');
@@ -28,7 +28,7 @@ if (normalized.alerts[0] !== 'Alerta de prueba') throw new Error('No se normaliz
 if (normalized.sun.sunrise !== '08:12' || normalized.sun.sunset !== '18:44') throw new Error('No se conservaron salida y puesta del sol');
 const squareLayout = climateForecastLayout(1000, 1000, 4, true);
 if (squareLayout.columns !== 2 || squareLayout.rows !== 2) throw new Error('El pronÃ³stico cuadrado no usa una grilla legible');
-if (climateTypeFromSmnCode(95) !== 'storm' || climateTypeFromSmnCode(71) !== 'snow') throw new Error('No se mapearon códigos SMN');
+if (climateTypeFromSmnCode(3) !== 'sun' || climateTypeFromSmnCode(19) !== 'sun-cloud' || climateTypeFromSmnCode(43) !== 'cloud' || climateTypeFromSmnCode(95) !== 'storm' || climateTypeFromSmnCode(71) !== 'snow') throw new Error('No se mapearon códigos SMN');
 if (climateIconCodeForTime(13, false) !== '14' || climateIconCodeForTime(14, true) !== '13') throw new Error('No se seleccionó el par día/noche del SMN');
 if (climateIconCodeForTime(19, false) !== '20' || climateIconCodeForTime(3, false) !== '5') throw new Error('No se seleccionaron los iconos nocturnos del SMN');
 if (climateLongDate('2026-07-31') !== 'viernes 31') throw new Error('No se formateó la fecha completa del pronóstico');
@@ -50,9 +50,14 @@ if (todayPeriods.length !== 2 || todayPeriods[0].label !== 'Tarde' || todayPerio
 if (climateVisibleDays([1, 2, 3, 4, 5, 6, 7], true).length !== 5) throw new Error('La grilla cuadrada no limita el pronóstico a cuatro días');
 
 if (climateSocialBackgroundKey({ type: 'storm', isDay: true }) !== 'tormenta') throw new Error('Social storm background rule failed');
-if (climateSocialBackgroundKey({ type: 'rain', isDay: true }) !== 'lluvia') throw new Error('Social rain background rule failed');
-if (climateSocialBackgroundKey({ type: 'sun-cloud', isDay: true }) !== 'despejado') throw new Error('Social clear background rule failed');
-if (climateSocialBackgroundKey({ type: 'cloud', isDay: false }) !== 'noche') throw new Error('Social night background rule failed');
+if (climateSocialBackgroundKey({ type: 'rain', isDay: true }) !== 'lluvia-dia') throw new Error('Social daytime rain background rule failed');
+if (climateSocialBackgroundKey({ type: 'rain', isDay: false }) !== 'lluvia-noche') throw new Error('Social nighttime rain background rule failed');
+if (climateSocialBackgroundKey({ type: 'sun', isDay: true }) !== 'despejado-dia') throw new Error('Social daytime clear background rule failed');
+if (climateSocialBackgroundKey({ type: 'sun', isDay: false }) !== 'despejado-noche') throw new Error('Social nighttime clear background rule failed');
+if (climateSocialBackgroundKey({ type: 'sun-cloud', isDay: true }) !== 'parcial-dia') throw new Error('Social daytime partly cloudy background rule failed');
+if (climateSocialBackgroundKey({ type: 'sun-cloud', isDay: false }) !== 'parcial-noche') throw new Error('Social nighttime partly cloudy background rule failed');
+if (climateSocialBackgroundKey({ type: 'cloud', isDay: true }) !== 'nublado-dia') throw new Error('Social daytime cloudy background rule failed');
+if (climateSocialBackgroundKey({ type: 'cloud', isDay: false }) !== 'nublado-noche') throw new Error('Social nighttime cloudy background rule failed');
 if (climateSocialVisibleDays([1, 2, 3, 4]).length !== 3) throw new Error('Social forecast should show three days');
 if (climateSocialFormatConfig('landscape').w !== 2400 || climateSocialFormatConfig('landscape').h !== 1260) throw new Error('Facebook landscape format should be 2400x1260');
 if (climateSocialFormatConfig('story').h !== 1920) throw new Error('Story format should remain 1080x1920');
