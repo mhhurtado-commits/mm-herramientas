@@ -208,6 +208,7 @@ function preloadClimateIcons(data) {
 }
 
 function climateFormatConfig() {
+  if (climateStyle === 'social') return climateSocialFormatConfig(climateFormat);
   return VS_Formats[climateFormat] || VS_Formats.square;
 }
 
@@ -246,6 +247,11 @@ async function obtenerClimaVisual(ciudad) {
 
 function cambiarFormatoClimate() {
   climateFormat = document.getElementById('climateFormat')?.value || climateFormat;
+  renderClimate();
+}
+
+function cambiarEstiloClimate() {
+  climateStyle = document.getElementById('climateStyle')?.value || climateStyle;
   renderClimate();
 }
 
@@ -721,6 +727,7 @@ function renderClimate() {
   const canvas = document.getElementById('climateCanvas');
   const area = document.getElementById('climateArea');
   if (!canvas || !area) return;
+  if (climateStyle === 'social' && typeof window !== 'undefined' && typeof window.renderClimateSocial === 'function') return window.renderClimateSocial();
   const format = climateFormatConfig();
   const ratio = format.w / format.h;
   const width = Math.max(280, area.clientWidth || 700);
@@ -732,6 +739,7 @@ function renderClimate() {
 }
 
 async function exportarClimate() {
+  if (climateStyle === 'social' && typeof window !== 'undefined' && typeof window.exportClimateSocial === 'function') return window.exportClimateSocial();
   const format = climateFormatConfig();
   await preloadClimateIcons(climateData);
   const canvas = document.createElement('canvas'); canvas.width = format.w; canvas.height = format.h;
@@ -747,6 +755,8 @@ function initClimate() {
   if (city && !city.options.length) CLIMATE_CITIES.forEach(name => city.add(new Option(name, name)));
   const format = document.getElementById('climateFormat');
   if (format) format.value = climateFormat;
+  const style = document.getElementById('climateStyle');
+  if (style) style.value = climateStyle;
   renderClimate();
   if (!climateData && !climateLoading) obtenerClimaVisual(city?.value || 'San Rafael');
 }
@@ -755,9 +765,19 @@ if (typeof window !== 'undefined') {
   window.initClimate = initClimate;
   window.obtenerClimaVisual = obtenerClimaVisual;
   window.cambiarFormatoClimate = cambiarFormatoClimate;
+  window.cambiarEstiloClimate = cambiarEstiloClimate;
   window.renderClimate = renderClimate;
   window.exportarClimate = exportarClimate;
   window.normalizarClimateSMN = normalizarClimateSMN;
+  window.getClimateData = () => climateData;
+  window.getClimateFormat = () => climateFormat;
+  window.getClimateStyle = () => climateStyle;
+  window.preloadClimateIcons = preloadClimateIcons;
+  window.climateDrawIcon = climateDrawIcon;
+  window.climateIconCodeForTime = climateIconCodeForTime;
+  window.climateSocialBackgroundKey = climateSocialBackgroundKey;
+  window.climateSocialVisibleDays = climateSocialVisibleDays;
+  window.climateSocialFormatConfig = climateSocialFormatConfig;
 }
 
 if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays, climateSocialBackgroundKey, climateSocialVisibleDays, climateSocialFormatConfig };

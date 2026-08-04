@@ -906,9 +906,16 @@ Mayo, 70</textarea>
           </select>
         </div>
         <div>
+          <div class="vs-label">Diseño de placa</div>
+          <select class="vs-select" id="climateStyle" style="width:100%;margin-top:6px" onchange="cambiarEstiloClimate()">
+            <option value="informativa">Informativa · WhatsApp / nota</option>
+            <option value="social">Social · redes</option>
+          </select>
+        </div>
+        <div>
           <div class="vs-label">Formato de placa</div>
           <select class="vs-select" id="climateFormat" style="width:100%;margin-top:6px" onchange="cambiarFormatoClimate()">
-            <option value="square">Cuadrado 1:1</option><option value="portrait">Vertical 4:5</option><option value="story">Historia 9:16</option><option value="landscape">Horizontal 16:9</option>
+            <option value="square">Cuadrado 1:1</option><option value="portrait">Instagram 4:5</option><option value="story">Historia IG 9:16</option><option value="landscape">Facebook apaisado 1,91:1</option>
           </select>
         </div>
         <button class="vs-btn vs-btn-accent" id="climateRefresh" onclick="obtenerClimaVisual()">↻ Actualizar</button>
@@ -1413,6 +1420,7 @@ Fuente: Encuesta Media Mendoza 2026</textarea>
 <script src="recursos.js"></script>
 <script src="efemerides.js"></script>
 <script src="climate.js"></script>
+<script src="climate-social.js"></script>
 <script src="football.js"></script>
 <script src="publicacion.js"></script>
 <script src="editor.js"></script>
