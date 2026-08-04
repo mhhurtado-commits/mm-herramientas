@@ -1,4 +1,4 @@
-const { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays } = require('./climate.js');
+const { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays, climateSocialBackgroundKey, climateSocialVisibleDays, climateSocialFormatConfig } = require('./climate.js');
 
 const normalized = normalizarClimateSMN({
   ok: true,
@@ -48,5 +48,13 @@ const todayMetrics = climateTodayCardMetrics(500, 180);
 if (todayMetrics.iconBottom >= todayMetrics.tempY || todayMetrics.tempY >= todayMetrics.rainY) throw new Error('La tarjeta Hoy encima iconos, temperatura y lluvia');
 if (todayPeriods.length !== 2 || todayPeriods[0].label !== 'Tarde' || todayPeriods[1].label !== 'Noche') throw new Error('La evolución no conserva sus dos períodos reales');
 if (climateVisibleDays([1, 2, 3, 4, 5, 6, 7], true).length !== 5) throw new Error('La grilla cuadrada no limita el pronóstico a cuatro días');
+
+if (climateSocialBackgroundKey({ type: 'storm', isDay: true }) !== 'tormenta') throw new Error('Social storm background rule failed');
+if (climateSocialBackgroundKey({ type: 'rain', isDay: true }) !== 'lluvia') throw new Error('Social rain background rule failed');
+if (climateSocialBackgroundKey({ type: 'sun-cloud', isDay: true }) !== 'despejado') throw new Error('Social clear background rule failed');
+if (climateSocialBackgroundKey({ type: 'cloud', isDay: false }) !== 'noche') throw new Error('Social night background rule failed');
+if (climateSocialVisibleDays([1, 2, 3, 4]).length !== 3) throw new Error('Social forecast should show three days');
+if (climateSocialFormatConfig('landscape').w !== 2400 || climateSocialFormatConfig('landscape').h !== 1260) throw new Error('Facebook landscape format should be 2400x1260');
+if (climateSocialFormatConfig('story').h !== 1920) throw new Error('Story format should remain 1080x1920');
 
 console.log('climate.test.js: OK');

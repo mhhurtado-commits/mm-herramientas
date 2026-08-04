@@ -7,6 +7,7 @@ const CLIMATE_CITIES = ['San Rafael', 'General Alvear', 'Malargüe', 'Mendoza', 
 
 let climateData = null;
 let climateFormat = 'square';
+let climateStyle = 'informativa';
 let climateLoading = false;
 let climateRequestId = 0;
 const climateIconCache = new Map();
@@ -322,6 +323,31 @@ function climateCardPeriods(day, limit = 2) {
 
 function climateVisibleDays(days, square) {
   return (days || []).slice(0, square ? 5 : 7);
+}
+
+function climateSocialBackgroundKey(actual = {}) {
+  if (actual.isDay === false) return 'noche';
+  if (actual.type === 'storm') return 'tormenta';
+  if (['rain', 'rain-light', 'rain-heavy'].includes(actual.type)) return 'lluvia';
+  if (actual.type === 'sun' || actual.type === 'sun-cloud') return 'despejado';
+  if (actual.type === 'snow') return 'nublado';
+  return 'nublado';
+}
+
+function climateSocialVisibleDays(days) {
+  return (days || []).slice(0, 3);
+}
+
+function climateSocialFormatConfig(formatKey = 'square') {
+  const formats = typeof VS_Formats !== 'undefined' ? VS_Formats : {
+    square: { label: 'Cuadrado 1:1', w: 1600, h: 1600, cssAR: '1 / 1' },
+    portrait: { label: 'Instagram 4:5', w: 1350, h: 1688, cssAR: '4 / 5' },
+    story: { label: 'Historia IG 9:16', w: 1080, h: 1920, cssAR: '9 / 16' },
+    landscape: { label: 'Facebook apaisado 1.91:1', w: 2400, h: 1260, cssAR: '1.91 / 1' }
+  };
+  const format = formats[formatKey] || formats.square;
+  if (formatKey === 'landscape') return { ...format, label: 'Facebook apaisado 1.91:1', w: 2400, h: 1260, cssAR: '1.91 / 1' };
+  return format;
 }
 
 function climateDrawText(ctx, text, x, y, maxWidth, options = {}) {
@@ -734,4 +760,4 @@ if (typeof window !== 'undefined') {
   window.normalizarClimateSMN = normalizarClimateSMN;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays };
+if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays, climateSocialBackgroundKey, climateSocialVisibleDays, climateSocialFormatConfig };
