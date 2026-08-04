@@ -203,7 +203,8 @@ function preloadClimateIcon(code) {
 function preloadClimateIcons(data) {
   if (!data) return Promise.resolve();
   const actualCode = data.actual ? climateIconCodeForTime(data.actual.code, data.actual.isDay) : null;
-  const codes = [actualCode, ...(data.days || []).map(day => day.code)].filter(Boolean);
+  const segmentCodes = (data.days || []).flatMap(day => (day.segments || []).map(segment => segment.code));
+  const codes = [actualCode, ...(data.days || []).map(day => day.code), ...segmentCodes].filter(Boolean);
   return Promise.all(codes.map(preloadClimateIcon)).then(() => undefined);
 }
 
@@ -774,7 +775,10 @@ if (typeof window !== 'undefined') {
   window.getClimateStyle = () => climateStyle;
   window.preloadClimateIcons = preloadClimateIcons;
   window.climateDrawIcon = climateDrawIcon;
+  window.climateDrawAtmosphere = climateDrawAtmosphere;
   window.climateIconCodeForTime = climateIconCodeForTime;
+  window.climateLongDate = climateLongDate;
+  window.climateHeaderMeta = climateHeaderMeta;
   window.climateSocialBackgroundKey = climateSocialBackgroundKey;
   window.climateSocialVisibleDays = climateSocialVisibleDays;
   window.climateSocialFormatConfig = climateSocialFormatConfig;
