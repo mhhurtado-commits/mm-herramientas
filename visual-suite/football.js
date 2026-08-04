@@ -769,8 +769,11 @@ function dibujarFootballCanvas(ctx, W, H) {
   const columns = format.cssAR === '9 / 16' ? 1 : 2;
   const gap = W * 0.025;
   const cardW = (W - M * 2 - gap * (columns - 1)) / columns;
-  const cardH = Math.min(H * 0.17, Math.max(110, (H - bodyTop - H * 0.16) / Math.ceil(Math.max(partidos.length, 1) / columns) - H * 0.02));
   const startY = bodyTop + H * 0.075;
+  const rows = Math.ceil(Math.max(partidos.length, 1) / columns);
+  const footerReserve = H * 0.14;
+  const availableCardSpace = H - startY - footerReserve - H * 0.02 * Math.max(rows - 1, 0);
+  const cardH = Math.min(H * 0.2, Math.max(110, availableCardSpace / rows));
   partidos.forEach((p, i) => {
     const col = i % columns;
     const row = Math.floor(i / columns);

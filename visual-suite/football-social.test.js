@@ -26,7 +26,7 @@ if (footballSocialStateLabel('finalizado', '2 - 1') !== 'FINALIZADO · 2 - 1') {
 if (footballSocialStateLabel('programado', '') !== 'PROGRAMADO') {
   throw new Error('No se normalizó el estado programado');
 }
-if (footballSocialLayoutFor('square', 1).hero !== true || footballSocialLayoutFor('square', 5).columns !== 2) {
+if (footballSocialLayoutFor('square', 1).hero !== true || footballSocialLayoutFor('square', 5).columns !== 2 || footballSocialLayoutFor('square', 4).hero !== true) {
   throw new Error('La composición social no se adaptó a la cantidad de partidos');
 }
 if (footballSocialLayoutFor('story', 6).columns !== 1) {

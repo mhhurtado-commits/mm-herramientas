@@ -29,9 +29,8 @@ function footballSocialStateLabel(status, result) {
 
 function footballSocialLayoutFor(format, count) {
   const n = Math.max(0, Number(count) || 0);
-  if (format === 'story' || format === 'portrait') return { columns: 1, hero: n <= 2, compact: n > 2 };
-  if (format === 'landscape') return { columns: n >= 3 ? 2 : 1, hero: n === 1, compact: n > 1 };
-  return { columns: n >= 5 ? 2 : 1, hero: n === 1, compact: n > 1 };
+  if (format === 'story') return { columns: 1, hero: n > 0, compact: n > 1 };
+  return { columns: 2, hero: n > 0, compact: n > 1 };
 }
 
 function footballSocialData() {
@@ -147,22 +146,27 @@ function drawFootballSocial(ctx, W, H, data) {
   const headerH = typeof VS_CanvasHelpers !== 'undefined' ? VS_CanvasHelpers.plateHeaderHeight(W, H) : Math.round(H * .15);
   socialDrawBackground(ctx, W, H);
   if (typeof VS_CanvasHelpers !== 'undefined') {
-    VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'FÚTBOL · SOCIAL', footballSocialTitle(data.titulo), headerH, { titleMaxChars: FOOTBALL_SOCIAL_MAX_TITLE, titleMinScale: .78, titleMaxWidth: W * .68 });
+    VS_CanvasHelpers.drawPlateHeader(ctx, W, H, 'FÚTBOL', footballSocialTitle(data.titulo), headerH, { titleMaxChars: FOOTBALL_SOCIAL_MAX_TITLE, titleMinScale: .78, titleMaxWidth: W * .68 });
     VS_CanvasHelpers.drawPlateLogo(ctx, W, H);
   }
   const M = Math.round(W * .055); const matches = Array.isArray(data.partidos) ? data.partidos : [];
   const format = typeof getFootballFormat === 'function' ? getFootballFormat() : 'square';
   const layout = footballSocialLayoutFor(format, matches.length); const gap = Math.round(Math.min(W, H) * .022);
-  const bodyBottom = H - Math.round(H * .075); let y = headerH + Math.round(H * .045);
+  const bodyBottom = H - Math.round(H * .075); let y = headerH + Math.round(H * .035);
+  socialText(ctx, data.fecha || 'JORNADA DE FÚTBOL', M, y + 24, Math.min(W, H) * .022, FOOTBALL_SOCIAL_COLORS.cyan, 800, 'left');
+  y += Math.round(H * .032);
   socialText(ctx, data.subtitulo || 'Argentina y CONMEBOL', M, y + 22, Math.min(W, H) * .025, FOOTBALL_SOCIAL_COLORS.muted, 700, 'left'); y += Math.round(H * .055);
   if (!matches.length) {
     socialRoundRect(ctx, M, y, W - M * 2, Math.min(H - y - 180, 280), 24, 'rgba(7,19,29,.76)', 'rgba(255,255,255,.16)', 2);
     socialText(ctx, 'Seleccioná al menos un partido', W / 2, y + 120, Math.min(W, H) * .035, '#fff', 700, 'center');
   } else if (layout.hero) {
-    const featured = footballSocialSelectFeaturedMatch(matches); const matchH = Math.min(Math.round(H * .49), bodyBottom - y);
+    const featured = footballSocialSelectFeaturedMatch(matches); const matchH = Math.min(Math.round(H * .34), bodyBottom - y - gap);
+    socialText(ctx, 'PARTIDO DESTACADO', M, y - Math.round(H * .012), Math.min(W, H) * .018, FOOTBALL_SOCIAL_COLORS.lime, 800, 'left');
     socialDrawMatchHero(ctx, featured, M, y, W - M * 2, matchH, true);
     const rest = matches.filter(m => m !== featured); const cols = layout.columns || 1; const cw = (W - M * 2 - gap * (cols - 1)) / cols;
-    const ch = Math.min(220, (bodyBottom - y - matchH - gap) / Math.max(1, Math.ceil(rest.length / cols)));
+    const rows = Math.max(1, Math.ceil(rest.length / cols));
+    const remaining = Math.max(0, bodyBottom - y - matchH - gap * 2);
+    const ch = Math.max(112, Math.min(245, (remaining - gap * (rows - 1)) / rows));
     rest.forEach((match, i) => socialDrawMatchCompact(ctx, match, M + (i % cols) * (cw + gap), y + matchH + gap + Math.floor(i / cols) * (ch + gap), cw, ch, false));
   } else {
     const cols = layout.columns || 1; const rows = Math.ceil(matches.length / cols); const cw = (W - M * 2 - gap * (cols - 1)) / cols;
