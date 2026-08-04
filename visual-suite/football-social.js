@@ -33,6 +33,20 @@ function footballSocialLayoutFor(format, count) {
   return { columns: 1, hero: n > 0, compact: n > 1, featuredPlacement: 'left', secondaryTeams: 'stacked' };
 }
 
+function footballSocialStackedRowLayout(w, h) {
+  const badgeSize = Math.min(w * .16, h * .24);
+  const center = w / 2;
+  const badgeX = center - w * .28;
+  const nameX = center + badgeSize * .48;
+  return {
+    badgeSize,
+    nameMaxWidth: w * .44,
+    local: { badgeX, nameX, y: h * .29 },
+    vsY: h * .5,
+    visitor: { badgeX, nameX, y: h * .71 }
+  };
+}
+
 function footballSocialData() {
   if (typeof getSelectedFootballData === 'function') return getSelectedFootballData();
   return { fecha: '', titulo: 'Partidos de hoy', subtitulo: '', fuente: '', partidos: [] };
@@ -184,18 +198,16 @@ function socialDrawMatchCompactStacked(ctx, match, x, y, w, h, featured) {
   socialText(ctx, match.hora || 'A confirmar', x + pad, y + pad + 21 * s, Math.max(20, 29 * s), FOOTBALL_SOCIAL_COLORS.lime, 800, 'left');
   socialDrawStatus(ctx, match, x + w - pad - statusW, y + pad, statusW, s);
 
-  const center = x + w / 2;
-  const badge = Math.min(w * .25, h * .15);
-  const localTop = y + h * .22;
-  const visitorTop = y + h * .59;
+  const layout = footballSocialStackedRowLayout(w, h);
+  const badge = layout.badgeSize;
   const local = typeof footballDisplayName === 'function' ? footballDisplayName(match.local) : match.local;
   const visitante = typeof footballDisplayName === 'function' ? footballDisplayName(match.visitante) : match.visitante;
-  socialDrawBadge(ctx, match, 'local', center - badge / 2, localTop, badge);
-  socialTextFit(ctx, local, center, localTop + badge * 1.18, Math.max(18, w * .055), w - pad * 2, '#fff', 750, 'center');
-  socialText(ctx, match.resultado || 'VS', center, y + h * .54, Math.max(16, 20 * s), match.resultado ? '#fff' : FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
-  socialDrawBadge(ctx, match, 'visitante', center - badge / 2, visitorTop, badge);
-  socialTextFit(ctx, visitante, center, visitorTop + badge * 1.18, Math.max(18, w * .055), w - pad * 2, '#fff', 750, 'center');
-  socialTextFit(ctx, match.competicion || 'FÃºtbol', center, y + h - pad * .65, Math.max(13, 16 * s), w - pad * 2, FOOTBALL_SOCIAL_COLORS.muted, 600, 'center');
+  socialDrawBadge(ctx, match, 'local', x + layout.local.badgeX, y + layout.local.y - badge / 2, badge);
+  socialTextFit(ctx, local, x + layout.local.nameX, y + layout.local.y + badge * .34, Math.max(18, w * .043), layout.nameMaxWidth, '#fff', 750, 'left');
+  socialText(ctx, match.resultado || 'VS', x + w / 2, y + layout.vsY + 7 * s, Math.max(16, 20 * s), match.resultado ? '#fff' : FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
+  socialDrawBadge(ctx, match, 'visitante', x + layout.visitor.badgeX, y + layout.visitor.y - badge / 2, badge);
+  socialTextFit(ctx, visitante, x + layout.visitor.nameX, y + layout.visitor.y + badge * .34, Math.max(18, w * .043), layout.nameMaxWidth, '#fff', 750, 'left');
+  socialTextFit(ctx, match.competicion || 'FÃºtbol', x + w / 2, y + h - pad * .65, Math.max(13, 16 * s), w - pad * 2, FOOTBALL_SOCIAL_COLORS.muted, 600, 'center');
 }
 
 function drawFootballSocial(ctx, W, H, data) {
@@ -267,4 +279,4 @@ async function exportFootballSocial() {
 }
 
 if (typeof window !== 'undefined') { window.renderFootballSocial = renderFootballSocial; window.exportFootballSocial = exportFootballSocial; }
-if (typeof module !== 'undefined') module.exports = { footballSocialTitle, footballSocialSelectFeaturedMatch, footballSocialStateLabel, footballSocialLayoutFor };
+if (typeof module !== 'undefined') module.exports = { footballSocialTitle, footballSocialSelectFeaturedMatch, footballSocialStateLabel, footballSocialLayoutFor, footballSocialStackedRowLayout };

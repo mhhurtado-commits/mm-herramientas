@@ -2,7 +2,8 @@ const {
   footballSocialTitle,
   footballSocialSelectFeaturedMatch,
   footballSocialStateLabel,
-  footballSocialLayoutFor
+  footballSocialLayoutFor,
+  footballSocialStackedRowLayout
 } = require('./football-social.js');
 
 if (footballSocialTitle('Partidos de hoy con toda la agenda argentina y CONMEBOL') !== 'Partidos de hoy') {
@@ -31,6 +32,10 @@ if (footballSocialLayoutFor('square', 1).hero !== true || footballSocialLayoutFo
 }
 if (footballSocialLayoutFor('story', 6).columns !== 1) {
   throw new Error('Historia debe usar una sola columna');
+}
+const stacked = footballSocialStackedRowLayout(780, 330);
+if (!(stacked.badgeSize >= 70 && stacked.local.nameX > stacked.local.badgeX + stacked.badgeSize && stacked.visitor.nameX > stacked.visitor.badgeX + stacked.badgeSize && stacked.local.y < stacked.vsY && stacked.vsY < stacked.visitor.y)) {
+  throw new Error('Las tarjetas verticales deben separar escudos, nombres y VS');
 }
 
 console.log('football-social.test.js: OK');
