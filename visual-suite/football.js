@@ -4,6 +4,7 @@
 
 let footballData = { fecha: '', titulo: 'Partidos de hoy', subtitulo: '', partidos: [] };
 let footballFormat = 'landscape';
+let footballStyle = 'informativa';
 const footballAssets = new Map();
 const footballAssetImages = new Map();
 let footballRenderToken = 0;
@@ -455,6 +456,8 @@ function initFootball() {
   }
   const format = document.getElementById('footballFormato');
   footballFormat = format?.value || 'landscape';
+  const style = document.getElementById('footballStyle');
+  footballStyle = style?.value || 'informativa';
   renderFootball();
 }
 
@@ -507,7 +510,7 @@ Respondé SOLO JSON válido, sin markdown ni explicaciones, con esta estructura 
 {
   "fecha": "${footballDateLabel(fecha)}",
   "alcance": "${config.jsonScope}",
-  "titulo": "Partidos de hoy",
+  "titulo": "Título corto de máximo 28 caracteres",
   "subtitulo": "${config.subtitle}",
   "fuente": "Fuentes consultadas",
   "partidos": [
@@ -529,8 +532,10 @@ Respondé SOLO JSON válido, sin markdown ni explicaciones, con esta estructura 
 }
 
 Reglas: usar horario de Argentina; ${config.competitionRule}; ${config.typeRule}; incluir todas las competiciones sin duplicados; estado permitido: programado, en vivo, finalizado, suspendido o cancelado; si es un resultado, completar "resultado"; no rellenar con suposiciones. Para los campos de recursos usar únicamente claves simples y canónicas, no URLs. Ejemplos obligatorios: Gimnasia y Esgrima (Mendoza) = gimnasia-y-esgrima; Racing Club = racing-club; Estudiantes de Río Cuarto = estudiantes-de-rio-cuarto; Santos FC = santos; Universidad Central de Venezuela = universidad-central-venezuela; Nacional de Uruguay = nacional-uru; Liga Profesional = liga-profesional; Copa Argentina = copa-argentina; Copa Libertadores = copa-libertadores; Copa Sudamericana = copa-sudamericana. No usar variantes como gimnasia-mendoza, racing, estudiantes-rio-cuarto o nombres largos.`;
+  // El título se limita aquí para que el JSON sea útil tanto para la placa informativa como para la social.
   const field = document.getElementById('footballPrompt');
-  if (field) field.value = prompt;
+  const promptWithTitleRule = `${prompt}\n\nEl campo "titulo" debe ser breve, descriptivo y tener como maximo 28 caracteres incluyendo espacios. No agregues puntos suspensivos ni superes ese limite.`;
+  if (field) field.value = promptWithTitleRule;
   toast('✅ Prompt de fútbol generado');
 }
 
@@ -560,6 +565,11 @@ function cargarArchivoJSONFootball(input) {
 
 function cambiarFormatoFootball() {
   footballFormat = document.getElementById('footballFormato')?.value || 'landscape';
+  renderFootball();
+}
+
+function cambiarEstiloFootball() {
+  footballStyle = document.getElementById('footballStyle')?.value || 'informativa';
   renderFootball();
 }
 
@@ -831,6 +841,12 @@ function renderFootball() {
   canvas.height = format.h;
   canvas.style.width = width + 'px';
   canvas.style.height = Math.round(width / ratio) + 'px';
+  if (footballStyle === 'social' && typeof window !== 'undefined' && typeof window.renderFootballSocial === 'function') {
+    window.renderFootballSocial();
+    const socialCount = document.getElementById('footballCount');
+    if (socialCount) socialCount.textContent = `${getSelectedFootballMatches().length} de ${footballData.partidos.length} partidos`;
+    return;
+  }
   const token = ++footballRenderToken;
   dibujarFootballCanvas(canvas.getContext('2d'), format.w, format.h);
   const selectedData = footballDetailData
@@ -844,6 +860,9 @@ function renderFootball() {
 }
 
 async function exportarFootball() {
+  if (footballStyle === 'social' && typeof window !== 'undefined' && typeof window.exportFootballSocial === 'function') {
+    return window.exportFootballSocial();
+  }
   const format = VS_Formats[footballFormat] || VS_Formats.landscape;
   const exportData = footballDetailData
     ? { ...footballData, partidos: [footballDetailData] }
@@ -890,9 +909,12 @@ if (typeof window !== 'undefined') {
   window.cargarJSONFootball = cargarJSONFootball;
   window.cargarArchivoJSONFootball = cargarArchivoJSONFootball;
   window.cambiarFormatoFootball = cambiarFormatoFootball;
+  window.cambiarEstiloFootball = cambiarEstiloFootball;
   window.actualizarConfiguracionFootball = actualizarConfiguracionFootball;
   window.exportarFootball = exportarFootball;
   window.limpiarFootball = limpiarFootball;
+  window.getFootballFormat = () => footballFormat;
+  window.getFootballStyle = () => footballStyle;
 }
 
 if (typeof module !== 'undefined') module.exports = { normalizarFootballJSON, validarFootballData, footballAssetKeyFromName, footballDisplayName, esCompeticionFootballPermitida, footballDesignPreset, footballPromptConfig, esEquipoFootballArgentino, normalizarFootballDetalle };
