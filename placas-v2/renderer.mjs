@@ -61,12 +61,15 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillRect(0, layout.header.h - Math.max(4, canvas.h * 0.004), canvas.w, Math.max(4, canvas.h * 0.004));
 
   const headerMargin = canvas.w * 0.045;
+  const sectionBarW = Math.max(7, canvas.w * 0.006);
   ctx.fillStyle = family.color;
-  ctx.font = `700 ${Math.max(16, canvas.w * 0.016)}px ${fontFamily}`;
-  ctx.fillText(`MEDIAMENDOZA · ${String(family.label).toUpperCase()}`, headerMargin, layout.header.h * 0.38);
+  ctx.fillRect(headerMargin, layout.header.h * 0.25, sectionBarW, layout.header.h * 0.48);
   ctx.fillStyle = '#ffffff';
-  ctx.font = `400 ${Math.max(22, canvas.w * 0.028)}px ${fontFamily}`;
-  ctx.fillText('Noticias confiables del sur mendocino', headerMargin, layout.header.h * 0.75);
+  ctx.font = `800 ${Math.max(22, canvas.w * 0.027)}px ${fontFamily}`;
+  ctx.fillText(String(family.label).toUpperCase(), headerMargin + sectionBarW + canvas.w * 0.018, layout.header.h * 0.57);
+  ctx.fillStyle = 'rgba(255,255,255,.58)';
+  ctx.font = `600 ${Math.max(12, canvas.w * 0.010)}px ${fontFamily}`;
+  ctx.fillText('INFORMACIÓN LOCAL · EDICIÓN DIGITAL', headerMargin, layout.header.h * 0.86);
 
   const logoW = canvas.w * (canvas.w / canvas.h > 1.2 ? 0.18 : 0.28);
   const logoH = layout.header.h * 0.62;
@@ -76,13 +79,6 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     w: logoW,
     h: logoH,
   });
-
-  /* Small family marker keeps the header legible when the logo is unavailable. */
-  ctx.fillStyle = family.color;
-  ctx.font = `900 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
-  ctx.textAlign = 'right';
-  ctx.fillText(family.symbol, canvas.w - headerMargin, layout.header.h * 0.92);
-  ctx.textAlign = 'left';
 
   ctx.save();
   ctx.beginPath();
