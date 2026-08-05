@@ -146,13 +146,15 @@ export function calculatePlateLayout(format, plate = {}) {
   const margin = canvas.w * 0.055;
   const headerH = canvas.h * (canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
   const footerH = canvas.h * 0.07;
-  const imageH = canvas.h * (plate.template_sugerido === 'general' ? 0.39 : 0.34);
-  const contentY = headerH + imageH + canvas.h * 0.035;
+  const headerGap = canvas.h * 0.018;
+  const imageY = headerH + headerGap;
+  const imageH = canvas.h * (plate.template_sugerido === 'general' ? 0.37 : 0.32);
+  const contentY = imageY + imageH + canvas.h * 0.035;
   const contentH = canvas.h - contentY - footerH - margin;
   return {
     canvas,
     header: { x: 0, y: 0, w: canvas.w, h: headerH },
-    image: { x: 0, y: headerH, w: canvas.w, h: imageH },
+    image: { x: 0, y: imageY, w: canvas.w, h: imageH },
     label: { x: margin, y: contentY, w: canvas.w - margin * 2, h: canvas.h * 0.045 },
     title: { x: margin, y: contentY + canvas.h * 0.045, w: canvas.w - margin * 2, h: contentH * 0.42 },
     dek: { x: margin, y: contentY + contentH * 0.48, w: canvas.w - margin * 2, h: contentH * 0.26 },
