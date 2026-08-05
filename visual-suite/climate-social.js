@@ -230,7 +230,19 @@ function socialDrawFooter(ctx, W, H) {
   if (typeof VS_CanvasHelpers !== 'undefined' && VS_CanvasHelpers.drawFooter) VS_CanvasHelpers.drawFooter(ctx, W, H, true, { onField: true });
 }
 
+function resetClimateSocialCanvas(ctx, W, H) {
+  if (typeof ctx.setTransform === 'function') ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.filter = 'none';
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
+  if (typeof ctx.setLineDash === 'function') ctx.setLineDash([]);
+  ctx.clearRect(0, 0, W, H);
+}
+
 function drawClimateSocial(ctx, W, H, data, image, formatOverride) {
+  resetClimateSocialCanvas(ctx, W, H);
   const format = formatOverride || climateSocialFormat();
   const narrow = format.cssAR === '9 / 16';
   const wide = format.cssAR === '1.91 / 1';
@@ -335,3 +347,5 @@ if (typeof window !== 'undefined') {
   window.renderClimateSocial = renderClimateSocial;
   window.exportClimateSocial = exportClimateSocial;
 }
+
+if (typeof module !== 'undefined') module.exports = { resetClimateSocialCanvas };
