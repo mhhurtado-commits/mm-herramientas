@@ -54,7 +54,7 @@ function firstSentence(text) {
 function buildBlocks(data, family, image) {
   return [
     { tipo: 'marca', id: 'marca' },
-    { tipo: 'imagen', id: 'imagen', src: image || '', foco: { x: 0.5, y: 0.5 } },
+    { tipo: 'imagen', id: 'imagen', src: image || '', foco: { x: 0.5, y: 0.32 } },
     { tipo: 'etiqueta', id: 'etiqueta', texto: family.label },
     { tipo: 'titular', id: 'titular', texto: data.titulo },
     { tipo: 'bajada', id: 'bajada', texto: data.bajada },
@@ -148,7 +148,7 @@ export function calculatePlateLayout(format, plate = {}) {
   const footerH = canvas.h * 0.07;
   const headerGap = canvas.h * 0.018;
   const imageY = headerH + headerGap;
-  const imageH = canvas.h * (plate.template_sugerido === 'general' ? 0.37 : 0.32);
+  const imageH = canvas.h * (plate.template_sugerido === 'general' ? 0.38 : 0.36);
   const contentY = imageY + imageH + canvas.h * 0.035;
   const contentH = canvas.h - contentY - footerH - margin;
   return {
