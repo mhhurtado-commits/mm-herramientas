@@ -115,10 +115,13 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.font = `900 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
   ctx.fillText(String(plate.etiqueta || family.label).toUpperCase(), layout.label.x, layout.label.y + layout.label.h * 0.72);
 
-  const titleSize = Math.max(34, canvas.w * (format === 'story' ? 0.047 : 0.052));
-  textLines(ctx, plate.titulo, layout.title.x, layout.title.y + titleSize, layout.title.w, titleSize * 1.08, format === 'story' ? 5 : 4, `800 ${titleSize}px ${fontFamily}`, family.secondary);
+  const titleSize = Math.max(34, canvas.w * (format === 'story' ? 0.047 : format === 'square' ? 0.055 : 0.052));
+  const titleLineHeight = titleSize * 1.08;
+  const titleMaxLines = format === 'story' ? 5 : format === 'square' ? 2 : 4;
+  const titleFit = textLines(ctx, plate.titulo, layout.title.x, layout.title.y + titleSize, layout.title.w, titleLineHeight, titleMaxLines, `800 ${titleSize}px ${fontFamily}`, family.secondary);
   const dekSize = Math.max(22, canvas.w * 0.022);
-  textLines(ctx, plate.bajada, layout.dek.x, layout.dek.y + dekSize, layout.dek.w, dekSize * 1.35, 3, `500 ${dekSize}px ${fontFamily}`, '#526058');
+  const dekY = Math.max(layout.dek.y + dekSize, layout.title.y + titleSize + titleLineHeight * titleFit.lines.length + canvas.h * 0.018);
+  textLines(ctx, plate.bajada, layout.dek.x, dekY, layout.dek.w, dekSize * 1.35, format === 'square' ? 2 : 3, `500 ${dekSize}px ${fontFamily}`, '#526058');
   if (plate.contexto) {
     ctx.fillStyle = family.color;
     ctx.fillRect(layout.context.x, layout.context.y + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
@@ -133,7 +136,6 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.stroke();
   ctx.fillStyle = '#526058';
   ctx.font = `600 ${Math.max(14, canvas.w * 0.011)}px ${fontFamily}`;
-  ctx.fillText('Mediamendoza · Noticias confiables del sur mendocino', layout.footer.x, layout.footer.y + layout.footer.h * 0.68);
   ctx.textAlign = 'right';
   ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.68);
   ctx.textAlign = 'left';
