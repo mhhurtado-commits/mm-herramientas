@@ -119,13 +119,16 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   const titleLineHeight = titleSize * 1.08;
   const titleMaxLines = format === 'story' ? 5 : format === 'square' ? 2 : 4;
   const titleFit = textLines(ctx, plate.titulo, layout.title.x, layout.title.y + titleSize, layout.title.w, titleLineHeight, titleMaxLines, `800 ${titleSize}px ${fontFamily}`, family.secondary);
-  const dekSize = Math.max(22, canvas.w * 0.022);
+  const dekSize = Math.max(22, canvas.w * (format === 'square' ? 0.024 : 0.022));
   const dekY = Math.max(layout.dek.y + dekSize, layout.title.y + titleSize + titleLineHeight * titleFit.lines.length + canvas.h * 0.018);
-  textLines(ctx, plate.bajada, layout.dek.x, dekY, layout.dek.w, dekSize * 1.35, format === 'square' ? 2 : 3, `500 ${dekSize}px ${fontFamily}`, '#526058');
+  const dekLineHeight = dekSize * 1.35;
+  const dekFit = textLines(ctx, plate.bajada, layout.dek.x, dekY, layout.dek.w, dekLineHeight, format === 'square' ? 2 : 3, `500 ${dekSize}px ${fontFamily}`, '#526058');
   if (plate.contexto) {
+    const contextY = Math.max(layout.context.y, dekY + dekLineHeight * dekFit.lines.length + canvas.h * 0.022);
     ctx.fillStyle = family.color;
-    ctx.fillRect(layout.context.x, layout.context.y + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
-    textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, layout.context.y + canvas.h * 0.037, layout.context.w - canvas.w * 0.055, Math.max(16, canvas.w * 0.014) * 1.3, 2, `600 ${Math.max(16, canvas.w * 0.014)}px ${fontFamily}`, family.secondary);
+    ctx.fillRect(layout.context.x, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
+    const contextSize = Math.max(16, canvas.w * (format === 'square' ? 0.015 : 0.014));
+    textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + canvas.h * 0.037, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
   }
 
   ctx.strokeStyle = 'rgba(22,32,27,.16)';
