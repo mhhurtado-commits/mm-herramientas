@@ -199,7 +199,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.lineTo(canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.12);
   ctx.stroke();
   ctx.fillStyle = '#526058';
-  ctx.font = `600 ${Math.max(14, canvas.w * 0.011)}px ${fontFamily}`;
+  ctx.font = `700 ${Math.max(20, canvas.w * 0.016)}px ${fontFamily}`;
   ctx.textAlign = 'right';
   ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.68);
   ctx.textAlign = 'left';

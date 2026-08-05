@@ -69,7 +69,7 @@ export function normalizeNewsPlate(input = {}) {
   const images = uniqueImages({ image: source.image || source.imagen, images: source.images || source.imagenes });
   const title = clean(input.titulo || input.title || source.title || source.titulo || 'Noticia');
   const description = clean(input.bajada || input.description || source.description || source.descripcion);
-  const body = clean(input.contexto || source.body || source.texto || source.contenido);
+  const body = clean(input.cuerpo || input.body || input.texto || input.contenido || input.content || input.articleBody || source.body || source.texto || source.contenido || source.content || source.articleBody || source.text);
   const url = clean(input.url || source.url);
   const normalized = {
     tipo: 'placa_noticia',
@@ -86,7 +86,7 @@ export function normalizeNewsPlate(input = {}) {
     titulo: title,
     bajada: description || firstSentence(body),
     etiqueta: family.label,
-    contexto: clean(input.contexto || input.context || '') || firstSentence(body),
+    contexto: clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description),
     template_sugerido: family.id,
     color_principal: family.color,
     color_secundario: family.secondary,
