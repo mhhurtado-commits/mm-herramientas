@@ -32,6 +32,27 @@ function containImage(ctx, image, rect) {
   return true;
 }
 
+function adaptiveImage(ctx, image, rect, focus = { x: 0.5, y: 0.5 }) {
+  if (!image || !image.complete || !image.naturalWidth) return false;
+  const imageRatio = image.naturalWidth / image.naturalHeight;
+  const frameRatio = rect.w / rect.h;
+  const ratioDelta = Math.max(imageRatio / frameRatio, frameRatio / imageRatio);
+
+  /* A mild ratio difference can use a crop; extreme differences keep the full photo. */
+  if (ratioDelta < 1.28) return coverImage(ctx, image, rect, focus);
+
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.filter = 'blur(22px)';
+  coverImage(ctx, image, { x: rect.x - 28, y: rect.y - 28, w: rect.w + 56, h: rect.h + 56 }, focus);
+  ctx.restore();
+
+  ctx.save();
+  containImage(ctx, image, rect);
+  ctx.restore();
+  return true;
+}
+
 function textLines(ctx, text, x, y, maxWidth, lineHeight, maxLines, font, color) {
   ctx.font = font;
   ctx.fillStyle = color;
@@ -84,7 +105,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.beginPath();
   ctx.rect(layout.image.x, layout.image.y, layout.image.w, layout.image.h);
   ctx.clip();
-  const imageDrawn = coverImage(ctx, options.image, layout.image, options.focus);
+  const imageDrawn = adaptiveImage(ctx, options.image, layout.image, options.focus);
   if (!imageDrawn) {
     const fallback = ctx.createLinearGradient(0, layout.image.y, canvas.w, layout.image.y + layout.image.h);
     fallback.addColorStop(0, family.secondary);
