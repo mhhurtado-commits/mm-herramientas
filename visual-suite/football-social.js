@@ -70,19 +70,19 @@ async function preloadFootballSocialAssets(data) {
   if (typeof preloadFootballAssets === 'function') await preloadFootballAssets(data);
 }
 
-function socialRoundRect(ctx, x, y, w, h, r, fill, stroke, lineWidth) {
+function footballSocialRoundRect(ctx, x, y, w, h, r, fill, stroke, lineWidth) {
   ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
   if (fill) { ctx.fillStyle = fill; ctx.fill(); }
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth || 1; ctx.stroke(); }
 }
 
-function socialText(ctx, text, x, y, size, color, weight, align) {
+function footballSocialText(ctx, text, x, y, size, color, weight, align) {
   ctx.fillStyle = color || FOOTBALL_SOCIAL_COLORS.white;
   ctx.font = `${weight || 600} ${Math.round(size)}px "Inter", sans-serif`;
   ctx.textAlign = align || 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(String(text || ''), x, y);
 }
 
-function socialTextFit(ctx, text, x, y, size, maxWidth, color, weight, align) {
+function footballSocialTextFit(ctx, text, x, y, size, maxWidth, color, weight, align) {
   let fitted = Math.max(12, Math.round(size));
   const value = String(text || '');
   while (fitted > 12) {
@@ -90,7 +90,7 @@ function socialTextFit(ctx, text, x, y, size, maxWidth, color, weight, align) {
     if (ctx.measureText(value).width <= maxWidth) break;
     fitted -= 1;
   }
-  socialText(ctx, value, x, y, fitted, color, weight, align);
+  footballSocialText(ctx, value, x, y, fitted, color, weight, align);
 }
 
 function socialDrawBackground(ctx, W, H) {
@@ -108,8 +108,8 @@ function socialDrawCompetition(ctx, match, x, y, w, h) {
   const key = footballSocialCompetitionKey(match);
   const image = typeof getFootballImage === 'function' ? getFootballImage('competencias', key) : null;
   if (image && image.naturalWidth && typeof drawFootballImageContain === 'function') return drawFootballImageContain(ctx, image, x, y, w, h);
-  socialRoundRect(ctx, x, y, w, h, h * .24, 'rgba(255,255,255,.08)', 'rgba(255,255,255,.16)', 1);
-  socialText(ctx, match.competicion || 'FÚTBOL', x + w / 2, y + h * .66, h * .34, FOOTBALL_SOCIAL_COLORS.muted, 700, 'center');
+  footballSocialRoundRect(ctx, x, y, w, h, h * .24, 'rgba(255,255,255,.08)', 'rgba(255,255,255,.16)', 1);
+  footballSocialText(ctx, match.competicion || 'FÚTBOL', x + w / 2, y + h * .66, h * .34, FOOTBALL_SOCIAL_COLORS.muted, 700, 'center');
 }
 
 function socialDrawBadge(ctx, match, side, x, y, size) {
@@ -120,82 +120,82 @@ function socialDrawBadge(ctx, match, side, x, y, size) {
   ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.strokeStyle = FOOTBALL_SOCIAL_COLORS.lime; ctx.lineWidth = Math.max(2, size * .025);
   ctx.beginPath(); ctx.arc(x + size / 2, y + size / 2, size * .42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   const initials = String(label || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || '?';
-  socialText(ctx, initials, x + size / 2, y + size * .59, size * .2, '#fff', 800, 'center');
+  footballSocialText(ctx, initials, x + size / 2, y + size * .59, size * .2, '#fff', 800, 'center');
 }
 
 function socialDrawStatus(ctx, match, x, y, w, scale) {
   const label = footballSocialStateLabel(match.estado, match.resultado);
   const live = String(match.estado || '').toLowerCase() === 'en vivo';
-  socialRoundRect(ctx, x, y, w, 34 * scale, 17 * scale, live ? 'rgba(239,91,91,.20)' : 'rgba(166,206,57,.15)', live ? FOOTBALL_SOCIAL_COLORS.red : FOOTBALL_SOCIAL_COLORS.lime, 2 * scale);
-  socialText(ctx, label, x + w / 2, y + 23 * scale, 17 * scale, live ? '#ffb2aa' : FOOTBALL_SOCIAL_COLORS.lime, 800, 'center');
+  footballSocialRoundRect(ctx, x, y, w, 34 * scale, 17 * scale, live ? 'rgba(239,91,91,.20)' : 'rgba(166,206,57,.15)', live ? FOOTBALL_SOCIAL_COLORS.red : FOOTBALL_SOCIAL_COLORS.lime, 2 * scale);
+  footballSocialText(ctx, label, x + w / 2, y + 23 * scale, 17 * scale, live ? '#ffb2aa' : FOOTBALL_SOCIAL_COLORS.lime, 800, 'center');
 }
 
 function socialDrawMatchHero(ctx, match, x, y, w, h, featured) {
   const s = Math.min(w, h) / 520;
-  socialRoundRect(ctx, x, y, w, h, 28 * s, 'rgba(7,19,29,.88)', featured ? FOOTBALL_SOCIAL_COLORS.lime : 'rgba(255,255,255,.18)', featured ? 4 * s : 2 * s);
+  footballSocialRoundRect(ctx, x, y, w, h, 28 * s, 'rgba(7,19,29,.88)', featured ? FOOTBALL_SOCIAL_COLORS.lime : 'rgba(255,255,255,.18)', featured ? 4 * s : 2 * s);
   ctx.save(); ctx.globalAlpha = .1; ctx.fillStyle = FOOTBALL_SOCIAL_COLORS.cyan; ctx.beginPath(); ctx.arc(x + w * .83, y + h * .22, h * .38, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   const pad = Math.max(22, w * .055);
   socialDrawCompetition(ctx, match, x + pad, y + pad, Math.min(w * .32, 245 * s), 44 * s);
   socialDrawStatus(ctx, match, x + w - pad - Math.min(w * .32, 245 * s), y + pad, Math.min(w * .32, 245 * s), s);
-  socialText(ctx, match.hora || 'A confirmar', x + w / 2, y + h * .24, Math.max(28, h * .075), '#fff', 800, 'center');
+  footballSocialText(ctx, match.hora || 'A confirmar', x + w / 2, y + h * .24, Math.max(28, h * .075), '#fff', 800, 'center');
   const teamY = y + h * .53; const badge = Math.min(w * .16, h * .23);
   socialDrawBadge(ctx, match, 'local', x + w * .13, teamY - badge / 2, badge); socialDrawBadge(ctx, match, 'visitante', x + w * .71, teamY - badge / 2, badge);
   const local = typeof footballDisplayName === 'function' ? footballDisplayName(match.local) : match.local;
   const visitante = typeof footballDisplayName === 'function' ? footballDisplayName(match.visitante) : match.visitante;
   const nameSize = Math.max(20, Math.min(42, w * .032));
-  socialText(ctx, local, x + w * .21, teamY + badge * .65, nameSize, '#fff', 800, 'center'); socialText(ctx, visitante, x + w * .79, teamY + badge * .65, nameSize, '#fff', 800, 'center');
-  socialText(ctx, 'VS', x + w / 2, teamY + badge * .22, Math.max(18, h * .035), FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
+  footballSocialText(ctx, local, x + w * .21, teamY + badge * .65, nameSize, '#fff', 800, 'center'); footballSocialText(ctx, visitante, x + w * .79, teamY + badge * .65, nameSize, '#fff', 800, 'center');
+  footballSocialText(ctx, 'VS', x + w / 2, teamY + badge * .22, Math.max(18, h * .035), FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
   if (match.estadio || match.arbitro) {
     const bits = [match.estadio, match.arbitro?.principal || match.arbitro].filter(Boolean);
-    socialText(ctx, bits.join('  ·  '), x + w / 2, y + h - pad * .8, Math.max(14, h * .025), FOOTBALL_SOCIAL_COLORS.muted, 600, 'center');
+    footballSocialText(ctx, bits.join('  ·  '), x + w / 2, y + h - pad * .8, Math.max(14, h * .025), FOOTBALL_SOCIAL_COLORS.muted, 600, 'center');
   }
 }
 
 function socialDrawFeatureColumn(ctx, match, x, y, w, h) {
   const s = Math.min(w, h) / 520;
   const pad = Math.max(22, w * .07);
-  socialRoundRect(ctx, x, y, w, h, 28 * s, 'rgba(7,19,29,.92)', FOOTBALL_SOCIAL_COLORS.lime, 4 * s);
+  footballSocialRoundRect(ctx, x, y, w, h, 28 * s, 'rgba(7,19,29,.92)', FOOTBALL_SOCIAL_COLORS.lime, 4 * s);
   ctx.save(); ctx.globalAlpha = .16; ctx.fillStyle = FOOTBALL_SOCIAL_COLORS.cyan;
   ctx.beginPath(); ctx.arc(x + w * .78, y + h * .2, Math.min(w, h) * .32, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   socialDrawCompetition(ctx, match, x + pad, y + pad, w - pad * 2, 42 * s);
   socialDrawStatus(ctx, match, x + pad, y + pad + 54 * s, w - pad * 2, s);
-  socialText(ctx, match.hora || 'A confirmar', x + w / 2, y + h * .27, Math.max(30, h * .055), '#fff', 800, 'center');
+  footballSocialText(ctx, match.hora || 'A confirmar', x + w / 2, y + h * .27, Math.max(30, h * .055), '#fff', 800, 'center');
   const badge = Math.min(w * .32, h * .12);
   const local = typeof footballDisplayName === 'function' ? footballDisplayName(match.local) : match.local;
   const visitante = typeof footballDisplayName === 'function' ? footballDisplayName(match.visitante) : match.visitante;
   const localTop = y + h * .31;
   const visitorTop = y + h * .59;
   socialDrawBadge(ctx, match, 'local', x + (w - badge) / 2, localTop, badge);
-  socialTextFit(ctx, local, x + w / 2, localTop + badge * 1.22, Math.max(22, w * .07), w - pad * 2, '#fff', 800, 'center');
-  socialText(ctx, 'VS', x + w / 2, y + h * .53, Math.max(18, w * .055), FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
+  footballSocialTextFit(ctx, local, x + w / 2, localTop + badge * 1.22, Math.max(22, w * .07), w - pad * 2, '#fff', 800, 'center');
+  footballSocialText(ctx, 'VS', x + w / 2, y + h * .53, Math.max(18, w * .055), FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
   socialDrawBadge(ctx, match, 'visitante', x + (w - badge) / 2, visitorTop, badge);
-  socialTextFit(ctx, visitante, x + w / 2, visitorTop + badge * 1.22, Math.max(22, w * .07), w - pad * 2, '#fff', 800, 'center');
+  footballSocialTextFit(ctx, visitante, x + w / 2, visitorTop + badge * 1.22, Math.max(22, w * .07), w - pad * 2, '#fff', 800, 'center');
   const details = [match.estadio, match.arbitro?.principal || match.arbitro].filter(Boolean).join('  ·  ');
-  if (details) socialTextFit(ctx, details, x + w / 2, y + h - pad, Math.max(13, w * .035), w - pad * 2, FOOTBALL_SOCIAL_COLORS.muted, 600, 'center');
+  if (details) footballSocialTextFit(ctx, details, x + w / 2, y + h - pad, Math.max(13, w * .035), w - pad * 2, FOOTBALL_SOCIAL_COLORS.muted, 600, 'center');
 }
 
 function socialDrawMatchCompact(ctx, match, x, y, w, h, featured) {
   const s = Math.min(w, h) / 360;
-  socialRoundRect(ctx, x, y, w, h, 20 * s, featured ? 'rgba(25,71,82,.95)' : 'rgba(7,19,29,.83)', featured ? FOOTBALL_SOCIAL_COLORS.lime : 'rgba(255,255,255,.16)', featured ? 3 * s : 2 * s);
+  footballSocialRoundRect(ctx, x, y, w, h, 20 * s, featured ? 'rgba(25,71,82,.95)' : 'rgba(7,19,29,.83)', featured ? FOOTBALL_SOCIAL_COLORS.lime : 'rgba(255,255,255,.16)', featured ? 3 * s : 2 * s);
   const pad = Math.max(14, w * .045);
-  socialText(ctx, match.hora || 'A confirmar', x + pad, y + pad + 21 * s, Math.max(20, 29 * s), FOOTBALL_SOCIAL_COLORS.lime, 800, 'left');
+  footballSocialText(ctx, match.hora || 'A confirmar', x + pad, y + pad + 21 * s, Math.max(20, 29 * s), FOOTBALL_SOCIAL_COLORS.lime, 800, 'left');
   socialDrawStatus(ctx, match, x + w - pad - Math.min(180 * s, w * .34), y + pad, Math.min(180 * s, w * .34), s);
   const middle = y + h * .54; const badge = Math.min(h * .29, w * .15);
   socialDrawBadge(ctx, match, 'local', x + w * .13, middle - badge / 2, badge); socialDrawBadge(ctx, match, 'visitante', x + w * .72, middle - badge / 2, badge);
   const local = typeof footballDisplayName === 'function' ? footballDisplayName(match.local) : match.local;
   const visitante = typeof footballDisplayName === 'function' ? footballDisplayName(match.visitante) : match.visitante;
   const fs = Math.max(16, Math.min(26, w * .032));
-  socialTextFit(ctx, local, x + w * .205, middle + badge * .68, fs, w * .38, '#fff', 750, 'center'); socialTextFit(ctx, visitante, x + w * .795, middle + badge * .68, fs, w * .38, '#fff', 750, 'center');
-  socialText(ctx, match.resultado || 'VS', x + w / 2, middle + 8 * s, Math.max(15, 18 * s), match.resultado ? '#fff' : FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
-  socialText(ctx, match.competicion || 'Fútbol', x + pad, y + h - pad * .65, Math.max(12, 15 * s), FOOTBALL_SOCIAL_COLORS.muted, 600, 'left');
+  footballSocialTextFit(ctx, local, x + w * .205, middle + badge * .68, fs, w * .38, '#fff', 750, 'center'); footballSocialTextFit(ctx, visitante, x + w * .795, middle + badge * .68, fs, w * .38, '#fff', 750, 'center');
+  footballSocialText(ctx, match.resultado || 'VS', x + w / 2, middle + 8 * s, Math.max(15, 18 * s), match.resultado ? '#fff' : FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
+  footballSocialText(ctx, match.competicion || 'Fútbol', x + pad, y + h - pad * .65, Math.max(12, 15 * s), FOOTBALL_SOCIAL_COLORS.muted, 600, 'left');
 }
 
 function socialDrawMatchCompactStacked(ctx, match, x, y, w, h, featured) {
   const s = Math.min(w, h) / 360;
-  socialRoundRect(ctx, x, y, w, h, 20 * s, featured ? 'rgba(25,71,82,.95)' : 'rgba(7,19,29,.83)', featured ? FOOTBALL_SOCIAL_COLORS.lime : 'rgba(255,255,255,.16)', featured ? 3 * s : 2 * s);
+  footballSocialRoundRect(ctx, x, y, w, h, 20 * s, featured ? 'rgba(25,71,82,.95)' : 'rgba(7,19,29,.83)', featured ? FOOTBALL_SOCIAL_COLORS.lime : 'rgba(255,255,255,.16)', featured ? 3 * s : 2 * s);
   const pad = Math.max(16, w * .055);
   const statusW = Math.min(180 * s, w * .52);
-  socialText(ctx, match.hora || 'A confirmar', x + pad, y + pad + 21 * s, Math.max(20, 29 * s), FOOTBALL_SOCIAL_COLORS.lime, 800, 'left');
+  footballSocialText(ctx, match.hora || 'A confirmar', x + pad, y + pad + 21 * s, Math.max(20, 29 * s), FOOTBALL_SOCIAL_COLORS.lime, 800, 'left');
   socialDrawStatus(ctx, match, x + w - pad - statusW, y + pad, statusW, s);
 
   const layout = footballSocialStackedRowLayout(w, h);
@@ -203,11 +203,11 @@ function socialDrawMatchCompactStacked(ctx, match, x, y, w, h, featured) {
   const local = typeof footballDisplayName === 'function' ? footballDisplayName(match.local) : match.local;
   const visitante = typeof footballDisplayName === 'function' ? footballDisplayName(match.visitante) : match.visitante;
   socialDrawBadge(ctx, match, 'local', x + layout.local.badgeX, y + layout.local.y - badge / 2, badge);
-  socialTextFit(ctx, local, x + layout.local.nameX, y + layout.local.y + badge * .34, Math.max(18, w * .043), layout.nameMaxWidth, '#fff', 750, 'left');
-  socialText(ctx, match.resultado || 'VS', x + w / 2, y + layout.vsY + 7 * s, Math.max(16, 20 * s), match.resultado ? '#fff' : FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
+  footballSocialTextFit(ctx, local, x + layout.local.nameX, y + layout.local.y + badge * .34, Math.max(18, w * .043), layout.nameMaxWidth, '#fff', 750, 'left');
+  footballSocialText(ctx, match.resultado || 'VS', x + w / 2, y + layout.vsY + 7 * s, Math.max(16, 20 * s), match.resultado ? '#fff' : FOOTBALL_SOCIAL_COLORS.cyan, 800, 'center');
   socialDrawBadge(ctx, match, 'visitante', x + layout.visitor.badgeX, y + layout.visitor.y - badge / 2, badge);
-  socialTextFit(ctx, visitante, x + layout.visitor.nameX, y + layout.visitor.y + badge * .34, Math.max(18, w * .043), layout.nameMaxWidth, '#fff', 750, 'left');
-  socialTextFit(ctx, match.competicion || 'FÃºtbol', x + w / 2, y + h - pad * .65, Math.max(13, 16 * s), w - pad * 2, FOOTBALL_SOCIAL_COLORS.muted, 600, 'center');
+  footballSocialTextFit(ctx, visitante, x + layout.visitor.nameX, y + layout.visitor.y + badge * .34, Math.max(18, w * .043), layout.nameMaxWidth, '#fff', 750, 'left');
+  footballSocialTextFit(ctx, match.competicion || 'FÃºtbol', x + w / 2, y + h - pad * .65, Math.max(13, 16 * s), w - pad * 2, FOOTBALL_SOCIAL_COLORS.muted, 600, 'center');
 }
 
 function drawFootballSocial(ctx, W, H, data) {
@@ -221,16 +221,16 @@ function drawFootballSocial(ctx, W, H, data) {
   const format = typeof getFootballFormat === 'function' ? getFootballFormat() : 'square';
   const layout = footballSocialLayoutFor(format, matches.length); const gap = Math.round(Math.min(W, H) * .022);
   const bodyBottom = H - Math.round(H * .075); let y = headerH + Math.round(H * .035);
-  socialText(ctx, data.fecha || 'JORNADA DE FÚTBOL', M, y + 24, Math.min(W, H) * .022, FOOTBALL_SOCIAL_COLORS.cyan, 800, 'left');
+  footballSocialText(ctx, data.fecha || 'JORNADA DE FÚTBOL', M, y + 24, Math.min(W, H) * .022, FOOTBALL_SOCIAL_COLORS.cyan, 800, 'left');
   y += Math.round(H * .032);
-  socialText(ctx, data.subtitulo || 'Argentina y CONMEBOL', M, y + 22, Math.min(W, H) * .025, FOOTBALL_SOCIAL_COLORS.muted, 700, 'left'); y += Math.round(H * .055);
+  footballSocialText(ctx, data.subtitulo || 'Argentina y CONMEBOL', M, y + 22, Math.min(W, H) * .025, FOOTBALL_SOCIAL_COLORS.muted, 700, 'left'); y += Math.round(H * .055);
   if (!matches.length) {
-    socialRoundRect(ctx, M, y, W - M * 2, Math.min(H - y - 180, 280), 24, 'rgba(7,19,29,.76)', 'rgba(255,255,255,.16)', 2);
-    socialText(ctx, 'Seleccioná al menos un partido', W / 2, y + 120, Math.min(W, H) * .035, '#fff', 700, 'center');
+    footballSocialRoundRect(ctx, M, y, W - M * 2, Math.min(H - y - 180, 280), 24, 'rgba(7,19,29,.76)', 'rgba(255,255,255,.16)', 2);
+    footballSocialText(ctx, 'Seleccioná al menos un partido', W / 2, y + 120, Math.min(W, H) * .035, '#fff', 700, 'center');
   } else if (layout.hero) {
     const featured = footballSocialSelectFeaturedMatch(matches);
     const rest = matches.filter(m => m !== featured);
-    socialText(ctx, 'PARTIDO DESTACADO', M, y - Math.round(H * .012), Math.min(W, H) * .018, FOOTBALL_SOCIAL_COLORS.lime, 800, 'left');
+    footballSocialText(ctx, 'PARTIDO DESTACADO', M, y - Math.round(H * .012), Math.min(W, H) * .018, FOOTBALL_SOCIAL_COLORS.lime, 800, 'left');
     if (layout.featuredPlacement === 'left') {
       const contentH = bodyBottom - y;
       const contentW = W - M * 2;
