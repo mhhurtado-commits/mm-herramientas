@@ -62,6 +62,35 @@ function textLines(ctx, text, x, y, maxWidth, lineHeight, maxLines, font, color)
   return fit;
 }
 
+function wrapMeasuredText(ctx, text, maxWidth) {
+  const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (!current || ctx.measureText(next).width <= maxWidth) current = next;
+    else { lines.push(current); current = word; }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+function fittedText(ctx, text, x, y, maxWidth, startSize, minSize, maxLines, weight, color, lineHeightFactor = 1.08) {
+  let size = startSize;
+  let lines = [];
+  while (size >= minSize) {
+    ctx.font = `${weight} ${size}px ${fontFamily}`;
+    lines = wrapMeasuredText(ctx, text, maxWidth);
+    if (lines.length <= maxLines) break;
+    size -= 1;
+  }
+  ctx.font = `${weight} ${size}px ${fontFamily}`;
+  ctx.fillStyle = color;
+  const lineHeight = size * lineHeightFactor;
+  lines.forEach((line, index) => ctx.fillText(line, x, y + index * lineHeight));
+  return { lines, size, lineHeight };
+}
+
 export function renderNewsPlate(ctx, plate, format, options = {}) {
   const family = FAMILIES[plate.template_sugerido] || FAMILIES.general;
   const layout = calculatePlateLayout(format, plate);
@@ -136,16 +165,16 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.font = `900 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
   ctx.fillText(String(plate.etiqueta || family.label).toUpperCase(), layout.label.x, layout.label.y + layout.label.h * 0.72);
 
-  const titleSize = Math.max(34, canvas.w * (format === 'story' ? 0.047 : format === 'square' ? 0.055 : 0.052));
-  const titleLineHeight = titleSize * 1.08;
-  const titleMaxLines = format === 'story' ? 5 : format === 'square' ? 2 : 4;
-  const titleFit = textLines(ctx, plate.titulo, layout.title.x, layout.title.y + titleSize, layout.title.w, titleLineHeight, titleMaxLines, `800 ${titleSize}px ${fontFamily}`, family.secondary);
-  const dekSize = Math.max(22, canvas.w * (format === 'square' ? 0.024 : 0.022));
-  const dekY = Math.max(layout.dek.y + dekSize, layout.title.y + titleSize + titleLineHeight * titleFit.lines.length + canvas.h * 0.018);
-  const dekLineHeight = dekSize * 1.35;
-  const dekFit = textLines(ctx, plate.bajada, layout.dek.x, dekY, layout.dek.w, dekLineHeight, format === 'square' ? 2 : 3, `500 ${dekSize}px ${fontFamily}`, '#526058');
+  const titleStart = Math.max(34, canvas.w * (format === 'story' ? 0.047 : format === 'square' ? 0.055 : 0.052));
+  const titleMin = Math.max(28, canvas.w * (format === 'story' ? 0.028 : 0.032));
+  const titleMaxLines = format === 'story' ? 6 : format === 'square' ? 4 : 5;
+  const titleFit = fittedText(ctx, plate.titulo, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, titleMaxLines, 800, family.secondary);
+  const dekStart = Math.max(22, canvas.w * (format === 'square' ? 0.024 : 0.022));
+  const dekMin = Math.max(18, canvas.w * 0.016);
+  const dekY = Math.max(layout.dek.y + dekStart, layout.title.y + titleFit.size + titleFit.lineHeight * titleFit.lines.length + canvas.h * 0.018);
+  const dekFit = fittedText(ctx, plate.bajada, layout.dek.x, dekY, layout.dek.w, dekStart, dekMin, format === 'story' ? 4 : 3, 500, '#526058', 1.35);
   if (plate.contexto) {
-    const contextY = Math.max(layout.context.y, dekY + dekLineHeight * dekFit.lines.length + canvas.h * 0.022);
+    const contextY = Math.max(layout.context.y, dekY + dekFit.lineHeight * dekFit.lines.length + canvas.h * 0.022);
     ctx.fillStyle = family.color;
     ctx.fillRect(layout.context.x, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
     const contextSize = Math.max(16, canvas.w * (format === 'square' ? 0.015 : 0.014));

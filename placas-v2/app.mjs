@@ -2,7 +2,7 @@ import { buildEditorialVariants, normalizeNewsPlate, normalizeFocus, calculatePl
 import { renderNewsPlate } from './renderer.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, imagePositioned: false, drag: null };
+const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, imagePositioned: true, drag: null };
 const $ = selector => document.querySelector(selector);
 
 const logoImage = new Image();
@@ -58,7 +58,7 @@ function renderImages() {
   $('#imageList').innerHTML = images.length ? images.map((image, index) => `<button class="image-option ${index === state.imageIndex ? 'active' : ''}" type="button" data-image="${index}" title="Imagen ${index + 1}"><img src="${image}" alt=""></button>`).join('') : '<span class="image-empty">La noticia no tiene imágenes disponibles.</span>';
   $('#focusControls').classList.toggle('is-hidden', !images.length);
   renderFocus();
-  document.querySelectorAll('.image-option').forEach(button => button.addEventListener('click', () => { state.imageIndex = Number(button.dataset.image); state.imagePositioned = false; renderImages(); loadImage(images[state.imageIndex]); }));
+  document.querySelectorAll('.image-option').forEach(button => button.addEventListener('click', () => { state.imageIndex = Number(button.dataset.image); state.imagePositioned = true; renderImages(); loadImage(images[state.imageIndex]); }));
 }
 
 function renderFocus() { const focus = activeFocus(); $('#focusX').value = Math.round(focus.x * 100); $('#focusY').value = Math.round(focus.y * 100); $('#focusXValue').textContent = `${Math.round(focus.x * 100)}%`; $('#focusYValue').textContent = `${Math.round(focus.y * 100)}%`; }
@@ -87,7 +87,7 @@ async function generate(event) {
     const result = await generateEditorial(note);
     state.plate = normalizeNewsPlate(result.placa || note);
     state.variants = buildEditorialVariants(state.plate);
-    state.selectedVariant = 0; state.imageIndex = 0; state.imagePositioned = false;
+    state.selectedVariant = 0; state.imageIndex = 0; state.imagePositioned = true;
     $('#editorControls').classList.remove('is-hidden');
     renderVariants(); renderFormats(); renderImages(); syncEditor();
     if (result.warnings?.length) { $('#warning').textContent = 'La propuesta se generó con fallback automático. Revisá la redacción antes de exportar.'; $('#warning').classList.remove('is-hidden'); } else $('#warning').classList.add('is-hidden');
