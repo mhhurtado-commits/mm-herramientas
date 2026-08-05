@@ -7,6 +7,11 @@ import {
   normalizarFixtureAPIFootball,
   deduplicarYOrdenarPartidos,
 } from './football-daily.mjs';
+import {
+  buildPlateEditorialPrompt,
+  normalizeEditorialResponse,
+  deterministicEditorialResponse,
+} from './placas-v2.mjs';
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -6000,6 +6005,7 @@ export default {
     if(path==="/visual/generar")                     return handleVisualGenerar(body, env);
     if(path==="/visual/extraer")                     return handleVisualExtraer(body, env);
     if(path==="/visual/ilustrar")                    return handleVisualIlustrar(body, env);
+    if(path==="/placas/v2/generar")                  return handlePlacasV2Generar(body, env);
 
     return jsonError("Ruta no encontrada",404);
   },
@@ -6154,4 +6160,26 @@ Respondé SOLO con el JSON.`;
     modo,
     url
   });
+}
+
+// ============================================================
+// PLACAS V2 - propuesta editorial versionada
+// POST /placas/v2/generar { nota: { ...respuesta de extracción... } }
+// ============================================================
+async function handlePlacasV2Generar(body, env) {
+  const note = body?.nota && typeof body.nota === 'object' ? body.nota : body;
+  const hasContent = String(note?.url || note?.title || note?.titulo || note?.body || note?.texto || '').trim();
+  if (!hasContent) return jsonError('Falta la nota extraída', 400);
+
+  const fallback = deterministicEditorialResponse(note);
+  try {
+    const result = await callGemini(buildPlateEditorialPrompt(note), env);
+    if (result.error || !result.data || typeof result.data !== 'object') {
+      return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'] });
+    }
+    const placa = normalizeEditorialResponse(result.data, note);
+    return jsonOk({ placa, warnings: [] });
+  } catch (error) {
+    return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'] });
+  }
 }

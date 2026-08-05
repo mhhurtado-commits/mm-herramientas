@@ -1,0 +1,58 @@
+/* Placas V2 consumes the suite design system from ../style.css. */
+:root {
+  --green: var(--v);
+  --green-dark: var(--v-dark);
+  --ink: var(--text);
+  --paper: var(--bg);
+  --line: var(--line2);
+  --white: var(--surface);
+  --shadow: var(--shadow-lg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.topbar { background: var(--surface); border-bottom-color: var(--line); box-shadow: var(--shadow-sm); }
+.brand, .tool-name, .back { color: var(--text); }
+.brand-logo { width: 34px; height: 34px; object-fit: contain; display: block; }
+.brand-mark { background: var(--v); color: var(--text); }
+.divider { background: var(--line); }
+.beta { color: var(--v-dark); background: var(--vl); }
+.back { border-color: var(--line); }
+.back:hover { border-color: var(--v); background: var(--vl); }
+
+.eyebrow { color: var(--v-dark); letter-spacing: .14em; }
+h1, h2, .step strong, .empty-state strong { color: var(--text); }
+h1 em { color: var(--v-dark); }
+.lead, .step small, .hint, .empty-state span, .preview-foot { color: var(--muted); }
+.hero-note { color: var(--dim); border-color: var(--line); background: var(--surface); }
+.live-dot { background: var(--v); box-shadow: 0 0 0 4px var(--vl); }
+
+.panel, .preview-panel { background: var(--surface); border-color: var(--line); box-shadow: var(--shadow-sm); }
+.step > span { color: var(--v-dark); background: var(--vl); }
+.url-row input, .field textarea { background: var(--surface); border-color: var(--line); color: var(--text); font-family: var(--font-body); }
+.url-row input:focus, .field textarea:focus { border-color: var(--v); box-shadow: 0 0 0 3px var(--vl); }
+.url-row input::placeholder, .field textarea::placeholder { color: var(--dim); }
+.icon-button, .primary { background: var(--v); color: var(--text); }
+.icon-button:hover, .primary:hover { background: var(--v-dark); color: var(--surface); }
+.secondary { background: var(--surface); color: var(--text); border-color: var(--line); }
+.secondary:hover { border-color: var(--v); background: var(--vl); }
+.variant-card, .format-option, .image-option { background: var(--surface); border-color: var(--line); }
+.variant-card:hover, .format-option:hover, .image-option:hover { border-color: var(--v); }
+.variant-card.is-selected, .format-option.is-selected, .image-option.is-selected { border-color: var(--v-dark); background: var(--vl); }
+.variant-card strong, .format-option strong, .image-option strong { color: var(--text); }
+.warning { background: var(--vl); color: var(--v-dark); border-color: var(--v); }
+.toast { background: var(--text); color: var(--surface); }
+.spinner { border-color: var(--line); border-top-color: var(--v-dark); }
+.preview-head { border-bottom-color: var(--line); }
+.family-badge { color: var(--v-dark); background: var(--vl); }
+.preview-foot { border-top-color: var(--line); }
+
+@media (max-width: 760px) {
+  .topbar { padding-inline: 18px; }
+  .tool-name, .divider { display: none; }
+  .back { margin-left: auto; }
+}

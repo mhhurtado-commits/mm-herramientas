@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Placas V2 · Media Mendoza</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="focus.css">
+  <link rel="stylesheet" href="root-alignment.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../index.html"><img class="brand-logo" src="../assets/logo.png" alt="Media Mendoza"><span>MEDIA MENDOZA</span></a>
+    <span class="divider"></span>
+    <span class="tool-name">Placas editoriales</span>
+    <span class="beta">V2 · BETA</span>
+    <a class="back" href="../placas/index.html">Editor clásico</a>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">GENERADOR EDITORIAL</p>
+        <h1>Una noticia.<br><em>Una placa con criterio.</em></h1>
+        <p class="lead">Pegá el link de la nota y construí una propuesta lista para publicar, con una identidad visual adaptada a cada sección.</p>
+      </div>
+      <div class="hero-note"><span class="live-dot"></span><span>La versión actual de Placas sigue disponible</span></div>
+    </section>
+
+    <section class="workspace">
+      <aside class="panel" aria-label="Controles de la placa">
+        <div class="step"><span>01</span><div><strong>Fuente de la noticia</strong><small>Partimos siempre de una URL</small></div></div>
+        <form id="newsForm" class="url-form">
+          <label for="newsUrl">Link de la nota</label>
+          <div class="url-row"><input id="newsUrl" type="url" required placeholder="https://mediamendoza.com/..." autocomplete="off"><button class="icon-button" type="submit" aria-label="Generar propuesta">→</button></div>
+          <p class="hint">Extraemos título, sección, cuerpo e imágenes disponibles.</p>
+        </form>
+
+        <div id="editorControls" class="controls is-hidden">
+          <div class="step"><span>02</span><div><strong>Elegí una dirección</strong><small>La recomendada aparece primero</small></div></div>
+          <div id="variantList" class="variants"></div>
+
+          <div class="control-block"><label>Formato de salida</label><div id="formatList" class="format-list"></div></div>
+          <div class="control-block"><label>Imagen de la nota</label><div id="imageList" class="image-list"></div><div id="focusControls" class="focus-controls is-hidden"><div><span>Foco horizontal</span><output id="focusXValue">50%</output></div><input id="focusX" type="range" min="0" max="100" value="50"><div><span>Foco vertical</span><output id="focusYValue">50%</output></div><input id="focusY" type="range" min="0" max="100" value="50"></div></div>
+
+          <div class="step edit-step"><span>03</span><div><strong>Ajustes editoriales</strong><small>La jerarquía se mantiene protegida</small></div></div>
+          <div class="field"><label for="titleInput">Titular</label><textarea id="titleInput" rows="3"></textarea></div>
+          <div class="field"><label for="dekInput">Bajada</label><textarea id="dekInput" rows="3"></textarea></div>
+          <div id="warning" class="warning is-hidden"></div>
+        </div>
+      </aside>
+
+      <section class="preview-panel">
+        <div class="preview-head"><div><p class="eyebrow">VISTA PREVIA</p><h2 id="previewTitle">Tu placa aparece acá</h2></div><span id="familyBadge" class="family-badge">Esperando una nota</span></div>
+        <div class="canvas-stage" id="stage"><div class="empty-state"><div class="empty-icon">↗</div><strong>Pegá una URL para empezar</strong><span>La propuesta se arma con el contenido real de la noticia.</span></div><canvas id="plateCanvas" class="is-hidden"></canvas><div id="loading" class="loading is-hidden"><span class="spinner"></span><span id="loadingText">Analizando la noticia…</span></div></div>
+        <div class="preview-foot"><span id="sourceLabel">Media Mendoza · Placas V2</span><div class="actions"><button id="copyButton" class="secondary" disabled>Copiar PNG</button><button id="downloadButton" class="primary" disabled>Descargar PNG <span>↓</span></button></div></div>
+      </section>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>
