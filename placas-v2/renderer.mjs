@@ -23,6 +23,15 @@ function coverImage(ctx, image, rect, focus = { x: 0.5, y: 0.5 }) {
   return true;
 }
 
+function containImage(ctx, image, rect) {
+  if (!image || !image.complete || !image.naturalWidth) return false;
+  const scale = Math.min(rect.w / image.naturalWidth, rect.h / image.naturalHeight);
+  const w = image.naturalWidth * scale;
+  const h = image.naturalHeight * scale;
+  ctx.drawImage(image, rect.x + (rect.w - w) / 2, rect.y + (rect.h - h) / 2, w, h);
+  return true;
+}
+
 function textLines(ctx, text, x, y, maxWidth, lineHeight, maxLines, font, color) {
   ctx.font = font;
   ctx.fillStyle = color;
@@ -46,18 +55,33 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.w, canvas.h);
 
-  ctx.fillStyle = family.secondary;
-  ctx.fillRect(0, 0, canvas.w, layout.header.y + layout.header.h + canvas.h * 0.018);
+  ctx.fillStyle = '#16201b';
+  ctx.fillRect(0, 0, canvas.w, layout.header.h);
   ctx.fillStyle = family.color;
-  ctx.fillRect(layout.header.x, layout.header.y + layout.header.h - canvas.h * 0.012, layout.header.w, canvas.h * 0.012);
+  ctx.fillRect(0, layout.header.h - Math.max(4, canvas.h * 0.004), canvas.w, Math.max(4, canvas.h * 0.004));
 
+  const headerMargin = canvas.w * 0.045;
+  ctx.fillStyle = family.color;
+  ctx.font = `700 ${Math.max(16, canvas.w * 0.016)}px ${fontFamily}`;
+  ctx.fillText(`MEDIAMENDOZA · ${String(family.label).toUpperCase()}`, headerMargin, layout.header.h * 0.38);
   ctx.fillStyle = '#ffffff';
-  ctx.font = `800 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
-  ctx.fillText('MEDIA MENDOZA', layout.header.x, layout.header.y + layout.header.h * 0.42);
+  ctx.font = `400 ${Math.max(22, canvas.w * 0.028)}px ${fontFamily}`;
+  ctx.fillText('Noticias confiables del sur mendocino', headerMargin, layout.header.h * 0.75);
+
+  const logoW = canvas.w * (canvas.w / canvas.h > 1.2 ? 0.18 : 0.28);
+  const logoH = layout.header.h * 0.62;
+  containImage(ctx, options.logo, {
+    x: canvas.w - headerMargin - logoW,
+    y: layout.header.h * 0.16,
+    w: logoW,
+    h: logoH,
+  });
+
+  /* Small family marker keeps the header legible when the logo is unavailable. */
   ctx.fillStyle = family.color;
   ctx.font = `900 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
   ctx.textAlign = 'right';
-  ctx.fillText(family.symbol, canvas.w - layout.header.x, layout.header.y + layout.header.h * 0.42);
+  ctx.fillText(family.symbol, canvas.w - headerMargin, layout.header.h * 0.92);
   ctx.textAlign = 'left';
 
   ctx.save();
@@ -105,13 +129,17 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, layout.context.y + canvas.h * 0.037, layout.context.w - canvas.w * 0.055, Math.max(16, canvas.w * 0.014) * 1.3, 2, `600 ${Math.max(16, canvas.w * 0.014)}px ${fontFamily}`, family.secondary);
   }
 
-  ctx.fillStyle = family.color;
-  ctx.fillRect(layout.footer.x, layout.footer.y, layout.footer.w * 0.22, Math.max(6, canvas.h * 0.006));
-  ctx.fillStyle = '#6a746c';
-  ctx.font = `500 ${Math.max(16, canvas.w * 0.012)}px ${fontFamily}`;
-  ctx.fillText('Noticias confiables del sur mendocino', layout.footer.x, layout.footer.y + layout.footer.h * 0.72);
+  ctx.strokeStyle = 'rgba(22,32,27,.16)';
+  ctx.lineWidth = Math.max(2, canvas.h * 0.001);
+  ctx.beginPath();
+  ctx.moveTo(layout.footer.x, layout.footer.y + layout.footer.h * 0.12);
+  ctx.lineTo(canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.12);
+  ctx.stroke();
+  ctx.fillStyle = '#526058';
+  ctx.font = `600 ${Math.max(14, canvas.w * 0.011)}px ${fontFamily}`;
+  ctx.fillText('Mediamendoza · Noticias confiables del sur mendocino', layout.footer.x, layout.footer.y + layout.footer.h * 0.68);
   ctx.textAlign = 'right';
-  ctx.fillText(plate.fuente?.url ? 'Fuente: noticia original' : 'Media Mendoza', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.72);
+  ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.68);
   ctx.textAlign = 'left';
   return layout;
 }

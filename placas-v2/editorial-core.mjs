@@ -144,14 +144,14 @@ export function fitTextToLines(text, maxCharsPerLine, maxLines) {
 export function calculatePlateLayout(format, plate = {}) {
   const canvas = FORMATS[format] || FORMATS.square;
   const margin = canvas.w * 0.055;
-  const headerH = canvas.h * 0.13;
-  const footerH = canvas.h * 0.045;
+  const headerH = canvas.h * (canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
+  const footerH = canvas.h * 0.07;
   const imageH = canvas.h * (plate.template_sugerido === 'general' ? 0.39 : 0.34);
   const contentY = headerH + imageH + canvas.h * 0.035;
   const contentH = canvas.h - contentY - footerH - margin;
   return {
     canvas,
-    header: { x: margin, y: margin, w: canvas.w - margin * 2, h: headerH - margin },
+    header: { x: 0, y: 0, w: canvas.w, h: headerH },
     image: { x: 0, y: headerH, w: canvas.w, h: imageH },
     label: { x: margin, y: contentY, w: canvas.w - margin * 2, h: canvas.h * 0.045 },
     title: { x: margin, y: contentY + canvas.h * 0.045, w: canvas.w - margin * 2, h: contentH * 0.42 },

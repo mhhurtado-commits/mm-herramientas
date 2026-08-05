@@ -15,9 +15,13 @@ body {
   font-family: var(--font-body);
 }
 
-.topbar { background: var(--surface); border-bottom-color: var(--line); box-shadow: var(--shadow-sm); }
-.brand, .tool-name, .back { color: var(--text); }
-.brand-logo { width: 34px; height: 34px; object-fit: contain; display: block; }
+.mm-header { background: var(--surface); border-bottom-color: var(--line); box-shadow: var(--shadow-sm); }
+.mm-header-brand, .mm-header-section, .mm-header-status { border-color: var(--line); }
+.mm-header-name { color: var(--text); opacity: .72; }
+.mm-header-label { color: var(--muted); }
+.mm-header-status .back { color: var(--text); border-color: var(--line); margin-left: 12px; padding: 7px 10px; }
+.mm-header-status .back:hover { border-color: var(--v); background: var(--vl); }
+.mm-header .beta { display: none; }
 .brand-mark { background: var(--v); color: var(--text); }
 .divider { background: var(--line); }
 .beta { color: var(--v-dark); background: var(--vl); }
@@ -52,7 +56,9 @@ h1 em { color: var(--v-dark); }
 .preview-foot { border-top-color: var(--line); }
 
 @media (max-width: 760px) {
-  .topbar { padding-inline: 18px; }
-  .tool-name, .divider { display: none; }
-  .back { margin-left: auto; }
+  .mm-header-brand { padding-inline: 16px; }
+  .mm-header-name { display: none; }
+  .mm-header-section { padding-inline: 16px; }
+  .mm-header-status { padding-inline: 12px; }
+  .mm-header-status .back { display: none; }
 }

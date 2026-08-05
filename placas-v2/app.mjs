@@ -2,8 +2,12 @@ import { buildEditorialVariants, normalizeNewsPlate, normalizeFocus, FORMATS } f
 import { renderNewsPlate } from './renderer.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '' };
+const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null };
 const $ = selector => document.querySelector(selector);
+
+const logoImage = new Image();
+logoImage.onload = () => { state.logo = logoImage; if (state.plate) render(); };
+logoImage.src = '../assets/logo.png';
 
 function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2800); }
 function setLoading(on, message = 'Analizando la noticia…') { $('#loading').classList.toggle('is-hidden', !on); $('#loadingText').textContent = message; }
@@ -64,7 +68,7 @@ function render() {
   const variant = activeVariant();
   if (!variant) return;
   const canvas = $('#plateCanvas');
-  renderNewsPlate(canvas.getContext('2d'), variant, state.format, { image: state.image, focus: activeFocus() });
+  renderNewsPlate(canvas.getContext('2d'), variant, state.format, { image: state.image, focus: activeFocus(), logo: state.logo });
   canvas.classList.remove('is-hidden'); $('.empty-state').classList.add('is-hidden');
   $('#previewTitle').textContent = variant.titulo || 'Placa editorial';
   $('#familyBadge').textContent = `${variant.etiqueta} · ${FORMATS[state.format].label}`;
