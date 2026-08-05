@@ -54,6 +54,9 @@ h1 em { color: var(--v-dark); }
 .preview-head { border-bottom-color: var(--line); }
 .family-badge { color: var(--v-dark); background: var(--vl); }
 .preview-foot { border-top-color: var(--line); }
+.canvas-stage canvas { cursor: grab; touch-action: none; }
+.canvas-stage canvas.is-dragging { cursor: grabbing; }
+.focus-controls { display: none !important; }
 
 @media (max-width: 760px) {
   .mm-header-brand { padding-inline: 16px; }

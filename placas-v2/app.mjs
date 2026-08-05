@@ -1,8 +1,8 @@
-import { buildEditorialVariants, normalizeNewsPlate, normalizeFocus, FORMATS } from './editorial-core.mjs';
+import { buildEditorialVariants, normalizeNewsPlate, normalizeFocus, calculatePlateLayout, FORMATS } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null };
+const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, imagePositioned: false, drag: null };
 const $ = selector => document.querySelector(selector);
 
 const logoImage = new Image();
@@ -58,7 +58,7 @@ function renderImages() {
   $('#imageList').innerHTML = images.length ? images.map((image, index) => `<button class="image-option ${index === state.imageIndex ? 'active' : ''}" type="button" data-image="${index}" title="Imagen ${index + 1}"><img src="${image}" alt=""></button>`).join('') : '<span class="image-empty">La noticia no tiene imágenes disponibles.</span>';
   $('#focusControls').classList.toggle('is-hidden', !images.length);
   renderFocus();
-  document.querySelectorAll('.image-option').forEach(button => button.addEventListener('click', () => { state.imageIndex = Number(button.dataset.image); renderImages(); loadImage(images[state.imageIndex]); }));
+  document.querySelectorAll('.image-option').forEach(button => button.addEventListener('click', () => { state.imageIndex = Number(button.dataset.image); state.imagePositioned = false; renderImages(); loadImage(images[state.imageIndex]); }));
 }
 
 function renderFocus() { const focus = activeFocus(); $('#focusX').value = Math.round(focus.x * 100); $('#focusY').value = Math.round(focus.y * 100); $('#focusXValue').textContent = `${Math.round(focus.x * 100)}%`; $('#focusYValue').textContent = `${Math.round(focus.y * 100)}%`; }
@@ -68,7 +68,7 @@ function render() {
   const variant = activeVariant();
   if (!variant) return;
   const canvas = $('#plateCanvas');
-  renderNewsPlate(canvas.getContext('2d'), variant, state.format, { image: state.image, focus: activeFocus(), logo: state.logo });
+  renderNewsPlate(canvas.getContext('2d'), variant, state.format, { image: state.image, focus: activeFocus(), logo: state.logo, forceCover: state.imagePositioned });
   canvas.classList.remove('is-hidden'); $('.empty-state').classList.add('is-hidden');
   $('#previewTitle').textContent = variant.titulo || 'Placa editorial';
   $('#familyBadge').textContent = `${variant.etiqueta} · ${FORMATS[state.format].label}`;
@@ -87,7 +87,7 @@ async function generate(event) {
     const result = await generateEditorial(note);
     state.plate = normalizeNewsPlate(result.placa || note);
     state.variants = buildEditorialVariants(state.plate);
-    state.selectedVariant = 0; state.imageIndex = 0;
+    state.selectedVariant = 0; state.imageIndex = 0; state.imagePositioned = false;
     $('#editorControls').classList.remove('is-hidden');
     renderVariants(); renderFormats(); renderImages(); syncEditor();
     if (result.warnings?.length) { $('#warning').textContent = 'La propuesta se generó con fallback automático. Revisá la redacción antes de exportar.'; $('#warning').classList.remove('is-hidden'); } else $('#warning').classList.add('is-hidden');
@@ -105,3 +105,34 @@ $('#dekInput').addEventListener('input', event => setActiveText('bajada', event.
 $('#focusX').addEventListener('input', event => setFocus('x', event.target.value));
 $('#focusY').addEventListener('input', event => setFocus('y', event.target.value));
 $('#downloadButton').addEventListener('click', download); $('#copyButton').addEventListener('click', copy);
+
+const plateCanvas = $('#plateCanvas');
+plateCanvas.title = 'Arrastrá la foto para ajustar el encuadre';
+plateCanvas.addEventListener('pointerdown', event => {
+  if (!state.image || !activeVariant()) return;
+  const bounds = plateCanvas.getBoundingClientRect();
+  const point = {
+    x: (event.clientX - bounds.left) * plateCanvas.width / bounds.width,
+    y: (event.clientY - bounds.top) * plateCanvas.height / bounds.height,
+  };
+  const imageRect = calculatePlateLayout(state.format, activeVariant()).image;
+  if (point.y < imageRect.y || point.y > imageRect.y + imageRect.h) return;
+  state.drag = { clientX: event.clientX, clientY: event.clientY, focus: activeFocus() };
+  state.imagePositioned = true;
+  plateCanvas.setPointerCapture(event.pointerId);
+  plateCanvas.classList.add('is-dragging');
+});
+plateCanvas.addEventListener('pointermove', event => {
+  if (!state.drag) return;
+  const bounds = plateCanvas.getBoundingClientRect();
+  const dx = (event.clientX - state.drag.clientX) / bounds.width;
+  const dy = (event.clientY - state.drag.clientY) / bounds.height;
+  const variant = activeVariant();
+  const imageBlock = variant?.bloques?.find(block => block.tipo === 'imagen');
+  if (!imageBlock) return;
+  imageBlock.foco = normalizeFocus({ x: state.drag.focus.x - dx * 1.25, y: state.drag.focus.y - dy * 1.25 });
+  render();
+});
+const stopDragging = () => { state.drag = null; plateCanvas.classList.remove('is-dragging'); };
+plateCanvas.addEventListener('pointerup', stopDragging);
+plateCanvas.addEventListener('pointercancel', stopDragging);
