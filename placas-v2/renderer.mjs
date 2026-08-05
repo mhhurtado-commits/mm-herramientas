@@ -166,8 +166,8 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillText(String(plate.etiqueta || family.label).toUpperCase(), layout.label.x, layout.label.y + layout.label.h * 0.72);
 
   const titleStart = Math.max(34, canvas.w * (format === 'story' ? 0.047 : format === 'square' ? 0.055 : 0.052));
-  const titleMin = Math.max(28, canvas.w * (format === 'story' ? 0.028 : 0.032));
-  const titleMaxLines = format === 'story' ? 6 : format === 'square' ? 4 : 5;
+  const titleMin = Math.max(24, canvas.w * (format === 'story' ? 0.022 : 0.024));
+  const titleMaxLines = 3;
   const titleFit = fittedText(ctx, plate.titulo, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, titleMaxLines, 800, family.secondary);
   const dekStart = Math.max(22, canvas.w * (format === 'square' ? 0.024 : 0.022));
   const dekMin = Math.max(18, canvas.w * 0.016);
