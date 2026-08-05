@@ -174,11 +174,19 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   const dekY = Math.max(layout.dek.y + dekStart, layout.title.y + titleFit.size + titleFit.lineHeight * titleFit.lines.length + canvas.h * 0.018);
   const dekFit = fittedText(ctx, plate.bajada, layout.dek.x, dekY, layout.dek.w, dekStart, dekMin, format === 'story' ? 4 : 3, 500, '#526058', 1.35);
   if (plate.contexto) {
-    const contextY = Math.max(layout.context.y, dekY + dekFit.lineHeight * dekFit.lines.length + canvas.h * 0.022);
+    const contextGap = canvas.h * 0.022;
+    const contextPreferredY = Math.max(layout.context.y, dekY + dekFit.lineHeight * dekFit.lines.length + contextGap);
+    const contextPad = canvas.h * 0.037;
+    const footerSafeY = layout.footer.y - canvas.h * 0.035;
+    const contextMin = Math.max(12, canvas.w * 0.01);
+    const contextMaxY = footerSafeY - contextPad - contextMin * 1.3;
+    const contextY = Math.max(dekY + dekFit.lineHeight * dekFit.lines.length + contextGap, Math.min(contextPreferredY, contextMaxY));
     ctx.fillStyle = family.color;
     ctx.fillRect(layout.context.x, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
-    const contextSize = Math.max(16, canvas.w * (format === 'square' ? 0.015 : 0.014));
-    textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + canvas.h * 0.037, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
+    const contextStart = Math.max(16, canvas.w * (format === 'square' ? 0.015 : 0.014));
+    const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
+    const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
+    textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
   }
 
   ctx.strokeStyle = 'rgba(22,32,27,.16)';
