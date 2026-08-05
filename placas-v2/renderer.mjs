@@ -180,13 +180,16 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     const footerSafeY = layout.footer.y - canvas.h * 0.035;
     const contextMin = Math.max(12, canvas.w * 0.01);
     const contextMaxY = footerSafeY - contextPad - contextMin * 1.3;
-    const contextY = Math.max(dekY + dekFit.lineHeight * dekFit.lines.length + contextGap, Math.min(contextPreferredY, contextMaxY));
-    ctx.fillStyle = family.color;
-    ctx.fillRect(layout.context.x, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
-    const contextStart = Math.max(16, canvas.w * (format === 'square' ? 0.015 : 0.014));
-    const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
-    const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
-    textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
+    const contextMinY = dekY + dekFit.lineHeight * dekFit.lines.length + contextGap;
+    if (contextMinY <= contextMaxY) {
+      const contextY = Math.min(contextPreferredY, contextMaxY);
+      ctx.fillStyle = family.color;
+      ctx.fillRect(layout.context.x, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
+      const contextStart = Math.max(16, canvas.w * (format === 'square' ? 0.015 : 0.014));
+      const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
+      const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
+      textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
+    }
   }
 
   ctx.strokeStyle = 'rgba(22,32,27,.16)';
