@@ -1,4 +1,4 @@
-const { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays, climateSocialBackgroundKey, climateSocialVisibleDays, climateSocialFormatConfig } = require('./climate.js');
+const { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays, climateSocialBackgroundKey, climateSocialVisibleDays, climateSocialFormatConfig, climateRenderIsCurrent } = require('./climate.js');
 
 const normalized = normalizarClimateSMN({
   ok: true,
@@ -61,5 +61,6 @@ if (climateSocialBackgroundKey({ type: 'cloud', isDay: false }) !== 'nublado-noc
 if (climateSocialVisibleDays([1, 2, 3, 4]).length !== 3) throw new Error('Social forecast should show three days');
 if (climateSocialFormatConfig('landscape').w !== 2400 || climateSocialFormatConfig('landscape').h !== 1260) throw new Error('Facebook landscape format should be 2400x1260');
 if (climateSocialFormatConfig('story').h !== 1920) throw new Error('Story format should remain 1080x1920');
+if (climateRenderIsCurrent(7, 8) || !climateRenderIsCurrent(8, 8)) throw new Error('Stale climate renders must not repaint the active canvas');
 
 console.log('climate.test.js: OK');

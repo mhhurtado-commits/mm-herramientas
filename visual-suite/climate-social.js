@@ -4,6 +4,7 @@
 
 const CLIMATE_SOCIAL_PHOTO_BASE = '../assets/clima/social/';
 const climateSocialPhotoCache = new Map();
+let climateSocialRenderId = 0;
 
 function climateSocialData() {
   return typeof window !== 'undefined' && typeof window.getClimateData === 'function'
@@ -229,8 +230,8 @@ function socialDrawFooter(ctx, W, H) {
   if (typeof VS_CanvasHelpers !== 'undefined' && VS_CanvasHelpers.drawFooter) VS_CanvasHelpers.drawFooter(ctx, W, H, true, { onField: true });
 }
 
-function drawClimateSocial(ctx, W, H, data, image) {
-  const format = climateSocialFormat();
+function drawClimateSocial(ctx, W, H, data, image, formatOverride) {
+  const format = formatOverride || climateSocialFormat();
   const narrow = format.cssAR === '9 / 16';
   const wide = format.cssAR === '1.91 / 1';
   const M = W * (wide ? .045 : .055);
@@ -290,7 +291,8 @@ function drawClimateSocial(ctx, W, H, data, image) {
   socialDrawFooter(ctx, W, H);
 }
 
-async function renderClimateSocial() {
+async function renderClimateSocial(parentRenderId) {
+  const socialRenderId = ++climateSocialRenderId;
   const canvas = document.getElementById('climateCanvas');
   const area = document.getElementById('climateArea');
   if (!canvas || !area) return;
@@ -305,8 +307,11 @@ async function renderClimateSocial() {
   const key = socialBackgroundKey(data?.actual);
   const image = await climateSocialPhoto(key);
   if (typeof window !== 'undefined' && typeof window.preloadClimateIcons === 'function') await window.preloadClimateIcons(data);
+  if (socialRenderId !== climateSocialRenderId) return;
+  if (parentRenderId != null && typeof window !== 'undefined' && typeof window.isClimateRenderCurrent === 'function' && !window.isClimateRenderCurrent(parentRenderId)) return;
+  if (typeof window !== 'undefined' && typeof window.getClimateStyle === 'function' && window.getClimateStyle() !== 'social') return;
   if (document.getElementById('climateCanvas') !== canvas) return;
-  drawClimateSocial(canvas.getContext('2d'), format.w, format.h, data, image);
+  drawClimateSocial(canvas.getContext('2d'), format.w, format.h, data, image, format);
 }
 
 async function exportClimateSocial() {
@@ -318,7 +323,7 @@ async function exportClimateSocial() {
   const canvas = document.createElement('canvas');
   canvas.width = format.w;
   canvas.height = format.h;
-  drawClimateSocial(canvas.getContext('2d'), format.w, format.h, data, image);
+  drawClimateSocial(canvas.getContext('2d'), format.w, format.h, data, image, format);
   canvas.toBlob(blob => {
     if (!blob) return toast('No se pudo exportar la placa social de clima');
     const url = URL.createObjectURL(blob);

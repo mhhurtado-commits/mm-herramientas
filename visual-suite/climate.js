@@ -10,8 +10,13 @@ let climateFormat = 'square';
 let climateStyle = 'informativa';
 let climateLoading = false;
 let climateRequestId = 0;
+let climateRenderId = 0;
 const climateIconCache = new Map();
 const climateIconPromises = new Map();
+
+function climateRenderIsCurrent(renderId, activeRenderId) {
+  return renderId === activeRenderId;
+}
 
 const CLIMATE_WMO = {
   sun: { label: 'Despejado', glyph: '☀', color: '#ffd166' },
@@ -728,16 +733,18 @@ function dibujarClimateCanvas(ctx, W, H) {
 }
 
 function renderClimate() {
+  const renderId = ++climateRenderId;
   const canvas = document.getElementById('climateCanvas');
   const area = document.getElementById('climateArea');
   if (!canvas || !area) return;
-  if (climateStyle === 'social' && typeof window !== 'undefined' && typeof window.renderClimateSocial === 'function') return window.renderClimateSocial();
+  if (climateStyle === 'social' && typeof window !== 'undefined' && typeof window.renderClimateSocial === 'function') return window.renderClimateSocial(renderId);
   const format = climateFormatConfig();
   const ratio = format.w / format.h;
   const width = Math.max(280, area.clientWidth || 700);
   canvas.width = format.w; canvas.height = format.h; canvas.style.width = '100%'; canvas.style.height = `${Math.round(width / ratio)}px`;
   dibujarClimateCanvas(canvas.getContext('2d'), format.w, format.h);
   preloadClimateIcons(climateData).then(() => {
+    if (!climateRenderIsCurrent(renderId, climateRenderId) || climateStyle !== 'informativa') return;
     if (document.getElementById('climateCanvas') === canvas) dibujarClimateCanvas(canvas.getContext('2d'), format.w, format.h);
   });
 }
@@ -785,6 +792,7 @@ if (typeof window !== 'undefined') {
   window.climateSocialBackgroundKey = climateSocialBackgroundKey;
   window.climateSocialVisibleDays = climateSocialVisibleDays;
   window.climateSocialFormatConfig = climateSocialFormatConfig;
+  window.isClimateRenderCurrent = renderId => climateRenderIsCurrent(renderId, climateRenderId);
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays, climateSocialBackgroundKey, climateSocialVisibleDays, climateSocialFormatConfig };
+if (typeof module !== 'undefined') module.exports = { normalizarClimateSMN, climateTypeFromSmnCode, climateIconCodeForTime, climateForecastLayout, climateLongDate, climateHeaderMeta, climateDayCardMetrics, climateTodayCardMetrics, climateHeroLayout, climateCardPeriods, climateVisibleDays, climateSocialBackgroundKey, climateSocialVisibleDays, climateSocialFormatConfig, climateRenderIsCurrent };
