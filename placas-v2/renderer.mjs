@@ -185,7 +185,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
       const contextY = Math.min(contextPreferredY, contextMaxY);
       ctx.fillStyle = family.color;
       ctx.fillRect(layout.context.x, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
-      const contextStart = Math.max(16, canvas.w * (format === 'square' ? 0.015 : 0.014));
+      const contextStart = Math.max(18, canvas.w * (format === 'portrait' ? 0.018 : format === 'square' ? 0.016 : 0.014));
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
       const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
       textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
@@ -199,7 +199,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.lineTo(canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.12);
   ctx.stroke();
   ctx.fillStyle = '#526058';
-  ctx.font = `700 ${Math.max(20, canvas.w * 0.016)}px ${fontFamily}`;
+  ctx.font = `700 ${Math.max(24, canvas.w * 0.019)}px ${fontFamily}`;
   ctx.textAlign = 'right';
   ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.68);
   ctx.textAlign = 'left';
