@@ -81,6 +81,8 @@ test('usa una composición más compacta para historias', () => {
   assert.ok(story.image.h > portrait.image.h);
   assert.ok(story.footer.h < portrait.footer.h);
   assert.ok(story.context.y / story.canvas.h < portrait.context.y / portrait.canvas.h);
+  assert.ok((story.dek.y - story.label.y) / (story.canvas.h - story.label.y - story.footer.h) < 0.4);
+  assert.ok((story.context.y - story.label.y) / (story.canvas.h - story.label.y - story.footer.h) < 0.6);
 });
 
 test('ajusta textos largos a un máximo de líneas con truncado legible', () => {

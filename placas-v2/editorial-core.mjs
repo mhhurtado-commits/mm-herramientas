@@ -154,9 +154,9 @@ export function calculatePlateLayout(format, plate = {}) {
   const contentH = canvas.h - contentY - footerH - margin;
   const labelH = canvas.h * (isStory ? 0.038 : 0.045);
   const titleH = contentH * (isStory ? 0.40 : 0.42);
-  const dekY = contentY + contentH * (isStory ? 0.42 : 0.48);
+  const dekY = contentY + contentH * (isStory ? 0.34 : 0.48);
   const dekH = contentH * (isStory ? 0.22 : 0.26);
-  const contextY = contentY + contentH * (isStory ? 0.68 : 0.78);
+  const contextY = contentY + contentH * (isStory ? 0.53 : 0.78);
   return {
     canvas,
     header: { x: 0, y: 0, w: canvas.w, h: headerH },

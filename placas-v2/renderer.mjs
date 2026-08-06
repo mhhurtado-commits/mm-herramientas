@@ -169,7 +169,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   const titleMin = Math.max(24, canvas.w * (format === 'story' ? 0.022 : 0.024));
   const titleMaxLines = 3;
   const titleFit = fittedText(ctx, plate.titulo, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, titleMaxLines, 800, family.secondary);
-  const dekStart = Math.max(22, canvas.w * (format === 'story' ? 0.026 : format === 'square' ? 0.024 : 0.022));
+  const dekStart = Math.max(22, canvas.w * (format === 'story' ? 0.029 : format === 'square' ? 0.024 : 0.022));
   const dekMin = Math.max(18, canvas.w * 0.016);
   const dekY = Math.max(layout.dek.y + dekStart, layout.title.y + titleFit.size + titleFit.lineHeight * titleFit.lines.length + canvas.h * 0.018);
   const dekFit = fittedText(ctx, plate.bajada, layout.dek.x, dekY, layout.dek.w, dekStart, dekMin, format === 'story' ? 4 : 3, 500, '#526058', 1.35);
@@ -184,16 +184,20 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     const contextMinY = dekY + dekFit.lineHeight * dekFit.lines.length + contextGap;
     if (contextMinY <= contextMaxY) {
       const contextY = Math.min(contextPreferredY, contextMaxY);
-      if (isStory) {
-        ctx.fillStyle = family.soft;
-        roundedRect(ctx, layout.context.x - canvas.w * 0.018, contextY - canvas.h * 0.014, layout.context.w + canvas.w * 0.036, Math.min(canvas.h * 0.12, footerSafeY - contextY - canvas.h * 0.008), canvas.w * 0.012);
-        ctx.fill();
-      }
       ctx.fillStyle = family.color;
       ctx.fillRect(layout.context.x, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
-      const contextStart = Math.max(22, canvas.w * (isStory ? 0.0205 : format === 'portrait' ? 0.018 : format === 'square' ? 0.016 : 0.014));
+      const contextStart = Math.max(22, canvas.w * (isStory ? 0.022 : format === 'portrait' ? 0.018 : format === 'square' ? 0.016 : 0.014));
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
       const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
+      if (isStory) {
+        const contextBoxH = Math.min(
+          canvas.h * 0.09,
+          Math.max(canvas.h * 0.055, footerSafeY - contextY - canvas.h * 0.008, contextPad + contextSize * 1.3 * 2 + canvas.h * 0.018),
+        );
+        ctx.fillStyle = family.soft;
+        roundedRect(ctx, layout.context.x - canvas.w * 0.018, contextY - canvas.h * 0.014, layout.context.w + canvas.w * 0.036, contextBoxH, canvas.w * 0.012);
+        ctx.fill();
+      }
       textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
     }
   }
