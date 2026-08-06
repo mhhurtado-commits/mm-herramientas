@@ -60,6 +60,8 @@ test('normaliza copys de redes con CTA, emojis y enlace editorial', () => {
   }, longNote);
 
   assert.match(result.redes.instagram, /🚨/);
+  assert.match(result.redes.instagram, /¿Qué opinás\?/);
+  assert.ok((result.redes.instagram.match(/#[\p{L}\d_]+/gu) || []).length >= 3);
   assert.match(result.redes.facebook, /comentarios/i);
   assert.doesNotMatch(result.redes.facebook, /\[enlace\]/i);
   assert.match(result.redes.facebook, /https:\/\/mediamendoza\.com\/policiales\/251300$/);

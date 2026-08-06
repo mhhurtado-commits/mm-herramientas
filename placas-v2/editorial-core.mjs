@@ -71,6 +71,11 @@ function cleanArticleUrl(value) {
 function normalizeInstagramCopy(value, data, category) {
   let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}\n\n📲 Leé la nota completa en mediamendoza.com\n\n#MediaMendoza #${category}`;
   copy = copy.replace(/\[(?:enlace|link|url)\]/gi, cleanArticleUrl(data.fuente.url));
+  if (!/[¿?]|coment/i.test(copy)) copy += '\n\n💬 ¿Qué opinás?';
+  const tags = [...copy.matchAll(/#[\p{L}\d_]+/gu)].map(match => match[0]);
+  copy = copy.replace(/#[\p{L}\d_]+/gu, '').replace(/[ \t]+\n/g, '\n').trim();
+  const normalizedTags = [...new Set([...tags, '#MediaMendoza', `#${category}`, '#Noticias'])].slice(0, 5);
+  copy += `\n\n${normalizedTags.join(' ')}`;
   if (!/\p{Extended_Pictographic}/u.test(copy)) copy = `📰 ${copy}`;
   return copy;
 }

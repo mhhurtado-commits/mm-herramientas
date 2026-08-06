@@ -22,7 +22,8 @@ REGLAS:
 - NO inventes datos, cifras, citas, nombres ni contexto que no aparezca en la noticia.
 - Generá un titular breve, claro y atractivo, sin perder precisión.
 - Generá una bajada de una o dos frases y un contexto clave breve sólo si aporta información verificable.
-- Generá dos copys para acompañar la placa: Instagram debe ser breve, visual, usar 2 o 3 emojis con criterio y cerrar con hashtags; Facebook puede ser más explicativo, usar 1 o 2 emojis, incluir el contexto, invitar a comentar y cerrar con el enlace editorial limpio. Nunca escribas [enlace]: el sistema lo completa.
+- Generá dos copys para acompañar la placa con foco en engagement: Instagram debe tener 1 o 2 párrafos breves, 2 o 3 emojis pertinentes, una pregunta o invitación a participar y 3 a 5 hashtags relevantes; Facebook debe tener 2 o 3 párrafos breves, 1 o 2 emojis, una pregunta concreta para incentivar comentarios y el enlace editorial al final.
+- No inventes datos, citas ni preguntas que atribuyan hechos no presentes en la noticia. No uses [enlace], links completos ni llamados a la acción repetidos: el sistema normaliza el enlace y el CTA.
 - Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
