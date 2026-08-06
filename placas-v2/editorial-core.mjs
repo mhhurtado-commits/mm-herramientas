@@ -15,6 +15,13 @@ export const FAMILIES = {
   deportes: { id: 'deportes', label: 'Deportes', color: '#16806a', secondary: '#103c33', soft: '#d9f1eb', symbol: '↗' },
 };
 
+export const PLATE_TYPES = {
+  noticia: { id: 'noticia', label: 'Noticia' },
+  textual: { id: 'textual', label: 'Textual' },
+  'retrato-circular': { id: 'retrato-circular', label: 'Retrato circular' },
+  'editorial-split': { id: 'editorial-split', label: 'Editorial split' },
+};
+
 const FAMILY_ALIASES = new Map([
   ['clima', 'clima'], ['meteorologia', 'clima'], ['pronostico', 'clima'],
   ['policiales', 'policiales'], ['policial', 'policiales'], ['seguridad', 'policiales'],
@@ -49,6 +56,38 @@ function firstSentence(text) {
   if (!value) return '';
   const sentence = value.match(/^(.{1,220}?[.!?])(?:\s|$)/)?.[1];
   return clean(sentence || value.slice(0, 220));
+}
+
+function hasLiteral(body, quote) {
+  const source = clean(body);
+  const value = clean(quote);
+  if (!source || !value) return false;
+  const pattern = value.split(/\s+/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+');
+  return new RegExp(pattern, 'i').test(source);
+}
+
+function normalizeTextual(input, body) {
+  const source = input.textual && typeof input.textual === 'object' ? input.textual : input;
+  const cita = clean(source.cita || source.cita_textual || source.quote);
+  const verified = Boolean(cita && hasLiteral(body, cita));
+  return {
+    cita: verified ? cita : '',
+    autor: verified ? clean(source.autor || source.persona || source.author) : '',
+    cargo: verified ? clean(source.cargo || source.rol || source.role) : '',
+    verificada: verified,
+  };
+}
+
+function normalizePeople(input) {
+  const people = Array.isArray(input.personas) ? input.personas : [];
+  return people.map((person, index) => ({
+    id: clean(person.id) || `persona-${index + 1}`,
+    nombre: clean(person.nombre || person.name) || `Persona ${index + 1}`,
+    rol: clean(person.rol || person.cargo || person.role),
+    imagen: clean(person.imagen || person.image || person.src),
+    origen: person.origen === 'subida' ? 'subida' : 'nota',
+    foco: normalizeFocus(person.foco),
+  })).filter(person => person.imagen);
 }
 
 function socialText(value) {
@@ -101,7 +140,7 @@ function buildSocialCopies(data, input = {}) {
 }
 
 function buildBlocks(data, family, image) {
-  return [
+  const blocks = [
     { tipo: 'marca', id: 'marca' },
     { tipo: 'imagen', id: 'imagen', src: image || '', foco: { x: 0.5, y: 0.32 } },
     { tipo: 'etiqueta', id: 'etiqueta', texto: family.label },
@@ -109,7 +148,11 @@ function buildBlocks(data, family, image) {
     { tipo: 'bajada', id: 'bajada', texto: data.bajada },
     { tipo: 'contexto', id: 'contexto', texto: data.contexto },
     { tipo: 'fuente', id: 'fuente', texto: data.fuente.url || 'Media Mendoza' },
-  ].filter(block => block.tipo === 'imagen' ? Boolean(block.src) : block.tipo !== 'contexto' || Boolean(block.texto));
+  ];
+  if (data.textual?.verificada) blocks.push({ tipo: 'cita', id: 'cita', texto: data.textual.cita, autor: data.textual.autor, cargo: data.textual.cargo, verificada: true });
+  data.personas.forEach(person => blocks.push({ tipo: 'retrato', id: person.id, ...person }));
+  if (data.contexto) blocks.push({ tipo: 'dato-clave', id: 'dato-clave', texto: data.contexto });
+  return blocks.filter(block => block.tipo === 'imagen' ? Boolean(block.src) : block.tipo !== 'contexto' || Boolean(block.texto));
 }
 
 export function normalizeNewsPlate(input = {}) {
@@ -120,6 +163,10 @@ export function normalizeNewsPlate(input = {}) {
   const description = clean(input.bajada || input.description || source.description || source.descripcion);
   const body = clean(input.cuerpo || input.body || input.texto || input.contenido || input.content || input.articleBody || source.body || source.texto || source.contenido || source.content || source.articleBody || source.text);
   const url = clean(input.url || source.url);
+  const textual = normalizeTextual(input, body);
+  const personas = normalizePeople(input);
+  const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
+  const type = textual.verificada ? 'textual' : requestedType === 'editorial-split' ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const normalized = {
     tipo: 'placa_noticia',
     version: 1,
@@ -137,6 +184,9 @@ export function normalizeNewsPlate(input = {}) {
     etiqueta: family.label,
     contexto: clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description),
     template_sugerido: family.id,
+    tipo_placa: type,
+    textual,
+    personas,
     color_principal: family.color,
     color_secundario: family.secondary,
     bloques: [],
@@ -162,6 +212,18 @@ function cloneWithTemplate(plate, id, template, recommended = false) {
 }
 
 export function buildEditorialVariants(plate) {
+  if (plate.textual?.verificada || plate.personas?.length || plate.tipo_placa === 'editorial-split') {
+    const firstType = plate.textual?.verificada ? 'textual' : plate.tipo_placa === 'editorial-split' ? 'editorial-split' : 'noticia';
+    const variants = [
+      cloneWithTemplate({ ...plate, tipo_placa: firstType }, `${plate.template_sugerido}-${firstType}`, plate.template_sugerido, true),
+      cloneWithTemplate({ ...plate, tipo_placa: 'retrato-circular' }, `${plate.template_sugerido}-retrato`, plate.template_sugerido, false),
+      cloneWithTemplate({ ...plate, tipo_placa: 'editorial-split' }, `${plate.template_sugerido}-split`, plate.template_sugerido, false),
+    ];
+    return variants.map(variant => ({
+      ...variant,
+      bloques: [...variant.bloques, ...(variant.tipo_placa === 'editorial-split' ? [{ tipo: 'dato-clave', id: 'dato-clave', texto: variant.contexto }] : [])],
+    }));
+  }
   const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
   const alternative = family === 'general' ? 'sociales' : 'general';
   return [
@@ -208,7 +270,7 @@ export function calculatePlateLayout(format, plate = {}) {
   const dekY = contentY + contentH * (isStory ? 0.34 : 0.48);
   const dekH = contentH * (isStory ? 0.22 : 0.26);
   const contextY = contentY + contentH * (isStory ? 0.64 : 0.78);
-  return {
+  const baseLayout = {
     canvas,
     header: { x: 0, y: 0, w: canvas.w, h: headerH },
     image: { x: 0, y: imageY, w: canvas.w, h: imageH },
@@ -218,4 +280,10 @@ export function calculatePlateLayout(format, plate = {}) {
     context: { x: margin, y: contextY, w: canvas.w - margin * 2, h: contentH * (isStory ? 0.16 : 0.13) },
     footer: { x: margin, y: canvas.h - footerH, w: canvas.w - margin * 2, h: footerH - margin * 0.4 },
   };
+  const specialArea = {
+    quote: { x: margin, y: contentY + labelH, w: canvas.w - margin * 2, h: Math.max(0, contentH * 0.62) },
+    portraits: { x: margin, y: imageY + imageH * 0.58, w: canvas.w - margin * 2, h: Math.max(0, imageH * 0.34) },
+    split: { x: margin, y: contentY, w: canvas.w - margin * 2, h: Math.max(0, contentH) },
+  };
+  return { ...baseLayout, ...specialArea };
 }

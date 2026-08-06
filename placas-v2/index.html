@@ -43,12 +43,19 @@
           <div class="step"><span>02</span><div><strong>Elegí una dirección</strong><small>La recomendada aparece primero</small></div></div>
           <div id="variantList" class="variants"></div>
 
+          <div class="control-block"><label>Tipo de placa</label><div id="templateList" class="template-list"></div></div>
+
           <div class="control-block"><label>Formato de salida</label><div id="formatList" class="format-list"></div></div>
           <div class="control-block"><label>Imagen de la nota</label><div id="imageList" class="image-list"></div><div id="focusControls" class="focus-controls is-hidden"><div><span>Foco horizontal</span><output id="focusXValue">50%</output></div><input id="focusX" type="range" min="0" max="100" value="50"><div><span>Foco vertical</span><output id="focusYValue">50%</output></div><input id="focusY" type="range" min="0" max="100" value="50"></div></div>
 
           <div class="step edit-step"><span>03</span><div><strong>Ajustes editoriales</strong><small>La jerarquía se mantiene protegida</small></div></div>
           <div class="field"><label for="titleInput">Titular</label><textarea id="titleInput" rows="3"></textarea></div>
           <div class="field"><label for="dekInput">Bajada</label><textarea id="dekInput" rows="3"></textarea></div>
+          <div id="specialControls" class="special-controls is-hidden">
+            <div class="field"><label for="quoteInput">Cita textual literal</label><textarea id="quoteInput" rows="4" placeholder="La cita debe estar presente en el cuerpo de la nota"></textarea></div>
+            <div class="field-row"><div class="field"><label for="quoteAuthorInput">Persona</label><input id="quoteAuthorInput" type="text"></div><div class="field"><label for="quoteRoleInput">Cargo</label><input id="quoteRoleInput" type="text"></div></div>
+            <div class="people-editor"><div class="people-head"><label>Personas en círculos</label><small>Podés subir una imagen por persona</small></div><div id="peopleList"></div><div class="people-actions"><button id="addPersonButton" type="button" class="secondary">Agregar persona</button><label class="upload-people"><input id="peopleUpload" type="file" accept="image/*" multiple>Subir imágenes</label></div></div>
+          </div>
           <div id="socialCopies" class="social-copies is-hidden">
             <div class="social-copy-head"><div><label>Texto para redes</label><small>Variantes listas para acompañar la placa</small></div></div>
             <div class="social-copy-card"><div class="social-copy-title"><strong>Instagram</strong><button type="button" class="copy-social" data-network="instagram">Copiar</button></div><textarea id="instagramCopy" rows="6"></textarea></div>

@@ -2,7 +2,7 @@ import { buildEditorialVariants, normalizeNewsPlate, normalizeFocus, calculatePl
 import { renderNewsPlate } from './renderer.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, imagePositioned: true, drag: null };
+const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, imagePositioned: true, drag: null };
 const $ = selector => document.querySelector(selector);
 
 const logoImage = new Image();
@@ -46,11 +46,19 @@ async function loadImage(url) {
 function renderVariants() {
   $('#variantList').innerHTML = state.variants.map((variant, index) => `<button class="variant ${index === state.selectedVariant ? 'active' : ''}" data-index="${index}" type="button"><span class="variant-dot" style="background:${variant.color_principal}">${index === 0 ? '★' : index + 1}</span><span><strong>${index === 0 ? 'Propuesta recomendada' : `Alternativa ${index}`}</strong><small>${variant.etiqueta} · ${variant.template_sugerido}</small></span>${index === 0 ? '<span class="recommended">Sugerida</span>' : ''}</button>`).join('');
   document.querySelectorAll('.variant').forEach(button => button.addEventListener('click', () => { state.selectedVariant = Number(button.dataset.index); syncEditor(); render(); }));
+  renderTemplates();
 }
 
 function renderFormats() {
   $('#formatList').innerHTML = Object.entries(FORMATS).map(([key, format]) => `<button class="format ${state.format === key ? 'active' : ''}" type="button" data-format="${key}">${format.label}</button>`).join('');
   document.querySelectorAll('.format').forEach(button => button.addEventListener('click', () => { state.format = button.dataset.format; renderFormats(); render(); }));
+}
+
+function renderTemplates() {
+  const labels = { noticia: 'Noticia', textual: 'Textual', 'retrato-circular': 'Retrato circular', 'editorial-split': 'Editorial split' };
+  const current = activeVariant()?.tipo_placa || 'noticia';
+  $('#templateList').innerHTML = state.variants.map((variant, index) => `<button type="button" class="template-option ${current === variant.tipo_placa ? 'active' : ''}" data-template-index="${index}">${labels[variant.tipo_placa] || variant.tipo_placa}</button>`).join('');
+  document.querySelectorAll('.template-option').forEach(button => button.addEventListener('click', () => { state.selectedVariant = Number(button.dataset.templateIndex); syncEditor(); renderTemplates(); render(); }));
 }
 
 function renderImages() {
@@ -62,8 +70,18 @@ function renderImages() {
 }
 
 function renderFocus() { const focus = activeFocus(); $('#focusX').value = Math.round(focus.x * 100); $('#focusY').value = Math.round(focus.y * 100); $('#focusXValue').textContent = `${Math.round(focus.x * 100)}%`; $('#focusYValue').textContent = `${Math.round(focus.y * 100)}%`; }
+function renderPeople() {
+  const variant = activeVariant();
+  const people = variant?.personas || [];
+  $('#specialControls').classList.toggle('is-hidden', !['textual', 'retrato-circular', 'editorial-split'].includes(variant?.tipo_placa));
+  $('#quoteInput').value = variant?.textual?.cita || '';
+  $('#quoteAuthorInput').value = variant?.textual?.autor || '';
+  $('#quoteRoleInput').value = variant?.textual?.cargo || '';
+  $('#peopleList').innerHTML = people.length ? people.map(person => `<div class="person-row"><span class="person-dot" style="background:${variant.color_principal}"></span><div><input class="person-name" data-person="${person.id}" value="${person.nombre}" aria-label="Nombre de la persona"><input class="person-role" data-person="${person.id}" value="${person.rol || ''}" placeholder="Cargo o rol" aria-label="Cargo o rol"><small>${person.origen === 'subida' ? 'imagen subida' : 'imagen de la nota'}</small></div></div>`).join('') : '<small class="image-empty">No hay personas detectadas. Agregá una persona y subí su imagen.</small>';
+  document.querySelectorAll('[data-person]').forEach(input => input.addEventListener('input', event => { const person = variant.personas.find(item => item.id === event.target.dataset.person); if (!person) return; if (event.target.classList.contains('person-name')) person.nombre = event.target.value; else person.rol = event.target.value; render(); }));
+}
 function syncSocialCopies() { const variant = activeVariant(); const copies = variant?.redes || {}; const visible = Boolean(copies.instagram || copies.facebook); $('#socialCopies').classList.toggle('is-hidden', !visible); $('#instagramCopy').value = copies.instagram || ''; $('#facebookCopy').value = copies.facebook || ''; }
-function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); }
+function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderTemplates(); }
 function setSocialText(network, value) { const current = activeVariant(); if (!current) return; current.redes = { ...(current.redes || {}), [network]: value }; if (state.plate === current) state.plate.redes = current.redes; }
 async function copySocial(network) { const value = $(`#${network}Copy`).value.trim(); if (!value) return; try { await navigator.clipboard.writeText(value); toast(`Texto de ${network === 'instagram' ? 'Instagram' : 'Facebook'} copiado.`); } catch { toast('No se pudo copiar el texto.'); } }
 
@@ -71,7 +89,7 @@ function render() {
   const variant = activeVariant();
   if (!variant) return;
   const canvas = $('#plateCanvas');
-  renderNewsPlate(canvas.getContext('2d'), variant, state.format, { image: state.image, focus: activeFocus(), logo: state.logo, forceCover: state.imagePositioned });
+  renderNewsPlate(canvas.getContext('2d'), variant, state.format, { image: state.image, focus: activeFocus(), logo: state.logo, personImages: state.personImages, forceCover: state.imagePositioned });
   canvas.classList.remove('is-hidden'); $('.empty-state').classList.add('is-hidden');
   $('#previewTitle').textContent = variant.titulo || 'Placa editorial';
   $('#familyBadge').textContent = `${variant.etiqueta} · ${FORMATS[state.format].label}`;
@@ -90,7 +108,7 @@ async function generate(event) {
     const result = await generateEditorial(note);
     state.plate = normalizeNewsPlate(result.placa || note);
     state.variants = buildEditorialVariants(state.plate);
-    state.selectedVariant = 0; state.imageIndex = 0; state.imagePositioned = true;
+    state.selectedVariant = 0; state.imageIndex = 0; state.personImages = {}; state.imagePositioned = true;
     $('#editorControls').classList.remove('is-hidden');
     renderVariants(); renderFormats(); renderImages(); syncEditor();
     if (result.warnings?.length) { $('#warning').textContent = 'La propuesta se generó con fallback automático. Revisá la redacción antes de exportar.'; $('#warning').classList.remove('is-hidden'); } else $('#warning').classList.add('is-hidden');
@@ -105,12 +123,34 @@ async function copy() { try { const blob = await new Promise(resolve => $('#plat
 $('#newsForm').addEventListener('submit', generate);
 $('#titleInput').addEventListener('input', event => setActiveText('titulo', event.target.value));
 $('#dekInput').addEventListener('input', event => setActiveText('bajada', event.target.value));
+$('#quoteInput').addEventListener('input', event => { const variant = activeVariant(); if (!variant) return; variant.textual = { ...(variant.textual || {}), cita: event.target.value, verificada: Boolean(event.target.value.trim()) }; render(); });
+$('#quoteAuthorInput').addEventListener('input', event => { const variant = activeVariant(); if (!variant) return; variant.textual = { ...(variant.textual || {}), autor: event.target.value }; render(); });
+$('#quoteRoleInput').addEventListener('input', event => { const variant = activeVariant(); if (!variant) return; variant.textual = { ...(variant.textual || {}), cargo: event.target.value }; render(); });
 $('#instagramCopy').addEventListener('input', event => setSocialText('instagram', event.target.value));
 $('#facebookCopy').addEventListener('input', event => setSocialText('facebook', event.target.value));
 document.querySelectorAll('.copy-social').forEach(button => button.addEventListener('click', () => copySocial(button.dataset.network)));
 $('#focusX').addEventListener('input', event => setFocus('x', event.target.value));
 $('#focusY').addEventListener('input', event => setFocus('y', event.target.value));
 $('#downloadButton').addEventListener('click', download); $('#copyButton').addEventListener('click', copy);
+$('#peopleUpload').addEventListener('change', event => {
+  const variant = activeVariant();
+  if (!variant) return;
+  [...event.target.files].forEach((file, index) => {
+    const person = variant.personas?.[index];
+    if (!person) return;
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => { state.personImages[person.id] = image; person.imagen = objectUrl; person.origen = 'subida'; renderPeople(); render(); };
+    image.src = objectUrl;
+  });
+});
+$('#addPersonButton').addEventListener('click', () => {
+  const variant = activeVariant();
+  if (!variant) return;
+  variant.personas = [...(variant.personas || []), { id: `persona-${(variant.personas || []).length + 1}`, nombre: 'Nueva persona', rol: '', imagen: '', origen: 'subida', foco: { x: 0.5, y: 0.5 } }];
+  renderPeople();
+  render();
+});
 
 const plateCanvas = $('#plateCanvas');
 plateCanvas.title = 'Arrastrá la foto para ajustar el encuadre';
@@ -121,6 +161,24 @@ plateCanvas.addEventListener('pointerdown', event => {
     x: (event.clientX - bounds.left) * plateCanvas.width / bounds.width,
     y: (event.clientY - bounds.top) * plateCanvas.height / bounds.height,
   };
+  const variant = activeVariant();
+  if (variant.tipo_placa === 'retrato-circular' && variant.personas?.length) {
+    const area = calculatePlateLayout(state.format, variant).portraits;
+    const radius = Math.min(area.h * 0.48, plateCanvas.width * 0.105);
+    const gap = radius * 2.12;
+    const startX = area.x + area.w - radius - gap * (variant.personas.length - 1);
+    const index = variant.personas.findIndex((person, personIndex) => {
+      const cx = startX + gap * personIndex;
+      const cy = area.y + area.h * 0.5;
+      return Math.hypot(point.x - cx, point.y - cy) <= radius * 1.25;
+    });
+    if (index >= 0) {
+      state.drag = { kind: 'person', person: variant.personas[index], clientX: event.clientX, clientY: event.clientY, focus: normalizeFocus(variant.personas[index].foco) };
+      plateCanvas.setPointerCapture(event.pointerId);
+      plateCanvas.classList.add('is-dragging');
+      return;
+    }
+  }
   const imageRect = calculatePlateLayout(state.format, activeVariant()).image;
   if (point.y < imageRect.y || point.y > imageRect.y + imageRect.h) return;
   state.drag = { clientX: event.clientX, clientY: event.clientY, focus: activeFocus() };
@@ -134,6 +192,11 @@ plateCanvas.addEventListener('pointermove', event => {
   const dx = (event.clientX - state.drag.clientX) / bounds.width;
   const dy = (event.clientY - state.drag.clientY) / bounds.height;
   const variant = activeVariant();
+  if (state.drag.kind === 'person') {
+    state.drag.person.foco = normalizeFocus({ x: state.drag.focus.x - dx * 1.25, y: state.drag.focus.y - dy * 1.25 });
+    render();
+    return;
+  }
   const imageBlock = variant?.bloques?.find(block => block.tipo === 'imagen');
   if (!imageBlock) return;
   imageBlock.foco = normalizeFocus({ x: state.drag.focus.x - dx * 1.25, y: state.drag.focus.y - dy * 1.25 });

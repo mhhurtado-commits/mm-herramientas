@@ -91,8 +91,51 @@ function fittedText(ctx, text, x, y, maxWidth, startSize, minSize, maxLines, wei
   return { lines, size, lineHeight };
 }
 
+function drawCircularImage(ctx, image, cx, cy, radius, focus = { x: 0.5, y: 0.5 }) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = '#d9dfd8';
+  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+  coverImage(ctx, image, { x: cx - radius, y: cy - radius, w: radius * 2, h: radius * 2 }, focus);
+  ctx.restore();
+}
+
+function drawPortraits(ctx, layout, plate, family, options = {}) {
+  const people = Array.isArray(plate.personas) ? plate.personas.slice(0, 3) : [];
+  if (!people.length) return;
+  const area = layout.portraits;
+  const radius = Math.min(area.h * 0.48, layout.canvas.w * 0.105);
+  const gap = radius * 2.12;
+  const startX = area.x + area.w - radius - gap * (people.length - 1);
+  const cy = area.y + area.h * 0.5;
+  people.forEach((person, index) => {
+    const cx = startX + gap * index;
+    const image = options.personImages?.[person.id] || (person.origen === 'nota' ? options.image : null);
+    ctx.fillStyle = 'rgba(255,255,255,.96)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + layout.canvas.w * 0.012, 0, Math.PI * 2);
+    ctx.fill();
+    drawCircularImage(ctx, image, cx, cy, radius, person.foco);
+    ctx.strokeStyle = family.color;
+    ctx.lineWidth = Math.max(5, layout.canvas.w * 0.006);
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    if (person.nombre) {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `800 ${Math.max(18, layout.canvas.w * 0.015)}px ${fontFamily}`;
+      ctx.textAlign = 'center';
+      ctx.fillText(person.nombre, cx, cy + radius + layout.canvas.w * 0.035);
+      ctx.textAlign = 'left';
+    }
+  });
+}
+
 export function renderNewsPlate(ctx, plate, format, options = {}) {
   const family = FAMILIES[plate.template_sugerido] || FAMILIES.general;
+  const plateType = plate.tipo_placa || 'noticia';
   const layout = calculatePlateLayout(format, plate);
   const { canvas } = layout;
   ctx.canvas.width = canvas.w;
@@ -172,6 +215,8 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     });
   }
 
+  if (plateType === 'retrato-circular') drawPortraits(ctx, layout, plate, family, options);
+
   const cardX = layout.header.x;
   const cardY = layout.label.y - canvas.h * 0.018;
   const cardW = layout.header.w;
@@ -179,6 +224,13 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillStyle = 'rgba(255,255,255,.94)';
   roundedRect(ctx, cardX, cardY, cardW, cardH, canvas.w * 0.018);
   ctx.fill();
+  if (plateType === 'editorial-split') {
+    ctx.fillStyle = family.soft;
+    roundedRect(ctx, cardX + canvas.w * 0.025, cardY + canvas.h * 0.025, canvas.w * 0.34, cardH - canvas.h * 0.05, canvas.w * 0.014);
+    ctx.fill();
+    ctx.fillStyle = family.color;
+    ctx.fillRect(cardX + canvas.w * 0.025, cardY + canvas.h * 0.025, canvas.w * 0.012, cardH - canvas.h * 0.05);
+  }
 
   const labelText = String(plate.etiqueta || family.label).toUpperCase();
   const labelSize = Math.max(18, canvas.w * (format === 'landscape' ? 0.018 : 0.024));
@@ -202,14 +254,39 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     ctx.fillText(labelText, layout.label.x, layout.label.y + layout.label.h * 0.72);
   }
 
+  const textX = plateType === 'editorial-split' ? layout.title.x + canvas.w * 0.39 : layout.title.x;
+  const textW = plateType === 'editorial-split' ? layout.title.w - canvas.w * 0.39 : layout.title.w;
+  const contextX = plateType === 'editorial-split' ? layout.context.x + canvas.w * 0.39 : layout.context.x;
+  const contextW = plateType === 'editorial-split' ? layout.context.w - canvas.w * 0.39 : layout.context.w;
+  if (plateType === 'textual') {
+    const quote = plate.textual?.cita || plate.titulo;
+    const quoteArea = layout.quote;
+    ctx.fillStyle = family.color;
+    ctx.font = `900 ${Math.max(60, canvas.w * 0.09)}px Georgia, serif`;
+    ctx.fillText('“', quoteArea.x, quoteArea.y + canvas.h * 0.10);
+    const quoteStart = Math.max(38, canvas.w * (format === 'story' ? 0.052 : 0.048));
+    const quoteFit = fittedText(ctx, quote, quoteArea.x + canvas.w * 0.045, quoteArea.y + canvas.h * 0.105, quoteArea.w - canvas.w * 0.08, quoteStart, Math.max(24, canvas.w * 0.024), format === 'story' ? 5 : 4, 800, family.secondary, 1.12);
+    const attribution = [plate.textual?.autor, plate.textual?.cargo].filter(Boolean).join(' · ');
+    if (attribution) {
+      ctx.fillStyle = family.color;
+      ctx.font = `800 ${Math.max(22, canvas.w * 0.022)}px ${fontFamily}`;
+      ctx.fillText(`— ${attribution}`, quoteArea.x + canvas.w * 0.045, quoteArea.y + canvas.h * 0.105 + quoteFit.lines.length * quoteFit.lineHeight + canvas.h * 0.035);
+    }
+    if (plate.contexto) {
+      const contextY = Math.min(layout.context.y, layout.footer.y - canvas.h * 0.12);
+      ctx.fillStyle = family.color;
+      ctx.fillRect(layout.context.x, contextY, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
+      fittedText(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + canvas.h * 0.034, layout.context.w - canvas.w * 0.055, Math.max(24, canvas.w * 0.026), Math.max(18, canvas.w * 0.016), 2, 600, family.secondary, 1.28);
+    }
+  } else {
   const titleStart = Math.max(34, canvas.w * (format === 'story' ? 0.057 : format === 'square' ? 0.055 : 0.052));
   const titleMin = Math.max(24, canvas.w * (format === 'story' ? 0.024 : 0.024));
   const titleMaxLines = 3;
-  const titleFit = fittedText(ctx, plate.titulo, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, titleMaxLines, 800, family.secondary);
+  const titleFit = fittedText(ctx, plate.titulo, textX, layout.title.y + titleStart, textW, titleStart, titleMin, titleMaxLines, 800, family.secondary);
   const dekStart = Math.max(22, canvas.w * (format === 'story' ? 0.035 : format === 'portrait' ? 0.030 : format === 'square' ? 0.024 : 0.022));
   const dekMin = Math.max(18, canvas.w * (format === 'story' ? 0.022 : format === 'portrait' ? 0.020 : 0.016));
   const dekY = Math.max(layout.dek.y + dekStart, layout.title.y + titleFit.size + titleFit.lineHeight * titleFit.lines.length + canvas.h * 0.018);
-  const dekFit = fittedText(ctx, plate.bajada, layout.dek.x, dekY, layout.dek.w, dekStart, dekMin, format === 'story' ? 4 : 3, 500, '#526058', 1.35);
+  const dekFit = fittedText(ctx, plate.bajada, textX, dekY, textW, dekStart, dekMin, format === 'story' ? 4 : 3, 500, '#526058', 1.35);
   if (plate.contexto) {
     const isStory = format === 'story';
     const contextGap = canvas.h * (isStory ? 0.015 : 0.022);
@@ -234,13 +311,14 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
         ctx.fill();
       }
       ctx.fillStyle = family.color;
-      ctx.fillRect(layout.context.x, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
+      ctx.fillRect(contextX, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
       if (format === 'portrait') {
-        fittedText(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize, Math.max(26, canvas.w * 0.024), 2, 600, family.secondary, 1.3);
+        fittedText(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize, Math.max(26, canvas.w * 0.024), 2, 600, family.secondary, 1.3);
       } else {
-        textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
+        textLines(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
       }
     }
+  }
   }
 
   ctx.strokeStyle = 'rgba(22,32,27,.16)';

@@ -77,3 +77,23 @@ test('produce una propuesta determinística cuando la IA no está disponible', (
   assert.equal(result.fuente.imagen, note.image);
   assert.equal(result.warnings.includes('ia_no_disponible'), true);
 });
+
+test('el prompt exige citas literales y personas con imagen por círculo', () => {
+  const prompt = buildPlateEditorialPrompt({ ...note, body: 'La medida, dijo Ana Pérez, mejorará la situación.' });
+  assert.match(prompt, /literal/i);
+  assert.match(prompt, /textual/);
+  assert.match(prompt, /personas/);
+  assert.match(prompt, /retrato-circular/);
+  assert.match(prompt, /editorial-split/);
+});
+
+test('normaliza una respuesta textual verificable del worker', () => {
+  const result = normalizeEditorialResponse({
+    tipo_placa: 'textual',
+    textual: { cita: 'La obra comenzará durante el mes próximo', autor: 'Ana Pérez', cargo: 'Funcionaria' },
+    personas: [{ nombre: 'Ana Pérez', rol: 'Funcionaria', imagen: 'https://example.com/ana.jpg' }],
+  }, { ...note, body: 'La obra comenzará durante el mes próximo. Ana Pérez anunció la medida.' });
+  assert.equal(result.tipo_placa, 'textual');
+  assert.equal(result.textual.verificada, true);
+  assert.equal(result.personas.length, 1);
+});

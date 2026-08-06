@@ -109,3 +109,67 @@ test('normaliza el foco de recorte dentro del área segura', () => {
   assert.deepEqual(normalizeFocus({ x: '0.25', y: '0.75' }), { x: 0.25, y: 0.75 });
   assert.deepEqual(normalizeFocus(), { x: 0.5, y: 0.5 });
 });
+
+test('normaliza una cita literal y no inventa una cita inexistente', () => {
+  const quote = 'La obra comenzará durante el mes próximo';
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    textual: { cita: quote, autor: 'La autoridad', cargo: 'Funcionaria' },
+  });
+  assert.equal(plate.tipo_placa, 'textual');
+  assert.equal(plate.textual.cita, quote);
+  assert.equal(plate.textual.verificada, true);
+  assert.equal(plate.textual.autor, 'La autoridad');
+  assert.equal(plate.textual.cargo, 'Funcionaria');
+
+  const invalid = normalizeNewsPlate({ ...extracted, textual: { cita: 'Una frase inventada' } });
+  assert.equal(invalid.textual.cita, '');
+  assert.equal(invalid.textual.verificada, false);
+  assert.notEqual(invalid.tipo_placa, 'textual');
+});
+
+test('normaliza personas con imagen de nota o imagen cargada y foco seguro', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'retrato-circular',
+    personas: [
+      { nombre: 'Ana Pérez', rol: 'Intendenta', imagen: 'https://example.com/persona.jpg', origen: 'subida', foco: { x: 2, y: -1 } },
+      { nombre: 'Juan López', imagen: extracted.image, origen: 'nota' },
+    ],
+  });
+  assert.equal(plate.tipo_placa, 'retrato-circular');
+  assert.equal(plate.personas.length, 2);
+  assert.equal(plate.personas[0].origen, 'subida');
+  assert.deepEqual(plate.personas[0].foco, { x: 1, y: 0 });
+  assert.equal(plate.personas[1].origen, 'nota');
+  assert.ok(plate.bloques.some(block => block.tipo === 'retrato'));
+});
+
+test('ofrece tres composiciones editoriales cuando hay cita o personas', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    textual: { cita: 'La obra comenzará durante el mes próximo', autor: 'La autoridad' },
+    personas: [{ nombre: 'Ana Pérez', imagen: extracted.image }],
+  });
+  const variants = buildEditorialVariants(plate);
+  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['textual', 'retrato-circular', 'editorial-split']);
+  assert.equal(variants[0].recommended, true);
+  assert.ok(variants[1].personas.length);
+  assert.ok(variants[2].bloques.some(block => block.tipo === 'dato-clave'));
+});
+
+test('calcula áreas seguras para cita, retratos y composición dividida', () => {
+  for (const type of ['textual', 'retrato-circular', 'editorial-split']) {
+    const layout = calculatePlateLayout('portrait', { tipo_placa: type });
+    const area = layout[type === 'textual' ? 'quote' : type === 'retrato-circular' ? 'portraits' : 'split'];
+    assert.ok(area);
+    assert.ok(area.x >= 0 && area.y >= 0);
+    assert.ok(area.x + area.w <= layout.canvas.w);
+    assert.ok(area.y + area.h <= layout.canvas.h);
+  }
+});
+
+test('sin cita literal no ofrece una textual como propuesta', () => {
+  const plate = normalizeNewsPlate({ ...extracted, personas: [{ nombre: 'Ana Pérez', imagen: extracted.image }] });
+  assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['noticia', 'retrato-circular', 'editorial-split']);
+});

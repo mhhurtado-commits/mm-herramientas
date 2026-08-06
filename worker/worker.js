@@ -97,6 +97,26 @@ function firstSentence(text) {
   return clean(sentence || value.slice(0, 220));
 }
 
+function hasLiteral(body, quote) {
+  const source = clean(body);
+  const value = clean(quote);
+  if (!source || !value) return false;
+  const pattern = value.split(/\s+/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+');
+  return new RegExp(pattern, 'i').test(source);
+}
+
+function normalizeTextual(input, body) {
+  const source = input.textual && typeof input.textual === 'object' ? input.textual : input;
+  const cita = clean(source.cita || source.cita_textual || source.quote);
+  const verified = Boolean(cita && hasLiteral(body, cita));
+  return { cita: verified ? cita : '', autor: verified ? clean(source.autor || source.persona || source.author) : '', cargo: verified ? clean(source.cargo || source.rol || source.role) : '', verificada: verified };
+}
+
+function normalizePeople(input) {
+  const people = Array.isArray(input.personas) ? input.personas : [];
+  return people.map((person, index) => ({ id: clean(person.id) || `persona-${index + 1}`, nombre: clean(person.nombre || person.name) || `Persona ${index + 1}`, rol: clean(person.rol || person.cargo || person.role), imagen: clean(person.imagen || person.image || person.src), origen: person.origen === 'subida' ? 'subida' : 'nota', foco: normalizeFocus(person.foco) })).filter(person => person.imagen);
+}
+
 function socialText(value) {
   if (value && typeof value === 'object') return clean(value.texto || value.text || value.copy || value.contenido);
   return clean(value);
@@ -147,7 +167,7 @@ function buildSocialCopies(data, input = {}) {
 }
 
 function buildBlocks(data, family, image) {
-  return [
+  const blocks = [
     { tipo: 'marca', id: 'marca' },
     { tipo: 'imagen', id: 'imagen', src: image || '', foco: { x: 0.5, y: 0.5 } },
     { tipo: 'etiqueta', id: 'etiqueta', texto: family.label },
@@ -155,7 +175,11 @@ function buildBlocks(data, family, image) {
     { tipo: 'bajada', id: 'bajada', texto: data.bajada },
     { tipo: 'contexto', id: 'contexto', texto: data.contexto },
     { tipo: 'fuente', id: 'fuente', texto: data.fuente.url || 'Media Mendoza' },
-  ].filter(block => block.tipo === 'imagen' ? Boolean(block.src) : block.tipo !== 'contexto' || Boolean(block.texto));
+  ];
+  if (data.textual?.verificada) blocks.push({ tipo: 'cita', id: 'cita', texto: data.textual.cita, autor: data.textual.autor, cargo: data.textual.cargo, verificada: true });
+  data.personas.forEach(person => blocks.push({ tipo: 'retrato', id: person.id, ...person }));
+  if (data.contexto) blocks.push({ tipo: 'dato-clave', id: 'dato-clave', texto: data.contexto });
+  return blocks.filter(block => block.tipo === 'imagen' ? Boolean(block.src) : block.tipo !== 'contexto' || Boolean(block.texto));
 }
 
 function normalizeNewsPlate(input = {}) {
@@ -164,8 +188,12 @@ function normalizeNewsPlate(input = {}) {
   const images = uniqueImages({ image: source.image || source.imagen, images: source.images || source.imagenes });
   const title = clean(input.titulo || input.title || source.title || source.titulo || 'Noticia');
   const description = clean(input.bajada || input.description || source.description || source.descripcion);
-  const body = clean(input.contexto || source.body || source.texto || source.contenido);
+  const body = clean(input.cuerpo || input.body || input.texto || input.contenido || source.body || source.texto || source.contenido);
   const url = clean(input.url || source.url);
+  const textual = normalizeTextual(input, body);
+  const personas = normalizePeople(input);
+  const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
+  const type = textual.verificada ? 'textual' : requestedType === 'editorial-split' ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const normalized = {
     tipo: 'placa_noticia',
     version: 1,
@@ -183,6 +211,9 @@ function normalizeNewsPlate(input = {}) {
     etiqueta: family.label,
     contexto: clean(input.contexto || input.context || '') || firstSentence(body),
     template_sugerido: family.id,
+    tipo_placa: type,
+    textual,
+    personas,
     color_principal: family.color,
     color_secundario: family.secondary,
     bloques: [],
@@ -208,6 +239,14 @@ function cloneWithTemplate(plate, id, template, recommended = false) {
 }
 
 function buildEditorialVariants(plate) {
+  if (plate.textual?.verificada || plate.personas?.length || plate.tipo_placa === 'editorial-split') {
+    const firstType = plate.textual?.verificada ? 'textual' : plate.tipo_placa === 'editorial-split' ? 'editorial-split' : 'noticia';
+    return [
+      { ...cloneWithTemplate({ ...plate, tipo_placa: firstType }, `${plate.template_sugerido}-${firstType}`, plate.template_sugerido, true) },
+      { ...cloneWithTemplate({ ...plate, tipo_placa: 'retrato-circular' }, `${plate.template_sugerido}-retrato`, plate.template_sugerido, false) },
+      { ...cloneWithTemplate({ ...plate, tipo_placa: 'editorial-split' }, `${plate.template_sugerido}-split`, plate.template_sugerido, false), bloques: [...plate.bloques, { tipo: 'dato-clave', id: 'dato-clave', texto: plate.contexto }] },
+    ];
+  }
   const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
   const alternative = family === 'general' ? 'sociales' : 'general';
   return [
@@ -286,6 +325,8 @@ REGLAS:
 - Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
+- Las citas textuales deben copiarse literalmente del cuerpo y verificarse; si no existe una cita literal, devolvé una cadena vacía. Detectá personas sólo con atribución clara y devolvé una imagen de la nota si está disponible; la interfaz permite subir otra imagen.
+- Elegí también un tipo de placa entre noticia, textual, retrato-circular y editorial-split. Usá textual sólo con cita verificable y retrato-circular sólo con personas identificables.
 
 Respondé SOLO con este JSON:
 {
@@ -296,6 +337,9 @@ Respondé SOLO con este JSON:
   "contexto": "dato o contexto clave, o cadena vacía",
   "redes": { "instagram": "copy para Instagram", "facebook": "copy para Facebook" },
   "etiqueta": "nombre de la sección",
+  "tipo_placa": "noticia|textual|retrato-circular|editorial-split",
+  "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
+  "personas": [{ "nombre": "persona", "rol": "cargo", "imagen": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
   "template_sugerido": "general|clima|policiales|sociales|politica|economia|deportes",
   "bloques": []
 }`;
