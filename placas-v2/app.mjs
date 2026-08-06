@@ -99,15 +99,14 @@ function renderPeople() {
   document.querySelectorAll('[data-person]').forEach(input => input.addEventListener('input', event => { const person = variant.personas.find(item => item.id === event.target.dataset.person); if (!person) return; if (event.target.classList.contains('person-name')) person.nombre = event.target.value; else person.rol = event.target.value; render(); }));
 }
 function renderSupportImages() {
-  const variant = effectiveVariant();
   const source = activeVariant();
-  const visible = variant?.tipo_placa === 'editorial-split';
+  const visible = state.selectedTemplate === 'editorial-split';
   $('#supportControls').classList.toggle('is-hidden', !visible);
   if (!visible) return;
   const current = source?.imagenes_apoyo || [];
   const options = [...current, ...(state.plate?.fuente?.imagenes || []).slice(1).filter(url => !current.some(item => item.src === url)).map((src, index) => ({ id: `nota-apoyo-${index + 1}`, src, origen: 'nota', foco: { x: 0.5, y: 0.5 } }))];
   $('#supportImageList').innerHTML = options.length ? options.map((item, index) => `<button type="button" class="support-image-option ${state.supportImageUrl === item.src ? 'active' : ''}" data-support-index="${index}" title="Imagen de apoyo ${index + 1}"><img src="${item.src}" alt=""></button>`).join('') : '<small class="image-empty">No hay otra imagen en la nota. Agregá una desde tu equipo.</small>';
-  document.querySelectorAll('.support-image-option').forEach(button => button.addEventListener('click', async () => { const item = options[Number(button.dataset.supportIndex)]; variant.imagenes_apoyo = [item]; state.supportImageUrl = item.src; state.supportFocus = item.foco; renderSupportImages(); await loadSupportImage(item.src); }));
+  document.querySelectorAll('.support-image-option').forEach(button => button.addEventListener('click', async () => { const item = options[Number(button.dataset.supportIndex)]; source.imagenes_apoyo = [item]; state.supportImageUrl = item.src; state.supportFocus = item.foco; renderSupportImages(); await loadSupportImage(item.src); }));
 }
 function syncSocialCopies() { const variant = activeVariant(); const copies = variant?.redes || {}; const visible = Boolean(copies.instagram || copies.facebook); $('#socialCopies').classList.toggle('is-hidden', !visible); $('#instagramCopy').value = copies.instagram || ''; $('#facebookCopy').value = copies.facebook || ''; }
 function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderSupportImages(); renderTemplates(); }

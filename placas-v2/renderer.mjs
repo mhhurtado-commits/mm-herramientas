@@ -322,7 +322,8 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
       const contextY = Math.min(contextPreferredY, contextMaxY);
       const contextStart = Math.max(22, canvas.w * (isStory ? 0.026 : format === 'portrait' ? 0.028 : format === 'square' ? 0.016 : 0.014));
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
-      const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
+      const contextMaxLines = format === 'portrait' ? 3 : 2;
+      const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / contextMaxLines));
       if (isStory) {
         const contextBoxH = Math.min(
           canvas.h * 0.09,
@@ -335,7 +336,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
       ctx.fillStyle = family.color;
       ctx.fillRect(contextX, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
       if (format === 'portrait') {
-        fittedText(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize, Math.max(26, canvas.w * 0.024), 2, 600, family.secondary, 1.3);
+        fittedText(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize, Math.max(18, canvas.w * 0.014), contextMaxLines, 600, family.secondary, 1.3);
       } else {
         textLines(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
       }
