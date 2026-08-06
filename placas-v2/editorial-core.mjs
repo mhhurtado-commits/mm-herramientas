@@ -61,7 +61,8 @@ function cleanArticleUrl(value) {
   if (!raw) return 'https://mediamendoza.com';
   try {
     const url = new URL(raw);
-    return `https://mediamendoza.com${url.pathname || '/'}`;
+    const path = url.pathname.match(/^\/([^/]+\/\d+)/)?.[1];
+    return `https://mediamendoza.com/${path || url.pathname.replace(/^\/+/, '')}`.replace(/\/$/, '');
   } catch {
     return raw.split(/[?#]/)[0].replace(/\/$/, '') || 'https://mediamendoza.com';
   }
@@ -77,8 +78,8 @@ function normalizeInstagramCopy(value, data, category) {
 function normalizeFacebookCopy(value, data) {
   const url = cleanArticleUrl(data.fuente.url);
   let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}${data.contexto ? `\n\n${data.contexto}` : ''}`;
-  copy = copy.replace(/\[(?:enlace|link|url)\]/gi, url).replace(/https?:\/\/[^\s]+/gi, url);
-  copy = copy.replaceAll(url, '').replace(/[ \t]+\n/g, '\n').trim();
+  copy = copy.replace(/(?:🔗\s*)?(?:leé|lee) la nota completa:?[^\n]*(?:\n|$)/gi, '').replace(/\[(?:enlace|link|url)\]/gi, '').replace(/https?:\/\/[^\s]+/gi, '');
+  copy = copy.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   if (!/coment(?:á|a|arios)/i.test(copy)) copy += '\n\n💬 ¿Qué opinás? Te leemos en los comentarios.';
   copy += `\n\n🔗 Leé la nota completa: ${url}`;
   if (!/\p{Extended_Pictographic}/u.test(copy)) copy = `📰 ${copy}`;

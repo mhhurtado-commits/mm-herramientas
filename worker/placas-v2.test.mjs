@@ -51,17 +51,19 @@ test('permite que la IA ajuste la familia sin perder la fuente original', () => 
 });
 
 test('normaliza copys de redes con CTA, emojis y enlace editorial', () => {
+  const longNote = { ...note, url: 'https://mediamendoza.com/policiales/251300-Le-hurtaron-la-billetera-tras-un-descuido?utm_source=facebook' };
   const result = normalizeEditorialResponse({
     redes: {
       instagram: '🚨 Novedad policial. #SanRafael',
-      facebook: '🚨 La Policía investiga el hecho. Más detalles: [enlace]',
+      facebook: '🚨 La Policía investiga el hecho. 🔗 Leé la nota completa: https://mediamendoza.com/policiales/251300-Le-hurtaron-la-billetera-tras-un-descuido\n\n🔗 Leé la nota completa: [enlace]',
     },
-  }, note);
+  }, longNote);
 
   assert.match(result.redes.instagram, /🚨/);
   assert.match(result.redes.facebook, /comentarios/i);
   assert.doesNotMatch(result.redes.facebook, /\[enlace\]/i);
-  assert.match(result.redes.facebook, /https:\/\/mediamendoza\.com\/politica\/123$/);
+  assert.match(result.redes.facebook, /https:\/\/mediamendoza\.com\/policiales\/251300$/);
+  assert.equal((result.redes.facebook.match(/Leé la nota completa/gi) || []).length, 1);
 });
 
 test('produce una propuesta determinística cuando la IA no está disponible', () => {
