@@ -41,6 +41,7 @@ Respondé SOLO con este JSON:
   "contexto": "dato o contexto clave, o cadena vacía",
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
   "personas": [{ "nombre": "persona", "rol": "cargo", "imagen": "URL de imagen de la nota o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
+  "imagenes_apoyo": [{ "src": "URL de imagen de la nota o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
   "redes": {
     "instagram": "copy para Instagram",
     "facebook": "copy para Facebook"

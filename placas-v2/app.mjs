@@ -2,7 +2,7 @@ import { buildEditorialVariants, normalizeNewsPlate, normalizeFocus, calculatePl
 import { renderNewsPlate } from './renderer.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, imagePositioned: true, drag: null };
+const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, drag: null };
 const $ = selector => document.querySelector(selector);
 
 const logoImage = new Image();
@@ -43,6 +43,22 @@ async function loadImage(url) {
   } catch { toast('No se pudo cargar esta imagen; se usa una composición alternativa.'); }
 }
 
+async function loadSupportImage(url) {
+  state.supportImage = null;
+  if (!url) return;
+  try {
+    let source = url;
+    if (!/^blob:|^data:/i.test(url)) {
+      const response = await fetch(`${WORKER}?image=${encodeURIComponent(url)}`);
+      if (!response.ok) throw new Error('image');
+      source = URL.createObjectURL(await response.blob());
+    }
+    const image = new Image();
+    image.onload = () => { state.supportImage = image; render(); };
+    image.src = source;
+  } catch { toast('No se pudo cargar la imagen de apoyo.'); }
+}
+
 function renderVariants() {
   $('#variantList').innerHTML = state.variants.map((variant, index) => `<button class="variant ${index === state.selectedVariant ? 'active' : ''}" data-index="${index}" type="button"><span class="variant-dot" style="background:${variant.color_principal}">${index === 0 ? '★' : index + 1}</span><span><strong>${index === 0 ? 'Propuesta recomendada' : `Alternativa ${index}`}</strong><small>${variant.etiqueta} · ${variant.template_sugerido}</small></span>${index === 0 ? '<span class="recommended">Sugerida</span>' : ''}</button>`).join('');
   document.querySelectorAll('.variant').forEach(button => button.addEventListener('click', () => { state.selectedVariant = Number(button.dataset.index); syncEditor(); render(); }));
@@ -80,8 +96,18 @@ function renderPeople() {
   $('#peopleList').innerHTML = people.length ? people.map(person => `<div class="person-row"><span class="person-dot" style="background:${variant.color_principal}"></span><div><input class="person-name" data-person="${person.id}" value="${person.nombre}" aria-label="Nombre de la persona"><input class="person-role" data-person="${person.id}" value="${person.rol || ''}" placeholder="Cargo o rol" aria-label="Cargo o rol"><small>${person.origen === 'subida' ? 'imagen subida' : 'imagen de la nota'}</small></div></div>`).join('') : '<small class="image-empty">No hay personas detectadas. Agregá una persona y subí su imagen.</small>';
   document.querySelectorAll('[data-person]').forEach(input => input.addEventListener('input', event => { const person = variant.personas.find(item => item.id === event.target.dataset.person); if (!person) return; if (event.target.classList.contains('person-name')) person.nombre = event.target.value; else person.rol = event.target.value; render(); }));
 }
+function renderSupportImages() {
+  const variant = activeVariant();
+  const visible = variant?.tipo_placa === 'editorial-split';
+  $('#supportControls').classList.toggle('is-hidden', !visible);
+  if (!visible) return;
+  const current = variant.imagenes_apoyo || [];
+  const options = [...current, ...(state.plate?.fuente?.imagenes || []).slice(1).filter(url => !current.some(item => item.src === url)).map((src, index) => ({ id: `nota-apoyo-${index + 1}`, src, origen: 'nota', foco: { x: 0.5, y: 0.5 } }))];
+  $('#supportImageList').innerHTML = options.length ? options.map((item, index) => `<button type="button" class="support-image-option ${state.supportImageUrl === item.src ? 'active' : ''}" data-support-index="${index}" title="Imagen de apoyo ${index + 1}"><img src="${item.src}" alt=""></button>`).join('') : '<small class="image-empty">No hay otra imagen en la nota. Agregá una desde tu equipo.</small>';
+  document.querySelectorAll('.support-image-option').forEach(button => button.addEventListener('click', async () => { const item = options[Number(button.dataset.supportIndex)]; variant.imagenes_apoyo = [item]; state.supportImageUrl = item.src; state.supportFocus = item.foco; renderSupportImages(); await loadSupportImage(item.src); }));
+}
 function syncSocialCopies() { const variant = activeVariant(); const copies = variant?.redes || {}; const visible = Boolean(copies.instagram || copies.facebook); $('#socialCopies').classList.toggle('is-hidden', !visible); $('#instagramCopy').value = copies.instagram || ''; $('#facebookCopy').value = copies.facebook || ''; }
-function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderTemplates(); }
+function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderSupportImages(); renderTemplates(); }
 function setSocialText(network, value) { const current = activeVariant(); if (!current) return; current.redes = { ...(current.redes || {}), [network]: value }; if (state.plate === current) state.plate.redes = current.redes; }
 async function copySocial(network) { const value = $(`#${network}Copy`).value.trim(); if (!value) return; try { await navigator.clipboard.writeText(value); toast(`Texto de ${network === 'instagram' ? 'Instagram' : 'Facebook'} copiado.`); } catch { toast('No se pudo copiar el texto.'); } }
 
@@ -89,7 +115,7 @@ function render() {
   const variant = activeVariant();
   if (!variant) return;
   const canvas = $('#plateCanvas');
-  renderNewsPlate(canvas.getContext('2d'), variant, state.format, { image: state.image, focus: activeFocus(), logo: state.logo, personImages: state.personImages, forceCover: state.imagePositioned });
+  renderNewsPlate(canvas.getContext('2d'), variant, state.format, { image: state.image, focus: activeFocus(), logo: state.logo, personImages: state.personImages, supportImage: state.supportImage, supportFocus: state.supportFocus, forceCover: state.imagePositioned });
   canvas.classList.remove('is-hidden'); $('.empty-state').classList.add('is-hidden');
   $('#previewTitle').textContent = variant.titulo || 'Placa editorial';
   $('#familyBadge').textContent = `${variant.etiqueta} · ${FORMATS[state.format].label}`;
@@ -108,7 +134,7 @@ async function generate(event) {
     const result = await generateEditorial(note);
     state.plate = normalizeNewsPlate(result.placa || note);
     state.variants = buildEditorialVariants(state.plate);
-    state.selectedVariant = 0; state.imageIndex = 0; state.personImages = {}; state.imagePositioned = true;
+    state.selectedVariant = 0; state.imageIndex = 0; state.personImages = {}; state.supportImage = null; state.supportImageUrl = ''; state.imagePositioned = true;
     $('#editorControls').classList.remove('is-hidden');
     renderVariants(); renderFormats(); renderImages(); syncEditor();
     if (result.warnings?.length) { $('#warning').textContent = 'La propuesta se generó con fallback automático. Revisá la redacción antes de exportar.'; $('#warning').classList.remove('is-hidden'); } else $('#warning').classList.add('is-hidden');
@@ -151,6 +177,17 @@ $('#addPersonButton').addEventListener('click', () => {
   renderPeople();
   render();
 });
+$('#supportUpload').addEventListener('change', async event => {
+  const file = event.target.files?.[0];
+  const variant = activeVariant();
+  if (!file || !variant) return;
+  const url = URL.createObjectURL(file);
+  variant.imagenes_apoyo = [{ id: 'imagen-apoyo-subida', src: url, origen: 'subida', foco: { x: 0.5, y: 0.5 } }];
+  state.supportImageUrl = url;
+  state.supportFocus = { x: 0.5, y: 0.5 };
+  renderSupportImages();
+  await loadSupportImage(url);
+});
 
 const plateCanvas = $('#plateCanvas');
 plateCanvas.title = 'Arrastrá la foto para ajustar el encuadre';
@@ -179,6 +216,15 @@ plateCanvas.addEventListener('pointerdown', event => {
       return;
     }
   }
+  if (variant.tipo_placa === 'editorial-split' && state.supportImage && variant.imagenes_apoyo?.length) {
+    const rect = calculatePlateLayout(state.format, variant).splitImage;
+    if (point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y && point.y <= rect.y + rect.h) {
+      state.drag = { kind: 'support', clientX: event.clientX, clientY: event.clientY, focus: normalizeFocus(state.supportFocus) };
+      plateCanvas.setPointerCapture(event.pointerId);
+      plateCanvas.classList.add('is-dragging');
+      return;
+    }
+  }
   const imageRect = calculatePlateLayout(state.format, activeVariant()).image;
   if (point.y < imageRect.y || point.y > imageRect.y + imageRect.h) return;
   state.drag = { clientX: event.clientX, clientY: event.clientY, focus: activeFocus() };
@@ -194,6 +240,13 @@ plateCanvas.addEventListener('pointermove', event => {
   const variant = activeVariant();
   if (state.drag.kind === 'person') {
     state.drag.person.foco = normalizeFocus({ x: state.drag.focus.x - dx * 1.25, y: state.drag.focus.y - dy * 1.25 });
+    render();
+    return;
+  }
+  if (state.drag.kind === 'support') {
+    state.supportFocus = normalizeFocus({ x: state.drag.focus.x - dx * 1.25, y: state.drag.focus.y - dy * 1.25 });
+    const support = variant.imagenes_apoyo?.[0];
+    if (support) support.foco = state.supportFocus;
     render();
     return;
   }

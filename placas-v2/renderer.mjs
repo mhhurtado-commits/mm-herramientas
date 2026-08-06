@@ -133,6 +133,20 @@ function drawPortraits(ctx, layout, plate, family, options = {}) {
   });
 }
 
+function drawSupportImage(ctx, layout, family, options = {}) {
+  const rect = layout.splitImage;
+  ctx.save();
+  roundedRect(ctx, rect.x, rect.y, rect.w, rect.h, layout.canvas.w * 0.012);
+  ctx.clip();
+  if (!adaptiveImage(ctx, options.supportImage, rect, options.supportFocus, true)) {
+    ctx.fillStyle = family.soft;
+    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  }
+  ctx.fillStyle = 'rgba(22,30,27,.14)';
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
+}
+
 export function renderNewsPlate(ctx, plate, format, options = {}) {
   const family = FAMILIES[plate.template_sugerido] || FAMILIES.general;
   const plateType = plate.tipo_placa || 'noticia';
@@ -230,6 +244,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     ctx.fill();
     ctx.fillStyle = family.color;
     ctx.fillRect(cardX + canvas.w * 0.025, cardY + canvas.h * 0.025, canvas.w * 0.012, cardH - canvas.h * 0.05);
+    drawSupportImage(ctx, layout, family, options);
   }
 
   const labelText = String(plate.etiqueta || family.label).toUpperCase();

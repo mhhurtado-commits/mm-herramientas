@@ -137,6 +137,11 @@ function normalizePeople(input) {
   return people.map((person, index) => ({ id: clean(person.id) || `persona-${index + 1}`, nombre: clean(person.nombre || person.name) || `Persona ${index + 1}`, rol: clean(person.rol || person.cargo || person.role), imagen: clean(person.imagen || person.image || person.src), origen: person.origen === 'subida' ? 'subida' : 'nota', foco: normalizeFocus(person.foco) })).filter(person => person.imagen);
 }
 
+function normalizeSupportImages(input) {
+  const values = Array.isArray(input.imagenes_apoyo) ? input.imagenes_apoyo : Array.isArray(input.imagenesApoyo) ? input.imagenesApoyo : [];
+  return values.map((item, index) => { const value = typeof item === 'string' ? { src: item } : item || {}; return { id: clean(value.id) || `imagen-apoyo-${index + 1}`, src: clean(value.src || value.imagen || value.image), origen: value.origen === 'subida' ? 'subida' : 'nota', foco: normalizeFocus(value.foco) }; }).filter(item => item.src).slice(0, 4);
+}
+
 function socialText(value) {
   if (value && typeof value === 'object') return clean(value.texto || value.text || value.copy || value.contenido);
   return clean(value);
@@ -198,6 +203,7 @@ function buildBlocks(data, family, image) {
   ];
   if (data.textual?.verificada) blocks.push({ tipo: 'cita', id: 'cita', texto: data.textual.cita, autor: data.textual.autor, cargo: data.textual.cargo, verificada: true });
   data.personas.forEach(person => blocks.push({ tipo: 'retrato', id: person.id, ...person }));
+  data.imagenes_apoyo.forEach(image => blocks.push({ tipo: 'imagen-apoyo', id: image.id, ...image }));
   if (data.contexto) blocks.push({ tipo: 'dato-clave', id: 'dato-clave', texto: data.contexto });
   return blocks.filter(block => block.tipo === 'imagen' ? Boolean(block.src) : block.tipo !== 'contexto' || Boolean(block.texto));
 }
@@ -212,6 +218,7 @@ function normalizeNewsPlate(input = {}) {
   const url = clean(input.url || source.url);
   const textual = normalizeTextual(input, body);
   const personas = normalizePeople(input);
+  const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const type = textual.verificada ? 'textual' : requestedType === 'editorial-split' ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const normalized = {
@@ -234,6 +241,7 @@ function normalizeNewsPlate(input = {}) {
     tipo_placa: type,
     textual,
     personas,
+    imagenes_apoyo,
     color_principal: family.color,
     color_secundario: family.secondary,
     bloques: [],
@@ -360,6 +368,7 @@ Respondé SOLO con este JSON:
   "tipo_placa": "noticia|textual|retrato-circular|editorial-split",
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
   "personas": [{ "nombre": "persona", "rol": "cargo", "imagen": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
+  "imagenes_apoyo": [{ "src": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
   "template_sugerido": "general|clima|policiales|sociales|politica|economia|deportes",
   "bloques": []
 }`;

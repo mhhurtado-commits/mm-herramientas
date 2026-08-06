@@ -173,3 +173,16 @@ test('sin cita literal no ofrece una textual como propuesta', () => {
   const plate = normalizeNewsPlate({ ...extracted, personas: [{ nombre: 'Ana Pérez', imagen: extracted.image }] });
   assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['noticia', 'retrato-circular', 'editorial-split']);
 });
+
+test('normaliza imágenes de apoyo para editorial split', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'editorial-split',
+    imagenes_apoyo: [{ src: 'https://example.com/support.jpg', origen: 'subida', foco: { x: 2, y: -1 } }],
+  });
+  assert.equal(plate.imagenes_apoyo.length, 1);
+  assert.equal(plate.imagenes_apoyo[0].origen, 'subida');
+  assert.deepEqual(plate.imagenes_apoyo[0].foco, { x: 1, y: 0 });
+  assert.ok(plate.bloques.some(block => block.tipo === 'imagen-apoyo'));
+  assert.ok(calculatePlateLayout('portrait', plate).splitImage);
+});

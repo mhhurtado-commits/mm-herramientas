@@ -90,6 +90,14 @@ function normalizePeople(input) {
   })).filter(person => person.imagen);
 }
 
+function normalizeSupportImages(input) {
+  const values = Array.isArray(input.imagenes_apoyo) ? input.imagenes_apoyo : Array.isArray(input.imagenesApoyo) ? input.imagenesApoyo : [];
+  return values.map((item, index) => {
+    const value = typeof item === 'string' ? { src: item } : item || {};
+    return { id: clean(value.id) || `imagen-apoyo-${index + 1}`, src: clean(value.src || value.imagen || value.image), origen: value.origen === 'subida' ? 'subida' : 'nota', foco: normalizeFocus(value.foco) };
+  }).filter(item => item.src).slice(0, 4);
+}
+
 function socialText(value) {
   if (value && typeof value === 'object') return clean(value.texto || value.text || value.copy || value.contenido);
   return clean(value);
@@ -151,6 +159,7 @@ function buildBlocks(data, family, image) {
   ];
   if (data.textual?.verificada) blocks.push({ tipo: 'cita', id: 'cita', texto: data.textual.cita, autor: data.textual.autor, cargo: data.textual.cargo, verificada: true });
   data.personas.forEach(person => blocks.push({ tipo: 'retrato', id: person.id, ...person }));
+  data.imagenes_apoyo.forEach(image => blocks.push({ tipo: 'imagen-apoyo', id: image.id, ...image }));
   if (data.contexto) blocks.push({ tipo: 'dato-clave', id: 'dato-clave', texto: data.contexto });
   return blocks.filter(block => block.tipo === 'imagen' ? Boolean(block.src) : block.tipo !== 'contexto' || Boolean(block.texto));
 }
@@ -165,6 +174,7 @@ export function normalizeNewsPlate(input = {}) {
   const url = clean(input.url || source.url);
   const textual = normalizeTextual(input, body);
   const personas = normalizePeople(input);
+  const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const type = textual.verificada ? 'textual' : requestedType === 'editorial-split' ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const normalized = {
@@ -187,6 +197,7 @@ export function normalizeNewsPlate(input = {}) {
     tipo_placa: type,
     textual,
     personas,
+    imagenes_apoyo,
     color_principal: family.color,
     color_secundario: family.secondary,
     bloques: [],
@@ -284,6 +295,7 @@ export function calculatePlateLayout(format, plate = {}) {
     quote: { x: margin, y: contentY + labelH, w: canvas.w - margin * 2, h: Math.max(0, contentH * 0.62) },
     portraits: { x: margin, y: imageY + imageH * 0.58, w: canvas.w - margin * 2, h: Math.max(0, imageH * 0.34) },
     split: { x: margin, y: contentY, w: canvas.w - margin * 2, h: Math.max(0, contentH) },
+    splitImage: { x: margin + canvas.w * 0.025, y: contentY + canvas.h * 0.025, w: canvas.w * 0.34, h: Math.max(0, contentH - canvas.h * 0.05) },
   };
   return { ...baseLayout, ...specialArea };
 }
