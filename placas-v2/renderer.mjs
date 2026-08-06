@@ -186,14 +186,17 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   if (format === 'portrait') {
     const labelPadX = canvas.w * 0.018;
     const labelW = ctx.measureText(labelText).width + labelPadX * 2;
-    const labelH = labelSize * 1.45;
+    const labelMetrics = ctx.measureText(labelText);
+    const ascent = labelMetrics.actualBoundingBoxAscent || labelSize * 0.78;
+    const descent = labelMetrics.actualBoundingBoxDescent || labelSize * 0.22;
+    const labelH = Math.max(labelSize * 1.45, ascent + descent + labelSize * 0.42);
     const labelY = layout.label.y + canvas.h * 0.004;
-    const labelPadY = (labelH - labelSize) / 2;
+    const labelBaseline = labelY + (labelH - ascent - descent) / 2 + ascent;
     ctx.fillStyle = family.color;
     roundedRect(ctx, layout.label.x, labelY, labelW, labelH, canvas.w * 0.008);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(labelText, layout.label.x + labelPadX, labelY + labelPadY + labelSize);
+    ctx.fillText(labelText, layout.label.x + labelPadX, labelBaseline);
   } else {
     ctx.fillStyle = family.color;
     ctx.fillText(labelText, layout.label.x, layout.label.y + layout.label.h * 0.72);
