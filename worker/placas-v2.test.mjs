@@ -37,6 +37,8 @@ test('normaliza una respuesta parcial de IA con valores seguros', () => {
   assert.equal(result.fuente.url, note.url);
   assert.ok(result.redes.instagram);
   assert.ok(result.redes.facebook);
+  assert.match(result.redes.facebook, /comentarios/i);
+  assert.match(result.redes.facebook, /https:\/\/mediamendoza\.com\/politica\/123$/);
   assert.ok(result.bloques.some(block => block.tipo === 'titular'));
 });
 

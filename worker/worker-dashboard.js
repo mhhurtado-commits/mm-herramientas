@@ -122,13 +122,24 @@ function socialText(value) {
   return clean(value);
 }
 
+function cleanArticleUrl(value) {
+  const raw = clean(value);
+  if (!raw) return 'https://mediamendoza.com';
+  try {
+    const url = new URL(raw);
+    return `https://mediamendoza.com${url.pathname || '/'}`;
+  } catch {
+    return raw.split(/[?#]/)[0].replace(/\/$/, '') || 'https://mediamendoza.com';
+  }
+}
+
 function buildSocialCopies(data, input = {}) {
   const source = input.redes || input.redes_sociales || input.social || {};
   const category = String(data.etiqueta || 'Actualidad').replace(/\s+/g, '').replace(/[íì]/gi, 'i').toUpperCase();
-  const url = data.fuente.url || 'www.mediamendoza.com';
+  const url = cleanArticleUrl(data.fuente.url);
   return {
     instagram: socialText(source.instagram) || `${data.titulo}\n\n${data.bajada}\n\nLeé la nota completa en mediamendoza.com\n\n#MediaMendoza #${category}`,
-    facebook: socialText(source.facebook) || `${data.titulo}\n\n${data.bajada}${data.contexto ? `\n\n${data.contexto}` : ''}\n\nLeé la nota completa: ${url}`,
+    facebook: socialText(source.facebook) || `${data.titulo}\n\n${data.bajada}${data.contexto ? `\n\n${data.contexto}` : ''}\n\n¿Qué opinás? Te leemos en los comentarios.\n\nLeé la nota completa: ${url}`,
   };
 }
 
