@@ -62,7 +62,10 @@ function renderImages() {
 }
 
 function renderFocus() { const focus = activeFocus(); $('#focusX').value = Math.round(focus.x * 100); $('#focusY').value = Math.round(focus.y * 100); $('#focusXValue').textContent = `${Math.round(focus.x * 100)}%`; $('#focusYValue').textContent = `${Math.round(focus.y * 100)}%`; }
-function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#dekInput').value = variant.bajada || ''; renderFocus(); }
+function syncSocialCopies() { const variant = activeVariant(); const copies = variant?.redes || {}; const visible = Boolean(copies.instagram || copies.facebook); $('#socialCopies').classList.toggle('is-hidden', !visible); $('#instagramCopy').value = copies.instagram || ''; $('#facebookCopy').value = copies.facebook || ''; }
+function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); }
+function setSocialText(network, value) { const current = activeVariant(); if (!current) return; current.redes = { ...(current.redes || {}), [network]: value }; if (state.plate === current) state.plate.redes = current.redes; }
+async function copySocial(network) { const value = $(`#${network}Copy`).value.trim(); if (!value) return; try { await navigator.clipboard.writeText(value); toast(`Texto de ${network === 'instagram' ? 'Instagram' : 'Facebook'} copiado.`); } catch { toast('No se pudo copiar el texto.'); } }
 
 function render() {
   const variant = activeVariant();
@@ -102,6 +105,9 @@ async function copy() { try { const blob = await new Promise(resolve => $('#plat
 $('#newsForm').addEventListener('submit', generate);
 $('#titleInput').addEventListener('input', event => setActiveText('titulo', event.target.value));
 $('#dekInput').addEventListener('input', event => setActiveText('bajada', event.target.value));
+$('#instagramCopy').addEventListener('input', event => setSocialText('instagram', event.target.value));
+$('#facebookCopy').addEventListener('input', event => setSocialText('facebook', event.target.value));
+document.querySelectorAll('.copy-social').forEach(button => button.addEventListener('click', () => copySocial(button.dataset.network)));
 $('#focusX').addEventListener('input', event => setFocus('x', event.target.value));
 $('#focusY').addEventListener('input', event => setFocus('y', event.target.value));
 $('#downloadButton').addEventListener('click', download); $('#copyButton').addEventListener('click', copy);

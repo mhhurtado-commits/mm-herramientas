@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="focus.css">
   <link rel="stylesheet" href="root-alignment.css">
+  <link rel="stylesheet" href="social.css">
 </head>
 <body>
   <header class="mm-header">
@@ -48,6 +49,11 @@
           <div class="step edit-step"><span>03</span><div><strong>Ajustes editoriales</strong><small>La jerarquía se mantiene protegida</small></div></div>
           <div class="field"><label for="titleInput">Titular</label><textarea id="titleInput" rows="3"></textarea></div>
           <div class="field"><label for="dekInput">Bajada</label><textarea id="dekInput" rows="3"></textarea></div>
+          <div id="socialCopies" class="social-copies is-hidden">
+            <div class="social-copy-head"><div><label>Texto para redes</label><small>Variantes listas para acompañar la placa</small></div></div>
+            <div class="social-copy-card"><div class="social-copy-title"><strong>Instagram</strong><button type="button" class="copy-social" data-network="instagram">Copiar</button></div><textarea id="instagramCopy" rows="6"></textarea></div>
+            <div class="social-copy-card"><div class="social-copy-title"><strong>Facebook</strong><button type="button" class="copy-social" data-network="facebook">Copiar</button></div><textarea id="facebookCopy" rows="7"></textarea></div>
+          </div>
           <div id="warning" class="warning is-hidden"></div>
         </div>
       </aside>

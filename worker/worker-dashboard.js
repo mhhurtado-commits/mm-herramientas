@@ -117,6 +117,21 @@ function firstSentence(text) {
   return clean(sentence || value.slice(0, 220));
 }
 
+function socialText(value) {
+  if (value && typeof value === 'object') return clean(value.texto || value.text || value.copy || value.contenido);
+  return clean(value);
+}
+
+function buildSocialCopies(data, input = {}) {
+  const source = input.redes || input.redes_sociales || input.social || {};
+  const category = String(data.etiqueta || 'Actualidad').replace(/\s+/g, '').replace(/[íì]/gi, 'i').toUpperCase();
+  const url = data.fuente.url || 'www.mediamendoza.com';
+  return {
+    instagram: socialText(source.instagram) || `${data.titulo}\n\n${data.bajada}\n\nLeé la nota completa en mediamendoza.com\n\n#MediaMendoza #${category}`,
+    facebook: socialText(source.facebook) || `${data.titulo}\n\n${data.bajada}${data.contexto ? `\n\n${data.contexto}` : ''}\n\nLeé la nota completa: ${url}`,
+  };
+}
+
 function buildBlocks(data, family, image) {
   return [
     { tipo: 'marca', id: 'marca' },
@@ -158,6 +173,7 @@ function normalizeNewsPlate(input = {}) {
     color_secundario: family.secondary,
     bloques: [],
   };
+  normalized.redes = buildSocialCopies(normalized, input);
   normalized.bloques = buildBlocks(normalized, family, images[0]);
   return normalized;
 }
@@ -251,6 +267,7 @@ REGLAS:
 - NO inventes datos, cifras, citas, nombres ni contexto que no aparezca en la noticia.
 - Generá un titular breve, claro y atractivo, sin perder precisión.
 - Generá una bajada de una o dos frases y un contexto clave breve sólo si aporta información verificable.
+- Generá dos copys para acompañar la placa: Instagram debe ser breve, visual y cerrar con hashtags; Facebook puede ser más explicativo e incluir el contexto y el enlace.
 - Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
@@ -262,6 +279,7 @@ Respondé SOLO con este JSON:
   "titulo": "titular para la placa",
   "bajada": "bajada breve",
   "contexto": "dato o contexto clave, o cadena vacía",
+  "redes": { "instagram": "copy para Instagram", "facebook": "copy para Facebook" },
   "etiqueta": "nombre de la sección",
   "template_sugerido": "general|clima|policiales|sociales|politica|economia|deportes",
   "bloques": []

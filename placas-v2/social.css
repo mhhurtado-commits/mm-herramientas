@@ -1,0 +1,10 @@
+.social-copies{margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+.social-copy-head{margin-bottom:10px}
+.social-copy-head label{margin-bottom:2px}
+.social-copy-head small{color:var(--muted);font-size:10px}
+.social-copy-card{margin-top:9px;border:1px solid var(--line);border-radius:10px;background:#fbfcfa;padding:9px}
+.social-copy-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.social-copy-title strong{font-size:11px}
+.copy-social{border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--green-dark);padding:4px 8px;font:800 9px Inter,Arial,sans-serif;cursor:pointer}
+.copy-social:hover{border-color:var(--green);background:#f7faef}
+.social-copy-card textarea{width:100%;border:0;background:transparent;padding:0;min-height:0;resize:vertical;color:var(--ink);font:11px/1.45 Inter,Arial,sans-serif;outline:none}

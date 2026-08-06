@@ -22,6 +22,7 @@ REGLAS:
 - NO inventes datos, cifras, citas, nombres ni contexto que no aparezca en la noticia.
 - Generá un titular breve, claro y atractivo, sin perder precisión.
 - Generá una bajada de una o dos frases y un contexto clave breve sólo si aporta información verificable.
+- Generá dos copys para acompañar la placa: Instagram debe ser breve, visual y cerrar con hashtags; Facebook puede ser más explicativo e incluir el contexto y el enlace.
 - Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
@@ -33,6 +34,10 @@ Respondé SOLO con este JSON:
   "titulo": "titular para la placa",
   "bajada": "bajada breve",
   "contexto": "dato o contexto clave, o cadena vacía",
+  "redes": {
+    "instagram": "copy para Instagram",
+    "facebook": "copy para Facebook"
+  },
   "etiqueta": "nombre de la sección",
   "template_sugerido": "general|clima|policiales|sociales|politica|economia|deportes",
   "bloques": []

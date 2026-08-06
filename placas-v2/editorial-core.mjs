@@ -51,6 +51,20 @@ function firstSentence(text) {
   return clean(sentence || value.slice(0, 220));
 }
 
+function socialText(value) {
+  if (value && typeof value === 'object') return clean(value.texto || value.text || value.copy || value.contenido);
+  return clean(value);
+}
+
+function buildSocialCopies(data, input = {}) {
+  const source = input.redes || input.redes_sociales || input.social || {};
+  const category = String(data.etiqueta || 'Actualidad').replace(/\s+/g, '').replace(/[íì]/gi, 'i').toUpperCase();
+  const url = data.fuente.url || 'www.mediamendoza.com';
+  const instagram = socialText(source.instagram) || `${data.titulo}\n\n${data.bajada}\n\nLeé la nota completa en mediamendoza.com\n\n#MediaMendoza #${category}`;
+  const facebook = socialText(source.facebook) || `${data.titulo}\n\n${data.bajada}${data.contexto ? `\n\n${data.contexto}` : ''}\n\nLeé la nota completa: ${url}`;
+  return { instagram, facebook };
+}
+
 function buildBlocks(data, family, image) {
   return [
     { tipo: 'marca', id: 'marca' },
@@ -92,6 +106,7 @@ export function normalizeNewsPlate(input = {}) {
     color_secundario: family.secondary,
     bloques: [],
   };
+  normalized.redes = buildSocialCopies(normalized, input);
   normalized.bloques = buildBlocks(normalized, family, images[0]);
   return normalized;
 }

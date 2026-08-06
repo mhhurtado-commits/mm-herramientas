@@ -23,6 +23,8 @@ test('construye un prompt editorial con reglas y contrato exacto', () => {
   assert.match(prompt, /NO inventes/);
   assert.match(prompt, /titulo/);
   assert.match(prompt, /bloques/);
+  assert.match(prompt, /Instagram/);
+  assert.match(prompt, /Facebook/);
   assert.match(prompt, /El Gobierno anunció/);
 });
 
@@ -33,6 +35,8 @@ test('normaliza una respuesta parcial de IA con valores seguros', () => {
   assert.equal(result.bajada, note.description);
   assert.equal(result.template_sugerido, 'politica');
   assert.equal(result.fuente.url, note.url);
+  assert.ok(result.redes.instagram);
+  assert.ok(result.redes.facebook);
   assert.ok(result.bloques.some(block => block.tipo === 'titular'));
 });
 
