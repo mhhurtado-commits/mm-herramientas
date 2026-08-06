@@ -240,10 +240,11 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fill();
   if (plateType === 'editorial-split') {
     ctx.fillStyle = family.soft;
-    roundedRect(ctx, cardX + canvas.w * 0.025, cardY + canvas.h * 0.025, canvas.w * 0.34, cardH - canvas.h * 0.05, canvas.w * 0.014);
+    const panel = layout.splitPanel;
+    roundedRect(ctx, panel.x, panel.y, panel.w, panel.h, canvas.w * 0.014);
     ctx.fill();
     ctx.fillStyle = family.color;
-    ctx.fillRect(cardX + canvas.w * 0.025, cardY + canvas.h * 0.025, canvas.w * 0.012, cardH - canvas.h * 0.05);
+    ctx.fillRect(panel.x, panel.y, canvas.w * 0.012, panel.h);
     drawSupportImage(ctx, layout, family, options);
   }
 

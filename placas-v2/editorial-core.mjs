@@ -225,13 +225,19 @@ function cloneWithTemplate(plate, id, template, recommended = false) {
 export function buildEditorialVariants(plate) {
   if (plate.textual?.verificada || plate.personas?.length || plate.tipo_placa === 'editorial-split') {
     const firstType = plate.textual?.verificada ? 'textual' : plate.tipo_placa === 'editorial-split' ? 'editorial-split' : 'noticia';
+    const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
+    const alternativeFamilies = family === 'general' ? ['sociales', 'politica'] : ['general', 'sociales'];
     const alternativeTypes = firstType === 'editorial-split'
       ? ['noticia', 'retrato-circular']
       : ['retrato-circular', 'editorial-split'];
-    const variants = [firstType, ...alternativeTypes].map((type, index) => cloneWithTemplate(
+    const variants = [
+      { type: firstType, family },
+      { type: alternativeTypes[0], family: alternativeFamilies[0] },
+      { type: alternativeTypes[1], family: alternativeFamilies[1] },
+    ].map(({ type, family: variantFamily }, index) => cloneWithTemplate(
       { ...plate, tipo_placa: type },
-      `${plate.template_sugerido}-${type}`,
-      plate.template_sugerido,
+      `${variantFamily}-${type}`,
+      variantFamily,
       index === 0,
     ));
     return variants.map(variant => ({
@@ -295,11 +301,19 @@ export function calculatePlateLayout(format, plate = {}) {
     context: { x: margin, y: contextY, w: canvas.w - margin * 2, h: contentH * (isStory ? 0.16 : 0.13) },
     footer: { x: margin, y: canvas.h - footerH, w: canvas.w - margin * 2, h: footerH - margin * 0.4 },
   };
+  const splitCardY = contentY - canvas.h * 0.018;
+  const splitCardH = canvas.h - splitCardY - footerH - canvas.h * 0.018;
   const specialArea = {
     quote: { x: margin, y: contentY + labelH, w: canvas.w - margin * 2, h: Math.max(0, contentH * 0.62) },
     portraits: { x: margin, y: imageY + imageH * 0.58, w: canvas.w - margin * 2, h: Math.max(0, imageH * 0.34) },
     split: { x: margin, y: contentY, w: canvas.w - margin * 2, h: Math.max(0, contentH) },
-    splitImage: { x: canvas.w * 0.08, y: contentY + canvas.h * 0.025, w: canvas.w * 0.285, h: Math.max(0, contentH - canvas.h * 0.05) },
+    splitPanel: { x: canvas.w * 0.025, y: splitCardY + canvas.h * 0.025, w: canvas.w * 0.34, h: Math.max(0, splitCardH - canvas.h * 0.05) },
+  };
+  specialArea.splitImage = {
+    x: specialArea.splitPanel.x + (specialArea.splitPanel.w - canvas.w * 0.27) / 2,
+    y: specialArea.splitPanel.y,
+    w: canvas.w * 0.27,
+    h: specialArea.splitPanel.h,
   };
   return { ...baseLayout, ...specialArea };
 }

@@ -188,9 +188,15 @@ test('normaliza imágenes de apoyo para editorial split', () => {
   assert.ok(layout.splitImage);
   assert.ok(layout.splitImage.x >= layout.split.x);
   assert.ok(layout.splitImage.x + layout.splitImage.w <= layout.split.x + layout.split.w);
+  const leftGap = layout.splitImage.x - layout.splitPanel.x;
+  const rightGap = layout.splitPanel.x + layout.splitPanel.w - (layout.splitImage.x + layout.splitImage.w);
+  assert.ok(Math.abs(leftGap - rightGap) < 0.001);
 });
 
 test('mantiene tres tipos distintos cuando la sugerida es editorial split', () => {
   const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'editorial-split' });
   assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['editorial-split', 'noticia', 'retrato-circular']);
+  const variants = buildEditorialVariants(plate);
+  assert.equal(variants[0].etiqueta, plate.etiqueta);
+  assert.deepEqual(variants.slice(1).map(variant => variant.etiqueta), ['Actualidad', 'Sociedad']);
 });
