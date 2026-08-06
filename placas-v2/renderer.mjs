@@ -180,9 +180,23 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   roundedRect(ctx, cardX, cardY, cardW, cardH, canvas.w * 0.018);
   ctx.fill();
 
-  ctx.fillStyle = family.color;
-  ctx.font = `900 ${Math.max(18, canvas.w * (format === 'portrait' ? 0.024 : 0.018))}px ${fontFamily}`;
-  ctx.fillText(String(plate.etiqueta || family.label).toUpperCase(), layout.label.x, layout.label.y + layout.label.h * 0.72);
+  const labelText = String(plate.etiqueta || family.label).toUpperCase();
+  const labelSize = Math.max(18, canvas.w * (format === 'portrait' ? 0.024 : 0.018));
+  ctx.font = `900 ${labelSize}px ${fontFamily}`;
+  if (format === 'portrait') {
+    const labelPadX = canvas.w * 0.018;
+    const labelPadY = canvas.h * 0.008;
+    const labelW = ctx.measureText(labelText).width + labelPadX * 2;
+    const labelH = labelSize * 1.45;
+    ctx.fillStyle = family.color;
+    roundedRect(ctx, layout.label.x, layout.label.y + canvas.h * 0.004, labelW, labelH, canvas.w * 0.008);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(labelText, layout.label.x + labelPadX, layout.label.y + canvas.h * 0.004 + labelPadY + labelSize);
+  } else {
+    ctx.fillStyle = family.color;
+    ctx.fillText(labelText, layout.label.x, layout.label.y + layout.label.h * 0.72);
+  }
 
   const titleStart = Math.max(34, canvas.w * (format === 'story' ? 0.057 : format === 'square' ? 0.055 : 0.052));
   const titleMin = Math.max(24, canvas.w * (format === 'story' ? 0.024 : 0.024));
@@ -196,14 +210,14 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     const isStory = format === 'story';
     const contextGap = canvas.h * (isStory ? 0.015 : 0.022);
     const contextPreferredY = Math.max(layout.context.y, dekY + dekFit.lineHeight * dekFit.lines.length + contextGap);
-    const contextPad = canvas.h * (isStory ? 0.026 : 0.037);
+    const contextPad = canvas.h * (isStory ? 0.026 : format === 'portrait' ? 0.025 : 0.037);
     const footerSafeY = layout.footer.y - canvas.h * (isStory ? 0.025 : 0.035);
     const contextMin = Math.max(12, canvas.w * 0.01);
     const contextMaxY = footerSafeY - contextPad - contextMin * 1.3;
     const contextMinY = dekY + dekFit.lineHeight * dekFit.lines.length + contextGap;
     if (contextMinY <= contextMaxY) {
       const contextY = Math.min(contextPreferredY, contextMaxY);
-      const contextStart = Math.max(22, canvas.w * (isStory ? 0.026 : format === 'portrait' ? 0.023 : format === 'square' ? 0.016 : 0.014));
+      const contextStart = Math.max(22, canvas.w * (isStory ? 0.026 : format === 'portrait' ? 0.032 : format === 'square' ? 0.016 : 0.014));
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
       const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
       if (isStory) {
