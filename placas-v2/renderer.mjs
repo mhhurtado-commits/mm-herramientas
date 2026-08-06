@@ -105,8 +105,8 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.w, canvas.h);
 
-  const isPortrait = format === 'portrait';
-  if (!isPortrait) {
+  const isHeaderless = true;
+  if (!isHeaderless) {
   ctx.fillStyle = '#16201b';
   ctx.fillRect(0, 0, canvas.w, layout.header.h);
   ctx.fillStyle = family.color;
@@ -156,14 +156,14 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h);
   ctx.restore();
 
-  if (isPortrait) {
+  if (isHeaderless) {
     const portraitTop = ctx.createLinearGradient(0, layout.image.y, 0, layout.image.y + layout.image.h * 0.28);
     portraitTop.addColorStop(0, 'rgba(0,0,0,.52)');
     portraitTop.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = portraitTop;
     ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h * 0.28);
     const logoMargin = canvas.w * 0.045;
-    const logoW = canvas.w * 0.30;
+    const logoW = canvas.w * (format === 'landscape' ? 0.22 : 0.30);
     containImage(ctx, options.logo, {
       x: canvas.w - logoMargin - logoW,
       y: canvas.h * 0.035,
@@ -181,9 +181,9 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fill();
 
   const labelText = String(plate.etiqueta || family.label).toUpperCase();
-  const labelSize = Math.max(18, canvas.w * (format === 'portrait' ? 0.024 : 0.018));
+  const labelSize = Math.max(18, canvas.w * (format === 'landscape' ? 0.018 : 0.024));
   ctx.font = `900 ${labelSize}px ${fontFamily}`;
-  if (format === 'portrait') {
+  if (isHeaderless) {
     const labelPadX = canvas.w * 0.018;
     const labelW = ctx.measureText(labelText).width + labelPadX * 2;
     const labelMetrics = ctx.measureText(labelText);

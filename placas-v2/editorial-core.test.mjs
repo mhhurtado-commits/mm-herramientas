@@ -77,7 +77,8 @@ test('usa una composición más compacta para historias', () => {
   const story = calculatePlateLayout('story', plate);
   const portrait = calculatePlateLayout('portrait', plate);
 
-  assert.ok(story.header.h > portrait.header.h);
+  assert.equal(story.header.h, 0);
+  assert.equal(portrait.header.h, 0);
   assert.ok(story.image.h / story.canvas.h < portrait.image.h / portrait.canvas.h);
   assert.ok(story.footer.h < portrait.footer.h);
   assert.ok(story.context.y / story.canvas.h < portrait.context.y / portrait.canvas.h);
@@ -85,13 +86,14 @@ test('usa una composición más compacta para historias', () => {
   assert.ok((story.context.y - story.label.y) / (story.canvas.h - story.label.y - story.footer.h) > 0.55);
 });
 
-test('usa foto a sangre y elimina el header en vertical 4:5', () => {
+test('usa foto a sangre y elimina el header en todos los formatos', () => {
   const plate = normalizeNewsPlate(extracted);
-  const portrait = calculatePlateLayout('portrait', plate);
-
-  assert.equal(portrait.header.h, 0);
-  assert.equal(portrait.image.y, 0);
-  assert.ok(portrait.image.h > portrait.canvas.h * 0.4);
+  for (const format of ['landscape', 'square', 'portrait', 'story']) {
+    const layout = calculatePlateLayout(format, plate);
+    assert.equal(layout.header.h, 0);
+    assert.equal(layout.image.y, 0);
+    assert.ok(layout.image.h > layout.canvas.h * 0.35);
+  }
 });
 
 test('ajusta textos largos a un máximo de líneas con truncado legible', () => {
