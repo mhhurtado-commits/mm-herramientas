@@ -145,12 +145,13 @@ export function calculatePlateLayout(format, plate = {}) {
   const canvas = FORMATS[format] || FORMATS.square;
   const margin = canvas.w * 0.055;
   const isStory = format === 'story';
-  const headerH = canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
+  const isPortrait = format === 'portrait';
+  const headerH = isPortrait ? 0 : canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
   const footerH = canvas.h * (isStory ? 0.055 : 0.07);
-  const headerGap = canvas.h * (isStory ? 0.004 : 0.006);
+  const headerGap = isPortrait ? 0 : canvas.h * (isStory ? 0.004 : 0.006);
   const imageY = headerH + headerGap;
-  const imageH = canvas.h * (format === 'portrait' ? 0.30 : isStory ? 0.32 : 0.36);
-  const contentY = imageY + imageH + canvas.h * (isStory ? 0.02 : 0.035);
+  const imageH = canvas.h * (isPortrait ? 0.46 : isStory ? 0.32 : 0.36);
+  const contentY = imageY + imageH + canvas.h * (isStory ? 0.02 : isPortrait ? 0.022 : 0.035);
   const contentH = canvas.h - contentY - footerH - margin;
   const labelH = canvas.h * (isStory ? 0.038 : 0.045);
   const titleH = contentH * (isStory ? 0.40 : 0.42);

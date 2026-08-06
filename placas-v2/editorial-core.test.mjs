@@ -77,12 +77,21 @@ test('usa una composición más compacta para historias', () => {
   const story = calculatePlateLayout('story', plate);
   const portrait = calculatePlateLayout('portrait', plate);
 
-  assert.ok(story.header.h < portrait.header.h);
-  assert.ok(story.image.h > portrait.image.h);
+  assert.ok(story.header.h > portrait.header.h);
+  assert.ok(story.image.h / story.canvas.h < portrait.image.h / portrait.canvas.h);
   assert.ok(story.footer.h < portrait.footer.h);
   assert.ok(story.context.y / story.canvas.h < portrait.context.y / portrait.canvas.h);
   assert.ok((story.dek.y - story.label.y) / (story.canvas.h - story.label.y - story.footer.h) < 0.4);
   assert.ok((story.context.y - story.label.y) / (story.canvas.h - story.label.y - story.footer.h) > 0.55);
+});
+
+test('usa foto a sangre y elimina el header en vertical 4:5', () => {
+  const plate = normalizeNewsPlate(extracted);
+  const portrait = calculatePlateLayout('portrait', plate);
+
+  assert.equal(portrait.header.h, 0);
+  assert.equal(portrait.image.y, 0);
+  assert.ok(portrait.image.h > portrait.canvas.h * 0.4);
 });
 
 test('ajusta textos largos a un máximo de líneas con truncado legible', () => {

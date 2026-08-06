@@ -105,6 +105,8 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.w, canvas.h);
 
+  const isPortrait = format === 'portrait';
+  if (!isPortrait) {
   ctx.fillStyle = '#16201b';
   ctx.fillRect(0, 0, canvas.w, layout.header.h);
   ctx.fillStyle = family.color;
@@ -129,6 +131,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     w: logoW,
     h: logoH,
   });
+  }
 
   ctx.save();
   ctx.beginPath();
@@ -152,6 +155,22 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillStyle = overlay;
   ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h);
   ctx.restore();
+
+  if (isPortrait) {
+    const portraitTop = ctx.createLinearGradient(0, layout.image.y, 0, layout.image.y + layout.image.h * 0.28);
+    portraitTop.addColorStop(0, 'rgba(0,0,0,.52)');
+    portraitTop.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = portraitTop;
+    ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h * 0.28);
+    const logoMargin = canvas.w * 0.045;
+    const logoW = canvas.w * 0.30;
+    containImage(ctx, options.logo, {
+      x: canvas.w - logoMargin - logoW,
+      y: canvas.h * 0.035,
+      w: logoW,
+      h: canvas.h * 0.10,
+    });
+  }
 
   const cardX = layout.header.x;
   const cardY = layout.label.y - canvas.h * 0.018;
