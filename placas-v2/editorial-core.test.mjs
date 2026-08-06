@@ -72,6 +72,17 @@ test('calcula layouts sin salir del canvas en los cuatro formatos', () => {
   }
 });
 
+test('usa una composición más compacta para historias', () => {
+  const plate = normalizeNewsPlate(extracted);
+  const story = calculatePlateLayout('story', plate);
+  const portrait = calculatePlateLayout('portrait', plate);
+
+  assert.ok(story.header.h < portrait.header.h);
+  assert.ok(story.image.h > portrait.image.h);
+  assert.ok(story.footer.h < portrait.footer.h);
+  assert.ok(story.context.y / story.canvas.h < portrait.context.y / portrait.canvas.h);
+});
+
 test('ajusta textos largos a un máximo de líneas con truncado legible', () => {
   const result = fitTextToLines('Una noticia muy larga que debe entrar en una placa sin desbordarse del bloque visual', 22, 2);
 

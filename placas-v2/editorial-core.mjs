@@ -144,21 +144,27 @@ export function fitTextToLines(text, maxCharsPerLine, maxLines) {
 export function calculatePlateLayout(format, plate = {}) {
   const canvas = FORMATS[format] || FORMATS.square;
   const margin = canvas.w * 0.055;
-  const headerH = canvas.h * (canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
-  const footerH = canvas.h * 0.07;
-  const headerGap = canvas.h * 0.006;
+  const isStory = format === 'story';
+  const headerH = canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
+  const footerH = canvas.h * (isStory ? 0.055 : 0.07);
+  const headerGap = canvas.h * (isStory ? 0.004 : 0.006);
   const imageY = headerH + headerGap;
-  const imageH = canvas.h * (format === 'portrait' ? 0.30 : format === 'story' ? 0.28 : 0.36);
-  const contentY = imageY + imageH + canvas.h * 0.035;
+  const imageH = canvas.h * (format === 'portrait' ? 0.30 : isStory ? 0.32 : 0.36);
+  const contentY = imageY + imageH + canvas.h * (isStory ? 0.02 : 0.035);
   const contentH = canvas.h - contentY - footerH - margin;
+  const labelH = canvas.h * (isStory ? 0.038 : 0.045);
+  const titleH = contentH * (isStory ? 0.40 : 0.42);
+  const dekY = contentY + contentH * (isStory ? 0.42 : 0.48);
+  const dekH = contentH * (isStory ? 0.22 : 0.26);
+  const contextY = contentY + contentH * (isStory ? 0.68 : 0.78);
   return {
     canvas,
     header: { x: 0, y: 0, w: canvas.w, h: headerH },
     image: { x: 0, y: imageY, w: canvas.w, h: imageH },
-    label: { x: margin, y: contentY, w: canvas.w - margin * 2, h: canvas.h * 0.045 },
-    title: { x: margin, y: contentY + canvas.h * 0.045, w: canvas.w - margin * 2, h: contentH * 0.42 },
-    dek: { x: margin, y: contentY + contentH * 0.48, w: canvas.w - margin * 2, h: contentH * 0.26 },
-    context: { x: margin, y: contentY + contentH * 0.78, w: canvas.w - margin * 2, h: contentH * 0.13 },
+    label: { x: margin, y: contentY, w: canvas.w - margin * 2, h: labelH },
+    title: { x: margin, y: contentY + labelH, w: canvas.w - margin * 2, h: titleH },
+    dek: { x: margin, y: dekY, w: canvas.w - margin * 2, h: dekH },
+    context: { x: margin, y: contextY, w: canvas.w - margin * 2, h: contentH * (isStory ? 0.16 : 0.13) },
     footer: { x: margin, y: canvas.h - footerH, w: canvas.w - margin * 2, h: footerH - margin * 0.4 },
   };
 }

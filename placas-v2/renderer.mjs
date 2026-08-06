@@ -174,18 +174,24 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   const dekY = Math.max(layout.dek.y + dekStart, layout.title.y + titleFit.size + titleFit.lineHeight * titleFit.lines.length + canvas.h * 0.018);
   const dekFit = fittedText(ctx, plate.bajada, layout.dek.x, dekY, layout.dek.w, dekStart, dekMin, format === 'story' ? 4 : 3, 500, '#526058', 1.35);
   if (plate.contexto) {
-    const contextGap = canvas.h * 0.022;
+    const isStory = format === 'story';
+    const contextGap = canvas.h * (isStory ? 0.015 : 0.022);
     const contextPreferredY = Math.max(layout.context.y, dekY + dekFit.lineHeight * dekFit.lines.length + contextGap);
-    const contextPad = canvas.h * 0.037;
-    const footerSafeY = layout.footer.y - canvas.h * 0.035;
+    const contextPad = canvas.h * (isStory ? 0.026 : 0.037);
+    const footerSafeY = layout.footer.y - canvas.h * (isStory ? 0.025 : 0.035);
     const contextMin = Math.max(12, canvas.w * 0.01);
     const contextMaxY = footerSafeY - contextPad - contextMin * 1.3;
     const contextMinY = dekY + dekFit.lineHeight * dekFit.lines.length + contextGap;
     if (contextMinY <= contextMaxY) {
       const contextY = Math.min(contextPreferredY, contextMaxY);
+      if (isStory) {
+        ctx.fillStyle = family.soft;
+        roundedRect(ctx, layout.context.x - canvas.w * 0.018, contextY - canvas.h * 0.014, layout.context.w + canvas.w * 0.036, Math.min(canvas.h * 0.12, footerSafeY - contextY - canvas.h * 0.008), canvas.w * 0.012);
+        ctx.fill();
+      }
       ctx.fillStyle = family.color;
       ctx.fillRect(layout.context.x, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
-      const contextStart = Math.max(18, canvas.w * (format === 'portrait' ? 0.018 : format === 'square' ? 0.016 : 0.014));
+      const contextStart = Math.max(20, canvas.w * (isStory ? 0.0165 : format === 'portrait' ? 0.018 : format === 'square' ? 0.016 : 0.014));
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
       const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
       textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
