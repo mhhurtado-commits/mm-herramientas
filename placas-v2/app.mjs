@@ -73,7 +73,7 @@ function renderFormats() {
 
 function renderTemplates() {
   const source = activeVariant();
-  const types = Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || (type.id === 'textual' && source?.textual?.verificada) || (type.id === 'retrato-circular' && source?.personas?.length) || type.id === 'editorial-split');
+  const types = Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || (type.id === 'textual' && source?.textual?.verificada) || type.id === 'retrato-circular' || type.id === 'editorial-split');
   const current = state.selectedTemplate || source?.tipo_placa || 'noticia';
   $('#templateList').innerHTML = types.map(type => `<button type="button" class="template-option ${current === type.id ? 'active' : ''}" data-template="${type.id}">${type.label}</button>`).join('');
   document.querySelectorAll('.template-option').forEach(button => button.addEventListener('click', () => { state.selectedTemplate = button.dataset.template; syncEditor(); renderTemplates(); render(); }));
@@ -176,7 +176,9 @@ $('#peopleUpload').addEventListener('change', event => {
 $('#addPersonButton').addEventListener('click', () => {
   const variant = activeVariant();
   if (!variant) return;
-  variant.personas = [...(variant.personas || []), { id: `persona-${(variant.personas || []).length + 1}`, nombre: 'Nueva persona', rol: '', imagen: '', origen: 'subida', foco: { x: 0.5, y: 0.5 } }];
+  const people = [...(variant.personas || []), { id: `persona-${(variant.personas || []).length + 1}`, nombre: 'Nueva persona', rol: '', imagen: '', origen: 'subida', foco: { x: 0.5, y: 0.5 } }];
+  state.variants.forEach(item => { item.personas = people; });
+  state.plate.personas = people;
   renderPeople();
   render();
 });
@@ -195,13 +197,13 @@ $('#supportUpload').addEventListener('change', async event => {
 const plateCanvas = $('#plateCanvas');
 plateCanvas.title = 'Arrastrá la foto para ajustar el encuadre';
 plateCanvas.addEventListener('pointerdown', event => {
-  if (!state.image || !activeVariant()) return;
+  if (!activeVariant()) return;
   const bounds = plateCanvas.getBoundingClientRect();
   const point = {
     x: (event.clientX - bounds.left) * plateCanvas.width / bounds.width,
     y: (event.clientY - bounds.top) * plateCanvas.height / bounds.height,
   };
-  const variant = activeVariant();
+  const variant = effectiveVariant();
   if (variant.tipo_placa === 'retrato-circular' && variant.personas?.length) {
     const area = calculatePlateLayout(state.format, variant).portraits;
     const radius = Math.min(area.h * 0.48, plateCanvas.width * 0.105);
@@ -228,7 +230,7 @@ plateCanvas.addEventListener('pointerdown', event => {
       return;
     }
   }
-  const imageRect = calculatePlateLayout(state.format, activeVariant()).image;
+  const imageRect = calculatePlateLayout(state.format, variant).image;
   if (point.y < imageRect.y || point.y > imageRect.y + imageRect.h) return;
   state.drag = { clientX: event.clientX, clientY: event.clientY, focus: activeFocus() };
   state.imagePositioned = true;
