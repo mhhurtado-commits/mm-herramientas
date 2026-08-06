@@ -185,14 +185,15 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.font = `900 ${labelSize}px ${fontFamily}`;
   if (format === 'portrait') {
     const labelPadX = canvas.w * 0.018;
-    const labelPadY = canvas.h * 0.008;
     const labelW = ctx.measureText(labelText).width + labelPadX * 2;
     const labelH = labelSize * 1.45;
+    const labelY = layout.label.y + canvas.h * 0.004;
+    const labelPadY = (labelH - labelSize) / 2;
     ctx.fillStyle = family.color;
-    roundedRect(ctx, layout.label.x, layout.label.y + canvas.h * 0.004, labelW, labelH, canvas.w * 0.008);
+    roundedRect(ctx, layout.label.x, labelY, labelW, labelH, canvas.w * 0.008);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(labelText, layout.label.x + labelPadX, layout.label.y + canvas.h * 0.004 + labelPadY + labelSize);
+    ctx.fillText(labelText, layout.label.x + labelPadX, labelY + labelPadY + labelSize);
   } else {
     ctx.fillStyle = family.color;
     ctx.fillText(labelText, layout.label.x, layout.label.y + layout.label.h * 0.72);
@@ -231,7 +232,11 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
       }
       ctx.fillStyle = family.color;
       ctx.fillRect(layout.context.x, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
-      textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
+      if (format === 'portrait') {
+        fittedText(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize, Math.max(16, canvas.w * 0.014), 2, 600, family.secondary, 1.3);
+      } else {
+        textLines(ctx, plate.contexto, layout.context.x + canvas.w * 0.055, contextY + contextPad, layout.context.w - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
+      }
     }
   }
 
