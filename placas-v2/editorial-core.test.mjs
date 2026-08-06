@@ -152,7 +152,7 @@ test('ofrece tres composiciones editoriales cuando hay cita o personas', () => {
     personas: [{ nombre: 'Ana Pérez', imagen: extracted.image }],
   });
   const variants = buildEditorialVariants(plate);
-  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['textual', 'retrato-circular', 'editorial-split']);
+  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['textual', 'noticia', 'noticia']);
   assert.equal(variants[0].recommended, true);
   assert.ok(variants[1].personas.length);
   assert.ok(variants[2].bloques.some(block => block.tipo === 'dato-clave'));
@@ -171,7 +171,7 @@ test('calcula áreas seguras para cita, retratos y composición dividida', () =>
 
 test('sin cita literal no ofrece una textual como propuesta', () => {
   const plate = normalizeNewsPlate({ ...extracted, personas: [{ nombre: 'Ana Pérez', imagen: extracted.image }] });
-  assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['noticia', 'retrato-circular', 'editorial-split']);
+  assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['noticia', 'noticia', 'noticia']);
 });
 
 test('normaliza imágenes de apoyo para editorial split', () => {
@@ -195,8 +195,8 @@ test('normaliza imágenes de apoyo para editorial split', () => {
 
 test('mantiene tres tipos distintos cuando la sugerida es editorial split', () => {
   const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'editorial-split' });
-  assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['editorial-split', 'noticia', 'retrato-circular']);
   const variants = buildEditorialVariants(plate);
+  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['editorial-split', 'noticia', 'noticia']);
   assert.equal(variants[0].etiqueta, plate.etiqueta);
   assert.deepEqual(variants.slice(1).map(variant => variant.etiqueta), ['Actualidad', 'Sociedad']);
 });

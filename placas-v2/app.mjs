@@ -1,8 +1,8 @@
-import { buildEditorialVariants, normalizeNewsPlate, normalizeFocus, calculatePlateLayout, FORMATS } from './editorial-core.mjs';
+import { buildEditorialVariants, normalizeNewsPlate, normalizeFocus, calculatePlateLayout, FORMATS, PLATE_TYPES } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { plate: null, variants: [], selectedVariant: 0, format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, drag: null };
+const state = { plate: null, variants: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, drag: null };
 const $ = selector => document.querySelector(selector);
 
 const logoImage = new Image();
@@ -12,6 +12,7 @@ logoImage.src = '../assets/logo.png';
 function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2800); }
 function setLoading(on, message = 'Analizando la noticia…') { $('#loading').classList.toggle('is-hidden', !on); $('#loadingText').textContent = message; }
 function activeVariant() { return state.variants[state.selectedVariant] || state.plate; }
+function effectiveVariant() { const variant = activeVariant(); return variant ? { ...variant, tipo_placa: state.selectedTemplate || variant.tipo_placa || 'noticia' } : null; }
 function activeFocus() { return normalizeFocus(activeVariant()?.bloques?.find(block => block.tipo === 'imagen')?.foco); }
 function setFocus(axis, value) { const variant = activeVariant(); const imageBlock = variant?.bloques?.find(block => block.tipo === 'imagen'); if (!imageBlock) return; imageBlock.foco = { ...activeFocus(), [axis]: Number(value) / 100 }; renderFocus(); render(); }
 function setActiveText(key, value) { const current = activeVariant(); if (!current) return; current[key] = value; state.plate[key] = value; state.variants.forEach(variant => { if (variant[key] === current[key] || variant === current) variant[key] = value; }); render(); }
@@ -71,10 +72,11 @@ function renderFormats() {
 }
 
 function renderTemplates() {
-  const labels = { noticia: 'Noticia', textual: 'Textual', 'retrato-circular': 'Retrato circular', 'editorial-split': 'Editorial split' };
-  const current = activeVariant()?.tipo_placa || 'noticia';
-  $('#templateList').innerHTML = state.variants.map((variant, index) => `<button type="button" class="template-option ${current === variant.tipo_placa ? 'active' : ''}" data-template-index="${index}">${labels[variant.tipo_placa] || variant.tipo_placa}</button>`).join('');
-  document.querySelectorAll('.template-option').forEach(button => button.addEventListener('click', () => { state.selectedVariant = Number(button.dataset.templateIndex); syncEditor(); renderTemplates(); render(); }));
+  const source = activeVariant();
+  const types = Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || (type.id === 'textual' && source?.textual?.verificada) || (type.id === 'retrato-circular' && source?.personas?.length) || type.id === 'editorial-split');
+  const current = state.selectedTemplate || source?.tipo_placa || 'noticia';
+  $('#templateList').innerHTML = types.map(type => `<button type="button" class="template-option ${current === type.id ? 'active' : ''}" data-template="${type.id}">${type.label}</button>`).join('');
+  document.querySelectorAll('.template-option').forEach(button => button.addEventListener('click', () => { state.selectedTemplate = button.dataset.template; syncEditor(); renderTemplates(); render(); }));
 }
 
 function renderImages() {
@@ -87,7 +89,7 @@ function renderImages() {
 
 function renderFocus() { const focus = activeFocus(); $('#focusX').value = Math.round(focus.x * 100); $('#focusY').value = Math.round(focus.y * 100); $('#focusXValue').textContent = `${Math.round(focus.x * 100)}%`; $('#focusYValue').textContent = `${Math.round(focus.y * 100)}%`; }
 function renderPeople() {
-  const variant = activeVariant();
+  const variant = effectiveVariant();
   const people = variant?.personas || [];
   $('#specialControls').classList.toggle('is-hidden', !['textual', 'retrato-circular', 'editorial-split'].includes(variant?.tipo_placa));
   $('#quoteInput').value = variant?.textual?.cita || '';
@@ -97,11 +99,12 @@ function renderPeople() {
   document.querySelectorAll('[data-person]').forEach(input => input.addEventListener('input', event => { const person = variant.personas.find(item => item.id === event.target.dataset.person); if (!person) return; if (event.target.classList.contains('person-name')) person.nombre = event.target.value; else person.rol = event.target.value; render(); }));
 }
 function renderSupportImages() {
-  const variant = activeVariant();
+  const variant = effectiveVariant();
+  const source = activeVariant();
   const visible = variant?.tipo_placa === 'editorial-split';
   $('#supportControls').classList.toggle('is-hidden', !visible);
   if (!visible) return;
-  const current = variant.imagenes_apoyo || [];
+  const current = source?.imagenes_apoyo || [];
   const options = [...current, ...(state.plate?.fuente?.imagenes || []).slice(1).filter(url => !current.some(item => item.src === url)).map((src, index) => ({ id: `nota-apoyo-${index + 1}`, src, origen: 'nota', foco: { x: 0.5, y: 0.5 } }))];
   $('#supportImageList').innerHTML = options.length ? options.map((item, index) => `<button type="button" class="support-image-option ${state.supportImageUrl === item.src ? 'active' : ''}" data-support-index="${index}" title="Imagen de apoyo ${index + 1}"><img src="${item.src}" alt=""></button>`).join('') : '<small class="image-empty">No hay otra imagen en la nota. Agregá una desde tu equipo.</small>';
   document.querySelectorAll('.support-image-option').forEach(button => button.addEventListener('click', async () => { const item = options[Number(button.dataset.supportIndex)]; variant.imagenes_apoyo = [item]; state.supportImageUrl = item.src; state.supportFocus = item.foco; renderSupportImages(); await loadSupportImage(item.src); }));
@@ -112,7 +115,7 @@ function setSocialText(network, value) { const current = activeVariant(); if (!c
 async function copySocial(network) { const value = $(`#${network}Copy`).value.trim(); if (!value) return; try { await navigator.clipboard.writeText(value); toast(`Texto de ${network === 'instagram' ? 'Instagram' : 'Facebook'} copiado.`); } catch { toast('No se pudo copiar el texto.'); } }
 
 function render() {
-  const variant = activeVariant();
+  const variant = effectiveVariant();
   if (!variant) return;
   const canvas = $('#plateCanvas');
   renderNewsPlate(canvas.getContext('2d'), variant, state.format, { image: state.image, focus: activeFocus(), logo: state.logo, personImages: state.personImages, supportImage: state.supportImage, supportFocus: state.supportFocus, forceCover: state.imagePositioned });
@@ -134,7 +137,7 @@ async function generate(event) {
     const result = await generateEditorial(note);
     state.plate = normalizeNewsPlate(result.placa || note);
     state.variants = buildEditorialVariants(state.plate);
-    state.selectedVariant = 0; state.imageIndex = 0; state.personImages = {}; state.supportImage = null; state.supportImageUrl = ''; state.imagePositioned = true;
+    state.selectedVariant = 0; state.selectedTemplate = state.plate.tipo_placa || 'noticia'; state.imageIndex = 0; state.personImages = {}; state.supportImage = null; state.supportImageUrl = ''; state.imagePositioned = true;
     $('#editorControls').classList.remove('is-hidden');
     renderVariants(); renderFormats(); renderImages(); syncEditor();
     if (result.warnings?.length) { $('#warning').textContent = 'La propuesta se generó con fallback automático. Revisá la redacción antes de exportar.'; $('#warning').classList.remove('is-hidden'); } else $('#warning').classList.add('is-hidden');

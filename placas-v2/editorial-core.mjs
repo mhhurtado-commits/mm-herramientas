@@ -227,13 +227,10 @@ export function buildEditorialVariants(plate) {
     const firstType = plate.textual?.verificada ? 'textual' : plate.tipo_placa === 'editorial-split' ? 'editorial-split' : 'noticia';
     const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
     const alternativeFamilies = family === 'general' ? ['sociales', 'politica'] : ['general', 'sociales'];
-    const alternativeTypes = firstType === 'editorial-split'
-      ? ['noticia', 'retrato-circular']
-      : ['retrato-circular', 'editorial-split'];
     const variants = [
       { type: firstType, family },
-      { type: alternativeTypes[0], family: alternativeFamilies[0] },
-      { type: alternativeTypes[1], family: alternativeFamilies[1] },
+      { type: 'noticia', family: alternativeFamilies[0] },
+      { type: 'noticia', family: alternativeFamilies[1] },
     ].map(({ type, family: variantFamily }, index) => cloneWithTemplate(
       { ...plate, tipo_placa: type },
       `${variantFamily}-${type}`,

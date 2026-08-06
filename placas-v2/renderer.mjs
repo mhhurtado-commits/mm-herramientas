@@ -85,6 +85,10 @@ function fittedText(ctx, text, x, y, maxWidth, startSize, minSize, maxLines, wei
     size -= 1;
   }
   ctx.font = `${weight} ${size}px ${fontFamily}`;
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    lines[maxLines - 1] = `${lines[maxLines - 1].replace(/[.…]+$/, '').slice(0, Math.max(1, Math.floor(lines[maxLines - 1].length * 0.94))).trim()}…`;
+  }
   ctx.fillStyle = color;
   const lineHeight = size * lineHeightFactor;
   lines.forEach((line, index) => ctx.fillText(line, x, y + index * lineHeight));
@@ -306,7 +310,9 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   if (plate.contexto) {
     const isStory = format === 'story';
     const contextGap = canvas.h * (isStory ? 0.015 : 0.022);
-    const contextPreferredY = Math.max(layout.context.y, dekY + dekFit.lineHeight * dekFit.lines.length + contextGap);
+    const contextPreferredY = format === 'portrait'
+      ? dekY + dekFit.lineHeight * dekFit.lines.length + contextGap
+      : Math.max(layout.context.y, dekY + dekFit.lineHeight * dekFit.lines.length + contextGap);
     const contextPad = canvas.h * (isStory ? 0.026 : format === 'portrait' ? 0.025 : 0.037);
     const footerSafeY = layout.footer.y - canvas.h * (isStory ? 0.025 : 0.035);
     const contextMin = Math.max(12, canvas.w * 0.01);
@@ -314,7 +320,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     const contextMinY = dekY + dekFit.lineHeight * dekFit.lines.length + contextGap;
     if (contextMinY <= contextMaxY) {
       const contextY = Math.min(contextPreferredY, contextMaxY);
-      const contextStart = Math.max(22, canvas.w * (isStory ? 0.026 : format === 'portrait' ? 0.034 : format === 'square' ? 0.016 : 0.014));
+      const contextStart = Math.max(22, canvas.w * (isStory ? 0.026 : format === 'portrait' ? 0.028 : format === 'square' ? 0.016 : 0.014));
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
       const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
       if (isStory) {
