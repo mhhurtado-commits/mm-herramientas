@@ -67,12 +67,30 @@ function cleanArticleUrl(value) {
   }
 }
 
+function normalizeInstagramCopy(value, data, category) {
+  let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}\n\n📲 Leé la nota completa en mediamendoza.com\n\n#MediaMendoza #${category}`;
+  copy = copy.replace(/\[(?:enlace|link|url)\]/gi, cleanArticleUrl(data.fuente.url));
+  if (!/\p{Extended_Pictographic}/u.test(copy)) copy = `📰 ${copy}`;
+  return copy;
+}
+
+function normalizeFacebookCopy(value, data) {
+  const url = cleanArticleUrl(data.fuente.url);
+  let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}${data.contexto ? `\n\n${data.contexto}` : ''}`;
+  copy = copy.replace(/\[(?:enlace|link|url)\]/gi, url).replace(/https?:\/\/[^\s]+/gi, url);
+  copy = copy.replaceAll(url, '').replace(/[ \t]+\n/g, '\n').trim();
+  if (!/coment(?:á|a|arios)/i.test(copy)) copy += '\n\n💬 ¿Qué opinás? Te leemos en los comentarios.';
+  copy += `\n\n🔗 Leé la nota completa: ${url}`;
+  if (!/\p{Extended_Pictographic}/u.test(copy)) copy = `📰 ${copy}`;
+  return copy;
+}
+
 function buildSocialCopies(data, input = {}) {
   const source = input.redes || input.redes_sociales || input.social || {};
   const category = String(data.etiqueta || 'Actualidad').replace(/\s+/g, '').replace(/[íì]/gi, 'i').toUpperCase();
   const url = cleanArticleUrl(data.fuente.url);
-  const instagram = socialText(source.instagram) || `${data.titulo}\n\n${data.bajada}\n\nLeé la nota completa en mediamendoza.com\n\n#MediaMendoza #${category}`;
-  const facebook = socialText(source.facebook) || `${data.titulo}\n\n${data.bajada}${data.contexto ? `\n\n${data.contexto}` : ''}\n\n¿Qué opinás? Te leemos en los comentarios.\n\nLeé la nota completa: ${url}`;
+  const instagram = normalizeInstagramCopy(source.instagram, data, category);
+  const facebook = normalizeFacebookCopy(source.facebook, data);
   return { instagram, facebook };
 }
 

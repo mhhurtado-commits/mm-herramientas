@@ -133,13 +133,30 @@ function cleanArticleUrl(value) {
   }
 }
 
+function normalizeInstagramCopy(value, data, category) {
+  let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}\n\n📲 Leé la nota completa en mediamendoza.com\n\n#MediaMendoza #${category}`;
+  copy = copy.replace(/\[(?:enlace|link|url)\]/gi, cleanArticleUrl(data.fuente.url));
+  if (!/\p{Extended_Pictographic}/u.test(copy)) copy = `📰 ${copy}`;
+  return copy;
+}
+
+function normalizeFacebookCopy(value, data) {
+  const url = cleanArticleUrl(data.fuente.url);
+  let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}${data.contexto ? `\n\n${data.contexto}` : ''}`;
+  copy = copy.replace(/\[(?:enlace|link|url)\]/gi, url).replace(/https?:\/\/[^\s]+/gi, url);
+  copy = copy.replaceAll(url, '').replace(/[ \t]+\n/g, '\n').trim();
+  if (!/coment(?:á|a|arios)/i.test(copy)) copy += '\n\n💬 ¿Qué opinás? Te leemos en los comentarios.';
+  copy += `\n\n🔗 Leé la nota completa: ${url}`;
+  if (!/\p{Extended_Pictographic}/u.test(copy)) copy = `📰 ${copy}`;
+  return copy;
+}
+
 function buildSocialCopies(data, input = {}) {
   const source = input.redes || input.redes_sociales || input.social || {};
   const category = String(data.etiqueta || 'Actualidad').replace(/\s+/g, '').replace(/[íì]/gi, 'i').toUpperCase();
-  const url = cleanArticleUrl(data.fuente.url);
   return {
-    instagram: socialText(source.instagram) || `${data.titulo}\n\n${data.bajada}\n\nLeé la nota completa en mediamendoza.com\n\n#MediaMendoza #${category}`,
-    facebook: socialText(source.facebook) || `${data.titulo}\n\n${data.bajada}${data.contexto ? `\n\n${data.contexto}` : ''}\n\n¿Qué opinás? Te leemos en los comentarios.\n\nLeé la nota completa: ${url}`,
+    instagram: normalizeInstagramCopy(source.instagram, data, category),
+    facebook: normalizeFacebookCopy(source.facebook, data),
   };
 }
 
@@ -278,7 +295,7 @@ REGLAS:
 - NO inventes datos, cifras, citas, nombres ni contexto que no aparezca en la noticia.
 - Generá un titular breve, claro y atractivo, sin perder precisión.
 - Generá una bajada de una o dos frases y un contexto clave breve sólo si aporta información verificable.
-- Generá dos copys para acompañar la placa: Instagram debe ser breve, visual y cerrar con hashtags; Facebook puede ser más explicativo e incluir el contexto y el enlace.
+- Generá dos copys para acompañar la placa: Instagram debe ser breve, visual, usar 2 o 3 emojis con criterio y cerrar con hashtags; Facebook puede ser más explicativo, usar 1 o 2 emojis, incluir el contexto, invitar a comentar y cerrar con el enlace editorial limpio. Nunca escribas [enlace]: el sistema lo completa.
 - Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.

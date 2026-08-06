@@ -50,6 +50,20 @@ test('permite que la IA ajuste la familia sin perder la fuente original', () => 
   assert.equal(result.fuente.categoria, note.category);
 });
 
+test('normaliza copys de redes con CTA, emojis y enlace editorial', () => {
+  const result = normalizeEditorialResponse({
+    redes: {
+      instagram: '🚨 Novedad policial. #SanRafael',
+      facebook: '🚨 La Policía investiga el hecho. Más detalles: [enlace]',
+    },
+  }, note);
+
+  assert.match(result.redes.instagram, /🚨/);
+  assert.match(result.redes.facebook, /comentarios/i);
+  assert.doesNotMatch(result.redes.facebook, /\[enlace\]/i);
+  assert.match(result.redes.facebook, /https:\/\/mediamendoza\.com\/politica\/123$/);
+});
+
 test('produce una propuesta determinística cuando la IA no está disponible', () => {
   const result = deterministicEditorialResponse(note);
 
