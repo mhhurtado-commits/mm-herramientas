@@ -269,11 +269,20 @@ function cloneWithTemplate(plate, id, template, recommended = false) {
 function buildEditorialVariants(plate) {
   if (plate.textual?.verificada || plate.personas?.length || plate.tipo_placa === 'editorial-split') {
     const firstType = plate.textual?.verificada ? 'textual' : plate.tipo_placa === 'editorial-split' ? 'editorial-split' : 'noticia';
-    return [
-      { ...cloneWithTemplate({ ...plate, tipo_placa: firstType }, `${plate.template_sugerido}-${firstType}`, plate.template_sugerido, true) },
-      { ...cloneWithTemplate({ ...plate, tipo_placa: 'retrato-circular' }, `${plate.template_sugerido}-retrato`, plate.template_sugerido, false) },
-      { ...cloneWithTemplate({ ...plate, tipo_placa: 'editorial-split' }, `${plate.template_sugerido}-split`, plate.template_sugerido, false), bloques: [...plate.bloques, { tipo: 'dato-clave', id: 'dato-clave', texto: plate.contexto }] },
-    ];
+    const alternativeTypes = firstType === 'editorial-split'
+      ? ['noticia', 'retrato-circular']
+      : ['retrato-circular', 'editorial-split'];
+    return [firstType, ...alternativeTypes].map((type, index) => {
+      const variant = cloneWithTemplate(
+        { ...plate, tipo_placa: type },
+        `${plate.template_sugerido}-${type}`,
+        plate.template_sugerido,
+        index === 0,
+      );
+      return type === 'editorial-split'
+        ? { ...variant, bloques: [...variant.bloques, { tipo: 'dato-clave', id: 'dato-clave', texto: variant.contexto }] }
+        : variant;
+    });
   }
   const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
   const alternative = family === 'general' ? 'sociales' : 'general';

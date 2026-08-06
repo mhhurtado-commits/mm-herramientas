@@ -225,11 +225,15 @@ function cloneWithTemplate(plate, id, template, recommended = false) {
 export function buildEditorialVariants(plate) {
   if (plate.textual?.verificada || plate.personas?.length || plate.tipo_placa === 'editorial-split') {
     const firstType = plate.textual?.verificada ? 'textual' : plate.tipo_placa === 'editorial-split' ? 'editorial-split' : 'noticia';
-    const variants = [
-      cloneWithTemplate({ ...plate, tipo_placa: firstType }, `${plate.template_sugerido}-${firstType}`, plate.template_sugerido, true),
-      cloneWithTemplate({ ...plate, tipo_placa: 'retrato-circular' }, `${plate.template_sugerido}-retrato`, plate.template_sugerido, false),
-      cloneWithTemplate({ ...plate, tipo_placa: 'editorial-split' }, `${plate.template_sugerido}-split`, plate.template_sugerido, false),
-    ];
+    const alternativeTypes = firstType === 'editorial-split'
+      ? ['noticia', 'retrato-circular']
+      : ['retrato-circular', 'editorial-split'];
+    const variants = [firstType, ...alternativeTypes].map((type, index) => cloneWithTemplate(
+      { ...plate, tipo_placa: type },
+      `${plate.template_sugerido}-${type}`,
+      plate.template_sugerido,
+      index === 0,
+    ));
     return variants.map(variant => ({
       ...variant,
       bloques: [...variant.bloques, ...(variant.tipo_placa === 'editorial-split' ? [{ tipo: 'dato-clave', id: 'dato-clave', texto: variant.contexto }] : [])],
@@ -295,7 +299,7 @@ export function calculatePlateLayout(format, plate = {}) {
     quote: { x: margin, y: contentY + labelH, w: canvas.w - margin * 2, h: Math.max(0, contentH * 0.62) },
     portraits: { x: margin, y: imageY + imageH * 0.58, w: canvas.w - margin * 2, h: Math.max(0, imageH * 0.34) },
     split: { x: margin, y: contentY, w: canvas.w - margin * 2, h: Math.max(0, contentH) },
-    splitImage: { x: margin + canvas.w * 0.025, y: contentY + canvas.h * 0.025, w: canvas.w * 0.34, h: Math.max(0, contentH - canvas.h * 0.05) },
+    splitImage: { x: canvas.w * 0.08, y: contentY + canvas.h * 0.025, w: canvas.w * 0.285, h: Math.max(0, contentH - canvas.h * 0.05) },
   };
   return { ...baseLayout, ...specialArea };
 }
