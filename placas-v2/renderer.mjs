@@ -181,15 +181,15 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fill();
 
   ctx.fillStyle = family.color;
-  ctx.font = `900 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
+  ctx.font = `900 ${Math.max(18, canvas.w * (format === 'portrait' ? 0.024 : 0.018))}px ${fontFamily}`;
   ctx.fillText(String(plate.etiqueta || family.label).toUpperCase(), layout.label.x, layout.label.y + layout.label.h * 0.72);
 
   const titleStart = Math.max(34, canvas.w * (format === 'story' ? 0.057 : format === 'square' ? 0.055 : 0.052));
   const titleMin = Math.max(24, canvas.w * (format === 'story' ? 0.024 : 0.024));
   const titleMaxLines = 3;
   const titleFit = fittedText(ctx, plate.titulo, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, titleMaxLines, 800, family.secondary);
-  const dekStart = Math.max(22, canvas.w * (format === 'story' ? 0.035 : format === 'square' ? 0.024 : 0.022));
-  const dekMin = Math.max(18, canvas.w * (format === 'story' ? 0.022 : 0.016));
+  const dekStart = Math.max(22, canvas.w * (format === 'story' ? 0.035 : format === 'portrait' ? 0.030 : format === 'square' ? 0.024 : 0.022));
+  const dekMin = Math.max(18, canvas.w * (format === 'story' ? 0.022 : format === 'portrait' ? 0.020 : 0.016));
   const dekY = Math.max(layout.dek.y + dekStart, layout.title.y + titleFit.size + titleFit.lineHeight * titleFit.lines.length + canvas.h * 0.018);
   const dekFit = fittedText(ctx, plate.bajada, layout.dek.x, dekY, layout.dek.w, dekStart, dekMin, format === 'story' ? 4 : 3, 500, '#526058', 1.35);
   if (plate.contexto) {
@@ -203,7 +203,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     const contextMinY = dekY + dekFit.lineHeight * dekFit.lines.length + contextGap;
     if (contextMinY <= contextMaxY) {
       const contextY = Math.min(contextPreferredY, contextMaxY);
-      const contextStart = Math.max(22, canvas.w * (isStory ? 0.026 : format === 'portrait' ? 0.018 : format === 'square' ? 0.016 : 0.014));
+      const contextStart = Math.max(22, canvas.w * (isStory ? 0.026 : format === 'portrait' ? 0.023 : format === 'square' ? 0.016 : 0.014));
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
       const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
       if (isStory) {
@@ -228,7 +228,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.lineTo(canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.12);
   ctx.stroke();
   ctx.fillStyle = '#526058';
-  ctx.font = `700 ${Math.max(24, canvas.w * 0.019)}px ${fontFamily}`;
+  ctx.font = `700 ${Math.max(24, canvas.w * (format === 'portrait' ? 0.022 : 0.019))}px ${fontFamily}`;
   ctx.textAlign = 'right';
   ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.68);
   ctx.textAlign = 'left';
