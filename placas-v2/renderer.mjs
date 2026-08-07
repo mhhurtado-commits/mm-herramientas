@@ -342,9 +342,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   if (plate.contexto) {
     const isStory = format === 'story';
     const contextGap = canvas.h * (isStory ? 0.015 : 0.022);
-    const contextPreferredY = format === 'portrait'
-      ? dekY + dekFit.lineHeight * dekFit.lines.length + contextGap
-      : Math.max(layout.context.y, dekY + dekFit.lineHeight * dekFit.lines.length + contextGap);
+    const contextPreferredY = dekY + dekFit.lineHeight * dekFit.lines.length + contextGap;
     const contextTypography = getContextTypography(format, plateType);
     const contextPad = canvas.h * (isStory ? 0.026 : format === 'portrait' ? 0.025 : 0.037);
     const footerSafeY = layout.footer.y - canvas.h * (isStory ? 0.025 : 0.035);
