@@ -357,8 +357,8 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
       const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / contextTypography.reserveLines));
       if (isStory) {
         const contextBoxH = Math.min(
-          canvas.h * 0.09,
-          Math.max(canvas.h * 0.055, footerSafeY - contextY - canvas.h * 0.008, contextPad + contextSize * 1.3 * 2 + canvas.h * 0.018),
+          canvas.h * 0.14,
+          Math.max(canvas.h * 0.055, footerSafeY - contextY - canvas.h * 0.008, contextPad + contextSize * 1.3 * contextMaxLines + canvas.h * 0.018),
         );
         ctx.fillStyle = family.soft;
         roundedRect(ctx, layout.context.x - canvas.w * 0.018, contextY - canvas.h * 0.014, layout.context.w + canvas.w * 0.036, contextBoxH, canvas.w * 0.012);
@@ -369,7 +369,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
       if (format === 'portrait') {
         fittedText(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize, Math.max(18, canvas.w * 0.014), contextMaxLines, 600, family.secondary, 1.3, availableContext);
       } else {
-        textLines(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize * 1.3, contextMaxLines, `600 ${contextSize}px ${fontFamily}`, family.secondary);
+        fittedText(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize, Math.max(18, canvas.w * 0.014), contextMaxLines, 600, family.secondary, 1.3, availableContext);
       }
     }
   }
