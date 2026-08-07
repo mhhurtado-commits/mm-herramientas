@@ -75,13 +75,13 @@ function wrapMeasuredText(ctx, text, maxWidth) {
   return lines;
 }
 
-function fittedText(ctx, text, x, y, maxWidth, startSize, minSize, maxLines, weight, color, lineHeightFactor = 1.08) {
+function fittedText(ctx, text, x, y, maxWidth, startSize, minSize, maxLines, weight, color, lineHeightFactor = 1.08, maxHeight = Infinity) {
   let size = startSize;
   let lines = [];
   while (size >= minSize) {
     ctx.font = `${weight} ${size}px ${fontFamily}`;
     lines = wrapMeasuredText(ctx, text, maxWidth);
-    if (lines.length <= maxLines) break;
+    if (lines.length <= maxLines && lines.length * size * lineHeightFactor <= maxHeight) break;
     size -= 1;
   }
   ctx.font = `${weight} ${size}px ${fontFamily}`;
@@ -323,7 +323,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
       const contextStart = Math.max(22, canvas.w * (isStory ? 0.026 : format === 'portrait' ? 0.028 : format === 'square' ? 0.016 : 0.014));
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
       const contextMaxLines = format === 'portrait' ? 3 : 2;
-      const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / contextMaxLines));
+      const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
       if (isStory) {
         const contextBoxH = Math.min(
           canvas.h * 0.09,
@@ -336,7 +336,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
       ctx.fillStyle = family.color;
       ctx.fillRect(contextX, contextY + canvas.h * 0.02, canvas.w * 0.035, Math.max(5, canvas.h * 0.006));
       if (format === 'portrait') {
-        fittedText(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize, Math.max(18, canvas.w * 0.014), contextMaxLines, 600, family.secondary, 1.3);
+        fittedText(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize, Math.max(18, canvas.w * 0.014), contextMaxLines, 600, family.secondary, 1.3, availableContext);
       } else {
         textLines(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
       }
