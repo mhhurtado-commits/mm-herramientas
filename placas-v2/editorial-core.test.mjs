@@ -8,6 +8,7 @@ import {
   fitTextToLines,
   normalizeFocus,
 } from './editorial-core.mjs';
+import { getContextTypography } from './renderer.mjs';
 
 const extracted = {
   title: 'El Gobierno anunció una nueva obra de infraestructura para el sur de Mendoza',
@@ -199,4 +200,15 @@ test('mantiene tres tipos distintos cuando la sugerida es editorial split', () =
   assert.deepEqual(variants.map(variant => variant.tipo_placa), ['editorial-split', 'noticia', 'noticia']);
   assert.equal(variants[0].etiqueta, plate.etiqueta);
   assert.deepEqual(variants.slice(1).map(variant => variant.etiqueta), ['Actualidad', 'Sociedad']);
+});
+
+test('usa tipografías de contexto específicas para formato y tipo', () => {
+  const normalPortrait = getContextTypography('portrait', 'noticia');
+  const splitPortrait = getContextTypography('portrait', 'editorial-split');
+  const textualStory = getContextTypography('story', 'textual');
+
+  assert.ok(normalPortrait.startRatio > splitPortrait.startRatio);
+  assert.ok(normalPortrait.minRatio >= splitPortrait.minRatio);
+  assert.ok(textualStory.startRatio > getContextTypography('story', 'editorial-split').startRatio);
+  assert.equal(normalPortrait.maxLines, 3);
 });

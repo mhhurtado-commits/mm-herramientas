@@ -2,6 +2,38 @@ import { FAMILIES, calculatePlateLayout, fitTextToLines, normalizeFocus } from '
 
 const fontFamily = 'Inter, Arial, sans-serif';
 
+const CONTEXT_TYPOGRAPHY = {
+  landscape: {
+    noticia: { startRatio: 0.021, minRatio: 0.013, maxLines: 2 },
+    textual: { startRatio: 0.023, minRatio: 0.014, maxLines: 2 },
+    'retrato-circular': { startRatio: 0.021, minRatio: 0.013, maxLines: 2 },
+    'editorial-split': { startRatio: 0.018, minRatio: 0.011, maxLines: 2 },
+  },
+  square: {
+    noticia: { startRatio: 0.024, minRatio: 0.014, maxLines: 2 },
+    textual: { startRatio: 0.027, minRatio: 0.015, maxLines: 2 },
+    'retrato-circular': { startRatio: 0.024, minRatio: 0.014, maxLines: 2 },
+    'editorial-split': { startRatio: 0.020, minRatio: 0.012, maxLines: 2 },
+  },
+  portrait: {
+    noticia: { startRatio: 0.038, minRatio: 0.018, maxLines: 3 },
+    textual: { startRatio: 0.042, minRatio: 0.019, maxLines: 3 },
+    'retrato-circular': { startRatio: 0.036, minRatio: 0.018, maxLines: 3 },
+    'editorial-split': { startRatio: 0.030, minRatio: 0.014, maxLines: 3 },
+  },
+  story: {
+    noticia: { startRatio: 0.034, minRatio: 0.018, maxLines: 3 },
+    textual: { startRatio: 0.040, minRatio: 0.019, maxLines: 3 },
+    'retrato-circular': { startRatio: 0.034, minRatio: 0.018, maxLines: 3 },
+    'editorial-split': { startRatio: 0.028, minRatio: 0.014, maxLines: 3 },
+  },
+};
+
+export function getContextTypography(format, plateType = 'noticia') {
+  const byFormat = CONTEXT_TYPOGRAPHY[format] || CONTEXT_TYPOGRAPHY.square;
+  return byFormat[plateType] || byFormat.noticia;
+}
+
 function roundedRect(ctx, x, y, w, h, r) {
   const radius = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -313,16 +345,17 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     const contextPreferredY = format === 'portrait'
       ? dekY + dekFit.lineHeight * dekFit.lines.length + contextGap
       : Math.max(layout.context.y, dekY + dekFit.lineHeight * dekFit.lines.length + contextGap);
+    const contextTypography = getContextTypography(format, plateType);
     const contextPad = canvas.h * (isStory ? 0.026 : format === 'portrait' ? 0.025 : 0.037);
     const footerSafeY = layout.footer.y - canvas.h * (isStory ? 0.025 : 0.035);
-    const contextMin = Math.max(12, canvas.w * 0.01);
+    const contextMin = Math.max(12, canvas.w * contextTypography.minRatio);
     const contextMaxY = footerSafeY - contextPad - contextMin * 1.3;
     const contextMinY = dekY + dekFit.lineHeight * dekFit.lines.length + contextGap;
     if (contextMinY <= contextMaxY) {
       const contextY = Math.min(contextPreferredY, contextMaxY);
-      const contextStart = Math.max(22, canvas.w * (isStory ? 0.026 : format === 'portrait' ? 0.028 : format === 'square' ? 0.016 : 0.014));
+      const contextStart = Math.max(22, canvas.w * contextTypography.startRatio);
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
-      const contextMaxLines = format === 'portrait' ? 3 : 2;
+      const contextMaxLines = contextTypography.maxLines;
       const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
       if (isStory) {
         const contextBoxH = Math.min(
