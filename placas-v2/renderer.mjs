@@ -31,7 +31,7 @@ const CONTEXT_TYPOGRAPHY = {
 
 export function getContextTypography(format, plateType = 'noticia') {
   const byFormat = CONTEXT_TYPOGRAPHY[format] || CONTEXT_TYPOGRAPHY.square;
-  return byFormat[plateType] || byFormat.noticia;
+  return { reserveLines: 1, ...(byFormat[plateType] || byFormat.noticia) };
 }
 
 function roundedRect(ctx, x, y, w, h, r) {
@@ -356,7 +356,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
       const contextStart = Math.max(22, canvas.w * contextTypography.startRatio);
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
       const contextMaxLines = contextTypography.maxLines;
-      const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / 2));
+      const contextSize = Math.max(contextMin, Math.min(contextStart, availableContext / 1.3 / contextTypography.reserveLines));
       if (isStory) {
         const contextBoxH = Math.min(
           canvas.h * 0.09,

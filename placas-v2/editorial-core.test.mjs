@@ -211,4 +211,5 @@ test('usa tipografías de contexto específicas para formato y tipo', () => {
   assert.ok(normalPortrait.minRatio >= splitPortrait.minRatio);
   assert.ok(textualStory.startRatio > getContextTypography('story', 'editorial-split').startRatio);
   assert.equal(normalPortrait.maxLines, 3);
+  assert.equal(normalPortrait.reserveLines, 1);
 });
