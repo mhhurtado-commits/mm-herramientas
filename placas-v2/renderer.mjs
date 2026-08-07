@@ -349,7 +349,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
     const contextMin = Math.max(12, canvas.w * contextTypography.minRatio);
     const contextMaxY = footerSafeY - contextPad - contextMin * 1.3;
     const contextMinY = dekY + dekFit.lineHeight * dekFit.lines.length + contextGap;
-    if (contextMinY <= contextMaxY) {
+    {
       const contextY = Math.min(contextPreferredY, contextMaxY);
       const contextStart = Math.max(22, canvas.w * contextTypography.startRatio);
       const availableContext = Math.max(contextMin, footerSafeY - (contextY + contextPad));
@@ -369,7 +369,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
       if (format === 'portrait') {
         fittedText(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize, Math.max(18, canvas.w * 0.014), contextMaxLines, 600, family.secondary, 1.3, availableContext);
       } else {
-        textLines(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize * 1.3, 2, `600 ${contextSize}px ${fontFamily}`, family.secondary);
+        textLines(ctx, plate.contexto, contextX + canvas.w * 0.055, contextY + contextPad, contextW - canvas.w * 0.055, contextSize * 1.3, contextMaxLines, `600 ${contextSize}px ${fontFamily}`, family.secondary);
       }
     }
   }
