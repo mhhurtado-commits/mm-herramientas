@@ -21,7 +21,7 @@ export function createSlide() {
 
 const EDITORIAL_TYPES = {
   cover: "cover",
-  clave: "text",
+  clave: "key",
   contexto: "text",
   dato: "stats",
   cita: "quote",

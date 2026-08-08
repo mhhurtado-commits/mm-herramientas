@@ -2,7 +2,7 @@ import { createCarouselProject } from "./models.js";
 import { setProject, getProject } from "./state.js";
 import { renderCarousel } from "./renderer.js";
 import { getEditorialSlideLabel } from "./slide-model.js";
-import { renderSlideToCanvas } from "./canvas-renderer.js";
+import { preloadCarouselAssets, renderSlideToCanvas } from "./canvas-renderer.js";
 import { preloadReelSceneAssets, renderReelSceneToCanvas, resolveReelSceneFamily } from "./reel-canvas-renderer.js";
 import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
 import { buildInstagramCaptionPrompt, buildReelPrompt } from "./prompts.js";
@@ -988,7 +988,7 @@ function createThumbnailItem(item, isActive, project) {
 
   var button = document.createElement("button");
   button.type = "button";
-  button.className = "carousel-thumb" + (isActive ? " is-active" : "");
+  button.className = "carousel-thumb" + (item.slide && item.slide.type === "clave" ? " is-clave" : "") + (isActive ? " is-active" : "");
   button.addEventListener("click", createSlideSelectHandler(item.index));
 
   var previewCanvas = item.canvas;
@@ -1093,11 +1093,17 @@ function createThumbActions(item, project) {
   return actions;
 }
 
-async function copySlideImage(item, project) {
+export async function copySlideImage(item, project) {
   var preview = document.getElementById("previewContent");
   try {
+    await preloadCarouselAssets([item.slide], project);
     var canvas = renderSlideToCanvas(item.slide, project);
     if (!canvas) throw new Error("No se pudo renderizar el slide.");
+    var exportEligibility = getCarouselExportEligibility([{ item: item, index: item.index, canvas: canvas }]);
+    if (!exportEligibility.allowed) {
+      setStatus(preview, exportEligibility.warning);
+      return false;
+    }
     var blob = await canvasToBlob(canvas);
     if (!blob) throw new Error("No se pudo generar la imagen.");
     if (typeof ClipboardItem !== "function" || !navigator.clipboard || !navigator.clipboard.write) {
@@ -1111,14 +1117,17 @@ async function copySlideImage(item, project) {
     ]);
 
     setStatus(preview, "Slide copiado");
+    return true;
   } catch (error) {
     setStatus(preview, "No se pudo copiar. Usa PNG.");
+    return false;
   }
 }
 
 async function downloadSlideImage(item, project, silent, renderedCanvas) {
   var preview = document.getElementById("previewContent");
   try {
+    await preloadCarouselAssets([item.slide], project);
     var canvas = renderedCanvas || renderSlideToCanvas(item.slide, project);
     if (!canvas) throw new Error("No se pudo renderizar el slide.");
     var exportEligibility = getCarouselExportEligibility([{ item: item, index: item.index, canvas: canvas }]);
@@ -1428,10 +1437,17 @@ async function generateReelPlan(project) {
   }
 }
 
-async function downloadAllSlides() {
+export async function downloadAllSlides() {
   var preview = document.getElementById("previewContent");
   var project = getProject();
-  if (!project || !project.slides || !project.slides.length) return;
+  if (!project || !project.slides || !project.slides.length) return 0;
+
+  try {
+    await preloadCarouselAssets(project.slides, project);
+  } catch (error) {
+    setStatus(preview, "No se pudieron cargar las imagenes del carrusel.");
+    return 0;
+  }
 
   var renderedSlides = renderCarousel(project);
   var renderedMetadata = [];
@@ -1439,23 +1455,27 @@ async function downloadAllSlides() {
     renderedMetadata.push({
       item: renderedSlides[i],
       index: i,
-      canvas: renderSlideToCanvas(renderedSlides[i].slide, project)
+      canvas: renderedSlides[i].canvas
     });
   }
   var exportEligibility = getCarouselExportEligibility(renderedMetadata);
   if (!exportEligibility.allowed) {
     setStatus(preview, exportEligibility.warning);
-    return;
+    return 0;
   }
 
   setStatus(preview, "Preparando descarga...");
 
+  var exportedCount = 0;
   for (var j = 0; j < renderedMetadata.length; j++) {
-    await downloadSlideImage(renderedMetadata[j].item, project, true, renderedMetadata[j].canvas);
+    if (await downloadSlideImage(renderedMetadata[j].item, project, true, renderedMetadata[j].canvas)) {
+      exportedCount += 1;
+    }
     await wait(180);
   }
 
-  setStatus(preview, renderedMetadata.length + " slides descargados");
+  setStatus(preview, exportedCount + " slides descargados");
+  return exportedCount;
 }
 
 function wait(ms) {

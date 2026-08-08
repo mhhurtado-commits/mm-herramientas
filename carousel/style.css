@@ -532,6 +532,16 @@
   outline-offset: 2px;
 }
 
+.carousel-thumb.is-clave {
+  border-color: color-mix(in srgb, var(--v) 58%, var(--line2));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--v-dim) 46%, var(--surface)) 0%, var(--surface) 100%);
+}
+
+.carousel-thumb.is-clave .carousel-thumb-type {
+  color: color-mix(in srgb, var(--v) 72%, var(--text));
+  font-weight: 700;
+}
+
 .carousel-thumb.is-active::before {
   content: "";
   position: absolute;

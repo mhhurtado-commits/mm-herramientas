@@ -2,10 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getEditorialSlideLabel, normalizeCarouselSlide } from './slide-model.js';
 import { getCarouselExportEligibility, getSlideLabel } from './ui.js';
+import * as carouselUI from './ui.js';
 import { getCarouselLayout } from './core/layout.js';
 import { fitText } from './core/text.js';
 import { resolveCarouselTheme } from './core/theme.js';
 import { renderSlideToCanvas } from './canvas-renderer.js';
+import * as canvasRenderer from './canvas-renderer.js';
+import { setProject } from './state.js';
 
 test('mapea los tipos editoriales a etiquetas visibles y conserva cover/legacy', () => {
   assert.deepEqual(
@@ -43,8 +46,11 @@ test('bloquea la exportación y nombra el bloque cuando el canvas editorial tien
   assert.equal(clear.warning, '');
 });
 
-function installCanvasHarness() {
-  globalThis.Image = class {
+function installCanvasHarness(options = {}) {
+  const canvases = [];
+  const downloads = [];
+  const status = { textContent: '' };
+  const ImageClass = options.ImageClass || class {
     constructor() {
       this.width = 1200;
       this.height = 800;
@@ -56,17 +62,40 @@ function installCanvasHarness() {
       if (this.onload) this.onload();
     }
   };
+  globalThis.Image = ImageClass;
 
   globalThis.document = {
     createElement(tag) {
+      if (tag === 'a') {
+        return {
+          href: '',
+          download: '',
+          click() { downloads.push(this.download); },
+          remove() {},
+        };
+      }
       assert.equal(tag, 'canvas');
-      const calls = { text: [], images: [] };
+      const calls = { text: [], images: [], measurements: [], fills: [] };
+      let currentRoundRect = null;
       const ctx = new Proxy({
         measureText(value) {
-          return { width: String(value).length * 24 };
+          const width = options.measureWidth
+            ? options.measureWidth(String(value), this.font || '')
+            : String(value).length * 24;
+          calls.measurements.push({ value: String(value), font: this.font || '', width });
+          return { width };
         },
         createLinearGradient() {
           return { addColorStop() {} };
+        },
+        beginPath() {
+          currentRoundRect = null;
+        },
+        roundRect(x, y, width, height, radius) {
+          currentRoundRect = { x, y, width, height, radius };
+        },
+        fill() {
+          if (currentRoundRect) calls.fills.push({ ...currentRoundRect, color: this.fillStyle });
         },
         fillText(value, x, y) {
           calls.text.push({
@@ -93,16 +122,32 @@ function installCanvasHarness() {
         },
       });
 
-      return {
+      const canvas = {
         width: 0,
         height: 0,
         calls,
+        toBlob(callback) {
+          const blob = options.blobForCanvas
+            ? options.blobForCanvas(calls)
+            : new Blob(['png'], { type: 'image/png' });
+          callback(blob);
+        },
         getContext() {
           return ctx;
         },
       };
+      canvases.push(canvas);
+      return canvas;
+    },
+    getElementById(id) {
+      return id === 'previewContent' ? status : null;
+    },
+    body: {
+      appendChild() {},
     },
   };
+
+  return { canvases, downloads, status };
 }
 
 function textValues(canvas) {
@@ -116,11 +161,161 @@ function assertContentBaselinesBeforeFooter(canvas, kind) {
   assert.ok(contentText.every((entry) => entry.y + entry.lineHeight <= footerY), `content line crossed footer: ${JSON.stringify(contentText)}`);
 }
 
-function renderEditorialSlide(source, project = {}) {
-  installCanvasHarness();
+function renderEditorialSlide(source, project = {}, harnessOptions = {}) {
+  installCanvasHarness(harnessOptions);
   const slide = normalizeCarouselSlide(source, 1, 4);
   return renderSlideToCanvas(slide, { ...project, slides: [slide] });
 }
+
+test('renderiza clave como una tarjeta editorial destacada y no como contexto', () => {
+  const keySlide = normalizeCarouselSlide({
+    type: 'clave',
+    content: { title: 'La clave', text: 'Una conclusion prioritaria.' },
+  }, 0, 1);
+  const contextSlide = normalizeCarouselSlide({
+    type: 'contexto',
+    content: { title: 'El contexto', text: 'Un antecedente explicativo.' },
+  }, 0, 1);
+
+  installCanvasHarness();
+  const keyCanvas = renderSlideToCanvas(keySlide, { slides: [keySlide] });
+  const contextCanvas = renderSlideToCanvas(contextSlide, { slides: [contextSlide] });
+
+  assert.equal(keySlide.template, 'key');
+  assert.equal(contextSlide.template, 'text');
+  assert.ok(keyCanvas.calls.fills.some((fill) => fill.color === '#edf6ce' && fill.width > 800 && fill.height > 200));
+  assert.equal(contextCanvas.calls.fills.some((fill) => fill.color === '#edf6ce' && fill.width > 800 && fill.height > 200), false);
+});
+
+test('mide los titulos con el mismo peso bold que usa al dibujarlos', () => {
+  const canvas = renderEditorialSlide({
+    type: 'contexto',
+    content: { title: 'PESO EDITORIAL', text: 'Cuerpo breve.' },
+  }, {}, {
+    measureWidth(value, font) {
+      return value.length * (font.startsWith('700 ') ? 30 : 18);
+    },
+  });
+  const titleMeasurements = canvas.calls.measurements.filter((entry) => entry.value.includes('PESO'));
+
+  assert.ok(titleMeasurements.length > 0);
+  assert.ok(titleMeasurements.every((entry) => entry.font.startsWith('700 ')), JSON.stringify(titleMeasurements));
+});
+
+test('acota etiquetas largas y registra el rol semantico del desborde', () => {
+  const label = `SECCION-${'MUYLARGA'.repeat(40)}`;
+  const canvas = renderEditorialSlide({
+    type: 'contexto',
+    content: { eyebrow: label, title: 'Titulo', text: 'Cuerpo breve.' },
+  });
+  const rightEdge = getCarouselLayout('text', 1080, 1350).content.x + getCarouselLayout('text', 1080, 1350).content.width;
+  const labelLines = canvas.calls.text.filter((entry) => label.includes(entry.value));
+  const eyebrowBlock = canvas.renderState.blocks.find((block) => block.role === 'eyebrow');
+
+  assert.ok(labelLines.length > 0);
+  assert.ok(labelLines.every((entry) => entry.x + entry.value.length * 24 <= rightEdge), JSON.stringify(labelLines));
+  assert.ok(eyebrowBlock);
+  assert.equal(eyebrowBlock.overflow, true);
+  assert.ok(canvas.renderState.blocks.every((block) => typeof block.role === 'string' && block.role.length > 0));
+  const eligibility = getCarouselExportEligibility([{ item: { slide: { type: 'contexto' } }, canvas }]);
+  assert.equal(eligibility.allowed, false);
+  assert.match(eligibility.warning, /bloque eyebrow/);
+});
+
+test('precarga imagenes en cache fria antes de renderizar el PNG', async () => {
+  const pendingImages = [];
+  class DeferredImage {
+    constructor() {
+      this.width = 1200;
+      this.height = 800;
+      this.onload = null;
+      this.onerror = null;
+    }
+
+    set src(value) {
+      this.source = value;
+      pendingImages.push(this);
+    }
+  }
+  installCanvasHarness({ ImageClass: DeferredImage });
+  const slide = normalizeCarouselSlide({
+    type: 'imagen',
+    content: { image: 'https://example.com/cold-cache-asset.jpg', title: 'Imagen fria' },
+  }, 0, 1);
+
+  assert.equal(typeof canvasRenderer.preloadCarouselAssets, 'function');
+  let settled = false;
+  const preload = canvasRenderer.preloadCarouselAssets([slide], { slides: [slide] }).then(() => { settled = true; });
+  await Promise.resolve();
+  assert.equal(settled, false);
+  for (const image of pendingImages) image.onload();
+  await preload;
+  const canvas = renderSlideToCanvas(slide, { slides: [slide] });
+
+  assert.ok(canvas.calls.images.some((src) => src.includes('cold-cache-asset.jpg')));
+});
+
+test('rechaza copiar PNG con desborde y conserva la copia normal', async () => {
+  const harness = installCanvasHarness();
+  const writes = [];
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: { clipboard: { async write(items) { writes.push(items); } } },
+  });
+  globalThis.ClipboardItem = class {
+    constructor(value) { this.value = value; }
+  };
+  const overflowItem = {
+    index: 0,
+    slide: normalizeCarouselSlide({
+      type: 'contexto',
+      content: { title: 'Contexto', text: Array(100).fill('texto desbordado').join(' ') },
+    }, 0, 1),
+  };
+  const clearItem = {
+    index: 1,
+    slide: normalizeCarouselSlide({
+      type: 'contexto',
+      content: { title: 'Contexto', text: 'Texto breve.' },
+    }, 1, 2),
+  };
+
+  assert.equal(typeof carouselUI.copySlideImage, 'function');
+  const rejected = await carouselUI.copySlideImage(overflowItem, { slides: [overflowItem.slide] });
+  assert.equal(rejected, false);
+  assert.equal(writes.length, 0);
+  assert.match(harness.status.textContent, /desbordado/);
+
+  const copied = await carouselUI.copySlideImage(clearItem, { slides: [clearItem.slide] });
+  assert.equal(copied, true);
+  assert.equal(writes.length, 1);
+  assert.equal(harness.status.textContent, 'Slide copiado');
+});
+
+test('informa solo los slides efectivamente descargados en lote', async () => {
+  const harness = installCanvasHarness({
+    blobForCanvas(calls) {
+      return calls.text.some((entry) => entry.value === 'FALLA')
+        ? null
+        : new Blob(['png'], { type: 'image/png' });
+    },
+  });
+  const project = {
+    article: {},
+    slides: [
+      { type: 'contexto', content: { title: 'OK', text: 'Descarga.' } },
+      { type: 'contexto', content: { title: 'FALLA', text: 'No descarga.' } },
+    ],
+  };
+  setProject(project);
+
+  assert.equal(typeof carouselUI.downloadAllSlides, 'function');
+  const exported = await carouselUI.downloadAllSlides();
+
+  assert.equal(exported, 1);
+  assert.equal(harness.downloads.length, 1);
+  assert.equal(harness.status.textContent, '1 slides descargados');
+});
 
 test('normaliza un slide dato al template stats y completa su contenido', () => {
   const slide = normalizeCarouselSlide({
@@ -414,6 +609,7 @@ test('valida la secuencia editorial modular con contexto, apoyo visual y desbord
   ];
   const sources = [
     { type: 'cover', content: { title: 'Portada editorial', subtitle: 'Resumen verificable.' } },
+    { type: 'clave', content: { title: 'La clave editorial', text: 'Una conclusion prioritaria y verificable.' } },
     ...contexts.map((text, index) => ({
       type: 'contexto',
       content: {
@@ -434,7 +630,7 @@ test('valida la secuencia editorial modular con contexto, apoyo visual y desbord
   slides.map((slide) => renderSlideToCanvas(slide, project));
   const canvases = slides.map((slide) => renderSlideToCanvas(slide, project));
 
-  assert.deepEqual(new Set(slides.map((slide) => slide.template)), new Set(['cover', 'text', 'stats', 'quote', 'image', 'end']));
+  assert.deepEqual(new Set(slides.map((slide) => slide.template)), new Set(['cover', 'key', 'text', 'stats', 'quote', 'image', 'end']));
   for (const [index, canvas] of canvases.entries()) {
     const layout = getCarouselLayout(slides[index].template, canvas.width, canvas.height);
     assert.ok(layout.content.width > 0 && layout.content.height > 0, slides[index].template);
@@ -442,14 +638,15 @@ test('valida la secuencia editorial modular con contexto, apoyo visual y desbord
     assertContentBaselinesBeforeFooter(canvas, slides[index].template);
   }
 
-  const contextBlocks = canvases.slice(1, 4).map((canvas, index) =>
+  const contextBlocks = canvases.slice(2, 5).map((canvas, index) =>
     canvas.renderState.blocks.find((block) => block.fullText === contexts[index])
   );
   assert.deepEqual(contextBlocks.map((block) => block.renderedLines), [1, 2, 3]);
-  assert.ok(canvases[3].calls.images.some((src) => src.includes('support-context.jpg')));
-  assert.ok(textValues(canvases[4]).includes('47%'));
-  assert.ok(textValues(canvases[5]).includes('La cita permanece literal.'));
-  assert.ok(canvases[6].calls.images.some((src) => src.includes('photo.jpg')));
+  assert.ok(canvases[1].calls.fills.some((fill) => fill.color === '#edf6ce' && fill.width > 800 && fill.height > 200));
+  assert.ok(canvases[4].calls.images.some((src) => src.includes('support-context.jpg')));
+  assert.ok(textValues(canvases[5]).includes('47%'));
+  assert.ok(textValues(canvases[6]).includes('La cita permanece literal.'));
+  assert.ok(canvases[7].calls.images.some((src) => src.includes('photo.jpg')));
 
   const oversized = renderEditorialSlide({
     type: 'contexto',
