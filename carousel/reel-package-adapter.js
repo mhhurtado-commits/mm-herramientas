@@ -1,15 +1,18 @@
-import { packageToCarouselArticle } from "../shared/editorial-package.mjs";
 import { createEmptyReelOutput } from "./editorial-contract.js";
+import { fromEditorialPackage as fromSharedEditorialPackage } from "./shared-package-adapter.js";
+import { packageToCarouselArticle } from "../shared/editorial-package.mjs";
 
 export function fromEditorialPackage(editorialPackage = {}) {
+  const shared = fromSharedEditorialPackage(editorialPackage);
   const article = packageToCarouselArticle(editorialPackage);
+  article.category = shared.article.category;
   const editorial = editorialPackage.editorial || {};
   const source = editorialPackage.fuente || {};
   const image = source.imagen_principal || article.image || (article.images || [])[0] || "";
   const title = editorial.titulo || article.title;
   const summary = editorial.bajada || article.summary;
   const context = editorial.contexto || "";
-  const category = editorial.etiqueta || article.category || "Actualidad";
+  const category = article.category || editorial.etiqueta || "Actualidad";
 
   const scenes = [];
   if (title) {
@@ -56,16 +59,19 @@ export function fromEditorialPackage(editorialPackage = {}) {
   output.format = "reel_silent";
   output.hook = title;
   output.cover_text = title;
-  output.caption = editorial.redes?.instagram || editorial.redes?.facebook || "";
+  output.caption = editorialPackage.redes?.instagram || editorialPackage.redes?.facebook || editorial.redes?.instagram || editorial.redes?.facebook || "";
   output.hashtags = [];
   output.scenes = scenes;
-  return { article, reel: output };
+  return { article, reel: output, categoryOptions: shared.categoryOptions, diagnosis: shared.diagnosis };
 }
 
 export function attachReelPackage(project = {}, editorialPackage = {}) {
   const next = { ...project };
   const adapted = fromEditorialPackage(editorialPackage);
   next.article = adapted.article;
+  next.categoryOptions = adapted.categoryOptions;
+  next.selectedCategoryId = adapted.categoryOptions.find(option => option.recommended)?.id || adapted.categoryOptions[0]?.id || "";
+  next.editorialDiagnosis = adapted.diagnosis;
   next.reelPlan = adapted.reel;
   next.editorialPackage = {
     ...editorialPackage,

@@ -42,3 +42,24 @@ test("adjunta la salida reel al proyecto existente", () => {
   assert.equal(next.editorialPackage.salidas.reel.scenes.length, 3);
   assert.equal(project.reelPlan, null);
 });
+
+test("hereda la categoria editorial seleccionada y la aplica al Reel", () => {
+  const packageWithOptions = {
+    ...samplePackage(),
+    editorial: {
+      ...samplePackage().editorial,
+      seccion: "Policiales",
+      category_options: [
+        { id: "policiales-principal", label: "Policiales", vertical: "policiales", recommended: true },
+        { id: "general-editorial", label: "Actualidad", vertical: "general" },
+      ],
+    },
+  };
+
+  const adapted = attachReelPackage({}, packageWithOptions);
+
+  assert.equal(adapted.article.category, "Policiales");
+  assert.deepEqual(adapted.categoryOptions.map((option) => option.label), ["Policiales", "Actualidad"]);
+  assert.equal(adapted.selectedCategoryId, "policiales-principal");
+  assert.equal(adapted.editorialDiagnosis.vertical, "policiales");
+});

@@ -600,9 +600,12 @@ function renderReelPreview(project) {
   var activeScene = reel.scenes[activeReelSceneIndex];
   if (controls) {
     controls.innerHTML = "";
-    controls.hidden = !isReelCoverScene(activeScene);
+    controls.hidden = !isReelCoverScene(activeScene) && !(project.categoryOptions && project.categoryOptions.length > 1);
     if (isReelCoverScene(activeScene)) {
       controls.appendChild(createCoverLogoControls(project));
+    }
+    if (project.categoryOptions && project.categoryOptions.length > 1) {
+      controls.appendChild(createCategoryControls(project));
     }
   }
   var sceneCanvas = renderReelSceneToCanvas(activeScene, project);

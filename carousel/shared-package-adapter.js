@@ -12,6 +12,7 @@ export function fromEditorialPackage(editorialPackage = {}) {
   const article = packageToCarouselArticle(editorialPackage);
   article.title = clean(editorial.titulo) || article.title;
   article.summary = clean(editorial.bajada) || article.summary;
+  article.category = clean(editorial.seccion) || article.category;
 
   const existingPlan = editorialPackage.salidas?.carrusel;
   const diagnosis = existingPlan?.diagnosis || {};
