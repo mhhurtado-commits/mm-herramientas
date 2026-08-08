@@ -1,6 +1,7 @@
 import { createCarouselProject } from "./models.js";
 import { setProject, getProject } from "./state.js";
 import { renderCarousel } from "./renderer.js";
+import { getEditorialSlideLabel } from "./slide-model.js";
 import { renderSlideToCanvas } from "./canvas-renderer.js";
 import { preloadReelSceneAssets, renderReelSceneToCanvas, resolveReelSceneFamily } from "./reel-canvas-renderer.js";
 import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
@@ -1004,11 +1005,15 @@ function createThumbnailItem(item, isActive, project) {
   return wrap;
 }
 
-function getSlideLabel(item, index) {
+export function getSlideLabel(item, index) {
   var slide = item.slide || {};
   var title = slide.content && slide.content.title ? slide.content.title : "";
+  if (slide.type && getEditorialSlideLabel(slide.type) !== slide.type) {
+    return getEditorialSlideLabel(slide.type);
+  }
   if (title) return title;
-  if (slide.type) return slide.type;
+  if (slide.type) return getEditorialSlideLabel(slide.type);
+  if (slide.template) return slide.template;
   return "Slide " + (index + 1);
 }
 

@@ -1,10 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeCarouselSlide } from './slide-model.js';
+import { getEditorialSlideLabel, normalizeCarouselSlide } from './slide-model.js';
+import { getSlideLabel } from './ui.js';
 import { getCarouselLayout } from './core/layout.js';
 import { fitText } from './core/text.js';
 import { resolveCarouselTheme } from './core/theme.js';
 import { renderSlideToCanvas } from './canvas-renderer.js';
+
+test('mapea los tipos editoriales a etiquetas visibles y conserva cover/legacy', () => {
+  assert.deepEqual(
+    ['clave', 'contexto', 'dato', 'cita', 'imagen', 'end'].map(getEditorialSlideLabel),
+    ['Clave', 'Contexto', 'Dato', 'Cita', 'Imagen', 'Cierre']
+  );
+  assert.equal(getEditorialSlideLabel('cover'), 'cover');
+  assert.equal(getEditorialSlideLabel('text'), 'text');
+  assert.equal(getEditorialSlideLabel('unknown'), 'unknown');
+  assert.equal(getSlideLabel({ slide: { type: 'dato', content: { title: 'No es el label' } } }, 0), 'Dato');
+  assert.equal(getSlideLabel({ slide: { type: 'cover', content: { title: 'Portada' } } }, 0), 'Portada');
+  assert.equal(getSlideLabel({ slide: { template: 'text' } }, 0), 'text');
+});
 
 function installCanvasHarness() {
   globalThis.Image = class {

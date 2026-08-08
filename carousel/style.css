@@ -525,8 +525,11 @@
 }
 
 .carousel-thumb.is-active {
+  background: color-mix(in srgb, var(--v-dim) 22%, var(--surface));
   border-color: color-mix(in srgb, var(--v) 75%, var(--line2));
-  box-shadow: 0 0 0 1px var(--v-dim), var(--shadow-md);
+  box-shadow: 0 0 0 2px var(--v-dim), var(--shadow-md);
+  outline: 2px solid color-mix(in srgb, var(--v) 35%, transparent);
+  outline-offset: 2px;
 }
 
 .carousel-thumb.is-active::before {

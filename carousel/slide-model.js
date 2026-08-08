@@ -36,6 +36,20 @@ const LEGACY_TEMPLATES = {
   end: "end"
 };
 
+const EDITORIAL_LABELS = {
+  clave: "Clave",
+  contexto: "Contexto",
+  dato: "Dato",
+  cita: "Cita",
+  imagen: "Imagen",
+  end: "Cierre"
+};
+
+export function getEditorialSlideLabel(type) {
+  const normalizedType = cleanText(type).toLowerCase();
+  return EDITORIAL_LABELS[normalizedType] || normalizedType;
+}
+
 export function normalizeCarouselSlide(slide, index, total) {
   const source = isPlainObject(slide) ? slide : {};
   const sourceContent = isPlainObject(source.content) ? source.content : {};
