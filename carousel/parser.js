@@ -162,7 +162,9 @@ function normalizeSlide(type, slide, article, diagnosis, index) {
     normalized.items = items.length ? items : defaults.items;
   }
 
-  copyTextFields(normalized, source, ["quote", "author", "role", "image", "supportImage"]);
+  const quote = cleanQuoteText(source.quote);
+  if (quote) normalized.quote = quote;
+  copyTextFields(normalized, source, ["author", "role", "image", "supportImage"]);
   return normalized;
 }
 
@@ -497,6 +499,10 @@ function matchesAny(text, words) {
 
 function cleanText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function cleanQuoteText(value) {
+  return String(value || "").trim();
 }
 
 function isPlainObject(value) {

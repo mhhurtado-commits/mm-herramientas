@@ -805,6 +805,32 @@ test('normaliza, convierte y renderiza las siete familias en el orden del plan',
   assert.deepEqual(canvases.map((canvas) => [canvas.width, canvas.height]), Array(7).fill([1080, 1350]));
 });
 
+test('preserva los saltos de línea en citas textuales', () => {
+  const article = {
+    title: 'Cita textual',
+    summary: 'Resumen editorial.',
+  };
+  const quote = 'Primera linea\n\nSegunda linea';
+  const parsed = normalizeCarouselPlan({
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'brief',
+      tone: 'informative',
+      carousel_type: 'summary',
+      template: 'mm_classic',
+      reason: 'Incluye una cita textual.',
+    },
+    cover: { title: 'Portada', subtitle: 'Bajada.' },
+    slides: [{ type: 'cita', quote, author: 'Ana Perez', role: 'Investigadora' }],
+  }, article);
+
+  assert.equal(parsed.plan.slides[0].quote, quote);
+
+  const slides = carouselEngine.convertirPlanASlides(parsed.plan, article, {});
+  assert.equal(slides[1].content.quote, quote);
+});
+
 test('normaliza aliases legacy y conserva su renderizado', () => {
   const article = {
     url: 'https://mediamendoza.com/actualidad/legacy',
