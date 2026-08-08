@@ -1,72 +1,43 @@
-# Final Fix Report
+# Final overflow-surface fix report
 
-## Changed files
+## Scope
 
-- `carousel/reel-canvas-renderer.js`
-  - CTA scenes now bypass the generic text-family panel and render one white central card on the light-green outer field.
-  - List and contact rows are capped to the available card height and compacted when needed.
-  - The resolved scene family remains shared across background, chrome, text, footer, and missing-image fallback behavior.
-- `carousel/ui.js`
-  - Reel thumbnails use `resolveReelSceneFamily`; missing-image scenes receive the text-family preview treatment instead of the legacy placeholder label.
-  - Video transitions now use separate cover-entry, internal-scene, and calmer CTA durations, with subtle CTA movement retained.
-  - Existing scene order, duration floor, MediaRecorder MIME selection, and download behavior are unchanged.
+- Modified only `carousel/ui.js`, `carousel/style.css`, and `carousel/editorial-carousel.test.mjs`.
+- Added this required report. The pre-existing `.superpowers/sdd/task-1-report.md` change was preserved and not staged.
+- Did not modify `/placas` or any Reel flow.
+
+## Root cause
+
+The shared canvas renderer already exposed `canvas.renderState.overflow` and `canvas.editorialOverflow`, but carousel preview and PNG exports ignored those signals. This allowed omitted text to be exported silently.
+
+## TDD evidence
+
+1. Added a focused regression test for rendered-slide metadata with overflow.
+2. Confirmed RED: the test failed because `getCarouselExportEligibility` was not exported.
+3. Implemented the smallest helper and UI/export integration.
+4. Confirmed GREEN: the targeted editorial-carousel test passed.
+
+## Implementation
+
+- Preview renders an alert next to its stage metadata when the active canvas reports overflow. The message identifies the slide and overflowing block and directs the user to shorten the text.
+- Single-slide PNG export checks the rendered canvas before making a blob/download.
+- All-slide PNG export renders every carousel slide first and refuses the entire batch when any canvas reports overflow. The preflight canvases are then used for the normal download path.
+- Normal exports remain eligible when no canvas reports overflow.
 
 ## Verification
 
-Commands run from `C:\Users\Miguel\Documents\New project`:
+- `node --test carousel/editorial-carousel.test.mjs` — 24 passing
+- `node --test carousel/*.test.mjs shared/*.test.mjs` — 33 passing
+- `git diff --check` — passing
 
-```text
-renderer import ok
-reel modules ok
-focused review checks passed
-git diff --check: passed (no whitespace errors)
-```
+The Node test runner required elevated permission because sandboxed worker creation failed with `spawn EPERM`.
 
-The imports completed with exit code `0`. Git emitted only its normal LF/CRLF working-copy warnings; no diff-check errors were reported.
+## Self-review
 
-## Remaining browser-only gaps
+- Confirmed detection reads both exposed overflow flags.
+- Confirmed all-slide preflight and preview use the existing carousel/canvas renderer.
+- Confirmed the diff contains no `/placas` or Reel changes.
 
-- Canvas pixels and row clipping were not visually inspected in a real browser at narrow and desktop viewport sizes.
-- MediaRecorder playback and exact transition timing still require a browser with `canvas.captureStream` and supported WebM codecs.
-- Image load/error events and the thumbnail refresh after asynchronous asset loading were not exercised with live network assets.
+## Concerns
 
-## Final Review Fix (2026-07-27)
-
-- Failed image cache entries now remain marked as failed, so reel scenes with unavailable image URLs resolve to the text-family fallback instead of remaining `image` or `cover`.
-- The existing preview refresh path now also responds to the renderer's asset-error event; valid and still-loading images retain their existing family behavior.
-
-Verification commands run from `C:\Users\Miguel\Documents\New project`:
-
-```text
-node --input-type=module -e "await import('./carousel/reel-canvas-renderer.js'); await import('./carousel/ui.js'); await import('./carousel/carousel-engine.js'); console.log('module imports ok')"
-module imports ok
-focused fallback checks passed
-git diff --check: passed (no whitespace errors)
-```
-
-## Final Review Fix (2026-07-27, compact labeled rows)
-
-- Labeled list/contact rows below 120px now use a compact one-line text layout with reduced font size and line height; normal-height labeled rows retain the existing two-line treatment.
-
-Verification commands run from `C:\Users\Miguel\Documents\New project`:
-
-```text
-compact row regression test passed
-module imports ok
-git diff --check: passed (no whitespace errors)
-```
-
-The module imports completed with exit code `0`. Git emitted only its normal LF/CRLF working-copy warnings; no diff-check errors were reported.
-
-## Final Review Fix (2026-07-27, bounded list subtitles and thumbnail errors)
-
-- List-card subtitles now use a two-line fitted block; visible rows are limited by the available card height, with row height and start position derived from the resulting bounds.
-- Reel thumbnail images now install an `onerror` handler before loading and replace only failed images with the existing text-family placeholder/overlay treatment. Valid images and scene JSON remain unchanged.
-
-Verification commands run from `C:\Users\Miguel\Documents\New project`:
-
-```text
-focused long-list check passed
-renderer/ui imports ok
-git diff --check: passed (only normal LF/CRLF working-copy warnings)
-```
+None identified. The only unrelated working-tree change is the pre-existing `task-1-report.md`, which is intentionally excluded from the commit.

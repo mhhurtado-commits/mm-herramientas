@@ -174,12 +174,24 @@ function renderInPreview() {
     activeCanvas.className = "carousel-canvas carousel-canvas--stage";
     stageInner.appendChild(activeCanvas);
   }
+  var activeExportEligibility = getCarouselExportEligibility([{
+    item: activeItem,
+    index: activeSlideIndex,
+    canvas: activeCanvas
+  }]);
 
   stageMeta.textContent = getSlideLabel(activeItem, activeSlideIndex) + " de " + renderedSlides.length;
 
   sidebar.appendChild(thumbs);
   stage.appendChild(stageInner);
   stage.appendChild(stageMeta);
+  if (!activeExportEligibility.allowed) {
+    var overflowWarning = document.createElement("div");
+    overflowWarning.className = "carousel-overflow-warning";
+    overflowWarning.setAttribute("role", "alert");
+    overflowWarning.textContent = activeExportEligibility.warning;
+    stage.appendChild(overflowWarning);
+  }
   editor.appendChild(sidebar);
   editor.appendChild(stage);
   carouselPreview.appendChild(editor);
@@ -1017,6 +1029,41 @@ export function getSlideLabel(item, index) {
   return "Slide " + (index + 1);
 }
 
+export function getCarouselExportEligibility(renderedSlides) {
+  var overflowed = [];
+  for (var i = 0; i < renderedSlides.length; i++) {
+    var rendered = renderedSlides[i] || {};
+    var canvas = rendered.canvas || rendered;
+    if (canvas && (canvas.editorialOverflow === true || (canvas.renderState && canvas.renderState.overflow === true))) {
+      overflowed.push(rendered);
+    }
+  }
+
+  if (!overflowed.length) {
+    return { allowed: true, warning: "" };
+  }
+
+  var first = overflowed[0];
+  var item = first.item || {};
+  var index = typeof first.index === "number" ? first.index : 0;
+  var canvas = first.canvas || first;
+  var block = getOverflowBlockLabel(canvas);
+  return {
+    allowed: false,
+    warning: "El slide " + String(index + 1).padStart(2, "0") + " (" + getSlideLabel(item, index) + ", " + block + ") tiene texto desbordado. Acortá el texto para exportar."
+  };
+}
+
+function getOverflowBlockLabel(canvas) {
+  var blocks = canvas && canvas.renderState && Array.isArray(canvas.renderState.blocks) ? canvas.renderState.blocks : [];
+  for (var i = 0; i < blocks.length; i++) {
+    if (blocks[i].overflow) {
+      return blocks[i].role ? "bloque " + blocks[i].role : "bloque de texto";
+    }
+  }
+  return "bloque de texto";
+}
+
 function createThumbActions(item, project) {
   var actions = document.createElement("div");
   actions.className = "carousel-thumb-actions";
@@ -1069,11 +1116,16 @@ async function copySlideImage(item, project) {
   }
 }
 
-async function downloadSlideImage(item, project, silent) {
+async function downloadSlideImage(item, project, silent, renderedCanvas) {
   var preview = document.getElementById("previewContent");
   try {
-    var canvas = renderSlideToCanvas(item.slide, project);
+    var canvas = renderedCanvas || renderSlideToCanvas(item.slide, project);
     if (!canvas) throw new Error("No se pudo renderizar el slide.");
+    var exportEligibility = getCarouselExportEligibility([{ item: item, index: item.index, canvas: canvas }]);
+    if (!exportEligibility.allowed) {
+      setStatus(preview, exportEligibility.warning);
+      return false;
+    }
     var blob = await canvasToBlob(canvas);
     if (!blob) throw new Error("No se pudo generar la imagen.");
 
@@ -1092,10 +1144,12 @@ async function downloadSlideImage(item, project, silent) {
     if (!silent) {
       setStatus(preview, "Descargando " + fileName);
     }
+    return true;
   } catch (error) {
     if (!silent) {
       setStatus(preview, "No se pudo descargar el slide.");
     }
+    return false;
   }
 }
 
@@ -1379,18 +1433,29 @@ async function downloadAllSlides() {
   var project = getProject();
   if (!project || !project.slides || !project.slides.length) return;
 
+  var renderedSlides = renderCarousel(project);
+  var renderedMetadata = [];
+  for (var i = 0; i < renderedSlides.length; i++) {
+    renderedMetadata.push({
+      item: renderedSlides[i],
+      index: i,
+      canvas: renderSlideToCanvas(renderedSlides[i].slide, project)
+    });
+  }
+  var exportEligibility = getCarouselExportEligibility(renderedMetadata);
+  if (!exportEligibility.allowed) {
+    setStatus(preview, exportEligibility.warning);
+    return;
+  }
+
   setStatus(preview, "Preparando descarga...");
 
-  for (var i = 0; i < project.slides.length; i++) {
-    var item = {
-      index: i,
-      slide: project.slides[i]
-    };
-    await downloadSlideImage(item, project, true);
+  for (var j = 0; j < renderedMetadata.length; j++) {
+    await downloadSlideImage(renderedMetadata[j].item, project, true, renderedMetadata[j].canvas);
     await wait(180);
   }
 
-  setStatus(preview, project.slides.length + " slides descargados");
+  setStatus(preview, renderedMetadata.length + " slides descargados");
 }
 
 function wait(ms) {

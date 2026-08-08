@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getEditorialSlideLabel, normalizeCarouselSlide } from './slide-model.js';
-import { getSlideLabel } from './ui.js';
+import { getCarouselExportEligibility, getSlideLabel } from './ui.js';
 import { getCarouselLayout } from './core/layout.js';
 import { fitText } from './core/text.js';
 import { resolveCarouselTheme } from './core/theme.js';
@@ -18,6 +18,29 @@ test('mapea los tipos editoriales a etiquetas visibles y conserva cover/legacy',
   assert.equal(getSlideLabel({ slide: { type: 'dato', content: { title: 'No es el label' } } }, 0), 'Dato');
   assert.equal(getSlideLabel({ slide: { type: 'cover', content: { title: 'Portada' } } }, 0), 'Portada');
   assert.equal(getSlideLabel({ slide: { template: 'text' } }, 0), 'text');
+});
+
+test('bloquea la exportación y nombra el bloque cuando el canvas editorial tiene desborde', () => {
+  const overflow = getCarouselExportEligibility([
+    {
+      item: { index: 1, slide: { type: 'contexto', content: { title: 'Antecedentes' } } },
+      index: 1,
+      canvas: { renderState: { overflow: true } },
+    },
+  ]);
+  const clear = getCarouselExportEligibility([
+    {
+      item: { index: 0, slide: { type: 'cover', content: { title: 'Portada' } } },
+      index: 0,
+      canvas: { editorialOverflow: false, renderState: { overflow: false } },
+    },
+  ]);
+
+  assert.equal(overflow.allowed, false);
+  assert.match(overflow.warning, /Contexto/);
+  assert.match(overflow.warning, /Acortá el texto/);
+  assert.equal(clear.allowed, true);
+  assert.equal(clear.warning, '');
 });
 
 function installCanvasHarness() {

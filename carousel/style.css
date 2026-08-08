@@ -656,6 +656,20 @@
   text-align: center;
 }
 
+.carousel-overflow-warning {
+  max-width: 580px;
+  margin-top: -2px;
+  padding: 9px 12px;
+  border: 1px solid #c76b00;
+  border-radius: 10px;
+  background: #fff3d6;
+  color: #713b00;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .carousel-canvas {
   width: 480px;
   height: auto;
