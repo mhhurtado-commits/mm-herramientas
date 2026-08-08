@@ -1,101 +1,27 @@
 import { createCanvas } from "./core/canvas.js";
-import { calcZones, getHeaderZone, getFooterZone } from "./core/layout.js";
-import { drawImageContain, drawImageCover } from "./core/image.js";
-import { wrapText } from "./core/text.js";
-import { MMTheme, applyThemeVariant } from "./core/theme.js";
+import { getCarouselLayout } from "./core/layout.js";
+import { drawImageCover } from "./core/image.js";
+import { fitText } from "./core/text.js";
+import { resolveCarouselTheme } from "./core/theme.js";
 
 var W = 1080;
 var H = 1350;
-var imageCache = {};
 var IMAGE_PROXY = "https://mm-herramientas-worker.mhhurtado.workers.dev?image=";
+var imageCache = {};
 
-function drawWhiteBackground(ctx) {
-  ctx.fillStyle = MMTheme.colors.background;
-  ctx.fillRect(0, 0, W, H);
+function fillRoundRect(ctx, x, y, w, h, radius, fill) {
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, radius);
+  ctx.fill();
 }
 
-function drawGreenBackground(ctx) {
-  ctx.fillStyle = MMTheme.colors.corporateGreen;
-  ctx.fillRect(0, 0, W, H);
-}
-
-function drawGradientOverlay(ctx, zone) {
-  var grad = ctx.createLinearGradient(0, zone.y + zone.h * 0.46, 0, zone.y + zone.h);
-  grad.addColorStop(0, MMTheme.colors.transparent);
-  grad.addColorStop(1, MMTheme.colors.overlay75);
-  ctx.fillStyle = grad;
-  ctx.fillRect(zone.x, zone.y, zone.w, zone.h);
-}
-
-function loadCoverImage(ctx, slide, project, maxHeight) {
-  var imgUrl = slide.content.image || (project.article && project.article.image);
-  if (!imgUrl) return;
-  var img = getCachedImage(imgUrl);
-  if (!img) return;
-
-  function drawLoaded() {
-    var zone = getHeaderZone();
-    var headerH = Math.min(zone.h, maxHeight || zone.h);
-    var clippedZone = { x: zone.x, y: zone.y, w: zone.w, h: headerH };
-    drawImageCover(ctx, img, clippedZone.x, clippedZone.y, clippedZone.w, clippedZone.h);
-    drawGradientOverlay(ctx, clippedZone);
-  }
-  drawLoaded();
-}
-
-function drawLogo(ctx, src, drawFn) {
-  if (!src) return;
-  var img = getCachedImage(src, function (loadedImg) {
-    drawFn(ctx, loadedImg);
-  });
-  if (img) {
-    drawFn(ctx, img);
-  }
-}
-
-function getCachedImage(src, onReady) {
-  var normalizedSrc = normalizeImageSource(src);
-  if (!normalizedSrc) return null;
-
-  var cached = imageCache[normalizedSrc];
-  if (cached && cached.loaded && cached.img) {
-    return cached.img;
-  }
-
-  if (cached && !cached.loaded) {
-    if (onReady) cached.listeners.push(onReady);
-    return null;
-  }
-
-  var img = new Image();
-  img.crossOrigin = "anonymous";
-  imageCache[normalizedSrc] = {
-    img: img,
-    loaded: false,
-    listeners: onReady ? [onReady] : []
-  };
-
-  img.onload = function () {
-    var entry = imageCache[normalizedSrc];
-    if (!entry) return;
-    entry.loaded = true;
-    for (var i = 0; i < entry.listeners.length; i++) {
-      entry.listeners[i](img);
-    }
-    entry.listeners = [];
-    if (typeof window !== "undefined" && window.dispatchEvent && typeof CustomEvent === "function") {
-      window.dispatchEvent(new CustomEvent("carousel:asset-ready", { detail: { src: normalizedSrc } }));
-    }
-  };
-
-  img.onerror = function () {
-    var entry = imageCache[normalizedSrc];
-    if (!entry) return;
-    entry.listeners = [];
-  };
-
-  img.src = normalizedSrc;
-  return null;
+function strokeRoundRect(ctx, x, y, w, h, radius, stroke, lineWidth) {
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = lineWidth || 2;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, radius);
+  ctx.stroke();
 }
 
 function normalizeImageSource(src) {
@@ -107,672 +33,328 @@ function normalizeImageSource(src) {
   return src;
 }
 
-function fillRoundRect(ctx, x, y, w, h, r, fill) {
-  ctx.fillStyle = fill;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
-  ctx.fill();
+function getCachedImage(src, onReady) {
+  var normalizedSrc = normalizeImageSource(src);
+  if (!normalizedSrc || typeof Image === "undefined") return null;
+
+  var cached = imageCache[normalizedSrc];
+  if (cached && cached.loaded) return cached.img;
+  if (cached) {
+    if (onReady) cached.listeners.push(onReady);
+    return null;
+  }
+
+  var img = new Image();
+  imageCache[normalizedSrc] = { img: img, loaded: false, listeners: onReady ? [onReady] : [] };
+  img.crossOrigin = "anonymous";
+  img.onload = function () {
+    var entry = imageCache[normalizedSrc];
+    if (!entry) return;
+    entry.loaded = true;
+    entry.listeners.forEach(function (listener) { listener(img); });
+    entry.listeners = [];
+    if (typeof window !== "undefined" && window.dispatchEvent && typeof CustomEvent === "function") {
+      window.dispatchEvent(new CustomEvent("carousel:asset-ready", { detail: { src: normalizedSrc } }));
+    }
+  };
+  img.onerror = function () {
+    var entry = imageCache[normalizedSrc];
+    if (entry) entry.listeners = [];
+  };
+  img.src = normalizedSrc;
+  return null;
 }
 
-function strokeRoundRect(ctx, x, y, w, h, r, stroke, lineWidth) {
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = lineWidth || 2;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
-  ctx.stroke();
-}
-
-function drawFrame(ctx, stroke) {
-  var inset = MMTheme.spacing.frame;
-  strokeRoundRect(ctx, inset, inset, W - inset * 2, H - inset * 2, 42, stroke || MMTheme.colors.lineSoft, 2);
-}
-
-function drawAccentBar(ctx) {
-  var inset = MMTheme.spacing.frame + 34;
-  var w = W - inset * 2;
-  var y = MMTheme.spacing.frame + 24;
-  var h = MMTheme.spacing.accentBarH;
-  var grad = ctx.createLinearGradient(inset, y, inset + w, y);
-  grad.addColorStop(0, MMTheme.colors.accent);
-  grad.addColorStop(1, MMTheme.colors.accentBarEnd);
-  fillRoundRect(ctx, inset, y, w, h, h / 2, grad);
-}
-
-function drawPanel(ctx, x, y, w, h, fill, stroke) {
-  fillRoundRect(ctx, x, y, w, h, MMTheme.radius.panel, fill || MMTheme.colors.panel);
-  strokeRoundRect(ctx, x, y, w, h, MMTheme.radius.panel, stroke || MMTheme.colors.lineSoft, 2);
-}
-
-function drawSupportImage(ctx, imgUrl, x, y, w, h, fitMode) {
-  if (!imgUrl) return false;
-  var img = getCachedImage(imgUrl);
-  if (!img) return false;
-  var mode = fitMode || "cover";
+function drawImageFrame(ctx, src, x, y, w, h, radius) {
+  var image = getCachedImage(src);
+  if (!image) return false;
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 28);
+  ctx.roundRect(x, y, w, h, radius);
   ctx.clip();
-  ctx.fillStyle = MMTheme.colors.surface;
-  ctx.fillRect(x, y, w, h);
-  if (mode === "contain") {
-    drawImageContain(ctx, img, x, y, w, h);
-  } else {
-    drawImageCover(ctx, img, x, y, w, h);
-  }
+  drawImageCover(ctx, image, x, y, w, h);
   ctx.restore();
-  strokeRoundRect(ctx, x, y, w, h, 28, "rgba(255,255,255,0.85)", 4);
+  strokeRoundRect(ctx, x, y, w, h, radius, "rgba(255,255,255,0.7)", 2);
   return true;
 }
 
-function drawLogoLockup(ctx, x, y, w, centered) {
-  drawLogo(ctx, "/assets/logo.png", function (ctx2, img) {
-    var logoW = w || 176;
-    var logoH = img.height * (logoW / img.width);
-    var dx = centered ? x - logoW / 2 : x;
-    var dy = y;
-    ctx2.save();
-    ctx2.shadowColor = "rgba(17,17,17,0.24)";
-    ctx2.shadowBlur = 10;
-    ctx2.shadowOffsetX = 0;
-    ctx2.shadowOffsetY = 2;
-    ctx2.drawImage(img, dx, dy, logoW, logoH);
-    ctx2.restore();
+function drawLogo(ctx, theme, layout, overImage) {
+  var logo = getCachedImage("/assets/logo.png");
+  if (!logo) return;
+  var zone = layout.safeZones.logo;
+  var width = 190;
+  var height = logo.height * (width / logo.width);
+  var x = zone.x;
+  var y = zone.y;
+
+  if (overImage) {
+    fillRoundRect(ctx, x - 18, y - 14, width + 36, height + 28, 24, theme.colors.logoBadge);
+  }
+  ctx.drawImage(logo, x, y, width, height);
+}
+
+function drawEditorialHeader(ctx, slide, project, theme, layout, options) {
+  var content = slide.content || {};
+  var label = content.eyebrow || content.kicker || content.label ||
+    (project.article && project.article.category) || "";
+  var x = layout.content.x;
+  var y = options && options.y ? options.y : layout.content.y;
+  if (!label) return y;
+
+  ctx.font = theme.fonts.category;
+  var text = String(label).toUpperCase();
+  var width = ctx.measureText(text).width + 42;
+  fillRoundRect(ctx, x, y, width, 46, 23, theme.colors.accent);
+  ctx.fillStyle = theme.colors.textPrimary;
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + 21, y + 23);
+  ctx.textBaseline = "top";
+  return y + 72;
+}
+
+function drawMeasuredText(ctx, text, x, y, maxWidth, options) {
+  if (!text) return y;
+  var settings = options || {};
+  var result = fitText(ctx, String(text), {
+    fontSize: settings.fontSize || 40,
+    minFontSize: settings.minFontSize || 24,
+    maxWidth: maxWidth,
+    maxLines: settings.maxLines || 6,
+    lineHeight: settings.lineHeight || 48,
+    fontFamily: "Inter, Arial, sans-serif"
   });
-}
-
-function drawLeftAccent(ctx, x, y, h) {
-  fillRoundRect(ctx, x, y, 18, h, 12, MMTheme.colors.accent);
-}
-
-function drawGiantNumber(ctx, value, x, y, align, color) {
-  ctx.font = MMTheme.fonts.giantNumber;
-  ctx.fillStyle = color || "rgba(166,206,57,0.12)";
-  ctx.textAlign = align || "left";
+  var lineHeight = Math.round((settings.lineHeight || 48) * (result.fontSize / (settings.fontSize || 40)));
+  ctx.font = (settings.weight || "400") + " " + result.fontSize + "px Inter, Arial, sans-serif";
+  ctx.fillStyle = settings.color || "#111111";
   ctx.textBaseline = "top";
-  ctx.fillText(String(value).padStart(2, "0"), x, y);
-  ctx.textAlign = "start";
+  for (var i = 0; i < result.lines.length; i++) {
+    ctx.fillText(result.lines[i], x, y + i * lineHeight);
+  }
+  return y + result.lines.length * lineHeight;
 }
 
-function drawQuoteMark(ctx, x, y) {
-  ctx.font = MMTheme.fonts.quote;
-  ctx.fillStyle = "rgba(166,206,57,0.22)";
-  ctx.textBaseline = "top";
-  ctx.fillText("\"", x, y);
-}
-
-function drawEyebrow(ctx, x, y, label) {
-  ctx.font = MMTheme.fonts.category;
-  ctx.fillStyle = MMTheme.colors.accentDark;
-  ctx.textBaseline = "top";
-  ctx.fillText((label || "CLAVES").toUpperCase(), x, y);
-  fillRoundRect(ctx, x, y + 38, 124, 8, 4, MMTheme.colors.accent);
-}
-
-function drawHighlightBox(ctx, x, y, w, text) {
-  if (!text) return;
-  drawPanel(ctx, x, y, w, 148, MMTheme.colors.surface, MMTheme.colors.brandLine);
-  fillRoundRect(ctx, x, y, 14, 148, 7, MMTheme.colors.accent);
-  ctx.font = MMTheme.fonts.category;
-  ctx.fillStyle = MMTheme.colors.accentDark;
-  ctx.textBaseline = "top";
-  ctx.fillText("CLAVE", x + 34, y + 26);
-  ctx.font = MMTheme.fonts.subtitle;
-  ctx.fillStyle = MMTheme.colors.textSecondary;
-  wrapText(ctx, text, x + 34, y + 64, w - 68, 38);
-}
-
-function measureWrappedLines(ctx, text, maxW) {
+function measureTextHeight(ctx, text, maxWidth, options) {
   if (!text) return 0;
-  var words = text.split(" ");
-  var line = "";
-  var lines = 0;
-  for (var i = 0; i < words.length; i++) {
-    var test = line + words[i] + " ";
-    if (ctx.measureText(test).width > maxW && line.length > 0) {
-      lines += 1;
-      line = words[i] + " ";
-    } else {
-      line = test;
-    }
-  }
-  if (line.trim()) lines += 1;
-  return lines;
+  var settings = options || {};
+  var result = fitText(ctx, String(text), {
+    fontSize: settings.fontSize || 40,
+    minFontSize: settings.minFontSize || 24,
+    maxWidth: maxWidth,
+    maxLines: settings.maxLines || 6,
+    lineHeight: settings.lineHeight || 48,
+    fontFamily: "Inter, Arial, sans-serif"
+  });
+  return result.lines.length * Math.round((settings.lineHeight || 48) * (result.fontSize / (settings.fontSize || 40)));
 }
 
-function normalizeLabelText(text) {
-  return String(text || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function shouldShowEyebrowLabel(label, title) {
-  var cleanLabel = normalizeLabelText(label);
-  var cleanTitle = normalizeLabelText(title);
-  if (!cleanLabel || !cleanTitle) return !!cleanLabel;
-  if (cleanLabel === cleanTitle) return false;
-  if (cleanTitle.indexOf(cleanLabel) >= 0 || cleanLabel.indexOf(cleanTitle) >= 0) return false;
-  return true;
-}
-
-function fitEndTitleFont(ctx, text, maxW, maxLines) {
-  var options = [
-    { font: MMTheme.fonts.endTitle, lineH: 58 },
-    { font: "700 44px Inter, Arial, sans-serif", lineH: 54 },
-    { font: "700 40px Inter, Arial, sans-serif", lineH: 50 },
-    { font: "700 36px Inter, Arial, sans-serif", lineH: 46 }
-  ];
-
-  for (var i = 0; i < options.length; i++) {
-    ctx.font = options[i].font;
-    if (measureWrappedLines(ctx, text, maxW) <= maxLines) {
-      return options[i];
-    }
-  }
-
-  return options[options.length - 1];
-}
-
-function fitEndUrlFont(ctx, text, maxW) {
-  var options = [
-    { font: MMTheme.fonts.endUrl, lineH: 56 },
-    { font: "700 46px Inter, Arial, sans-serif", lineH: 50 },
-    { font: "700 40px Inter, Arial, sans-serif", lineH: 46 },
-    { font: "700 34px Inter, Arial, sans-serif", lineH: 40 },
-    { font: "700 30px Inter, Arial, sans-serif", lineH: 36 }
-  ];
-
-  for (var i = 0; i < options.length; i++) {
-    ctx.font = options[i].font;
-    if (measureWrappedLines(ctx, text, maxW) <= 2) {
-      return options[i];
-    }
-  }
-
-  return options[options.length - 1];
-}
-
-function getStatsCardHeight(ctx, text, style, cardW) {
-  var maxTextW = cardW - 156;
-  var lineH = style === "impact" ? 42 : 40;
-  var baseHeight = style === "rows" ? 120 : style === "impact" ? 170 : 154;
-  var textLines = measureWrappedLines(ctx, text, maxTextW);
-  var textBlockHeight = Math.max(1, textLines) * lineH;
-  var contentTop = 28;
-  var contentBottom = style === "rows" ? 28 : 34;
-  var dynamicHeight = contentTop + textBlockHeight + contentBottom;
-  return Math.max(baseHeight, dynamicHeight);
-}
-
-function getHighlightText(text, maxChars) {
-  if (!text) return "";
-  var cleaned = text.replace(/\s+/g, " ").trim();
-  if (!cleaned) return "";
-
-  var sentence = cleaned.split(".")[0] || cleaned;
-  if (sentence.length <= maxChars) return sentence;
-
-  var clipped = sentence.slice(0, maxChars);
-  var lastSpace = clipped.lastIndexOf(" ");
-  if (lastSpace > 20) clipped = clipped.slice(0, lastSpace);
-  return clipped + "...";
-}
-
-function drawCategoryBadge(ctx, label, x, y) {
-  if (!label) return;
-  ctx.font = MMTheme.fonts.category;
-  var text = label.toUpperCase();
-  var tw = ctx.measureText(text).width;
-  var padX = 22;
-  var padY = 13;
-  var bw = tw + padX * 2;
-  var bh = 24 + padY * 2;
-  fillRoundRect(ctx, x, y, bw, bh, MMTheme.radius.badge, MMTheme.colors.accent);
-  ctx.fillStyle = MMTheme.colors.white;
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, x + padX, y + bh / 2);
-}
-
-function drawSwipeHint(ctx, x, y) {
-  var w = MMTheme.variant.coverSwipeWidth;
-  var h = MMTheme.variant.coverSwipeHeight;
-  fillRoundRect(ctx, x, y, w, h, 23, "rgba(255,255,255,0.92)");
-  strokeRoundRect(ctx, x, y, w, h, 23, "rgba(17,17,17,0.10)", 2);
-  ctx.font = MMTheme.fonts.kicker;
-  ctx.fillStyle = MMTheme.colors.textPrimary;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("Desliza", x + w / 2, y + h / 2);
-  ctx.textAlign = "start";
-  ctx.textBaseline = "top";
-}
-
-function drawBrandFooter(ctx, panelX, panelY, panelW, panelH) {
-  var centerX = panelX + panelW / 2;
-  var y = panelY + panelH - MMTheme.variant.footerY;
-  var logoW = MMTheme.variant.footerLogoWidth;
-  var logoY = y + 8;
-  var inset = MMTheme.variant.footerInset;
-  var gap = MMTheme.variant.footerLineGap;
-
-  ctx.strokeStyle = MMTheme.colors.brandLine;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(panelX + inset, y + 36);
-  ctx.lineTo(centerX - logoW / 2 - gap, y + 36);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(centerX + logoW / 2 + gap, y + 36);
-  ctx.lineTo(panelX + panelW - inset, y + 36);
-  ctx.stroke();
-
-  drawLogoLockup(ctx, centerX, logoY, logoW, true);
-}
-
-function drawCoverFooter(ctx, panelX, panelY, panelW, panelH) {
-  var lineY = panelY + panelH - 52;
-  ctx.strokeStyle = MMTheme.colors.brandLine;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(panelX + 54, lineY);
-  ctx.lineTo(panelX + panelW - 250, lineY);
-  ctx.stroke();
-  drawSwipeHint(
-    ctx,
-    panelX + panelW - (MMTheme.variant.coverSwipeWidth + 40),
-    panelY + panelH - (MMTheme.variant.coverSwipeHeight + 64)
-  );
-}
-
-function drawCoverLogo(ctx, project) {
-  var position = (project && project.settings && project.settings.coverLogoPosition) || "center";
-  var badgeW = MMTheme.variant.coverLogoBadgeW;
-  var badgeH = MMTheme.variant.coverLogoBadgeH;
-  var badgeX = (W - badgeW) / 2;
-  var badgeY = MMTheme.variant.coverLogoY;
-
-  if (position === "right") {
-    badgeW = Math.max(286, badgeW - 74);
-    badgeH = Math.max(102, badgeH - 10);
-    badgeX = W - badgeW - 44;
-    badgeY = 52;
-  } else if (position === "image-footer") {
-    badgeW = Math.max(320, badgeW - 22);
-    badgeX = (W - badgeW) / 2;
-    badgeY = 610;
-  }
-
-  if (MMTheme.variant.coverLogoBadgeVisible) {
-    fillRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, MMTheme.colors.logoBadge);
-    strokeRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 58, "rgba(166,206,57,0.24)", 2);
-  }
-
-  drawLogoLockup(
-    ctx,
-    badgeX + badgeW / 2,
-    badgeY + (MMTheme.variant.coverLogoBadgeVisible ? 18 : 24),
-    position === "right" ? MMTheme.variant.coverLogoWidth - 36 : MMTheme.variant.coverLogoWidth,
-    true
-  );
-}
-
-function fitCoverTitleFont(ctx, text, maxW, maxLines) {
-  var options = [
-    { font: MMTheme.fonts.coverTitle, lineH: 84 },
-    { font: "700 78px Inter, Arial, sans-serif", lineH: 80 },
-    { font: "700 70px Inter, Arial, sans-serif", lineH: 72 },
-    { font: "700 62px Inter, Arial, sans-serif", lineH: 66 },
-    { font: "700 54px Inter, Arial, sans-serif", lineH: 58 }
-  ];
-
-  for (var i = 0; i < options.length; i++) {
-    ctx.font = options[i].font;
-    if (measureWrappedLines(ctx, text, maxW) <= maxLines) return options[i];
-  }
-
-  return options[options.length - 1];
-}
-
-function drawCoverTitle(ctx, text, x, y, maxW) {
-  if (!text) return y;
-  var fitted = fitCoverTitleFont(ctx, text, maxW, 2);
-  ctx.font = fitted.font;
-  ctx.fillStyle = MMTheme.colors.textPrimary;
-  ctx.textBaseline = "top";
-  return wrapText(ctx, text, x, y, maxW, fitted.lineH);
-}
-
-function drawCoverSubtitle(ctx, text, x, y, maxW) {
-  if (!text) return y;
-  ctx.font = MMTheme.fonts.coverSubtitle;
-  ctx.fillStyle = MMTheme.colors.gray555;
-  ctx.textBaseline = "top";
-  return wrapText(ctx, text, x, y, maxW, MMTheme.spacing.coverLineHSubtitle);
-}
-
-function renderCover(ctx, slide, project) {
-  calcZones("cover");
-  drawWhiteBackground(ctx);
-  loadCoverImage(ctx, slide, project, 760);
-  drawFrame(ctx);
-
-  var cat = project.article && project.article.category;
-  if (MMTheme.variant.categoryOnCover && cat) {
-    drawCategoryBadge(ctx, cat, 52, 52);
-  }
-  drawCoverLogo(ctx, project);
-
-  var panelY = MMTheme.variant.coverPanelY;
-  var panelH = H - panelY - 28;
-  var panelX = 28;
-  var panelW = W - 56;
-  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.surface, MMTheme.colors.coverPanelStroke);
-
-  var pad = MMTheme.spacing.paddingCover;
-  var bodyX = pad;
-  var maxW = W - pad * 2;
-  var titleText = (project.article && project.article.title) || slide.content.title || "";
-  var titleY = MMTheme.variant.coverTitleY;
-  var titleEnd = drawCoverTitle(ctx, titleText, bodyX, titleY, maxW);
-
-  var subText = slide.content.subtitle || slide.content.text || "";
-  var subY = titleEnd + 16;
-  drawCoverSubtitle(ctx, subText, bodyX, subY, maxW - 70);
-
-  drawCoverFooter(ctx, panelX, panelY, panelW, panelH);
-}
-
-function renderTextSlide(ctx, slide, project) {
-  calcZones("text");
-  drawWhiteBackground(ctx);
-  drawFrame(ctx);
-  drawAccentBar(ctx);
-
-  var panelX = 62;
-  var panelY = 124;
-  var panelW = W - 124;
-  var panelH = H - 220;
-  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.variant.textPanelFill, MMTheme.colors.lineSoft);
-  if (MMTheme.variant.leftAccentHeight > 0) {
-    drawLeftAccent(ctx, panelX + 20, panelY + 24, MMTheme.variant.leftAccentHeight);
-  }
-  drawGiantNumber(
-    ctx,
-    (slide.order || 0) + 1,
-    panelX + panelW - 70,
-    panelY + 20,
-    "right",
-    MMTheme.name === "mm_impact" ? "rgba(159,207,34,0.18)" : "rgba(166,206,57,0.12)"
-  );
-
-  var gridX = panelX + 70;
-  var maxW = panelW - 150 - MMTheme.variant.textWidthOffset;
-  var supportImage = slide.content && slide.content.supportImage;
-  var hasSupportImage = false;
-  var title = slide.content.title || "";
-  var text = slide.content.text || "";
-  var eyebrowLabel = slide.content.eyebrow || slide.content.kicker || slide.content.label || "";
-  var titleLines = 0;
-  var bodyLines = 0;
-  var bottomImageLayout = false;
-
-  if (supportImage) {
-    ctx.font = MMTheme.fonts.titleCompact;
-    titleLines = measureWrappedLines(ctx, title, panelW - 150);
-    ctx.font = MMTheme.fonts.bodyXL;
-    bodyLines = measureWrappedLines(ctx, text, panelW - 160);
-    bottomImageLayout = titleLines <= 2 && bodyLines <= 8;
-
-    if (bottomImageLayout) {
-      hasSupportImage = drawSupportImage(
-        ctx,
-        supportImage,
-        gridX,
-        panelY + panelH - 326,
-        panelW - 140,
-        210,
-        "contain"
-      );
-    } else {
-      hasSupportImage = drawSupportImage(
-        ctx,
-        supportImage,
-        panelX + panelW - 318,
-        panelY + 54,
-        220,
-        220,
-        "cover"
-      );
-      if (hasSupportImage) {
-        maxW -= 250;
-      }
-    }
-  }
-
-  if (MMTheme.variant.showEyebrow && shouldShowEyebrowLabel(eyebrowLabel, title)) {
-    drawEyebrow(ctx, gridX, panelY + 42, eyebrowLabel);
-  }
-
-  var titleY = panelY + 96;
-  if (hasSupportImage && !bottomImageLayout) {
-    titleY = panelY + 72;
-  }
-  if (title) {
-    ctx.font = MMTheme.fonts.titleCompact;
-    ctx.fillStyle = MMTheme.colors.textPrimary;
-    ctx.textBaseline = "top";
-    titleY = wrapText(ctx, title, gridX, titleY, maxW, MMTheme.spacing.lineHTitle);
-  }
-
-  var textY = titleY + 36;
-  if (text) {
-    if (MMTheme.variant.showQuoteMark) {
-      drawQuoteMark(ctx, gridX - 8, textY - 34);
-    }
-    ctx.font = MMTheme.fonts.bodyXL;
-    ctx.fillStyle = MMTheme.colors.textSecondary;
-    ctx.textBaseline = "top";
-    wrapText(
-      ctx,
-      text,
-      gridX,
-      textY + MMTheme.variant.bodyOffsetY,
-      maxW - 10,
-      bottomImageLayout ? MMTheme.spacing.lineHBody + 4 : MMTheme.spacing.lineHBody + 6
-    );
-  }
-
-  if (MMTheme.name === "mm_briefing") {
-    drawHighlightBox(ctx, gridX, panelY + panelH - 240, panelW - 110, getHighlightText(text, 120));
-  }
-
-  drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
-
-  drawPageNumber(ctx, slide, project);
-}
-
-function renderStatsSlide(ctx, slide, project) {
-  calcZones("stats");
-  drawWhiteBackground(ctx);
-  drawFrame(ctx);
-  drawAccentBar(ctx);
-
-  var panelX = 62;
-  var panelY = 124;
-  var panelW = W - 124;
-  var panelH = H - 220;
-  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.variant.textPanelFill, MMTheme.colors.lineSoft);
-  drawGiantNumber(
-    ctx,
-    (slide.order || 0) + 1,
-    panelX + panelW - 70,
-    panelY + 20,
-    "right",
-    MMTheme.name === "mm_impact" ? "rgba(159,207,34,0.18)" : "rgba(166,206,57,0.12)"
-  );
-
-  var gridX = panelX + 54;
-  var maxW = panelW - 108;
-  var cardW = maxW;
-  var cardStyle = MMTheme.variant.statsCardStyle;
-  var gap = MMTheme.spacing.cardGap;
-  var supportImage = slide.content && slide.content.supportImage;
-  var titleTop = panelY + 40;
-
-  if (supportImage && drawSupportImage(ctx, supportImage, panelX + panelW - 272, panelY + 34, 192, 192, "cover")) {
-    maxW -= 228;
-    cardW = maxW;
-    titleTop = panelY + 46;
-  }
-
-  var title = slide.content.title || "";
-  var titleEnd = panelY + 36;
-  if (title) {
-    ctx.font = MMTheme.fonts.titleCompact;
-    ctx.fillStyle = MMTheme.colors.textPrimary;
-    ctx.textBaseline = "top";
-    titleEnd = wrapText(ctx, title, gridX, titleTop, maxW, MMTheme.spacing.lineHTitle);
-  }
-
-  var items = slide.content.items || [];
-  var startY = titleEnd + 34;
-  var currentY = startY;
-  for (var i = 0; i < items.length; i++) {
-    ctx.font = MMTheme.fonts.list;
-    var cardH = getStatsCardHeight(ctx, items[i], cardStyle, cardW);
-    var cy = currentY;
-    if (cy + cardH > panelY + panelH - 30) break;
-
-    drawPanel(ctx, gridX, cy, cardW, cardH, MMTheme.variant.statsCardFill, MMTheme.colors.lineSoft);
-    if (cardStyle === "rows") {
-      fillRoundRect(ctx, gridX + 24, cy + 20, 92, 46, 23, MMTheme.colors.accentSoft);
-      fillRoundRect(ctx, gridX + 24, cy + cardH - 26, cardW - 48, 4, 2, MMTheme.colors.brandLine);
-    } else {
-      fillRoundRect(ctx, gridX + 24, cy + 24, 78, 44, 22, MMTheme.colors.accentSoft);
-      fillRoundRect(ctx, gridX + 24, cy + 82, 10, Math.max(18, cardH - 106), 6, MMTheme.colors.accent);
-    }
-
-    ctx.font = MMTheme.fonts.statNumber;
-    ctx.fillStyle = MMTheme.colors.accentDark;
-    ctx.textBaseline = "middle";
-    ctx.fillText(String(i + 1).padStart(2, "0"), gridX + 47, cy + 46);
-
-    ctx.font = MMTheme.fonts.list;
-    ctx.fillStyle = MMTheme.colors.textSecondary;
-    ctx.textBaseline = "top";
-    wrapText(
-      ctx,
-      items[i],
-      gridX + 126,
-      cy + 28,
-      cardW - 156,
-      cardStyle === "impact" ? 42 : 40
-    );
-
-    currentY += cardH + gap;
-  }
-
-  drawBrandFooter(ctx, panelX, panelY, panelW, panelH);
-  drawPageNumber(ctx, slide, project);
-}
-
-function renderEndSlide(ctx, slide, project) {
-  calcZones("end");
-  ctx.fillStyle = MMTheme.colors.endBackground;
-  ctx.fillRect(0, 0, W, H);
-  drawFrame(ctx, MMTheme.colors.endFrame);
-
-  var panelW = W - 180;
-  var panelH = 760;
-  var panelX = (W - panelW) / 2;
-  var panelY = (H - panelH) / 2;
-  var titleX = panelX + 94;
-  var titleW = panelW - 188;
-  drawPanel(ctx, panelX, panelY, panelW, panelH, MMTheme.colors.surface, MMTheme.colors.endPanelStroke);
-
-  fillRoundRect(ctx, panelX, panelY, panelW, 22, 22, MMTheme.colors.accent);
-  drawLogoLockup(ctx, W / 2, panelY + 54, MMTheme.name === "mm_briefing" ? 270 : 248, true);
-
-  ctx.font = MMTheme.fonts.endKicker;
-  ctx.fillStyle = MMTheme.colors.accentDark;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  ctx.fillText(slide.content.kicker || "SEGUIR INFORMADO", W / 2, panelY + 160);
-
-  var endTitle = slide.content.title || "Mas informacion en mediamendoza.com";
-  var fitted = fitEndTitleFont(ctx, endTitle, titleW, 3);
-  ctx.font = fitted.font;
-  ctx.fillStyle = MMTheme.colors.textPrimary;
-  ctx.textAlign = "start";
-  wrapText(ctx, endTitle, titleX, panelY + 228, titleW, fitted.lineH);
-
-  ctx.font = MMTheme.fonts.subtitle;
-  ctx.fillStyle = MMTheme.colors.textSecondary;
-  ctx.textAlign = "start";
-  wrapText(
-    ctx,
-    slide.content.text || "Desliza para repasar los datos clave y entrar a la nota completa.",
-    titleX,
-    panelY + 410,
-    titleW,
-    44
-  );
-
-  var ctaW = titleW - 40;
-  var ctaX = panelX + (panelW - ctaW) / 2;
-  var ctaText = MMTheme.variant.endUrlLabel;
-  var ctaFit = fitEndUrlFont(ctx, ctaText, ctaW - 52);
-  var ctaLines = measureWrappedLines(ctx, ctaText, ctaW - 52);
-  var ctaH = ctaLines > 1 ? 128 : 108;
-  var ctaY = panelY + panelH - ctaH - 54;
-  fillRoundRect(ctx, ctaX, ctaY, ctaW, ctaH, 30, MMTheme.colors.endCtaFill);
-  strokeRoundRect(ctx, ctaX, ctaY, ctaW, ctaH, 30, "rgba(0,0,0,0.08)", 2);
-  ctx.font = ctaFit.font;
-  ctx.fillStyle = MMTheme.colors.endCtaText;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  var ctaTextY = ctaY + (ctaH - ctaLines * ctaFit.lineH) / 2 - 4;
-  wrapText(ctx, ctaText, ctaX + ctaW / 2, ctaTextY, ctaW - 52, ctaFit.lineH);
-
-  ctx.textAlign = "start";
-  ctx.textBaseline = "top";
-  drawPageNumber(ctx, slide, project);
-}
-
-function drawPageNumber(ctx, slide, project) {
-  var footer = getFooterZone();
-  if (footer.h === 0) return;
-  var total = project.slides ? project.slides.length : 1;
-  var num = (slide.order || 0) + 1;
-  ctx.font = MMTheme.fonts.footer;
-  ctx.fillStyle = MMTheme.colors.footer;
-  ctx.textBaseline = "middle";
+function drawSlideProgress(ctx, slide, project, theme, layout) {
+  var total = slide.total || (project.slides && project.slides.length) || 1;
+  var current = (slide.order || 0) + 1;
+  var footer = layout.safeZones.footer;
+  ctx.font = theme.fonts.footer;
+  ctx.fillStyle = theme.colors.footer;
   ctx.textAlign = "right";
-  ctx.fillText(num + " / " + total, W - MMTheme.spacing.paddingX, footer.y + footer.h / 2);
+  ctx.textBaseline = "middle";
+  ctx.fillText(current + " / " + total, footer.x + footer.width - layout.content.x, footer.y + footer.height / 2);
   ctx.textAlign = "start";
+  ctx.textBaseline = "top";
+}
+
+function drawEditorialFooter(ctx, slide, project, theme, layout) {
+  var footer = layout.safeZones.footer;
+  ctx.strokeStyle = theme.colors.brandLine;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(layout.content.x, footer.y - 18);
+  ctx.lineTo(layout.content.x + layout.content.width, footer.y - 18);
+  ctx.stroke();
+  drawSlideProgress(ctx, slide, project, theme, layout);
+}
+
+function drawContextCard(ctx, text, x, y, width, maxBottom, theme) {
+  if (!text) return y;
+  var textOptions = { fontSize: 31, minFontSize: 23, maxLines: 5, lineHeight: 39, color: theme.colors.textSecondary };
+  var textHeight = measureTextHeight(ctx, text, width - 72, textOptions);
+  var height = Math.max(142, textHeight + 62);
+  if (y + height > maxBottom) y = Math.max(0, maxBottom - height);
+  fillRoundRect(ctx, x, y, width, height, 28, theme.colors.surfaceSoft);
+  fillRoundRect(ctx, x, y, 12, height, 6, theme.colors.accent);
+  drawMeasuredText(ctx, text, x + 38, y + 31, width - 72, textOptions);
+  return y + height;
+}
+
+function drawCover(ctx, slide, project, theme, layout) {
+  var content = slide.content || {};
+  var imageHeight = Math.max(layout.content.y + 72, 610);
+  ctx.fillStyle = theme.colors.background;
+  ctx.fillRect(0, 0, W, H);
+  drawImageFrame(ctx, content.image || (project.article && project.article.image), 0, 0, W, imageHeight, 0);
+
+  var gradient = ctx.createLinearGradient(0, imageHeight * 0.42, 0, imageHeight);
+  gradient.addColorStop(0, theme.colors.transparent);
+  gradient.addColorStop(1, theme.colors.overlay75);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, W, imageHeight);
+  drawLogo(ctx, theme, layout, true);
+
+  var panelX = layout.content.x;
+  var panelY = layout.content.y;
+  var panelW = layout.content.width;
+  var panelH = layout.safeZones.footer.y - panelY - 26;
+  fillRoundRect(ctx, panelX, panelY, panelW, panelH, 34, theme.colors.surface);
+  strokeRoundRect(ctx, panelX, panelY, panelW, panelH, 34, theme.colors.coverPanelStroke, 2);
+
+  var labelY = panelY + 38;
+  var titleY = drawEditorialHeader(ctx, slide, project, theme, layout, { y: labelY }) + 8;
+  var title = (project.article && project.article.title) || content.title || "";
+  var titleEnd = drawMeasuredText(ctx, title, panelX + 44, titleY, panelW - 88, {
+    fontSize: 70, minFontSize: 44, maxLines: 3, lineHeight: 78, weight: "700", color: theme.colors.textPrimary
+  });
+  drawMeasuredText(ctx, content.subtitle || content.text || "", panelX + 44, titleEnd + 16, panelW - 88, {
+    fontSize: 30, minFontSize: 23, maxLines: 3, lineHeight: 40, color: theme.colors.textSecondary
+  });
+
+  ctx.font = theme.fonts.footer;
+  ctx.fillStyle = theme.colors.textMuted;
+  ctx.textBaseline = "middle";
+  ctx.fillText("Deslizá para seguir", panelX + 44, panelY + panelH - 42);
+  ctx.textBaseline = "top";
+  drawSlideProgress(ctx, slide, project, theme, layout);
+}
+
+function drawText(ctx, slide, project, theme, layout) {
+  var content = slide.content || {};
+  ctx.fillStyle = theme.colors.background;
+  ctx.fillRect(0, 0, W, H);
+  drawLogo(ctx, theme, layout, false);
+  var titleY = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 }) + 8;
+  var titleEnd = drawMeasuredText(ctx, content.title, layout.content.x, titleY, layout.content.width, {
+    fontSize: 58, minFontSize: 38, maxLines: 3, lineHeight: 66, weight: "700", color: theme.colors.textPrimary
+  });
+  var cardY = Math.max(titleEnd + 34, layout.content.y + 410);
+  drawContextCard(ctx, content.text, layout.content.x, cardY, layout.content.width, layout.safeZones.footer.y - 42, theme);
+  drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
+function drawStats(ctx, slide, project, theme, layout) {
+  var content = slide.content || {};
+  var items = Array.isArray(content.items) ? content.items : [];
+  var primary = content.value || content.number || items[0] || content.title || "";
+  var explanation = content.text || content.subtitle || items.slice(1).join(" ");
+  ctx.fillStyle = theme.colors.background;
+  ctx.fillRect(0, 0, W, H);
+  drawLogo(ctx, theme, layout, false);
+  var headingY = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 }) + 12;
+  var factEnd = drawMeasuredText(ctx, primary, layout.content.x, headingY, layout.content.width, {
+    fontSize: 138, minFontSize: 58, maxLines: 2, lineHeight: 132, weight: "700", color: theme.colors.accentDark
+  });
+  var titleEnd = drawMeasuredText(ctx, content.title && content.title !== primary ? content.title : "", layout.content.x, factEnd + 12, layout.content.width, {
+    fontSize: 44, minFontSize: 30, maxLines: 3, lineHeight: 52, weight: "700", color: theme.colors.textPrimary
+  });
+  drawContextCard(ctx, explanation, layout.content.x, Math.max(titleEnd + 32, layout.content.y + 560), layout.content.width, layout.safeZones.footer.y - 42, theme);
+  drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
+function drawQuote(ctx, slide, project, theme, layout) {
+  var content = slide.content || {};
+  var quote = content.quote || content.text || content.title || "";
+  ctx.fillStyle = theme.colors.background;
+  ctx.fillRect(0, 0, W, H);
+  drawLogo(ctx, theme, layout, false);
+  drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 });
+  ctx.font = "700 170px Georgia, serif";
+  ctx.fillStyle = theme.colors.accent;
+  ctx.textBaseline = "top";
+  ctx.fillText("“", layout.content.x, layout.content.y + 196);
+  var quoteEnd = drawMeasuredText(ctx, quote, layout.content.x + 28, layout.content.y + 344, layout.content.width - 28, {
+    fontSize: 52, minFontSize: 30, maxLines: 8, lineHeight: 62, weight: "400", color: theme.colors.textPrimary
+  });
+  var author = content.author || content.source || "";
+  var role = content.role || "";
+  if (author) {
+    ctx.fillStyle = theme.colors.accentDark;
+    fillRoundRect(ctx, layout.content.x + 28, quoteEnd + 38, 56, 8, 4, theme.colors.accent);
+    drawMeasuredText(ctx, author, layout.content.x + 28, quoteEnd + 68, layout.content.width - 28, {
+      fontSize: 30, minFontSize: 24, maxLines: 2, lineHeight: 38, weight: "700", color: theme.colors.textPrimary
+    });
+  }
+  if (role) {
+    drawMeasuredText(ctx, role, layout.content.x + 28, quoteEnd + (author ? 114 : 44), layout.content.width - 28, {
+      fontSize: 26, minFontSize: 22, maxLines: 2, lineHeight: 34, color: theme.colors.textSecondary
+    });
+  }
+  drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
+function drawImage(ctx, slide, project, theme, layout) {
+  var content = slide.content || {};
+  ctx.fillStyle = theme.colors.background;
+  ctx.fillRect(0, 0, W, H);
+  drawLogo(ctx, theme, layout, false);
+  var headerEnd = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 });
+  var imageY = headerEnd + 22;
+  var captionHeight = measureTextHeight(ctx, content.text || content.subtitle || "", layout.content.width - 64, {
+    fontSize: 30, minFontSize: 23, maxLines: 3, lineHeight: 38
+  });
+  var titleHeight = measureTextHeight(ctx, content.title || "", layout.content.width, {
+    fontSize: 40, minFontSize: 28, maxLines: 2, lineHeight: 48
+  });
+  var imageH = Math.max(360, layout.safeZones.footer.y - imageY - captionHeight - titleHeight - 120);
+  drawImageFrame(ctx, content.image, layout.content.x, imageY, layout.content.width, imageH, 30);
+  var titleEnd = drawMeasuredText(ctx, content.title || "", layout.content.x, imageY + imageH + 28, layout.content.width, {
+    fontSize: 40, minFontSize: 28, maxLines: 2, lineHeight: 48, weight: "700", color: theme.colors.textPrimary
+  });
+  drawMeasuredText(ctx, content.text || content.subtitle || "", layout.content.x, titleEnd + 12, layout.content.width, {
+    fontSize: 30, minFontSize: 23, maxLines: 3, lineHeight: 38, color: theme.colors.textSecondary
+  });
+  drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
+function drawEnd(ctx, slide, project, theme, layout) {
+  var content = slide.content || {};
+  ctx.fillStyle = theme.colors.endBackground;
+  ctx.fillRect(0, 0, W, H);
+  drawLogo(ctx, theme, layout, false);
+  var y = layout.content.y + 150;
+  var source = content.source || content.title || "";
+  drawEditorialHeader(ctx, { content: { label: "FUENTE" } }, project, theme, layout, { y: y });
+  y += 88;
+  y = drawMeasuredText(ctx, source, layout.content.x, y, layout.content.width, {
+    fontSize: 54, minFontSize: 34, maxLines: 3, lineHeight: 62, weight: "700", color: theme.colors.textPrimary
+  });
+  y = drawMeasuredText(ctx, content.text || content.subtitle || "", layout.content.x, y + 26, layout.content.width, {
+    fontSize: 32, minFontSize: 24, maxLines: 4, lineHeight: 42, color: theme.colors.textSecondary
+  });
+  var cta = content.cta || theme.variant.endUrlLabel;
+  var ctaY = Math.min(layout.safeZones.footer.y - 154, Math.max(y + 64, layout.content.y + 620));
+  fillRoundRect(ctx, layout.content.x, ctaY, layout.content.width, 96, 28, theme.colors.endCtaFill);
+  drawMeasuredText(ctx, cta, layout.content.x + 30, ctaY + 28, layout.content.width - 60, {
+    fontSize: 28, minFontSize: 22, maxLines: 2, lineHeight: 34, weight: "700", color: theme.colors.endCtaText
+  });
+  drawEditorialFooter(ctx, slide, project, theme, layout);
 }
 
 export function renderSlideToCanvas(slide, project) {
   try {
-    applyThemeVariant((slide.style && slide.style.theme) || "mm_classic");
+    var safeSlide = slide || { template: "text", content: {}, style: {} };
+    var safeProject = project || {};
+    var theme = resolveCarouselTheme(safeProject, safeSlide);
+    var layout = getCarouselLayout(safeSlide.template || "text", W, H);
     var canvas = createCanvas(W, H);
     var ctx = canvas.getContext("2d");
 
-    switch (slide.template) {
-      case "cover": renderCover(ctx, slide, project); break;
-      case "text": renderTextSlide(ctx, slide, project); break;
-      case "stats": renderStatsSlide(ctx, slide, project); break;
-      case "end": renderEndSlide(ctx, slide, project); break;
-      default: renderTextSlide(ctx, slide, project);
+    switch (safeSlide.template) {
+      case "cover": drawCover(ctx, safeSlide, safeProject, theme, layout); break;
+      case "stats": drawStats(ctx, safeSlide, safeProject, theme, layout); break;
+      case "quote": drawQuote(ctx, safeSlide, safeProject, theme, layout); break;
+      case "image": drawImage(ctx, safeSlide, safeProject, theme, layout); break;
+      case "end": drawEnd(ctx, safeSlide, safeProject, theme, layout); break;
+      case "text":
+      default: drawText(ctx, safeSlide, safeProject, theme, layout); break;
     }
-
     return canvas;
-  } catch (e) {
-    console.log("EXCEPTION in renderSlideToCanvas:", e);
+  } catch (error) {
+    console.log("EXCEPTION in renderSlideToCanvas:", error);
     return null;
   }
 }

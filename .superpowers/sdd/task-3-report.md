@@ -1,62 +1,76 @@
-# Task 3 Report
+# Task 3 Report: Canvas editorial modular
 
-## Changed Files
+## Scope
 
-- `carousel/ui.js`
+Changed only the Task 3 Canvas implementation and its focused test suite:
+
+- `carousel/canvas-renderer.js`
+- `carousel/editorial-carousel.test.mjs`
 - `.superpowers/sdd/task-3-report.md`
 
-`carousel/reel-canvas-renderer.js` and all files outside `carousel` were left unchanged for implementation. Existing workspace modifications in `carousel/reel-canvas-renderer.js` were not altered.
+No Reel file and no `/placas` file was changed. The pre-existing modification to
+`.superpowers/sdd/task-1-report.md` was not staged or edited.
 
 ## Implementation
 
-- Added `TRANSITION_MS = 420` and `TRANSITION_FPS = 30`.
-- Added ease-out cubic compositing with a 28px vertical movement.
-- Rendered scene canvases once before starting `MediaRecorder`.
-- Preserved readable scene holds and inserted transitions between scenes.
-- Used a fade-only entrance before CTA scenes for a calmer close.
-- Preserved the existing MIME fallback, recorder setup, and `downloadBlob` download flow.
-- No editor labels, counters, or layout names were added to video frames.
+- Kept `renderSlideToCanvas(slide, project)` as the only public Canvas render
+  entry point.
+- Replaced the legacy variant-global renderer routing with a shared Canvas path
+  that resolves `resolveCarouselTheme(project, slide)` and
+  `getCarouselLayout(slide.template, 1080, 1350)` once per render.
+- Added explicit Canvas renderers for normalized `quote` and `image` templates,
+  while retaining legacy `cover`, `text`, `stats`, and `end` template support.
+- Added private editorial helpers for the section header, slide progress,
+  measured text, context card, safe-cropped image frame, and footer.
+- Cover renders an image-first composition with the logo in the layout safe
+  zone, a section capsule, title/subtitle, and sequence cue.
+- Context, stats, quote, image, and end layouts now have distinct editorial
+  treatments: context panel; primary fact plus explanation; literal quote plus
+  author/role; safe crop plus caption; and source plus CTA, respectively.
+- Text uses measured wrapped lines and renders every computed line. The Canvas
+  renderer does not add ellipses or silently remove text.
+- Existing image-cache asset-ready behavior remains in the Canvas path, so a
+  preview and PNG export continue to render from the same entry point.
+
+## Test-first record
+
+The new Canvas tests were added before the renderer changes. The red run had two
+expected failures: quote author/role were absent because `quote` fell through to
+the text renderer, and the image slide did not use `content.image`. After adding
+the template-specific renderers, the focused suite passed.
 
 ## Verification
 
-Command:
+Command run after review:
 
 ```powershell
-@'
-import './carousel/ui.js';
-console.log('reel modules ok');
-'@ | node -
+node --test carousel/editorial-carousel.test.mjs
 ```
 
-Output:
+Result: 18 tests passed, 0 failed.
 
-```text
-RENDER
-reel modules ok
-```
+The suite covers normalization and layout safety, plus Canvas rendering of:
 
-Command:
+- `dato` / `stats` with its primary fact;
+- `cita` / `quote` with literal content, author, and role;
+- `imagen` / `image` using the slide image and its caption; and
+- a complete `cover` / `text` / `end` sequence through
+  `renderSlideToCanvas`.
 
-```powershell
-git diff --check
-```
+`git diff --check` also completed with exit code 0 and no whitespace errors.
 
-Output: exit code `0`, no whitespace errors.
+## Review notes
 
-Command: focused static export-helper checks for the 30 fps constant, 420 ms transition, easing/compositor, one-time scene rendering, transition loop, and retained download flow.
-
-Output:
-
-```text
-PASS: 30 fps constant
-PASS: 420 ms transition constant
-PASS: ease-out compositor
-PASS: single scene render pass
-PASS: transition frame loop
-PASS: download flow retained
-```
+- The renderer imports only `getCarouselLayout`, `resolveCarouselTheme`, Canvas,
+  image, and text helpers; it does not reference Reel or `/placas` code.
+- `carousel/core/image.js` already supplied the safe cover-crop primitive used
+  by the new image and cover renderers, so it was intentionally left unchanged.
+- The existing JSON template descriptors are inert placeholders and are not
+  loaded by the Canvas path. They were left unchanged to preserve legacy
+  projects rather than introducing unused schema changes.
 
 ## Concerns
 
-- A real browser `MediaRecorder` export was not run because this environment has no browser session; the module import and focused helper checks pass.
-- No commit was created.
+- The focused Node suite uses a minimal Canvas/Image harness. Browser preview
+  and PNG rendering share the same production entry point, but a visual browser
+  snapshot was not run in this environment.

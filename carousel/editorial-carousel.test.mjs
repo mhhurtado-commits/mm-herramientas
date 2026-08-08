@@ -4,6 +4,67 @@ import { normalizeCarouselSlide } from './slide-model.js';
 import { getCarouselLayout } from './core/layout.js';
 import { fitText } from './core/text.js';
 import { resolveCarouselTheme } from './core/theme.js';
+import { renderSlideToCanvas } from './canvas-renderer.js';
+
+function installCanvasHarness() {
+  globalThis.Image = class {
+    constructor() {
+      this.width = 1200;
+      this.height = 800;
+      this.onload = null;
+    }
+
+    set src(value) {
+      this.source = value;
+      if (this.onload) this.onload();
+    }
+  };
+
+  globalThis.document = {
+    createElement(tag) {
+      assert.equal(tag, 'canvas');
+      const calls = { text: [], images: [] };
+      const ctx = new Proxy({
+        measureText(value) {
+          return { width: String(value).length * 24 };
+        },
+        createLinearGradient() {
+          return { addColorStop() {} };
+        },
+        fillText(value) {
+          calls.text.push(String(value));
+        },
+        drawImage(image) {
+          calls.images.push(image.source || '');
+        },
+      }, {
+        get(target, key) {
+          if (key in target) return target[key];
+          return () => {};
+        },
+        set(target, key, value) {
+          target[key] = value;
+          return true;
+        },
+      });
+
+      return {
+        width: 0,
+        height: 0,
+        calls,
+        getContext() {
+          return ctx;
+        },
+      };
+    },
+  };
+}
+
+function renderEditorialSlide(source, project = {}) {
+  installCanvasHarness();
+  const slide = normalizeCarouselSlide(source, 1, 4);
+  return renderSlideToCanvas(slide, { ...project, slides: [slide] });
+}
 
 test('normaliza un slide dato al template stats y completa su contenido', () => {
   const slide = normalizeCarouselSlide({
@@ -154,3 +215,66 @@ for (const kind of ['cover', 'internal', 'stats', 'quote', 'image', 'end']) {
     assert.equal(layout.content.y + layout.content.height <= layout.safeZones.footer.y, true);
   });
 }
+
+test('renderiza un dato normalizado como stats a través del canvas editorial', () => {
+  const canvas = renderEditorialSlide({
+    type: 'dato',
+    content: {
+      title: 'La cifra central',
+      items: ['47%', 'Explicación secundaria del dato.'],
+    },
+  });
+
+  assert.equal(canvas.width, 1080);
+  assert.equal(canvas.height, 1350);
+  assert.ok(canvas.calls.text.includes('47%'));
+});
+
+test('renderiza una cita normalizada con autora y rol', () => {
+  const canvas = renderEditorialSlide({
+    type: 'cita',
+    content: {
+      text: 'La cita literal permanece completa.',
+      author: 'Ana Pérez',
+      role: 'Investigadora',
+    },
+  });
+
+  assert.ok(canvas.calls.text.includes('Ana Pérez'));
+  assert.ok(canvas.calls.text.includes('Investigadora'));
+});
+
+test('renderiza una imagen normalizada usando la imagen del slide', () => {
+  const source = {
+    type: 'imagen',
+    content: {
+      title: 'Una imagen con contexto',
+      text: 'Epígrafe breve y verificable.',
+      image: 'https://example.com/photo.jpg',
+    },
+  };
+
+  renderEditorialSlide(source);
+  const canvas = renderEditorialSlide(source);
+
+  assert.ok(canvas.calls.images.some((src) => src.includes('example.com%2Fphoto.jpg')));
+  assert.ok(canvas.calls.text.includes('Epígrafe breve y verificable.'));
+});
+
+test('renderiza una secuencia completa de cover, texto y cierre por el mismo camino canvas', () => {
+  installCanvasHarness();
+  const slides = [
+    normalizeCarouselSlide({ type: 'cover', content: { title: 'Título de portada', subtitle: 'Bajada breve.' } }, 0, 3),
+    normalizeCarouselSlide({ type: 'contexto', content: { title: 'Contexto', text: 'Cuerpo legible.' } }, 1, 3),
+    normalizeCarouselSlide({ type: 'end', content: { title: 'Fuente: Media Mendoza', text: 'Seguí leyendo.' } }, 2, 3),
+  ];
+  const project = { article: { title: 'Título de portada', category: 'Actualidad' }, slides };
+
+  const canvases = slides.map((slide) => renderSlideToCanvas(slide, project));
+
+  assert.deepEqual(canvases.map((canvas) => [canvas.width, canvas.height]), [
+    [1080, 1350],
+    [1080, 1350],
+    [1080, 1350],
+  ]);
+});
