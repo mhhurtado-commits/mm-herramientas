@@ -382,3 +382,67 @@ test('no dibuja una línea cuando un bloque tiene espacio vertical cero', () => 
   assert.equal(textValues(canvas).includes('TAIL_MARKER_ZERO_SPACE'), false);
   assert.equal(canvas.editorialOverflow, true);
 });
+
+test('valida la secuencia editorial modular con contexto, apoyo visual y desborde explícito', () => {
+  const contexts = [
+    'Una línea clara.',
+    'Este contexto reúne suficiente información para ocupar dos líneas.',
+    'Este contexto reúne suficiente información para ocupar exactamente tres líneas en la lectura.',
+  ];
+  const sources = [
+    { type: 'cover', content: { title: 'Portada editorial', subtitle: 'Resumen verificable.' } },
+    ...contexts.map((text, index) => ({
+      type: 'contexto',
+      content: {
+        title: `Contexto ${index + 1}`,
+        text,
+        ...(index === 2 ? { supportImage: 'https://example.com/support-context.jpg' } : {}),
+      },
+    })),
+    { type: 'dato', content: { title: 'La cifra principal', items: ['47%', 'Dato comprobable.'] } },
+    { type: 'cita', content: { text: 'La cita permanece literal.', author: 'Ana Pérez', role: 'Investigadora' } },
+    { type: 'imagen', content: { title: 'Imagen de apoyo', text: 'Epígrafe comprobable.', image: 'https://example.com/photo.jpg' } },
+    { type: 'end', content: { source: 'Media Mendoza', text: 'Seguí leyendo.' } },
+  ];
+  const slides = sources.map((source, index) => normalizeCarouselSlide(source, index, sources.length));
+  const project = { article: { category: 'Actualidad' }, slides };
+
+  installCanvasHarness();
+  slides.map((slide) => renderSlideToCanvas(slide, project));
+  const canvases = slides.map((slide) => renderSlideToCanvas(slide, project));
+
+  assert.deepEqual(new Set(slides.map((slide) => slide.template)), new Set(['cover', 'text', 'stats', 'quote', 'image', 'end']));
+  for (const [index, canvas] of canvases.entries()) {
+    const layout = getCarouselLayout(slides[index].template, canvas.width, canvas.height);
+    assert.ok(layout.content.width > 0 && layout.content.height > 0, slides[index].template);
+    assert.equal(canvas.renderState.overflow, false, slides[index].template);
+    assertContentBaselinesBeforeFooter(canvas, slides[index].template);
+  }
+
+  const contextBlocks = canvases.slice(1, 4).map((canvas, index) =>
+    canvas.renderState.blocks.find((block) => block.fullText === contexts[index])
+  );
+  assert.deepEqual(contextBlocks.map((block) => block.renderedLines), [1, 2, 3]);
+  assert.ok(canvases[3].calls.images.some((src) => src.includes('support-context.jpg')));
+  assert.ok(textValues(canvases[4]).includes('47%'));
+  assert.ok(textValues(canvases[5]).includes('La cita permanece literal.'));
+  assert.ok(canvases[6].calls.images.some((src) => src.includes('photo.jpg')));
+
+  const oversized = renderEditorialSlide({
+    type: 'contexto',
+    content: { title: 'Contexto extendido', text: `${Array(80).fill('texto comprobable').join(' ')} TAIL_OVERSIZED` },
+  });
+  const zeroSpace = renderEditorialSlide({
+    type: 'cita',
+    content: {
+      text: Array(80).fill('cita comprobable').join(' '),
+      author: Array(70).fill('autoría comprobable').join(' '),
+      role: 'TAIL_ZERO_SPACE',
+    },
+  });
+
+  assert.equal(oversized.editorialOverflow, true);
+  assert.ok(oversized.renderState.blocks.some((block) => block.fullText.includes('TAIL_OVERSIZED') && block.overflow));
+  assert.equal(zeroSpace.editorialOverflow, true);
+  assert.ok(zeroSpace.renderState.blocks.some((block) => block.fullText === 'TAIL_ZERO_SPACE' && block.renderedLines === 0 && block.overflow));
+});
