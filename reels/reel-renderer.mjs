@@ -15,8 +15,8 @@ export function sceneLayout({ width = 1080, height = 1920, type = 'text' } = {})
     width,
     height,
     safe,
-    logo: { x: safe.left, y: safe.top * 0.45, width: width * 0.25, height: height * 0.055 },
-    accentBar: { x: safe.left, y: safe.top * 0.78, width: width * 0.84, height: height * 0.012 },
+    logo: { x: safe.left, y: height * 0.035, width: width * 0.28, height: height * 0.045 },
+    accentBar: { x: safe.left, y: height * 0.105, width: width * 0.24, height: 4 },
     content: { x: safe.left, y: height * 0.22, width: safe.right - safe.left, height: height * 0.58 },
     cta: { x: safe.left, y: type === 'closure' ? height * 0.68 : safe.bottom - height * 0.08, width: safe.right - safe.left, height: height * 0.08 },
   };
@@ -45,11 +45,11 @@ export function renderReelScene(ctx, scene = {}, assets = {}, options = {}) {
   ctx.fillRect(0, 0, width, height);
 
   if (image && scene.imageMode !== 'text') drawAdaptiveImage(ctx, image, scene, width, height);
-  drawLogo(ctx, assets.logo || options.logo, layout.logo, scene.type === 'cover' ? COLORS.white : COLORS.ink);
+  if (scene.type !== 'closure') drawLogo(ctx, assets.logo || options.logo, layout.logo, scene.type === 'cover' ? COLORS.white : COLORS.ink);
   drawAccent(ctx, accent, layout.accentBar, scene.type === 'cover' ? 0.9 : 1);
 
   if (scene.type === 'closure') {
-    drawClosure(ctx, scene, layout, accent);
+    drawClosure(ctx, scene, layout, accent, assets.logo || options.logo);
   } else {
     drawEditorialText(ctx, scene, layout, accent);
   }
@@ -98,12 +98,16 @@ function drawEditorialText(ctx, scene, layout, accent) {
   const x = layout.content.x;
   const width = layout.content.width;
   const hasImage = Boolean(scene.image);
-  const y = hasImage && scene.type === 'cover' ? layout.height * 0.55 : layout.content.y;
+  const y = hasImage && scene.type === 'cover' ? layout.height * 0.55 : hasImage ? layout.height * 0.43 : layout.content.y;
   const titleSize = scene.type === 'cover' ? 76 : 70;
   ctx.save();
   if (hasImage && scene.type === 'cover') {
     ctx.fillStyle = 'rgba(251, 250, 247, 0.96)';
     roundedRect(ctx, layout.safe.left * 0.55, y - 40, width + layout.safe.left * 0.9, layout.height * 0.34, 36);
+    ctx.fill();
+  } else if (hasImage) {
+    ctx.fillStyle = 'rgba(251, 250, 247, 0.97)';
+    roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.safe.bottom - y + 54, 36);
     ctx.fill();
   }
   drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, y, accent);
@@ -119,19 +123,20 @@ function drawEditorialText(ctx, scene, layout, accent) {
   ctx.restore();
 }
 
-function drawClosure(ctx, scene, layout, accent) {
+function drawClosure(ctx, scene, layout, accent, logo) {
   const x = layout.content.x;
   const width = layout.content.width;
   ctx.save();
   ctx.fillStyle = COLORS.dark;
   roundedRect(ctx, layout.safe.left * 0.55, layout.height * 0.22, width + layout.safe.left * 0.9, layout.height * 0.5, 36);
   ctx.fill();
-  drawPill(ctx, 'MEDIA MENDOZA', x, layout.height * 0.3, accent, true);
+  drawLogo(ctx, logo, { x, y: layout.height * 0.27, width: width * 0.38, height: layout.height * 0.055 }, COLORS.white);
+  drawPill(ctx, 'MEDIA MENDOZA', x, layout.height * 0.37, accent, true);
   ctx.fillStyle = COLORS.white;
   ctx.font = '800 70px Arial, sans-serif';
-  drawLines(ctx, wrapText(ctx, scene.title || 'Seguí informado', width, 2), x, layout.height * 0.42, 78, COLORS.white);
+  drawLines(ctx, wrapText(ctx, scene.title || 'Seguí informado', width, 2), x, layout.height * 0.45, 78, COLORS.white);
   ctx.font = '500 38px Arial, sans-serif';
-  drawLines(ctx, wrapText(ctx, scene.body || '', width, 3), x, layout.height * 0.58, 50, '#dbe3de');
+  drawLines(ctx, wrapText(ctx, scene.body || '', width, 3), x, layout.height * 0.61, 50, '#dbe3de');
   ctx.fillStyle = accent;
   roundedRect(ctx, x, layout.cta.y, width, layout.cta.height, 24);
   ctx.fill();

@@ -7,4 +7,6 @@ test('reserves safe zones and closure space in the 9:16 layout', () => {
   assert.ok(layout.safe.top > 0);
   assert.ok(layout.safe.bottom > 0);
   assert.ok(layout.cta.y < layout.safe.bottom);
+  assert.ok(layout.accentBar.height <= 6);
+  assert.ok(layout.logo.y + layout.logo.height < layout.accentBar.y);
 });
