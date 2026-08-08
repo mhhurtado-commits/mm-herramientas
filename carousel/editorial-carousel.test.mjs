@@ -247,6 +247,7 @@ test('renderiza un dato normalizado como stats a través del canvas editorial', 
   assert.equal(canvas.width, 1080);
   assert.equal(canvas.height, 1350);
   assert.ok(textValues(canvas).includes('47%'));
+  assertContentBaselinesBeforeFooter(canvas, 'stats');
 });
 
 test('renderiza una cita normalizada con autora y rol', () => {
@@ -282,6 +283,7 @@ test('renderiza una imagen normalizada usando la imagen del slide', () => {
 
   assert.ok(canvas.calls.images.some((src) => src.includes('example.com%2Fphoto.jpg')));
   assert.ok(textValues(canvas).includes('Epígrafe breve y verificable.'));
+  assertContentBaselinesBeforeFooter(canvas, 'image');
 });
 
 test('renderiza una secuencia completa de cover, texto y cierre por el mismo camino canvas', () => {
@@ -347,4 +349,22 @@ test('preserva supportImage en los renderers legacy de texto y stats', () => {
     const expected = source.content.supportImage.split('/').pop();
     assert.ok(canvas.calls.images.some((src) => src.includes(encodeURIComponent(expected))), source.template);
   }
+});
+
+test('no dibuja una línea cuando un bloque tiene espacio vertical cero', () => {
+  const canvas = renderEditorialSlide({
+    type: 'cita',
+    content: {
+      text: Array(80).fill('cita larga comprobable').join(' '),
+      author: Array(70).fill('autoría extensa comprobable').join(' '),
+      role: 'TAIL_MARKER_ZERO_SPACE',
+    },
+  });
+  const roleBlock = canvas.renderState.blocks.find((entry) => entry.fullText === 'TAIL_MARKER_ZERO_SPACE');
+
+  assert.ok(roleBlock);
+  assert.equal(roleBlock.renderedLines, 0);
+  assert.equal(roleBlock.overflow, true);
+  assert.equal(textValues(canvas).includes('TAIL_MARKER_ZERO_SPACE'), false);
+  assert.equal(canvas.editorialOverflow, true);
 });

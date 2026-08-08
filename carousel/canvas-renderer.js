@@ -136,13 +136,13 @@ function getMeasuredText(ctx, text, maxWidth, options, y) {
   var settings = options || {};
   var initialFontSize = settings.fontSize || 40;
   var lineHeight = settings.lineHeight || 48;
-  var maxLines = settings.maxLines || 6;
+  var maxLines = settings.maxLines === undefined ? 6 : settings.maxLines;
   if (Number.isFinite(settings.maxBottom)) {
-    maxLines = Math.max(1, Math.min(maxLines, Math.floor((settings.maxBottom - y) / lineHeight)));
+    maxLines = Math.max(0, Math.min(maxLines, Math.floor((settings.maxBottom - y) / lineHeight)));
   }
 
   var value = String(text || "");
-  var fitMaxLines = Math.max(1, maxLines);
+  var fitMaxLines = maxLines === 0 ? 1 : maxLines;
   var result = fitText(ctx, value, {
     fontSize: initialFontSize,
     minFontSize: settings.minFontSize || 24,
@@ -171,10 +171,7 @@ function drawMeasuredText(ctx, text, x, y, maxWidth, options) {
   if (!text) return y;
   var settings = options || {};
   var lineHeight = settings.lineHeight || 48;
-  var safeY = Number.isFinite(settings.maxBottom) && y >= settings.maxBottom
-    ? Math.max(0, settings.maxBottom - lineHeight)
-    : y;
-  var measured = getMeasuredText(ctx, text, maxWidth, settings, safeY);
+  var measured = getMeasuredText(ctx, text, maxWidth, settings, y);
   var renderState = ctx.__carouselRenderState;
   if (renderState) {
     renderState.overflow = renderState.overflow || measured.overflow;
@@ -191,9 +188,9 @@ function drawMeasuredText(ctx, text, x, y, maxWidth, options) {
   ctx.textBaseline = "top";
   ctx.__carouselLineHeight = measured.lineHeight;
   for (var i = 0; i < measured.lines.length; i++) {
-    ctx.fillText(measured.lines[i], x, safeY + i * measured.lineHeight);
+    ctx.fillText(measured.lines[i], x, y + i * measured.lineHeight);
   }
-  return safeY + measured.height;
+  return y + measured.height;
 }
 
 function measureTextHeight(ctx, text, maxWidth, options) {
@@ -371,8 +368,8 @@ function drawQuote(ctx, slide, project, theme, layout) {
     ctx.fillStyle = theme.colors.accentDark;
     fillRoundRect(ctx, layout.content.x + 28, quoteEnd + 38, 56, 8, 4, theme.colors.accent);
     authorEnd = drawMeasuredText(ctx, author, layout.content.x + 28, quoteEnd + 68, layout.content.width - 28, {
-      fontSize: 30, minFontSize: 24, maxLines: 2, lineHeight: 38, weight: "700", color: theme.colors.textPrimary,
-      maxBottom: layout.safeZones.footer.y - (role ? 54 : 20),
+      fontSize: 30, minFontSize: 30, maxLines: 30, lineHeight: 38, weight: "700", color: theme.colors.textPrimary,
+      maxBottom: layout.safeZones.footer.y - (role ? 0 : 20),
     });
   }
   if (role) {

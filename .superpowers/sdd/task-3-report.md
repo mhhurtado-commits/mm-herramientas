@@ -31,8 +31,9 @@ No Reel file and no `/placas` file was changed. The pre-existing modification to
   retains `fullText`/`fullLines`, records the safe `renderedText`/`renderedLines`,
   and sets `overflow: true` when the full copy cannot fit.
 - Text fitting receives the available bottom boundary for each layout. It never
-  forces a one-line draw when no complete line fits, and it never draws beyond
-  the footer. The Canvas exposes the aggregate state as `canvas.renderState`
+  forces a one-line draw when no complete line fits, performs no upward shift
+  when available height is zero, and never draws beyond the footer. The Canvas
+  exposes the aggregate state as `canvas.renderState`
   and `canvas.editorialOverflow`, allowing the caller to shorten copy
   explicitly while retaining the full-copy overflow result.
 - Legacy `text` and `stats` renderers preserve `content.supportImage` through
@@ -57,7 +58,7 @@ Command run after review:
 node --test carousel/editorial-carousel.test.mjs
 ```
 
-Result: 20 tests passed, 0 failed.
+Result: 21 tests passed, 0 failed.
 
 The suite covers normalization and layout safety, plus Canvas rendering of:
 
@@ -73,6 +74,9 @@ The suite covers normalization and layout safety, plus Canvas rendering of:
 - preserved `supportImage` drawing for both legacy text and stats templates; and
 - literal quote content, author-before-role ordering, plus cover/text/end content
   assertions, not only Canvas dimensions.
+- zero-space role rendering with `renderedLines: 0`, no text draw, and explicit
+  overflow state; and
+- footer line-height bounds on stats and image render tests.
 
 `git diff --check` also completed with exit code 0 and no whitespace errors.
 
