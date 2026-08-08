@@ -1,4 +1,5 @@
 import { normalizeNewsPlate } from '../placas-v2/editorial-core.mjs';
+export { buildEditorialPackage, normalizeRequestedOutputs } from './editorial-package.mjs';
 
 const text = value => String(value || '').replace(/\s+/g, ' ').trim();
 

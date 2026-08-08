@@ -6407,6 +6407,7 @@ export default {
     if(path==="/visual/extraer")                     return handleVisualExtraer(body, env);
     if(path==="/visual/ilustrar")                    return handleVisualIlustrar(body, env);
     if(path==="/placas/v2/generar")                  return handlePlacasV2Generar(body, env);
+    if(path==="/placas/v2/paquete")                  return handlePlacasV2Paquete(body, env);
 
     return jsonError("Ruta no encontrada",404);
   },
@@ -6583,4 +6584,67 @@ async function handlePlacasV2Generar(body, env) {
   } catch (error) {
     return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'] });
   }
+}
+
+// POST /placas/v2/paquete { nota: { ...respuesta de extracciÃ³n... }, salidas: ["placa", "carrusel", "reel"] }
+async function handlePlacasV2Paquete(body, env) {
+  const note = body?.nota && typeof body.nota === 'object' ? body.nota : body;
+  const hasContent = String(note?.url || note?.title || note?.titulo || note?.body || note?.texto || '').trim();
+  if (!hasContent) return jsonError('Falta la nota extraÃ­da', 400);
+
+  const requested = Array.isArray(body?.salidas) ? [...new Set(body.salidas)] : ['placa'];
+  const allowed = ['placa', 'carrusel', 'reel'];
+  const invalid = requested.filter(output => !allowed.includes(output));
+  if (invalid.length) return jsonError(`Salidas invÃ¡lidas: ${invalid.join(', ')}`, 400);
+  if (!requested.length) requested.push('placa');
+
+  let placa;
+  let warnings = [];
+  try {
+    const result = await callGemini(buildPlateEditorialPrompt(note), env);
+    if (result.error || !result.data || typeof result.data !== 'object') {
+      placa = deterministicEditorialResponse(note);
+      warnings = ['ia_no_disponible'];
+    } else {
+      placa = normalizeEditorialResponse(result.data, note);
+    }
+  } catch (error) {
+    placa = deterministicEditorialResponse(note);
+    warnings = ['ia_no_disponible'];
+  }
+
+  const imagenes = Array.isArray(placa.fuente?.imagenes) ? placa.fuente.imagenes : [];
+  const paquete = {
+    tipo: 'noticia_editorial',
+    version: 2,
+    fuente: {
+      url: placa.fuente?.url || note.url || '',
+      titulo_original: placa.fuente?.titulo_original || note.title || note.titulo || '',
+      categoria: placa.fuente?.categoria || note.category || note.categoria || '',
+      cuerpo: placa.fuente?.texto || note.body || note.texto || note.contenido || '',
+      imagen: placa.fuente?.imagen || note.image || note.imagen || imagenes[0] || '',
+      imagenes,
+    },
+    editorial: {
+      seccion: placa.fuente?.categoria || note.category || note.categoria || '',
+      familia: placa.template_sugerido || 'general',
+      tipo_noticia: 'noticia',
+      complejidad: 'medium',
+      tono: 'informative',
+      titulo: placa.titulo || '',
+      bajada: placa.bajada || '',
+      contexto: placa.contexto || '',
+      datos_clave: placa.contexto ? [placa.contexto] : [],
+      textual: placa.textual || [],
+      personas: Array.isArray(placa.personas) ? placa.personas : [],
+    },
+    salidas: {
+      placas: requested.includes('placa') ? [placa] : [],
+      carrusel: requested.includes('carrusel') ? null : null,
+      reel: requested.includes('reel') ? null : null,
+    },
+    redes: placa.redes || { instagram: '', facebook: '' },
+  };
+
+  return jsonOk({ ok: true, paquete, warnings, requestedOutputs: requested });
 }
