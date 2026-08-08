@@ -107,6 +107,22 @@ var BASE_THEME = {
 
 var THEME_VARIANTS = {
   mm_classic: {},
+  mm_editorial: {
+    name: "mm_editorial",
+    colors: {
+      background: "#f8f6f1",
+      panel: "#ffffff",
+      surface: "#ffffff",
+      surfaceSoft: "#f4f1ea",
+      textPrimary: "#111111",
+      accent: "#a6ce39",
+      accentSoft: "#edf6ce"
+    },
+    safe: {
+      logoInset: 64,
+      footerHeight: 92
+    }
+  },
   mm_briefing: {
     colors: {
       background: "#f7f8f4",
@@ -233,6 +249,21 @@ export function applyThemeVariant(themeName) {
 
 export function getAvailableCarouselTemplates() {
   return Object.keys(THEME_VARIANTS);
+}
+
+export function resolveCarouselTheme(project, slide) {
+  var requestedTheme = (slide && slide.style && slide.style.theme) ||
+    (project && (project.carouselTheme || project.theme)) ||
+    "mm_editorial";
+  var theme = mergeTheme(BASE_THEME, THEME_VARIANTS[requestedTheme] || THEME_VARIANTS.mm_editorial);
+  var sectionAccent = (slide && slide.style && slide.style.accent) ||
+    (project && (project.sectionAccent || project.accent));
+
+  if (sectionAccent) {
+    theme.colors.accent = sectionAccent;
+  }
+
+  return theme;
 }
 
 function cloneTheme(theme) {

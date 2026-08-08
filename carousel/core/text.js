@@ -60,3 +60,74 @@ export function wrapText(ctx, text, x, y, maxW, lineH) {
   }
   return y;
 }
+
+export function fitText(ctx, text, options) {
+  var settings = options || {};
+  var maxWidth = settings.maxWidth || 0;
+  var maxLines = settings.maxLines || 1;
+  var initialFontSize = settings.fontSize || 16;
+  var minFontSize = settings.minFontSize || initialFontSize;
+  var baseLineHeight = settings.lineHeight || Math.round(initialFontSize * 1.2);
+  var fontFamily = settings.fontFamily || "sans-serif";
+  var originalFont = ctx.font;
+  var fontSize = initialFontSize;
+  var lines;
+
+  do {
+    ctx.font = fontSize + "px " + fontFamily;
+    lines = wrapLines(ctx, text, maxWidth);
+    if (lines.length <= maxLines || fontSize === minFontSize) break;
+    fontSize = Math.max(minFontSize, fontSize - 1);
+  } while (true);
+
+  ctx.font = originalFont;
+  var lineHeight = Math.round(baseLineHeight * (fontSize / initialFontSize));
+  return {
+    lines: lines,
+    fontSize: fontSize,
+    height: lines.length * lineHeight,
+    truncated: lines.length > maxLines
+  };
+}
+
+function wrapLines(ctx, text, maxWidth) {
+  var words = String(text || "").trim().split(/\s+/);
+  if (!words[0]) return [];
+
+  var lines = [];
+  var line = "";
+  for (var i = 0; i < words.length; i++) {
+    var word = words[i];
+    var candidate = line ? line + " " + word : word;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+    } else if (line) {
+      lines.push(line);
+      line = word;
+    } else {
+      var pieces = splitWord(ctx, word, maxWidth);
+      for (var pieceIndex = 0; pieceIndex < pieces.length - 1; pieceIndex++) {
+        lines.push(pieces[pieceIndex]);
+      }
+      line = pieces[pieces.length - 1];
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function splitWord(ctx, word, maxWidth) {
+  var pieces = [];
+  var piece = "";
+  for (var i = 0; i < word.length; i++) {
+    var candidate = piece + word[i];
+    if (piece && ctx.measureText(candidate).width > maxWidth) {
+      pieces.push(piece);
+      piece = word[i];
+    } else {
+      piece = candidate;
+    }
+  }
+  if (piece) pieces.push(piece);
+  return pieces;
+}
