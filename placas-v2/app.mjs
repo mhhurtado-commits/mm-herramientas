@@ -1,8 +1,9 @@
-import { buildEditorialVariants, normalizeNewsPlate, normalizeFocus, calculatePlateLayout, FORMATS, PLATE_TYPES } from './editorial-core.mjs';
+import { normalizeFocus, calculatePlateLayout, FORMATS, PLATE_TYPES } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
+import { loadEditorialSession } from './editorial-session.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { plate: null, variants: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, drag: null };
+const state = { plate: null, package: null, note: null, outputs: ['placa'], variants: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, drag: null };
 const $ = selector => document.querySelector(selector);
 
 const logoImage = new Image();
@@ -24,10 +25,10 @@ async function extractNote(url) {
   return data;
 }
 
-async function generateEditorial(note) {
-  const response = await fetch(`${WORKER}/placas/v2/generar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nota: note }) });
+async function generatePackage(note, outputs) {
+  const response = await fetch(`${WORKER}/placas/v2/paquete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nota: note, salidas: outputs }) });
   const data = await response.json();
-  if (!response.ok || data.error) throw new Error(data.error || 'No se pudo generar la propuesta.');
+  if (!response.ok || data.error) throw new Error(data.error || 'No se pudo generar el paquete editorial.');
   return data;
 }
 
@@ -69,6 +70,19 @@ function renderVariants() {
 function renderFormats() {
   $('#formatList').innerHTML = Object.entries(FORMATS).map(([key, format]) => `<button class="format ${state.format === key ? 'active' : ''}" type="button" data-format="${key}">${format.label}</button>`).join('');
   document.querySelectorAll('.format').forEach(button => button.addEventListener('click', () => { state.format = button.dataset.format; renderFormats(); render(); }));
+}
+
+function renderOutputs() {
+  const outputs = [
+    { id: 'placa', label: 'Placa', enabled: true },
+    { id: 'carrusel', label: 'Carrusel', enabled: false },
+    { id: 'reel', label: 'Reel', enabled: false },
+  ];
+  $('#outputList').innerHTML = outputs.map(output => `<button class="format" type="button" data-output="${output.id}" ${output.enabled ? '' : 'disabled'} title="${output.enabled ? 'Salida activa' : 'Se habilita en la siguiente etapa de integración'}">${output.label}</button>`).join('');
+  document.querySelectorAll('[data-output]').forEach(button => button.addEventListener('click', () => {
+    if (button.disabled) return;
+    toast('Salida de placa activa. Carrusel y Reel se conectarán en el próximo checkpoint.');
+  }));
 }
 
 function renderTemplates() {
@@ -131,15 +145,17 @@ async function generate(event) {
   setLoading(true, 'Extrayendo la noticia…');
   $('#editorControls').classList.add('is-hidden');
   try {
-    const note = await extractNote(url);
+    const session = await loadEditorialSession(url, ['placa'], { extract: extractNote, generate: generatePackage });
     setLoading(true, 'Armando la propuesta editorial…');
-    const result = await generateEditorial(note);
-    state.plate = normalizeNewsPlate(result.placa || note);
-    state.variants = buildEditorialVariants(state.plate);
+    state.note = session.note;
+    state.package = session.package;
+    state.outputs = session.outputs;
+    state.plate = session.plate;
+    state.variants = session.variants;
     state.selectedVariant = 0; state.selectedTemplate = state.plate.tipo_placa || 'noticia'; state.imageIndex = 0; state.personImages = {}; state.supportImage = null; state.supportImageUrl = ''; state.imagePositioned = true;
     $('#editorControls').classList.remove('is-hidden');
-    renderVariants(); renderFormats(); renderImages(); syncEditor();
-    if (result.warnings?.length) { $('#warning').textContent = 'La propuesta se generó con fallback automático. Revisá la redacción antes de exportar.'; $('#warning').classList.remove('is-hidden'); } else $('#warning').classList.add('is-hidden');
+    renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor();
+    if (session.warnings?.length) { $('#warning').textContent = 'La propuesta se generó con fallback automático. Revisá la redacción antes de exportar.'; $('#warning').classList.remove('is-hidden'); } else $('#warning').classList.add('is-hidden');
     await loadImage(state.plate.fuente?.imagenes?.[0]);
     render();
   } catch (error) { toast(error.message || 'No se pudo generar la placa.'); } finally { setLoading(false); }
