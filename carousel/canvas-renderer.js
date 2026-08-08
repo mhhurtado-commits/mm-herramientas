@@ -150,6 +150,7 @@ function drawImageFrame(ctx, src, x, y, w, h, radius, focalPosition, theme) {
 function drawSupportImage(ctx, src, x, y, w, h, mode, theme, focalPosition) {
   var image = getCachedImage(src);
   if (!image) return drawImageFallback(ctx, x, y, w, h, 24, theme, "Sin imagen");
+  if (image.width < w * 1.5 || image.height < h * 1.5) return false;
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 24);
@@ -169,13 +170,15 @@ function drawSupportImage(ctx, src, x, y, w, h, mode, theme, focalPosition) {
 function drawLogo(ctx, project, theme, layout, overImage) {
   var logo = getCachedImage("/assets/logo.png");
   if (!logo) return;
+  var isOverImage = overImage === true;
+  var isEnd = overImage === "end";
   var zone = layout.safeZones.logo;
-  var width = overImage ? 250 : 220;
+  var width = isEnd ? 300 : (isOverImage ? 250 : 220);
   var height = logo.height * (width / logo.width);
   var x = zone.x;
   var y = zone.y;
 
-  if (overImage) {
+  if (isOverImage) {
     var position = project && project.settings && project.settings.coverLogoPosition || "right";
     if (position === "right" || position === "top-right") {
       x = W - zone.x - width;
@@ -191,7 +194,10 @@ function drawLogo(ctx, project, theme, layout, overImage) {
   }
 
   ctx.save();
-  if (overImage) {
+  if (!isOverImage && !isEnd) {
+    fillRoundRect(ctx, x - 14, y - 8, width + 28, height + 16, 16, theme.colors.surfaceInk);
+  }
+  if (isOverImage) {
     ctx.shadowColor = "rgba(0,0,0,0.42)";
     ctx.shadowBlur = 18;
     ctx.shadowOffsetY = 4;
@@ -203,7 +209,7 @@ function drawLogo(ctx, project, theme, layout, overImage) {
 function drawEditorialHeader(ctx, slide, project, theme, layout, options) {
   var content = slide.content || {};
   var label = content.eyebrow || content.kicker || content.label ||
-    (project.article && project.article.category) || "";
+    theme.sectionLabel || (project.article && project.article.category) || "";
   var x = layout.content.x;
   var y = options && options.y ? options.y : layout.content.y;
   if (!label) return y;
@@ -228,7 +234,7 @@ function drawEditorialHeader(ctx, slide, project, theme, layout, options) {
   var width = Math.min(maxWidth, measuredWidth);
   var height = Math.max(30, measured.height);
   recordMeasuredBlock(ctx, measured, textOptions.role);
-  ctx.fillStyle = theme.colors.accentDark;
+  ctx.fillStyle = options && options.light ? theme.colors.white : theme.colors.accentDark;
   ctx.textBaseline = "top";
   ctx.__carouselLineHeight = measured.lineHeight;
   for (var lineIndex = 0; lineIndex < measured.lines.length; lineIndex++) {
@@ -574,7 +580,12 @@ function resolveStatsContent(content) {
   if (!items.length && primaryItem.label) explanationParts.push(primaryItem.label);
   return {
     primary: primary,
-    explanation: explanationParts.filter(Boolean).join(" "),
+    primaryLabel: primaryItem.label,
+    explanation: (items.length > 1
+      ? [getStatText(content.text), getStatText(content.subtitle)]
+      : explanationParts
+    ).filter(Boolean).join(" "),
+    items: items
   };
 }
 
@@ -605,12 +616,49 @@ function drawStats(ctx, slide, project, theme, layout) {
     role: "stat",
     maxBottom: layout.safeZones.footer.y - 250,
   });
-  var titleEnd = drawMeasuredText(ctx, content.title && content.title !== primary ? content.title : "", layout.content.x, factEnd + 12, factWidth, {
+  var primaryLabelEnd = drawMeasuredText(ctx, stats.primaryLabel, layout.content.x, factEnd + 8, factWidth, {
+    fontSize: 26, minFontSize: 20, maxLines: 2, lineHeight: 32, weight: "700", color: theme.colors.textPrimary,
+    role: "stat-label", maxBottom: layout.safeZones.footer.y - 180
+  });
+  var titleEnd = drawMeasuredText(ctx, content.title && content.title !== primary ? content.title : "", layout.content.x, Math.max(factEnd + 12, primaryLabelEnd + 4), factWidth, {
     fontSize: 44, minFontSize: 30, maxLines: INTERNAL_TITLE_MAX_LINES, lineHeight: 52, weight: "700", color: theme.colors.textPrimary,
     role: "title",
     maxBottom: layout.safeZones.footer.y - 180,
   });
-  drawContextCard(ctx, explanation, layout.content.x, Math.max(titleEnd + 32, layout.content.y + 560), layout.content.width, layout.safeZones.footer.y - 42, theme, "body");
+  var items = stats.items || [];
+  var cardY = Math.max(titleEnd + 32, layout.content.y + 560);
+  if (items.length > 1) {
+    var cardWidth = layout.content.width;
+    var secondaryItems = items.slice(1);
+    if (items.length > 5) {
+      drawMeasuredText(ctx, secondaryItems.map(function (item) {
+        return [item.value, item.label].filter(Boolean).join(" — ");
+      }).join(" "), layout.content.x, layout.safeZones.footer.y + 10, layout.content.width, {
+        fontSize: 22, minFontSize: 18, maxLines: 1, lineHeight: 27, color: theme.colors.textPrimary,
+        role: "body", maxBottom: layout.safeZones.footer.y - 10
+      });
+    }
+    for (var itemIndex = 0; itemIndex < secondaryItems.length; itemIndex++) {
+      var item = secondaryItems[itemIndex];
+      var itemX = layout.content.x;
+      var itemY = cardY + itemIndex * 154;
+      fillRoundRect(ctx, itemX, itemY, cardWidth, 146, 22, theme.colors.surfaceSoft);
+      fillRoundRect(ctx, itemX, itemY, 10, 146, 5, theme.colors.accent);
+      drawMeasuredText(ctx, item.value, itemX + 30, itemY + 20, cardWidth - 54, {
+        fontSize: 42, minFontSize: 28, maxLines: 1, lineHeight: 48, weight: "700", color: theme.colors.accentDark,
+        role: "stat-item", maxBottom: Math.min(itemY + 72, layout.safeZones.footer.y - 30)
+      });
+      drawMeasuredText(ctx, item.label, itemX + 30, itemY + 76, cardWidth - 54, {
+        fontSize: 22, minFontSize: 18, maxLines: 3, lineHeight: 27, color: theme.colors.textPrimary,
+        role: "body", maxBottom: Math.min(itemY + 138, layout.safeZones.footer.y - 30)
+      });
+    }
+    if (explanation) {
+      drawContextCard(ctx, explanation, layout.content.x, cardY + secondaryItems.length * 154, layout.content.width, layout.safeZones.footer.y - 42, theme, "body");
+    }
+  } else {
+    drawContextCard(ctx, explanation, layout.content.x, cardY, layout.content.width, layout.safeZones.footer.y - 42, theme, "body");
+  }
   drawEditorialFooter(ctx, slide, project, theme, layout);
 }
 
@@ -635,7 +683,7 @@ function drawQuote(ctx, slide, project, theme, layout) {
   var role = content.role || "";
   var authorEnd = quoteEnd;
   if (author) {
-    ctx.fillStyle = theme.colors.accentDark;
+  ctx.fillStyle = theme.colors.accentDark;
     fillRoundRect(ctx, layout.content.x + 28, quoteEnd + 38, 56, 8, 4, theme.colors.accent);
     authorEnd = drawMeasuredText(ctx, author, layout.content.x + 28, quoteEnd + 68, layout.content.width - 28, {
       fontSize: 30, minFontSize: 30, maxLines: 30, lineHeight: 38, weight: "700", color: theme.colors.textPrimary,
@@ -689,18 +737,18 @@ function drawEnd(ctx, slide, project, theme, layout) {
   var content = slide.content || {};
   ctx.fillStyle = theme.colors.endBackground;
   ctx.fillRect(0, 0, W, H);
-  drawLogo(ctx, project, theme, layout, false);
+  drawLogo(ctx, project, theme, layout, "end");
   var y = layout.content.y + 150;
   var source = content.source || content.title || "";
-  drawEditorialHeader(ctx, { content: { label: "FUENTE" } }, project, theme, layout, { y: y });
+  drawEditorialHeader(ctx, { content: { label: "FUENTE" } }, project, theme, layout, { y: y, light: true });
   y += 88;
   y = drawMeasuredText(ctx, source, layout.content.x, y, layout.content.width, {
-    fontSize: 54, minFontSize: 34, maxLines: 3, lineHeight: 62, weight: "700", color: theme.colors.textPrimary,
+    fontSize: 54, minFontSize: 34, maxLines: 3, lineHeight: 62, weight: "700", color: theme.colors.white,
     role: "source",
     maxBottom: layout.safeZones.footer.y - 250,
   });
   y = drawMeasuredText(ctx, content.text || content.subtitle || "", layout.content.x, y + 26, layout.content.width, {
-    fontSize: 32, minFontSize: 24, maxLines: 4, lineHeight: 42, color: theme.colors.textSecondary,
+    fontSize: 32, minFontSize: 24, maxLines: 4, lineHeight: 42, color: "rgba(255,255,255,0.82)",
     role: "body",
     maxBottom: layout.safeZones.footer.y - 170,
   });
@@ -713,7 +761,7 @@ function drawEnd(ctx, slide, project, theme, layout) {
     maxBottom: layout.safeZones.footer.y - 62,
   });
   ctx.font = "700 34px Inter, Arial, sans-serif";
-  ctx.fillStyle = theme.colors.textPrimary;
+  ctx.fillStyle = theme.colors.white;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   ctx.fillText("www.mediamendoza.com", layout.content.x + layout.content.width, layout.safeZones.footer.y - 48);

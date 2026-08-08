@@ -105,6 +105,16 @@ var BASE_THEME = {
   }
 };
 
+var SECTION_FAMILIES = {
+  general: { label: "Actualidad", accent: "#a6ce39", dark: "#16201b", soft: "#eaf3de" },
+  clima: { label: "Clima", accent: "#367d9c", dark: "#16303b", soft: "#dcedf3" },
+  policiales: { label: "Policiales", accent: "#ba3f42", dark: "#421c1e", soft: "#f8dddd" },
+  sociales: { label: "Sociedad", accent: "#b36b27", dark: "#422715", soft: "#f8ead7" },
+  politica: { label: "Política", accent: "#5b4c91", dark: "#251e42", soft: "#e9e4f7" },
+  economia: { label: "Economía", accent: "#507118", dark: "#213009", soft: "#eaf3de" },
+  deportes: { label: "Deportes", accent: "#16806a", dark: "#103c33", soft: "#d9f1eb" }
+};
+
 var THEME_VARIANTS = {
   mm_classic: {},
   mm_editorial: {
@@ -259,11 +269,36 @@ export function resolveCarouselTheme(project, slide) {
   var sectionAccent = (slide && slide.style && slide.style.accent) ||
     (project && (project.sectionAccent || project.accent));
 
+  var vertical = (slide && slide.style && slide.style.vertical) ||
+    (project && project.editorialDiagnosis && project.editorialDiagnosis.vertical) ||
+    (project && project.editorialPlan && project.editorialPlan.diagnosis && project.editorialPlan.diagnosis.vertical) ||
+    inferSectionFromCategory(project && project.article && project.article.category);
+  var family = SECTION_FAMILIES[vertical] || SECTION_FAMILIES.general;
+  theme.sectionLabel = family.label;
+  theme.sectionVertical = vertical;
+  theme.colors.accent = family.accent;
+  theme.colors.accentDark = family.dark;
+  theme.colors.accentSoft = family.soft;
+  theme.colors.endBackground = family.dark;
+  theme.colors.endCtaFill = family.accent;
+  theme.colors.endCtaText = family.dark;
+
   if (sectionAccent) {
     theme.colors.accent = sectionAccent;
   }
 
   return theme;
+}
+
+function inferSectionFromCategory(value) {
+  var normalized = String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (normalized.includes("policial") || normalized.includes("seguridad")) return "policiales";
+  if (normalized.includes("clima") || normalized.includes("meteor")) return "clima";
+  if (normalized.includes("social") || normalized.includes("sociedad")) return "sociales";
+  if (normalized.includes("polit")) return "politica";
+  if (normalized.includes("econom")) return "economia";
+  if (normalized.includes("deport")) return "deportes";
+  return "general";
 }
 
 function cloneTheme(theme) {
