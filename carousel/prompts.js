@@ -37,8 +37,11 @@ export function buildCarouselPrompt(article) {
     '  - timeline: entre 6 y 7 slides totales\n' +
     '  - data_points: entre 5 y 6 slides totales\n' +
     '  - service: entre 4 y 5 slides totales\n' +
-    "- Los tipos de slide permitidos son solo: context, facts, impact, cta.\n" +
-    "- facts usa items. context, impact y cta usan text.\n\n" +
+    "- Los tipos de slide permitidos son: clave, contexto, dato, cita, imagen, end.\n" +
+    "- Tambien se aceptan los aliases legacy: context, facts, impact, cta.\n" +
+    "- clave, contexto, impact y end usan text. dato usa items.\n" +
+    "- cita usa quote, author y role. imagen usa image y puede usar text como epigrafe.\n" +
+    "- supportImage es opcional para una imagen de apoyo; no inventar URLs ni atribuciones.\n\n" +
     "Responde SOLO con JSON sin backticks ni markdown.\n" +
     "Formato exacto:\n" +
     "{\n" +
@@ -57,7 +60,7 @@ export function buildCarouselPrompt(article) {
     '    "tone":"informative",\n' +
     '    "carousel_type":"summary",\n' +
     '    "template":"mm_impact",\n' +
-    '    "slide_count":6,\n' +
+    '    "slide_count":7,\n' +
     '    "reason":""\n' +
     "  },\n" +
     '  "cover":{\n' +
@@ -66,22 +69,37 @@ export function buildCarouselPrompt(article) {
     "  },\n" +
     '  "slides":[\n' +
     '    {\n' +
-    '      "type":"context",\n' +
+    '      "type":"clave",\n' +
     '      "title":"",\n' +
-    '      "text":""\n' +
+    '      "text":"",\n' +
+    '      "supportImage":""\n' +
     "    },\n" +
     '    {\n' +
-    '      "type":"facts",\n' +
+    '      "type":"contexto",\n' +
     '      "title":"",\n' +
-    '      "items":["", "", "", ""]\n' +
+    '      "text":"",\n' +
+    '      "supportImage":""\n' +
     "    },\n" +
     '    {\n' +
-    '      "type":"impact",\n' +
+    '      "type":"dato",\n' +
     '      "title":"",\n' +
-    '      "text":""\n' +
+    '      "items":["", "", "", ""],\n' +
+    '      "supportImage":""\n' +
     "    },\n" +
     '    {\n' +
-    '      "type":"cta",\n' +
+    '      "type":"cita",\n' +
+    '      "quote":"",\n' +
+    '      "author":"",\n' +
+    '      "role":""\n' +
+    "    },\n" +
+    '    {\n' +
+    '      "type":"imagen",\n' +
+    '      "title":"",\n' +
+    '      "text":"",\n' +
+    '      "image":""\n' +
+    "    },\n" +
+    '    {\n' +
+    '      "type":"end",\n' +
     '      "title":"",\n' +
     '      "text":""\n' +
     "    }\n" +

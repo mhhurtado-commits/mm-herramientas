@@ -18,17 +18,28 @@ const CAROUSEL_STRUCTURES = {
   service: ["context", "impact", "facts", "cta"]
 };
 
+const SLIDE_TYPE_ALIASES = {
+  context: "contexto",
+  facts: "dato",
+  cta: "end"
+};
+
+const ALLOWED_SLIDE_TYPES = ["clave", "contexto", "dato", "cita", "imagen", "end", "impact"];
+
 export function normalizeCarouselPlan(rawPlan, article) {
   const errors = [];
   const source = isPlainObject(rawPlan) ? rawPlan : {};
   const normalizedArticle = normalizeArticle(article);
   const diagnosis = normalizeDiagnosis(source.diagnosis, normalizedArticle, errors);
+  const cover = normalizeCover(source.cover, normalizedArticle, diagnosis, errors);
+  const slides = normalizeSlides(source.slides, normalizedArticle, diagnosis, errors);
+  diagnosis.slide_count = slides.length + 1;
   const normalizedPlan = {
     version: CAROUSEL_PLAN_VERSION,
     article: normalizedArticle,
     diagnosis: diagnosis,
-    cover: normalizeCover(source.cover, normalizedArticle, diagnosis, errors),
-    slides: normalizeSlides(source.slides, normalizedArticle, diagnosis, errors)
+    cover: cover,
+    slides: slides
   };
 
   return {
@@ -102,63 +113,78 @@ function normalizeCover(cover, article, diagnosis, errors) {
 
 function normalizeSlides(slides, article, diagnosis, errors) {
   const sourceSlides = Array.isArray(slides) ? slides : [];
-  const buckets = bucketSlidesByType(sourceSlides);
-  const expectedTypes = getExpectedSlideTypes(diagnosis.carousel_type, diagnosis);
   const normalized = [];
 
-  for (let i = 0; i < expectedTypes.length; i++) {
-    const type = expectedTypes[i];
-    const source = buckets[type].shift();
-    const slide = normalizeSlide(type, source, article, diagnosis, i);
-    if (!source) {
-      errors.push("slide faltante en posicion " + (i + 1) + ": " + type);
+  for (let i = 0; i < sourceSlides.length; i++) {
+    const source = sourceSlides[i];
+    if (!isPlainObject(source)) {
+      errors.push("slide invalida en posicion " + (i + 1));
+      continue;
     }
-    if (!slide.title) {
+
+    const type = normalizeSlideType(source.type);
+    if (!type) {
+      errors.push("tipo de slide invalido en posicion " + (i + 1));
+      continue;
+    }
+
+    const slide = normalizeSlide(type, source, article, diagnosis, i);
+    if (!slide.title && type !== "cita") {
       errors.push("slide sin titulo en posicion " + (i + 1) + ": " + type);
     }
     normalized.push(slide);
   }
 
-  if (sourceSlides.length > expectedTypes.length) {
-    errors.push("slides extra ignoradas: " + (sourceSlides.length - expectedTypes.length));
+  if (normalized.length) {
+    return normalized;
   }
 
-  return normalized;
+  const expectedTypes = getExpectedSlideTypes(diagnosis.carousel_type, diagnosis);
+  return expectedTypes.map(function (legacyType, index) {
+    const type = normalizeSlideType(legacyType);
+    errors.push("slide faltante en posicion " + (index + 1) + ": " + type);
+    return normalizeSlide(type, {}, article, diagnosis, index);
+  });
 }
 
 function normalizeSlide(type, slide, article, diagnosis, index) {
   const source = isPlainObject(slide) ? slide : {};
   const defaults = getSlideDefaults(type, article, diagnosis, index);
   const title = cleanText(source.title) || defaults.title;
-
-  if (type === "facts") {
-    const items = normalizeItems(source.items);
-    return {
-      type: type,
-      title: title,
-      items: items.length ? items : defaults.items
-    };
-  }
-
-  return {
+  const normalized = {
     type: type,
     title: title,
     text: cleanText(source.text) || defaults.text
   };
+
+  if (type === "dato") {
+    const items = normalizeItems(source.items);
+    normalized.items = items.length ? items : defaults.items;
+  }
+
+  copyTextFields(normalized, source, ["quote", "author", "role", "image", "supportImage"]);
+  return normalized;
 }
 
 function getSlideDefaults(type, article, diagnosis, index) {
   const summary = article.summary || article.title || "Informacion principal";
   const labels = getContextualLabels(diagnosis.carousel_type, diagnosis.vertical);
 
-  if (type === "context") {
+  if (type === "clave") {
+    return {
+      title: "La clave",
+      text: summary
+    };
+  }
+
+  if (type === "contexto") {
     return {
       title: labels.context[index] || "Contexto",
       text: summary
     };
   }
 
-  if (type === "facts") {
+  if (type === "dato") {
     return {
       title: labels.facts[index] || "Datos clave",
       items: buildFactFallbackItems(article, diagnosis, index)
@@ -172,7 +198,21 @@ function getSlideDefaults(type, article, diagnosis, index) {
     };
   }
 
-  if (type === "cta") {
+  if (type === "cita") {
+    return {
+      title: "",
+      text: ""
+    };
+  }
+
+  if (type === "imagen") {
+    return {
+      title: "Imagen",
+      text: ""
+    };
+  }
+
+  if (type === "end") {
     return {
       title: labels.cta[index] || "Segui la cobertura",
       text: article.url ? "Lee la nota completa en mediamendoza.com" : "Segui informado con Media Mendoza"
@@ -415,23 +455,18 @@ function getSlideCountForCarouselType(carouselType, diagnosis) {
   return getExpectedSlideTypes(carouselType, diagnosis).length + 1;
 }
 
-function bucketSlidesByType(slides) {
-  const buckets = {
-    context: [],
-    facts: [],
-    impact: [],
-    cta: []
-  };
+function normalizeSlideType(type) {
+  const cleaned = cleanText(type).toLowerCase();
+  const normalized = SLIDE_TYPE_ALIASES[cleaned] || cleaned;
+  return ALLOWED_SLIDE_TYPES.indexOf(normalized) >= 0 ? normalized : "";
+}
 
-  for (let i = 0; i < slides.length; i++) {
-    const item = slides[i];
-    if (!isPlainObject(item)) continue;
-    const type = cleanText(item.type).toLowerCase();
-    if (!buckets[type]) continue;
-    buckets[type].push(item);
+function copyTextFields(target, source, fields) {
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i];
+    const value = cleanText(source[field]);
+    if (value) target[field] = value;
   }
-
-  return buckets;
 }
 
 function normalizeItems(items) {

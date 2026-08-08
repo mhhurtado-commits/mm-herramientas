@@ -9,6 +9,9 @@ import { resolveCarouselTheme } from './core/theme.js';
 import { renderSlideToCanvas } from './canvas-renderer.js';
 import * as canvasRenderer from './canvas-renderer.js';
 import { setProject } from './state.js';
+import { buildCarouselPrompt } from './prompts.js';
+import { normalizeCarouselPlan } from './parser.js';
+import * as carouselEngine from './carousel-engine.js';
 
 test('mapea los tipos editoriales a etiquetas visibles y conserva cover/legacy', () => {
   assert.deepEqual(
@@ -665,4 +668,176 @@ test('valida la secuencia editorial modular con contexto, apoyo visual y desbord
   assert.ok(oversized.renderState.blocks.some((block) => block.fullText.includes('TAIL_OVERSIZED') && block.overflow));
   assert.equal(zeroSpace.editorialOverflow, true);
   assert.ok(zeroSpace.renderState.blocks.some((block) => block.fullText === 'TAIL_ZERO_SPACE' && block.renderedLines === 0 && block.overflow));
+});
+
+test('el prompt habilita las familias editoriales y sus campos de contenido', () => {
+  const prompt = buildCarouselPrompt({
+    title: 'Una noticia verificable',
+    summary: 'Resumen editorial.',
+  });
+
+  for (const type of ['clave', 'contexto', 'dato', 'cita', 'imagen', 'end']) {
+    assert.match(prompt, new RegExp(`\\b${type}\\b`), type);
+  }
+  for (const field of ['quote', 'author', 'role', 'image', 'supportImage', 'items']) {
+    assert.match(prompt, new RegExp(`"${field}"`), field);
+  }
+});
+
+test('normaliza, convierte y renderiza las siete familias en el orden del plan', () => {
+  const article = {
+    url: 'https://mediamendoza.com/actualidad/familias',
+    title: 'Las familias editoriales',
+    category: 'Actualidad',
+    summary: 'Un resumen comprobable para la portada.',
+    image: 'https://example.com/cover.jpg',
+  };
+  const parsed = normalizeCarouselPlan({
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'deep',
+      tone: 'explainer',
+      carousel_type: 'explainer',
+      template: 'mm_briefing',
+      reason: 'La nota necesita todas las familias.',
+    },
+    cover: {
+      title: 'Portada editorial',
+      subtitle: 'Siete familias en una secuencia.',
+    },
+    slides: [
+      {
+        type: 'clave',
+        title: 'La clave',
+        text: 'La conclusion principal.',
+        supportImage: 'https://example.com/key-support.jpg',
+      },
+      {
+        type: 'contexto',
+        title: 'El contexto',
+        text: 'El antecedente necesario.',
+        supportImage: 'https://example.com/context-support.jpg',
+      },
+      {
+        type: 'dato',
+        title: 'El dato',
+        items: ['47%', 'Una cifra comprobable.'],
+        supportImage: 'https://example.com/data-support.jpg',
+      },
+      {
+        type: 'cita',
+        quote: 'La cita permanece literal.',
+        author: 'Ana Perez',
+        role: 'Investigadora',
+      },
+      {
+        type: 'imagen',
+        title: 'La imagen',
+        text: 'Un epigrafe comprobable.',
+        image: 'https://example.com/editorial-photo.jpg',
+      },
+      {
+        type: 'end',
+        title: 'Media Mendoza',
+        text: 'Segui leyendo.',
+      },
+    ],
+  }, article);
+
+  assert.equal(parsed.ok, true, parsed.errors.join('\n'));
+  assert.deepEqual(parsed.plan.slides.map((slide) => slide.type), [
+    'clave',
+    'contexto',
+    'dato',
+    'cita',
+    'imagen',
+    'end',
+  ]);
+  assert.equal(parsed.plan.diagnosis.slide_count, 7);
+  assert.equal(parsed.plan.slides[0].supportImage, 'https://example.com/key-support.jpg');
+  assert.deepEqual(parsed.plan.slides[2].items, ['47%', 'Una cifra comprobable.']);
+  assert.deepEqual(
+    {
+      quote: parsed.plan.slides[3].quote,
+      author: parsed.plan.slides[3].author,
+      role: parsed.plan.slides[3].role,
+    },
+    {
+      quote: 'La cita permanece literal.',
+      author: 'Ana Perez',
+      role: 'Investigadora',
+    }
+  );
+  assert.equal(parsed.plan.slides[4].image, 'https://example.com/editorial-photo.jpg');
+
+  assert.equal(typeof carouselEngine.convertirPlanASlides, 'function');
+  const slides = carouselEngine.convertirPlanASlides(parsed.plan, article, { useSecondaryImages: false });
+  assert.deepEqual(slides.map((slide) => slide.type), [
+    'cover',
+    'clave',
+    'contexto',
+    'dato',
+    'cita',
+    'imagen',
+    'end',
+  ]);
+  assert.deepEqual(slides.map((slide) => slide.template), [
+    'cover',
+    'key',
+    'text',
+    'stats',
+    'quote',
+    'image',
+    'end',
+  ]);
+  assert.deepEqual(slides.map((slide) => slide.order), [0, 1, 2, 3, 4, 5, 6]);
+  assert.equal(slides[1].content.supportImage, 'https://example.com/key-support.jpg');
+  assert.deepEqual(slides[3].content.items, ['47%', 'Una cifra comprobable.']);
+  assert.equal(slides[4].content.quote, 'La cita permanece literal.');
+  assert.equal(slides[4].content.author, 'Ana Perez');
+  assert.equal(slides[4].content.role, 'Investigadora');
+  assert.equal(slides[5].content.image, 'https://example.com/editorial-photo.jpg');
+
+  installCanvasHarness();
+  slides.map((slide) => renderSlideToCanvas(slide, { article, slides }));
+  const canvases = slides.map((slide) => renderSlideToCanvas(slide, { article, slides }));
+  assert.deepEqual(canvases.map((canvas) => [canvas.width, canvas.height]), Array(7).fill([1080, 1350]));
+});
+
+test('normaliza aliases legacy y conserva su renderizado', () => {
+  const article = {
+    url: 'https://mediamendoza.com/actualidad/legacy',
+    title: 'Plan legacy',
+    summary: 'Contenido heredado.',
+  };
+  const parsed = normalizeCarouselPlan({
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'medium',
+      tone: 'informative',
+      carousel_type: 'summary',
+      template: 'mm_classic',
+      reason: 'Compatibilidad.',
+    },
+    cover: { title: 'Portada legacy', subtitle: 'Bajada heredada.' },
+    slides: [
+      { type: 'context', title: 'Contexto legacy', text: 'Antecedente.' },
+      { type: 'facts', title: 'Datos legacy', items: ['12', '34'] },
+      { type: 'impact', title: 'Impacto legacy', text: 'Consecuencia.' },
+      { type: 'cta', title: 'Cierre legacy', text: 'Segui leyendo.' },
+    ],
+  }, article);
+
+  assert.equal(parsed.ok, true, parsed.errors.join('\n'));
+  assert.deepEqual(parsed.plan.slides.map((slide) => slide.type), ['contexto', 'dato', 'impact', 'end']);
+  assert.equal(typeof carouselEngine.convertirPlanASlides, 'function');
+  const slides = carouselEngine.convertirPlanASlides(parsed.plan, article, {});
+  assert.deepEqual(slides.map((slide) => slide.template), ['cover', 'text', 'stats', 'text', 'end']);
+
+  installCanvasHarness();
+  const canvases = slides.map((slide) => renderSlideToCanvas(slide, { article, slides }));
+  assert.equal(canvases.length, 5);
+  assert.ok(canvases.every((canvas) => canvas.width === 1080 && canvas.height === 1350));
 });

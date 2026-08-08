@@ -11,6 +11,12 @@ const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 
 const TEMPLATE_MAP = {
   cover: { template: "cover" },
+  clave: { template: "key" },
+  contexto: { template: "text" },
+  dato: { template: "stats" },
+  cita: { template: "quote" },
+  imagen: { template: "image" },
+  end: { template: "end" },
   context: { template: "text" },
   facts: { template: "stats" },
   impact: { template: "text" },
@@ -39,7 +45,7 @@ export function loadEditorialPackageForReel(editorialPackage) {
   return next;
 }
 
-function convertirPlanASlides(plan, article, settings) {
+export function convertirPlanASlides(plan, article, settings) {
   const slides = [];
   let order = 0;
   const theme = (plan.diagnosis && plan.diagnosis.template) || "mm_classic";
@@ -67,8 +73,13 @@ function convertirPlanASlides(plan, article, settings) {
     slide.order = order++;
     slide.content.title = item.title || "";
     slide.content.text = item.text || "";
-    slide.content.items = item.items || [];
-    if ((item.type === "context" || item.type === "impact" || item.type === "facts") && supportImages[supportIndex]) {
+    slide.content.items = Array.isArray(item.items) ? item.items.slice() : [];
+    slide.content.quote = item.quote || "";
+    slide.content.author = item.author || "";
+    slide.content.role = item.role || "";
+    slide.content.image = item.image || "";
+    slide.content.supportImage = item.supportImage || "";
+    if (!slide.content.supportImage && supportsSecondaryImage(item.type) && supportImages[supportIndex]) {
       slide.content.supportImage = supportImages[supportIndex++];
     }
     slide.style.theme = theme;
@@ -76,6 +87,10 @@ function convertirPlanASlides(plan, article, settings) {
   }
 
   return slides;
+}
+
+function supportsSecondaryImage(type) {
+  return type === "contexto" || type === "dato" || type === "impact" || type === "context" || type === "facts";
 }
 
 export async function generatePlan() {
