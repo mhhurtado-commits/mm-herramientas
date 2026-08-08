@@ -241,7 +241,9 @@ function normalizeSlide(type, slide, article, diagnosis, index, errors, quoteSou
       normalized.title = cleanText(source.title) || "Cita sin verificar";
       normalized.text = cleanText(source.text) || quote || "La cita no pudo verificarse en la nota.";
     }
-    if (quoteValidation === "rejected") {
+    if (!quote) {
+      errors.push("cita vacia en posicion " + (index + 1));
+    } else if (quoteValidation === "rejected") {
       errors.push("cita no coincide con el texto fuente en posicion " + (index + 1));
     }
   }
@@ -615,6 +617,7 @@ function getQuoteSourceText(article) {
 }
 
 function validateQuote(quote, sourceText) {
+  if (!quote) return "rejected";
   if (!sourceText) return "unverified";
   return sourceText.indexOf(quote) >= 0 ? "validated" : "rejected";
 }

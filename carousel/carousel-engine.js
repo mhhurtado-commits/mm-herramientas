@@ -132,6 +132,10 @@ export async function generatePlan() {
 
     if (data.ok && data.result) {
       const parsed = normalizeCarouselPlan(data.result, project.article);
+      if (!parsed.ok) {
+        console.warn("Carousel plan rejected:", parsed.errors);
+        return parsed;
+      }
       project.editorialPlan = parsed.plan;
       project.slides = convertirPlanASlides(parsed.plan, project.article, project.settings);
       project.editorialPackage = attachCarouselOutput(

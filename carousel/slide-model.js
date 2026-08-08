@@ -75,11 +75,15 @@ export function normalizeCarouselSlide(slide, index, total) {
   copyOptionalText(content, "source", sourceContent.source, source.source);
   copyOptionalText(content, "cta", sourceContent.cta, source.cta);
   const validation = firstText(sourceContent.validation, source.validation, sourceContent.quoteValidation, source.quoteValidation);
-  if (validation) {
-    content.validation = validation;
-    content.quoteValidation = validation;
+  const hasQuote = !!firstText(content.quote, content.text);
+  const quoteValidation = type === "cita" && !hasQuote && validation === "validated"
+    ? "rejected"
+    : validation;
+  if (quoteValidation) {
+    content.validation = quoteValidation;
+    content.quoteValidation = quoteValidation;
   }
-  if (type === "cita" && validation !== "validated") {
+  if (type === "cita" && (quoteValidation !== "validated" || !hasQuote)) {
     type = "contexto";
     content.title = content.title || "Cita sin verificar";
     content.text = content.text || content.quote || "La cita no pudo verificarse en la nota.";

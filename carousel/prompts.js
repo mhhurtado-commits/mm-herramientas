@@ -32,7 +32,7 @@ export function buildCarouselPrompt(article) {
     '- tone permitido: "informative", "explainer", "chronological", "impact", "utility".\n' +
     '- carousel_type permitido: "summary", "explainer", "timeline", "data_points", "service".\n' +
     '- template permitido: "mm_classic", "mm_briefing", "mm_impact".\n' +
-    "- La cantidad total de slides puede variar entre 4 y 7, segun el diagnostico.\n" +
+    "- La cantidad total de slides puede variar entre 4 y 7, segun el diagnostico; si carousel_type es summary, debe tener entre 4 y 5 slides totales, incluyendo cover y end.\n" +
     "- Estructuras permitidas segun carousel_type:\n" +
     '  - summary: entre 4 y 5 slides totales\n' +
     '  - explainer: entre 6 y 7 slides totales\n' +
@@ -63,7 +63,7 @@ export function buildCarouselPrompt(article) {
     '    "tone":"informative",\n' +
     '    "carousel_type":"summary",\n' +
     '    "template":"mm_impact",\n' +
-    '    "slide_count":7,\n' +
+    '    "slide_count":5,\n' +
     '    "reason":""\n' +
     "  },\n" +
     '  "cover":{\n' +
@@ -71,12 +71,6 @@ export function buildCarouselPrompt(article) {
     '    "subtitle":""\n' +
     "  },\n" +
     '  "slides":[\n' +
-    '    {\n' +
-    '      "type":"clave",\n' +
-    '      "title":"",\n' +
-    '      "text":"",\n' +
-    '      "supportImage":""\n' +
-    "    },\n" +
     '    {\n' +
     '      "type":"contexto",\n' +
     '      "title":"",\n' +
@@ -94,12 +88,6 @@ export function buildCarouselPrompt(article) {
     '      "quote":"",\n' +
     '      "author":"",\n' +
     '      "role":""\n' +
-    "    },\n" +
-    '    {\n' +
-    '      "type":"imagen",\n' +
-    '      "title":"",\n' +
-    '      "text":"",\n' +
-    '      "image":""\n' +
     "    },\n" +
     '    {\n' +
     '      "type":"end",\n' +

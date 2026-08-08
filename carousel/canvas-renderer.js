@@ -46,6 +46,7 @@ function getImageEntry(src) {
   var entry = {
     img: img,
     loaded: false,
+    failed: false,
     promise: new Promise(function (resolve) { resolveLoad = resolve; }),
   };
   imageCache[normalizedSrc] = entry;
@@ -60,8 +61,12 @@ function getImageEntry(src) {
     }
   };
   img.onerror = function () {
-    delete imageCache[normalizedSrc];
+    var failedEntry = imageCache[normalizedSrc];
+    if (failedEntry) failedEntry.failed = true;
     resolveLoad(null);
+    if (typeof window !== "undefined" && window.dispatchEvent && typeof CustomEvent === "function") {
+      window.dispatchEvent(new CustomEvent("carousel:asset-error", { detail: { src: normalizedSrc } }));
+    }
   };
   img.src = normalizedSrc;
   return entry;
@@ -105,17 +110,31 @@ export function preloadCarouselAssets(slides, project) {
   return Promise.all(uniqueSources.map(function (source) {
     var entry = getImageEntry(source);
     return entry ? entry.promise : Promise.resolve(null);
-  })).then(function (images) {
-    for (var imageIndex = 0; imageIndex < images.length; imageIndex++) {
-      if (!images[imageIndex]) throw new Error("No se pudo cargar un recurso del carrusel.");
-    }
-    return images;
-  });
+  }));
 }
 
-function drawImageFrame(ctx, src, x, y, w, h, radius, focalPosition) {
+function drawImageFallback(ctx, x, y, w, h, radius, theme, label) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, radius);
+  ctx.clip();
+  ctx.fillStyle = theme.colors.surfaceSoft;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = theme.colors.accentSoft;
+  ctx.fillRect(x, y, w, Math.max(18, Math.round(h * 0.12)));
+  ctx.restore();
+  drawMeasuredText(ctx, label, x + 28, y + Math.max(24, Math.round((h - 68) / 2)), Math.max(1, w - 56), {
+    fontSize: 28, minFontSize: 20, maxLines: 2, lineHeight: 34, weight: "700", color: theme.colors.accentDark,
+    role: "image-fallback",
+    maxBottom: y + h - 24,
+  });
+  strokeRoundRect(ctx, x, y, w, h, radius, theme.colors.brandLine, 2);
+  return true;
+}
+
+function drawImageFrame(ctx, src, x, y, w, h, radius, focalPosition, theme) {
   var image = getCachedImage(src);
-  if (!image) return false;
+  if (!image) return drawImageFallback(ctx, x, y, w, h, radius, theme, "Imagen no disponible");
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, radius);
@@ -128,7 +147,7 @@ function drawImageFrame(ctx, src, x, y, w, h, radius, focalPosition) {
 
 function drawSupportImage(ctx, src, x, y, w, h, mode, theme, focalPosition) {
   var image = getCachedImage(src);
-  if (!image) return false;
+  if (!image) return drawImageFallback(ctx, x, y, w, h, 24, theme, "Sin imagen");
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 24);
@@ -419,10 +438,13 @@ function drawContextCard(ctx, text, x, y, width, maxBottom, theme, role) {
 
 function drawCover(ctx, slide, project, theme, layout) {
   var content = slide.content || {};
-  var imageHeight = Math.max(layout.content.y + 72, 610);
+  var imageHeight = Math.min(
+    layout.safeZones.footer.y - 32,
+    Math.max(layout.content.y + 72, Math.round(H * 0.58))
+  );
   ctx.fillStyle = theme.colors.background;
   ctx.fillRect(0, 0, W, H);
-  drawImageFrame(ctx, content.image || (project.article && project.article.image), 0, 0, W, imageHeight, 0, content.focalPosition);
+  drawImageFrame(ctx, content.image || (project.article && project.article.image), 0, 0, W, imageHeight, 0, content.focalPosition, theme);
 
   var gradient = ctx.createLinearGradient(0, imageHeight * 0.42, 0, imageHeight);
   gradient.addColorStop(0, theme.colors.transparent);
@@ -537,11 +559,11 @@ function resolveStatsContent(content) {
   var primary = primaryItem.value || getStatText(content.title);
   var itemExplanation = items.map(function (item, index) {
     if (index === 0 && primaryItem === items[0]) return item.label;
-    return item.label || item.value;
+    return [item.value, item.label].filter(Boolean).join(" — ");
   }).filter(Boolean).join(" ");
   return {
     primary: primary,
-    explanation: getStatText(content.text) || getStatText(content.subtitle) || primaryItem.label || itemExplanation,
+    explanation: getStatText(content.text) || getStatText(content.subtitle) || itemExplanation || primaryItem.label,
   };
 }
 
@@ -638,7 +660,7 @@ function drawImage(ctx, slide, project, theme, layout) {
     maxBottom: layout.safeZones.footer.y - 20,
   });
   var imageH = Math.max(360, layout.safeZones.footer.y - imageY - captionHeight - titleHeight - 120);
-  drawImageFrame(ctx, content.image, layout.content.x, imageY, layout.content.width, imageH, 30, content.focalPosition);
+  drawImageFrame(ctx, content.image, layout.content.x, imageY, layout.content.width, imageH, 30, content.focalPosition, theme);
   var titleEnd = drawMeasuredText(ctx, content.title || "", layout.content.x, imageY + imageH + 28, layout.content.width, {
     fontSize: 40, minFontSize: 28, maxLines: INTERNAL_TITLE_MAX_LINES, lineHeight: 48, weight: "700", color: theme.colors.textPrimary,
     role: "title",

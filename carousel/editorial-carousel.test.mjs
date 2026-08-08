@@ -259,6 +259,49 @@ test('precarga imagenes en cache fria antes de renderizar el PNG', async () => {
   assert.ok(canvas.calls.images.some((src) => src.includes('cold-cache-asset.jpg')));
 });
 
+test('degrada imagenes principales y de apoyo fallidas sin interrumpir la exportacion', async () => {
+  const previousProject = getProject();
+  class FailingImage {
+    constructor() {
+      this.width = 1200;
+      this.height = 800;
+      this.onload = null;
+      this.onerror = null;
+    }
+
+    set src(value) {
+      this.source = value;
+      if (this.onerror) this.onerror();
+    }
+  }
+  const harness = installCanvasHarness({ ImageClass: FailingImage });
+  const imageSlide = normalizeCarouselSlide({
+    type: 'imagen',
+    content: { title: 'Imagen principal', image: 'https://example.com/missing-main.jpg' },
+  }, 0, 2);
+  const supportSlide = normalizeCarouselSlide({
+    type: 'contexto',
+    content: { title: 'Con apoyo', text: 'El carrusel mantiene el contenido.', supportImage: 'https://example.com/missing-support.jpg' },
+  }, 1, 2);
+  const project = { article: {}, slides: [imageSlide, supportSlide] };
+  setProject(project);
+
+  try {
+    await canvasRenderer.preloadCarouselAssets(project.slides, project);
+    const imageCanvas = renderSlideToCanvas(imageSlide, project);
+    const supportCanvas = renderSlideToCanvas(supportSlide, project);
+    const exported = await carouselUI.downloadAllSlides();
+
+    assert.ok(textValues(imageCanvas).includes('Imagen no disponible'));
+    assert.ok(textValues(supportCanvas).join(' ').includes('Sin imagen'));
+    assert.equal(exported, 2);
+    assert.equal(harness.downloads.length, 2);
+    assert.equal(harness.status.textContent, '2 slides descargados');
+  } finally {
+    setProject(previousProject);
+  }
+});
+
 test('rechaza copiar PNG con desborde y conserva la copia normal', async () => {
   const harness = installCanvasHarness();
   const writes = [];
@@ -541,6 +584,25 @@ test('renderiza una imagen normalizada usando la imagen del slide', () => {
   assertContentBaselinesBeforeFooter(canvas, 'image');
 });
 
+test('mantiene la imagen de portada editorial entre 55 y 60 por ciento sin invadir el pie', () => {
+  const canvas = renderEditorialSlide({
+    type: 'cover',
+    content: {
+      title: 'Portada editorial',
+      subtitle: 'Bajada breve.',
+      image: 'https://example.com/cover-editorial-55.jpg',
+    },
+  });
+  const imageDraw = canvas.calls.imageDraws.find((draw) => draw.source.includes('cover-editorial-55.jpg'));
+  const footerY = getCarouselLayout('cover', canvas.width, canvas.height).safeZones.footer.y;
+
+  assert.ok(imageDraw);
+  assert.ok(imageDraw.args[3] / canvas.height >= 0.55);
+  assert.ok(imageDraw.args[3] / canvas.height <= 0.60);
+  assert.ok(imageDraw.args[1] + imageDraw.args[3] <= footerY);
+  assertContentBaselinesBeforeFooter(canvas, 'cover');
+});
+
 test('renderiza una secuencia completa de cover, texto y cierre por el mismo camino canvas', () => {
   installCanvasHarness();
   const slides = [
@@ -703,6 +765,38 @@ test('el prompt habilita las familias editoriales y sus campos de contenido', ()
   }
   for (const field of ['quote', 'author', 'role', 'image', 'supportImage', 'items', 'source', 'cta']) {
     assert.match(prompt, new RegExp(`"${field}"`), field);
+  }
+  assert.match(prompt, /"carousel_type":"summary"[\s\S]*"slide_count":(?:4|5)/);
+});
+
+test('conserva el plan anterior cuando la respuesta editorial no supera la normalizacion', async () => {
+  const previousProject = getProject();
+  const previousPlan = { diagnosis: { carousel_type: 'summary' }, cover: { title: 'Plan anterior' }, slides: [] };
+  const project = {
+    article: { title: 'Noticia de prueba', summary: 'Resumen.' },
+    editorialPlan: previousPlan,
+    editorialPackage: { existing: true },
+    socialCopy: { caption: '', hashtags: [] },
+    slides: [{ id: 'existing-slide' }],
+    settings: {},
+  };
+  const previousFetch = globalThis.fetch;
+  setProject(project);
+  globalThis.fetch = async () => ({
+    json: async () => ({ ok: true, result: createTypedRangePlan('summary', 6) }),
+  });
+
+  try {
+    const result = await carouselEngine.generatePlan();
+
+    assert.equal(result.ok, false);
+    assert.equal(getProject(), project);
+    assert.equal(project.editorialPlan, previousPlan);
+    assert.deepEqual(project.slides, [{ id: 'existing-slide' }]);
+    assert.deepEqual(project.editorialPackage, { existing: true });
+  } finally {
+    globalThis.fetch = previousFetch;
+    setProject(previousProject);
   }
 });
 
@@ -1247,6 +1341,31 @@ test('el renderer Canvas no dibuja como cita un input sin validación', () => {
   assert.ok(textValues(canvas).join(' ').includes('Texto sin validar.'));
 });
 
+test('rechaza una cita vacia aunque llegue marcada como validada y la renderiza como texto seguro', () => {
+  const parsed = normalizeCarouselPlan(createQuotePlan(' \n\t '), {
+    title: 'Cita vacia',
+    summary: 'Resumen editorial.',
+    content: 'La nota tiene contenido para validar citas.',
+  });
+
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.plan.slides[2].type, 'contexto');
+  assert.equal(parsed.plan.slides[2].quoteValidation, 'rejected');
+  assert.equal(parsed.plan.slides[2].validation, 'rejected');
+  assert.ok(parsed.errors.some((error) => /cita vacia/i.test(error)));
+
+  const slide = normalizeCarouselSlide({
+    type: 'cita',
+    content: { quote: '   ', validation: 'validated' },
+  }, 1, 4);
+  const canvas = renderSlideToCanvas(slide, { slides: [slide] });
+
+  assert.equal(slide.type, 'contexto');
+  assert.equal(slide.template, 'text');
+  assert.equal(slide.content.validation, 'rejected');
+  assert.equal(canvas.renderState.blocks.some((block) => block.role === 'quote'), false);
+});
+
 test('renderiza datos estructurados sin convertirlos en objetos de texto', () => {
   const canvas = renderEditorialSlide({
     type: 'dato',
@@ -1259,6 +1378,27 @@ test('renderiza datos estructurados sin convertirlos en objetos de texto', () =>
   assert.ok(textValues(canvas).includes('47%'));
   assert.ok(textValues(canvas).includes('Aumento interanual confirmado.'));
   assert.equal(textValues(canvas).includes('[object Object]'), false);
+});
+
+test('renderiza todos los pares value-label de un dato dentro de la zona segura', () => {
+  const canvas = renderEditorialSlide({
+    type: 'dato',
+    content: {
+      title: 'Datos del informe',
+      items: [
+        { value: '47%', label: 'Aumento interanual confirmado.' },
+        { value: '12', label: 'Municipios alcanzados por la medida.' },
+        { value: '2026', label: 'Actualización más reciente del informe.' },
+      ],
+    },
+  });
+
+  const renderedText = textValues(canvas).join(' ');
+  for (const value of ['47%', 'Aumento interanual confirmado.', '12', 'Municipios alcanzados por la medida.', '2026', 'Actualización más reciente del informe.']) {
+    assert.ok(renderedText.includes(value), value + ': ' + renderedText);
+  }
+  assert.equal(canvas.editorialOverflow, false);
+  assertContentBaselinesBeforeFooter(canvas, 'stats');
 });
 
 test('preserva el contrato value-label al normalizar datos del plan', () => {
