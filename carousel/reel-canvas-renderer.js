@@ -263,9 +263,11 @@ function drawSceneText(ctx, scene, project, family) {
     drawCategoryPill(ctx, subtitle, contentX, panelY + 52, MMTheme.colors.accent);
     titleY = panelY + 158;
   }
+  ctx.font = "700 " + visualTitleStyle.fontSize + "px Inter, Arial, sans-serif";
+  ctx.fillStyle = MMTheme.colors.textPrimary;
   var titleEnd = wrapText(ctx, visualTitleStyle.text, contentX, titleY, visualTitleStyle.maxWidth, visualTitleStyle.lineHeight);
 
-  if (subtitle) {
+  if (subtitle && !isSectionLabel(subtitle)) {
     var visualSubtitleStyle = fitReelTextBlock(ctx, subtitle, {
       maxWidth: contentW - 12,
       maxLines: 3,
