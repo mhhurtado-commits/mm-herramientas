@@ -48,7 +48,11 @@ export function renderReelScene(ctx, scene = {}, assets = {}, options = {}) {
   ctx.fillRect(0, 0, width, height);
 
   if (image && scene.imageMode !== 'text') drawAdaptiveImage(ctx, image, scene, width, height, layout.imageArea);
-  if (scene.type !== 'closure') drawLogo(ctx, assets.logo || options.logo, layout.logo, scene.type === 'cover' ? COLORS.white : COLORS.ink);
+  if (scene.type !== 'closure') {
+    drawLogo(ctx, assets.logo || options.logo, layout.logo, scene.type === 'cover' ? COLORS.white : COLORS.ink, {
+      contrast: scene.type !== 'cover',
+    });
+  }
   drawAccent(ctx, accent, layout.accentBar, scene.type === 'cover' ? 0.9 : 1);
 
   if (scene.type === 'closure') {
@@ -85,11 +89,16 @@ function drawAdaptiveImage(ctx, image, scene, width, height, area = { x: 0, y: 0
     ctx.restore();
 }
 
-function drawLogo(ctx, logo, box, color) {
+function drawLogo(ctx, logo, box, color, options = {}) {
   if (!logo) return;
   ctx.save();
   ctx.globalAlpha = 0.96;
   if (typeof logo === 'object') {
+    if (options.contrast) {
+      ctx.fillStyle = 'rgba(20, 32, 27, 0.9)';
+      roundedRect(ctx, box.x - 14, box.y - 8, box.width + 28, box.height + 16, 18);
+      ctx.fill();
+    }
     const scale = Math.min(box.width / logo.width, box.height / logo.height);
     const width = logo.width * scale;
     const height = logo.height * scale;
