@@ -170,13 +170,13 @@ function drawLogo(ctx, project, theme, layout, overImage) {
   var logo = getCachedImage("/assets/logo.png");
   if (!logo) return;
   var zone = layout.safeZones.logo;
-  var width = 190;
+  var width = overImage ? 250 : 220;
   var height = logo.height * (width / logo.width);
   var x = zone.x;
   var y = zone.y;
 
   if (overImage) {
-    var position = project && project.settings && project.settings.coverLogoPosition || "center";
+    var position = project && project.settings && project.settings.coverLogoPosition || "right";
     if (position === "right" || position === "top-right") {
       x = W - zone.x - width;
     } else if (position === "center") {
@@ -190,10 +190,14 @@ function drawLogo(ctx, project, theme, layout, overImage) {
     }
   }
 
+  ctx.save();
   if (overImage) {
-    fillRoundRect(ctx, x - 18, y - 14, width + 36, height + 28, 24, theme.colors.logoBadge);
+    ctx.shadowColor = "rgba(0,0,0,0.42)";
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 4;
   }
   ctx.drawImage(logo, x, y, width, height);
+  ctx.restore();
 }
 
 function drawEditorialHeader(ctx, slide, project, theme, layout, options) {
@@ -221,19 +225,20 @@ function drawEditorialHeader(ctx, slide, project, theme, layout, options) {
   for (var widthIndex = 0; widthIndex < measured.lines.length; widthIndex++) {
     measuredWidth = Math.max(measuredWidth, ctx.measureText(measured.lines[widthIndex]).width);
   }
-  var width = Math.min(maxWidth, measuredWidth + 42);
-  var height = Math.max(46, measured.height + 18);
-  fillRoundRect(ctx, x, y, width, height, Math.min(23, height / 2), theme.colors.accent);
+  var width = Math.min(maxWidth, measuredWidth);
+  var height = Math.max(30, measured.height);
   recordMeasuredBlock(ctx, measured, textOptions.role);
-  ctx.fillStyle = theme.colors.textPrimary;
+  ctx.fillStyle = theme.colors.accentDark;
   ctx.textBaseline = "top";
   ctx.__carouselLineHeight = measured.lineHeight;
   for (var lineIndex = 0; lineIndex < measured.lines.length; lineIndex++) {
-    ctx.fillText(measured.lines[lineIndex], x + 21, y + 9 + lineIndex * measured.lineHeight);
+    ctx.fillText(measured.lines[lineIndex], x + 26, y + lineIndex * measured.lineHeight);
   }
+  ctx.fillStyle = theme.colors.accent;
+  ctx.fillRect(x, y, 8, height);
   ctx.font = originalFont;
   ctx.textBaseline = "top";
-  return y + height + 26;
+  return y + height + 24;
 }
 
 function getTextFont(settings, fontSize) {
@@ -398,13 +403,8 @@ function drawSlideProgress(ctx, slide, project, theme, layout) {
   var total = slide.total || (project.slides && project.slides.length) || 1;
   var current = (slide.order || 0) + 1;
   var footer = layout.safeZones.footer;
-  ctx.font = theme.fonts.footer;
-  ctx.fillStyle = theme.colors.footer;
-  ctx.textAlign = "right";
-  ctx.textBaseline = "middle";
-  ctx.__carouselLineHeight = 21;
-  ctx.fillText(current + " / " + total, footer.x + footer.width - layout.content.x, footer.y + footer.height / 2);
-  ctx.textAlign = "start";
+  ctx.fillStyle = theme.colors.brandLine;
+  ctx.fillRect(footer.x, footer.y + footer.height / 2 - 3, footer.width * (current / total), 6);
   ctx.textBaseline = "top";
 }
 
@@ -429,8 +429,7 @@ function drawContextCard(ctx, text, x, y, width, maxBottom, theme, role) {
   });
   var height = Math.max(142, textHeight + 62);
   if (y + height > maxBottom) y = Math.max(0, maxBottom - height);
-  fillRoundRect(ctx, x, y, width, height, 28, theme.colors.surfaceSoft);
-  fillRoundRect(ctx, x, y, 12, height, 6, theme.colors.accent);
+  fillRoundRect(ctx, x, y, 8, height, 4, theme.colors.accent);
   drawMeasuredText(ctx, text, x + 38, y + 31, width - 72, {
     ...textOptions,
     maxBottom: y + height - 31,
@@ -526,8 +525,6 @@ function drawKey(ctx, slide, project, theme, layout) {
   var cardY = headerEnd + 26;
   var cardBottom = layout.safeZones.footer.y - 42;
   var cardHeight = Math.max(0, cardBottom - cardY);
-  fillRoundRect(ctx, layout.content.x, cardY, layout.content.width, cardHeight, 34, theme.colors.accentSoft);
-  strokeRoundRect(ctx, layout.content.x, cardY, layout.content.width, cardHeight, 34, theme.colors.accent, 3);
   fillRoundRect(ctx, layout.content.x, cardY, 14, cardHeight, 7, theme.colors.accent);
   var supportImage = content.supportImage;
   var hasSupportImage = supportImage && drawSupportImage(
@@ -715,6 +712,12 @@ function drawEnd(ctx, slide, project, theme, layout) {
     role: "cta",
     maxBottom: layout.safeZones.footer.y - 62,
   });
+  ctx.font = "700 34px Inter, Arial, sans-serif";
+  ctx.fillStyle = theme.colors.textPrimary;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillText("www.mediamendoza.com", layout.content.x + layout.content.width, layout.safeZones.footer.y - 48);
+  ctx.textAlign = "start";
   drawEditorialFooter(ctx, slide, project, theme, layout);
 }
 

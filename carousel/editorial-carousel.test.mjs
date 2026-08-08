@@ -189,7 +189,7 @@ test('renderiza clave como una tarjeta editorial destacada y no como contexto', 
 
   assert.equal(keySlide.template, 'key');
   assert.equal(contextSlide.template, 'text');
-  assert.ok(keyCanvas.calls.fills.some((fill) => fill.color === '#edf6ce' && fill.width > 800 && fill.height > 200));
+  assert.ok(keyCanvas.calls.fills.some((fill) => fill.width <= 20 && fill.height > 200));
   assert.equal(contextCanvas.calls.fills.some((fill) => fill.color === '#edf6ce' && fill.width > 800 && fill.height > 200), false);
 });
 
@@ -731,7 +731,7 @@ test('valida la secuencia editorial modular con contexto, apoyo visual y desbord
     canvas.renderState.blocks.find((block) => block.fullText === contexts[index])
   );
   assert.deepEqual(contextBlocks.map((block) => block.renderedLines), [1, 2, 3]);
-  assert.ok(canvases[1].calls.fills.some((fill) => fill.color === '#edf6ce' && fill.width > 800 && fill.height > 200));
+  assert.ok(canvases[1].calls.fills.some((fill) => fill.width <= 20 && fill.height > 200));
   assert.ok(canvases[4].calls.images.some((src) => src.includes('support-context.jpg')));
   assert.ok(textValues(canvases[5]).includes('47%'));
   assert.ok(textValues(canvases[6]).includes('La cita permanece literal.'));

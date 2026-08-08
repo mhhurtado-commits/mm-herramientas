@@ -174,6 +174,7 @@ function renderInPreview() {
   if (activeCanvas) {
     activeCanvas.className = "carousel-canvas carousel-canvas--stage";
     stageInner.appendChild(activeCanvas);
+    bindCanvasFocalDrag(activeCanvas, project, activeItem.slide);
   }
   var activeExportEligibility = getCarouselExportEligibility([{
     item: activeItem,
@@ -205,6 +206,30 @@ function handleAssetReady() {
   var project = getProject();
   if (!project) return;
   renderInPreview();
+}
+
+function bindCanvasFocalDrag(canvas, project, slide) {
+  if (!canvas || !supportsFocalPoint(slide)) return;
+  canvas.classList.add("is-focal-draggable");
+  canvas.title = "Arrastrá la imagen para ajustar el encuadre";
+  var start = null;
+  canvas.addEventListener("pointerdown", function (event) {
+    start = { x: event.clientX, y: event.clientY };
+    canvas.setPointerCapture?.(event.pointerId);
+  });
+  canvas.addEventListener("pointerup", function (event) {
+    if (!start) return;
+    var rect = canvas.getBoundingClientRect();
+    var current = normalizeFocalPosition(slide.content && slide.content.focalPosition);
+    var next = {
+      x: current.x - (event.clientX - start.x) / Math.max(1, rect.width),
+      y: current.y - (event.clientY - start.y) / Math.max(1, rect.height),
+    };
+    start = null;
+    updateSlideFocalPosition(project, slide.id, next);
+    renderInPreview();
+  });
+  canvas.addEventListener("pointercancel", function () { start = null; });
 }
 
 function ensureWorkspaceTabs() {

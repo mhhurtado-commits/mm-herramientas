@@ -670,6 +670,14 @@
   overflow: hidden;
 }
 
+.carousel-canvas.is-focal-draggable {
+  cursor: grab;
+}
+
+.carousel-canvas.is-focal-draggable:active {
+  cursor: grabbing;
+}
+
 .carousel-stage-inner::before {
   content: "";
   position: absolute;
