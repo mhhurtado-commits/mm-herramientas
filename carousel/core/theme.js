@@ -290,6 +290,10 @@ export function resolveCarouselTheme(project, slide) {
   return theme;
 }
 
+export function resolveSectionFamily(vertical) {
+  return SECTION_FAMILIES[vertical] || SECTION_FAMILIES.general;
+}
+
 function inferSectionFromCategory(value) {
   var normalized = String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (normalized.includes("policial") || normalized.includes("seguridad")) return "policiales";

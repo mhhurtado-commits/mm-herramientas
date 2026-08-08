@@ -1,7 +1,7 @@
 import { createCanvas } from "./core/canvas.js";
 import { drawImageCover } from "./core/image.js";
 import { wrapText } from "./core/text.js";
-import { MMTheme, applyThemeVariant } from "./core/theme.js";
+import { MMTheme, applyThemeVariant, resolveSectionFamily } from "./core/theme.js";
 
 var W = 1080;
 var H = 1920;
@@ -11,7 +11,7 @@ var imageCache = {};
 export function renderReelSceneToCanvas(scene, project) {
   if (!scene) return null;
 
-  applyThemeVariant(resolveThemeName(project));
+  applyReelFamilyTheme(project, scene);
   var canvas = createCanvas(W, H);
   var ctx = canvas.getContext("2d");
   var family = resolveReelSceneFamily(scene, project);
@@ -50,6 +50,27 @@ function resolveThemeName(project) {
     return project.editorialPlan.diagnosis.template;
   }
   return "mm_classic";
+}
+
+function applyReelFamilyTheme(project, scene) {
+  applyThemeVariant(resolveThemeName(project));
+  var vertical = resolveReelVertical(project, scene);
+  var family = resolveSectionFamily(vertical);
+  MMTheme.colors.accent = family.accent;
+  MMTheme.colors.accentDark = family.dark;
+  MMTheme.colors.accentSoft = family.soft;
+  MMTheme.colors.endBackground = family.dark;
+  MMTheme.colors.endCtaFill = family.accent;
+  MMTheme.colors.endCtaText = family.dark;
+  MMTheme.colors.brandLine = family.accent;
+  MMTheme.colors.accentBarEnd = family.soft;
+}
+
+function resolveReelVertical(project, scene) {
+  return (scene && scene.style && scene.style.vertical) ||
+    (project && project.editorialDiagnosis && project.editorialDiagnosis.vertical) ||
+    (project && project.editorialPlan && project.editorialPlan.diagnosis && project.editorialPlan.diagnosis.vertical) ||
+    "general";
 }
 
 function drawBackground(ctx, scene, project, family) {
@@ -119,7 +140,7 @@ function drawSceneBrand(ctx, scene, project) {
   }
 
   if (logo) {
-    drawLogoWithBackdrop(ctx, logo, logoX, logoY, logoW, true);
+    drawLogoClean(ctx, logo, logoX, logoY, logoW, true);
     return;
   }
 
@@ -148,6 +169,37 @@ function drawLogoWithBackdrop(ctx, logo, centerX, y, logoW, centeredY) {
   roundRectStroke(ctx, drawX - padX, boxY, logoW + padX * 2, logoH + padY * 2, 22);
   ctx.drawImage(logo, drawX, centeredY ? y - logoH / 2 : y, logoW, logoH);
   ctx.restore();
+}
+
+function drawLogoClean(ctx, logo, centerX, y, logoW, centeredY) {
+  var logoH = logo.height * (logoW / logo.width);
+  var drawX = centerX - logoW / 2;
+  var drawY = centeredY ? y - logoH / 2 : y;
+  ctx.save();
+  var contrast = ctx.createLinearGradient(drawX - 42, 0, drawX + logoW + 42, 0);
+  contrast.addColorStop(0, "rgba(20,28,24,0)");
+  contrast.addColorStop(0.2, "rgba(20,28,24,0.34)");
+  contrast.addColorStop(0.8, "rgba(20,28,24,0.34)");
+  contrast.addColorStop(1, "rgba(20,28,24,0)");
+  ctx.fillStyle = contrast;
+  ctx.fillRect(drawX - 42, drawY - 16, logoW + 84, logoH + 32);
+  ctx.shadowColor = "rgba(0,0,0,0.42)";
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 3;
+  ctx.drawImage(logo, drawX, drawY, logoW, logoH);
+  ctx.restore();
+}
+
+function drawCategoryPill(ctx, value, x, y, fill) {
+  var label = String(value || "").trim().toUpperCase();
+  if (!label) return;
+  ctx.font = "700 24px Inter, Arial, sans-serif";
+  var width = Math.min(360, Math.max(150, ctx.measureText(label).width + 42));
+  fillRoundRect(ctx, x, y, width, 52, 26, fill);
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.fillText(label, x + width / 2, y + 35);
+  ctx.textAlign = "start";
 }
 
 function drawSceneText(ctx, scene, project, family) {
@@ -203,7 +255,12 @@ function drawSceneText(ctx, scene, project, family) {
   });
   ctx.font = "700 " + visualTitleStyle.fontSize + "px Inter, Arial, sans-serif";
   ctx.fillStyle = MMTheme.colors.textPrimary;
-  var titleEnd = wrapText(ctx, visualTitleStyle.text, contentX, panelY + 72, visualTitleStyle.maxWidth, visualTitleStyle.lineHeight);
+  var titleY = panelY + 72;
+  if (subtitle) {
+    drawCategoryPill(ctx, subtitle, contentX, panelY + 52, MMTheme.colors.accent);
+    titleY = panelY + 158;
+  }
+  var titleEnd = wrapText(ctx, visualTitleStyle.text, contentX, titleY, visualTitleStyle.maxWidth, visualTitleStyle.lineHeight);
 
   if (subtitle) {
     var visualSubtitleStyle = fitReelTextBlock(ctx, subtitle, {
@@ -355,7 +412,7 @@ function drawReelCtaCard(ctx, title, subtitle, panelY, contentX, contentW) {
   fillRoundRect(ctx, boxX, boxY, boxW, 22, 11, MMTheme.colors.accent);
 
   var logo = getCachedImage("/assets/logo.png");
-  if (logo) drawLogoWithBackdrop(ctx, logo, W / 2, boxY + 104, 250, true);
+  if (logo) drawLogoClean(ctx, logo, W / 2, boxY + 104, 300, true);
 
   ctx.textAlign = "center";
   ctx.font = "700 30px Inter, Arial, sans-serif";
@@ -482,7 +539,7 @@ function drawSceneFooter(ctx, scene, family) {
   ctx.stroke();
 
   if (logo && family !== "cover") {
-    drawLogoWithBackdrop(ctx, logo, W / 2, footerY, logoW, true);
+    drawLogoClean(ctx, logo, W / 2, footerY, logoW, true);
   }
 }
 
@@ -497,7 +554,7 @@ export function resolveReelSceneFamily(scene, project) {
   var imageFailed = isImageLoadFailed(imageUrl);
 
   if (["list", "contact", "cta", "quote"].indexOf(layout) >= 0) return layout;
-  if (isCoverScene(scene) && imageUrl && !imageFailed) return "cover";
+  if ((isCoverScene(scene) || String(scene && scene.layout || "").toLowerCase() === "cover") && imageUrl && !imageFailed) return "cover";
   if (imageUrl && !imageFailed && scene.visual_type !== "text_card") return "image";
   return "text";
 }
@@ -510,10 +567,12 @@ function resolveSceneImage(scene, project) {
   if (source === "article.image") return article.image || "";
 
   var match = source.match(/^article\.images\[(\d+)\]$/);
-  if (match && project.settings && project.settings.useSecondaryImages && Array.isArray(article.images)) {
+  if (match && Array.isArray(article.images)) {
     var idx = Number(match[1]);
     return article.images[idx] || "";
   }
+
+  if (/^(https?:\/\/|data:|blob:|\/assets\/)/i.test(source)) return source;
 
   return "";
 }
@@ -682,11 +741,11 @@ function fitReelTextBlock(ctx, text, options) {
   var lastIndex = fontSizes.length - 1;
   ctx.font = "700 " + fontSizes[lastIndex] + "px Inter, Arial, sans-serif";
   return {
-    text: clampWrappedText(ctx, raw, maxWidth, maxLines),
+    text: raw,
     fontSize: fontSizes[lastIndex],
     lineHeight: lineHeights[Math.min(lastIndex, lineHeights.length - 1)],
     maxWidth: maxWidth,
-    lineCount: maxLines
+    lineCount: estimateWrappedLines(ctx, raw, maxWidth)
   };
 }
 

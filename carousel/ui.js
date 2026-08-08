@@ -6,6 +6,7 @@ import { normalizeFocalPosition } from "./core/image.js";
 import { preloadCarouselAssets, renderSlideToCanvas } from "./canvas-renderer.js";
 import { preloadReelSceneAssets, renderReelSceneToCanvas, resolveReelSceneFamily } from "./reel-canvas-renderer.js";
 import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
+import { ensureReelClosure } from "./reel-package-adapter.js";
 import { buildInstagramCaptionPrompt, buildReelPrompt } from "./prompts.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
@@ -1494,9 +1495,9 @@ async function generateReelPlan(project) {
     const data = await res.json();
     if (!data.ok || !data.result) return;
 
-    project.reelPlan = data.result;
+    project.reelPlan = ensureReelClosure(data.result, project.article);
     if (project.editorialPackage) {
-      project.editorialPackage = attachReelOutput(project.editorialPackage, data.result);
+      project.editorialPackage = attachReelOutput(project.editorialPackage, project.reelPlan);
     }
     setProject(project);
   } catch (error) {

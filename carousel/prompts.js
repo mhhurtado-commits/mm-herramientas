@@ -169,6 +169,8 @@ export function buildReelPrompt(article, diagnosis) {
     "- El Reel debe funcionar solo con imagenes y texto en pantalla.\n" +
     "- Incluir subtitulos breves por escena.\n" +
     "- Usar entre 4 y 6 escenas.\n" +
+    "- La primera escena debe usar la imagen principal cuando exista y tener una composicion de portada con identidad de la seccion.\n" +
+    "- Siempre cerrar con una ultima escena layout cta y visual_role cta, con un llamado claro a leer la nota completa o seguir informado.\n" +
     "- Usar titulos de hasta 7 palabras y subtitulos de hasta 16 palabras.\n" +
     "- Cada escena debe indicar si conviene usar imagen principal, imagen interna o placa de texto.\n" +
     "- Elegir layout segun el contenido: default, list, contact, quote o cta.\n" +
@@ -216,6 +218,17 @@ export function buildReelPrompt(article, diagnosis) {
     '      "layout":"default",\n' +
     '      "text":"",\n' +
     '      "subtitle":"",\n' +
+    '      "items":[]\n' +
+    "    },\n" +
+    '    {\n' +
+    '      "order":4,\n' +
+    '      "duration_ms":3000,\n' +
+    '      "visual_type":"text_card",\n' +
+    '      "visual_source":"generated",\n' +
+    '      "visual_role":"cta",\n' +
+    '      "layout":"cta",\n' +
+    '      "text":"Leé la nota completa",\n' +
+    '      "subtitle":"Más información en mediamendoza.com",\n' +
     '      "items":[]\n' +
     "    }\n" +
     "  ]\n" +

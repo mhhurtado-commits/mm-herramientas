@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fromEditorialPackage, attachReelPackage } from "./reel-package-adapter.js";
+import { fromEditorialPackage, attachReelPackage, ensureReelClosure } from "./reel-package-adapter.js";
 
 function samplePackage() {
   return {
@@ -29,18 +29,33 @@ function samplePackage() {
 test("construye un ReelPlan desde el paquete común sin volver a extraer", () => {
   const adapted = fromEditorialPackage(samplePackage());
   assert.equal(adapted.article.title, "Título original");
-  assert.equal(adapted.reel.scenes.length, 3);
+  assert.equal(adapted.reel.scenes.length, 4);
   assert.equal(adapted.reel.scenes[0].visual_source, "https://example.com/foto.jpg");
   assert.equal(adapted.reel.scenes[2].visual_role, "context");
+  assert.equal(adapted.reel.scenes[3].layout, "cta");
 });
 
 test("adjunta la salida reel al proyecto existente", () => {
   const project = { article: { title: "viejo" }, reelPlan: null, editorialPackage: null };
   const next = attachReelPackage(project, samplePackage());
   assert.equal(next.article.title, "Título original");
-  assert.equal(next.reelPlan.scenes.length, 3);
-  assert.equal(next.editorialPackage.salidas.reel.scenes.length, 3);
+  assert.equal(next.reelPlan.scenes.length, 4);
+  assert.equal(next.editorialPackage.salidas.reel.scenes.length, 4);
   assert.equal(project.reelPlan, null);
+});
+
+test("agrega un cierre sin duplicarlo y conserva las escenas generadas", () => {
+  const scenes = [
+    { visual_role: "hook", layout: "cover", text: "Título" },
+    { visual_role: "context", layout: "text", text: "Contexto" },
+  ];
+  const output = ensureReelClosure({ scenes }, { url: "https://mediamendoza.com/general/1" });
+  assert.equal(output.scenes.length, 3);
+  assert.equal(output.scenes[2].visual_role, "cta");
+  assert.equal(output.scenes[2].subtitle, "Más información en mediamendoza.com");
+
+  const existing = ensureReelClosure({ scenes: [...output.scenes] }, {});
+  assert.equal(existing.scenes.length, 3);
 });
 
 test("hereda la categoria editorial seleccionada y la aplica al Reel", () => {
