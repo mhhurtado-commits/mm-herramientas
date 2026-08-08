@@ -64,6 +64,11 @@ function applyReelFamilyTheme(project, scene) {
   MMTheme.colors.endCtaText = family.dark;
   MMTheme.colors.brandLine = family.accent;
   MMTheme.colors.accentBarEnd = family.soft;
+  // El Reel alterna fondos fotográficos y tarjetas claras: la tinta debe ser
+  // estable aunque la variante editorial haya sido definida para fondo oscuro.
+  MMTheme.colors.textPrimary = "#151719";
+  MMTheme.colors.textSecondary = "#39443e";
+  MMTheme.colors.textMuted = "#5d6761";
 }
 
 function resolveReelVertical(project, scene) {
@@ -226,14 +231,18 @@ function drawSceneText(ctx, scene, project, family) {
     fillRoundRect(ctx, 58, panelY, W - 116, 24, 12, MMTheme.colors.accent);
 
     var content = getStructuredSceneContent(scene);
+    var cardSubtitle = isSectionLabel(subtitle) ? "" : subtitle;
+    if (isSectionLabel(subtitle)) {
+      drawCategoryPill(ctx, subtitle, contentX + 38, panelY + 64, MMTheme.colors.accent);
+    }
     if (family === "list") {
-      drawListTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
+      drawListTextCard(ctx, content.title, cardSubtitle, content.items, panelY, panelH, contentX, contentW);
     } else if (family === "contact") {
-      drawContactTextCard(ctx, content.title, subtitle, content.items, panelY, panelH, contentX, contentW);
+      drawContactTextCard(ctx, content.title, cardSubtitle, content.items, panelY, panelH, contentX, contentW);
     } else if (family === "quote") {
-      drawCalloutTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW, family);
+      drawCalloutTextCard(ctx, content.title, cardSubtitle, panelY, panelH, contentX, contentW, family);
     } else {
-      drawDefaultTextCard(ctx, content.title, subtitle, panelY, panelH, contentX, contentW);
+      drawDefaultTextCard(ctx, content.title, cardSubtitle, panelY, panelH, contentX, contentW);
     }
 
     return;
@@ -256,7 +265,7 @@ function drawSceneText(ctx, scene, project, family) {
   ctx.font = "700 " + visualTitleStyle.fontSize + "px Inter, Arial, sans-serif";
   ctx.fillStyle = MMTheme.colors.textPrimary;
   var titleY = panelY + 72;
-  if (subtitle) {
+  if (subtitle && !isSectionLabel(subtitle)) {
     drawCategoryPill(ctx, subtitle, contentX, panelY + 52, MMTheme.colors.accent);
     titleY = panelY + 158;
   }
@@ -273,6 +282,11 @@ function drawSceneText(ctx, scene, project, family) {
     ctx.fillStyle = MMTheme.colors.textSecondary;
     wrapText(ctx, visualSubtitleStyle.text, contentX, titleEnd + 24, visualSubtitleStyle.maxWidth, visualSubtitleStyle.lineHeight);
   }
+}
+
+function isSectionLabel(value) {
+  var normalized = String(value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return ["actualidad", "clima", "policiales", "sociedad", "politica", "economia", "deportes", "general"].indexOf(normalized) >= 0;
 }
 
 function drawDefaultTextCard(ctx, title, subtitle, panelY, panelH, contentX, contentW) {
