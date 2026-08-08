@@ -9,6 +9,10 @@ const ALLOWED_NEWS_TYPES = ["breaking", "service", "institutional", "analysis", 
 const ALLOWED_COMPLEXITIES = ["brief", "medium", "deep"];
 const ALLOWED_TONES = ["informative", "explainer", "chronological", "impact", "utility"];
 const ALLOWED_CAROUSEL_TYPES = ["summary", "explainer", "timeline", "data_points", "service"];
+const TYPED_CAROUSEL_SLIDE_RANGES = {
+  summary: { min: 4, max: 5 },
+  explainer: { min: 6, max: 7 }
+};
 const ALLOWED_TEMPLATES = ["mm_classic", "mm_briefing", "mm_impact"];
 const ALLOWED_VERTICALS = ["policiales", "servicios", "sociales", "espectaculos", "clima", "deportes", "politica", "economia", "general"];
 
@@ -158,6 +162,12 @@ function validateEditorialSequence(source, slides, errors) {
     errors.push("la secuencia editorial debe tener entre 4 y 7 slides");
   }
 
+  const carouselType = getDeclaredCarouselType(source);
+  const range = TYPED_CAROUSEL_SLIDE_RANGES[carouselType];
+  if (range && (total < range.min || total > range.max)) {
+    errors.push("el carrusel " + carouselType + " debe tener entre " + range.min + " y " + range.max + " slides");
+  }
+
   if (!isPlainObject(source.cover)) {
     errors.push("la primera slide debe ser cover");
   }
@@ -172,6 +182,11 @@ function validateEditorialSequence(source, slides, errors) {
       break;
     }
   }
+}
+
+function getDeclaredCarouselType(source) {
+  if (!isPlainObject(source) || !isPlainObject(source.diagnosis)) return "";
+  return cleanText(source.diagnosis.carousel_type).toLowerCase();
 }
 
 function normalizeSlide(type, slide, article, diagnosis, index, errors, quoteSourceText) {

@@ -1077,6 +1077,68 @@ test('acepta una secuencia legacy completa y la convierte de cover a end', () =>
   assert.equal(slides.at(-1).type, 'end');
 });
 
+test('rechaza un carrusel summary de seis slides', () => {
+  const parsed = normalizeCarouselPlan(createTypedRangePlan('summary', 6), {
+    title: 'Resumen fuera de rango',
+    summary: 'El resumen no puede tener seis slides.',
+  });
+
+  assert.equal(parsed.ok, false);
+  assert.ok(parsed.errors.some((error) => /summary.*4 y 5/i.test(error)));
+});
+
+test('rechaza un carrusel explainer de cuatro slides', () => {
+  const parsed = normalizeCarouselPlan(createTypedRangePlan('explainer', 4), {
+    title: 'Explicador fuera de rango',
+    summary: 'El explicador no puede tener cuatro slides.',
+  });
+
+  assert.equal(parsed.ok, false);
+  assert.ok(parsed.errors.some((error) => /explainer.*6 y 7/i.test(error)));
+});
+
+test('acepta un carrusel summary dentro de su rango', () => {
+  const parsed = normalizeCarouselPlan(createTypedRangePlan('summary', 4), {
+    title: 'Resumen en rango',
+    summary: 'El resumen puede tener cuatro slides.',
+  });
+
+  assert.equal(parsed.ok, true, parsed.errors.join('\n'));
+});
+
+test('acepta un carrusel explainer dentro de su rango', () => {
+  const parsed = normalizeCarouselPlan(createTypedRangePlan('explainer', 6), {
+    title: 'Explicador en rango',
+    summary: 'El explicador puede tener seis slides.',
+  });
+
+  assert.equal(parsed.ok, true, parsed.errors.join('\n'));
+});
+
+function createTypedRangePlan(carouselType, totalSlides) {
+  const intermediateSlides = totalSlides - 1;
+  return {
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'medium',
+      tone: 'informative',
+      carousel_type: carouselType,
+      template: 'mm_classic',
+      reason: 'Prueba de rango por tipo.',
+    },
+    cover: { title: 'Portada', subtitle: 'Bajada.' },
+    slides: [
+      ...Array.from({ length: intermediateSlides - 1 }, (_, index) => ({
+        type: 'contexto',
+        title: `Contexto ${index + 1}`,
+        text: 'Antecedente.',
+      })),
+      { type: 'end', source: 'Media Mendoza', cta: 'Seguí leyendo.' },
+    ],
+  };
+}
+
 function createQuotePlan(quote) {
   return {
     diagnosis: {
