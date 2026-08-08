@@ -23,6 +23,7 @@ export function initUI() {
   ensureCaptionPanel();
   ensureReelPreviewPanel();
   ensureReelCaptionPanel();
+  consumeEditorialHandoff();
 
   var loadBtn = document.getElementById("loadBtn");
   if (loadBtn) {
@@ -73,6 +74,35 @@ export function initUI() {
   if (clearBtn) {
     clearBtn.addEventListener("click", clearCarouselWorkspace);
   }
+}
+
+async function consumeEditorialHandoff() {
+  const raw = window.sessionStorage?.getItem('mm-editorial-handoff');
+  if (!raw) return;
+  window.sessionStorage.removeItem('mm-editorial-handoff');
+  let handoff;
+  try { handoff = JSON.parse(raw); } catch { return; }
+  if (!handoff?.package || !['carrusel', 'reel'].includes(handoff.output)) return;
+
+  const urlInput = document.getElementById('urlInput');
+  if (urlInput) urlInput.value = handoff.package.fuente?.url || '';
+  const engine = await import('./carousel-engine.js');
+  if (handoff.output === 'reel') {
+    engine.loadEditorialPackageForReel(handoff.package);
+    setActiveWorkspaceTab('reel');
+    renderInPreview();
+    return;
+  }
+
+  engine.loadEditorialPackage(handoff.package);
+  const project = getProject();
+  await engine.generatePlan();
+  await generateInstagramCaption(project);
+  await generateReelPlan(project);
+  activeSlideIndex = 0;
+  activeReelSceneIndex = 0;
+  setActiveWorkspaceTab('carousel');
+  renderInPreview();
 }
 
 function renderInPreview() {

@@ -1,6 +1,7 @@
 import { normalizeFocus, calculatePlateLayout, FORMATS, PLATE_TYPES } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
+import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const state = { plate: null, package: null, note: null, outputs: ['placa'], variants: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, drag: null };
@@ -74,14 +75,20 @@ function renderFormats() {
 
 function renderOutputs() {
   const outputs = [
-    { id: 'placa', label: 'Placa', enabled: true },
-    { id: 'carrusel', label: 'Carrusel', enabled: false },
-    { id: 'reel', label: 'Reel', enabled: false },
+    { id: 'placa', label: 'Placa' },
+    { id: 'carrusel', label: 'Carrusel' },
+    { id: 'reel', label: 'Reel' },
   ];
-  $('#outputList').innerHTML = outputs.map(output => `<button class="format" type="button" data-output="${output.id}" ${output.enabled ? '' : 'disabled'} title="${output.enabled ? 'Salida activa' : 'Se habilita en la siguiente etapa de integración'}">${output.label}</button>`).join('');
+  $('#outputList').innerHTML = outputs.map(output => `<button class="format ${output.id === 'placa' ? 'active' : ''}" type="button" data-output="${output.id}" title="Abrir salida ${output.label}">${output.label}</button>`).join('');
   document.querySelectorAll('[data-output]').forEach(button => button.addEventListener('click', () => {
-    if (button.disabled) return;
-    toast('Salida de placa activa. Carrusel y Reel se conectarán en el próximo checkpoint.');
+    const output = button.dataset.output;
+    if (output === 'placa') {
+      document.querySelectorAll('[data-output]').forEach(item => item.classList.toggle('active', item === button));
+      return;
+    }
+    if (!state.package) return;
+    sessionStorage.setItem(EDITORIAL_HANDOFF_KEY, createEditorialHandoff(state.package, output));
+    window.location.href = '../carousel/';
   }));
 }
 
@@ -145,7 +152,7 @@ async function generate(event) {
   setLoading(true, 'Extrayendo la noticia…');
   $('#editorControls').classList.add('is-hidden');
   try {
-    const session = await loadEditorialSession(url, ['placa'], { extract: extractNote, generate: generatePackage });
+    const session = await loadEditorialSession(url, ['placa', 'carrusel', 'reel'], { extract: extractNote, generate: generatePackage });
     setLoading(true, 'Armando la propuesta editorial…');
     state.note = session.note;
     state.package = session.package;
