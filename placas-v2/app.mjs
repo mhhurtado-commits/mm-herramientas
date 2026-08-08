@@ -87,7 +87,20 @@ function renderOutputs() {
       return;
     }
     if (!state.package) return;
-    sessionStorage.setItem(EDITORIAL_HANDOFF_KEY, createEditorialHandoff(state.package, output));
+    const handoffPackage = {
+      ...state.package,
+      editorial: {
+        ...(state.package.editorial || {}),
+        category_options: state.variants.map((item, index) => ({
+          id: item.id || `categoria-${index + 1}`,
+          label: item.etiqueta || 'Actualidad',
+          vertical: item.etiqueta || 'general',
+          recommended: Boolean(item.recommended),
+          color: item.color_principal || '',
+        })),
+      },
+    };
+    sessionStorage.setItem(EDITORIAL_HANDOFF_KEY, createEditorialHandoff(handoffPackage, output));
     window.location.href = '../carousel/';
   }));
 }

@@ -275,6 +275,10 @@ function createStageControls(project, activeItem) {
   var wrap = document.createElement("div");
   wrap.className = "carousel-stage-controls";
 
+  if (project.categoryOptions && project.categoryOptions.length > 1) {
+    wrap.appendChild(createCategoryControls(project));
+  }
+
   if (hasSecondaryImages(project)) {
     wrap.appendChild(createSecondaryImagesControls(project));
   }
@@ -287,6 +291,40 @@ function createStageControls(project, activeItem) {
     wrap.appendChild(createFocalPointControls(project, activeItem.slide));
   }
 
+  return wrap;
+}
+
+function createCategoryControls(project) {
+  var wrap = document.createElement("div");
+  wrap.className = "carousel-category-controls";
+  var label = document.createElement("span");
+  label.className = "carousel-cover-controls-label";
+  label.textContent = "Familia editorial";
+  wrap.appendChild(label);
+
+  project.categoryOptions.forEach(function (option) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "carousel-cover-chip" + (project.selectedCategoryId === option.id ? " is-active" : "");
+    button.textContent = option.label;
+    button.addEventListener("click", function () {
+      project.selectedCategoryId = option.id;
+      project.article.category = option.label;
+      project.editorialDiagnosis = {
+        ...(project.editorialDiagnosis || {}),
+        vertical: option.vertical,
+      };
+      (project.slides || []).forEach(function (slide) {
+        slide.style = { ...(slide.style || {}), vertical: option.vertical, accent: "" };
+      });
+      if (project.editorialPackage && project.editorialPackage.editorial) {
+        project.editorialPackage.editorial.seccion = option.label;
+      }
+      setProject(project);
+      renderInPreview();
+    });
+    wrap.appendChild(button);
+  });
   return wrap;
 }
 

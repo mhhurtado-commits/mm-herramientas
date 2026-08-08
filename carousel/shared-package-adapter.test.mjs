@@ -65,3 +65,24 @@ test('abre un proyecto de carrusel desde el paquete sin depender del DOM', () =>
   assert.equal(project.editorialPackage, editorialPackage);
   assert.equal(project.slides.length, 0);
 });
+
+test('preserva las alternativas de categoria para elegirlas en carrusel', () => {
+  const packageWithCategories = {
+    ...editorialPackage,
+    editorial: {
+      ...editorialPackage.editorial,
+      category_options: [
+        { id: 'policiales-principal', label: 'Policiales', vertical: 'policiales', recommended: true },
+        { id: 'general-editorial', label: 'Actualidad', vertical: 'general' },
+      ],
+    },
+  };
+
+  const project = openCarouselFromEditorialPackage(packageWithCategories);
+
+  assert.deepEqual(project.categoryOptions, [
+    { id: 'policiales-principal', label: 'Policiales', vertical: 'policiales', recommended: true, color: '' },
+    { id: 'general-editorial', label: 'Actualidad', vertical: 'general', recommended: false, color: '' },
+  ]);
+  assert.equal(project.selectedCategoryId, 'policiales-principal');
+});

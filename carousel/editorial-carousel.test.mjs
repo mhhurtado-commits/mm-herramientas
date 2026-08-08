@@ -586,7 +586,7 @@ test('renderiza una imagen normalizada usando la imagen del slide', () => {
   assertContentBaselinesBeforeFooter(canvas, 'image');
 });
 
-test('mantiene la imagen de portada editorial entre 55 y 60 por ciento sin invadir el pie', () => {
+test('da mayor protagonismo a la imagen de portada sin invadir el pie', () => {
   const canvas = renderEditorialSlide({
     type: 'cover',
     content: {
@@ -600,7 +600,7 @@ test('mantiene la imagen de portada editorial entre 55 y 60 por ciento sin invad
 
   assert.ok(imageDraw);
   assert.ok(imageDraw.args[3] / canvas.height >= 0.55);
-  assert.ok(imageDraw.args[3] / canvas.height <= 0.60);
+  assert.ok(imageDraw.args[3] / canvas.height <= 0.65);
   assert.ok(imageDraw.args[1] + imageDraw.args[3] <= footerY);
   assertContentBaselinesBeforeFooter(canvas, 'cover');
 });
@@ -624,7 +624,7 @@ test('renderiza una secuencia completa de cover, texto y cierre por el mismo cam
   assert.ok(textValues(canvases[0]).includes('Título de portada'));
   assert.ok(textValues(canvases[1]).includes('Contexto'));
   assert.ok(textValues(canvases[1]).includes('Cuerpo legible.'));
-  assert.ok(textValues(canvases[2]).includes('Fuente: Media Mendoza'));
+  assert.ok(textValues(canvases[2]).includes('SEGUÍ LA NOTA'));
   assert.ok(textValues(canvases[2]).includes('Seguí leyendo.'));
   assertContentBaselinesBeforeFooter(canvases[0], 'cover');
   assertContentBaselinesBeforeFooter(canvases[1], 'text');
@@ -844,7 +844,7 @@ test('prioriza el título editorial normalizado y mantiene source y cta fuera de
   assert.equal(endSlide.content.source, 'Fuente: Media Mendoza');
   assert.equal(endSlide.content.cta, 'Leé la nota completa');
   assert.equal(endSlide.content.text, '');
-  assert.ok(textValues(endCanvas).includes('Fuente: Media Mendoza'));
+  assert.ok(textValues(endCanvas).includes('SEGUÍ LA NOTA'));
   assert.ok(ctaBlock && ctaBlock.fullText === 'Leé la nota completa');
   assert.equal(ctaInBody, undefined);
 });

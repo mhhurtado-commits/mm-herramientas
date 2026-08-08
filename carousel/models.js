@@ -11,6 +11,8 @@ export function createCarouselProject() {
     },
     editorialPlan: null,
     editorialPackage: null,
+    categoryOptions: [],
+    selectedCategoryId: "",
     reelPlan: null,
     socialCopy: {
       caption: "",

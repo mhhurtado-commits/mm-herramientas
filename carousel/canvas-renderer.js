@@ -449,7 +449,7 @@ function drawCover(ctx, slide, project, theme, layout) {
   var content = slide.content || {};
   var imageHeight = Math.min(
     layout.safeZones.footer.y - 32,
-    Math.max(layout.content.y + 72, Math.round(H * 0.58))
+    Math.max(layout.content.y + 72, Math.round(H * 0.62))
   );
   ctx.fillStyle = theme.colors.background;
   ctx.fillRect(0, 0, W, H);
@@ -465,7 +465,7 @@ function drawCover(ctx, slide, project, theme, layout) {
   var panelX = layout.content.x;
   var panelY = layout.content.y;
   var panelW = layout.content.width;
-  var panelH = layout.safeZones.footer.y - panelY - 26;
+  var panelH = Math.min(620, layout.safeZones.footer.y - panelY - 26);
   fillRoundRect(ctx, panelX, panelY, panelW, panelH, 34, theme.colors.surface);
   strokeRoundRect(ctx, panelX, panelY, panelW, panelH, 34, theme.colors.coverPanelStroke, 2);
 
@@ -622,7 +622,7 @@ function drawStats(ctx, slide, project, theme, layout) {
     fontSize: 26, minFontSize: 20, maxLines: 2, lineHeight: 32, weight: "700", color: theme.colors.textPrimary,
     role: "stat-label", maxBottom: layout.safeZones.footer.y - 180
   });
-  var titleEnd = drawMeasuredText(ctx, content.title && content.title !== primary ? content.title : "", layout.content.x, Math.max(factEnd + 12, primaryLabelEnd + 4), factWidth, {
+  var titleEnd = drawMeasuredText(ctx, content.title && content.title !== primary ? content.title : "", layout.content.x, Math.max(factEnd + 12, primaryLabelEnd + 24), factWidth, {
     fontSize: 44, minFontSize: 30, maxLines: INTERNAL_TITLE_MAX_LINES, lineHeight: 52, weight: "700", color: theme.colors.textPrimary,
     role: "title",
     maxBottom: layout.safeZones.footer.y - 180,
@@ -741,8 +741,8 @@ function drawEnd(ctx, slide, project, theme, layout) {
   ctx.fillRect(0, 0, W, H);
   drawLogo(ctx, project, theme, layout, "end");
   var y = layout.content.y + 150;
-  var source = content.source || content.title || "";
-  drawEditorialHeader(ctx, { content: { label: "FUENTE" } }, project, theme, layout, { y: y, light: true });
+  var source = (project.article && project.article.title) || content.source || content.title || "";
+  drawEditorialHeader(ctx, { content: { label: "SEGUÍ LA NOTA" } }, project, theme, layout, { y: y, light: true });
   y += 88;
   y = drawMeasuredText(ctx, source, layout.content.x, y, layout.content.width, {
     fontSize: 54, minFontSize: 34, maxLines: 3, lineHeight: 62, weight: "700", color: theme.colors.white,
@@ -789,6 +789,9 @@ export function renderSlideToCanvas(slide, project) {
     var safeProject = project || {};
     if (safeSlide.content.supportImage) {
       safeSlide.content.supportImage = resolveSupportImage(safeSlide.content.supportImage, safeProject.article);
+      if (safeSlide.content.supportImage && safeProject.article && safeSlide.content.supportImage === safeProject.article.image) {
+        safeSlide.content.supportImage = "";
+      }
     }
     var theme = resolveCarouselTheme(safeProject, safeSlide);
     var layout = getCarouselLayout(safeSlide.template || "text", W, H);

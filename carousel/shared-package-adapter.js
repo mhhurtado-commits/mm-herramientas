@@ -17,6 +17,7 @@ export function fromEditorialPackage(editorialPackage = {}) {
   const diagnosis = existingPlan?.diagnosis || {};
   return {
     article,
+    categoryOptions: normalizeCategoryOptions(editorial.category_options),
     diagnosis: {
       news_type: allowed(editorial.tipo_noticia, NEWS_TYPES, 'evergreen'),
       vertical: mapVertical(editorial.seccion),
@@ -35,6 +36,8 @@ export function attachEditorialPackage(project = {}, editorialPackage = {}) {
   return {
     ...project,
     article: adapted.article,
+    categoryOptions: adapted.categoryOptions,
+    selectedCategoryId: adapted.categoryOptions.find(option => option.recommended)?.id || adapted.categoryOptions[0]?.id || "",
     editorialPackage,
     editorialDiagnosis: adapted.diagnosis,
   };
@@ -81,4 +84,15 @@ function allowed(value, values, fallback) {
 
 function clean(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function normalizeCategoryOptions(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((option, index) => ({
+    id: clean(option?.id) || `categoria-${index + 1}`,
+    label: clean(option?.label) || 'Actualidad',
+    vertical: mapVertical(option?.vertical || option?.label),
+    recommended: Boolean(option?.recommended),
+    color: clean(option?.color),
+  }));
 }
