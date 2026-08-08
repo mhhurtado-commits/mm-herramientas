@@ -78,7 +78,7 @@ function installCanvasHarness(options = {}) {
         };
       }
       assert.equal(tag, 'canvas');
-      const calls = { text: [], images: [], measurements: [], fills: [] };
+      const calls = { text: [], images: [], imageDraws: [], measurements: [], fills: [] };
       let currentRoundRect = null;
       const ctx = new Proxy({
         measureText(value) {
@@ -110,8 +110,9 @@ function installCanvasHarness(options = {}) {
             lineHeight: this.__carouselLineHeight || 0,
           });
         },
-        drawImage(image) {
+        drawImage(image, ...args) {
           calls.images.push(image.source || '');
+          calls.imageDraws.push({ source: image.source || '', args });
         },
       }, {
         get(target, key) {
@@ -883,4 +884,168 @@ test('normaliza aliases legacy y conserva su renderizado', () => {
   const canvases = slides.map((slide) => renderSlideToCanvas(slide, { article, slides }));
   assert.equal(canvases.length, 5);
   assert.ok(canvases.every((canvas) => canvas.width === 1080 && canvas.height === 1350));
+});
+
+function createQuotePlan(quote) {
+  return {
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'brief',
+      tone: 'informative',
+      carousel_type: 'summary',
+      template: 'mm_classic',
+      reason: 'Incluye una cita textual.',
+    },
+    cover: { title: 'Portada', subtitle: 'Bajada.' },
+    slides: [{ type: 'cita', quote, author: 'Ana Perez', role: 'Investigadora' }],
+  };
+}
+
+test('valida citas literales contra el cuerpo disponible y conserva una fuente sin validar', () => {
+  const literal = 'La comunidad recibira nuevos turnos desde el lunes.';
+  const accepted = normalizeCarouselPlan(createQuotePlan(`  ${literal}  `), {
+    title: 'Cita textual',
+    summary: 'Resumen editorial.',
+    content: `La vocera confirmo: ${literal} El servicio se ampliara.`,
+  });
+  const rejected = normalizeCarouselPlan(createQuotePlan('Esta cita fue inventada.'), {
+    title: 'Cita textual',
+    summary: 'Resumen editorial.',
+    content: `La vocera confirmo: ${literal} El servicio se ampliara.`,
+  });
+  const unverified = normalizeCarouselPlan(createQuotePlan(literal), {
+    title: 'Cita textual',
+    summary: 'Resumen editorial.',
+  });
+
+  assert.equal(accepted.ok, true, accepted.errors.join('\n'));
+  assert.deepEqual(accepted.plan.slides[0], {
+    type: 'cita',
+    title: '',
+    text: '',
+    quote: literal,
+    author: 'Ana Perez',
+    role: 'Investigadora',
+    quoteValidation: 'validated',
+  });
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.plan.slides[0].quote, undefined);
+  assert.equal(rejected.plan.slides[0].author, 'Ana Perez');
+  assert.equal(rejected.plan.slides[0].role, 'Investigadora');
+  assert.equal(rejected.plan.slides[0].quoteValidation, 'rejected');
+  assert.ok(rejected.errors.some((error) => /cita.*no coincide/.test(error)));
+  assert.equal(unverified.ok, true, unverified.errors.join('\n'));
+  assert.equal(unverified.plan.slides[0].quote, literal);
+  assert.equal(unverified.plan.slides[0].quoteValidation, 'unverified');
+});
+
+test('renderiza datos estructurados sin convertirlos en objetos de texto', () => {
+  const canvas = renderEditorialSlide({
+    type: 'dato',
+    content: {
+      title: 'Datos del informe',
+      items: [{ value: '47%', label: 'Aumento interanual confirmado.' }],
+    },
+  });
+
+  assert.ok(textValues(canvas).includes('47%'));
+  assert.ok(textValues(canvas).includes('Aumento interanual confirmado.'));
+  assert.equal(textValues(canvas).includes('[object Object]'), false);
+});
+
+test('preserva el contrato value-label al normalizar datos del plan', () => {
+  const parsed = normalizeCarouselPlan({
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'brief',
+      tone: 'informative',
+      carousel_type: 'summary',
+      template: 'mm_classic',
+      reason: 'Incluye un dato estructurado.',
+    },
+    cover: { title: 'Portada', subtitle: 'Bajada.' },
+    slides: [{
+      type: 'dato',
+      title: 'Datos del informe',
+      items: [{ value: '47%', label: 'Aumento interanual confirmado.' }],
+    }],
+  }, { title: 'Dato estructurado', summary: 'Resumen editorial.' });
+
+  assert.deepEqual(parsed.plan.slides[0].items, [{ value: '47%', label: 'Aumento interanual confirmado.' }]);
+});
+
+test('ubica el logo de portada segun la opcion elegida en el editor', () => {
+  const positions = ['right', 'center', 'image-footer'].map((coverLogoPosition) => {
+    const canvas = renderEditorialSlide({
+      type: 'cover',
+      content: { title: 'Portada editorial', subtitle: 'Bajada breve.' },
+    }, {
+      article: { title: 'Portada editorial' },
+      settings: { coverLogoPosition },
+    });
+    const logo = canvas.calls.imageDraws.find((draw) => draw.source === '/assets/logo.png');
+    assert.ok(logo, coverLogoPosition);
+    return logo.args.slice(0, 2).join(':');
+  });
+
+  assert.equal(new Set(positions).size, 3);
+});
+
+test('limita los titulos internos a dos lineas sin cambiar la portada', () => {
+  const title = Array(11).fill('titulo').join(' ');
+  const internal = renderEditorialSlide({
+    type: 'contexto',
+    content: { title, text: 'Cuerpo breve.' },
+  });
+  const cover = renderEditorialSlide({
+    type: 'cover',
+    content: { title, subtitle: 'Bajada breve.' },
+  }, { article: { title } });
+  const internalTitle = internal.renderState.blocks.find((block) => block.role === 'title' && block.fullText === title);
+  const coverTitle = cover.renderState.blocks.find((block) => block.role === 'title' && block.fullText === title);
+
+  assert.equal(internalTitle.renderedLines, 2);
+  assert.equal(internalTitle.overflow, true);
+  assert.equal(coverTitle.renderedLines, 3);
+  assert.equal(coverTitle.overflow, false);
+});
+
+test('normaliza el foco de una imagen y desplaza el recorte desde el centro', () => {
+  const source = 'https://example.com/focus-image.jpg';
+  const centered = renderEditorialSlide({
+    type: 'imagen',
+    content: { title: 'Imagen', image: source },
+  });
+  const focusedSlide = normalizeCarouselSlide({
+    type: 'imagen',
+    content: { title: 'Imagen', image: source, focalPosition: 'left' },
+  }, 1, 4);
+  const focused = renderSlideToCanvas(focusedSlide, { slides: [focusedSlide] });
+  const centeredDraw = centered.calls.imageDraws.find((draw) => draw.source.includes('focus-image.jpg'));
+  const focusedDraw = focused.calls.imageDraws.find((draw) => draw.source.includes('focus-image.jpg'));
+
+  assert.deepEqual(focusedSlide.content.focalPosition, { x: 0, y: 0.5 });
+  assert.ok(centeredDraw);
+  assert.ok(focusedDraw);
+  assert.notEqual(centeredDraw.args[0], focusedDraw.args[0]);
+});
+
+test('aplica el foco normalizado a las imagenes de apoyo', () => {
+  const source = 'https://example.com/focus-support.jpg';
+  const centered = renderEditorialSlide({
+    type: 'dato',
+    content: { title: 'Dato', items: ['47%'], supportImage: source },
+  });
+  const focused = renderEditorialSlide({
+    type: 'dato',
+    content: { title: 'Dato', items: ['47%'], supportImage: source, focalPosition: 'right' },
+  });
+  const centeredDraw = centered.calls.imageDraws.find((draw) => draw.source.includes('focus-support.jpg'));
+  const focusedDraw = focused.calls.imageDraws.find((draw) => draw.source.includes('focus-support.jpg'));
+
+  assert.ok(centeredDraw);
+  assert.ok(focusedDraw);
+  assert.notEqual(centeredDraw.args[0], focusedDraw.args[0]);
 });

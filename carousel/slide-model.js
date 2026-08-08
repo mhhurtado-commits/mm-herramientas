@@ -1,3 +1,5 @@
+import { normalizeFocalPosition } from "./core/image.js";
+
 export function createSlide() {
   return {
     id: "",
@@ -67,6 +69,12 @@ export function normalizeCarouselSlide(slide, index, total) {
     items: Array.isArray(sourceContent.items) ? sourceContent.items : [],
     image: firstText(sourceContent.image, source.image)
   };
+  const focalPosition = sourceContent.focalPosition !== undefined
+    ? sourceContent.focalPosition
+    : source.focalPosition;
+  if (focalPosition !== undefined) {
+    content.focalPosition = normalizeFocalPosition(focalPosition);
+  }
 
   return {
     ...source,

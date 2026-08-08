@@ -79,6 +79,10 @@ export function convertirPlanASlides(plan, article, settings) {
     slide.content.role = item.role || "";
     slide.content.image = item.image || "";
     slide.content.supportImage = item.supportImage || "";
+    slide.content.quoteValidation = item.quoteValidation || "";
+    if (item.focalPosition !== undefined) {
+      slide.content.focalPosition = item.focalPosition;
+    }
     if (!slide.content.supportImage && supportsSecondaryImage(item.type) && supportImages[supportIndex]) {
       slide.content.supportImage = supportImages[supportIndex++];
     }

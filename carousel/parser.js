@@ -1,3 +1,5 @@
+import { normalizeFocalPosition } from "./core/image.js";
+
 export { normalizeCarouselSlide } from "./slide-model.js";
 
 export const CAROUSEL_PLAN_VERSION = "1.2";
@@ -30,9 +32,10 @@ export function normalizeCarouselPlan(rawPlan, article) {
   const errors = [];
   const source = isPlainObject(rawPlan) ? rawPlan : {};
   const normalizedArticle = normalizeArticle(article);
+  const quoteSourceText = getQuoteSourceText(article);
   const diagnosis = normalizeDiagnosis(source.diagnosis, normalizedArticle, errors);
   const cover = normalizeCover(source.cover, normalizedArticle, diagnosis, errors);
-  const slides = normalizeSlides(source.slides, normalizedArticle, diagnosis, errors);
+  const slides = normalizeSlides(source.slides, normalizedArticle, diagnosis, errors, quoteSourceText);
   diagnosis.slide_count = slides.length + 1;
   const normalizedPlan = {
     version: CAROUSEL_PLAN_VERSION,
@@ -111,7 +114,7 @@ function normalizeCover(cover, article, diagnosis, errors) {
   };
 }
 
-function normalizeSlides(slides, article, diagnosis, errors) {
+function normalizeSlides(slides, article, diagnosis, errors, quoteSourceText) {
   const sourceSlides = Array.isArray(slides) ? slides : [];
   const normalized = [];
 
@@ -128,7 +131,7 @@ function normalizeSlides(slides, article, diagnosis, errors) {
       continue;
     }
 
-    const slide = normalizeSlide(type, source, article, diagnosis, i);
+    const slide = normalizeSlide(type, source, article, diagnosis, i, errors, quoteSourceText);
     if (!slide.title && type !== "cita") {
       errors.push("slide sin titulo en posicion " + (i + 1) + ": " + type);
     }
@@ -143,11 +146,11 @@ function normalizeSlides(slides, article, diagnosis, errors) {
   return expectedTypes.map(function (legacyType, index) {
     const type = normalizeSlideType(legacyType);
     errors.push("slide faltante en posicion " + (index + 1) + ": " + type);
-    return normalizeSlide(type, {}, article, diagnosis, index);
+    return normalizeSlide(type, {}, article, diagnosis, index, errors, quoteSourceText);
   });
 }
 
-function normalizeSlide(type, slide, article, diagnosis, index) {
+function normalizeSlide(type, slide, article, diagnosis, index, errors, quoteSourceText) {
   const source = isPlainObject(slide) ? slide : {};
   const defaults = getSlideDefaults(type, article, diagnosis, index);
   const title = cleanText(source.title) || defaults.title;
@@ -163,8 +166,19 @@ function normalizeSlide(type, slide, article, diagnosis, index) {
   }
 
   const quote = cleanQuoteText(source.quote);
-  if (quote) normalized.quote = quote;
+  if (quote) {
+    const quoteValidation = validateQuote(quote, quoteSourceText);
+    normalized.quoteValidation = quoteValidation;
+    if (quoteValidation === "rejected") {
+      errors.push("cita no coincide con el texto fuente en posicion " + (index + 1));
+    } else {
+      normalized.quote = quote;
+    }
+  }
   copyTextFields(normalized, source, ["author", "role", "image", "supportImage"]);
+  if (source.focalPosition !== undefined) {
+    normalized.focalPosition = normalizeFocalPosition(source.focalPosition);
+  }
   return normalized;
 }
 
@@ -476,9 +490,17 @@ function normalizeItems(items) {
 
   const normalized = [];
   for (let i = 0; i < items.length; i++) {
-    const item = cleanText(items[i]);
-    if (!item) continue;
-    normalized.push(item);
+    const source = items[i];
+    if (isPlainObject(source)) {
+      const value = cleanText(source.value);
+      const label = cleanText(source.label);
+      if (!value && !label) continue;
+      normalized.push({ value: value, label: label });
+    } else {
+      const item = cleanText(source);
+      if (!item) continue;
+      normalized.push(item);
+    }
     if (normalized.length >= MAX_FACT_ITEMS) break;
   }
 
@@ -503,6 +525,21 @@ function cleanText(value) {
 
 function cleanQuoteText(value) {
   return String(value || "").trim();
+}
+
+function getQuoteSourceText(article) {
+  const source = isPlainObject(article) ? article : {};
+  const fields = ["content", "body", "text", "cuerpo"];
+  for (let i = 0; i < fields.length; i++) {
+    const value = String(source[fields[i]] || "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function validateQuote(quote, sourceText) {
+  if (!sourceText) return "unverified";
+  return sourceText.indexOf(quote) >= 0 ? "validated" : "rejected";
 }
 
 function isPlainObject(value) {
