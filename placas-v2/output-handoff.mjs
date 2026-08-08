@@ -7,6 +7,10 @@ export function createEditorialHandoff(editorialPackage, output = 'carrusel') {
   });
 }
 
+export function createReelHandoff(editorialPackage) {
+  return createEditorialHandoff(editorialPackage, 'reel');
+}
+
 export function parseEditorialHandoff(value) {
   if (!value) return null;
   try {
@@ -17,4 +21,3 @@ export function parseEditorialHandoff(value) {
     return null;
   }
 }
-
