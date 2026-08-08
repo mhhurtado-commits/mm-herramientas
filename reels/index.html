@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Reels editoriales · Media Mendoza</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="mm-header">
+    <a class="mm-header-brand" href="../index.html"><img class="mm-header-logo" src="../assets/logo.png" alt="Media Mendoza"><span class="mm-header-name">Media Mendoza</span></a>
+    <div class="mm-header-section"><span class="mm-header-label">Reels editoriales</span></div>
+    <a class="back" href="../placas-v2/">Placas V2</a>
+  </header>
+  <main class="reels-shell">
+    <section class="reels-intro"><p class="eyebrow">SALIDA 9:16</p><h1>Una noticia.<br><em>Un reel con ritmo editorial.</em></h1><p>Ingresá la URL de una nota para generar escenas verticales, legibles y listas para publicar.</p></section>
+    <section class="reels-workspace">
+      <aside class="reels-panel">
+        <form id="reelForm"><label for="reelUrl">Link de la nota</label><div class="url-row"><input id="reelUrl" type="url" required placeholder="https://mediamendoza.com/..." autocomplete="off"><button class="primary" type="submit">Generar</button></div></form>
+        <div id="sceneList" class="scene-list"></div>
+        <p id="reelStatus" class="status">Pegá una URL para comenzar.</p>
+        <button id="downloadButton" class="primary wide" type="button" disabled>Descargar escena PNG</button>
+      </aside>
+      <section class="reels-preview"><div class="preview-head"><div><p class="eyebrow">VISTA PREVIA</p><h2 id="sceneTitle">Tu reel aparece acá</h2></div><span id="sceneCounter"></span></div><div class="reel-canvas-wrap"><canvas id="reelCanvas" width="1080" height="1920"></canvas><div id="dragHint" class="drag-hint is-hidden">Arrastrá la imagen para ajustar el encuadre</div></div></section>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>

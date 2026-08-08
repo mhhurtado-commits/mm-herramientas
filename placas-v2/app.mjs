@@ -101,7 +101,7 @@ function renderOutputs() {
       },
     };
     sessionStorage.setItem(EDITORIAL_HANDOFF_KEY, createEditorialHandoff(handoffPackage, output));
-    window.location.href = '../carousel/';
+    window.location.href = output === 'reel' ? '../reels/' : '../carousel/';
   }));
 }
 
