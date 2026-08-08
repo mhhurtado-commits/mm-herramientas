@@ -1077,6 +1077,30 @@ test('acepta una secuencia legacy completa y la convierte de cover a end', () =>
   assert.equal(slides.at(-1).type, 'end');
 });
 
+test('acepta un summary legacy de seis slides con aliases', () => {
+  const parsed = normalizeCarouselPlan({
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'medium',
+      tone: 'informative',
+      carousel_type: 'summary',
+      template: 'mm_classic',
+      reason: 'Compatibilidad legacy de seis slides.',
+    },
+    cover: { title: 'Portada legacy', subtitle: 'Bajada.' },
+    slides: [
+      { type: 'context', title: 'Contexto', text: 'Antecedente.' },
+      { type: 'facts', title: 'Dato', items: ['47%'] },
+      { type: 'impact', title: 'Impacto', text: 'Consecuencia.' },
+      { type: 'impact', title: 'Alcance', text: 'Consecuencia adicional.' },
+      { type: 'cta', title: 'Media Mendoza', text: 'Seguí leyendo.' },
+    ],
+  }, { title: 'Plan legacy de seis slides', summary: 'Contenido heredado.' });
+
+  assert.equal(parsed.ok, true, parsed.errors.join('\n'));
+});
+
 test('rechaza un carrusel summary de seis slides', () => {
   const parsed = normalizeCarouselPlan(createTypedRangePlan('summary', 6), {
     title: 'Resumen fuera de rango',

@@ -164,7 +164,7 @@ function validateEditorialSequence(source, slides, errors) {
 
   const carouselType = getDeclaredCarouselType(source);
   const range = TYPED_CAROUSEL_SLIDE_RANGES[carouselType];
-  if (range && (total < range.min || total > range.max)) {
+  if (range && !hasLegacySixSlideSummaryShape(source, carouselType, total) && (total < range.min || total > range.max)) {
     errors.push("el carrusel " + carouselType + " debe tener entre " + range.min + " y " + range.max + " slides");
   }
 
@@ -187,6 +187,23 @@ function validateEditorialSequence(source, slides, errors) {
 function getDeclaredCarouselType(source) {
   if (!isPlainObject(source) || !isPlainObject(source.diagnosis)) return "";
   return cleanText(source.diagnosis.carousel_type).toLowerCase();
+}
+
+function hasLegacySixSlideSummaryShape(source, carouselType, total) {
+  if (carouselType !== "summary" || total !== 6 || !isPlainObject(source) || !Array.isArray(source.slides) || source.slides.length !== 5) {
+    return false;
+  }
+
+  const slideTypes = source.slides.map(function (slide) {
+    return isPlainObject(slide) ? cleanText(slide.type).toLowerCase() : "";
+  });
+  const legacyTypes = ["context", "facts", "impact", "cta"];
+
+  return slideTypes.every(function (type) {
+    return legacyTypes.indexOf(type) >= 0;
+  }) && ["context", "facts", "cta"].every(function (type) {
+    return slideTypes.indexOf(type) >= 0;
+  });
 }
 
 function normalizeSlide(type, slide, article, diagnosis, index, errors, quoteSourceText) {
