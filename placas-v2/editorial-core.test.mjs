@@ -129,6 +129,18 @@ test('normaliza una cita literal y no inventa una cita inexistente', () => {
   assert.notEqual(invalid.tipo_placa, 'textual');
 });
 
+test('habilita una textual cuando la cita literal está en el título de la nota', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    title: 'Inquietantes posteos de Luck Ra: “Me estoy apagando”',
+    textual: { cita: 'Me estoy apagando', autor: 'Luck Ra' },
+  });
+
+  assert.equal(plate.tipo_placa, 'textual');
+  assert.equal(plate.textual.verificada, true);
+  assert.equal(plate.textual.cita, 'Me estoy apagando');
+});
+
 test('normaliza personas con imagen de nota o imagen cargada y foco seguro', () => {
   const plate = normalizeNewsPlate({
     ...extracted,
