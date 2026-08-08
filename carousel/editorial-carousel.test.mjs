@@ -31,8 +31,14 @@ function installCanvasHarness() {
         createLinearGradient() {
           return { addColorStop() {} };
         },
-        fillText(value) {
-          calls.text.push(String(value));
+        fillText(value, x, y) {
+          calls.text.push({
+            value: String(value),
+            x,
+            y,
+            baseline: this.textBaseline,
+            font: this.font,
+          });
         },
         drawImage(image) {
           calls.images.push(image.source || '');
@@ -58,6 +64,17 @@ function installCanvasHarness() {
       };
     },
   };
+}
+
+function textValues(canvas) {
+  return canvas.calls.text.map((entry) => entry.value);
+}
+
+function assertContentBaselinesBeforeFooter(canvas, kind) {
+  const footerY = getCarouselLayout(kind, 1080, 1350).safeZones.footer.y;
+  const contentText = canvas.calls.text.filter((entry) => !/^\d+ \/ \d+$/.test(entry.value));
+  assert.ok(contentText.length > 0);
+  assert.ok(contentText.every((entry) => entry.y < footerY), `content baseline crossed footer: ${JSON.stringify(contentText)}`);
 }
 
 function renderEditorialSlide(source, project = {}) {
@@ -227,7 +244,7 @@ test('renderiza un dato normalizado como stats a través del canvas editorial', 
 
   assert.equal(canvas.width, 1080);
   assert.equal(canvas.height, 1350);
-  assert.ok(canvas.calls.text.includes('47%'));
+  assert.ok(textValues(canvas).includes('47%'));
 });
 
 test('renderiza una cita normalizada con autora y rol', () => {
@@ -240,8 +257,12 @@ test('renderiza una cita normalizada con autora y rol', () => {
     },
   });
 
-  assert.ok(canvas.calls.text.includes('Ana Pérez'));
-  assert.ok(canvas.calls.text.includes('Investigadora'));
+  assert.ok(textValues(canvas).includes('La cita literal permanece completa.'));
+  assert.ok(textValues(canvas).includes('Ana Pérez'));
+  assert.ok(textValues(canvas).includes('Investigadora'));
+  const authorLines = canvas.calls.text.filter((entry) => entry.value.includes('Ana Pérez'));
+  const roleLine = canvas.calls.text.find((entry) => entry.value.includes('Investigadora'));
+  assert.ok(roleLine.y > Math.max(...authorLines.map((entry) => entry.y)));
 });
 
 test('renderiza una imagen normalizada usando la imagen del slide', () => {
@@ -258,7 +279,7 @@ test('renderiza una imagen normalizada usando la imagen del slide', () => {
   const canvas = renderEditorialSlide(source);
 
   assert.ok(canvas.calls.images.some((src) => src.includes('example.com%2Fphoto.jpg')));
-  assert.ok(canvas.calls.text.includes('Epígrafe breve y verificable.'));
+  assert.ok(textValues(canvas).includes('Epígrafe breve y verificable.'));
 });
 
 test('renderiza una secuencia completa de cover, texto y cierre por el mismo camino canvas', () => {
@@ -277,4 +298,43 @@ test('renderiza una secuencia completa de cover, texto y cierre por el mismo cam
     [1080, 1350],
     [1080, 1350],
   ]);
+  assert.ok(textValues(canvases[0]).includes('Título de portada'));
+  assert.ok(textValues(canvases[1]).includes('Contexto'));
+  assert.ok(textValues(canvases[1]).includes('Cuerpo legible.'));
+  assert.ok(textValues(canvases[2]).includes('Fuente: Media Mendoza'));
+  assert.ok(textValues(canvases[2]).includes('Seguí leyendo.'));
+  assertContentBaselinesBeforeFooter(canvases[0], 'cover');
+  assertContentBaselinesBeforeFooter(canvases[1], 'text');
+  assertContentBaselinesBeforeFooter(canvases[2], 'end');
+});
+
+test('mantiene citas y contexto largos dentro de la zona segura del pie', () => {
+  const longCopy = Array(80).fill('palabra editorial comprobable').join(' ');
+  const quote = renderEditorialSlide({
+    type: 'cita',
+    content: { text: longCopy, author: 'Autora de referencia', role: 'Especialista' },
+  });
+  const context = renderEditorialSlide({
+    type: 'contexto',
+    content: { title: 'Contexto extenso', text: longCopy },
+  });
+
+  assertContentBaselinesBeforeFooter(quote, 'quote');
+  assertContentBaselinesBeforeFooter(context, 'text');
+  assert.ok(textValues(quote).some((value) => value.includes('palabra')));
+  assert.ok(textValues(context).some((value) => value.includes('palabra')));
+});
+
+test('preserva supportImage en los renderers legacy de texto y stats', () => {
+  const sources = [
+    { template: 'text', content: { title: 'Contexto', text: 'Cuerpo', supportImage: 'https://example.com/support-text.jpg' } },
+    { template: 'stats', content: { title: 'Datos', items: ['12'], supportImage: 'https://example.com/support-stats.jpg' } },
+  ];
+
+  for (const source of sources) {
+    renderEditorialSlide(source);
+    const canvas = renderEditorialSlide(source);
+    const expected = source.content.supportImage.split('/').pop();
+    assert.ok(canvas.calls.images.some((src) => src.includes(encodeURIComponent(expected))), source.template);
+  }
 });

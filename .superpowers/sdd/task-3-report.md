@@ -29,6 +29,13 @@ No Reel file and no `/placas` file was changed. The pre-existing modification to
   author/role; safe crop plus caption; and source plus CTA, respectively.
 - Text uses measured wrapped lines and renders every computed line. The Canvas
   renderer does not add ellipses or silently remove text.
+- Text fitting now receives the available bottom boundary for each layout. When
+  the minimum font still overflows, it deterministically keeps complete
+  word-boundary lines that fit the safe area, without adding an ellipsis.
+- Legacy `text` and `stats` renderers preserve `content.supportImage` through
+  the existing image cache, using contain for context and cover for stats.
+- Quote attribution now measures the author block and places the role after
+  that measured height, avoiding overlap.
 - Existing image-cache asset-ready behavior remains in the Canvas path, so a
   preview and PNG export continue to render from the same entry point.
 
@@ -47,7 +54,7 @@ Command run after review:
 node --test carousel/editorial-carousel.test.mjs
 ```
 
-Result: 18 tests passed, 0 failed.
+Result: 20 tests passed, 0 failed.
 
 The suite covers normalization and layout safety, plus Canvas rendering of:
 
@@ -56,6 +63,11 @@ The suite covers normalization and layout safety, plus Canvas rendering of:
 - `imagen` / `image` using the slide image and its caption; and
 - a complete `cover` / `text` / `end` sequence through
   `renderSlideToCanvas`.
+- long quote and context content whose recorded content baselines remain before
+  `layout.safeZones.footer.y`;
+- preserved `supportImage` drawing for both legacy text and stats templates; and
+- literal quote content, author-before-role ordering, plus cover/text/end content
+  assertions, not only Canvas dimensions.
 
 `git diff --check` also completed with exit code 0 and no whitespace errors.
 
