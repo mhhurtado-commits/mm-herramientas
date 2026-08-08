@@ -2,6 +2,7 @@ import { createCanvas } from "./core/canvas.js";
 import { getCarouselLayout } from "./core/layout.js";
 import { drawImageContain, drawImageCover } from "./core/image.js";
 import { resolveCarouselTheme } from "./core/theme.js";
+import { normalizeCarouselSlide } from "./slide-model.js";
 
 var W = 1080;
 var H = 1350;
@@ -439,7 +440,9 @@ function drawCover(ctx, slide, project, theme, layout) {
 
   var labelY = panelY + 38;
   var titleY = drawEditorialHeader(ctx, slide, project, theme, layout, { y: labelY }) + 8;
-  var title = (project.article && project.article.title) || content.title || "";
+  var title = content.title ||
+    (project.editorialPlan && project.editorialPlan.cover && project.editorialPlan.cover.title) ||
+    (project.article && project.article.title) || "";
   var titleEnd = drawMeasuredText(ctx, title, panelX + 44, titleY, panelW - 88, {
     fontSize: 70, minFontSize: 44, maxLines: 3, lineHeight: 78, weight: "700", color: theme.colors.textPrimary,
     role: "title",
@@ -681,7 +684,12 @@ function drawEnd(ctx, slide, project, theme, layout) {
 
 export function renderSlideToCanvas(slide, project) {
   try {
-    var safeSlide = slide || { template: "text", content: {}, style: {} };
+    var sourceSlide = slide || { template: "text", content: {}, style: {} };
+    var safeSlide = normalizeCarouselSlide(
+      sourceSlide,
+      Number.isInteger(sourceSlide.order) ? sourceSlide.order : 0,
+      Number.isInteger(sourceSlide.total) ? sourceSlide.total : 1
+    );
     var safeProject = project || {};
     var theme = resolveCarouselTheme(safeProject, safeSlide);
     var layout = getCarouselLayout(safeSlide.template || "text", W, H);

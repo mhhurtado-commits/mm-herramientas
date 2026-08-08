@@ -58,7 +58,7 @@ export function normalizeCarouselSlide(slide, index, total) {
   const sourceStyle = isPlainObject(source.style) ? source.style : {};
   const rawType = cleanText(source.type).toLowerCase();
   const rawTemplate = cleanText(source.template).toLowerCase();
-  const type = EDITORIAL_TYPES[rawType]
+  let type = EDITORIAL_TYPES[rawType]
     ? rawType
     : LEGACY_TEMPLATES[rawTemplate] || "contexto";
   const content = {
@@ -69,11 +69,46 @@ export function normalizeCarouselSlide(slide, index, total) {
     items: Array.isArray(sourceContent.items) ? sourceContent.items : [],
     image: firstText(sourceContent.image, source.image)
   };
+  copyQuote(content, sourceContent.quote, source.quote);
+  copyOptionalText(content, "author", sourceContent.author, source.author);
+  copyOptionalText(content, "role", sourceContent.role, source.role);
+  copyOptionalText(content, "source", sourceContent.source, source.source);
+  copyOptionalText(content, "cta", sourceContent.cta, source.cta);
+  const validation = firstText(sourceContent.validation, source.validation, sourceContent.quoteValidation, source.quoteValidation);
+  if (validation) {
+    content.validation = validation;
+    content.quoteValidation = validation;
+  }
+  if (type === "cita" && validation !== "validated") {
+    type = "contexto";
+    content.title = content.title || "Cita sin verificar";
+    content.text = content.text || content.quote || "La cita no pudo verificarse en la nota.";
+    delete content.quote;
+    delete content.author;
+    delete content.role;
+  }
+  if (type === "end") {
+    content.source = content.source || content.title;
+    content.cta = content.cta || content.text;
+    content.text = "";
+  }
+  if (type === "imagen" && !content.image) {
+    type = "contexto";
+    content.title = content.title || "Imagen no disponible";
+    content.text = content.text || "No hay una imagen verificable para esta diapositiva.";
+  }
   const focalPosition = sourceContent.focalPosition !== undefined
     ? sourceContent.focalPosition
-    : source.focalPosition;
+    : source.focalPosition !== undefined
+      ? source.focalPosition
+      : (sourceContent.focalX !== undefined || sourceContent.focalY !== undefined)
+        ? { x: sourceContent.focalX, y: sourceContent.focalY }
+        : undefined;
   if (focalPosition !== undefined) {
-    content.focalPosition = normalizeFocalPosition(focalPosition);
+    const focus = normalizeFocalPosition(focalPosition);
+    content.focalPosition = focus;
+    content.focalX = focus.x;
+    content.focalY = focus.y;
   }
 
   return {
@@ -92,9 +127,27 @@ export function normalizeCarouselSlide(slide, index, total) {
   };
 }
 
-function firstText(value, fallback) {
-  const primary = cleanText(value);
-  return primary || cleanText(fallback);
+function firstText(...values) {
+  for (let i = 0; i < values.length; i++) {
+    const value = cleanText(values[i]);
+    if (value) return value;
+  }
+  return "";
+}
+
+function copyOptionalText(target, key, ...values) {
+  const value = firstText(...values);
+  if (value) target[key] = value;
+}
+
+function copyQuote(target, ...values) {
+  for (let i = 0; i < values.length; i++) {
+    const value = String(values[i] || "").trim();
+    if (value) {
+      target.quote = value;
+      return;
+    }
+  }
 }
 
 function cleanText(value) {

@@ -2,6 +2,7 @@ import { createCarouselProject } from "./models.js";
 import { setProject, getProject } from "./state.js";
 import { renderCarousel } from "./renderer.js";
 import { getEditorialSlideLabel } from "./slide-model.js";
+import { normalizeFocalPosition } from "./core/image.js";
 import { preloadCarouselAssets, renderSlideToCanvas } from "./canvas-renderer.js";
 import { preloadReelSceneAssets, renderReelSceneToCanvas, resolveReelSceneFamily } from "./reel-canvas-renderer.js";
 import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
@@ -255,6 +256,10 @@ function createStageControls(project, activeItem) {
 
   if (activeItem && activeItem.slide && activeItem.slide.template === "cover") {
     wrap.appendChild(createCoverLogoControls(project));
+  }
+
+  if (activeItem && supportsFocalPoint(activeItem.slide)) {
+    wrap.appendChild(createFocalPointControls(project, activeItem.slide));
   }
 
   return wrap;
@@ -1535,6 +1540,69 @@ function createSecondaryImagesControls(project) {
   wrap.appendChild(onBtn);
   wrap.appendChild(offBtn);
   return wrap;
+}
+
+function supportsFocalPoint(slide) {
+  if (!slide || !slide.content) return false;
+  return slide.template === "cover" || slide.template === "image" || !!slide.content.supportImage;
+}
+
+function createFocalPointControls(project, slide) {
+  var wrap = document.createElement("div");
+  wrap.className = "carousel-focal-controls";
+
+  var label = document.createElement("span");
+  label.className = "carousel-cover-controls-label";
+  label.textContent = "Foco de imagen";
+  wrap.appendChild(label);
+
+  var focus = normalizeFocalPosition(slide.content.focalPosition || {
+    x: slide.content.focalX,
+    y: slide.content.focalY,
+  });
+  wrap.appendChild(createFocalAxisControl(project, slide, "X", focus.x));
+  wrap.appendChild(createFocalAxisControl(project, slide, "Y", focus.y));
+  return wrap;
+}
+
+function createFocalAxisControl(project, slide, axis, value) {
+  var label = document.createElement("label");
+  label.className = "carousel-focal-axis";
+  label.textContent = axis;
+  var input = document.createElement("input");
+  input.type = "range";
+  input.min = "0";
+  input.max = "100";
+  input.step = "1";
+  input.value = String(Math.round(value * 100));
+  input.setAttribute("aria-label", "Foco " + axis.toLowerCase());
+  input.addEventListener("input", function () {
+    var current = normalizeFocalPosition(slide.content && slide.content.focalPosition);
+    current[axis.toLowerCase()] = Number(input.value) / 100;
+    updateSlideFocalPosition(project, slide.id, current);
+    renderInPreview();
+  });
+  label.appendChild(input);
+  return label;
+}
+
+export function updateSlideFocalPosition(project, slideId, focalPosition) {
+  if (!project || !Array.isArray(project.slides)) return project;
+  var targetId = String(slideId || "");
+  var slide = project.slides.find(function (candidate) {
+    return String(candidate && candidate.id || "") === targetId;
+  });
+  if (!slide) return project;
+
+  var focus = normalizeFocalPosition(focalPosition);
+  slide.content = {
+    ...(slide.content || {}),
+    focalPosition: focus,
+    focalX: focus.x,
+    focalY: focus.y,
+  };
+  setProject(project);
+  return project;
 }
 
 function createCoverLogoButton(project, option, isActive) {

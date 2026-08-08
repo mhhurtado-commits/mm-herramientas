@@ -1,11 +1,13 @@
 import { CAROUSEL_PLAN_VERSION } from "./parser.js";
 
 export function buildCarouselPrompt(article) {
+  const imageSources = listArticleImageSources(article);
   const content = [
     "Titulo: " + (article.title || ""),
     "Categoria: " + (article.category || ""),
     "Resumen: " + (article.summary || ""),
-    "Contenido: " + (article.content || "")
+    "Contenido: " + (article.content || ""),
+    imageSources.length ? "Imagenes disponibles:\n" + imageSources.join("\n") : ""
   ]
     .filter(Boolean)
     .join("\n");
@@ -39,8 +41,9 @@ export function buildCarouselPrompt(article) {
     '  - service: entre 4 y 5 slides totales\n' +
     "- Los tipos de slide permitidos son: clave, contexto, dato, cita, imagen, end.\n" +
     "- Tambien se aceptan los aliases legacy: context, facts, impact, cta.\n" +
-    "- clave, contexto, impact y end usan text. dato usa items.\n" +
+    "- clave, contexto e impact usan text. dato usa items. end usa source y cta.\n" +
     "- cita usa quote, author y role. imagen usa image y puede usar text como epigrafe.\n" +
+    "- Para imagen, image debe ser solo article.image o article.images[n] de las URLs disponibles. Si no hay fuente visual, usar una slide textual.\n" +
     "- supportImage es opcional para una imagen de apoyo; no inventar URLs ni atribuciones.\n\n" +
     "Responde SOLO con JSON sin backticks ni markdown.\n" +
     "Formato exacto:\n" +
@@ -100,12 +103,24 @@ export function buildCarouselPrompt(article) {
     "    },\n" +
     '    {\n' +
     '      "type":"end",\n' +
-    '      "title":"",\n' +
-    '      "text":""\n' +
+    '      "source":"",\n' +
+    '      "cta":""\n' +
     "    }\n" +
     "  ]\n" +
     "}"
   );
+}
+
+function listArticleImageSources(article = {}) {
+  const urls = [];
+  const main = String(article.image || "").trim();
+  if (main) urls.push("- article.image: " + main);
+  const images = Array.isArray(article.images) ? article.images : [];
+  for (let i = 0; i < images.length; i++) {
+    const url = String(images[i] || "").trim();
+    if (url) urls.push("- article.images[" + i + "]: " + url);
+  }
+  return urls;
 }
 
 export function buildInstagramCaptionPrompt(article, plan) {

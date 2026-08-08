@@ -72,19 +72,34 @@ export function convertirPlanASlides(plan, article, settings) {
     slide.template = map.template;
     slide.order = order++;
     slide.content.title = item.title || "";
-    slide.content.text = item.text || "";
+    slide.content.text = item.type === "end" ? "" : (item.text || "");
     slide.content.items = Array.isArray(item.items) ? item.items.slice() : [];
     slide.content.quote = item.quote || "";
     slide.content.author = item.author || "";
     slide.content.role = item.role || "";
-    slide.content.image = item.image || "";
+    slide.content.source = item.source || (item.type === "end" ? item.title || "" : "");
+    slide.content.cta = item.cta || (item.type === "end" ? item.text || "" : "");
     slide.content.supportImage = item.supportImage || "";
     slide.content.quoteValidation = item.quoteValidation || "";
+    slide.content.validation = item.validation || item.quoteValidation || "";
     if (item.focalPosition !== undefined) {
       slide.content.focalPosition = item.focalPosition;
     }
     if (!slide.content.supportImage && supportsSecondaryImage(item.type) && supportImages[supportIndex]) {
       slide.content.supportImage = supportImages[supportIndex++];
+    }
+    if (item.type === "imagen") {
+      const image = resolveEditorialImage(item.image || item.imagen, article);
+      if (image) {
+        slide.content.image = image;
+      } else {
+        slide.type = "contexto";
+        slide.template = "text";
+        slide.content.title = item.title || "Imagen no disponible";
+        slide.content.text = item.text || "No hay una imagen verificable para esta diapositiva.";
+      }
+    } else {
+      slide.content.image = item.image || "";
     }
     slide.style.theme = theme;
     slides.push(slide);
@@ -174,4 +189,17 @@ function getSupportImages(article) {
     out.push(img);
   }
   return out;
+}
+
+function resolveEditorialImage(reference, article) {
+  const source = String(reference || "").trim();
+  const main = String(article && article.image || "").trim();
+  const images = Array.isArray(article && article.images) ? article.images.map(function (image) {
+    return String(image || "").trim();
+  }) : [];
+  if (source === "article.image") return main;
+  const match = source.match(/^article\.images\[(\d+)\]$/);
+  if (match) return images[Number(match[1])] || "";
+  if (source && ([main].concat(images)).indexOf(source) >= 0) return source;
+  return "";
 }

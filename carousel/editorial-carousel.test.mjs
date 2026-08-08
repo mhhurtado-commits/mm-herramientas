@@ -8,7 +8,7 @@ import { fitText } from './core/text.js';
 import { resolveCarouselTheme } from './core/theme.js';
 import { renderSlideToCanvas } from './canvas-renderer.js';
 import * as canvasRenderer from './canvas-renderer.js';
-import { setProject } from './state.js';
+import { getProject, setProject } from './state.js';
 import { buildCarouselPrompt } from './prompts.js';
 import { normalizeCarouselPlan } from './parser.js';
 import * as carouselEngine from './carousel-engine.js';
@@ -491,6 +491,7 @@ test('renderiza una cita normalizada con autora y rol', () => {
     type: 'cita',
     content: {
       text: 'La cita literal permanece completa.',
+      validation: 'validated',
       author: 'Ana Pérez',
       role: 'Investigadora',
     },
@@ -509,6 +510,7 @@ test('preserva los límites de párrafo al renderizar una cita', () => {
     type: 'cita',
     content: {
       quote: 'Primera línea\n\nSegunda línea',
+      validation: 'validated',
     },
   });
 
@@ -570,7 +572,7 @@ test('mantiene citas y contexto largos dentro de la zona segura del pie', () => 
   const longCopy = `${Array(80).fill('palabra editorial comprobable').join(' ')} ${tailMarker}`;
   const quote = renderEditorialSlide({
     type: 'cita',
-    content: { text: longCopy, author: 'Autora de referencia', role: 'Especialista' },
+    content: { text: longCopy, validation: 'validated', author: 'Autora de referencia', role: 'Especialista' },
   });
   const context = renderEditorialSlide({
     type: 'contexto',
@@ -609,6 +611,7 @@ test('no dibuja una línea cuando un bloque tiene espacio vertical cero', () => 
     type: 'cita',
     content: {
       text: Array(80).fill('cita larga comprobable').join(' '),
+      validation: 'validated',
       author: Array(70).fill('autoría extensa comprobable').join(' '),
       role: 'TAIL_MARKER_ZERO_SPACE',
     },
@@ -640,7 +643,7 @@ test('valida la secuencia editorial modular con contexto, apoyo visual y desbord
       },
     })),
     { type: 'dato', content: { title: 'La cifra principal', items: ['47%', 'Dato comprobable.'] } },
-    { type: 'cita', content: { text: 'La cita permanece literal.', author: 'Ana Pérez', role: 'Investigadora' } },
+    { type: 'cita', content: { text: 'La cita permanece literal.', validation: 'validated', author: 'Ana Pérez', role: 'Investigadora' } },
     { type: 'imagen', content: { title: 'Imagen de apoyo', text: 'Epígrafe comprobable.', image: 'https://example.com/photo.jpg' } },
     { type: 'end', content: { source: 'Media Mendoza', text: 'Seguí leyendo.' } },
   ];
@@ -677,6 +680,7 @@ test('valida la secuencia editorial modular con contexto, apoyo visual y desbord
     type: 'cita',
     content: {
       text: Array(80).fill('cita comprobable').join(' '),
+      validation: 'validated',
       author: Array(70).fill('autoría comprobable').join(' '),
       role: 'TAIL_ZERO_SPACE',
     },
@@ -697,9 +701,122 @@ test('el prompt habilita las familias editoriales y sus campos de contenido', ()
   for (const type of ['clave', 'contexto', 'dato', 'cita', 'imagen', 'end']) {
     assert.match(prompt, new RegExp(`\\b${type}\\b`), type);
   }
-  for (const field of ['quote', 'author', 'role', 'image', 'supportImage', 'items']) {
+  for (const field of ['quote', 'author', 'role', 'image', 'supportImage', 'items', 'source', 'cta']) {
     assert.match(prompt, new RegExp(`"${field}"`), field);
   }
+});
+
+test('prioriza el título editorial normalizado y mantiene source y cta fuera de FUENTE', () => {
+  installCanvasHarness();
+  const cover = normalizeCarouselSlide({
+    type: 'cover',
+    content: { title: 'Titular editorial normalizado', subtitle: 'Bajada.' },
+  }, 0, 4);
+  const coverCanvas = renderSlideToCanvas(cover, {
+    article: { title: 'Titular original de la nota' },
+    slides: [cover],
+  });
+  const article = { title: 'Cierre editorial', summary: 'Resumen.' };
+  const parsed = normalizeCarouselPlan({
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'brief',
+      tone: 'informative',
+      carousel_type: 'summary',
+      template: 'mm_classic',
+      reason: 'Contrato de cierre.',
+    },
+    cover: { title: 'Portada', subtitle: 'Bajada.' },
+    slides: [
+      { type: 'contexto', title: 'Contexto', text: 'Antecedente.' },
+      { type: 'dato', title: 'Dato', items: ['47%'] },
+      { type: 'end', source: 'Fuente: Media Mendoza', cta: 'Leé la nota completa' },
+    ],
+  }, article);
+  const slides = carouselEngine.convertirPlanASlides(parsed.plan, article, {});
+  const endSlide = slides.at(-1);
+  const endCanvas = renderSlideToCanvas(endSlide, { article, slides });
+  const ctaBlock = endCanvas.renderState.blocks.find((block) => block.role === 'cta');
+  const ctaInBody = endCanvas.renderState.blocks.find((block) => block.role === 'body' && block.fullText === 'Leé la nota completa');
+
+  assert.ok(textValues(coverCanvas).includes('Titular editorial normalizado'));
+  assert.equal(textValues(coverCanvas).includes('Titular original de la nota'), false);
+  assert.equal(parsed.plan.slides.at(-1).source, 'Fuente: Media Mendoza');
+  assert.equal(parsed.plan.slides.at(-1).cta, 'Leé la nota completa');
+  assert.equal(endSlide.content.source, 'Fuente: Media Mendoza');
+  assert.equal(endSlide.content.cta, 'Leé la nota completa');
+  assert.equal(endSlide.content.text, '');
+  assert.ok(textValues(endCanvas).includes('Fuente: Media Mendoza'));
+  assert.ok(ctaBlock && ctaBlock.fullText === 'Leé la nota completa');
+  assert.equal(ctaInBody, undefined);
+});
+
+test('incluye las URLs de imagen disponibles en el prompt editorial', () => {
+  const prompt = buildCarouselPrompt({
+    title: 'Noticia con imágenes',
+    image: 'https://example.com/cover.jpg',
+    images: ['https://example.com/cover.jpg', 'https://example.com/support.jpg'],
+  });
+
+  assert.match(prompt, /https:\/\/example\.com\/cover\.jpg/);
+  assert.match(prompt, /https:\/\/example\.com\/support\.jpg/);
+  assert.match(prompt, /article\.images\[1\]/);
+});
+
+test('resuelve imágenes editoriales desde article.images y degrada las que no tienen fuente', () => {
+  const article = {
+    title: 'Imágenes verificables',
+    summary: 'Resumen.',
+    image: 'https://example.com/cover.jpg',
+    images: ['https://example.com/cover.jpg', 'https://example.com/support.jpg'],
+  };
+  const plan = normalizeCarouselPlan({
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'brief',
+      tone: 'informative',
+      carousel_type: 'summary',
+      template: 'mm_classic',
+      reason: 'Incluye una imagen disponible.',
+    },
+    cover: { title: 'Portada', subtitle: 'Bajada.' },
+    slides: [
+      { type: 'contexto', title: 'Contexto', text: 'Antecedente.' },
+      { type: 'imagen', title: 'Imagen', text: 'Epígrafe.', image: 'article.images[1]' },
+      { type: 'end', title: 'Media Mendoza', text: 'Seguí leyendo.' },
+    ],
+  }, article).plan;
+  const unresolvedPlan = {
+    ...plan,
+    slides: plan.slides.map((slide) => slide.type === 'imagen'
+      ? { ...slide, image: '' }
+      : slide),
+  };
+
+  const resolved = carouselEngine.convertirPlanASlides(plan, article, { useSecondaryImages: false });
+  const fallback = carouselEngine.convertirPlanASlides(unresolvedPlan, article, { useSecondaryImages: false });
+
+  assert.equal(resolved[2].type, 'imagen');
+  assert.equal(resolved[2].template, 'image');
+  assert.equal(resolved[2].content.image, 'https://example.com/support.jpg');
+  assert.equal(fallback[2].type, 'contexto');
+  assert.equal(fallback[2].template, 'text');
+  assert.equal(fallback[2].content.image, '');
+  assert.equal(fallback[2].content.text, 'Epígrafe.');
+});
+
+test('normaliza una imagen sin fuente como slide textual segura', () => {
+  const slide = normalizeCarouselSlide({
+    type: 'imagen',
+    content: { title: 'Imagen sin fuente', text: 'Epígrafe disponible.' },
+  }, 1, 4);
+
+  assert.equal(slide.type, 'contexto');
+  assert.equal(slide.template, 'text');
+  assert.equal(slide.content.image, '');
+  assert.equal(slide.content.text, 'Epígrafe disponible.');
 });
 
 test('normaliza, convierte y renderiza las siete familias en el orden del plan', () => {
@@ -708,7 +825,9 @@ test('normaliza, convierte y renderiza las siete familias en el orden del plan',
     title: 'Las familias editoriales',
     category: 'Actualidad',
     summary: 'Un resumen comprobable para la portada.',
+    content: 'La cita permanece literal.',
     image: 'https://example.com/cover.jpg',
+    images: ['https://example.com/cover.jpg', 'https://example.com/editorial-photo.jpg'],
   };
   const parsed = normalizeCarouselPlan({
     diagnosis: {
@@ -824,11 +943,12 @@ test('normaliza, convierte y renderiza las siete familias en el orden del plan',
 });
 
 test('preserva los saltos de línea en citas textuales', () => {
+  const quote = 'Primera linea\n\nSegunda linea';
   const article = {
     title: 'Cita textual',
     summary: 'Resumen editorial.',
+    content: quote,
   };
-  const quote = 'Primera linea\n\nSegunda linea';
   const parsed = normalizeCarouselPlan({
     diagnosis: {
       news_type: 'evergreen',
@@ -886,6 +1006,77 @@ test('normaliza aliases legacy y conserva su renderizado', () => {
   assert.ok(canvases.every((canvas) => canvas.width === 1080 && canvas.height === 1350));
 });
 
+test('rechaza planes editoriales incompletos o con el cierre fuera de secuencia', () => {
+  const diagnosis = {
+    news_type: 'evergreen',
+    vertical: 'general',
+    complexity: 'brief',
+    tone: 'informative',
+    carousel_type: 'summary',
+    template: 'mm_classic',
+    reason: 'Contrato de secuencia.',
+  };
+  const article = { title: 'Contrato editorial', summary: 'Resumen verificable.' };
+  const incomplete = normalizeCarouselPlan({
+    diagnosis,
+    cover: { title: 'Portada', subtitle: 'Bajada.' },
+    slides: [
+      { type: 'contexto', title: 'Contexto', text: 'Antecedente.' },
+      { type: 'end', source: 'Media Mendoza', cta: 'Leé la nota completa.' },
+    ],
+  }, article);
+  const misplacedEnd = normalizeCarouselPlan({
+    diagnosis,
+    cover: { title: 'Portada', subtitle: 'Bajada.' },
+    slides: [
+      { type: 'end', source: 'Media Mendoza', cta: 'Leé la nota completa.' },
+      { type: 'contexto', title: 'Contexto', text: 'Antecedente.' },
+      { type: 'dato', title: 'Dato', items: ['47%'] },
+    ],
+  }, article);
+  const missingCover = normalizeCarouselPlan({
+    diagnosis,
+    slides: [
+      { type: 'contexto', title: 'Contexto', text: 'Antecedente.' },
+      { type: 'dato', title: 'Dato', items: ['47%'] },
+      { type: 'end', source: 'Media Mendoza', cta: 'Leé la nota completa.' },
+    ],
+  }, article);
+
+  assert.equal(incomplete.ok, false);
+  assert.ok(incomplete.errors.some((error) => /4 y 7/.test(error)));
+  assert.equal(misplacedEnd.ok, false);
+  assert.ok(misplacedEnd.errors.some((error) => /ultima.*end/i.test(error)));
+  assert.equal(missingCover.ok, false);
+  assert.ok(missingCover.errors.some((error) => /primera.*cover/i.test(error)));
+});
+
+test('acepta una secuencia legacy completa y la convierte de cover a end', () => {
+  const parsed = normalizeCarouselPlan({
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'brief',
+      tone: 'informative',
+      carousel_type: 'summary',
+      template: 'mm_classic',
+      reason: 'Compatibilidad legacy.',
+    },
+    cover: { title: 'Portada legacy', subtitle: 'Bajada.' },
+    slides: [
+      { type: 'context', title: 'Contexto', text: 'Antecedente.' },
+      { type: 'facts', title: 'Dato', items: ['47%'] },
+      { type: 'cta', title: 'Media Mendoza', text: 'Seguí leyendo.' },
+    ],
+  }, { title: 'Plan legacy', summary: 'Contenido heredado.' });
+
+  assert.equal(parsed.ok, true, parsed.errors.join('\n'));
+  const slides = carouselEngine.convertirPlanASlides(parsed.plan, parsed.plan.article, {});
+  assert.equal(slides.length, 4);
+  assert.equal(slides[0].type, 'cover');
+  assert.equal(slides.at(-1).type, 'end');
+});
+
 function createQuotePlan(quote) {
   return {
     diagnosis: {
@@ -898,11 +1089,16 @@ function createQuotePlan(quote) {
       reason: 'Incluye una cita textual.',
     },
     cover: { title: 'Portada', subtitle: 'Bajada.' },
-    slides: [{ type: 'cita', quote, author: 'Ana Perez', role: 'Investigadora' }],
+    slides: [
+      { type: 'contexto', title: 'Contexto', text: 'Antecedente verificable.' },
+      { type: 'dato', title: 'Dato', items: ['47%'] },
+      { type: 'cita', quote, author: 'Ana Perez', role: 'Investigadora' },
+      { type: 'cta', title: 'Media Mendoza', text: 'Seguí leyendo.' },
+    ],
   };
 }
 
-test('valida citas literales contra el cuerpo disponible y conserva una fuente sin validar', () => {
+test('solo normaliza como cita las textuales validadas y degrada las demas a texto seguro', () => {
   const literal = 'La comunidad recibira nuevos turnos desde el lunes.';
   const accepted = normalizeCarouselPlan(createQuotePlan(`  ${literal}  `), {
     title: 'Cita textual',
@@ -920,7 +1116,7 @@ test('valida citas literales contra el cuerpo disponible y conserva una fuente s
   });
 
   assert.equal(accepted.ok, true, accepted.errors.join('\n'));
-  assert.deepEqual(accepted.plan.slides[0], {
+  assert.deepEqual(accepted.plan.slides[2], {
     type: 'cita',
     title: '',
     text: '',
@@ -928,16 +1124,41 @@ test('valida citas literales contra el cuerpo disponible y conserva una fuente s
     author: 'Ana Perez',
     role: 'Investigadora',
     quoteValidation: 'validated',
+    validation: 'validated',
   });
   assert.equal(rejected.ok, false);
-  assert.equal(rejected.plan.slides[0].quote, undefined);
-  assert.equal(rejected.plan.slides[0].author, 'Ana Perez');
-  assert.equal(rejected.plan.slides[0].role, 'Investigadora');
-  assert.equal(rejected.plan.slides[0].quoteValidation, 'rejected');
+  assert.equal(rejected.plan.slides[2].type, 'contexto');
+  assert.equal(rejected.plan.slides[2].quote, undefined);
+  assert.equal(rejected.plan.slides[2].quoteValidation, 'rejected');
+  assert.equal(rejected.plan.slides[2].validation, 'rejected');
   assert.ok(rejected.errors.some((error) => /cita.*no coincide/.test(error)));
   assert.equal(unverified.ok, true, unverified.errors.join('\n'));
-  assert.equal(unverified.plan.slides[0].quote, literal);
-  assert.equal(unverified.plan.slides[0].quoteValidation, 'unverified');
+  assert.equal(unverified.plan.slides[2].type, 'contexto');
+  assert.equal(unverified.plan.slides[2].quote, undefined);
+  assert.equal(unverified.plan.slides[2].quoteValidation, 'unverified');
+  assert.equal(unverified.plan.slides[2].validation, 'unverified');
+
+  const unsafeSlide = normalizeCarouselSlide({
+    type: 'cita',
+    content: { quote: literal, validation: 'unverified', author: 'Ana Perez' },
+  }, 1, 4);
+  const canvas = renderSlideToCanvas(unsafeSlide, { slides: [unsafeSlide] });
+  assert.equal(unsafeSlide.type, 'contexto');
+  assert.equal(unsafeSlide.template, 'text');
+  assert.equal(textValues(canvas).includes('“'), false);
+  assert.ok(textValues(canvas).join(' ').includes(literal));
+});
+
+test('el renderer Canvas no dibuja como cita un input sin validación', () => {
+  installCanvasHarness();
+  const canvas = renderSlideToCanvas({
+    type: 'cita',
+    template: 'quote',
+    content: { quote: 'Texto sin validar.', validation: 'unverified' },
+  }, {});
+
+  assert.equal(textValues(canvas).includes('“'), false);
+  assert.ok(textValues(canvas).join(' ').includes('Texto sin validar.'));
 });
 
 test('renderiza datos estructurados sin convertirlos en objetos de texto', () => {
@@ -1048,4 +1269,22 @@ test('aplica el foco normalizado a las imagenes de apoyo', () => {
   assert.ok(centeredDraw);
   assert.ok(focusedDraw);
   assert.notEqual(centeredDraw.args[0], focusedDraw.args[0]);
+});
+
+test('actualiza focalX y focalY en el estado del slide de imagen activo', () => {
+  const slide = normalizeCarouselSlide({
+    id: 'imagen-1',
+    type: 'imagen',
+    content: { title: 'Imagen', image: 'https://example.com/focal.jpg' },
+  }, 1, 4);
+  const project = { slides: [slide] };
+
+  assert.equal(typeof carouselUI.updateSlideFocalPosition, 'function');
+  const updated = carouselUI.updateSlideFocalPosition(project, 'imagen-1', { x: 1.4, y: -0.2 });
+
+  assert.equal(updated, project);
+  assert.equal(getProject(), project);
+  assert.deepEqual(project.slides[0].content.focalPosition, { x: 1, y: 0 });
+  assert.equal(project.slides[0].content.focalX, 1);
+  assert.equal(project.slides[0].content.focalY, 0);
 });

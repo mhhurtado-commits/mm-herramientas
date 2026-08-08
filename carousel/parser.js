@@ -36,6 +36,7 @@ export function normalizeCarouselPlan(rawPlan, article) {
   const diagnosis = normalizeDiagnosis(source.diagnosis, normalizedArticle, errors);
   const cover = normalizeCover(source.cover, normalizedArticle, diagnosis, errors);
   const slides = normalizeSlides(source.slides, normalizedArticle, diagnosis, errors, quoteSourceText);
+  validateEditorialSequence(source, slides, errors);
   diagnosis.slide_count = slides.length + 1;
   const normalizedPlan = {
     version: CAROUSEL_PLAN_VERSION,
@@ -67,7 +68,8 @@ function normalizeArticle(article) {
     title: cleanText(source.title),
     category: cleanText(source.category),
     summary: cleanText(source.summary),
-    image: cleanText(source.image)
+    image: cleanText(source.image),
+    images: normalizeImageSources(source.images)
   };
 }
 
@@ -132,8 +134,8 @@ function normalizeSlides(slides, article, diagnosis, errors, quoteSourceText) {
     }
 
     const slide = normalizeSlide(type, source, article, diagnosis, i, errors, quoteSourceText);
-    if (!slide.title && type !== "cita") {
-      errors.push("slide sin titulo en posicion " + (i + 1) + ": " + type);
+    if (!slide.title && slide.type !== "cita" && slide.type !== "end") {
+      errors.push("slide sin titulo en posicion " + (i + 1) + ": " + slide.type);
     }
     normalized.push(slide);
   }
@@ -148,6 +150,28 @@ function normalizeSlides(slides, article, diagnosis, errors, quoteSourceText) {
     errors.push("slide faltante en posicion " + (index + 1) + ": " + type);
     return normalizeSlide(type, {}, article, diagnosis, index, errors, quoteSourceText);
   });
+}
+
+function validateEditorialSequence(source, slides, errors) {
+  const total = slides.length + 1;
+  if (total < 4 || total > 7) {
+    errors.push("la secuencia editorial debe tener entre 4 y 7 slides");
+  }
+
+  if (!isPlainObject(source.cover)) {
+    errors.push("la primera slide debe ser cover");
+  }
+
+  if (!slides.length || slides[slides.length - 1].type !== "end") {
+    errors.push("la ultima slide debe ser end");
+  }
+
+  for (let i = 0; i < Math.max(0, slides.length - 1); i++) {
+    if (slides[i].type === "end") {
+      errors.push("end solo puede aparecer como ultima slide");
+      break;
+    }
+  }
 }
 
 function normalizeSlide(type, slide, article, diagnosis, index, errors, quoteSourceText) {
@@ -165,17 +189,33 @@ function normalizeSlide(type, slide, article, diagnosis, index, errors, quoteSou
     normalized.items = items.length ? items : defaults.items;
   }
 
+  if (type === "end") {
+    normalized.source = cleanText(source.source) || cleanText(source.title) || defaults.source;
+    normalized.cta = cleanText(source.cta) || cleanText(source.text) || defaults.cta;
+    normalized.title = "";
+    normalized.text = "";
+  }
+
   const quote = cleanQuoteText(source.quote);
-  if (quote) {
+  if (type === "cita") {
     const quoteValidation = validateQuote(quote, quoteSourceText);
     normalized.quoteValidation = quoteValidation;
+    normalized.validation = quoteValidation;
+    if (quoteValidation === "validated") {
+      normalized.quote = quote;
+      copyTextFields(normalized, source, ["author", "role"]);
+    } else {
+      normalized.type = "contexto";
+      normalized.title = cleanText(source.title) || "Cita sin verificar";
+      normalized.text = cleanText(source.text) || quote || "La cita no pudo verificarse en la nota.";
+    }
     if (quoteValidation === "rejected") {
       errors.push("cita no coincide con el texto fuente en posicion " + (index + 1));
-    } else {
-      normalized.quote = quote;
     }
   }
-  copyTextFields(normalized, source, ["author", "role", "image", "supportImage"]);
+  copyTextFields(normalized, source, ["supportImage"]);
+  const image = cleanText(source.image) || cleanText(source.imagen);
+  if (image) normalized.image = image;
   if (source.focalPosition !== undefined) {
     normalized.focalPosition = normalizeFocalPosition(source.focalPosition);
   }
@@ -230,8 +270,8 @@ function getSlideDefaults(type, article, diagnosis, index) {
 
   if (type === "end") {
     return {
-      title: labels.cta[index] || "Segui la cobertura",
-      text: article.url ? "Lee la nota completa en mediamendoza.com" : "Segui informado con Media Mendoza"
+      source: article.url || "Media Mendoza",
+      cta: labels.cta[index] || "Segui la cobertura"
     };
   }
 
@@ -521,6 +561,11 @@ function matchesAny(text, words) {
 
 function cleanText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function normalizeImageSources(images) {
+  if (!Array.isArray(images)) return [];
+  return images.map(cleanText).filter(Boolean);
 }
 
 function cleanQuoteText(value) {
