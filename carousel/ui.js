@@ -520,8 +520,8 @@ function buildReelCaptionText(project) {
 }
 
 function getReelOutput(project) {
-  if (!project || !project.editorialPackage || !project.editorialPackage.outputs) return null;
-  return project.editorialPackage.outputs.reel || null;
+  if (!project || !project.editorialPackage) return null;
+  return project.editorialPackage.outputs?.reel || project.editorialPackage.salidas?.reel || null;
 }
 
 function createReelPreviewThumb(scene, index, project) {
