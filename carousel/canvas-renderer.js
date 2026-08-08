@@ -126,6 +126,7 @@ function drawEditorialHeader(ctx, slide, project, theme, layout, options) {
   fillRoundRect(ctx, x, y, width, 46, 23, theme.colors.accent);
   ctx.fillStyle = theme.colors.textPrimary;
   ctx.textBaseline = "middle";
+  ctx.__carouselLineHeight = 46;
   ctx.fillText(text, x + 21, y + 23);
   ctx.textBaseline = "top";
   return y + 72;
@@ -141,34 +142,28 @@ function getMeasuredText(ctx, text, maxWidth, options, y) {
   }
 
   var value = String(text || "");
+  var fitMaxLines = Math.max(1, maxLines);
   var result = fitText(ctx, value, {
     fontSize: initialFontSize,
     minFontSize: settings.minFontSize || 24,
     maxWidth: maxWidth,
-    maxLines: maxLines,
+    maxLines: fitMaxLines,
     lineHeight: lineHeight,
     fontFamily: "Inter, Arial, sans-serif"
   });
 
-  if (result.truncated) {
-    value = result.lines.slice(0, maxLines).join(" ").trim();
-    result = fitText(ctx, value, {
-      fontSize: initialFontSize,
-      minFontSize: settings.minFontSize || 24,
-      maxWidth: maxWidth,
-      maxLines: maxLines,
-      lineHeight: lineHeight,
-      fontFamily: "Inter, Arial, sans-serif"
-    });
-  }
-
   var measuredLineHeight = Math.round(lineHeight * (result.fontSize / initialFontSize));
+  var overflow = maxLines === 0 || result.truncated || result.lines.length > maxLines;
+  var visibleLines = maxLines === 0 ? [] : result.lines.slice(0, maxLines);
   return {
-    value: value,
-    lines: result.lines,
+    fullText: value,
+    fullLines: result.lines,
+    lines: visibleLines,
     fontSize: result.fontSize,
     lineHeight: measuredLineHeight,
-    height: result.lines.length * measuredLineHeight
+    height: visibleLines.length * measuredLineHeight,
+    renderedText: visibleLines.join(" "),
+    overflow: overflow,
   };
 }
 
@@ -180,9 +175,21 @@ function drawMeasuredText(ctx, text, x, y, maxWidth, options) {
     ? Math.max(0, settings.maxBottom - lineHeight)
     : y;
   var measured = getMeasuredText(ctx, text, maxWidth, settings, safeY);
+  var renderState = ctx.__carouselRenderState;
+  if (renderState) {
+    renderState.overflow = renderState.overflow || measured.overflow;
+    renderState.blocks.push({
+      fullText: measured.fullText,
+      renderedText: measured.renderedText,
+      fullLines: measured.fullLines.length,
+      renderedLines: measured.lines.length,
+      overflow: measured.overflow,
+    });
+  }
   ctx.font = (settings.weight || "400") + " " + measured.fontSize + "px Inter, Arial, sans-serif";
   ctx.fillStyle = settings.color || "#111111";
   ctx.textBaseline = "top";
+  ctx.__carouselLineHeight = measured.lineHeight;
   for (var i = 0; i < measured.lines.length; i++) {
     ctx.fillText(measured.lines[i], x, safeY + i * measured.lineHeight);
   }
@@ -203,6 +210,7 @@ function drawSlideProgress(ctx, slide, project, theme, layout) {
   ctx.fillStyle = theme.colors.footer;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
+  ctx.__carouselLineHeight = 21;
   ctx.fillText(current + " / " + total, footer.x + footer.width - layout.content.x, footer.y + footer.height / 2);
   ctx.textAlign = "start";
   ctx.textBaseline = "top";
@@ -274,6 +282,7 @@ function drawCover(ctx, slide, project, theme, layout) {
   ctx.font = theme.fonts.footer;
   ctx.fillStyle = theme.colors.textMuted;
   ctx.textBaseline = "middle";
+  ctx.__carouselLineHeight = 21;
   ctx.fillText("Deslizá para seguir", panelX + 44, panelY + panelH - 42);
   ctx.textBaseline = "top";
   drawSlideProgress(ctx, slide, project, theme, layout);
@@ -349,6 +358,7 @@ function drawQuote(ctx, slide, project, theme, layout) {
   ctx.font = "700 170px Georgia, serif";
   ctx.fillStyle = theme.colors.accent;
   ctx.textBaseline = "top";
+  ctx.__carouselLineHeight = 170;
   ctx.fillText("“", layout.content.x, layout.content.y + 196);
   var quoteEnd = drawMeasuredText(ctx, quote, layout.content.x + 28, layout.content.y + 344, layout.content.width - 28, {
     fontSize: 52, minFontSize: 30, maxLines: 8, lineHeight: 62, weight: "400", color: theme.colors.textPrimary,
@@ -439,6 +449,9 @@ export function renderSlideToCanvas(slide, project) {
     var layout = getCarouselLayout(safeSlide.template || "text", W, H);
     var canvas = createCanvas(W, H);
     var ctx = canvas.getContext("2d");
+    var renderState = { overflow: false, blocks: [] };
+    canvas.renderState = renderState;
+    ctx.__carouselRenderState = renderState;
 
     switch (safeSlide.template) {
       case "cover": drawCover(ctx, safeSlide, safeProject, theme, layout); break;
@@ -449,6 +462,7 @@ export function renderSlideToCanvas(slide, project) {
       case "text":
       default: drawText(ctx, safeSlide, safeProject, theme, layout); break;
     }
+    canvas.editorialOverflow = renderState.overflow;
     return canvas;
   } catch (error) {
     console.log("EXCEPTION in renderSlideToCanvas:", error);

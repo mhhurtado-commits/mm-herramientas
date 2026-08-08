@@ -27,11 +27,14 @@ No Reel file and no `/placas` file was changed. The pre-existing modification to
 - Context, stats, quote, image, and end layouts now have distinct editorial
   treatments: context panel; primary fact plus explanation; literal quote plus
   author/role; safe crop plus caption; and source plus CTA, respectively.
-- Text uses measured wrapped lines and renders every computed line. The Canvas
-  renderer does not add ellipses or silently remove text.
-- Text fitting now receives the available bottom boundary for each layout. When
-  the minimum font still overflows, it deterministically keeps complete
-  word-boundary lines that fit the safe area, without adding an ellipsis.
+- Text uses measured wrapped lines and never adds ellipses. Each measured block
+  retains `fullText`/`fullLines`, records the safe `renderedText`/`renderedLines`,
+  and sets `overflow: true` when the full copy cannot fit.
+- Text fitting receives the available bottom boundary for each layout. It never
+  forces a one-line draw when no complete line fits, and it never draws beyond
+  the footer. The Canvas exposes the aggregate state as `canvas.renderState`
+  and `canvas.editorialOverflow`, allowing the caller to shorten copy
+  explicitly while retaining the full-copy overflow result.
 - Legacy `text` and `stats` renderers preserve `content.supportImage` through
   the existing image cache, using contain for context and cover for stats.
 - Quote attribution now measures the author block and places the role after
@@ -64,7 +67,9 @@ The suite covers normalization and layout safety, plus Canvas rendering of:
 - a complete `cover` / `text` / `end` sequence through
   `renderSlideToCanvas`.
 - long quote and context content whose recorded content baselines remain before
-  `layout.safeZones.footer.y`;
+  `layout.safeZones.footer.y` including each line-height;
+- unique tail-marker preservation in `renderState.fullText`, with an explicit
+  overflow signal when the marker is not rendered in the safe visible lines;
 - preserved `supportImage` drawing for both legacy text and stats templates; and
 - literal quote content, author-before-role ordering, plus cover/text/end content
   assertions, not only Canvas dimensions.

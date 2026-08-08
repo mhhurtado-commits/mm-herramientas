@@ -38,6 +38,7 @@ function installCanvasHarness() {
             y,
             baseline: this.textBaseline,
             font: this.font,
+            lineHeight: this.__carouselLineHeight || 0,
           });
         },
         drawImage(image) {
@@ -46,6 +47,7 @@ function installCanvasHarness() {
       }, {
         get(target, key) {
           if (key in target) return target[key];
+          if (key === '__carouselLineHeight') return undefined;
           return () => {};
         },
         set(target, key, value) {
@@ -74,7 +76,7 @@ function assertContentBaselinesBeforeFooter(canvas, kind) {
   const footerY = getCarouselLayout(kind, 1080, 1350).safeZones.footer.y;
   const contentText = canvas.calls.text.filter((entry) => !/^\d+ \/ \d+$/.test(entry.value));
   assert.ok(contentText.length > 0);
-  assert.ok(contentText.every((entry) => entry.y < footerY), `content baseline crossed footer: ${JSON.stringify(contentText)}`);
+  assert.ok(contentText.every((entry) => entry.y + entry.lineHeight <= footerY), `content line crossed footer: ${JSON.stringify(contentText)}`);
 }
 
 function renderEditorialSlide(source, project = {}) {
@@ -262,7 +264,7 @@ test('renderiza una cita normalizada con autora y rol', () => {
   assert.ok(textValues(canvas).includes('Investigadora'));
   const authorLines = canvas.calls.text.filter((entry) => entry.value.includes('Ana Pérez'));
   const roleLine = canvas.calls.text.find((entry) => entry.value.includes('Investigadora'));
-  assert.ok(roleLine.y > Math.max(...authorLines.map((entry) => entry.y)));
+  assert.ok(Math.max(...authorLines.map((entry) => entry.y + entry.lineHeight)) <= roleLine.y);
 });
 
 test('renderiza una imagen normalizada usando la imagen del slide', () => {
@@ -309,7 +311,8 @@ test('renderiza una secuencia completa de cover, texto y cierre por el mismo cam
 });
 
 test('mantiene citas y contexto largos dentro de la zona segura del pie', () => {
-  const longCopy = Array(80).fill('palabra editorial comprobable').join(' ');
+  const tailMarker = 'TAIL_MARKER_TASK3';
+  const longCopy = `${Array(80).fill('palabra editorial comprobable').join(' ')} ${tailMarker}`;
   const quote = renderEditorialSlide({
     type: 'cita',
     content: { text: longCopy, author: 'Autora de referencia', role: 'Especialista' },
@@ -323,6 +326,13 @@ test('mantiene citas y contexto largos dentro de la zona segura del pie', () => 
   assertContentBaselinesBeforeFooter(context, 'text');
   assert.ok(textValues(quote).some((value) => value.includes('palabra')));
   assert.ok(textValues(context).some((value) => value.includes('palabra')));
+  for (const canvas of [quote, context]) {
+    const block = canvas.renderState.blocks.find((entry) => entry.fullText.includes(tailMarker));
+    assert.ok(block);
+    assert.ok(textValues(canvas).join(' ').includes(tailMarker) || canvas.renderState.overflow === true);
+    assert.equal(canvas.editorialOverflow, canvas.renderState.overflow);
+    assert.equal(block.fullText.includes(tailMarker), true);
+  }
 });
 
 test('preserva supportImage en los renderers legacy de texto y stats', () => {
