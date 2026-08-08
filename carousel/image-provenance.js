@@ -1,5 +1,17 @@
+const IMAGE_PROXY = 'https://mm-herramientas-worker.mhhurtado.workers.dev?image=';
+
 function cleanImageSource(value) {
   return String(value || '').trim();
+}
+
+function unwrapKnownProxyImageSource(value) {
+  const source = cleanImageSource(value);
+  if (!source.startsWith(IMAGE_PROXY)) return source;
+  try {
+    return decodeURIComponent(source.slice(IMAGE_PROXY.length));
+  } catch {
+    return '';
+  }
 }
 
 function getArticleImageSources(article) {
@@ -12,7 +24,7 @@ function getArticleImageSources(article) {
 }
 
 export function resolveArticleImage(reference, article) {
-  const source = cleanImageSource(reference);
+  const source = unwrapKnownProxyImageSource(reference);
   const { main, images, available } = getArticleImageSources(article);
   if (source === 'article.image') return main;
   const match = source.match(/^article\.images\[(\d+)\]$/);

@@ -13,6 +13,7 @@ import { getProject, setProject } from './state.js';
 import { buildCarouselPrompt } from './prompts.js';
 import { normalizeCarouselPlan } from './parser.js';
 import * as carouselEngine from './carousel-engine.js';
+import { resolveSupportImage } from './image-provenance.js';
 
 test('mapea los tipos editoriales a etiquetas visibles y conserva cover/legacy', () => {
   assert.deepEqual(
@@ -993,6 +994,20 @@ test('limita supportImage a imagenes de la nota o fuentes manuales explicitas', 
   }, 1, 4);
   await canvasRenderer.preloadCarouselAssets([preloadSlide], { article, slides: [preloadSlide] });
   assert.equal(preloadedSources.some((source) => source.includes('preload-unsupported.jpg')), false);
+});
+
+test('conserva una imagen de la nota guardada con el proxy conocido y rechaza proxies ajenos', () => {
+  const worker = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
+  const articleImage = 'https://example.com/article-support.jpg?width=1200&format=webp';
+  const article = {
+    image: 'https://example.com/cover.jpg',
+    images: ['https://example.com/cover.jpg', articleImage],
+  };
+  const persistedProxy = `${worker}?image=${encodeURIComponent(articleImage)}`;
+  const foreignProxy = `${worker}?image=${encodeURIComponent('https://foreign.example/unsupported.jpg')}`;
+
+  assert.equal(resolveSupportImage(persistedProxy, article), articleImage);
+  assert.equal(resolveSupportImage(foreignProxy, article), '');
 });
 
 test('normaliza una imagen sin fuente como slide textual segura', () => {
