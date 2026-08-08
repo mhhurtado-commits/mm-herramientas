@@ -503,6 +503,23 @@ test('renderiza una cita normalizada con autora y rol', () => {
   assert.ok(Math.max(...authorLines.map((entry) => entry.y + entry.lineHeight)) <= roleLine.y);
 });
 
+test('preserva los límites de párrafo al renderizar una cita', () => {
+  const canvas = renderEditorialSlide({
+    type: 'cita',
+    content: {
+      quote: 'Primera línea\n\nSegunda línea',
+    },
+  });
+
+  const firstLine = canvas.calls.text.find((entry) => entry.value === 'Primera línea');
+  const secondLine = canvas.calls.text.find((entry) => entry.value === 'Segunda línea');
+
+  assert.ok(firstLine);
+  assert.ok(secondLine);
+  assert.ok(secondLine.y > firstLine.y);
+  assert.equal(textValues(canvas).includes('Primera línea Segunda línea'), false);
+});
+
 test('renderiza una imagen normalizada usando la imagen del slide', () => {
   const source = {
     type: 'imagen',

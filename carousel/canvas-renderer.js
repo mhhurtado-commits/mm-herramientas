@@ -212,7 +212,9 @@ function fitMeasuredText(ctx, text, maxWidth, settings, maxLines) {
 
   do {
     ctx.font = getTextFont(settings, fontSize);
-    lines = wrapMeasuredLines(ctx, text, maxWidth);
+    lines = settings.preserveLineBreaks
+      ? wrapMeasuredParagraphs(ctx, text, maxWidth)
+      : wrapMeasuredLines(ctx, text, maxWidth);
     if (lines.length <= maxLines || fontSize === minFontSize) break;
     fontSize = Math.max(minFontSize, fontSize - 1);
   } while (true);
@@ -256,6 +258,21 @@ function wrapMeasuredLines(ctx, text, maxWidth) {
     }
   }
   if (line) lines.push(line);
+  return lines;
+}
+
+function wrapMeasuredParagraphs(ctx, text, maxWidth) {
+  var paragraphs = String(text || "").split(/\r?\n/);
+  var lines = [];
+
+  for (var i = 0; i < paragraphs.length; i++) {
+    var paragraphLines = wrapMeasuredLines(ctx, paragraphs[i], maxWidth);
+    if (paragraphLines.length) {
+      lines.push.apply(lines, paragraphLines);
+    } else if (i > 0 && i < paragraphs.length - 1) {
+      lines.push("");
+    }
+  }
   return lines;
 }
 
@@ -531,7 +548,7 @@ function drawQuote(ctx, slide, project, theme, layout) {
   ctx.fillText("“", layout.content.x, layout.content.y + 196);
   var quoteEnd = drawMeasuredText(ctx, quote, layout.content.x + 28, layout.content.y + 344, layout.content.width - 28, {
     fontSize: 52, minFontSize: 30, maxLines: 8, lineHeight: 62, weight: "400", color: theme.colors.textPrimary,
-    role: "quote",
+    role: "quote", preserveLineBreaks: true,
     maxBottom: layout.safeZones.footer.y - (content.author || content.source ? 126 : 34),
   });
   var author = content.author || content.source || "";
