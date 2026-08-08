@@ -195,7 +195,9 @@ function drawLogo(ctx, project, theme, layout, overImage) {
 
   ctx.save();
   if (!isOverImage && !isEnd) {
-    fillRoundRect(ctx, x - 14, y - 8, width + 28, height + 16, 16, theme.colors.surfaceInk);
+    ctx.shadowColor = "rgba(27,30,34,0.58)";
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetY = 1;
   }
   if (isOverImage) {
     ctx.shadowColor = "rgba(0,0,0,0.42)";
@@ -747,13 +749,20 @@ function drawEnd(ctx, slide, project, theme, layout) {
     role: "source",
     maxBottom: layout.safeZones.footer.y - 250,
   });
-  y = drawMeasuredText(ctx, content.text || content.subtitle || "", layout.content.x, y + 26, layout.content.width, {
-    fontSize: 32, minFontSize: 24, maxLines: 4, lineHeight: 42, color: "rgba(255,255,255,0.82)",
-    role: "body",
-    maxBottom: layout.safeZones.footer.y - 170,
-  });
+  var detail = content.text || content.subtitle || (project.article && project.article.summary) || "";
+  if (detail) {
+    y = drawMeasuredText(ctx, "EN ESTA NOTA", layout.content.x, y + 42, layout.content.width, {
+      fontSize: 22, minFontSize: 18, maxLines: 1, lineHeight: 28, weight: "700", color: theme.colors.accent,
+      role: "kicker", maxBottom: layout.safeZones.footer.y - 300
+    });
+    y = drawMeasuredText(ctx, detail, layout.content.x, y + 12, layout.content.width, {
+      fontSize: 32, minFontSize: 24, maxLines: 3, lineHeight: 42, color: "rgba(255,255,255,0.82)",
+      role: "body",
+      maxBottom: layout.safeZones.footer.y - 280,
+    });
+  }
   var cta = content.cta || theme.variant.endUrlLabel;
-  var ctaY = Math.min(layout.safeZones.footer.y - 154, Math.max(y + 64, layout.content.y + 620));
+  var ctaY = Math.min(layout.safeZones.footer.y - 154, Math.max(y + 54, layout.content.y + 620));
   fillRoundRect(ctx, layout.content.x, ctaY, layout.content.width, 96, 28, theme.colors.endCtaFill);
   drawMeasuredText(ctx, cta, layout.content.x + 30, ctaY + 28, layout.content.width - 60, {
     fontSize: 28, minFontSize: 22, maxLines: 2, lineHeight: 34, weight: "700", color: theme.colors.endCtaText,
