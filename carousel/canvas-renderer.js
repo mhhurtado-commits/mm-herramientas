@@ -529,13 +529,19 @@ function drawKey(ctx, slide, project, theme, layout) {
   fillRoundRect(ctx, layout.content.x, cardY, layout.content.width, cardHeight, 34, theme.colors.accentSoft);
   strokeRoundRect(ctx, layout.content.x, cardY, layout.content.width, cardHeight, 34, theme.colors.accent, 3);
   fillRoundRect(ctx, layout.content.x, cardY, 14, cardHeight, 7, theme.colors.accent);
+  var supportImage = content.supportImage;
+  var hasSupportImage = supportImage && drawSupportImage(
+    ctx, supportImage, layout.content.x + layout.content.width - 270, cardY + 34,
+    220, Math.min(190, Math.max(120, cardHeight - 68)), "contain", theme, content.focalPosition
+  );
+  var textWidth = hasSupportImage ? layout.content.width - 330 : layout.content.width - 96;
 
-  var titleEnd = drawMeasuredText(ctx, content.title, layout.content.x + 48, cardY + 54, layout.content.width - 96, {
+  var titleEnd = drawMeasuredText(ctx, content.title, layout.content.x + 48, cardY + 54, textWidth, {
     fontSize: 68, minFontSize: 42, maxLines: INTERNAL_TITLE_MAX_LINES, lineHeight: 76, weight: "700", color: theme.colors.accentDark,
     role: "title",
     maxBottom: cardBottom - 210,
   });
-  drawMeasuredText(ctx, content.text || content.subtitle || "", layout.content.x + 48, titleEnd + 36, layout.content.width - 96, {
+  drawMeasuredText(ctx, content.text || content.subtitle || "", layout.content.x + 48, titleEnd + 36, textWidth, {
     fontSize: 42, minFontSize: 28, maxLines: 7, lineHeight: 52, weight: "700", color: theme.colors.textPrimary,
     role: "key-point",
     maxBottom: cardBottom - 48,

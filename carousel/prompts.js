@@ -43,6 +43,7 @@ export function buildCarouselPrompt(article) {
     "- Tambien se aceptan los aliases legacy: context, facts, impact, cta.\n" +
     "- clave, contexto e impact usan text. dato usa items. end usa source y cta.\n" +
     "- cita usa quote, author y role. imagen usa image y puede usar text como epigrafe.\n" +
+    "- Solo incluir una slide cita cuando exista una frase literal verificable en Contenido; en ese caso usar los campos \"quote\", \"author\" y \"role\". Si no existe, no inventar \"quote\" y usar otra familia de slide.\n" +
     "- Para imagen, image debe ser solo article.image o article.images[n] de las URLs disponibles. Si no hay fuente visual, usar una slide textual.\n" +
     "- supportImage es opcional para una imagen de apoyo; no inventar URLs ni atribuciones.\n\n" +
     "Responde SOLO con JSON sin backticks ni markdown.\n" +
@@ -84,10 +85,10 @@ export function buildCarouselPrompt(article) {
     '      "supportImage":""\n' +
     "    },\n" +
     '    {\n' +
-    '      "type":"cita",\n' +
-    '      "quote":"",\n' +
-    '      "author":"",\n' +
-    '      "role":""\n' +
+    '      "type":"clave",\n' +
+    '      "title":"",\n' +
+    '      "text":"",\n' +
+    '      "supportImage":""\n' +
     "    },\n" +
     '    {\n' +
     '      "type":"end",\n' +

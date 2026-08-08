@@ -44,7 +44,7 @@ export function normalizeCarouselPlan(rawPlan, article) {
   const diagnosis = normalizeDiagnosis(source.diagnosis, normalizedArticle, errors);
   const cover = normalizeCover(source.cover, normalizedArticle, diagnosis, errors);
   const slides = normalizeSlides(source.slides, normalizedArticle, diagnosis, errors, quoteSourceText);
-  validateEditorialSequence(source, slides, errors);
+  validateEditorialSequence(source, slides, errors, diagnosis);
   diagnosis.slide_count = slides.length + 1;
   const normalizedPlan = {
     version: CAROUSEL_PLAN_VERSION,
@@ -160,13 +160,13 @@ function normalizeSlides(slides, article, diagnosis, errors, quoteSourceText) {
   });
 }
 
-function validateEditorialSequence(source, slides, errors) {
+function validateEditorialSequence(source, slides, errors, diagnosis) {
   const total = slides.length + 1;
   if (total < 4 || total > 7) {
     errors.push("la secuencia editorial debe tener entre 4 y 7 slides");
   }
 
-  const carouselType = getDeclaredCarouselType(source);
+  const carouselType = diagnosis.carousel_type;
   const range = TYPED_CAROUSEL_SLIDE_RANGES[carouselType];
   if (range && !hasLegacySixSlideSummaryShape(source, carouselType, total) && (total < range.min || total > range.max)) {
     errors.push("el carrusel " + carouselType + " debe tener entre " + range.min + " y " + range.max + " slides");
@@ -598,7 +598,7 @@ function matchesAny(text, words) {
 }
 
 function cleanText(value) {
-  return String(value || "").replace(/\s+/g, " ").trim();
+  return (value === null || value === undefined ? "" : String(value)).replace(/\s+/g, " ").trim();
 }
 
 function normalizeImageSources(images) {

@@ -63,24 +63,31 @@ export function wrapText(ctx, text, x, y, maxW, lineH) {
 
 export function fitText(ctx, text, options) {
   var settings = options || {};
+  var fontSize = settings.fontSize || 16;
+  var measureContext = ctx || {
+    font: "",
+    measureText: function (value) {
+      return { width: String(value || "").length * fontSize * 0.52 };
+    }
+  };
   var maxWidth = settings.maxWidth || 0;
   var maxLines = settings.maxLines || 1;
-  var initialFontSize = settings.fontSize || 16;
+  var initialFontSize = fontSize;
   var minFontSize = settings.minFontSize || initialFontSize;
   var baseLineHeight = settings.lineHeight || Math.round(initialFontSize * 1.2);
   var fontFamily = settings.fontFamily || "sans-serif";
-  var originalFont = ctx.font;
-  var fontSize = initialFontSize;
+  var originalFont = measureContext.font;
+  fontSize = initialFontSize;
   var lines;
 
   do {
-    ctx.font = fontSize + "px " + fontFamily;
-    lines = wrapLines(ctx, text, maxWidth);
+    measureContext.font = fontSize + "px " + fontFamily;
+    lines = wrapLines(measureContext, text, maxWidth);
     if (lines.length <= maxLines || fontSize === minFontSize) break;
     fontSize = Math.max(minFontSize, fontSize - 1);
   } while (true);
 
-  ctx.font = originalFont;
+  measureContext.font = originalFont;
   var lineHeight = Math.round(baseLineHeight * (fontSize / initialFontSize));
   return {
     lines: lines,
