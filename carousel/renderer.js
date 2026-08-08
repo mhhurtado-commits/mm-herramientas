@@ -1,6 +1,7 @@
 console.log("RENDER");
 
 import { renderSlideToCanvas } from "./canvas-renderer.js";
+import { normalizeCarouselSlide } from "./slide-model.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 
@@ -8,6 +9,10 @@ export function renderCarousel(project) {
   if (!project || !project.slides || !project.slides.length) {
     return [];
   }
+
+  project.slides = project.slides.map(function (slide, index) {
+    return normalizeCarouselSlide(slide, index, project.slides.length);
+  });
 
   var renderedSlides = [];
 

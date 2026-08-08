@@ -1,3 +1,5 @@
+export { normalizeCarouselSlide } from "./slide-model.js";
+
 export const CAROUSEL_PLAN_VERSION = "1.2";
 
 const MAX_FACT_ITEMS = 4;
