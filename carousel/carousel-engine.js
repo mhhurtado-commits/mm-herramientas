@@ -6,6 +6,7 @@ import { normalizeCarouselPlan } from "./parser.js";
 import { attachCarouselOutput, createEditorialEnvelope } from "./editorial-contract.js";
 import { attachEditorialPackage, openCarouselFromEditorialPackage } from "./shared-package-adapter.js";
 import { attachReelPackage } from "./reel-package-adapter.js";
+import { resolveArticleImage, resolveSupportImage } from "./image-provenance.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 
@@ -79,7 +80,7 @@ export function convertirPlanASlides(plan, article, settings) {
     slide.content.role = item.role || "";
     slide.content.source = item.source || (item.type === "end" ? item.title || "" : "");
     slide.content.cta = item.cta || (item.type === "end" ? item.text || "" : "");
-    slide.content.supportImage = item.supportImage || "";
+    slide.content.supportImage = resolveSupportImage(item.supportImage, article);
     slide.content.quoteValidation = item.quoteValidation || "";
     slide.content.validation = item.validation || item.quoteValidation || "";
     if (item.focalPosition !== undefined) {
@@ -196,14 +197,5 @@ function getSupportImages(article) {
 }
 
 function resolveEditorialImage(reference, article) {
-  const source = String(reference || "").trim();
-  const main = String(article && article.image || "").trim();
-  const images = Array.isArray(article && article.images) ? article.images.map(function (image) {
-    return String(image || "").trim();
-  }) : [];
-  if (source === "article.image") return main;
-  const match = source.match(/^article\.images\[(\d+)\]$/);
-  if (match) return images[Number(match[1])] || "";
-  if (source && ([main].concat(images)).indexOf(source) >= 0) return source;
-  return "";
+  return resolveArticleImage(reference, article);
 }

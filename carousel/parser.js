@@ -1,4 +1,5 @@
 import { normalizeFocalPosition } from "./core/image.js";
+import { resolveSupportImage } from "./image-provenance.js";
 
 export { normalizeCarouselSlide } from "./slide-model.js";
 
@@ -11,7 +12,10 @@ const ALLOWED_TONES = ["informative", "explainer", "chronological", "impact", "u
 const ALLOWED_CAROUSEL_TYPES = ["summary", "explainer", "timeline", "data_points", "service"];
 const TYPED_CAROUSEL_SLIDE_RANGES = {
   summary: { min: 4, max: 5 },
-  explainer: { min: 6, max: 7 }
+  explainer: { min: 6, max: 7 },
+  timeline: { min: 6, max: 7 },
+  data_points: { min: 5, max: 6 },
+  service: { min: 4, max: 5 }
 };
 const ALLOWED_TEMPLATES = ["mm_classic", "mm_briefing", "mm_impact"];
 const ALLOWED_VERTICALS = ["policiales", "servicios", "sociales", "espectaculos", "clima", "deportes", "politica", "economia", "general"];
@@ -247,7 +251,8 @@ function normalizeSlide(type, slide, article, diagnosis, index, errors, quoteSou
       errors.push("cita no coincide con el texto fuente en posicion " + (index + 1));
     }
   }
-  copyTextFields(normalized, source, ["supportImage"]);
+  const supportImage = resolveSupportImage(source.supportImage, article);
+  if (supportImage) normalized.supportImage = supportImage;
   const image = cleanText(source.image) || cleanText(source.imagen);
   if (image) normalized.image = image;
   if (source.focalPosition !== undefined) {

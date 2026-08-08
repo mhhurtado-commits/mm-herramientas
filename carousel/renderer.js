@@ -2,6 +2,7 @@ console.log("RENDER");
 
 import { renderSlideToCanvas } from "./canvas-renderer.js";
 import { normalizeCarouselSlide } from "./slide-model.js";
+import { resolveSupportImage } from "./image-provenance.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 
@@ -25,7 +26,7 @@ export function renderCarousel(project) {
     }
 
     if (slide.content && slide.content.supportImage) {
-      slide.content.supportImage = toRenderableImageUrl(slide.content.supportImage);
+      slide.content.supportImage = resolveSupportImage(slide.content.supportImage, project.article);
     }
 
     var canvas = renderSlideToCanvas(slide, project);

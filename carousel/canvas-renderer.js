@@ -3,6 +3,7 @@ import { getCarouselLayout } from "./core/layout.js";
 import { drawImageContain, drawImageCover } from "./core/image.js";
 import { resolveCarouselTheme } from "./core/theme.js";
 import { normalizeCarouselSlide } from "./slide-model.js";
+import { resolveSupportImage } from "./image-provenance.js";
 
 var W = 1080;
 var H = 1350;
@@ -93,7 +94,8 @@ export function preloadCarouselAssets(slides, project) {
     var slide = list[i] && list[i].slide ? list[i].slide : list[i];
     if (!slide) continue;
     var content = slide.content || {};
-    if (content.supportImage) sources.push(content.supportImage);
+    var supportImage = resolveSupportImage(content.supportImage, project && project.article);
+    if (supportImage) sources.push(supportImage);
     if (slide.template === "cover" || slide.type === "cover") {
       sources.push(content.image || (project && project.article && project.article.image));
     } else if (slide.template === "image" || slide.type === "imagen") {
@@ -155,7 +157,7 @@ function drawSupportImage(ctx, src, x, y, w, h, mode, theme, focalPosition) {
   ctx.fillStyle = theme.colors.surface;
   ctx.fillRect(x, y, w, h);
   if (mode === "contain") {
-    drawImageContain(ctx, image, x, y, w, h);
+    drawImageContain(ctx, image, x, y, w, h, focalPosition);
   } else {
     drawImageCover(ctx, image, x, y, w, h, focalPosition);
   }
@@ -554,16 +556,22 @@ function normalizeStatItem(item) {
 
 function resolveStatsContent(content) {
   var items = Array.isArray(content.items) ? content.items.map(normalizeStatItem) : [];
-  var direct = normalizeStatItem(content.value || content.number);
+  var direct = normalizeStatItem(content.value !== undefined ? content.value : content.number);
   var primaryItem = direct.value ? direct : (items[0] || { value: "", label: "" });
   var primary = primaryItem.value || getStatText(content.title);
   var itemExplanation = items.map(function (item, index) {
     if (index === 0 && primaryItem === items[0]) return item.label;
     return [item.value, item.label].filter(Boolean).join(" — ");
   }).filter(Boolean).join(" ");
+  var explanationParts = [
+    getStatText(content.text),
+    getStatText(content.subtitle),
+    itemExplanation,
+  ];
+  if (!items.length && primaryItem.label) explanationParts.push(primaryItem.label);
   return {
     primary: primary,
-    explanation: getStatText(content.text) || getStatText(content.subtitle) || itemExplanation || primaryItem.label,
+    explanation: explanationParts.filter(Boolean).join(" "),
   };
 }
 
@@ -713,6 +721,9 @@ export function renderSlideToCanvas(slide, project) {
       Number.isInteger(sourceSlide.total) ? sourceSlide.total : 1
     );
     var safeProject = project || {};
+    if (safeSlide.content.supportImage) {
+      safeSlide.content.supportImage = resolveSupportImage(safeSlide.content.supportImage, safeProject.article);
+    }
     var theme = resolveCarouselTheme(safeProject, safeSlide);
     var layout = getCarouselLayout(safeSlide.template || "text", W, H);
     var canvas = createCanvas(W, H);

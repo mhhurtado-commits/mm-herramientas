@@ -7,6 +7,7 @@ import { getCarouselLayout } from './core/layout.js';
 import { fitText } from './core/text.js';
 import { resolveCarouselTheme } from './core/theme.js';
 import { renderSlideToCanvas } from './canvas-renderer.js';
+import { renderCarousel } from './renderer.js';
 import * as canvasRenderer from './canvas-renderer.js';
 import { getProject, setProject } from './state.js';
 import { buildCarouselPrompt } from './prompts.js';
@@ -283,7 +284,7 @@ test('degrada imagenes principales y de apoyo fallidas sin interrumpir la export
     type: 'contexto',
     content: { title: 'Con apoyo', text: 'El carrusel mantiene el contenido.', supportImage: 'https://example.com/missing-support.jpg' },
   }, 1, 2);
-  const project = { article: {}, slides: [imageSlide, supportSlide] };
+  const project = { article: { images: ['https://example.com/missing-support.jpg'] }, slides: [imageSlide, supportSlide] };
   setProject(project);
 
   try {
@@ -661,8 +662,9 @@ test('preserva supportImage en los renderers legacy de texto y stats', () => {
   ];
 
   for (const source of sources) {
-    renderEditorialSlide(source);
-    const canvas = renderEditorialSlide(source);
+    const project = { article: { images: [source.content.supportImage] } };
+    renderEditorialSlide(source, project);
+    const canvas = renderEditorialSlide(source, project);
     const expected = source.content.supportImage.split('/').pop();
     assert.ok(canvas.calls.images.some((src) => src.includes(encodeURIComponent(expected))), source.template);
   }
@@ -710,7 +712,7 @@ test('valida la secuencia editorial modular con contexto, apoyo visual y desbord
     { type: 'end', content: { source: 'Media Mendoza', text: 'Seguí leyendo.' } },
   ];
   const slides = sources.map((source, index) => normalizeCarouselSlide(source, index, sources.length));
-  const project = { article: { category: 'Actualidad' }, slides };
+  const project = { article: { category: 'Actualidad', images: ['https://example.com/support-context.jpg'] }, slides };
 
   installCanvasHarness();
   slides.map((slide) => renderSlideToCanvas(slide, project));
@@ -901,6 +903,98 @@ test('resuelve imágenes editoriales desde article.images y degrada las que no t
   assert.equal(fallback[2].content.text, 'Epígrafe.');
 });
 
+test('limita supportImage a imagenes de la nota o fuentes manuales explicitas', async () => {
+  const foreign = 'https://foreign.example/unsupported.jpg';
+  const articleImage = 'https://example.com/article-support.jpg';
+  const manualImage = 'data:image/png;base64,bWFudWFsLXN1cHBvcnQ=';
+  const article = {
+    title: 'Imagenes con provenance',
+    summary: 'Solo se usan fuentes verificables.',
+    image: 'https://example.com/cover.jpg',
+    images: ['https://example.com/cover.jpg', articleImage],
+  };
+  const parsed = normalizeCarouselPlan({
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'medium',
+      tone: 'informative',
+      carousel_type: 'summary',
+      template: 'mm_classic',
+      reason: 'Prueba de provenance para imagenes de apoyo.',
+    },
+    cover: { title: 'Portada', subtitle: 'Bajada.' },
+    slides: [
+      { type: 'contexto', title: 'Sin fuente', text: 'El apoyo ajeno debe quitarse.', supportImage: foreign },
+      { type: 'contexto', title: 'Fuente nota', text: 'El apoyo de la nota se conserva.', supportImage: 'article.images[1]' },
+      { type: 'dato', title: 'Fuente manual', items: ['47%'], supportImage: manualImage },
+      { type: 'end', source: 'Media Mendoza', cta: 'Segui leyendo.' },
+    ],
+  }, article);
+
+  assert.equal(parsed.ok, true, parsed.errors.join('\n'));
+  assert.equal(parsed.plan.slides[0].supportImage, undefined);
+  assert.equal(parsed.plan.slides[1].supportImage, articleImage);
+  assert.equal(parsed.plan.slides[2].supportImage, manualImage);
+
+  const slides = carouselEngine.convertirPlanASlides(parsed.plan, article, { useSecondaryImages: false });
+  assert.equal(slides[1].content.supportImage, '');
+  assert.equal(slides[2].content.supportImage, articleImage);
+  assert.equal(slides[3].content.supportImage, manualImage);
+
+  installCanvasHarness();
+  const unsafeSlide = normalizeCarouselSlide({
+    type: 'contexto',
+    content: { title: 'Sin fuente', text: 'No debe cargar una URL ajena.', supportImage: foreign },
+  }, 1, 4);
+  const canvas = renderSlideToCanvas(unsafeSlide, { article, slides: [unsafeSlide] });
+  assert.equal(canvas.calls.images.some((source) => source.includes('unsupported.jpg')), false);
+
+  const rendererProject = { article, slides: [unsafeSlide] };
+  renderCarousel(rendererProject);
+  assert.equal(rendererProject.slides[0].content.supportImage, '');
+
+  const verifiedSlide = normalizeCarouselSlide({
+    type: 'contexto',
+    content: { title: 'Fuente nota', text: 'La fuente verificable debe permanecer.', supportImage: articleImage },
+  }, 1, 4);
+  const verifiedProject = { article, slides: [verifiedSlide] };
+  const rendered = renderCarousel(verifiedProject);
+  assert.equal(verifiedProject.slides[0].content.supportImage, articleImage);
+  assert.ok(rendered[0].canvas.calls.images.some((source) => source.includes('article-support.jpg')));
+
+  const coverSlide = normalizeCarouselSlide({
+    type: 'cover',
+    content: { title: 'Portada con imagen de la nota' },
+  }, 0, 1);
+  const coverProject = { article, slides: [coverSlide] };
+  const covered = renderCarousel(coverProject);
+  assert.ok(covered[0].canvas.calls.images.some((source) => source.includes('cover.jpg')));
+
+  const preloadedSources = [];
+  class TrackingImage {
+    constructor() {
+      this.width = 1200;
+      this.height = 800;
+      this.onload = null;
+    }
+
+    set src(value) {
+      this.source = value;
+      preloadedSources.push(value);
+      if (this.onload) this.onload();
+    }
+  }
+  installCanvasHarness({ ImageClass: TrackingImage });
+  const preloadForeign = 'https://foreign.example/preload-unsupported.jpg';
+  const preloadSlide = normalizeCarouselSlide({
+    type: 'contexto',
+    content: { title: 'Sin precarga', text: 'La URL ajena no debe cargarse.', supportImage: preloadForeign },
+  }, 1, 4);
+  await canvasRenderer.preloadCarouselAssets([preloadSlide], { article, slides: [preloadSlide] });
+  assert.equal(preloadedSources.some((source) => source.includes('preload-unsupported.jpg')), false);
+});
+
 test('normaliza una imagen sin fuente como slide textual segura', () => {
   const slide = normalizeCarouselSlide({
     type: 'imagen',
@@ -921,7 +1015,13 @@ test('normaliza, convierte y renderiza las siete familias en el orden del plan',
     summary: 'Un resumen comprobable para la portada.',
     content: 'La cita permanece literal.',
     image: 'https://example.com/cover.jpg',
-    images: ['https://example.com/cover.jpg', 'https://example.com/editorial-photo.jpg'],
+    images: [
+      'https://example.com/cover.jpg',
+      'https://example.com/editorial-photo.jpg',
+      'https://example.com/key-support.jpg',
+      'https://example.com/context-support.jpg',
+      'https://example.com/data-support.jpg',
+    ],
   };
   const parsed = normalizeCarouselPlan({
     diagnosis: {
@@ -1233,6 +1333,30 @@ test('acepta un carrusel explainer dentro de su rango', () => {
   assert.equal(parsed.ok, true, parsed.errors.join('\n'));
 });
 
+test('aplica rangos documentados a timeline, data_points y service', () => {
+  const article = {
+    title: 'Rangos editoriales',
+    summary: 'Los tipos tipados deben respetar sus limites.',
+  };
+  const ranges = [
+    { type: 'timeline', min: 6, max: 7 },
+    { type: 'data_points', min: 5, max: 6 },
+    { type: 'service', min: 4, max: 5 },
+  ];
+
+  for (const range of ranges) {
+    for (const total of [range.min, range.max]) {
+      const parsed = normalizeCarouselPlan(createTypedRangePlan(range.type, total), article);
+      assert.equal(parsed.ok, true, `${range.type} ${total}: ${parsed.errors.join('\n')}`);
+    }
+    for (const total of [range.min - 1, range.max + 1]) {
+      const parsed = normalizeCarouselPlan(createTypedRangePlan(range.type, total), article);
+      assert.equal(parsed.ok, false, `${range.type} ${total}`);
+      assert.ok(parsed.errors.some((error) => new RegExp(`${range.type}.*${range.min} y ${range.max}`, 'i').test(error)), parsed.errors.join('\n'));
+    }
+  }
+});
+
 function createTypedRangePlan(carouselType, totalSlides) {
   const intermediateSlides = totalSlides - 1;
   return {
@@ -1482,6 +1606,36 @@ test('preserva todos los pares de datos que superan cinco líneas y bloquea la e
   assert.equal(getCarouselExportEligibility([{ item: { slide }, canvas }]).allowed, false);
 });
 
+test('combina texto, subtitle y todos los items de stats, conservando el desborde', () => {
+  const items = Array.from({ length: 4 }, (_, index) => ({
+    value: `VALOR-${index + 1}`,
+    label: `Detalle posterior ${index + 1}: ${Array(12).fill('informacion comprobable').join(' ')}`,
+  }));
+  const slide = normalizeCarouselSlide({
+    type: 'dato',
+    content: {
+      title: 'Datos completos',
+      text: 'Texto editorial que debe conservarse.',
+      subtitle: 'Bajada editorial que tambien debe conservarse.',
+      items,
+    },
+  }, 1, 4);
+  installCanvasHarness();
+  const canvas = renderSlideToCanvas(slide, { slides: [slide] });
+  const body = canvas.renderState.blocks.find((block) => block.role === 'body');
+  const renderedContent = canvas.renderState.blocks.map((block) => block.fullText).join(' ');
+
+  assert.ok(body);
+  assert.match(renderedContent, /Texto editorial que debe conservarse/);
+  assert.match(renderedContent, /Bajada editorial que tambien debe conservarse/);
+  for (const item of items) {
+    assert.ok(renderedContent.includes(item.value), item.value);
+    assert.ok(renderedContent.includes(item.label), item.label);
+  }
+  assert.equal(body.overflow, true);
+  assert.equal(getCarouselExportEligibility([{ item: { slide }, canvas }]).allowed, false);
+});
+
 test('ubica el logo de portada segun la opcion elegida en el editor', () => {
   const positions = ['right', 'center', 'image-footer'].map((coverLogoPosition) => {
     const canvas = renderEditorialSlide({
@@ -1538,16 +1692,36 @@ test('normaliza el foco de una imagen y desplaza el recorte desde el centro', ()
   assert.notEqual(centeredDraw.args[0], focusedDraw.args[0]);
 });
 
+test('aplica focalPosition a imagenes de apoyo en slides de contexto', () => {
+  const source = 'https://example.com/focus-context-support.jpg';
+  const project = { article: { images: [source] } };
+  const centered = renderEditorialSlide({
+    type: 'contexto',
+    content: { title: 'Contexto', text: 'Cuerpo breve.', supportImage: source },
+  }, project);
+  const focused = renderEditorialSlide({
+    type: 'contexto',
+    content: { title: 'Contexto', text: 'Cuerpo breve.', supportImage: source, focalPosition: 'bottom-right' },
+  }, project);
+  const centeredDraw = centered.calls.imageDraws.find((draw) => draw.source.includes('focus-context-support.jpg'));
+  const focusedDraw = focused.calls.imageDraws.find((draw) => draw.source.includes('focus-context-support.jpg'));
+
+  assert.ok(centeredDraw);
+  assert.ok(focusedDraw);
+  assert.notEqual(centeredDraw.args[1], focusedDraw.args[1]);
+});
+
 test('aplica el foco normalizado a las imagenes de apoyo', () => {
   const source = 'https://example.com/focus-support.jpg';
+  const project = { article: { images: [source] } };
   const centered = renderEditorialSlide({
     type: 'dato',
     content: { title: 'Dato', items: ['47%'], supportImage: source },
-  });
+  }, project);
   const focused = renderEditorialSlide({
     type: 'dato',
     content: { title: 'Dato', items: ['47%'], supportImage: source, focalPosition: 'right' },
-  });
+  }, project);
   const centeredDraw = centered.calls.imageDraws.find((draw) => draw.source.includes('focus-support.jpg'));
   const focusedDraw = focused.calls.imageDraws.find((draw) => draw.source.includes('focus-support.jpg'));
 

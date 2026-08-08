@@ -37,12 +37,13 @@ export function drawImageCover(ctx, img, x, y, w, h, focalPosition) {
   ctx.drawImage(img, x - sx, y - sy, sw, sh);
 }
 
-export function drawImageContain(ctx, img, x, y, w, h) {
+export function drawImageContain(ctx, img, x, y, w, h, focalPosition) {
   if (!img || !img.width || !img.height) return;
   var scale = Math.min(h / img.height, w / img.width);
   var dw = img.width * scale;
   var dh = img.height * scale;
-  var dx = x + (w - dw) / 2;
-  var dy = y + (h - dh) / 2;
+  var focus = normalizeFocalPosition(focalPosition);
+  var dx = x + (w - dw) * focus.x;
+  var dy = y + (h - dh) * focus.y;
   ctx.drawImage(img, dx, dy, dw, dh);
 }
