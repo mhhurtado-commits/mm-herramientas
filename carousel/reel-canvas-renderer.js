@@ -145,7 +145,7 @@ function drawSceneBrand(ctx, scene, project) {
   }
 
   if (logo) {
-    drawLogoClean(ctx, logo, logoX, logoY, logoW, true);
+    drawLogoClean(ctx, logo, logoX, logoY, logoW, true, false);
     return;
   }
 
@@ -176,18 +176,12 @@ function drawLogoWithBackdrop(ctx, logo, centerX, y, logoW, centeredY) {
   ctx.restore();
 }
 
-function drawLogoClean(ctx, logo, centerX, y, logoW, centeredY) {
+function drawLogoClean(ctx, logo, centerX, y, logoW, centeredY, darken) {
   var logoH = logo.height * (logoW / logo.width);
   var drawX = centerX - logoW / 2;
   var drawY = centeredY ? y - logoH / 2 : y;
   ctx.save();
-  var contrast = ctx.createLinearGradient(drawX - 42, 0, drawX + logoW + 42, 0);
-  contrast.addColorStop(0, "rgba(20,28,24,0)");
-  contrast.addColorStop(0.2, "rgba(20,28,24,0.34)");
-  contrast.addColorStop(0.8, "rgba(20,28,24,0.34)");
-  contrast.addColorStop(1, "rgba(20,28,24,0)");
-  ctx.fillStyle = contrast;
-  ctx.fillRect(drawX - 42, drawY - 16, logoW + 84, logoH + 32);
+  if (darken) ctx.filter = "brightness(0.62) saturate(0.9)";
   ctx.shadowColor = "rgba(0,0,0,0.42)";
   ctx.shadowBlur = 14;
   ctx.shadowOffsetY = 3;
@@ -426,7 +420,7 @@ function drawReelCtaCard(ctx, title, subtitle, panelY, contentX, contentW) {
   fillRoundRect(ctx, boxX, boxY, boxW, 22, 11, MMTheme.colors.accent);
 
   var logo = getCachedImage("/assets/logo.png");
-  if (logo) drawLogoClean(ctx, logo, W / 2, boxY + 104, 300, true);
+  if (logo) drawLogoClean(ctx, logo, W / 2, boxY + 104, 300, true, true);
 
   ctx.textAlign = "center";
   ctx.font = "700 30px Inter, Arial, sans-serif";
@@ -443,7 +437,7 @@ function drawReelCtaCard(ctx, title, subtitle, panelY, contentX, contentW) {
   ctx.fillStyle = MMTheme.colors.textPrimary;
   var titleEnd = wrapText(ctx, titleStyle.text, W / 2, boxY + 278, titleStyle.maxWidth, titleStyle.lineHeight);
 
-  if (subtitle) {
+  if (subtitle && !isSectionLabel(subtitle)) {
     var subtitleStyle = fitReelTextBlock(ctx, subtitle, {
       maxWidth: contentW - 112,
       maxLines: 4,
@@ -553,7 +547,7 @@ function drawSceneFooter(ctx, scene, family) {
   ctx.stroke();
 
   if (logo && family !== "cover") {
-    drawLogoClean(ctx, logo, W / 2, footerY, logoW, true);
+    drawLogoClean(ctx, logo, W / 2, footerY, logoW, true, true);
   }
 }
 
