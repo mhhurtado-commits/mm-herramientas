@@ -23,3 +23,25 @@
 ## Worktree state
 
 - The worktree already contained an unrelated modification to `.superpowers/sdd/task-1-report.md`. It was not read, edited, staged, or included in the Task 2 commit.
+
+## Important review fix: long word after a prior line
+
+### Root cause
+
+`wrapLines` handled an oversized word only when it was the first item of a line. If a prior line existed, it pushed that line and assigned the next word directly, allowing the next line to exceed `maxWidth`.
+
+### Regression and fix
+
+- Added a deterministic measurement regression for `uno herramientalarga` with 10 pixels per character and `maxWidth: 40`.
+- The new test failed before the fix with `actual: ['uno', 'herramientalarga']` instead of the width-safe chunks `['uno', 'herr', 'amie', 'ntal', 'arga']`.
+- Updated only the existing-line overflow branch to route an oversized next word through `splitWord` before retaining its last chunk as the active line.
+
+### Test output
+
+```text
+$ node --test carousel/editorial-carousel.test.mjs shared/editorial-package.test.mjs
+tests 17
+pass 17
+fail 0
+duration_ms 297.4997
+```

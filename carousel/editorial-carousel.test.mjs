@@ -124,6 +124,26 @@ test('parte una palabra larga para respetar el ancho máximo', () => {
   assert.equal(result.truncated, false);
 });
 
+test('parte una palabra larga que sigue a una línea ya ajustada', () => {
+  const ctx = {
+    font: '',
+    measureText(value) {
+      return { width: value.length * 10 };
+    },
+  };
+
+  const result = fitText(ctx, 'uno herramientalarga', {
+    fontSize: 20,
+    minFontSize: 20,
+    maxWidth: 40,
+    maxLines: 5,
+    lineHeight: 24,
+  });
+
+  assert.deepEqual(result.lines, ['uno', 'herr', 'amie', 'ntal', 'arga']);
+  assert.equal(result.truncated, false);
+});
+
 for (const kind of ['cover', 'internal', 'stats', 'quote', 'image', 'end']) {
   test(`mantiene el contenido de ${kind} antes del pie seguro`, () => {
     const layout = getCarouselLayout(kind, 1080, 1350);

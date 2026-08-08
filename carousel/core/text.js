@@ -103,7 +103,15 @@ function wrapLines(ctx, text, maxWidth) {
       line = candidate;
     } else if (line) {
       lines.push(line);
-      line = word;
+      if (ctx.measureText(word).width <= maxWidth) {
+        line = word;
+      } else {
+        var piecesAfterLine = splitWord(ctx, word, maxWidth);
+        for (var afterLineIndex = 0; afterLineIndex < piecesAfterLine.length - 1; afterLineIndex++) {
+          lines.push(piecesAfterLine[afterLineIndex]);
+        }
+        line = piecesAfterLine[piecesAfterLine.length - 1];
+      }
     } else {
       var pieces = splitWord(ctx, word, maxWidth);
       for (var pieceIndex = 0; pieceIndex < pieces.length - 1; pieceIndex++) {
