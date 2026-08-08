@@ -85,24 +85,31 @@ async function consumeEditorialHandoff() {
   if (!handoff?.package || !['carrusel', 'reel'].includes(handoff.output)) return;
 
   const urlInput = document.getElementById('urlInput');
+  const preview = document.getElementById('previewContent');
   if (urlInput) urlInput.value = handoff.package.fuente?.url || '';
-  const engine = await import('./carousel-engine.js');
-  if (handoff.output === 'reel') {
-    engine.loadEditorialPackageForReel(handoff.package);
-    setActiveWorkspaceTab('reel');
-    renderInPreview();
-    return;
-  }
+  if (preview) preview.textContent = handoff.output === 'reel' ? 'Preparando Reel...' : 'Generando carrusel...';
 
-  engine.loadEditorialPackage(handoff.package);
-  const project = getProject();
-  await engine.generatePlan();
-  await generateInstagramCaption(project);
-  await generateReelPlan(project);
-  activeSlideIndex = 0;
-  activeReelSceneIndex = 0;
-  setActiveWorkspaceTab('carousel');
-  renderInPreview();
+  try {
+    const engine = await import('./carousel-engine.js');
+    if (handoff.output === 'reel') {
+      engine.loadEditorialPackageForReel(handoff.package);
+      setActiveWorkspaceTab('reel');
+      renderInPreview();
+      return;
+    }
+
+    engine.loadEditorialPackage(handoff.package);
+    const project = getProject();
+    await engine.generatePlan();
+    await generateInstagramCaption(project);
+    activeSlideIndex = 0;
+    activeReelSceneIndex = 0;
+    setActiveWorkspaceTab('carousel');
+    renderInPreview();
+  } catch (error) {
+    console.error('No se pudo abrir la salida editorial:', error);
+    if (preview) preview.textContent = 'No se pudo generar esta salida. Podés reintentar desde Cargar noticia.';
+  }
 }
 
 function renderInPreview() {
