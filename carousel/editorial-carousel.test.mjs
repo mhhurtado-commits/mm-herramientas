@@ -533,7 +533,7 @@ test('renderiza una cita normalizada con autora y rol', () => {
   const canvas = renderEditorialSlide({
     type: 'cita',
     content: {
-      text: 'La cita literal permanece completa.',
+      quote: 'La cita literal permanece completa.',
       validation: 'validated',
       author: 'Ana Pérez',
       role: 'Investigadora',
@@ -634,7 +634,7 @@ test('mantiene citas y contexto largos dentro de la zona segura del pie', () => 
   const longCopy = `${Array(80).fill('palabra editorial comprobable').join(' ')} ${tailMarker}`;
   const quote = renderEditorialSlide({
     type: 'cita',
-    content: { text: longCopy, validation: 'validated', author: 'Autora de referencia', role: 'Especialista' },
+    content: { quote: longCopy, validation: 'validated', author: 'Autora de referencia', role: 'Especialista' },
   });
   const context = renderEditorialSlide({
     type: 'contexto',
@@ -672,7 +672,7 @@ test('no dibuja una línea cuando un bloque tiene espacio vertical cero', () => 
   const canvas = renderEditorialSlide({
     type: 'cita',
     content: {
-      text: Array(80).fill('cita larga comprobable').join(' '),
+      quote: Array(80).fill('cita larga comprobable').join(' '),
       validation: 'validated',
       author: Array(70).fill('autoría extensa comprobable').join(' '),
       role: 'TAIL_MARKER_ZERO_SPACE',
@@ -705,7 +705,7 @@ test('valida la secuencia editorial modular con contexto, apoyo visual y desbord
       },
     })),
     { type: 'dato', content: { title: 'La cifra principal', items: ['47%', 'Dato comprobable.'] } },
-    { type: 'cita', content: { text: 'La cita permanece literal.', validation: 'validated', author: 'Ana Pérez', role: 'Investigadora' } },
+    { type: 'cita', content: { quote: 'La cita permanece literal.', validation: 'validated', author: 'Ana Pérez', role: 'Investigadora' } },
     { type: 'imagen', content: { title: 'Imagen de apoyo', text: 'Epígrafe comprobable.', image: 'https://example.com/photo.jpg' } },
     { type: 'end', content: { source: 'Media Mendoza', text: 'Seguí leyendo.' } },
   ];
@@ -741,7 +741,7 @@ test('valida la secuencia editorial modular con contexto, apoyo visual y desbord
   const zeroSpace = renderEditorialSlide({
     type: 'cita',
     content: {
-      text: Array(80).fill('cita comprobable').join(' '),
+      quote: Array(80).fill('cita comprobable').join(' '),
       validation: 'validated',
       author: Array(70).fill('autoría comprobable').join(' '),
       role: 'TAIL_ZERO_SPACE',
@@ -1366,6 +1366,23 @@ test('rechaza una cita vacia aunque llegue marcada como validada y la renderiza 
   assert.equal(canvas.renderState.blocks.some((block) => block.role === 'quote'), false);
 });
 
+test('no convierte el texto de respaldo en una cita validada cuando falta quote', () => {
+  const slide = normalizeCarouselSlide({
+    type: 'cita',
+    quote: '',
+    text: 'Este texto conserva el contexto, pero no es una cita.',
+    validation: 'validated',
+  }, 1, 4);
+  const canvas = renderSlideToCanvas(slide, { slides: [slide] });
+
+  assert.equal(slide.type, 'contexto');
+  assert.equal(slide.template, 'text');
+  assert.equal(slide.content.quote, undefined);
+  assert.equal(slide.content.validation, 'rejected');
+  assert.equal(slide.content.text, 'Este texto conserva el contexto, pero no es una cita.');
+  assert.equal(canvas.renderState.blocks.some((block) => block.role === 'quote'), false);
+});
+
 test('renderiza datos estructurados sin convertirlos en objetos de texto', () => {
   const canvas = renderEditorialSlide({
     type: 'dato',
@@ -1421,6 +1438,48 @@ test('preserva el contrato value-label al normalizar datos del plan', () => {
   }, { title: 'Dato estructurado', summary: 'Resumen editorial.' });
 
   assert.deepEqual(parsed.plan.slides[0].items, [{ value: '47%', label: 'Aumento interanual confirmado.' }]);
+});
+
+test('preserva todos los pares de datos que superan cinco líneas y bloquea la exportación incompleta', () => {
+  const items = [
+    { value: '01', label: 'Primer indicador detallado para la cobertura.' },
+    { value: '02', label: 'Segundo indicador detallado para la cobertura.' },
+    { value: '03', label: 'Tercer indicador detallado para la cobertura.' },
+    { value: '04', label: 'Cuarto indicador detallado para la cobertura.' },
+    { value: '05', label: 'Quinto indicador detallado para la cobertura.' },
+    { value: '06', label: 'Sexto indicador detallado para la cobertura.' },
+  ];
+  const parsed = normalizeCarouselPlan({
+    diagnosis: {
+      news_type: 'evergreen',
+      vertical: 'general',
+      complexity: 'brief',
+      tone: 'informative',
+      carousel_type: 'summary',
+      template: 'mm_classic',
+      reason: 'Incluye datos estructurados completos.',
+    },
+    cover: { title: 'Portada', subtitle: 'Bajada.' },
+    slides: [{ type: 'dato', title: 'Datos completos', items }],
+  }, { title: 'Datos completos', summary: 'Resumen editorial.' });
+
+  assert.deepEqual(parsed.plan.slides[0].items, items);
+
+  const slide = normalizeCarouselSlide({
+    type: 'dato',
+    content: { title: 'Datos completos', items: parsed.plan.slides[0].items },
+  }, 1, 4);
+  const canvas = renderSlideToCanvas(slide, { slides: [slide] });
+  const body = canvas.renderState.blocks.find((block) => block.role === 'body');
+  const renderedContent = canvas.renderState.blocks.map((block) => block.fullText).join(' ');
+
+  assert.ok(body);
+  for (const item of items) {
+    assert.ok(renderedContent.includes(item.value), renderedContent);
+    assert.ok(renderedContent.includes(item.label), renderedContent);
+  }
+  assert.equal(body.overflow, true);
+  assert.equal(getCarouselExportEligibility([{ item: { slide }, canvas }]).allowed, false);
 });
 
 test('ubica el logo de portada segun la opcion elegida en el editor', () => {

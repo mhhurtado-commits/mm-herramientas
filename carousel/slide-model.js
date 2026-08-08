@@ -75,7 +75,7 @@ export function normalizeCarouselSlide(slide, index, total) {
   copyOptionalText(content, "source", sourceContent.source, source.source);
   copyOptionalText(content, "cta", sourceContent.cta, source.cta);
   const validation = firstText(sourceContent.validation, source.validation, sourceContent.quoteValidation, source.quoteValidation);
-  const hasQuote = !!firstText(content.quote, content.text);
+  const hasQuote = !!String(content.quote || "").trim();
   const quoteValidation = type === "cita" && !hasQuote && validation === "validated"
     ? "rejected"
     : validation;

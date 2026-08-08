@@ -4,7 +4,7 @@ export { normalizeCarouselSlide } from "./slide-model.js";
 
 export const CAROUSEL_PLAN_VERSION = "1.2";
 
-const MAX_FACT_ITEMS = 4;
+const MAX_FALLBACK_FACT_ITEMS = 4;
 const ALLOWED_NEWS_TYPES = ["breaking", "service", "institutional", "analysis", "data", "evergreen"];
 const ALLOWED_COMPLEXITIES = ["brief", "medium", "deep"];
 const ALLOWED_TONES = ["informative", "explainer", "chronological", "impact", "utility"];
@@ -402,7 +402,7 @@ function buildFactFallbackItems(article, diagnosis, index) {
     items.push("Fuente: Media Mendoza");
   }
 
-  return items.slice(0, MAX_FACT_ITEMS);
+  return items.slice(0, MAX_FALLBACK_FACT_ITEMS);
 }
 
 function buildCoverSubtitle(diagnosis, article) {
@@ -575,7 +575,6 @@ function normalizeItems(items) {
       if (!item) continue;
       normalized.push(item);
     }
-    if (normalized.length >= MAX_FACT_ITEMS) break;
   }
 
   return normalized;
