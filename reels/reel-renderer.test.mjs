@@ -9,4 +9,7 @@ test('reserves safe zones and closure space in the 9:16 layout', () => {
   assert.ok(layout.cta.y < layout.safe.bottom);
   assert.ok(layout.accentBar.height <= 6);
   assert.ok(layout.logo.y + layout.logo.height < layout.accentBar.y);
+  const internal = sceneLayout({ width: 1080, height: 1920, type: 'que-paso' });
+  assert.ok(internal.imageArea.y > internal.content.y);
+  assert.ok(internal.imageArea.height > 0);
 });

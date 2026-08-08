@@ -18,6 +18,9 @@ export function sceneLayout({ width = 1080, height = 1920, type = 'text' } = {})
     logo: { x: safe.left, y: height * 0.035, width: width * 0.28, height: height * 0.045 },
     accentBar: { x: safe.left, y: height * 0.105, width: width * 0.24, height: 4 },
     content: { x: safe.left, y: height * 0.22, width: safe.right - safe.left, height: height * 0.58 },
+    imageArea: type === 'closure' ? null : type === 'cover'
+      ? { x: 0, y: height * 0.24, width, height: height * 0.31 }
+      : { x: 0, y: height * 0.55, width, height: height * 0.32 },
     cta: { x: safe.left, y: type === 'closure' ? height * 0.68 : safe.bottom - height * 0.08, width: safe.right - safe.left, height: height * 0.08 },
   };
 }
@@ -44,7 +47,7 @@ export function renderReelScene(ctx, scene = {}, assets = {}, options = {}) {
   ctx.fillStyle = COLORS.paper;
   ctx.fillRect(0, 0, width, height);
 
-  if (image && scene.imageMode !== 'text') drawAdaptiveImage(ctx, image, scene, width, height);
+  if (image && scene.imageMode !== 'text') drawAdaptiveImage(ctx, image, scene, width, height, layout.imageArea);
   if (scene.type !== 'closure') drawLogo(ctx, assets.logo || options.logo, layout.logo, scene.type === 'cover' ? COLORS.white : COLORS.ink);
   drawAccent(ctx, accent, layout.accentBar, scene.type === 'cover' ? 0.9 : 1);
 
@@ -56,25 +59,30 @@ export function renderReelScene(ctx, scene = {}, assets = {}, options = {}) {
   return layout;
 }
 
-function drawAdaptiveImage(ctx, image, scene, width, height) {
+function drawAdaptiveImage(ctx, image, scene, width, height, area = { x: 0, y: 0, width, height }) {
   const plan = getImageDrawPlan({
     sourceWidth: image.naturalWidth || image.width,
     sourceHeight: image.naturalHeight || image.height,
-    canvasWidth: width,
-    canvasHeight: height,
+    canvasWidth: area.width,
+    canvasHeight: area.height,
     mode: scene.imageMode,
     focus: scene.focus,
   });
-  if (plan.background) {
     ctx.save();
-    ctx.filter = `blur(${plan.background.blur}px)`;
-    ctx.globalAlpha = 0.55;
-    ctx.drawImage(image, plan.background.x, plan.background.y, plan.background.width, plan.background.height);
+    ctx.beginPath();
+    ctx.rect(area.x, area.y, area.width, area.height);
+    ctx.clip();
+    if (plan.background) {
+      ctx.save();
+      ctx.filter = `blur(${plan.background.blur}px)`;
+      ctx.globalAlpha = 0.55;
+      ctx.drawImage(image, area.x + plan.background.x, area.y + plan.background.y, plan.background.width, plan.background.height);
+      ctx.restore();
+      ctx.fillStyle = 'rgba(10, 18, 15, 0.32)';
+      ctx.fillRect(area.x, area.y, area.width, area.height);
+    }
+    ctx.drawImage(image, area.x + plan.foreground.x, area.y + plan.foreground.y, plan.foreground.width, plan.foreground.height);
     ctx.restore();
-    ctx.fillStyle = 'rgba(10, 18, 15, 0.32)';
-    ctx.fillRect(0, 0, width, height);
-  }
-  ctx.drawImage(image, plan.foreground.x, plan.foreground.y, plan.foreground.width, plan.foreground.height);
 }
 
 function drawLogo(ctx, logo, box, color) {
@@ -98,7 +106,7 @@ function drawEditorialText(ctx, scene, layout, accent) {
   const x = layout.content.x;
   const width = layout.content.width;
   const hasImage = Boolean(scene.image);
-  const y = hasImage && scene.type === 'cover' ? layout.height * 0.55 : hasImage ? layout.height * 0.43 : layout.content.y;
+  const y = hasImage && scene.type === 'cover' ? layout.height * 0.55 : hasImage ? layout.height * 0.2 : layout.content.y;
   const titleSize = scene.type === 'cover' ? 76 : 70;
   ctx.save();
   if (hasImage && scene.type === 'cover') {
@@ -107,7 +115,7 @@ function drawEditorialText(ctx, scene, layout, accent) {
     ctx.fill();
   } else if (hasImage) {
     ctx.fillStyle = 'rgba(251, 250, 247, 0.97)';
-    roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.safe.bottom - y + 54, 36);
+    roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.height * 0.34, 36);
     ctx.fill();
   }
   drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, y, accent);
