@@ -20,7 +20,7 @@ export function sceneLayout({ width = 1080, height = 1920, type = 'text' } = {})
     content: { x: safe.left, y: height * 0.22, width: safe.right - safe.left, height: height * 0.58 },
     imageArea: type === 'closure' ? null : type === 'cover'
       ? { x: 0, y: 0, width, height: height * 0.55 }
-      : { x: 0, y: height * 0.57, width, height: height * 0.30 },
+      : { x: 0, y: height * 0.54, width, height: height * 0.33 },
     cta: { x: safe.left, y: type === 'closure' ? height * 0.68 : safe.bottom - height * 0.08, width: safe.right - safe.left, height: height * 0.08 },
   };
 }
@@ -124,11 +124,11 @@ function drawEditorialText(ctx, scene, layout, accent) {
   ctx.save();
   if (hasImage && scene.type === 'cover') {
     ctx.fillStyle = 'rgba(251, 250, 247, 0.96)';
-    roundedRect(ctx, layout.safe.left * 0.55, y - 40, width + layout.safe.left * 0.9, layout.height * 0.34, 36);
+    roundedRect(ctx, layout.safe.left * 0.55, y - 40, width + layout.safe.left * 0.9, layout.height * 0.32, 36);
     ctx.fill();
   } else if (hasImage) {
     ctx.fillStyle = 'rgba(251, 250, 247, 0.97)';
-    roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.height * 0.37, 36);
+    roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.height * 0.35, 36);
     ctx.fill();
   }
   drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, y, accent);

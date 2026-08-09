@@ -19,3 +19,14 @@ test('normalizes scene count and clamps focus', () => {
   assert.equal(normalized.scenes[0].focus.x, 1);
   assert.equal(normalized.scenes[0].focus.y, 0);
 });
+
+test('uses the short article URL in the closure CTA', () => {
+  const project = createReelProject({
+    fuente: {
+      url: 'https://mediamendoza.com/policiales/251300-Le-hurtaron-la-billetera',
+      imagenes: [],
+    },
+    editorial: { titulo: 'Titulo', bajada: 'Bajada', contexto: 'Contexto' },
+  });
+  assert.equal(project.scenes.at(-1).cta, 'Leé la nota completa: https://mediamendoza.com/policiales/251300');
+});

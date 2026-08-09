@@ -31,6 +31,7 @@ export function createReelProject(editorialPackage = {}) {
 
   if (context) scenes.push(scene('dato-clave', 'El dato clave', context, images[1] || image, accent, images[1] || image ? 'contain-blur' : 'text'));
 
+  const shortUrl = shortArticleUrl(source.url);
   scenes.push({
     id: 'cierre',
     type: 'closure',
@@ -40,7 +41,7 @@ export function createReelProject(editorialPackage = {}) {
     imageMode: 'text',
     focus: { ...DEFAULT_FOCUS },
     accent,
-    cta: 'Leé la nota completa en mediamendoza.com',
+    cta: shortUrl ? `Leé la nota completa: ${shortUrl}` : 'Leé la nota completa en mediamendoza.com',
   });
 
   return normalizeReelProject({
@@ -52,6 +53,22 @@ export function createReelProject(editorialPackage = {}) {
     images,
     scenes,
   });
+}
+
+function shortArticleUrl(value) {
+  const raw = clean(value);
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (url.hostname.endsWith('mediamendoza.com') && parts.length >= 2) {
+      const id = parts[1].match(/^\d+/)?.[0];
+      if (id) return `https://mediamendoza.com/${parts[0]}/${id}`;
+    }
+  } catch {
+    return '';
+  }
+  return '';
 }
 
 export function normalizeReelProject(project = {}) {
