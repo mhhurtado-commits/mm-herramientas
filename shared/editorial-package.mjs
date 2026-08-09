@@ -146,6 +146,7 @@ export function packageToPlateInput(editorialPackage = {}) {
 function normalizeEditorial(source, fuente) {
   return {
     seccion: clean(source.seccion || fuente.categoria),
+    category_options: normalizeCategoryOptions(source.category_options),
     familia: clean(source.familia) || 'general',
     tipo_noticia: clean(source.tipo_noticia) || 'noticia',
     complejidad: clean(source.complejidad) || 'medium',
@@ -157,6 +158,17 @@ function normalizeEditorial(source, fuente) {
     textual: normalizeStringsOrObjects(source.textual),
     personas: normalizeObjects(source.personas),
   };
+}
+
+function normalizeCategoryOptions(values) {
+  if (!Array.isArray(values)) return [];
+  return values.map((value, index) => ({
+    id: clean(value?.id) || `categoria-${index + 1}`,
+    label: clean(value?.label || value?.nombre || value?.seccion),
+    vertical: clean(value?.vertical),
+    recommended: Boolean(value?.recommended || value?.sugerida),
+    color: clean(value?.color),
+  })).filter(value => value.label).slice(0, 6);
 }
 
 function normalizeOutputs(outputs) {

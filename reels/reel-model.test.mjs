@@ -20,13 +20,23 @@ test('normalizes scene count and clamps focus', () => {
   assert.equal(normalized.scenes[0].focus.y, 0);
 });
 
-test('uses the short article URL in the closure CTA', () => {
+test('does not put a non-clickable short URL in the closure CTA', () => {
+  const project = createReelProject({ fuente: { url: 'https://mediamendoza.com/policiales/251300-Titulo' }, editorial: { titulo: 'Titulo' } });
+  assert.equal(project.scenes.at(-1).cta, 'Leé la nota completa en mediamendoza.com');
+});
+
+test('preserves recommended and alternative categories from the package', () => {
   const project = createReelProject({
-    fuente: {
-      url: 'https://mediamendoza.com/policiales/251300-Le-hurtaron-la-billetera',
-      imagenes: [],
+    fuente: { titulo_original: 'Nota' },
+    editorial: {
+      seccion: 'Actualidad',
+      category_options: [
+        { id: 'policiales', label: 'Policiales', recommended: true, color: '#c7474f' },
+        { id: 'actualidad', label: 'Actualidad', recommended: false, color: '#a8d432' },
+      ],
     },
-    editorial: { titulo: 'Titulo', bajada: 'Bajada', contexto: 'Contexto' },
   });
-  assert.equal(project.scenes.at(-1).cta, 'Leé la nota completa: https://mediamendoza.com/policiales/251300');
+  assert.equal(project.selectedCategoryId, 'policiales');
+  assert.deepEqual(project.categoryOptions.map(option => option.label), ['Policiales', 'Actualidad']);
+  assert.equal(project.sectionLabel, 'Policiales');
 });

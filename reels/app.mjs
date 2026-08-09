@@ -7,6 +7,7 @@ import { updateSceneFocus } from './ui.mjs';
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const state = { session: null, sceneIndex: 0, image: null, imageUrl: '', logo: null, loading: false };
 const $ = selector => document.querySelector(selector);
+const CATEGORY_COLORS = { actualidad: '#a8d432', policiales: '#c7474f', sociales: '#bd7125', sociedad: '#bd7125', politica: '#6650a4', economía: '#187f72', economia: '#187f72', deportes: '#148a78', clima: '#4d8fb8', general: '#a8d432' };
 
 const logo = new Image();
 logo.onload = () => { state.logo = logo; render(); };
@@ -42,6 +43,32 @@ function renderList() {
   const scenes = state.session?.project?.scenes || [];
   $('#sceneList').innerHTML = scenes.map((scene, index) => `<button type="button" class="scene-button ${index === state.sceneIndex ? 'active' : ''}" data-scene="${index}"><strong>${index + 1}. ${scene.type === 'closure' ? 'Cierre' : scene.type.replace('-', ' ')}</strong><small>${scene.title || ''}</small></button>`).join('');
   document.querySelectorAll('[data-scene]').forEach(button => button.addEventListener('click', () => { state.sceneIndex = Number(button.dataset.scene); loadCurrentImage(); renderList(); render(); }));
+  renderCategoryControls();
+}
+
+function renderCategoryControls() {
+  const control = $('#categoryControls');
+  const options = state.session?.project?.categoryOptions || [];
+  if (!control) return;
+  control.classList.toggle('is-hidden', options.length < 2);
+  if (options.length < 2) { control.innerHTML = ''; return; }
+  control.innerHTML = `<label for="reelCategory">Categoría editorial</label><select id="reelCategory" class="category-select">${options.map(option => `<option value="${option.id}" ${option.id === state.session.project.selectedCategoryId ? 'selected' : ''}>${option.label}</option>`).join('')}</select>`;
+  $('#reelCategory').addEventListener('change', event => selectCategory(event.target.value));
+}
+
+function selectCategory(id) {
+  const project = state.session?.project;
+  const option = project?.categoryOptions?.find(item => item.id === id);
+  if (!project || !option) return;
+  const key = option.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const accent = option.color || CATEGORY_COLORS[key] || CATEGORY_COLORS.general;
+  project.selectedCategoryId = option.id;
+  project.sectionLabel = option.label;
+  project.section = key;
+  project.accent = accent;
+  project.scenes.forEach(scene => { scene.section = option.label; scene.accent = accent; });
+  renderList();
+  render();
 }
 
 async function loadCurrentImage() {

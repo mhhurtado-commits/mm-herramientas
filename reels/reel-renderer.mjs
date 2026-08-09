@@ -164,7 +164,6 @@ function drawClosure(ctx, scene, layout, accent, logo) {
   roundedRect(ctx, layout.safe.left * 0.55, layout.height * 0.22, width + layout.safe.left * 0.9, layout.height * 0.5, 36);
   ctx.fill();
   drawLogo(ctx, logo, { x, y: layout.height * 0.27, width: width * 0.38, height: layout.height * 0.055 }, COLORS.white);
-  drawPill(ctx, 'MEDIA MENDOZA', x, layout.height * 0.37, accent, true);
   ctx.fillStyle = COLORS.white;
   ctx.font = '800 70px Arial, sans-serif';
   drawLines(ctx, wrapText(ctx, scene.title || 'Seguí informado', width, 2), x, layout.height * 0.45, 78, COLORS.white);

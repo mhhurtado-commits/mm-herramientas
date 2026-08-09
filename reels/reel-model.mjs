@@ -19,7 +19,10 @@ export function createReelProject(editorialPackage = {}) {
   const editorial = editorialPackage.editorial || {};
   const images = uniqueStrings([source.imagen, source.imagenes]);
   const image = images[0] || '';
-  const section = clean(editorial.seccion || source.categoria || 'general').toLowerCase();
+  const categoryOptions = normalizeCategoryOptions(editorial.category_options);
+  const selectedCategory = categoryOptions.find(option => option.recommended) || categoryOptions[0];
+  const sectionLabel = clean(selectedCategory?.label || editorial.seccion || source.categoria || 'general');
+  const section = sectionLabel.toLowerCase();
   const accent = SECTION_COLORS[section] || SECTION_COLORS.general;
   const title = clean(editorial.titulo || source.titulo_original || '');
   const summary = clean(editorial.bajada);
@@ -31,7 +34,6 @@ export function createReelProject(editorialPackage = {}) {
 
   if (context) scenes.push(scene('dato-clave', 'El dato clave', context, images[1] || image, accent, images[1] || image ? 'contain-blur' : 'text'));
 
-  const shortUrl = shortArticleUrl(source.url);
   scenes.push({
     id: 'cierre',
     type: 'closure',
@@ -41,34 +43,23 @@ export function createReelProject(editorialPackage = {}) {
     imageMode: 'text',
     focus: { ...DEFAULT_FOCUS },
     accent,
-    cta: shortUrl ? `Leé la nota completa: ${shortUrl}` : 'Leé la nota completa en mediamendoza.com',
+    cta: 'Leé la nota completa en mediamendoza.com',
+    section: sectionLabel,
   });
+  scenes.forEach(item => { item.section = sectionLabel; });
 
   return normalizeReelProject({
     version: 1,
     format: '9:16',
     sourceUrl: clean(source.url),
     section,
+    sectionLabel,
+    categoryOptions,
+    selectedCategoryId: selectedCategory?.id || '',
     accent,
     images,
     scenes,
   });
-}
-
-function shortArticleUrl(value) {
-  const raw = clean(value);
-  if (!raw) return '';
-  try {
-    const url = new URL(raw);
-    const parts = url.pathname.split('/').filter(Boolean);
-    if (url.hostname.endsWith('mediamendoza.com') && parts.length >= 2) {
-      const id = parts[1].match(/^\d+/)?.[0];
-      if (id) return `https://mediamendoza.com/${parts[0]}/${id}`;
-    }
-  } catch {
-    return '';
-  }
-  return '';
 }
 
 export function normalizeReelProject(project = {}) {
@@ -81,10 +72,24 @@ export function normalizeReelProject(project = {}) {
     format: '9:16',
     sourceUrl: clean(source.sourceUrl),
     section: clean(source.section || 'general').toLowerCase(),
+    sectionLabel: clean(source.sectionLabel || source.section || 'general'),
+    categoryOptions: normalizeCategoryOptions(source.categoryOptions),
+    selectedCategoryId: clean(source.selectedCategoryId),
     accent: clean(source.accent) || SECTION_COLORS.general,
     images: uniqueStrings([source.images]),
     scenes,
   };
+}
+
+function normalizeCategoryOptions(values) {
+  if (!Array.isArray(values)) return [];
+  return values.map((value, index) => ({
+    id: clean(value?.id) || `categoria-${index + 1}`,
+    label: clean(value?.label || value?.nombre || value?.seccion),
+    vertical: clean(value?.vertical),
+    recommended: Boolean(value?.recommended || value?.sugerida),
+    color: clean(value?.color),
+  })).filter(value => value.label).slice(0, 6);
 }
 
 function scene(type, title, body, image, accent, imageMode) {
@@ -115,6 +120,7 @@ function normalizeScene(sceneSource, index) {
     focus,
     accent: clean(source.accent),
     cta: clean(source.cta),
+    section: clean(source.section),
   };
 }
 
