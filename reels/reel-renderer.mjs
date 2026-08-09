@@ -19,8 +19,8 @@ export function sceneLayout({ width = 1080, height = 1920, type = 'text' } = {})
     accentBar: { x: safe.left, y: height * 0.105, width: width * 0.24, height: 4 },
     content: { x: safe.left, y: height * 0.22, width: safe.right - safe.left, height: height * 0.58 },
     imageArea: type === 'closure' ? null : type === 'cover'
-      ? { x: 0, y: height * 0.24, width, height: height * 0.31 }
-      : { x: 0, y: height * 0.55, width, height: height * 0.32 },
+      ? { x: 0, y: 0, width, height: height * 0.55 }
+      : { x: 0, y: height * 0.57, width, height: height * 0.30 },
     cta: { x: safe.left, y: type === 'closure' ? height * 0.68 : safe.bottom - height * 0.08, width: safe.right - safe.left, height: height * 0.08 },
   };
 }
@@ -51,6 +51,7 @@ export function renderReelScene(ctx, scene = {}, assets = {}, options = {}) {
   if (scene.type !== 'closure') {
     drawLogo(ctx, assets.logo || options.logo, layout.logo, scene.type === 'cover' ? COLORS.white : COLORS.ink, {
       contrast: scene.type !== 'cover',
+      shadow: true,
     });
   }
   drawAccent(ctx, accent, layout.accentBar, scene.type === 'cover' ? 0.9 : 1);
@@ -96,6 +97,8 @@ function drawLogo(ctx, logo, box, color, options = {}) {
   if (typeof logo === 'object') {
     if (options.contrast) {
       ctx.filter = 'brightness(0.62) saturate(0.9)';
+    }
+    if (options.shadow) {
       ctx.shadowColor = 'rgba(0, 0, 0, 0.42)';
       ctx.shadowBlur = 14;
       ctx.shadowOffsetY = 3;
@@ -116,7 +119,7 @@ function drawEditorialText(ctx, scene, layout, accent) {
   const x = layout.content.x;
   const width = layout.content.width;
   const hasImage = Boolean(scene.image);
-  const y = hasImage && scene.type === 'cover' ? layout.height * 0.55 : hasImage ? layout.height * 0.2 : layout.content.y;
+  const y = hasImage && scene.type === 'cover' ? layout.height * 0.55 : hasImage ? layout.height * 0.17 : layout.content.y;
   const titleSize = scene.type === 'cover' ? 76 : 70;
   ctx.save();
   if (hasImage && scene.type === 'cover') {
@@ -125,7 +128,7 @@ function drawEditorialText(ctx, scene, layout, accent) {
     ctx.fill();
   } else if (hasImage) {
     ctx.fillStyle = 'rgba(251, 250, 247, 0.97)';
-    roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.height * 0.34, 36);
+    roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.height * 0.37, 36);
     ctx.fill();
   }
   drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, y, accent);
@@ -137,7 +140,19 @@ function drawEditorialText(ctx, scene, layout, accent) {
   const bodyY = titleY + titleLines.length * titleSize * 1.05 + 54;
   ctx.font = '500 40px Arial, sans-serif';
   const bodyLines = wrapText(ctx, scene.body || '', width, 4);
-  drawLines(ctx, bodyLines, x, bodyY, 52, COLORS.muted);
+  if (scene.type === 'dato-clave') {
+    const blockY = bodyY - 34;
+    const blockHeight = Math.max(138, bodyLines.length * 52 + 62);
+    ctx.fillStyle = `${accent}20`;
+    roundedRect(ctx, x - 18, blockY - 34, width + 36, blockHeight, 24);
+    ctx.fill();
+    ctx.fillStyle = accent;
+    ctx.fillRect(x - 18, blockY - 34, 8, blockHeight);
+    ctx.font = '700 40px Arial, sans-serif';
+    drawLines(ctx, bodyLines, x + 18, blockY + 18, 52, COLORS.ink);
+  } else {
+    drawLines(ctx, bodyLines, x, bodyY, 52, COLORS.muted);
+  }
   ctx.restore();
 }
 
