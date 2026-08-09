@@ -1552,6 +1552,25 @@ test('condensa automáticamente el título largo de un dato para mantener dos l�
   assert.equal(canvas.editorialOverflow, false);
 });
 
+test('condensa automáticamente los elementos internos de un dato sin bloquear la exportación', () => {
+  const canvas = renderEditorialSlide({
+    type: 'dato',
+    content: {
+      title: 'Corte en el sector Cuesta del Infiernillo.',
+      items: [
+        { value: 'Nevadas persistentes en Malargüe.', label: '' },
+        { value: 'Operativo especial para facilitar el descenso de vehículos desde Las Nieves.', label: '' },
+        { value: 'La reapertura depende de la mejora en las condiciones de seguridad.', label: '' },
+      ],
+    },
+  });
+
+  const statItems = canvas.renderState.blocks.filter((block) => block.role === 'stat-item');
+  assert.ok(statItems.length >= 2);
+  assert.ok(statItems.every((block) => block.renderedLines <= 2 && block.overflow === false));
+  assert.equal(canvas.editorialOverflow, false);
+});
+
 test('renderiza todos los pares value-label de un dato dentro de la zona segura', () => {
   const canvas = renderEditorialSlide({
     type: 'dato',

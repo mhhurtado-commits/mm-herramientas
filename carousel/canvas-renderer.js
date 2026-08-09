@@ -682,11 +682,11 @@ function drawStats(ctx, slide, project, theme, layout) {
       var itemY = cardY + itemIndex * 154;
       fillRoundRect(ctx, itemX, itemY, cardWidth, 146, 22, theme.colors.surfaceSoft);
       fillRoundRect(ctx, itemX, itemY, 10, 146, 5, theme.colors.accent);
-      drawMeasuredText(ctx, item.value, itemX + 30, itemY + 20, cardWidth - 54, {
-        fontSize: 42, minFontSize: 28, maxLines: 1, lineHeight: 48, weight: "700", color: theme.colors.accentDark,
-        role: "stat-item", maxBottom: Math.min(itemY + 72, layout.safeZones.footer.y - 30)
+      var itemValueEnd = drawMeasuredText(ctx, item.value, itemX + 30, itemY + 20, cardWidth - 54, {
+        fontSize: 42, minFontSize: 28, maxLines: 2, lineHeight: 42, weight: "700", color: theme.colors.accentDark,
+        role: "stat-item", autoCondense: true, maxBottom: Math.min(itemY + 104, layout.safeZones.footer.y - 30)
       });
-      drawMeasuredText(ctx, item.label, itemX + 30, itemY + 76, cardWidth - 54, {
+      drawMeasuredText(ctx, item.label, itemX + 30, Math.max(itemY + 76, itemValueEnd + 8), cardWidth - 54, {
         fontSize: 22, minFontSize: 18, maxLines: 3, lineHeight: 27, color: theme.colors.textPrimary,
         role: "body", maxBottom: Math.min(itemY + 138, layout.safeZones.footer.y - 30)
       });
