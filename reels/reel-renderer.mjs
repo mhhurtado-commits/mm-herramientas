@@ -131,7 +131,7 @@ function drawEditorialText(ctx, scene, layout, accent) {
     roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.height * 0.35, 36);
     ctx.fill();
   }
-  drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, y, accent);
+  drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, y, accent, false, width);
   const titleY = y + 112;
   ctx.fillStyle = COLORS.ink;
   ctx.font = `800 ${titleSize}px Arial, sans-serif`;
@@ -178,15 +178,27 @@ function drawClosure(ctx, scene, layout, accent, logo) {
   ctx.restore();
 }
 
-function drawPill(ctx, text, x, y, accent, inverse = false) {
+function drawPill(ctx, text, x, y, accent, inverse = false, maxWidth = (ctx.canvas?.width || 1080) - x - 24) {
   if (!text) return;
-  ctx.font = '800 27px Arial, sans-serif';
-  const width = ctx.measureText(text).width + 46;
+  const label = String(text).toUpperCase();
+  const padding = 46;
+  let fontSize = 27;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `800 ${fontSize}px Arial, sans-serif`;
+  while (fontSize > 18 && ctx.measureText(label).width + padding > maxWidth) {
+    fontSize -= 1;
+    ctx.font = `800 ${fontSize}px Arial, sans-serif`;
+  }
+  const width = Math.min(maxWidth, ctx.measureText(label).width + padding);
+  const height = fontSize + 27;
   ctx.fillStyle = accent;
-  roundedRect(ctx, x, y, width, 54, 27);
+  roundedRect(ctx, x, y, width, height, height / 2);
   ctx.fill();
   ctx.fillStyle = inverse ? COLORS.dark : COLORS.white;
-  ctx.fillText(text.toUpperCase(), x + 23, y + 36);
+  ctx.fillText(label, x + width / 2, y + height / 2);
+  ctx.textAlign = 'start';
+  ctx.textBaseline = 'alphabetic';
 }
 
 function drawAccent(ctx, accent, bar, alpha) {
