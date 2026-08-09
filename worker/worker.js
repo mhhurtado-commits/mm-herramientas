@@ -6599,9 +6599,7 @@ async function handlePlacasV2Paquete(body, env) {
     image: note.image || note.imagen,
     images: note.images || note.imagenes,
   });
-  const imagenes = noteImages.length
-    ? noteImages
-    : (Array.isArray(placa.fuente?.imagenes) ? placa.fuente.imagenes : []);
+  const imagenes = noteImages;
   const paquete = {
     tipo: 'noticia_editorial',
     version: 2,
@@ -6610,7 +6608,7 @@ async function handlePlacasV2Paquete(body, env) {
       titulo_original: placa.fuente?.titulo_original || note.title || note.titulo || '',
       categoria: placa.fuente?.categoria || note.category || note.categoria || '',
       cuerpo: placa.fuente?.texto || note.body || note.texto || note.contenido || '',
-      imagen: note.image || note.imagen || placa.fuente?.imagen || imagenes[0] || '',
+      imagen: note.image || note.imagen || imagenes[0] || '',
       imagenes,
     },
     editorial: {

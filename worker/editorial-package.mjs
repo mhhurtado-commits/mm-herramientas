@@ -32,8 +32,8 @@ export function buildEditorialPackage(note = {}, plate = {}, outputs = ['placa']
     titulo_original: packageDraft.fuente.titulo_original || String(note.title || note.titulo || '').trim(),
     categoria: packageDraft.fuente.categoria || String(note.category || note.categoria || '').trim(),
     cuerpo: packageDraft.fuente.cuerpo || String(note.body || note.texto || note.contenido || '').replace(/\s+/g, ' ').trim(),
-    imagen: notePrimaryImage || packageDraft.fuente.imagen || '',
-    imagenes: noteImages.length ? noteImages : packageDraft.fuente.imagenes,
+    imagen: notePrimaryImage,
+    imagenes: noteImages,
   };
   const normalized = normalizeEditorialPackage(packageDraft);
   return { ...normalized, requestedOutputs };
