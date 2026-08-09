@@ -3,6 +3,11 @@ import {
   packageFromPlate,
 } from '../shared/editorial-package.mjs';
 
+const uniqueStrings = values => [...new Set((Array.isArray(values) ? values : [values])
+  .flatMap(value => Array.isArray(value) ? value : [value])
+  .map(value => String(value || '').trim())
+  .filter(Boolean))];
+
 export const EDITORIAL_OUTPUTS = ['placa', 'carrusel', 'reel'];
 
 export function normalizeRequestedOutputs(outputs) {
@@ -14,6 +19,8 @@ export function normalizeRequestedOutputs(outputs) {
 export function buildEditorialPackage(note = {}, plate = {}, outputs = ['placa']) {
   const requestedOutputs = normalizeRequestedOutputs(outputs);
   const packageDraft = packageFromPlate(plate);
+  const noteImages = uniqueStrings([note.image || note.imagen, note.images || note.imagenes]);
+  const notePrimaryImage = noteImages[0] || '';
   packageDraft.salidas = {
     placas: requestedOutputs.includes('placa') ? [plate] : [],
     carrusel: requestedOutputs.includes('carrusel') ? null : null,
@@ -25,8 +32,8 @@ export function buildEditorialPackage(note = {}, plate = {}, outputs = ['placa']
     titulo_original: packageDraft.fuente.titulo_original || String(note.title || note.titulo || '').trim(),
     categoria: packageDraft.fuente.categoria || String(note.category || note.categoria || '').trim(),
     cuerpo: packageDraft.fuente.cuerpo || String(note.body || note.texto || note.contenido || '').replace(/\s+/g, ' ').trim(),
-    imagen: packageDraft.fuente.imagen || String(note.image || note.imagen || '').trim(),
-    imagenes: packageDraft.fuente.imagenes.length ? packageDraft.fuente.imagenes : (Array.isArray(note.images) ? note.images.filter(Boolean) : []),
+    imagen: notePrimaryImage || packageDraft.fuente.imagen || '',
+    imagenes: noteImages.length ? noteImages : packageDraft.fuente.imagenes,
   };
   const normalized = normalizeEditorialPackage(packageDraft);
   return { ...normalized, requestedOutputs };

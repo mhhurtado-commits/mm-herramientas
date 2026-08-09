@@ -55,6 +55,27 @@ test('construye un paquete con la placa y los slots de salida solicitados', () =
   assert.deepEqual(result.requestedOutputs, ['placa', 'carrusel', 'reel']);
 });
 
+test('prioriza las imágenes de la nota actual sobre imágenes heredadas de la placa', () => {
+  const currentNote = {
+    ...note,
+    image: 'https://example.com/current.jpg',
+    images: ['https://example.com/current.jpg', 'https://example.com/current-detail.jpg'],
+  };
+  const stalePlate = {
+    ...plate,
+    fuente: {
+      ...plate.fuente,
+      imagen: 'https://example.com/old.jpg',
+      imagenes: ['https://example.com/old.jpg', 'https://example.com/old-detail.jpg'],
+    },
+  };
+
+  const result = buildEditorialPackage(currentNote, stalePlate, ['reel']);
+
+  assert.equal(result.package.fuente.imagen, currentNote.image);
+  assert.deepEqual(result.package.fuente.imagenes, currentNote.images);
+});
+
 test('rechaza una nota sin datos suficientes sin lanzar una excepción', () => {
   const result = buildEditorialPackage({}, {}, ['placa']);
 
