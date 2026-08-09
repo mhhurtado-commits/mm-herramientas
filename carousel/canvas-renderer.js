@@ -270,12 +270,48 @@ function fitMeasuredText(ctx, text, maxWidth, settings, maxLines) {
     fontSize = Math.max(minFontSize, fontSize - 1);
   } while (true);
 
+  var condensed = false;
+  if (lines.length > maxLines && settings.autoCondense) {
+    lines = condenseMeasuredLines(ctx, text, maxWidth, maxLines);
+    condensed = true;
+  }
+
   ctx.font = originalFont;
   return {
     lines: lines,
     fontSize: fontSize,
-    truncated: lines.length > maxLines,
+    truncated: lines.length > maxLines && !condensed,
+    condensed: condensed,
   };
+}
+
+function condenseMeasuredLines(ctx, text, maxWidth, maxLines) {
+  var words = String(text || "").trim().split(/\s+/);
+  var lines = [];
+  var line = "";
+
+  for (var i = 0; i < words.length; i++) {
+    var candidate = line ? line + " " + words[i] : words[i];
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+      continue;
+    }
+    if (line) lines.push(line);
+    if (lines.length === maxLines) break;
+    line = words[i];
+  }
+  if (lines.length < maxLines && line) lines.push(line);
+
+  while (lines.length && /^(de|del|la|el|las|los|para|por|con|y|e|en)$/i.test(lastWord(lines[lines.length - 1]))) {
+    lines[lines.length - 1] = lines[lines.length - 1].replace(/\s+\S+$/, "").trim();
+    if (!lines[lines.length - 1]) lines.pop();
+  }
+  return lines.slice(0, maxLines);
+}
+
+function lastWord(value) {
+  var words = String(value || "").trim().split(/\s+/);
+  return words[words.length - 1] || "";
 }
 
 function wrapMeasuredLines(ctx, text, maxWidth) {
@@ -615,7 +651,7 @@ function drawStats(ctx, slide, project, theme, layout) {
   var headingY = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132, maxWidth: factWidth }) + 12;
   var factEnd = drawMeasuredText(ctx, primary, layout.content.x, headingY, factWidth, {
     fontSize: 138, minFontSize: 58, maxLines: 2, lineHeight: 132, weight: "700", color: theme.colors.accentDark,
-    role: "stat",
+    role: "stat", autoCondense: true,
     maxBottom: layout.safeZones.footer.y - 250,
   });
   var primaryLabelEnd = drawMeasuredText(ctx, stats.primaryLabel, layout.content.x, factEnd + 8, factWidth, {

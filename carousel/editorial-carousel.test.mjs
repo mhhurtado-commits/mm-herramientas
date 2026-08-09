@@ -1536,6 +1536,22 @@ test('renderiza datos estructurados sin convertirlos en objetos de texto', () =>
   assert.equal(textValues(canvas).includes('[object Object]'), false);
 });
 
+test('condensa automáticamente el título largo de un dato para mantener dos líneas exportables', () => {
+  const canvas = renderEditorialSlide({
+    type: 'dato',
+    content: {
+      title: 'Corte dispuesto por la Dirección Provincial de Vialidad para facilitar el descenso de vehículos',
+      text: 'Continúan las nevadas en Malargüe dificultando la circulación.',
+    },
+  });
+
+  const stat = canvas.renderState.blocks.find((block) => block.role === 'stat');
+  assert.ok(stat);
+  assert.equal(stat.renderedLines, 2);
+  assert.equal(stat.overflow, false);
+  assert.equal(canvas.editorialOverflow, false);
+});
+
 test('renderiza todos los pares value-label de un dato dentro de la zona segura', () => {
   const canvas = renderEditorialSlide({
     type: 'dato',
