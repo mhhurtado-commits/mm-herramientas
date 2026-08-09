@@ -95,9 +95,10 @@ function drawLogo(ctx, logo, box, color, options = {}) {
   ctx.globalAlpha = 0.96;
   if (typeof logo === 'object') {
     if (options.contrast) {
-      ctx.fillStyle = 'rgba(20, 32, 27, 0.9)';
-      roundedRect(ctx, box.x - 14, box.y - 8, box.width + 28, box.height + 16, 18);
-      ctx.fill();
+      ctx.filter = 'brightness(0.62) saturate(0.9)';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.42)';
+      ctx.shadowBlur = 14;
+      ctx.shadowOffsetY = 3;
     }
     const scale = Math.min(box.width / logo.width, box.height / logo.height);
     const width = logo.width * scale;
