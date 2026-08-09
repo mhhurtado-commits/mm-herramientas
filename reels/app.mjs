@@ -5,7 +5,7 @@ import { createReelProject } from './reel-model.mjs';
 import { updateSceneFocus } from './ui.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { session: null, sceneIndex: 0, image: null, imageUrl: '', logo: null, loading: false };
+const state = { session: null, sceneIndex: 0, image: null, imageUrl: '', imageRequestId: 0, logo: null, loading: false };
 const $ = selector => document.querySelector(selector);
 const CATEGORY_COLORS = { actualidad: '#a8d432', policiales: '#c7474f', sociales: '#bd7125', sociedad: '#bd7125', politica: '#6650a4', economía: '#187f72', economia: '#187f72', deportes: '#148a78', clima: '#4d8fb8', general: '#a8d432' };
 
@@ -28,13 +28,18 @@ async function generate(note, outputs) {
 }
 
 async function loadImage(url) {
+  const requestId = ++state.imageRequestId;
   state.image = null; state.imageUrl = url || '';
   if (!url) return;
   try {
     const response = await fetch(`${WORKER}?image=${encodeURIComponent(url)}`);
     if (!response.ok) throw new Error('image');
     const image = new Image();
-    image.onload = () => { state.image = image; render(); };
+    image.onload = () => {
+      if (requestId !== state.imageRequestId || state.imageUrl !== url) return;
+      state.image = image;
+      render();
+    };
     image.src = URL.createObjectURL(await response.blob());
   } catch { $('#reelStatus').textContent = 'La noticia se cargó, pero su imagen no pudo descargarse.'; }
 }
@@ -80,7 +85,7 @@ function render() {
   const project = state.session?.project;
   if (!project) return;
   const scene = project.scenes[state.sceneIndex];
-  renderReelProject($('#reelCanvas'), project, { image: state.image, logo: state.logo }, state.sceneIndex);
+  renderReelProject($('#reelCanvas'), project, { image: state.image, imageUrl: state.imageUrl, logo: state.logo }, state.sceneIndex);
   $('#sceneTitle').textContent = scene?.title || 'Escena';
   $('#sceneCounter').textContent = `${state.sceneIndex + 1} / ${project.scenes.length}`;
   $('#dragHint').classList.toggle('is-hidden', !state.image || scene?.type === 'closure');

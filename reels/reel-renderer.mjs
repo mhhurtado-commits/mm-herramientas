@@ -41,7 +41,9 @@ export function renderReelScene(ctx, scene = {}, assets = {}, options = {}) {
   const height = options.height || ctx.canvas?.height || 1920;
   const layout = sceneLayout({ width, height, type: scene.type });
   const accent = scene.accent || '#a8d432';
-  const image = assets[scene.image] || assets.image || null;
+  const image = scene.image
+    ? (assets[scene.image] || (assets.imageUrl === scene.image ? assets.image : null))
+    : null;
 
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = COLORS.paper;
