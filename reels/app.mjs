@@ -32,6 +32,16 @@ async function loadImage(url) {
   const requestId = ++state.imageRequestId;
   state.image = null; state.imageUrl = url || '';
   if (!url) return;
+  if (/^(data:|blob:)/i.test(url)) {
+    const image = new Image();
+    image.onload = () => {
+      if (requestId !== state.imageRequestId || state.imageUrl !== url) return;
+      state.image = image;
+      render();
+    };
+    image.src = url;
+    return;
+  }
   try {
     const response = await fetch(`${WORKER}?image=${encodeURIComponent(url)}`);
     if (!response.ok) throw new Error('image');
@@ -62,6 +72,37 @@ function renderCategoryControls() {
   $('#reelCategory').addEventListener('change', event => selectCategory(event.target.value));
 }
 
+function renderSceneImageControls() {
+  const control = $('#sceneImageControls');
+  const scene = state.session?.project?.scenes?.[state.sceneIndex];
+  if (!control) return;
+  const enabled = Boolean(scene && scene.type !== 'closure' && scene.type !== 'cover');
+  control.classList.toggle('is-hidden', !enabled);
+  if (!enabled) { control.innerHTML = ''; return; }
+  control.innerHTML = '<label for="sceneImageInput">Imagen de apoyo</label><div class="scene-image-actions"><input id="sceneImageInput" type="file" accept="image/*"><button id="clearSceneImage" type="button" class="secondary">Quitar</button></div><small>Opcional para esta escena interna.</small>';
+  $('#sceneImageInput').addEventListener('change', event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      scene.image = String(reader.result || '');
+      scene.imageMode = 'contain-blur';
+      scene.focus = { x: 0.5, y: 0.5 };
+      await loadImage(scene.image);
+      renderList();
+      render();
+    };
+    reader.readAsDataURL(file);
+  });
+  $('#clearSceneImage').addEventListener('click', async () => {
+    scene.image = '';
+    scene.imageMode = 'text';
+    await loadImage('');
+    renderList();
+    render();
+  });
+}
+
 function selectCategory(id) {
   const project = state.session?.project;
   const option = project?.categoryOptions?.find(item => item.id === id);
@@ -86,6 +127,7 @@ function render() {
   const project = state.session?.project;
   if (!project) return;
   const scene = project.scenes[state.sceneIndex];
+  renderSceneImageControls();
   renderReelProject($('#reelCanvas'), project, { image: state.image, imageUrl: state.imageUrl, logo: state.logo }, state.sceneIndex);
   $('#sceneTitle').textContent = scene?.title || 'Escena';
   $('#sceneCounter').textContent = `${state.sceneIndex + 1} / ${project.scenes.length}`;
