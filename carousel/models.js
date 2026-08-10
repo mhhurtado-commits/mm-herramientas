@@ -13,7 +13,6 @@ export function createCarouselProject() {
     editorialPackage: null,
     categoryOptions: [],
     selectedCategoryId: "",
-    reelPlan: null,
     socialCopy: {
       caption: "",
       hashtags: []

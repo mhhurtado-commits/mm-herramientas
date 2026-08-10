@@ -5,7 +5,6 @@ import { createSlide } from "./slide-model.js";
 import { normalizeCarouselPlan } from "./parser.js";
 import { attachCarouselOutput, createEditorialEnvelope } from "./editorial-contract.js";
 import { attachEditorialPackage, openCarouselFromEditorialPackage } from "./shared-package-adapter.js";
-import { attachReelPackage } from "./reel-package-adapter.js";
 import { resolveArticleImage, resolveSupportImage } from "./image-provenance.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
@@ -43,13 +42,6 @@ export function loadEditorialPackage(editorialPackage) {
       hashtags: next.socialCopy?.hashtags || [],
     };
   }
-  setProject(next);
-  return next;
-}
-
-export function loadEditorialPackageForReel(editorialPackage) {
-  const project = getProject() || {};
-  const next = attachReelPackage(project, editorialPackage);
   setProject(next);
   return next;
 }

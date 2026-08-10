@@ -4,28 +4,19 @@ import { renderCarousel } from "./renderer.js";
 import { getEditorialSlideLabel } from "./slide-model.js";
 import { normalizeFocalPosition } from "./core/image.js";
 import { preloadCarouselAssets, renderSlideToCanvas } from "./canvas-renderer.js";
-import { preloadReelSceneAssets, renderReelSceneToCanvas, resolveReelSceneFamily } from "./reel-canvas-renderer.js";
-import { attachCarouselOutput, attachReelOutput } from "./editorial-contract.js";
-import { ensureReelClosure } from "./reel-package-adapter.js";
-import { buildInstagramCaptionPrompt, buildReelPrompt } from "./prompts.js";
+import { attachCarouselOutput } from "./editorial-contract.js";
+import { buildInstagramCaptionPrompt } from "./prompts.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 var activeSlideIndex = 0;
-var activeReelSceneIndex = 0;
-var activeWorkspaceTab = "carousel";
-var reelPlaybackTimer = null;
-var reelPlaybackAnimationFrame = null;
 
 export function initUI() {
   window.removeEventListener("carousel:asset-ready", handleAssetReady);
   window.addEventListener("carousel:asset-ready", handleAssetReady);
   window.removeEventListener("carousel:asset-error", handleAssetReady);
   window.addEventListener("carousel:asset-error", handleAssetReady);
-  ensureWorkspaceTabs();
   ensureBulkDownloadButton();
   ensureCaptionPanel();
-  ensureReelPreviewPanel();
-  ensureReelCaptionPanel();
   consumeEditorialHandoff();
 
   var loadBtn = document.getElementById("loadBtn");
@@ -61,11 +52,7 @@ export function initUI() {
         var engine = await import("./carousel-engine.js");
         await engine.generatePlan();
         await generateInstagramCaption(project);
-        await generateReelPlan(project);
-
         activeSlideIndex = 0;
-        activeReelSceneIndex = 0;
-        setActiveWorkspaceTab("carousel");
         renderInPreview();
       } catch (e) {
         if (preview) preview.innerHTML = "No fue posible obtener la noticia.";
@@ -85,22 +72,15 @@ async function consumeEditorialHandoff() {
   window.sessionStorage.removeItem('mm-editorial-handoff');
   let handoff;
   try { handoff = JSON.parse(raw); } catch { return; }
-  if (!handoff?.package || !['carrusel', 'reel'].includes(handoff.output)) return;
+  if (!handoff?.package || handoff.output !== 'carrusel') return;
 
   const urlInput = document.getElementById('urlInput');
   const preview = document.getElementById('previewContent');
   if (urlInput) urlInput.value = handoff.package.fuente?.url || '';
-  if (preview) preview.textContent = handoff.output === 'reel' ? 'Preparando Reel...' : 'Generando carrusel...';
+  if (preview) preview.textContent = 'Generando carrusel...';
 
   try {
     const engine = await import('./carousel-engine.js');
-    if (handoff.output === 'reel') {
-      engine.loadEditorialPackageForReel(handoff.package);
-      setActiveWorkspaceTab('reel');
-      renderInPreview();
-      return;
-    }
-
     engine.loadEditorialPackage(handoff.package);
     const project = getProject();
     if (!handoff.package.salidas?.carrusel) {
@@ -108,8 +88,6 @@ async function consumeEditorialHandoff() {
       await generateInstagramCaption(project);
     }
     activeSlideIndex = 0;
-    activeReelSceneIndex = 0;
-    setActiveWorkspaceTab('carousel');
     renderInPreview();
   } catch (error) {
     console.error('No se pudo abrir la salida editorial:', error);
@@ -126,15 +104,11 @@ function renderInPreview() {
   if (!carouselPreview) return;
 
   carouselPreview.innerHTML = "";
-  syncWorkspaceTabs();
-
   if (!renderedSlides.length) {
     carouselPreview.innerHTML = '<div class="carousel-empty">Sin diapositivas</div>';
     if (preview) preview.innerHTML = "";
     toggleBulkDownloadButton(false);
     renderCaptionPanel(project);
-    renderReelPreview(project);
-    renderReelCaptionPanel(project);
     return;
   }
 
@@ -201,8 +175,6 @@ function renderInPreview() {
   editor.appendChild(stage);
   carouselPreview.appendChild(editor);
   renderCaptionPanel(project);
-  renderReelPreview(project);
-  renderReelCaptionPanel(project);
 }
 
 function handleAssetReady() {
@@ -233,45 +205,6 @@ function bindCanvasFocalDrag(canvas, project, slide) {
     renderInPreview();
   });
   canvas.addEventListener("pointercancel", function () { start = null; });
-}
-
-function ensureWorkspaceTabs() {
-  bindWorkspaceTab("carouselTabBtn", "carousel");
-  bindWorkspaceTab("reelTabBtn", "reel");
-  syncWorkspaceTabs();
-}
-
-function bindWorkspaceTab(buttonId, tabName) {
-  var button = document.getElementById(buttonId);
-  if (!button || button.dataset.bound === "true") return;
-  button.dataset.bound = "true";
-  button.addEventListener("click", function () {
-    setActiveWorkspaceTab(tabName);
-  });
-}
-
-function setActiveWorkspaceTab(tabName) {
-  activeWorkspaceTab = tabName === "reel" ? "reel" : "carousel";
-  if (activeWorkspaceTab !== "reel") stopReelPlayback();
-  syncWorkspaceTabs();
-}
-
-function syncWorkspaceTabs() {
-  var tabButtons = document.querySelectorAll(".carousel-tab");
-  var tabPanels = document.querySelectorAll(".carousel-tab-panel");
-
-  for (var i = 0; i < tabButtons.length; i++) {
-    var isActiveButton = tabButtons[i].dataset.tab === activeWorkspaceTab;
-    tabButtons[i].classList.toggle("is-active", isActiveButton);
-    tabButtons[i].setAttribute("aria-selected", isActiveButton ? "true" : "false");
-  }
-
-  for (var j = 0; j < tabPanels.length; j++) {
-    var isActivePanel = tabPanels[j].dataset.tabPanel === activeWorkspaceTab;
-    tabPanels[j].hidden = !isActivePanel;
-  }
-
-  syncBulkDownloadButtonVisibility();
 }
 
 function createStageControls(project, activeItem) {
@@ -898,7 +831,7 @@ function syncBulkDownloadButtonVisibility() {
   var bulkBtn = document.getElementById("downloadAllBtn");
   if (!bulkBtn) return;
   var isAvailable = bulkBtn.dataset.available === "true";
-  bulkBtn.hidden = !isAvailable || activeWorkspaceTab !== "carousel";
+  bulkBtn.hidden = !isAvailable;
 }
 
 async function copyInstagramCaption() {
@@ -1514,8 +1447,6 @@ function clearCarouselWorkspace() {
   document.getElementById("urlInput").value = "";
   setProject(createCarouselProject());
   activeSlideIndex = 0;
-  activeReelSceneIndex = 0;
-  setActiveWorkspaceTab("carousel");
   renderInPreview();
 }
 
@@ -1545,35 +1476,6 @@ async function generateInstagramCaption(project) {
     project.socialCopy.hashtags = [];
     if (project.editorialPackage && project.editorialPlan) {
       project.editorialPackage = attachCarouselOutput(project.editorialPackage, project.editorialPlan, project.socialCopy);
-    }
-    setProject(project);
-  }
-}
-
-async function generateReelPlan(project) {
-  if (!project || !project.article || !project.editorialPlan || !project.editorialPlan.diagnosis) return;
-  try {
-    const res = await fetch(WORKER + "/social/generar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemPrompt: buildReelPrompt(project.article, project.editorialPlan.diagnosis),
-        userMsg: "Genera el ReelPlan para esta noticia."
-      })
-    });
-
-    const data = await res.json();
-    if (!data.ok || !data.result) return;
-
-    project.reelPlan = ensureReelClosure(data.result, project.article);
-    if (project.editorialPackage) {
-      project.editorialPackage = attachReelOutput(project.editorialPackage, project.reelPlan);
-    }
-    setProject(project);
-  } catch (error) {
-    project.reelPlan = null;
-    if (project.editorialPackage) {
-      project.editorialPackage = attachReelOutput(project.editorialPackage, null);
     }
     setProject(project);
   }
