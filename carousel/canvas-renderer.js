@@ -254,7 +254,7 @@ function getTextFont(settings, fontSize) {
   return style + (settings.weight || "400") + " " + fontSize + "px " + (settings.fontFamily || "Inter, Arial, sans-serif");
 }
 
-function fitMeasuredText(ctx, text, maxWidth, settings, maxLines) {
+function fitMeasuredText(ctx, text, maxWidth, settings, maxLines, maxHeight) {
   var initialFontSize = settings.fontSize || 40;
   var minFontSize = settings.minFontSize || 24;
   var originalFont = ctx.font;
@@ -266,7 +266,9 @@ function fitMeasuredText(ctx, text, maxWidth, settings, maxLines) {
     lines = settings.preserveLineBreaks
       ? wrapMeasuredParagraphs(ctx, text, maxWidth)
       : wrapMeasuredLines(ctx, text, maxWidth);
-    if (lines.length <= maxLines || fontSize === minFontSize) break;
+    var measuredLineHeight = Math.round((settings.lineHeight || 48) * (fontSize / initialFontSize));
+    var fitsHeight = !Number.isFinite(maxHeight) || lines.length * measuredLineHeight <= maxHeight;
+    if ((lines.length <= maxLines && fitsHeight) || fontSize === minFontSize) break;
     fontSize = Math.max(minFontSize, fontSize - 1);
   } while (true);
 
@@ -277,11 +279,13 @@ function fitMeasuredText(ctx, text, maxWidth, settings, maxLines) {
   }
 
   ctx.font = originalFont;
+  var lineHeight = Math.round((settings.lineHeight || 48) * (fontSize / initialFontSize));
   return {
     lines: lines,
     fontSize: fontSize,
     truncated: lines.length > maxLines && !condensed,
     condensed: condensed,
+    height: lines.length * lineHeight,
   };
 }
 
@@ -384,16 +388,15 @@ function getMeasuredText(ctx, text, maxWidth, options, y) {
   var initialFontSize = settings.fontSize || 40;
   var lineHeight = settings.lineHeight || 48;
   var maxLines = settings.maxLines === undefined ? 6 : settings.maxLines;
-  if (Number.isFinite(settings.maxBottom)) {
-    maxLines = Math.max(0, Math.min(maxLines, Math.floor((settings.maxBottom - y) / lineHeight)));
-  }
+  if (Number.isFinite(settings.maxBottom) && settings.maxBottom <= y) maxLines = 0;
 
   var value = String(text || "");
   var fitMaxLines = maxLines === 0 ? 1 : maxLines;
-  var result = fitMeasuredText(ctx, value, maxWidth, settings, fitMaxLines);
+  var availableHeight = Number.isFinite(settings.maxBottom) ? Math.max(0, settings.maxBottom - y) : Infinity;
+  var result = fitMeasuredText(ctx, value, maxWidth, settings, fitMaxLines, availableHeight);
 
   var measuredLineHeight = Math.round(lineHeight * (result.fontSize / initialFontSize));
-  var overflow = maxLines === 0 || result.truncated || result.lines.length > maxLines;
+  var overflow = maxLines === 0 || result.truncated || result.lines.length > maxLines || result.height > availableHeight;
   var visibleLines = maxLines === 0 ? [] : result.lines.slice(0, maxLines);
   return {
     fullText: value,
@@ -527,13 +530,15 @@ function drawCover(ctx, slide, project, theme, layout) {
   var title = content.title ||
     (project.editorialPlan && project.editorialPlan.cover && project.editorialPlan.cover.title) ||
     (project.article && project.article.title) || "";
+  var subtitle = content.subtitle || content.text || "";
+  var titleReserve = subtitle.length > 80 ? 190 : 116;
   var titleEnd = drawMeasuredText(ctx, title, panelX + 44, titleY, panelW - 88, {
     fontSize: 70, minFontSize: 44, maxLines: 3, lineHeight: 78, weight: "700", color: theme.colors.textPrimary,
     role: "title",
-    maxBottom: panelY + panelH - 116,
+    maxBottom: panelY + panelH - titleReserve,
   });
-  drawMeasuredText(ctx, content.subtitle || content.text || "", panelX + 44, titleEnd + 16, panelW - 88, {
-    fontSize: 30, minFontSize: 23, maxLines: 3, lineHeight: 40, color: theme.colors.textSecondary,
+  drawMeasuredText(ctx, subtitle, panelX + 44, titleEnd + 16, panelW - 88, {
+    fontSize: 30, minFontSize: 21, maxLines: 4, lineHeight: 40, color: theme.colors.textSecondary,
     role: "subtitle",
     maxBottom: panelY + panelH - 78,
   });
