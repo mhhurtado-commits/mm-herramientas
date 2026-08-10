@@ -59,3 +59,19 @@ test('consumes the reel output already stored in the editorial package', () => {
   assert.equal(project.scenes[0].title, 'Hook guardado');
   assert.equal(project.scenes.at(-1).type, 'closure');
 });
+
+test('uses the note cover as fallback visual for stored internal scenes', () => {
+  const project = createReelProject({
+    fuente: { imagen: 'cover.jpg' },
+    editorial: { titulo: 'Nota', bajada: 'Bajada.' },
+    salidas: { reel: { scenes: [
+      { order: 1, visual_role: 'hook', text: 'Portada' },
+      { order: 2, visual_role: 'context', text: 'Qué pasó', subtitle: 'Contexto' },
+      { order: 3, visual_role: 'cta', layout: 'cta', text: 'Leé la nota' },
+    ] } },
+  });
+
+  assert.equal(project.scenes[1].image, 'cover.jpg');
+  assert.equal(project.scenes[1].imageMode, 'contain-blur');
+  assert.equal(project.scenes.at(-1).image, '');
+});
