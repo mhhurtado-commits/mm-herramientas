@@ -13,3 +13,10 @@ test('reserves safe zones and closure space in the 9:16 layout', () => {
   assert.ok(internal.imageArea.y > internal.content.y);
   assert.ok(internal.imageArea.height > 0);
 });
+
+test('baja la tarjeta del cover y la mantiene dentro del area segura', () => {
+  const cover = sceneLayout({ width: 1080, height: 1920, type: 'cover' });
+
+  assert.ok(cover.coverCard.y > cover.imageArea.y + cover.imageArea.height - 40);
+  assert.ok(cover.coverCard.y + cover.coverCard.height <= cover.safe.bottom);
+});

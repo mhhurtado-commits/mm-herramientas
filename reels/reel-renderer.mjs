@@ -21,6 +21,14 @@ export function sceneLayout({ width = 1080, height = 1920, type = 'text' } = {})
     imageArea: type === 'closure' ? null : type === 'cover'
       ? { x: 0, y: 0, width, height: height * 0.55 }
       : { x: 0, y: height * 0.54, width, height: height * 0.33 },
+    coverCard: type === 'cover'
+      ? {
+          x: safe.left * 0.55,
+          y: height * 0.6 - 40,
+          width: safe.right - safe.left + safe.left * 0.9,
+          height: height * 0.3,
+        }
+      : null,
     cta: { x: safe.left, y: type === 'closure' ? height * 0.68 : safe.bottom - height * 0.08, width: safe.right - safe.left, height: height * 0.08 },
   };
 }
@@ -122,19 +130,22 @@ function drawEditorialText(ctx, scene, layout, accent) {
   const width = layout.content.width;
   const hasImage = Boolean(scene.image);
   const y = hasImage && scene.type === 'cover' ? layout.height * 0.55 : hasImage ? layout.height * 0.17 : layout.content.y;
+  const textY = hasImage && scene.type === 'cover' && layout.coverCard
+    ? layout.coverCard.y + 40
+    : y;
   const titleSize = scene.type === 'cover' ? 76 : 70;
   ctx.save();
   if (hasImage && scene.type === 'cover') {
     ctx.fillStyle = 'rgba(251, 250, 247, 0.96)';
-    roundedRect(ctx, layout.safe.left * 0.55, y - 40, width + layout.safe.left * 0.9, layout.height * 0.32, 36);
+    roundedRect(ctx, layout.coverCard.x, layout.coverCard.y, layout.coverCard.width, layout.coverCard.height, 36);
     ctx.fill();
   } else if (hasImage) {
     ctx.fillStyle = 'rgba(251, 250, 247, 0.97)';
     roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.height * 0.35, 36);
     ctx.fill();
   }
-  drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, y, accent, false, width);
-  const titleY = y + 112;
+  drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, textY, accent, false, width);
+  const titleY = textY + 112;
   ctx.fillStyle = COLORS.ink;
   ctx.font = `800 ${titleSize}px Arial, sans-serif`;
   const titleLines = wrapText(ctx, scene.title || 'Media Mendoza', width, 3);
