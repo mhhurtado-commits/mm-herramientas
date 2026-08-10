@@ -1,3 +1,4 @@
+/* Legacy values kept temporarily for compatibility with serialized projects. */
 const SECTION_COLORS = {
   actualidad: '#a8d432',
   policiales: '#c7474f',
@@ -12,6 +13,8 @@ const SECTION_COLORS = {
   general: '#a8d432',
 };
 
+import { getRecommendedCategory, normalizeCategoryOptions, resolveCategoryAccent } from '../shared/editorial-taxonomy.mjs';
+
 const DEFAULT_FOCUS = { x: 0.5, y: 0.5 };
 
 export function createReelProject(editorialPackage = {}) {
@@ -20,10 +23,10 @@ export function createReelProject(editorialPackage = {}) {
   const images = uniqueStrings([source.imagen, source.imagenes]);
   const image = images[0] || '';
   const categoryOptions = normalizeCategoryOptions(editorial.category_options);
-  const selectedCategory = categoryOptions.find(option => option.recommended) || categoryOptions[0];
+  const selectedCategory = getRecommendedCategory(categoryOptions);
   const sectionLabel = clean(selectedCategory?.label || editorial.seccion || source.categoria || 'general');
   const section = sectionLabel.toLowerCase();
-  const accent = SECTION_COLORS[section] || SECTION_COLORS.general;
+  const accent = resolveCategoryAccent(selectedCategory);
   const title = clean(editorial.titulo || source.titulo_original || '');
   const summary = clean(editorial.bajada);
   const context = clean(editorial.contexto || editorial.datos_clave?.[0]);
@@ -75,22 +78,12 @@ export function normalizeReelProject(project = {}) {
     sectionLabel: clean(source.sectionLabel || source.section || 'general'),
     categoryOptions: normalizeCategoryOptions(source.categoryOptions),
     selectedCategoryId: clean(source.selectedCategoryId),
-    accent: clean(source.accent) || SECTION_COLORS.general,
+    accent: clean(source.accent) || '#a6ce39',
     images: uniqueStrings([source.images]),
     scenes,
   };
 }
 
-function normalizeCategoryOptions(values) {
-  if (!Array.isArray(values)) return [];
-  return values.map((value, index) => ({
-    id: clean(value?.id) || `categoria-${index + 1}`,
-    label: clean(value?.label || value?.nombre || value?.seccion),
-    vertical: clean(value?.vertical),
-    recommended: Boolean(value?.recommended || value?.sugerida),
-    color: clean(value?.color),
-  })).filter(value => value.label).slice(0, 6);
-}
 
 function scene(type, title, body, image, accent, imageMode) {
   return {

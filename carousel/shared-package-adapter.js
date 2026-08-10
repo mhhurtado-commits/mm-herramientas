@@ -1,5 +1,6 @@
 import { packageToCarouselArticle } from '../shared/editorial-package.mjs';
 import { createCarouselProject } from './models.js';
+import { normalizeCategoryOptions } from '../shared/editorial-taxonomy.mjs';
 
 const NEWS_TYPES = new Set(['breaking', 'service', 'institutional', 'analysis', 'data', 'evergreen']);
 const COMPLEXITIES = new Set(['brief', 'medium', 'deep']);
@@ -85,15 +86,4 @@ function allowed(value, values, fallback) {
 
 function clean(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
-}
-
-function normalizeCategoryOptions(value) {
-  if (!Array.isArray(value)) return [];
-  return value.map((option, index) => ({
-    id: clean(option?.id) || `categoria-${index + 1}`,
-    label: clean(option?.label) || 'Actualidad',
-    vertical: mapVertical(option?.vertical || option?.label),
-    recommended: Boolean(option?.recommended),
-    color: clean(option?.color),
-  }));
 }

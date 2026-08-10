@@ -3,6 +3,7 @@ import { renderReelProject } from './reel-renderer.mjs';
 import { parseReelHandoff } from './output-handoff.mjs';
 import { createReelProject } from './reel-model.mjs';
 import { updateSceneFocus } from './ui.mjs';
+import { resolveCategoryAccent } from '../shared/editorial-taxonomy.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const state = { session: null, sceneIndex: 0, image: null, imageUrl: '', imageRequestId: 0, logo: null, loading: false };
@@ -66,7 +67,7 @@ function selectCategory(id) {
   const option = project?.categoryOptions?.find(item => item.id === id);
   if (!project || !option) return;
   const key = option.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const accent = option.color || CATEGORY_COLORS[key] || CATEGORY_COLORS.general;
+  const accent = resolveCategoryAccent(option);
   project.selectedCategoryId = option.id;
   project.sectionLabel = option.label;
   project.section = key;
