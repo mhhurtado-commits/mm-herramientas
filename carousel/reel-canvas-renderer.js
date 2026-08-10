@@ -9,7 +9,7 @@ var IMAGE_PROXY = "https://mm-herramientas-worker.mhhurtado.workers.dev?image=";
 var imageCache = {};
 
 export function getAdaptiveReelCardBounds(panelY, panelH, contentHeight) {
-  var height = Math.min(panelH, Math.min(640, Math.max(320, (Number(contentHeight) || 0) + 160)));
+  var height = Math.min(panelH, Math.min(640, Math.max(420, (Number(contentHeight) || 0) + 160)));
   return {
     y: Math.round(panelY + Math.max(0, (panelH - height) / 2)),
     height: Math.round(height),
@@ -198,7 +198,7 @@ function drawLogoClean(ctx, logo, centerX, y, logoW, centeredY, darken) {
 }
 
 function drawCategoryPill(ctx, value, x, y, fill) {
-  var label = String(value || "").trim().toUpperCase();
+  var label = normalizeReelLabel(value);
   if (!label) return;
   ctx.font = "700 24px Inter, Arial, sans-serif";
   var width = Math.min(360, Math.max(150, ctx.measureText(label).width + 42));
@@ -207,6 +207,12 @@ function drawCategoryPill(ctx, value, x, y, fill) {
   ctx.textAlign = "center";
   ctx.fillText(label, x + width / 2, y + 35);
   ctx.textAlign = "start";
+}
+
+function normalizeReelLabel(value) {
+  var label = String(value || "").trim().toUpperCase();
+  if (label === "QUE PASO") return "QUÉ PASÓ";
+  return label;
 }
 
 function drawSceneText(ctx, scene, project, family) {
