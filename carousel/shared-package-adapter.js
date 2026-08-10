@@ -10,23 +10,27 @@ const TEMPLATES = new Set(['mm_classic', 'mm_briefing', 'mm_impact']);
 
 export function fromEditorialPackage(editorialPackage = {}) {
   const editorial = editorialPackage.editorial || {};
+  const categoryOptions = normalizeCategoryOptions(editorial.category_options);
+  const selectedCategory = categoryOptions.find(option => option.recommended) || categoryOptions[0];
+  const selectedCategoryLabel = clean(selectedCategory?.label);
+  const selectedCategoryVertical = clean(selectedCategory?.vertical || selectedCategory?.label);
   const article = packageToCarouselArticle(editorialPackage);
   article.title = clean(editorial.titulo) || article.title;
   article.summary = clean(editorial.bajada) || article.summary;
-  article.category = clean(editorial.seccion) || article.category;
+  article.category = selectedCategoryLabel || clean(editorial.seccion) || article.category;
 
   const existingPlan = editorialPackage.salidas?.carrusel;
   const diagnosis = existingPlan?.diagnosis || {};
   return {
     article,
-    categoryOptions: normalizeCategoryOptions(editorial.category_options),
+    categoryOptions,
     diagnosis: {
       news_type: allowed(editorial.tipo_noticia, NEWS_TYPES, 'evergreen'),
-      vertical: mapVertical(editorial.seccion),
+      vertical: mapVertical(selectedCategoryVertical || editorial.seccion),
       complexity: allowed(editorial.complejidad, COMPLEXITIES, 'medium'),
       tone: allowed(editorial.tono, TONES, 'informative'),
-      carousel_type: allowed(diagnosis.carousel_type, CAROUSEL_TYPES, inferCarouselType(editorial)),
-      template: allowed(diagnosis.template, TEMPLATES, inferTemplate(editorial)),
+      carousel_type: allowed(diagnosis.carousel_type, CAROUSEL_TYPES, inferCarouselType(editorial, selectedCategoryVertical)),
+      template: allowed(diagnosis.template, TEMPLATES, inferTemplate(editorial, selectedCategoryVertical)),
       slide_count: Number(diagnosis.slide_count || 0) || 0,
       reason: clean(diagnosis.reason),
     },
@@ -67,8 +71,8 @@ function mapVertical(value) {
   return 'general';
 }
 
-function inferCarouselType(editorial) {
-  const vertical = mapVertical(editorial.seccion);
+function inferCarouselType(editorial, category = editorial.seccion) {
+  const vertical = mapVertical(category);
   const newsType = clean(editorial.tipo_noticia);
   if (vertical === 'clima' || vertical === 'servicios' || newsType === 'service') return 'service';
   if (vertical === 'policiales') return 'timeline';
@@ -77,9 +81,9 @@ function inferCarouselType(editorial) {
   return 'summary';
 }
 
-function inferTemplate(editorial) {
-  const vertical = mapVertical(editorial.seccion);
-  const type = inferCarouselType(editorial);
+function inferTemplate(editorial, category = editorial.seccion) {
+  const vertical = mapVertical(category);
+  const type = inferCarouselType(editorial, category);
   if (vertical === 'policiales' || type === 'timeline') return 'mm_impact';
   if (vertical === 'clima' || vertical === 'servicios' || type === 'service' || type === 'data_points') return 'mm_briefing';
   return 'mm_classic';

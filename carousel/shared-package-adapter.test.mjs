@@ -103,3 +103,21 @@ test('abre el plan de carrusel guardado sin regenerarlo', () => {
 
   assert.equal(project.editorialPlan, storedPlan);
 });
+
+test('usa la categoria recomendada del contrato aunque editorial.seccion difiera', () => {
+  const project = openCarouselFromEditorialPackage({
+    ...editorialPackage,
+    editorial: {
+      ...editorialPackage.editorial,
+      seccion: 'Actualidad',
+      category_options: [
+        { id: 'policiales', label: 'Policiales', vertical: 'policiales', recommended: true, color: '#ba3f42' },
+        { id: 'actualidad', label: 'Actualidad', vertical: 'general', recommended: false, color: '#a6ce39' },
+      ],
+    },
+  });
+
+  assert.equal(project.article.category, 'Policiales');
+  assert.equal(project.editorialDiagnosis.vertical, 'policiales');
+  assert.equal(project.selectedCategoryId, 'policiales');
+});
