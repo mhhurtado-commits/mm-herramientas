@@ -44,6 +44,7 @@ export function normalizeCarouselPlan(rawPlan, article) {
   const diagnosis = normalizeDiagnosis(source.diagnosis, normalizedArticle, errors);
   const cover = normalizeCover(source.cover, normalizedArticle, diagnosis, errors);
   const slides = normalizeSlides(source.slides, normalizedArticle, diagnosis, errors, quoteSourceText);
+  sanitizeEditorialChoices(slides, normalizedArticle);
   validateEditorialSequence(source, slides, errors, diagnosis);
   diagnosis.slide_count = slides.length + 1;
   const normalizedPlan = {
@@ -59,6 +60,23 @@ export function normalizeCarouselPlan(rawPlan, article) {
     plan: normalizedPlan,
     errors: errors
   };
+}
+
+function sanitizeEditorialChoices(slides, article) {
+  for (const slide of slides) {
+    if (slide.type === "imagen" && slide.image && article.image && slide.image === article.image) {
+      slide.type = "contexto";
+      slide.title = /^imagen$/i.test(slide.title) ? "El contexto" : slide.title;
+      slide.text = slide.text || article.summary;
+      delete slide.image;
+    }
+    if (slide.type === "imagen" && /^imagen$/i.test(slide.title)) {
+      slide.title = "La escena";
+    }
+    if (slide.type === "end" && /sitio web|nuestro sitio/i.test(slide.cta || "")) {
+      slide.cta = "Leé la nota completa en mediamendoza.com";
+    }
+  }
 }
 
 export function buildFallbackPlan(article) {

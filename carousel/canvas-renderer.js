@@ -594,7 +594,7 @@ function drawKey(ctx, slide, project, theme, layout) {
   var headerEnd = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 });
   var cardY = headerEnd + 26;
   var cardBottom = layout.safeZones.footer.y - 42;
-  var cardHeight = Math.max(0, cardBottom - cardY);
+  var cardHeight = Math.min(360, Math.max(0, cardBottom - cardY));
   fillRoundRect(ctx, layout.content.x, cardY, 14, cardHeight, 7, theme.colors.accent);
   var supportImage = content.supportImage;
   var hasSupportImage = supportImage && drawSupportImage(

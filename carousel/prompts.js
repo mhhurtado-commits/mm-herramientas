@@ -22,6 +22,8 @@ export function buildCarouselPrompt(article) {
     "- Lenguaje periodistico.\n" +
     "- Facil lectura.\n" +
     "- Maximo 35 palabras por slide de texto.\n" +
+    "- El cover debe tener un gancho breve de 8 a 12 palabras; no copiar el titulo completo si puede expresarse con mayor fuerza sin cambiar el hecho.\n" +
+    "- El subtitulo del cover debe explicar el dato principal en un maximo de 22 palabras.\n" +
     "- No usar hashtags.\n" +
     "- No usar emojis.\n" +
     "- No escribir estilos, colores, coordenadas ni decisiones de diseno.\n" +
@@ -45,6 +47,9 @@ export function buildCarouselPrompt(article) {
     "- cita usa quote, author y role. imagen usa image y puede usar text como epigrafe.\n" +
     "- Solo incluir una slide cita cuando exista una frase literal verificable en Contenido; en ese caso usar los campos \"quote\", \"author\" y \"role\". Si no existe, no inventar \"quote\" y usar otra familia de slide.\n" +
     "- Para imagen, image debe ser solo article.image o article.images[n] de las URLs disponibles. Si no hay fuente visual, usar una slide textual.\n" +
+    "- No repetir article.image en una slide imagen interna si ya fue usada en el cover, salvo que aporte una informacion visual diferente y verificable.\n" +
+    "- Una slide imagen debe tener un titulo editorial especifico; nunca usar solo \"Imagen\".\n" +
+    "- El cierre debe usar un CTA accionable que mencione mediamendoza.com; no escribir \"nuestro sitio web\".\n" +
     "- supportImage es opcional para una imagen de apoyo; no inventar URLs ni atribuciones.\n\n" +
     "Responde SOLO con JSON sin backticks ni markdown.\n" +
     "Formato exacto:\n" +
