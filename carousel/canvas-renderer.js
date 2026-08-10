@@ -11,6 +11,13 @@ var IMAGE_PROXY = "https://mm-herramientas-worker.mhhurtado.workers.dev?image=";
 var imageCache = {};
 var INTERNAL_TITLE_MAX_LINES = 2;
 
+export function getBalancedContentY(minY, maxBottom, contentHeight) {
+  var safeMinY = Math.max(0, Number(minY) || 0);
+  var safeBottom = Math.max(safeMinY, Number(maxBottom) || safeMinY);
+  var safeHeight = Math.max(0, Number(contentHeight) || 0);
+  return Math.max(safeMinY, Math.round(safeMinY + (safeBottom - safeMinY - safeHeight) / 2));
+}
+
 function fillRoundRect(ctx, x, y, w, h, radius, fill) {
   ctx.fillStyle = fill;
   ctx.beginPath();
@@ -576,11 +583,13 @@ function drawText(ctx, slide, project, theme, layout) {
     role: "title",
     maxBottom: layout.safeZones.footer.y - 150,
   });
-  var cardY = Math.max(titleEnd + 34, layout.content.y + 410);
+  var cardMaxBottom = layout.safeZones.footer.y - 42;
+  var cardHeight = getContextCardHeight(ctx, content.text, hasSupportImage ? layout.content.width - 72 : layout.content.width - 96, theme, hasSupportImage);
+  var cardY = getBalancedContentY(titleEnd + 34, cardMaxBottom, cardHeight);
   if (hasSupportImage) {
-    drawContextCard(ctx, content.text, layout.content.x, cardY, layout.content.width, layout.safeZones.footer.y - 42, theme, "body");
+    drawContextCard(ctx, content.text, layout.content.x, cardY, layout.content.width, cardMaxBottom, theme, "body");
   } else {
-    drawContextHighlight(ctx, content.text, layout.content.x, cardY, layout.content.width, layout.safeZones.footer.y - 42, theme);
+    drawContextHighlight(ctx, content.text, layout.content.x, cardY, layout.content.width, cardMaxBottom, theme);
   }
   drawEditorialFooter(ctx, slide, project, theme, layout);
 }
@@ -618,7 +627,11 @@ function drawKey(ctx, slide, project, theme, layout) {
     else groups.push(sentence);
   }
   if (!groups.length) groups = [keyText];
-  var pointY = titleEnd + 34;
+  var keyMaxBottom = cardBottom - 18;
+  var keyBlockHeight = groups.reduce(function (height, group) {
+    return height + getContextHighlightHeight(ctx, group, layout.content.width - 148, theme) + 16;
+  }, 0);
+  var pointY = getBalancedContentY(titleEnd + 34, keyMaxBottom, keyBlockHeight);
   for (var pointIndex = 0; pointIndex < groups.length; pointIndex++) {
     // La imagen acompaña al encabezado; los puntos clave ocupan todo el
     // ancho disponible para evitar que una frase larga se fuerce a una
@@ -664,6 +677,24 @@ function resolveStatsContent(content) {
     ).filter(Boolean).join(" "),
     items: items
   };
+}
+
+function getContextCardHeight(ctx, text, textWidth, theme, compact) {
+  if (!text) return 0;
+  var options = {
+    fontSize: compact ? 31 : 39,
+    minFontSize: compact ? 23 : 28,
+    maxLines: compact ? 5 : 6,
+    lineHeight: compact ? 39 : 48,
+    y: 0,
+    maxBottom: Infinity,
+  };
+  var textHeight = measureTextHeight(ctx, text, textWidth, options);
+  return Math.max(compact ? 142 : 190, textHeight + (compact ? 62 : 68));
+}
+
+function getContextHighlightHeight(ctx, text, textWidth, theme) {
+  return getContextCardHeight(ctx, text, textWidth, theme, false);
 }
 
 function drawStats(ctx, slide, project, theme, layout) {

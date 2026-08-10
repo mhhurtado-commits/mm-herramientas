@@ -281,13 +281,26 @@ export function resolveCarouselTheme(project, slide) {
   theme.colors.accentSoft = family.soft;
   theme.colors.endBackground = family.dark;
   theme.colors.endCtaFill = family.accent;
-  theme.colors.endCtaText = family.dark;
+  theme.colors.endCtaText = getReadableTextColor(family.accent);
 
   if (sectionAccent) {
     theme.colors.accent = sectionAccent;
   }
 
   return theme;
+}
+
+function getReadableTextColor(background) {
+  var hex = String(background || '').replace('#', '');
+  if (hex.length !== 6) return '#1b1e22';
+  var red = parseInt(hex.slice(0, 2), 16) / 255;
+  var green = parseInt(hex.slice(2, 4), 16) / 255;
+  var blue = parseInt(hex.slice(4, 6), 16) / 255;
+  var luminance = [red, green, blue].map(function (channel) {
+    return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+  });
+  var relativeLuminance = 0.2126 * luminance[0] + 0.7152 * luminance[1] + 0.0722 * luminance[2];
+  return relativeLuminance > 0.46 ? '#1b1e22' : '#ffffff';
 }
 
 export function resolveSectionFamily(vertical) {
