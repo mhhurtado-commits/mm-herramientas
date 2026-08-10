@@ -481,6 +481,21 @@ function drawContextCard(ctx, text, x, y, width, maxBottom, theme, role) {
   return y + height;
 }
 
+function drawContextHighlight(ctx, text, x, y, width, maxBottom, theme, role) {
+  if (!text) return y;
+  var textOptions = { fontSize: 39, minFontSize: 28, maxLines: 6, lineHeight: 48, color: theme.colors.textPrimary, role: role || "context-highlight" };
+  // Measure before positioning the card. Passing the final bottom boundary
+  // here can mark a block as overflowing even when it can be repositioned
+  // safely inside the available area below.
+  var textHeight = measureTextHeight(ctx, text, width - 96, { ...textOptions, y: y + 34, maxBottom: y + 10000 });
+  var height = Math.max(190, textHeight + 68);
+  if (y + height > maxBottom) y = Math.max(0, maxBottom - height);
+  fillRoundRect(ctx, x, y, width, height, 24, theme.colors.surfaceSoft);
+  fillRoundRect(ctx, x, y, 12, height, 6, theme.colors.accent);
+  drawMeasuredText(ctx, text, x + 48, y + 34, width - 96, { ...textOptions, maxBottom: y + height - 34 });
+  return y + height;
+}
+
 function drawCover(ctx, slide, project, theme, layout) {
   var content = slide.content || {};
   var imageHeight = Math.min(
@@ -501,7 +516,7 @@ function drawCover(ctx, slide, project, theme, layout) {
   var panelX = layout.content.x;
   var panelY = layout.content.y;
   var panelW = layout.content.width;
-  var panelH = Math.min(620, layout.safeZones.footer.y - panelY - 26);
+  var panelH = Math.min(520, layout.safeZones.footer.y - panelY - 26);
   fillRoundRect(ctx, panelX, panelY, panelW, panelH, 34, theme.colors.surface);
   strokeRoundRect(ctx, panelX, panelY, panelW, panelH, 34, theme.colors.coverPanelStroke, 2);
 
@@ -555,7 +570,11 @@ function drawText(ctx, slide, project, theme, layout) {
     maxBottom: layout.safeZones.footer.y - 150,
   });
   var cardY = Math.max(titleEnd + 34, layout.content.y + 410);
-  drawContextCard(ctx, content.text, layout.content.x, cardY, layout.content.width, layout.safeZones.footer.y - 42, theme, "body");
+  if (hasSupportImage) {
+    drawContextCard(ctx, content.text, layout.content.x, cardY, layout.content.width, layout.safeZones.footer.y - 42, theme, "body");
+  } else {
+    drawContextHighlight(ctx, content.text, layout.content.x, cardY, layout.content.width, layout.safeZones.footer.y - 42, theme);
+  }
   drawEditorialFooter(ctx, slide, project, theme, layout);
 }
 
@@ -573,20 +592,30 @@ function drawKey(ctx, slide, project, theme, layout) {
   var supportImage = content.supportImage;
   var hasSupportImage = supportImage && drawSupportImage(
     ctx, supportImage, layout.content.x + layout.content.width - 270, cardY + 34,
-    220, Math.min(190, Math.max(120, cardHeight - 68)), "contain", theme, content.focalPosition
+    300, Math.min(240, Math.max(140, cardHeight - 68)), "contain", theme, content.focalPosition
   );
-  var textWidth = hasSupportImage ? layout.content.width - 330 : layout.content.width - 96;
+  var textWidth = hasSupportImage ? layout.content.width - 390 : layout.content.width - 96;
 
   var titleEnd = drawMeasuredText(ctx, content.title, layout.content.x + 48, cardY + 54, textWidth, {
     fontSize: 68, minFontSize: 42, maxLines: INTERNAL_TITLE_MAX_LINES, lineHeight: 76, weight: "700", color: theme.colors.accentDark,
     role: "title",
     maxBottom: cardBottom - 210,
   });
-  drawMeasuredText(ctx, content.text || content.subtitle || "", layout.content.x + 48, titleEnd + 36, textWidth, {
-    fontSize: 42, minFontSize: 28, maxLines: 7, lineHeight: 52, weight: "700", color: theme.colors.textPrimary,
-    role: "key-point",
-    maxBottom: cardBottom - 48,
-  });
+  var keyText = content.text || content.subtitle || "";
+  var sentences = keyText.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [keyText];
+  var groups = [];
+  for (var sentenceIndex = 0; sentenceIndex < sentences.length; sentenceIndex++) {
+    var sentence = sentences[sentenceIndex].trim();
+    if (!sentence) continue;
+    if (groups.length && groups[groups.length - 1].length < 70) groups[groups.length - 1] += " " + sentence;
+    else groups.push(sentence);
+  }
+  if (!groups.length) groups = [keyText];
+  var pointY = titleEnd + 34;
+  for (var pointIndex = 0; pointIndex < groups.length; pointIndex++) {
+    pointY = drawContextHighlight(ctx, groups[pointIndex], layout.content.x + 26, pointY, textWidth - 26, cardBottom - 18, theme, "key-point");
+    pointY += 16;
+  }
   drawEditorialFooter(ctx, slide, project, theme, layout);
 }
 

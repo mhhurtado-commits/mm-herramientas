@@ -193,6 +193,57 @@ test('renderiza clave como una tarjeta editorial destacada y no como contexto', 
   assert.equal(contextCanvas.calls.fills.some((fill) => fill.color === '#edf6ce' && fill.width > 800 && fill.height > 200), false);
 });
 
+test('compacta la portada para reservar más protagonismo a la imagen', () => {
+  const canvas = renderEditorialSlide({
+    type: 'cover',
+    content: { title: 'Corte total en la Ruta 222', subtitle: 'Accidente múltiple y hielo impiden el tránsito.' },
+  });
+  const panel = canvas.calls.fills.find((fill) => fill.width > 900 && fill.height > 400 && fill.y > 500);
+  assert.ok(panel);
+  assert.ok(panel.height <= 540, `panel demasiado alto: ${panel.height}`);
+});
+
+test('refuerza el contexto sin imagen con una tarjeta editorial visible', () => {
+  const canvas = renderEditorialSlide({
+    type: 'contexto',
+    content: { title: 'Situación en la zona', text: 'La Ruta Provincial 222 permanece con corte total entre la Ruta Nacional 40 y Las Leñas.' },
+  });
+  const card = canvas.calls.fills.find((fill) => fill.width > 800 && fill.height >= 200 && fill.y > 400);
+  assert.ok(card);
+  assert.ok(canvas.renderState.blocks.some((block) => block.role === 'context-highlight'));
+});
+
+test('amplía la imagen de apoyo en la diapositiva de datos', async () => {
+  const source = 'https://example.com/snow.jpg';
+  installCanvasHarness();
+  const probe = normalizeCarouselSlide({
+    type: 'dato',
+    content: { title: 'Corte en el sector', value: '222', supportImage: source },
+  }, 0, 1);
+  await canvasRenderer.preloadCarouselAssets([probe], { article: { image: 'https://example.com/article.jpg', images: [source] } });
+  const slide = normalizeCarouselSlide({
+    type: 'dato',
+    content: { title: 'Corte en el sector', value: '222', supportImage: source },
+  }, 0, 1);
+  const canvas = renderSlideToCanvas(slide, { article: { image: 'https://example.com/article.jpg', images: [source] }, slides: [slide] });
+  const support = canvas.calls.imageDraws.find((draw) => draw.args[2] >= 280 || draw.args[3] >= 220);
+  assert.ok(support);
+  assert.ok(Math.max(...support.args) >= 250);
+});
+
+test('divide una clave extensa en bloques escaneables', () => {
+  const canvas = renderEditorialSlide({
+    type: 'clave',
+    content: {
+      title: 'Recomendaciones de seguridad',
+      text: 'La portación de cadenas es obligatoria en rutas de montaña. Se solicita no circular hacia los sectores afectados. Consultá las actualizaciones oficiales de Vialidad.',
+    },
+  });
+  const points = canvas.renderState.blocks.filter((block) => block.role === 'key-point');
+  assert.ok(points.length >= 2);
+  assert.equal(canvas.renderState.overflow, false);
+});
+
 test('mide los titulos con el mismo peso bold que usa al dibujarlos', () => {
   const canvas = renderEditorialSlide({
     type: 'contexto',
