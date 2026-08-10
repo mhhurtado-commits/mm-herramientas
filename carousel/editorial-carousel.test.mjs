@@ -210,7 +210,7 @@ test('baja la tarjeta de portada para no tapar tanto la imagen', () => {
   });
   const panel = canvas.calls.fills.find((fill) => fill.width > 900 && fill.height > 400 && fill.y > 500);
   assert.ok(panel);
-  assert.ok(panel.y >= 640, `tarjeta demasiado arriba: ${panel.y}`);
+  assert.ok(panel.y >= 750, `tarjeta demasiado arriba: ${panel.y}`);
 });
 
 test('refuerza el contexto sin imagen con una tarjeta editorial visible', () => {

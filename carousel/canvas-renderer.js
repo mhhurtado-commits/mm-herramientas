@@ -516,7 +516,7 @@ function drawCover(ctx, slide, project, theme, layout) {
   var panelX = layout.content.x;
   // La portada necesita que la imagen conserve protagonismo: la tarjeta baja
   // sin tocar el pie ni cambiar la composición de las diapositivas internas.
-  var panelY = Math.max(layout.content.y, Math.round(H * 0.48));
+  var panelY = Math.max(layout.content.y, Math.round(H * 0.56));
   var panelW = layout.content.width;
   var panelH = Math.min(520, layout.safeZones.footer.y - panelY - 26);
   fillRoundRect(ctx, panelX, panelY, panelW, panelH, 34, theme.colors.surface);
