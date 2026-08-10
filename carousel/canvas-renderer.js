@@ -613,7 +613,10 @@ function drawKey(ctx, slide, project, theme, layout) {
   if (!groups.length) groups = [keyText];
   var pointY = titleEnd + 34;
   for (var pointIndex = 0; pointIndex < groups.length; pointIndex++) {
-    pointY = drawContextHighlight(ctx, groups[pointIndex], layout.content.x + 26, pointY, textWidth - 26, cardBottom - 18, theme, "key-point");
+    // La imagen acompaña al encabezado; los puntos clave ocupan todo el
+    // ancho disponible para evitar que una frase larga se fuerce a una
+    // columna estrecha y termine marcada como desbordada.
+    pointY = drawContextHighlight(ctx, groups[pointIndex], layout.content.x + 26, pointY, layout.content.width - 52, cardBottom - 18, theme, "key-point");
     pointY += 16;
   }
   drawEditorialFooter(ctx, slide, project, theme, layout);

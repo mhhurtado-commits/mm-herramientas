@@ -244,6 +244,24 @@ test('divide una clave extensa en bloques escaneables', () => {
   assert.equal(canvas.renderState.overflow, false);
 });
 
+test('autoajusta una clave larga con imagen de apoyo sin bloquear la exportacion', async () => {
+  const source = 'https://example.com/snow-support.jpg';
+  installCanvasHarness();
+  const slide = normalizeCarouselSlide({
+    type: 'clave',
+    content: {
+      title: 'Recomendaciones',
+      text: 'Es obligatorio el uso de cadenas para circular en rutas de montaña. Se solicita evitar circular por la zona afectada y seguir las indicaciones de Vialidad. La reapertura dependerá de las condiciones de seguridad y de la actualización oficial.',
+      supportImage: source,
+    },
+  }, 0, 1);
+  await canvasRenderer.preloadCarouselAssets([slide], { article: { images: [source] } });
+  const canvas = renderSlideToCanvas(slide, { article: { images: [source] }, slides: [slide] });
+
+  assert.equal(canvas.renderState.overflow, false, JSON.stringify(canvas.renderState.blocks));
+  assert.equal(getCarouselExportEligibility([{ item: { slide }, canvas }]).allowed, true);
+});
+
 test('mide los titulos con el mismo peso bold que usa al dibujarlos', () => {
   const canvas = renderEditorialSlide({
     type: 'contexto',
