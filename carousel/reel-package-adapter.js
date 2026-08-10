@@ -13,6 +13,15 @@ export function fromEditorialPackage(editorialPackage = {}) {
   const summary = editorial.bajada || article.summary;
   const context = editorial.contexto || "";
   const category = article.category || editorial.etiqueta || "Actualidad";
+  const storedReel = editorialPackage.salidas?.reel;
+  if (storedReel && Array.isArray(storedReel.scenes) && storedReel.scenes.length) {
+    return {
+      article,
+      reel: { ...createEmptyReelOutput(), ...storedReel, scenes: ensureReelClosure(storedReel, article).scenes },
+      categoryOptions: shared.categoryOptions,
+      diagnosis: shared.diagnosis,
+    };
+  }
 
   const scenes = [];
   if (title) {

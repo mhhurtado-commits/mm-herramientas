@@ -40,3 +40,22 @@ test('preserves recommended and alternative categories from the package', () => 
   assert.deepEqual(project.categoryOptions.map(option => option.label), ['Policiales', 'Actualidad']);
   assert.equal(project.sectionLabel, 'Policiales');
 });
+
+test('consumes the reel output already stored in the editorial package', () => {
+  const project = createReelProject({
+    fuente: { url: 'https://mediamendoza.com/nota/1', titulo_original: 'Título', imagen: 'cover.jpg', imagenes: ['cover.jpg'] },
+    editorial: { seccion: 'Actualidad', titulo: 'Título', bajada: 'Bajada.' },
+    salidas: {
+      reel: {
+        format: 'reel_silent',
+        scenes: [
+          { order: 1, visual_role: 'hook', visual_source: 'article.image', text: 'Hook guardado', subtitle: 'Bajada guardada.' },
+          { order: 2, visual_role: 'cta', layout: 'cta', text: 'Leé la nota completa', subtitle: 'mediamendoza.com' },
+        ],
+      },
+    },
+  });
+
+  assert.equal(project.scenes[0].title, 'Hook guardado');
+  assert.equal(project.scenes.at(-1).type, 'closure');
+});

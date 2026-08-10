@@ -86,3 +86,20 @@ test('preserva las alternativas de categoria para elegirlas en carrusel', () => 
   ]);
   assert.equal(project.selectedCategoryId, 'policiales-principal');
 });
+
+test('abre el plan de carrusel guardado sin regenerarlo', () => {
+  const storedPlan = {
+    diagnosis: { template: 'mm_classic' },
+    cover: { title: 'Cover guardado', subtitle: 'Bajada guardada.' },
+    slides: [
+      { type: 'contexto', title: 'Contexto', text: 'Texto guardado.' },
+      { type: 'end', source: 'Fuente', cta: 'Leer la nota' },
+    ],
+  };
+  const project = openCarouselFromEditorialPackage({
+    ...editorialPackage,
+    salidas: { ...editorialPackage.salidas, carrusel: storedPlan },
+  });
+
+  assert.equal(project.editorialPlan, storedPlan);
+});

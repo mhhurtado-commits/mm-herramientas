@@ -30,6 +30,21 @@ export function createReelProject(editorialPackage = {}) {
   const title = clean(editorial.titulo || source.titulo_original || '');
   const summary = clean(editorial.bajada);
   const context = clean(editorial.contexto || editorial.datos_clave?.[0]);
+  const storedScenes = editorialPackage.salidas?.reel?.scenes;
+  if (Array.isArray(storedScenes) && storedScenes.length) {
+    return normalizeReelProject({
+      version: 1,
+      format: '9:16',
+      sourceUrl: clean(source.url),
+      section,
+      sectionLabel,
+      categoryOptions,
+      selectedCategoryId: selectedCategory?.id || '',
+      accent,
+      images,
+      scenes: storedScenes.map((stored, index) => mapStoredScene(stored, index, source, images, sectionLabel, accent)),
+    });
+  }
   const scenes = [
     scene('cover', title, summary, image, accent, 'contain-blur'),
     scene('que-paso', 'Qué pasó', summary || title, image, accent, image ? 'contain-blur' : 'text'),
@@ -97,6 +112,34 @@ function scene(type, title, body, image, accent, imageMode) {
     accent,
     cta: '',
   };
+}
+
+function mapStoredScene(source, index, articleSource, images, sectionLabel, accent) {
+  const role = clean(source?.visual_role).toLowerCase();
+  const type = role === 'hook' || role === 'cover' ? 'cover' : role === 'cta' || source?.layout === 'cta' ? 'closure' : role === 'key_fact' ? 'dato-clave' : role === 'context' ? 'que-paso' : 'text';
+  const image = resolveStoredImage(source?.visual_source, articleSource, images);
+  const items = Array.isArray(source?.items) ? source.items.map(item => clean(item?.text || item?.value)).filter(Boolean).join(' ') : '';
+  return {
+    id: clean(source?.id) || `scene-${index + 1}`,
+    type,
+    title: clean(source?.text || source?.title || (type === 'closure' ? 'SeguÃ­ informado' : '')),
+    body: clean(source?.subtitle || items),
+    image,
+    imageMode: image ? 'contain-blur' : 'text',
+    focus: { ...DEFAULT_FOCUS },
+    accent,
+    cta: type === 'closure' ? clean(source?.text || source?.cta) : '',
+    section: sectionLabel,
+  };
+}
+
+function resolveStoredImage(reference, articleSource, images) {
+  const value = clean(reference);
+  if (!value || value === 'generated' || value === 'none') return '';
+  if (value === 'article.image') return clean(articleSource?.imagen || images[0]);
+  const match = value.match(/^article\.images\[(\d+)\]$/);
+  if (match) return images[Number(match[1])] || '';
+  return images.includes(value) ? value : '';
 }
 
 function normalizeScene(sceneSource, index) {

@@ -35,7 +35,7 @@ export function fromEditorialPackage(editorialPackage = {}) {
 
 export function attachEditorialPackage(project = {}, editorialPackage = {}) {
   const adapted = fromEditorialPackage(editorialPackage);
-  return {
+  const next = {
     ...project,
     article: adapted.article,
     categoryOptions: adapted.categoryOptions,
@@ -43,6 +43,11 @@ export function attachEditorialPackage(project = {}, editorialPackage = {}) {
     editorialPackage,
     editorialDiagnosis: adapted.diagnosis,
   };
+  const storedPlan = editorialPackage.salidas?.carrusel;
+  if (storedPlan && storedPlan.cover && Array.isArray(storedPlan.slides)) {
+    next.editorialPlan = storedPlan;
+  }
+  return next;
 }
 
 export function openCarouselFromEditorialPackage(editorialPackage = {}) {

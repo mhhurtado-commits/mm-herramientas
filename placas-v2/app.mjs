@@ -2,6 +2,7 @@ import { normalizeFocus, calculatePlateLayout, FORMATS, PLATE_TYPES } from './ed
 import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
+import { generateEditorialOutputs } from './editorial-output-generation.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const state = { plate: null, package: null, note: null, outputs: ['placa'], variants: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, drag: null };
@@ -30,7 +31,23 @@ async function generatePackage(note, outputs) {
   const response = await fetch(`${WORKER}/placas/v2/paquete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nota: note, salidas: outputs }) });
   const data = await response.json();
   if (!response.ok || data.error) throw new Error(data.error || 'No se pudo generar el paquete editorial.');
-  return data;
+  const enriched = await generateEditorialOutputs(data.paquete, outputs, { generateJson: generateSocialJson });
+  return {
+    ...data,
+    paquete: enriched.package,
+    warnings: [...(Array.isArray(data.warnings) ? data.warnings : []), ...enriched.warnings],
+  };
+}
+
+async function generateSocialJson(systemPrompt, userMsg) {
+  const response = await fetch(`${WORKER}/social/generar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ systemPrompt, userMsg }),
+  });
+  const data = await response.json();
+  if (!response.ok || !data.ok || !data.result) throw new Error(data.error || 'No se pudo generar la salida editorial.');
+  return data.result;
 }
 
 async function loadImage(url) {

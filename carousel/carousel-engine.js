@@ -35,6 +35,14 @@ export function loadEditorialPackage(editorialPackage) {
   const next = project
     ? attachEditorialPackage(project, editorialPackage)
     : openCarouselFromEditorialPackage(editorialPackage);
+  if (next.editorialPlan?.cover && Array.isArray(next.editorialPlan.slides)) {
+    next.slides = convertirPlanASlides(next.editorialPlan, next.article, next.settings);
+    next.socialCopy = {
+      ...(next.socialCopy || {}),
+      caption: editorialPackage.redes?.instagram || next.socialCopy?.caption || '',
+      hashtags: next.socialCopy?.hashtags || [],
+    };
+  }
   setProject(next);
   return next;
 }

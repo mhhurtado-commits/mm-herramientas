@@ -103,8 +103,10 @@ async function consumeEditorialHandoff() {
 
     engine.loadEditorialPackage(handoff.package);
     const project = getProject();
-    await engine.generatePlan();
-    await generateInstagramCaption(project);
+    if (!handoff.package.salidas?.carrusel) {
+      await engine.generatePlan();
+      await generateInstagramCaption(project);
+    }
     activeSlideIndex = 0;
     activeReelSceneIndex = 0;
     setActiveWorkspaceTab('carousel');

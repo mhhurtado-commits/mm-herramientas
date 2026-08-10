@@ -78,3 +78,21 @@ test("hereda la categoria editorial seleccionada y la aplica al Reel", () => {
   assert.equal(adapted.selectedCategoryId, "policiales-principal");
   assert.equal(adapted.editorialDiagnosis.vertical, "policiales");
 });
+
+test("consume el ReelPlan guardado en el paquete", () => {
+  const stored = {
+    ...samplePackage(),
+    salidas: {
+      placas: [],
+      carrusel: null,
+      reel: {
+        format: "reel_silent",
+        scenes: [{ visual_role: "hook", layout: "cover", text: "Hook guardado" }],
+      },
+    },
+  };
+  const adapted = fromEditorialPackage(stored);
+
+  assert.equal(adapted.reel.scenes[0].text, "Hook guardado");
+  assert.equal(adapted.reel.scenes.at(-1).visual_role, "cta");
+});
