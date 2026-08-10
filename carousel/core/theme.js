@@ -290,7 +290,7 @@ export function resolveCarouselTheme(project, slide) {
   return theme;
 }
 
-function getReadableTextColor(background) {
+export function getReadableTextColor(background) {
   var hex = String(background || '').replace('#', '');
   if (hex.length !== 6) return '#1b1e22';
   var red = parseInt(hex.slice(0, 2), 16) / 255;

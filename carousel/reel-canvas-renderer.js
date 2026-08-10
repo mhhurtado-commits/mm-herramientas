@@ -1,12 +1,20 @@
 import { createCanvas } from "./core/canvas.js";
 import { drawImageCover } from "./core/image.js";
 import { wrapText } from "./core/text.js";
-import { MMTheme, applyThemeVariant, resolveSectionFamily } from "./core/theme.js";
+import { MMTheme, applyThemeVariant, getReadableTextColor, resolveSectionFamily } from "./core/theme.js";
 
 var W = 1080;
 var H = 1920;
 var IMAGE_PROXY = "https://mm-herramientas-worker.mhhurtado.workers.dev?image=";
 var imageCache = {};
+
+export function getAdaptiveReelCardBounds(panelY, panelH, contentHeight) {
+  var height = Math.min(panelH, Math.min(640, Math.max(320, (Number(contentHeight) || 0) + 160)));
+  return {
+    y: Math.round(panelY + Math.max(0, (panelH - height) / 2)),
+    height: Math.round(height),
+  };
+}
 
 export function renderReelSceneToCanvas(scene, project) {
   if (!scene) return null;
@@ -61,7 +69,7 @@ function applyReelFamilyTheme(project, scene) {
   MMTheme.colors.accentSoft = family.soft;
   MMTheme.colors.endBackground = family.dark;
   MMTheme.colors.endCtaFill = family.accent;
-  MMTheme.colors.endCtaText = family.dark;
+  MMTheme.colors.endCtaText = getReadableTextColor(family.accent);
   MMTheme.colors.brandLine = family.accent;
   MMTheme.colors.accentBarEnd = family.soft;
   // El Reel alterna fondos fotográficos y tarjetas claras: la tinta debe ser
@@ -378,55 +386,56 @@ function drawCalloutTextCard(ctx, title, subtitle, panelY, panelH, contentX, con
     return;
   }
 
-  var boxY = panelY + 390;
-  var boxH = 640;
-  var boxFill = layout === "quote" ? "#f4f1ea" : MMTheme.colors.accent;
-  fillRoundRect(ctx, contentX + 18, boxY, contentW - 36, boxH, 34, boxFill);
-  ctx.strokeStyle = layout === "quote" ? MMTheme.colors.brandLine : MMTheme.colors.accent;
-  ctx.lineWidth = 2;
-  roundRectStroke(ctx, contentX + 18, boxY, contentW - 36, boxH, 34);
-
   var titleStyle = fitReelTextBlock(ctx, title, {
     maxWidth: contentW - 110,
     maxLines: 3,
     fontSizes: [60, 56, 52, 48],
     lineHeights: [68, 64, 60, 56]
   });
+  var subtitleStyle = subtitle ? fitReelTextBlock(ctx, subtitle, {
+    maxWidth: contentW - 120,
+    maxLines: 3,
+    fontSizes: [34, 31, 28],
+    lineHeights: [44, 40, 36]
+  }) : null;
+  var contentHeight = titleStyle.lineCount * titleStyle.lineHeight + (subtitleStyle ? subtitleStyle.lineCount * subtitleStyle.lineHeight + 28 : 0);
+  var bounds = getAdaptiveReelCardBounds(panelY, panelH, contentHeight);
+  var boxY = bounds.y;
+  var boxH = bounds.height;
+  var boxFill = layout === "quote" ? "#f4f1ea" : MMTheme.colors.accentSoft;
+  fillRoundRect(ctx, contentX + 18, boxY, contentW - 36, boxH, 34, boxFill);
+  ctx.strokeStyle = MMTheme.colors.brandLine;
+  ctx.lineWidth = 2;
+  roundRectStroke(ctx, contentX + 18, boxY, contentW - 36, boxH, 34);
   ctx.textAlign = "center";
   ctx.font = "700 " + titleStyle.fontSize + "px Inter, Arial, sans-serif";
-  ctx.fillStyle = MMTheme.colors.textPrimary;
+  ctx.fillStyle = layout === "quote" ? MMTheme.colors.textPrimary : MMTheme.colors.accentDark;
   var titleEnd = wrapText(ctx, titleStyle.text, W / 2, boxY + 86, titleStyle.maxWidth, titleStyle.lineHeight);
-  if (subtitle) {
-    ctx.font = "500 34px Inter, Arial, sans-serif";
+  if (subtitleStyle) {
+    ctx.font = "500 " + subtitleStyle.fontSize + "px Inter, Arial, sans-serif";
     ctx.fillStyle = MMTheme.colors.textSecondary;
-    wrapText(ctx, subtitle, W / 2, titleEnd + 28, contentW - 120, 44);
-  }
-  if (layout === "cta") {
-    fillRoundRect(ctx, W / 2 - 210, boxY + boxH - 126, 420, 64, 32, "#1f2326");
-    ctx.font = "700 24px Inter, Arial, sans-serif";
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText("SEGUI INFORMADO", W / 2, boxY + boxH - 86);
+    wrapText(ctx, subtitleStyle.text, W / 2, titleEnd + 28, subtitleStyle.maxWidth, subtitleStyle.lineHeight);
   }
   ctx.textAlign = "start";
 }
 
 function drawReelCtaCard(ctx, title, subtitle, panelY, contentX, contentW) {
-  var boxY = panelY + 250;
-  var boxH = 860;
+  var boxY = panelY + 120;
+  var boxH = Math.min(1040, H - boxY - 180);
   var boxX = contentX - 14;
   var boxW = contentW + 28;
-  fillRoundRect(ctx, boxX, boxY, boxW, boxH, 42, "#ffffff");
-  ctx.strokeStyle = MMTheme.colors.lineSoft;
+  fillRoundRect(ctx, boxX, boxY, boxW, boxH, 42, MMTheme.colors.endBackground);
+  ctx.strokeStyle = MMTheme.colors.brandLine;
   ctx.lineWidth = 2;
   roundRectStroke(ctx, boxX, boxY, boxW, boxH, 42);
   fillRoundRect(ctx, boxX, boxY, boxW, 22, 11, MMTheme.colors.accent);
 
   var logo = getCachedImage("/assets/logo.png");
-  if (logo) drawLogoClean(ctx, logo, W / 2, boxY + 104, 300, true, true);
+  if (logo) drawLogoClean(ctx, logo, W / 2, boxY + 104, 300, true, false);
 
   ctx.textAlign = "center";
   ctx.font = "700 30px Inter, Arial, sans-serif";
-  ctx.fillStyle = MMTheme.colors.accentDark;
+  ctx.fillStyle = MMTheme.colors.accent;
   ctx.fillText("SEGUIR INFORMADO", W / 2, boxY + 198);
 
   var titleStyle = fitReelTextBlock(ctx, title, {
@@ -436,7 +445,7 @@ function drawReelCtaCard(ctx, title, subtitle, panelY, contentX, contentW) {
     lineHeights: [66, 62, 58, 54]
   });
   ctx.font = "700 " + titleStyle.fontSize + "px Inter, Arial, sans-serif";
-  ctx.fillStyle = MMTheme.colors.textPrimary;
+  ctx.fillStyle = "#ffffff";
   var titleEnd = wrapText(ctx, titleStyle.text, W / 2, boxY + 278, titleStyle.maxWidth, titleStyle.lineHeight);
 
   if (subtitle && !isSectionLabel(subtitle)) {
@@ -447,14 +456,14 @@ function drawReelCtaCard(ctx, title, subtitle, panelY, contentX, contentW) {
       lineHeights: [42, 38, 36]
     });
     ctx.font = "500 " + subtitleStyle.fontSize + "px Inter, Arial, sans-serif";
-    ctx.fillStyle = MMTheme.colors.textSecondary;
+    ctx.fillStyle = "rgba(255,255,255,0.82)";
     wrapText(ctx, subtitleStyle.text, W / 2, titleEnd + 42, subtitleStyle.maxWidth, subtitleStyle.lineHeight);
   }
 
   var webY = boxY + boxH - 148;
-  fillRoundRect(ctx, W / 2 - 300, webY, 600, 92, 30, "#1f2326");
+  fillRoundRect(ctx, W / 2 - 300, webY, 600, 92, 30, MMTheme.colors.accent);
   ctx.font = "700 42px Inter, Arial, sans-serif";
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = MMTheme.colors.endCtaText;
   ctx.fillText("mediamendoza.com", W / 2, webY + 58);
   ctx.textAlign = "start";
 }
