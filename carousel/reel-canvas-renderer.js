@@ -239,18 +239,26 @@ function drawSceneText(ctx, scene, project, family) {
     fillRoundRect(ctx, 58, panelY, W - 116, 24, 12, MMTheme.colors.accent);
 
     var content = getStructuredSceneContent(scene);
+    var hasSupportImage = scene.visual_type === "support_image" && resolveSceneImage(scene, project);
+    var contentPanelY = panelY;
+    var contentPanelH = panelH;
+    if (hasSupportImage) {
+      drawReelSupportImage(ctx, resolveSceneImage(scene, project), contentX + 38, panelY + 74, contentW - 76, 390);
+      contentPanelY += 440;
+      contentPanelH = Math.max(420, panelH - 440);
+    }
     var cardSubtitle = isSectionLabel(subtitle) ? "" : subtitle;
     if (isSectionLabel(subtitle)) {
       drawCategoryPill(ctx, subtitle, contentX + 38, panelY + 64, MMTheme.colors.accent);
     }
     if (family === "list") {
-      drawListTextCard(ctx, content.title, cardSubtitle, content.items, panelY, panelH, contentX, contentW);
+      drawListTextCard(ctx, content.title, cardSubtitle, content.items, contentPanelY, contentPanelH, contentX, contentW);
     } else if (family === "contact") {
-      drawContactTextCard(ctx, content.title, cardSubtitle, content.items, panelY, panelH, contentX, contentW);
+      drawContactTextCard(ctx, content.title, cardSubtitle, content.items, contentPanelY, contentPanelH, contentX, contentW);
     } else if (family === "quote") {
-      drawCalloutTextCard(ctx, content.title, cardSubtitle, panelY, panelH, contentX, contentW, family);
+      drawCalloutTextCard(ctx, content.title, cardSubtitle, contentPanelY, contentPanelH, contentX, contentW, family);
     } else {
-      drawDefaultTextCard(ctx, content.title, cardSubtitle, panelY, panelH, contentX, contentW);
+      drawDefaultTextCard(ctx, content.title, cardSubtitle, contentPanelY, contentPanelH, contentX, contentW);
     }
 
     return;
@@ -579,6 +587,7 @@ export function resolveReelSceneFamily(scene, project) {
   var imageFailed = isImageLoadFailed(imageUrl);
 
   if (["list", "contact", "cta", "quote"].indexOf(layout) >= 0) return layout;
+  if (scene && scene.visual_type === "support_image") return "text";
   if ((isCoverScene(scene) || String(scene && scene.layout || "").toLowerCase() === "cover") && imageUrl && !imageFailed) return "cover";
   if (imageUrl && !imageFailed && scene.visual_type !== "text_card") return "image";
   return "text";
@@ -600,6 +609,26 @@ function resolveSceneImage(scene, project) {
   if (/^(https?:\/\/|data:|blob:|\/assets\/)/i.test(source)) return source;
 
   return "";
+}
+
+function drawReelSupportImage(ctx, source, x, y, width, height) {
+  var image = getCachedImage(source);
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, 28);
+  ctx.clip();
+  ctx.fillStyle = MMTheme.colors.surfaceSoft;
+  ctx.fillRect(x, y, width, height);
+  if (image) {
+    drawImageCover(ctx, image, x, y, width, height);
+  } else {
+    ctx.fillStyle = MMTheme.colors.accentSoft;
+    ctx.fillRect(x, y, width, 18);
+  }
+  ctx.restore();
+  ctx.strokeStyle = MMTheme.colors.brandLine;
+  ctx.lineWidth = 2;
+  roundRectStroke(ctx, x, y, width, height, 28);
 }
 
 function getCachedImage(src) {

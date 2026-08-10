@@ -670,6 +670,12 @@
   overflow: hidden;
 }
 
+.carousel-reel-image-input {
+  max-width: 220px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .carousel-category-controls {
   display: flex;
   flex-wrap: wrap;

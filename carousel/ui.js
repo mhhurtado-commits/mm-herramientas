@@ -603,9 +603,13 @@ function renderReelPreview(project) {
   var activeScene = reel.scenes[activeReelSceneIndex];
   if (controls) {
     controls.innerHTML = "";
-    controls.hidden = !isReelCoverScene(activeScene) && !(project.categoryOptions && project.categoryOptions.length > 1);
+    var hasReelControls = isReelCoverScene(activeScene) || isReelInternalScene(activeScene) || (project.categoryOptions && project.categoryOptions.length > 1);
+    controls.hidden = !hasReelControls;
     if (isReelCoverScene(activeScene)) {
       controls.appendChild(createCoverLogoControls(project));
+    }
+    if (isReelInternalScene(activeScene)) {
+      controls.appendChild(createReelSupportImageControls(project, activeScene));
     }
     if (project.categoryOptions && project.categoryOptions.length > 1) {
       controls.appendChild(createCategoryControls(project));
@@ -624,6 +628,67 @@ function renderReelPreview(project) {
 
 function isReelCoverScene(scene) {
   return !!scene && (scene.visual_type === "cover_image" || scene.visual_role === "hook");
+}
+
+function isReelInternalScene(scene) {
+  if (!scene || isReelCoverScene(scene)) return false;
+  var role = String(scene.visual_role || "").toLowerCase();
+  var layout = String(scene.layout || "").toLowerCase();
+  return role !== "cta" && role !== "conclusion" && layout !== "cta";
+}
+
+function createReelSupportImageControls(project, scene) {
+  var wrap = document.createElement("div");
+  wrap.className = "carousel-cover-controls carousel-reel-image-controls";
+
+  var label = document.createElement("span");
+  label.className = "carousel-cover-controls-label";
+  label.textContent = "Imagen de apoyo";
+  wrap.appendChild(label);
+
+  var input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.className = "carousel-reel-image-input";
+  input.addEventListener("change", function () {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      updateReelSceneSupportImage(project, scene, String(reader.result || ""), file.name);
+    };
+    reader.readAsDataURL(file);
+  });
+  wrap.appendChild(input);
+
+  if (scene.visual_type === "support_image" && scene.visual_source) {
+    var clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "carousel-cover-chip";
+    clearBtn.textContent = "Quitar";
+    clearBtn.addEventListener("click", function () {
+      updateReelSceneSupportImage(project, scene, "", "");
+    });
+    wrap.appendChild(clearBtn);
+  }
+
+  return wrap;
+}
+
+function updateReelSceneSupportImage(project, scene, source, name) {
+  var reel = getReelOutput(project);
+  if (!reel || !Array.isArray(reel.scenes)) return;
+  var target = reel.scenes[activeReelSceneIndex];
+  if (!target) return;
+  target.visual_source = source;
+  target.visual_type = source ? "support_image" : "text";
+  if (name) target.support_image_name = name;
+  else delete target.support_image_name;
+  if (project.reelPlan && Array.isArray(project.reelPlan.scenes)) {
+    project.reelPlan.scenes[activeReelSceneIndex] = target;
+  }
+  setProject(project);
+  renderReelPreview(project);
 }
 
 function buildCaptionText(project) {
@@ -742,6 +807,8 @@ function resolveReelSceneImage(scene, project) {
   var article = project.article;
   var source = String(scene.visual_source || "");
 
+  if (/^(data:|blob:|https?:\/\/)/i.test(source)) return source;
+
   if (source === "article.image") return article.image || "";
 
   var match = source.match(/^article\.images\[(\d+)\]$/);
@@ -782,6 +849,7 @@ function formatReelSourceLabel(scene, project) {
   if (!key) return "";
   if (key === "article.image") return "Imagen principal";
   if (key === "generated") return "Placa editorial";
+  if (/^(data:|blob:)/i.test(key)) return "Imagen manual";
 
   var match = key.match(/^article\.images\[(\d+)\]$/);
   if (match) {
