@@ -24,18 +24,36 @@ export function ensureReelClosure(reelOrScenes, article = {}) {
   return Array.isArray(reelOrScenes) ? scenes : { ...reel, scenes };
 }
 
-export function createReelOutputFromCarouselPlan(plan = {}, article = {}) {
+export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
+  const source = editorialPackage.fuente || {};
+  const editorial = editorialPackage.editorial || {};
+  const plate = Array.isArray(editorialPackage.salidas?.placas) ? editorialPackage.salidas.placas[0] || {} : {};
+  const title = clean(editorial.titulo || plate.titulo || source.titulo_original);
+  const summary = clean(editorial.bajada || plate.bajada || source.descripcion);
+  const context = clean(editorial.contexto || plate.contexto || firstSentence(source.cuerpo));
+  const facts = uniqueStrings([
+    editorial.datos_clave,
+    plate.datos_clave,
+    Array.isArray(plate.bloques) ? plate.bloques.filter(block => block?.tipo === 'dato-clave').map(block => block.texto) : [],
+  ]);
   const scenes = [];
-  const cover = plan.cover || {};
-  if (cover.title || cover.subtitle) {
-    scenes.push({ order: 1, duration_ms: 3200, visual_type: article.image ? 'cover_image' : 'text_card', visual_source: article.image ? 'article.image' : 'generated', visual_role: 'hook', layout: 'cover', text: cover.title || article.title || '', subtitle: cover.subtitle || article.summary || '', items: [] });
-  }
-  for (const slide of Array.isArray(plan.slides) ? plan.slides : []) {
-    if (!slide || slide.type === 'end') continue;
-    const role = slide.type === 'dato' || slide.type === 'facts' || slide.type === 'clave' || slide.type === 'impact' ? 'key_fact' : slide.type === 'imagen' ? 'support_image' : 'context';
-    scenes.push({ order: scenes.length + 1, duration_ms: 3000, visual_type: role === 'support_image' && slide.supportImage ? 'support_image' : 'text_card', visual_source: slide.supportImage || 'generated', visual_role: role, layout: role === 'key_fact' ? 'list' : 'default', title: slide.title || '', text: slide.title || '', subtitle: slide.text || '', items: Array.isArray(slide.items) ? slide.items : [] });
-  }
-  const end = Array.isArray(plan.slides) ? plan.slides.find(slide => slide?.type === 'end') : null;
-  scenes.push({ order: scenes.length + 1, duration_ms: 3200, visual_type: 'text_card', visual_source: 'generated', visual_role: 'cta', layout: 'cta', text: end?.cta || 'Leé la nota completa', subtitle: [article.title, article.summary].filter(Boolean).join(' '), items: [] });
-  return { format: 'reel_silent', hook: cover.title || article.title || '', cover_text: cover.title || article.title || '', caption: '', hashtags: [], scenes: ensureReelClosure(scenes, article) };
+  const image = clean(source.imagen || source.imagenes?.[0]);
+  scenes.push({ order: 1, duration_ms: 3200, visual_type: image ? 'cover_image' : 'text_card', visual_source: image ? 'article.image' : 'generated', visual_role: 'hook', layout: 'cover', text: title, subtitle: summary, items: [] });
+  if (context) scenes.push({ order: scenes.length + 1, duration_ms: 3000, visual_type: 'text_card', visual_source: 'generated', visual_role: 'context', layout: 'default', title: 'Qué pasó', text: 'Qué pasó', subtitle: context, items: [] });
+  if (facts.length) scenes.push({ order: scenes.length + 1, duration_ms: 3000, visual_type: 'text_card', visual_source: 'generated', visual_role: 'key_fact', layout: 'list', title: 'Puntos clave', text: 'Puntos clave', subtitle: '', items: facts.map(text => ({ text })) });
+  scenes.push({ order: scenes.length + 1, duration_ms: 3200, visual_type: 'text_card', visual_source: 'generated', visual_role: 'cta', layout: 'cta', text: 'Leé la nota completa', subtitle: [title, summary, context].filter(Boolean).join(' '), items: [] });
+  return { format: 'reel_silent', hook: title, cover_text: title, caption: '', hashtags: [], scenes: ensureReelClosure(scenes, { url: source.url }) };
+}
+
+function clean(value) {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+}
+
+function firstSentence(value) {
+  const text = clean(value);
+  return text.split(/(?<=[.!?])\s+/)[0] || text;
+}
+
+function uniqueStrings(groups) {
+  return [...new Set((Array.isArray(groups) ? groups : [groups]).flatMap(value => Array.isArray(value) ? value : [value]).map(clean).filter(Boolean))];
 }
