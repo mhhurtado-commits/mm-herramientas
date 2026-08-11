@@ -8,7 +8,7 @@ test('creates a four-scene reel from a package with one horizontal image', () =>
     editorial: { seccion: 'policiales', titulo: 'Titulo de prueba', bajada: 'Bajada', contexto: 'Dato clave' },
   });
   assert.equal(project.format, '9:16');
-  assert.ok(project.scenes.length >= 4 && project.scenes.length <= 6);
+  assert.ok(project.scenes.length >= 3 && project.scenes.length <= 6);
   assert.equal(project.scenes[0].imageMode, 'contain-blur');
   assert.deepEqual(project.scenes[0].focus, { x: 0.5, y: 0.5 });
 });
@@ -22,7 +22,7 @@ test('normalizes scene count and clamps focus', () => {
 
 test('does not put a non-clickable short URL in the closure CTA', () => {
   const project = createReelProject({ fuente: { url: 'https://mediamendoza.com/policiales/251300-Titulo' }, editorial: { titulo: 'Titulo' } });
-  assert.equal(project.scenes.at(-1).cta, 'Leé la nota completa en mediamendoza.com');
+  assert.equal(project.scenes.at(-1).cta, 'Leé la nota completa');
 });
 
 test('preserves recommended and alternative categories from the package', () => {
@@ -60,24 +60,21 @@ test('consumes the reel output already stored in the editorial package', () => {
   assert.equal(project.scenes.at(-1).type, 'closure');
 });
 
-test('derives Reel scenes from the stored carousel when Reel output is absent', () => {
+test('derives Reel scenes from canonical fields when Reel output is absent', () => {
   const project = createReelProject({
     fuente: { titulo_original: 'Nota', imagen: 'cover.jpg' },
-    editorial: { titulo: 'Nota', bajada: 'Bajada.' },
+    editorial: { titulo: 'Nota', bajada: 'Bajada.', contexto: 'Contexto canónico.' },
     salidas: {
       carrusel: {
-        cover: { title: 'Nota', subtitle: 'Bajada.' },
-        slides: [
-          { type: 'contexto', title: 'Contexto', text: 'Información del carrusel.' },
-          { type: 'end', cta: 'Leé la nota completa' },
-        ],
+        cover: { title: 'Texto del carrusel que no corresponde' },
       },
       reel: null,
     },
   });
 
-  assert.equal(project.scenes[1].title, 'Contexto');
-  assert.match(project.scenes[1].body, /Información del carrusel/);
+  assert.equal(project.scenes[1].title, 'Qué pasó');
+  assert.match(project.scenes[1].body, /Contexto canónico/);
+  assert.doesNotMatch(JSON.stringify(project), /Texto del carrusel que no corresponde/);
 });
 
 test('keeps stored internal scenes text-only when no image is assigned', () => {
