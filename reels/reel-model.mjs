@@ -42,7 +42,7 @@ export function createReelProject(editorialPackage = {}) {
       selectedCategoryId: selectedCategory?.id || '',
       accent,
       images,
-      scenes: storedScenes.map((stored, index) => mapStoredScene(stored, index, source, images, sectionLabel, accent)),
+       scenes: storedScenes.map((stored, index) => mapStoredScene(stored, index, source, images, editorial, sectionLabel, accent)),
     });
   }
   const scenes = [
@@ -114,16 +114,22 @@ function scene(type, title, body, image, accent, imageMode) {
   };
 }
 
-function mapStoredScene(source, index, articleSource, images, sectionLabel, accent) {
+function mapStoredScene(source, index, articleSource, images, editorial, sectionLabel, accent) {
   const role = clean(source?.visual_role).toLowerCase();
   const type = role === 'hook' || role === 'cover' ? 'cover' : role === 'cta' || source?.layout === 'cta' ? 'closure' : role === 'key_fact' ? 'dato-clave' : role === 'context' ? 'que-paso' : 'text';
   const image = type !== 'closure' ? resolveStoredImage(source?.visual_source, articleSource, images) : '';
-  const items = Array.isArray(source?.items) ? source.items.map(item => clean(item?.text || item?.value)).filter(Boolean).join(' ') : '';
+  const items = Array.isArray(source?.items) ? source.items.map(item => clean(item?.text || item?.value)).filter(Boolean) : [];
+  const contractFallback = type === 'que-paso'
+    ? clean(editorial?.contexto)
+    : type === 'dato-clave'
+      ? (Array.isArray(editorial?.datos_clave) ? editorial.datos_clave.map(clean).filter(Boolean).join(' ') : clean(editorial?.datos_clave))
+      : '';
+  const body = [clean(source?.subtitle), ...items].filter(Boolean).join(' ') || contractFallback;
   return {
     id: clean(source?.id) || `scene-${index + 1}`,
     type,
     title: clean(source?.text || source?.title || (type === 'closure' ? 'SeguÃ­ informado' : '')),
-    body: clean(source?.subtitle || items),
+    body,
     image,
     imageMode: image ? 'contain-blur' : 'text',
     focus: { ...DEFAULT_FOCUS },

@@ -75,3 +75,17 @@ test('keeps stored internal scenes text-only when no image is assigned', () => {
   assert.equal(project.scenes[1].imageMode, 'text');
   assert.equal(project.scenes.at(-1).image, '');
 });
+
+test('combines subtitle and items from the editorial contract', () => {
+  const project = createReelProject({
+    fuente: { imagen: 'cover.jpg' },
+    editorial: { titulo: 'Nota', contexto: 'Contexto general' },
+    salidas: { reel: { scenes: [
+      { visual_role: 'context', text: 'Qué pasó', subtitle: 'La causa avanzó.', items: [{ text: 'El acusado sigue detenido.' }] },
+      { visual_role: 'cta', layout: 'cta', text: 'Leé la nota' },
+    ] } },
+  });
+
+  assert.match(project.scenes[0].body, /La causa avanzó/);
+  assert.match(project.scenes[0].body, /sigue detenido/);
+});

@@ -158,23 +158,24 @@ function drawEditorialText(ctx, scene, layout, accent) {
   const titleY = textY + 112;
   ctx.fillStyle = COLORS.ink;
   ctx.font = `800 ${titleSize}px Arial, sans-serif`;
-  const titleLines = wrapText(ctx, scene.title || 'Media Mendoza', width, 3);
+  const titleLines = wrapText(ctx, scene.title || 'Media Mendoza', width, hasImage ? 2 : 3);
   drawLines(ctx, titleLines, x, titleY, titleSize * 1.05, COLORS.ink);
   const bodyY = titleY + titleLines.length * titleSize * 1.05 + 54;
   ctx.font = '500 40px Arial, sans-serif';
-  const bodyLines = wrapText(ctx, scene.body || '', width, 4);
+  const bodyFontSize = hasImage ? 34 : 40;
+  const bodyLines = wrapText(ctx, scene.body || '', width, hasImage ? 3 : 6);
   if (scene.type === 'dato-clave') {
     const blockY = bodyY - 34;
-    const blockHeight = Math.max(138, bodyLines.length * 52 + 62);
+    const blockHeight = Math.max(138, bodyLines.length * (hasImage ? 46 : 52) + 62);
     ctx.fillStyle = `${accent}20`;
     roundedRect(ctx, x - 18, blockY - 34, width + 36, blockHeight, 24);
     ctx.fill();
     ctx.fillStyle = accent;
     ctx.fillRect(x - 18, blockY - 34, 8, blockHeight);
-    ctx.font = '700 40px Arial, sans-serif';
-    drawLines(ctx, bodyLines, x + 18, blockY + 18, 52, COLORS.ink);
+    ctx.font = `700 ${bodyFontSize}px Arial, sans-serif`;
+    drawLines(ctx, bodyLines, x + 18, blockY + 18, hasImage ? 46 : 52, COLORS.ink);
   } else {
-    drawLines(ctx, bodyLines, x, bodyY, 52, COLORS.muted);
+    drawLines(ctx, bodyLines, x, bodyY, hasImage ? 46 : 52, COLORS.muted);
   }
   ctx.restore();
 }
