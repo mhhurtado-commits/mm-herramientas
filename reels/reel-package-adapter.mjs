@@ -1,13 +1,14 @@
-const MAX_KEY_FACT_CARDS = 2;
-const MAX_CARD_WORDS = 14;
-
 import { fromEditorialPackage } from './reel-shared-package-adapter.mjs';
 
+const MAX_FACT_SCENES = 2;
+
+// Genera un guion corto desde el paquete de Placas V2. No consume ni modifica
+// el adaptador de Carrusel: solo usa el mismo plan editorial ya generado.
 export function ensureReelClosure(reelOrScenes, article = {}) {
   const reel = Array.isArray(reelOrScenes) ? { scenes: reelOrScenes } : { ...(reelOrScenes || {}) };
   const scenes = Array.isArray(reel.scenes) ? reel.scenes.map(scene => ({ ...scene })) : [];
   const hasClosure = scenes.some(scene => String(scene.visual_role || '').toLowerCase() === 'cta' || scene.layout === 'cta');
-  if (!hasClosure) scenes.push(scene('cta', 'Leé la nota completa', article.url ? 'Más información en mediamendoza.com' : 'Seguí la cobertura en Media Mendoza', scenes.length + 1));
+  if (!hasClosure) scenes.push(scene('cta', 'Segu\u00ed la cobertura', 'M\u00e1s informaci\u00f3n en mediamendoza.com', scenes.length + 1, { layout: 'cta', cta: 'Le\u00e9 la nota completa' }));
   return Array.isArray(reelOrScenes) ? scenes : { ...reel, scenes };
 }
 
@@ -18,18 +19,24 @@ export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
   const plate = editorialPackage.salidas?.placas?.[0] || {};
   const title = clean(editorial.titulo || plate.titulo || source.titulo_original);
   const summary = clean(editorial.bajada || plate.bajada || source.descripcion);
-  const context = clean(editorial.contexto || plate.contexto || summary);
-  const canonicalText = [title, summary, context];
-  const cards = compactCards(buildCards(editorial, plate, canonicalText));
-
   const image = clean(source.imagen || source.imagenes?.[0]);
-  const scenes = [
-    scene('hook', title, summary, 1, { visual_type: image ? 'cover_image' : 'text_card', visual_source: image ? 'article.image' : 'generated', layout: 'cover' }),
-    scene('context', 'Qué pasó', context, 2),
-  ];
+  const storyBlocks = Array.isArray(adapted.storyBlocks) ? adapted.storyBlocks : [];
+  const context = storyBlocks.find(block => block.role === 'context');
+  const facts = storyBlocks.filter(block => block !== context).slice(0, MAX_FACT_SCENES);
+  const scenes = [scene('hook', title, summary, 1, {
+    visual_type: image ? 'cover_image' : 'text_card',
+    visual_source: image ? 'article.image' : 'generated',
+    layout: 'cover',
+  })];
 
-  if (cards.length) scenes.push(scene('key_fact', 'Puntos clave', '', scenes.length + 1, { layout: 'list', items: cards }));
-  scenes.push(scene('cta', 'Leé la nota completa', '', scenes.length + 1, { layout: 'cta' }));
+  if (context) scenes.push(blockToScene('context', context, scenes.length + 1));
+  else if (summary) scenes.push(scene('context', 'Qu\u00e9 pas\u00f3', summary, scenes.length + 1));
+  for (const block of facts) scenes.push(blockToScene('key_fact', block, scenes.length + 1));
+  scenes.push(scene('cta', 'Segu\u00ed la cobertura', 'M\u00e1s informaci\u00f3n en mediamendoza.com', scenes.length + 1, {
+    layout: 'cta',
+    cta: 'Le\u00e9 la nota completa',
+  }));
+
   return {
     format: 'reel_silent',
     hook: title,
@@ -40,65 +47,20 @@ export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
   };
 }
 
-function buildCards(editorial, plate, excluded) {
-  const facts = uniqueStrings([
-    editorial.datos_clave,
-    plate.datos_clave,
-    plate.bloques?.filter(block => block?.tipo === 'dato-clave').map(block => block.texto),
-  ]).filter(text => !sameText(text, excluded));
-  const cards = facts.map(text => ({ label: 'Dato clave', text }));
-  const quote = getVerifiedQuote(editorial.textual) || getVerifiedQuote(plate.textual);
-  if (quote && !sameText(quote, excluded)) cards.push({ label: 'Cita verificada', text: quote });
-  const people = uniqueObjects([editorial.personas, plate.personas]);
-  for (const person of people.slice(0, 2)) {
-    const name = clean(person.nombre || person.name);
-    const role = clean(person.rol || person.role || person.cargo);
-    if (name) cards.push({ label: role || 'Persona mencionada', text: role ? `${name}: ${role}` : name });
-  }
-  return dedupeCards(cards);
-}
-
-function getVerifiedQuote(value) {
-  const values = Array.isArray(value) ? value : [value];
-  const match = values.find(item => item?.verificada && clean(item.cita || item.texto || item.text));
-  return clean(match?.cita || match?.texto || match?.text);
-}
-
-function sameText(value, candidates) {
-  const normalized = clean(value).replace(/…$/, '').toLowerCase();
-  return candidates.some(candidate => {
-    const other = clean(candidate).replace(/…$/, '').toLowerCase();
-    return other === normalized || (normalized.length > 20 && other.length > 20 && (other.includes(normalized) || normalized.includes(other)));
+function blockToScene(role, block, order) {
+  const items = Array.isArray(block.items)
+    ? block.items.slice(0, 2).map(item => ({ label: clean(item.label) || 'Dato clave', text: clean(item.text) })).filter(item => item.text)
+    : [];
+  return scene(role, clean(block.title) || (role === 'context' ? 'Qu\u00e9 pas\u00f3' : 'Dato clave'), clean(block.body), order, {
+    layout: items.length ? 'list' : 'default',
+    items,
   });
-}
-
-function dedupeCards(cards) {
-  const seen = new Set();
-  return cards.filter(card => {
-    const key = clean(card?.text).toLowerCase();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-function compactCards(cards) {
-  return dedupeCards(cards).slice(0, MAX_KEY_FACT_CARDS).map(card => ({
-    ...card,
-    text: compactText(card.text),
-  }));
-}
-
-function compactText(value) {
-  const words = clean(value).split(/\s+/).filter(Boolean);
-  if (words.length <= MAX_CARD_WORDS) return words.join(' ');
-  return `${words.slice(0, MAX_CARD_WORDS).join(' ')}…`;
 }
 
 function scene(role, title, subtitle, order, extra = {}) {
   return {
     order,
-    duration_ms: role === 'cta' ? 3200 : 3000,
+    duration_ms: role === 'hook' ? 3600 : role === 'cta' ? 3000 : 2800,
     visual_type: extra.visual_type || 'text_card',
     visual_source: extra.visual_source || 'generated',
     visual_role: role,
@@ -107,17 +69,10 @@ function scene(role, title, subtitle, order, extra = {}) {
     title,
     subtitle: clean(subtitle),
     items: Array.isArray(extra.items) ? extra.items : [],
+    cta: clean(extra.cta),
   };
 }
 
 function clean(value) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
-}
-
-function uniqueStrings(groups) {
-  return [...new Set((Array.isArray(groups) ? groups : [groups]).flatMap(value => Array.isArray(value) ? value : [value]).map(clean).filter(Boolean))];
-}
-
-function uniqueObjects(groups) {
-  return [...new Map((Array.isArray(groups) ? groups : [groups]).flatMap(value => Array.isArray(value) ? value : []).map(item => [clean(item?.nombre || item?.name), item]).filter(([key]) => key)).values()];
 }

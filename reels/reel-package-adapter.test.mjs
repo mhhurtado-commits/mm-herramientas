@@ -2,100 +2,54 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReelOutputFromEditorialPackage } from './reel-package-adapter.mjs';
 
-test('adapts Reel from the canonical package, ignoring carousel text', () => {
+test('uses canonical title and context when no structured plan exists', () => {
   const output = createReelOutputFromEditorialPackage({
-    fuente: {
-      titulo_original: 'Título original',
-      cuerpo: 'Cuerpo completo de la nota.',
-      imagen: 'cover.jpg',
-    },
-    editorial: {
-      titulo: 'Título editorial',
-      bajada: 'Bajada editorial.',
-      contexto: 'Contexto canónico.',
-      datos_clave: ['Dato canónico uno.', 'Dato canónico dos.'],
-    },
-    salidas: {
-      placas: [{ titulo: 'Título de placa', contexto: 'Contexto de placa.' }],
-      carrusel: { cover: { title: 'Texto que Reel no debe usar' } },
-    },
+    fuente: { titulo_original: 'Titulo original', imagen: 'cover.jpg' },
+    editorial: { titulo: 'Titulo editorial', bajada: 'Bajada.', contexto: 'Contexto canonico.' },
+    salidas: { carrusel: { cover: { title: 'Titulo alternativo' } } },
   });
-
-  assert.equal(output.scenes[0].text, 'Título editorial');
-  assert.match(output.scenes[1].subtitle, /Contexto canónico/);
-  assert.equal(output.scenes[2].items[0].text, 'Dato canónico uno.');
-  assert.doesNotMatch(JSON.stringify(output), /Texto que Reel no debe usar/);
+  assert.equal(output.scenes[0].text, 'Titulo editorial');
+  assert.match(output.scenes[1].subtitle, /Contexto canonico/);
 });
 
-test('uses the copied Reel adapter to inherit rich editorial facts without changing carousel data', () => {
+test('creates distinct scenes from the current plan without generic stale content', () => {
   const output = createReelOutputFromEditorialPackage({
-    fuente: { titulo_original: 'Nota', imagen: 'cover.jpg' },
-    editorial: { titulo: 'Nota', bajada: 'Resumen.' },
-    salidas: {
-      carrusel: {
-        cover: { title: 'Nota', subtitle: 'Resumen.' },
-        slides: [
-          { type: 'contexto', text: 'La actividad se realizará de manera virtual.' },
-          { type: 'dato', items: [{ label: 'El caso', text: 'Las clases presenciales quedan suspendidas por el mal tiempo.' }] },
-        ],
-      },
-    },
+    fuente: { titulo_original: 'Suspension de clases', imagen: 'cover.jpg' },
+    editorial: { titulo: 'Suspension de clases', bajada: 'Por mal tiempo.', contexto: 'Texto ajeno.', datos_clave: ['Dato ajeno.'] },
+    salidas: { carrusel: { slides: [
+      { type: 'contexto', title: 'Que cambio', text: 'La actividad escolar sera virtual.' },
+      { type: 'dato', title: 'Alcance', items: [{ label: 'Turno manana', text: 'Las clases presenciales quedan suspendidas en Malargue.' }] },
+      { type: 'clave', title: 'Resto', text: 'El servicio educativo continua con normalidad.' },
+    ] } },
   });
 
-  assert.match(output.scenes[1].subtitle, /manera virtual/);
-  assert.match(output.scenes.find(scene => scene.visual_role === 'key_fact').items[0].text, /suspendidas/);
+  assert.deepEqual(output.scenes.map(scene => scene.visual_role), ['hook', 'context', 'key_fact', 'key_fact', 'cta']);
+  assert.match(output.scenes[1].subtitle, /actividad escolar sera virtual/);
+  assert.equal(output.scenes[2].items[0].text, 'Las clases presenciales quedan suspendidas en Malargue.');
+  assert.match(output.scenes[3].subtitle, /servicio educativo continua/);
+  assert.doesNotMatch(JSON.stringify(output), /Texto ajeno|Dato ajeno|…/);
 });
 
-test('deduplicates body-derived cards and assigns useful labels', () => {
+test('keeps complete fact wording and limits a fact scene to two cards', () => {
   const output = createReelOutputFromEditorialPackage({
-    fuente: {
-      titulo_original: 'Caso Collado',
-      cuerpo: 'Caso Collado: la familia busca un juicio por jurados. Caso Collado: la familia busca un juicio por jurados. La pericia oficial considera imputable al acusado.',
-    },
-    editorial: {
-      titulo: 'Caso Collado',
-      bajada: 'La familia busca una estrategia judicial.',
-      contexto: 'La causa continúa.',
-    },
+    editorial: { titulo: 'Nota', bajada: 'Resumen.', datos_clave: [
+      'La primera informacion extensa debe conservar su origen y no ocupar toda la escena del video.',
+      'La segunda informacion tambien debe conservarse sin un corte artificial.',
+      'El tercer dato queda fuera de la escena breve.',
+    ] },
   });
-
-  const cards = output.scenes.find(scene => scene.visual_role === 'key_fact')?.items || [];
-  assert.equal(new Set(cards.map(card => card.text)).size, cards.length);
-  assert.ok(cards.every(card => card.label && card.label !== 'Información'));
-});
-
-test('limits key-fact cards to two concise source excerpts for a short Reel', () => {
-  const output = createReelOutputFromEditorialPackage({
-    editorial: {
-      titulo: 'Nota',
-      bajada: 'Resumen.',
-      datos_clave: [
-        'La primera información extensa debe conservar su origen, pero no ocupar toda la escena del video.',
-        'La segunda información también debe ser breve para poder leerse durante una pieza de quince segundos.',
-        'Este tercer dato queda fuera de la escena breve.',
-      ],
-    },
-  });
-
   const cards = output.scenes.find(scene => scene.visual_role === 'key_fact')?.items || [];
   assert.equal(cards.length, 2);
-  assert.ok(cards.every(card => card.text.split(/\s+/).length <= 15));
+  assert.match(cards[0].text, /ocupar toda la escena del video/);
+  assert.ok(cards.every(card => !card.text.includes('…')));
 });
 
-test('does not import raw body text into extra Reel scenes', () => {
+test('does not use raw body text as a Reel source', () => {
   const output = createReelOutputFromEditorialPackage({
-    fuente: {
-      titulo_original: 'Suspensión de clases',
-      cuerpo: 'Para este martes están suspendidas las clases presenciales en Malargüe, y zonas de Tupungato y Tunuyán. La medida se debe a nevadas, lluvias y temperaturas bajo cero. En el resto de la provincia el servicio educativo se brinda con normalidad.',
-    },
-    editorial: {
-      titulo: 'Suspensión de clases presenciales por mal tiempo',
-      bajada: 'La medida afecta al turno mañana en zonas específicas.',
-      contexto: 'La actividad escolar será virtual.',
-    },
+    fuente: { titulo_original: 'Suspension', cuerpo: 'Texto crudo que no debe aparecer.' },
+    editorial: { titulo: 'Suspension', bajada: 'La medida afecta el turno manana.', contexto: 'La actividad escolar sera virtual.' },
   });
-
   assert.equal(output.scenes.length, 3);
-  assert.doesNotMatch(JSON.stringify(output), /Malargüe|Tupungato|Tunuyán/);
-  assert.equal(output.scenes.at(-1).subtitle, '');
+  assert.doesNotMatch(JSON.stringify(output), /Texto crudo/);
+  assert.match(output.scenes.at(-1).subtitle, /mediamendoza\.com/);
 });
