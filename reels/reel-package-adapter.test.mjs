@@ -27,6 +27,25 @@ test('adapts Reel from the canonical package, ignoring carousel text', () => {
   assert.doesNotMatch(JSON.stringify(output), /Texto que Reel no debe usar/);
 });
 
+test('uses the copied Reel adapter to inherit rich editorial facts without changing carousel data', () => {
+  const output = createReelOutputFromEditorialPackage({
+    fuente: { titulo_original: 'Nota', imagen: 'cover.jpg' },
+    editorial: { titulo: 'Nota', bajada: 'Resumen.' },
+    salidas: {
+      carrusel: {
+        cover: { title: 'Nota', subtitle: 'Resumen.' },
+        slides: [
+          { type: 'contexto', text: 'La actividad se realizará de manera virtual.' },
+          { type: 'dato', items: [{ label: 'El caso', text: 'Las clases presenciales quedan suspendidas por el mal tiempo.' }] },
+        ],
+      },
+    },
+  });
+
+  assert.match(output.scenes[1].subtitle, /manera virtual/);
+  assert.match(output.scenes.find(scene => scene.visual_role === 'key_fact').items[0].text, /suspendidas/);
+});
+
 test('deduplicates body-derived cards and assigns useful labels', () => {
   const output = createReelOutputFromEditorialPackage({
     fuente: {

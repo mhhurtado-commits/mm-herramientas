@@ -1,6 +1,8 @@
 const MAX_KEY_FACT_CARDS = 2;
 const MAX_CARD_WORDS = 14;
 
+import { fromEditorialPackage } from './reel-shared-package-adapter.mjs';
+
 export function ensureReelClosure(reelOrScenes, article = {}) {
   const reel = Array.isArray(reelOrScenes) ? { scenes: reelOrScenes } : { ...(reelOrScenes || {}) };
   const scenes = Array.isArray(reel.scenes) ? reel.scenes.map(scene => ({ ...scene })) : [];
@@ -11,7 +13,8 @@ export function ensureReelClosure(reelOrScenes, article = {}) {
 
 export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
   const source = editorialPackage.fuente || {};
-  const editorial = editorialPackage.editorial || {};
+  const adapted = fromEditorialPackage(editorialPackage);
+  const editorial = adapted.editorial;
   const plate = editorialPackage.salidas?.placas?.[0] || {};
   const title = clean(editorial.titulo || plate.titulo || source.titulo_original);
   const summary = clean(editorial.bajada || plate.bajada || source.descripcion);
