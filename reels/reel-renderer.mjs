@@ -240,14 +240,34 @@ function drawClosure(ctx, scene, layout, accent, logo) {
   ctx.fillStyle = COLORS.white;
   ctx.font = '800 70px Arial, sans-serif';
   drawLines(ctx, wrapText(ctx, scene.title || 'Seguí informado', width, 3), x, layout.height * 0.45, 78, COLORS.white);
-  ctx.font = '500 38px Arial, sans-serif';
-  drawLines(ctx, wrapText(ctx, scene.body || '', width, 4), x, layout.height * 0.61, 50, '#dbe3de');
+  const bodyY = layout.height * 0.59;
+  const availableHeight = layout.cta.y - bodyY - 24;
+  let bodyFontSize = 38;
+  let bodyLineHeight = 50;
+  let bodyLines = [];
+  for (; bodyFontSize >= 24; bodyFontSize -= 2) {
+    bodyLineHeight = Math.round(bodyFontSize * 1.3);
+    ctx.font = `500 ${bodyFontSize}px Arial, sans-serif`;
+    bodyLines = wrapText(ctx, scene.body || '', width, 4);
+    if (bodyLines.length * bodyLineHeight <= availableHeight) break;
+  }
+  const maxBodyLines = Math.max(1, Math.floor(availableHeight / bodyLineHeight));
+  if (bodyLines.length > maxBodyLines) bodyLines = bodyLines.slice(0, maxBodyLines);
+  drawLines(ctx, bodyLines, x, bodyY, bodyLineHeight, '#dbe3de');
   ctx.fillStyle = accent;
   roundedRect(ctx, x, layout.cta.y, width, layout.cta.height, 24);
   ctx.fill();
   ctx.fillStyle = COLORS.dark;
-  ctx.font = '800 34px Arial, sans-serif';
-  ctx.fillText(scene.cta || 'Leé la nota completa en mediamendoza.com', x + 28, layout.cta.y + layout.cta.height * 0.62);
+  let ctaFontSize = 34;
+  let ctaLines = [];
+  for (; ctaFontSize >= 22; ctaFontSize -= 1) {
+    ctx.font = `800 ${ctaFontSize}px Arial, sans-serif`;
+    ctaLines = wrapText(ctx, scene.cta || 'Leé la nota completa en mediamendoza.com', width - 56, 2);
+    if (ctaLines.length <= 2 && ctaLines.every(line => ctx.measureText(line).width <= width - 56)) break;
+  }
+  const ctaLineHeight = ctaFontSize * 1.15;
+  const ctaStartY = layout.cta.y + (layout.cta.height - ctaLines.length * ctaLineHeight) / 2 + ctaFontSize;
+  drawLines(ctx, ctaLines, x + 28, ctaStartY, ctaLineHeight, COLORS.dark);
   ctx.restore();
 }
 

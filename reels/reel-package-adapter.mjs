@@ -19,8 +19,11 @@ export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
   const context = clean(editorial.contexto || plate.contexto || sourceSentences[0] || summary);
   const canonicalText = [title, summary, context];
   const cards = buildCards(editorial, plate, canonicalText);
-  const remainingSentences = sourceSentences.filter(text => !sameText(text, canonicalText));
-  if (!cards.length) cards.push(...remainingSentences.slice(0, 3).map(text => ({ label: 'Información', text })));
+  const remainingSentences = dedupeTexts(sourceSentences.filter(text => !sameText(text, canonicalText)));
+  if (!cards.length) {
+    const labels = ['El caso', 'La investigación', 'La estrategia'];
+    cards.push(...remainingSentences.slice(0, 3).map((text, index) => ({ label: labels[index] || 'Dato clave', text })));
+  }
   if (!cards.length && summary) cards.push({ label: 'Resumen', text: summary });
 
   const image = clean(source.imagen || source.imagenes?.[0]);
@@ -61,7 +64,7 @@ function buildCards(editorial, plate, excluded) {
     const role = clean(person.rol || person.role || person.cargo);
     if (name) cards.push({ label: role || 'Persona mencionada', text: role ? `${name}: ${role}` : name });
   }
-  return cards;
+  return dedupeCards(cards);
 }
 
 function getVerifiedQuote(value) {
@@ -76,7 +79,30 @@ function extractSentences(value) {
 
 function sameText(value, candidates) {
   const normalized = clean(value).toLowerCase();
-  return candidates.some(candidate => clean(candidate).toLowerCase() === normalized || (normalized.length > 35 && clean(candidate).toLowerCase().includes(normalized)));
+  return candidates.some(candidate => {
+    const other = clean(candidate).toLowerCase();
+    return other === normalized || (normalized.length > 35 && other.includes(normalized));
+  });
+}
+
+function dedupeTexts(values) {
+  const seen = new Set();
+  return values.filter(value => {
+    const key = clean(value).toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function dedupeCards(cards) {
+  const seen = new Set();
+  return cards.filter(card => {
+    const key = clean(card?.text).toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function scene(role, title, subtitle, order, extra = {}) {

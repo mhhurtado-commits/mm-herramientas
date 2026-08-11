@@ -26,3 +26,21 @@ test('adapts Reel from the canonical package, ignoring carousel text', () => {
   assert.equal(output.scenes[2].items[0].text, 'Dato canónico uno.');
   assert.doesNotMatch(JSON.stringify(output), /Texto que Reel no debe usar/);
 });
+
+test('deduplicates body-derived cards and assigns useful labels', () => {
+  const output = createReelOutputFromEditorialPackage({
+    fuente: {
+      titulo_original: 'Caso Collado',
+      cuerpo: 'Caso Collado: la familia busca un juicio por jurados. Caso Collado: la familia busca un juicio por jurados. La pericia oficial considera imputable al acusado.',
+    },
+    editorial: {
+      titulo: 'Caso Collado',
+      bajada: 'La familia busca una estrategia judicial.',
+      contexto: 'La causa continúa.',
+    },
+  });
+
+  const cards = output.scenes.find(scene => scene.visual_role === 'key_fact')?.items || [];
+  assert.equal(new Set(cards.map(card => card.text)).size, cards.length);
+  assert.ok(cards.every(card => card.label && card.label !== 'Información'));
+});
