@@ -29,9 +29,10 @@ export function sceneLayout({ width = 1080, height = 1920, type = 'text' } = {})
           height: height * 0.3,
         }
       : null,
-    textCard: type !== 'cover' && type !== 'closure'
+    textFrame: type !== 'cover' && type !== 'closure'
       ? { x: safe.left * 0.55, y: height * 0.2, width: safe.right - safe.left + safe.left * 0.9, height: height * 0.62 }
       : null,
+    closureSurface: type === 'closure' ? { x: 0, y: 0, width, height } : null,
     cta: { x: safe.left, y: type === 'closure' ? height * 0.68 : safe.bottom - height * 0.08, width: safe.right - safe.left, height: height * 0.08 },
   };
 }
@@ -59,6 +60,11 @@ export function renderReelScene(ctx, scene = {}, assets = {}, options = {}) {
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = COLORS.paper;
   ctx.fillRect(0, 0, width, height);
+
+  if (scene.type === 'closure') {
+    ctx.fillStyle = COLORS.dark;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   if (image && scene.imageMode !== 'text') drawAdaptiveImage(ctx, image, scene, width, height, layout.imageArea);
   if (scene.type !== 'closure') {
@@ -146,13 +152,13 @@ function drawEditorialText(ctx, scene, layout, accent) {
     ctx.fillStyle = 'rgba(251, 250, 247, 0.97)';
     roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.height * 0.35, 36);
     ctx.fill();
-  } else if (layout.textCard) {
-    ctx.fillStyle = `${accent}12`;
-    roundedRect(ctx, layout.textCard.x, layout.textCard.y, layout.textCard.width, layout.textCard.height, 36);
-    ctx.fill();
+  } else if (layout.textFrame) {
     ctx.fillStyle = accent;
-    roundedRect(ctx, layout.textCard.x, layout.textCard.y, 12, layout.textCard.height, 6);
-    ctx.fill();
+    ctx.fillRect(layout.textFrame.x, layout.textFrame.y, 12, layout.textFrame.height);
+    ctx.globalAlpha = 0.35;
+    ctx.fillRect(layout.textFrame.x + 30, layout.textFrame.y, layout.textFrame.width - 30, 4);
+    ctx.fillRect(layout.textFrame.x + 30, layout.textFrame.y + layout.textFrame.height, layout.textFrame.width - 30, 4);
+    ctx.globalAlpha = 1;
   }
   drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, textY, accent, false, width);
   const titleY = textY + 112;
@@ -184,10 +190,7 @@ function drawClosure(ctx, scene, layout, accent, logo) {
   const x = layout.content.x;
   const width = layout.content.width;
   ctx.save();
-  ctx.fillStyle = COLORS.dark;
-  roundedRect(ctx, layout.safe.left * 0.55, layout.height * 0.22, width + layout.safe.left * 0.9, layout.height * 0.5, 36);
-  ctx.fill();
-  drawLogo(ctx, logo, { x, y: layout.height * 0.27, width: width * 0.38, height: layout.height * 0.055 }, COLORS.white);
+  drawLogo(ctx, logo, { x, y: layout.height * 0.1, width: width * 0.38, height: layout.height * 0.055 }, COLORS.white);
   ctx.fillStyle = COLORS.white;
   ctx.font = '800 70px Arial, sans-serif';
   drawLines(ctx, wrapText(ctx, scene.title || 'Seguí informado', width, 2), x, layout.height * 0.45, 78, COLORS.white);

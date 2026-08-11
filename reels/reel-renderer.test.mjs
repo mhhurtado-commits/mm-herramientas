@@ -12,7 +12,7 @@ test('reserves safe zones and closure space in the 9:16 layout', () => {
   const internal = sceneLayout({ width: 1080, height: 1920, type: 'que-paso' });
   assert.ok(internal.imageArea.y > internal.content.y);
   assert.ok(internal.imageArea.height > 0);
-  assert.ok(internal.textCard.height > internal.height * 0.5);
+  assert.ok(internal.textFrame.height > internal.height * 0.5);
 });
 
 test('baja la tarjeta del cover y la mantiene dentro del area segura', () => {
@@ -20,4 +20,7 @@ test('baja la tarjeta del cover y la mantiene dentro del area segura', () => {
 
   assert.ok(cover.coverCard.y > cover.imageArea.y + cover.imageArea.height - 40);
   assert.ok(cover.coverCard.y + cover.coverCard.height <= cover.safe.bottom);
+
+  const closure = sceneLayout({ width: 1080, height: 1920, type: 'closure' });
+  assert.deepEqual(closure.closureSurface, { x: 0, y: 0, width: 1080, height: 1920 });
 });
