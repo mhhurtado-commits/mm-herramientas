@@ -12,7 +12,8 @@ test('loads a reel session from URL and generates a normalized project', async (
           tipo: 'noticia_editorial',
           version: 2,
           fuente: { url: note.url, titulo_original: note.title, categoria: note.category, cuerpo: note.content, imagen: note.image },
-          editorial: { seccion: 'Policiales', familia: 'policiales', tipo_noticia: 'noticia', titulo: 'Título', bajada: 'Bajada', contexto: 'Contexto' },
+          editorial: { seccion: 'Policiales', familia: 'policiales', tipo_noticia: 'noticia', titulo: 'Título', bajada: 'Bajada', contexto: 'Contexto canónico' },
+          salidas: { placas: [], carrusel: { cover: { title: 'Texto ajeno del carrusel' } }, reel: null },
         },
       };
     },
@@ -21,4 +22,6 @@ test('loads a reel session from URL and generates a normalized project', async (
   assert.equal(session.package.fuente.url, 'https://example.com/nota');
   assert.equal(session.project.format, '9:16');
   assert.ok(session.project.scenes.length >= 3);
+  assert.match(session.project.scenes[1].body, /Contexto canónico/);
+  assert.doesNotMatch(JSON.stringify(session.project), /Texto ajeno del carrusel/);
 });
