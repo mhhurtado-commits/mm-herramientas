@@ -48,3 +48,30 @@ test('genera carrusel y reel una sola vez dentro del paquete editorial', async (
   assert.equal(result.package.salidas.reel.scenes.at(-1).visual_role, 'cta');
   assert.equal(result.package.salidas.reel.scenes[1].subtitle, 'Contexto verificable.');
 });
+
+test('cuando se solicita solo Reel, primero construye el carrusel compartido', async () => {
+  let calls = 0;
+  const result = await generateEditorialOutputs({
+    fuente: { titulo_original: 'Nota', cuerpo: 'Contenido', imagen: 'cover.jpg' },
+    editorial: { titulo: 'Nota', bajada: 'Bajada' },
+    salidas: { carrusel: null, reel: null },
+  }, ['reel'], {
+    generateJson: async () => {
+      calls += 1;
+      return {
+        diagnosis: { news_type: 'evergreen', vertical: 'general', complexity: 'brief', tone: 'informative', carousel_type: 'summary', template: 'mm_classic' },
+        cover: { title: 'Nota', subtitle: 'Bajada' },
+        slides: [
+          { type: 'contexto', title: 'Contexto', text: 'Texto del carrusel.' },
+          { type: 'dato', title: 'Dato', items: ['Uno'] },
+          { type: 'impact', title: 'Impacto', text: 'Impacto.' },
+          { type: 'end', cta: 'Leé la nota completa' },
+        ],
+      };
+    },
+  });
+
+  assert.equal(calls, 1);
+  assert.equal(result.package.salidas.carrusel.slides[0].text, 'Texto del carrusel.');
+  assert.equal(result.package.salidas.reel.scenes[1].subtitle, 'Texto del carrusel.');
+});

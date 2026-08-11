@@ -4,6 +4,7 @@ import { parseReelHandoff } from './output-handoff.mjs';
 import { createReelProject } from './reel-model.mjs';
 import { updateSceneFocus } from './ui.mjs';
 import { resolveCategoryAccent } from '../shared/editorial-taxonomy.mjs';
+import { generateEditorialOutputs } from '../placas-v2/editorial-output-generation.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const state = { session: null, sceneIndex: 0, image: null, imageUrl: '', imageRequestId: 0, logo: null, loading: false };
@@ -25,7 +26,12 @@ async function generate(note, outputs) {
   const response = await fetch(`${WORKER}/placas/v2/paquete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nota: note, salidas: outputs }) });
   const data = await response.json();
   if (!response.ok || data.error) throw new Error(data.error || 'No se pudo generar el paquete editorial.');
-  return data;
+  const enriched = await generateEditorialOutputs(data.paquete, outputs, { generateJson: generateSocialJson });
+  return {
+    ...data,
+    paquete: enriched.package,
+    warnings: [...(Array.isArray(data.warnings) ? data.warnings : []), ...enriched.warnings],
+  };
 }
 
 async function loadImage(url) {
