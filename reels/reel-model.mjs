@@ -117,9 +117,7 @@ function scene(type, title, body, image, accent, imageMode) {
 function mapStoredScene(source, index, articleSource, images, sectionLabel, accent) {
   const role = clean(source?.visual_role).toLowerCase();
   const type = role === 'hook' || role === 'cover' ? 'cover' : role === 'cta' || source?.layout === 'cta' ? 'closure' : role === 'key_fact' ? 'dato-clave' : role === 'context' ? 'que-paso' : 'text';
-  const image = type !== 'closure'
-    ? resolveStoredImage(source?.visual_source, articleSource, images) || clean(articleSource?.imagen || images[0])
-    : '';
+  const image = type !== 'closure' ? resolveStoredImage(source?.visual_source, articleSource, images) : '';
   const items = Array.isArray(source?.items) ? source.items.map(item => clean(item?.text || item?.value)).filter(Boolean).join(' ') : '';
   return {
     id: clean(source?.id) || `scene-${index + 1}`,

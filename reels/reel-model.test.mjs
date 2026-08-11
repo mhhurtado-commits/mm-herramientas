@@ -60,7 +60,7 @@ test('consumes the reel output already stored in the editorial package', () => {
   assert.equal(project.scenes.at(-1).type, 'closure');
 });
 
-test('uses the note cover as fallback visual for stored internal scenes', () => {
+test('keeps stored internal scenes text-only when no image is assigned', () => {
   const project = createReelProject({
     fuente: { imagen: 'cover.jpg' },
     editorial: { titulo: 'Nota', bajada: 'Bajada.' },
@@ -71,7 +71,7 @@ test('uses the note cover as fallback visual for stored internal scenes', () => 
     ] } },
   });
 
-  assert.equal(project.scenes[1].image, 'cover.jpg');
-  assert.equal(project.scenes[1].imageMode, 'contain-blur');
+  assert.equal(project.scenes[1].image, '');
+  assert.equal(project.scenes[1].imageMode, 'text');
   assert.equal(project.scenes.at(-1).image, '');
 });

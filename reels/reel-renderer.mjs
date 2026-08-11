@@ -29,6 +29,9 @@ export function sceneLayout({ width = 1080, height = 1920, type = 'text' } = {})
           height: height * 0.3,
         }
       : null,
+    textCard: type !== 'cover' && type !== 'closure'
+      ? { x: safe.left * 0.55, y: height * 0.2, width: safe.right - safe.left + safe.left * 0.9, height: height * 0.62 }
+      : null,
     cta: { x: safe.left, y: type === 'closure' ? height * 0.68 : safe.bottom - height * 0.08, width: safe.right - safe.left, height: height * 0.08 },
   };
 }
@@ -142,6 +145,13 @@ function drawEditorialText(ctx, scene, layout, accent) {
   } else if (hasImage) {
     ctx.fillStyle = 'rgba(251, 250, 247, 0.97)';
     roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.height * 0.35, 36);
+    ctx.fill();
+  } else if (layout.textCard) {
+    ctx.fillStyle = `${accent}12`;
+    roundedRect(ctx, layout.textCard.x, layout.textCard.y, layout.textCard.width, layout.textCard.height, 36);
+    ctx.fill();
+    ctx.fillStyle = accent;
+    roundedRect(ctx, layout.textCard.x, layout.textCard.y, 12, layout.textCard.height, 6);
     ctx.fill();
   }
   drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, textY, accent, false, width);
