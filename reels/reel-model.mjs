@@ -129,7 +129,9 @@ function mapStoredScene(source, index, articleSource, images, editorial, section
       ? (Array.isArray(editorial?.datos_clave) ? editorial.datos_clave.map(clean).filter(Boolean).join(' ') : clean(editorial?.datos_clave))
       : '';
   const body = [sourceTitle && sourceText !== sourceTitle ? sourceText : '', clean(source?.subtitle), ...items].filter(Boolean).join(' ') || contractFallback;
-  const closureBody = [clean(editorial?.titulo), clean(editorial?.bajada || editorial?.contexto), clean(source?.subtitle)].filter(Boolean).join(' ');
+  const storedClosureText = clean(source?.subtitle);
+  const closureSummary = storedClosureText && !/mediamendoza\.com/i.test(storedClosureText) ? storedClosureText : clean(editorial?.bajada || editorial?.contexto);
+  const closureBody = [clean(editorial?.titulo), closureSummary].filter(Boolean).join(' ');
   return {
     id: clean(source?.id) || `scene-${index + 1}`,
     type,

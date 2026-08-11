@@ -1,62 +1,107 @@
+const MIN_SCENES = 4;
+
 export function ensureReelClosure(reelOrScenes, article = {}) {
   const reel = Array.isArray(reelOrScenes) ? { scenes: reelOrScenes } : { ...(reelOrScenes || {}) };
   const scenes = Array.isArray(reel.scenes) ? reel.scenes.map(scene => ({ ...scene })) : [];
-  const hasClosure = scenes.some(scene => {
-    const role = String(scene.visual_role || '').toLowerCase();
-    const layout = String(scene.layout || '').toLowerCase();
-    return role === 'cta' || role === 'conclusion' || layout === 'cta';
-  });
-  if (!hasClosure) {
-    const closure = {
-      order: scenes.length + 1,
-      duration_ms: 3200,
-      visual_type: 'text',
-      visual_source: '',
-      visual_role: 'cta',
-      layout: 'cta',
-      text: 'Leé la nota completa',
-      subtitle: article.url ? 'Más información en mediamendoza.com' : 'Seguí la cobertura en Media Mendoza',
-      items: [],
-    };
-    if (scenes.length >= 6) scenes[scenes.length - 1] = closure;
-    else scenes.push(closure);
-  }
+  const hasClosure = scenes.some(scene => String(scene.visual_role || '').toLowerCase() === 'cta' || scene.layout === 'cta');
+  if (!hasClosure) scenes.push(scene('cta', 'Leé la nota completa', article.url ? 'Más información en mediamendoza.com' : 'Seguí la cobertura en Media Mendoza', scenes.length + 1));
   return Array.isArray(reelOrScenes) ? scenes : { ...reel, scenes };
 }
 
 export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
   const source = editorialPackage.fuente || {};
   const editorial = editorialPackage.editorial || {};
-  const plate = Array.isArray(editorialPackage.salidas?.placas) ? editorialPackage.salidas.placas[0] || {} : {};
+  const plate = editorialPackage.salidas?.placas?.[0] || {};
   const title = clean(editorial.titulo || plate.titulo || source.titulo_original);
   const summary = clean(editorial.bajada || plate.bajada || source.descripcion);
-  const context = clean(editorial.contexto || plate.contexto || firstSentence(source.cuerpo));
+  const sourceText = clean(source.cuerpo || source.texto || source.contenido);
+  const sourceSentences = extractSentences(sourceText);
+  const context = clean(editorial.contexto || plate.contexto || sourceSentences[0] || summary);
+  const canonicalText = [title, summary, context];
+  const cards = buildCards(editorial, plate, canonicalText);
+  const remainingSentences = sourceSentences.filter(text => !sameText(text, canonicalText));
+  if (!cards.length) cards.push(...remainingSentences.slice(0, 3).map(text => ({ label: 'Información', text })));
+  if (!cards.length && summary) cards.push({ label: 'Resumen', text: summary });
+
+  const image = clean(source.imagen || source.imagenes?.[0]);
+  const scenes = [
+    scene('hook', title, summary, 1, { visual_type: image ? 'cover_image' : 'text_card', visual_source: image ? 'article.image' : 'generated', layout: 'cover' }),
+    scene('context', 'Qué pasó', context, 2),
+  ];
+
+  if (cards.length) scenes.push(scene('key_fact', 'Puntos clave', '', scenes.length + 1, { layout: 'list', items: cards }));
+  if (remainingSentences.length && cards.length) {
+    const extra = remainingSentences.filter(text => !cards.some(card => sameText(text, [card.text]))).slice(0, 2);
+    if (extra.length) scenes.push(scene('context', 'Lo que se sabe', extra.join(' '), scenes.length + 1));
+  }
+  while (scenes.length < MIN_SCENES - 1) scenes.push(scene('context', 'Más información', summary || context, scenes.length + 1));
+  scenes.push(scene('cta', 'Leé la nota completa', summary || context, scenes.length + 1, { layout: 'cta' }));
+  return {
+    format: 'reel_silent',
+    hook: title,
+    cover_text: title,
+    caption: '',
+    hashtags: [],
+    scenes: ensureReelClosure(scenes, { url: source.url }),
+  };
+}
+
+function buildCards(editorial, plate, excluded) {
   const facts = uniqueStrings([
     editorial.datos_clave,
     plate.datos_clave,
-    Array.isArray(plate.bloques) ? plate.bloques.filter(block => block?.tipo === 'dato-clave').map(block => block.texto) : [],
-  ]).filter(text => text !== context);
-  const quote = editorial.textual?.verificada ? clean(editorial.textual.cita) : clean(plate.textual?.verificada ? plate.textual.cita : '');
-  const cards = [...facts.map(text => ({ label: 'Dato clave', text }))];
-  if (quote) cards.push({ label: 'Cita verificada', text: quote });
-  const scenes = [];
-  const image = clean(source.imagen || source.imagenes?.[0]);
-  scenes.push({ order: 1, duration_ms: 3200, visual_type: image ? 'cover_image' : 'text_card', visual_source: image ? 'article.image' : 'generated', visual_role: 'hook', layout: 'cover', text: title, subtitle: summary, items: [] });
-  if (context) scenes.push({ order: scenes.length + 1, duration_ms: 3000, visual_type: 'text_card', visual_source: 'generated', visual_role: 'context', layout: 'default', title: 'Qué pasó', text: 'Qué pasó', subtitle: context, items: [] });
-  if (cards.length) scenes.push({ order: scenes.length + 1, duration_ms: 3000, visual_type: 'text_card', visual_source: 'generated', visual_role: 'key_fact', layout: 'list', title: 'Puntos clave', text: 'Puntos clave', subtitle: '', items: cards });
-  scenes.push({ order: scenes.length + 1, duration_ms: 3200, visual_type: 'text_card', visual_source: 'generated', visual_role: 'cta', layout: 'cta', text: 'Leé la nota completa', subtitle: [title, summary, context].filter(Boolean).join(' '), items: [] });
-  return { format: 'reel_silent', hook: title, cover_text: title, caption: '', hashtags: [], scenes: ensureReelClosure(scenes, { url: source.url }) };
+    plate.bloques?.filter(block => block?.tipo === 'dato-clave').map(block => block.texto),
+  ]).filter(text => !sameText(text, excluded));
+  const cards = facts.map(text => ({ label: 'Dato clave', text }));
+  const quote = getVerifiedQuote(editorial.textual) || getVerifiedQuote(plate.textual);
+  if (quote && !sameText(quote, excluded)) cards.push({ label: 'Cita verificada', text: quote });
+  const people = uniqueObjects([editorial.personas, plate.personas]);
+  for (const person of people.slice(0, 2)) {
+    const name = clean(person.nombre || person.name);
+    const role = clean(person.rol || person.role || person.cargo);
+    if (name) cards.push({ label: role || 'Persona mencionada', text: role ? `${name}: ${role}` : name });
+  }
+  return cards;
+}
+
+function getVerifiedQuote(value) {
+  const values = Array.isArray(value) ? value : [value];
+  const match = values.find(item => item?.verificada && clean(item.cita || item.texto || item.text));
+  return clean(match?.cita || match?.texto || match?.text);
+}
+
+function extractSentences(value) {
+  return clean(value).split(/(?<=[.!?])\s+/).map(clean).filter(text => text.length >= 45).slice(0, 12);
+}
+
+function sameText(value, candidates) {
+  const normalized = clean(value).toLowerCase();
+  return candidates.some(candidate => clean(candidate).toLowerCase() === normalized || (normalized.length > 35 && clean(candidate).toLowerCase().includes(normalized)));
+}
+
+function scene(role, title, subtitle, order, extra = {}) {
+  return {
+    order,
+    duration_ms: role === 'cta' ? 3200 : 3000,
+    visual_type: extra.visual_type || 'text_card',
+    visual_source: extra.visual_source || 'generated',
+    visual_role: role,
+    layout: extra.layout || 'default',
+    text: title,
+    title,
+    subtitle: clean(subtitle),
+    items: Array.isArray(extra.items) ? extra.items : [],
+  };
 }
 
 function clean(value) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
 }
 
-function firstSentence(value) {
-  const text = clean(value);
-  return text.split(/(?<=[.!?])\s+/)[0] || text;
-}
-
 function uniqueStrings(groups) {
   return [...new Set((Array.isArray(groups) ? groups : [groups]).flatMap(value => Array.isArray(value) ? value : [value]).map(clean).filter(Boolean))];
+}
+
+function uniqueObjects(groups) {
+  return [...new Map((Array.isArray(groups) ? groups : [groups]).flatMap(value => Array.isArray(value) ? value : []).map(item => [clean(item?.nombre || item?.name), item]).filter(([key]) => key)).values()];
 }
