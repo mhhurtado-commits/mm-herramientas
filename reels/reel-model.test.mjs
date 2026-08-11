@@ -93,6 +93,24 @@ test('keeps stored internal scenes text-only when no image is assigned', () => {
   assert.equal(project.scenes.at(-1).image, '');
 });
 
+test('cleans technical paths and repeated text from stored Reel scenes', () => {
+  const project = createReelProject({
+    fuente: { imagen: 'cover.jpg' },
+    editorial: { titulo: 'Suspensión de clases', bajada: 'La medida afecta al turno mañana.' },
+    salidas: { reel: { scenes: [
+      { visual_role: 'hook', text: 'Portada', subtitle: 'La medida afecta al turno mañana.' },
+      { visual_role: 'context', text: 'Qué pasó', subtitle: 'Las clases serán virtuales.' },
+      { visual_role: 'key_fact', text: 'Puntos clave', items: [{ label: 'El caso', text: 'Las clases presenciales fueron suspendidas en Malargüe.' }] },
+      { visual_role: 'context', text: 'Lo que se sabe', subtitle: String.raw`C:\storage\cachefiles\nota.json Las clases presenciales fueron suspendidas en Malargüe.` },
+      { visual_role: 'cta', layout: 'cta', text: 'Leé la nota completa' },
+    ] } },
+  });
+
+  const later = project.scenes.find(scene => scene.title === 'Lo que se sabe');
+  assert.doesNotMatch(JSON.stringify(project), /C:\\storage\\cachefiles/);
+  assert.equal(later.body, '');
+});
+
 test('combines subtitle and items from the editorial contract', () => {
   const project = createReelProject({
     fuente: { imagen: 'cover.jpg' },

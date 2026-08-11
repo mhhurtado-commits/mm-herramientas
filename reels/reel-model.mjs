@@ -46,7 +46,7 @@ export function createReelProject(editorialPackage = {}) {
       selectedCategoryId: selectedCategory?.id || '',
       accent,
       images,
-       scenes: storedScenes.map((stored, index) => mapStoredScene(stored, index, source, images, editorial, sectionLabel, accent)),
+       scenes: cleanStoredScenes(storedScenes.map((stored, index) => mapStoredScene(stored, index, source, images, editorial, sectionLabel, accent))),
     });
   }
   const scenes = [
@@ -145,6 +145,32 @@ function mapStoredScene(source, index, articleSource, images, editorial, section
     cta: type === 'closure' ? clean(source?.text || source?.cta) : '',
     section: sectionLabel,
   };
+}
+
+function cleanStoredScenes(scenes) {
+  const seen = [];
+  return scenes.map(scene => {
+    const bodyParts = splitSentences(stripTechnicalPrefix(scene.body))
+      .filter(Boolean)
+      .filter(part => !seen.some(previous => similarText(part, previous)));
+    const next = { ...scene, body: bodyParts.join(' ') };
+    seen.push(...[next.title, next.body, ...(next.cards || []).map(card => card.text)].filter(Boolean));
+    return next;
+  });
+}
+
+function splitSentences(value) {
+  return clean(value).split(/(?<=[.!?])\s+/).map(clean).filter(Boolean);
+}
+
+function stripTechnicalPrefix(value) {
+  return clean(value).replace(/^[A-Za-z]:[\\/][^\s]+\s*/i, '').trim();
+}
+
+function similarText(value, candidate) {
+  const left = clean(value).toLowerCase();
+  const right = clean(candidate).toLowerCase();
+  return left === right || (left.length > 20 && right.length > 20 && (left.includes(right) || right.includes(left)));
 }
 
 function resolveStoredImage(reference, articleSource, images) {

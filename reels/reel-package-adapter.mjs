@@ -16,7 +16,7 @@ export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
   const plate = editorialPackage.salidas?.placas?.[0] || {};
   const title = clean(editorial.titulo || plate.titulo || source.titulo_original);
   const summary = clean(editorial.bajada || plate.bajada || source.descripcion);
-  const sourceText = clean(source.cuerpo || source.texto || source.contenido);
+  const sourceText = stripTechnicalPrefix(source.cuerpo);
   const sourceSentences = extractSentences(sourceText);
   const context = clean(editorial.contexto || plate.contexto || sourceSentences[0] || summary);
   const canonicalText = [title, summary, context];
@@ -76,7 +76,15 @@ function getVerifiedQuote(value) {
 }
 
 function extractSentences(value) {
-  return clean(value).split(/(?<=[.!?])\s+/).map(clean).filter(text => text.length >= 45).slice(0, 12);
+  return clean(value).split(/(?<=[.!?])\s+/).map(clean).filter(text => text.length >= 45 && !isTechnicalText(text)).slice(0, 12);
+}
+
+function stripTechnicalPrefix(value) {
+  return clean(value).replace(/^[A-Za-z]:[\\/][^\s]+\s*/i, '').trim();
+}
+
+function isTechnicalText(value) {
+  return /^(?:[A-Za-z]:[\\/]|file:\/\/|\/storage\/|\/cachefiles\/)/i.test(clean(value));
 }
 
 function sameText(value, candidates) {
