@@ -153,11 +153,22 @@ function drawEditorialText(ctx, scene, layout, accent) {
     roundedRect(ctx, layout.safe.left * 0.55, y - 34, width + layout.safe.left * 0.9, layout.height * 0.35, 36);
     ctx.fill();
   } else if (layout.textFrame) {
+    const frame = layout.textFrame;
     ctx.fillStyle = accent;
-    ctx.fillRect(layout.textFrame.x, layout.textFrame.y, 12, layout.textFrame.height);
+    ctx.globalAlpha = 0.055;
+    roundedRect(ctx, frame.x, frame.y, frame.width, frame.height, 32);
+    ctx.fill();
+    ctx.globalAlpha = 0.28;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = accent;
+    roundedRect(ctx, frame.x, frame.y, frame.width, frame.height, 32);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = accent;
+    ctx.fillRect(frame.x, frame.y, 12, frame.height);
     ctx.globalAlpha = 0.35;
-    ctx.fillRect(layout.textFrame.x + 30, layout.textFrame.y, layout.textFrame.width - 30, 4);
-    ctx.fillRect(layout.textFrame.x + 30, layout.textFrame.y + layout.textFrame.height, layout.textFrame.width - 30, 4);
+    ctx.fillRect(frame.x + 30, frame.y, frame.width - 30, 4);
+    ctx.fillRect(frame.x + 30, frame.y + frame.height, frame.width - 30, 4);
     ctx.globalAlpha = 1;
   }
   drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, textY, accent, false, width);
@@ -169,7 +180,7 @@ function drawEditorialText(ctx, scene, layout, accent) {
   const bodyY = titleY + titleLines.length * titleSize * 1.05 + 54;
   ctx.font = '500 40px Arial, sans-serif';
   const bodyFontSize = hasImage ? 34 : 40;
-  const bodyLines = wrapText(ctx, scene.body || '', width, hasImage ? 3 : 6);
+  const bodyLines = wrapText(ctx, scene.body || '', width, hasImage ? 3 : 8);
   if (scene.type === 'dato-clave') {
     const blockY = bodyY - 34;
     const blockHeight = Math.max(138, bodyLines.length * (hasImage ? 46 : 52) + 62);

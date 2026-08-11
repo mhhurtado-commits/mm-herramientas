@@ -35,7 +35,7 @@ export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
     editorial.datos_clave,
     plate.datos_clave,
     Array.isArray(plate.bloques) ? plate.bloques.filter(block => block?.tipo === 'dato-clave').map(block => block.texto) : [],
-  ]);
+  ]).filter(text => text !== context);
   const scenes = [];
   const image = clean(source.imagen || source.imagenes?.[0]);
   scenes.push({ order: 1, duration_ms: 3200, visual_type: image ? 'cover_image' : 'text_card', visual_source: image ? 'article.image' : 'generated', visual_role: 'hook', layout: 'cover', text: title, subtitle: summary, items: [] });
