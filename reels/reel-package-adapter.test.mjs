@@ -62,3 +62,22 @@ test('limits key-fact cards to two concise source excerpts for a short Reel', ()
   assert.equal(cards.length, 2);
   assert.ok(cards.every(card => card.text.split(/\s+/).length <= 15));
 });
+
+test('does not repeat key facts in the later context scene or closure', () => {
+  const output = createReelOutputFromEditorialPackage({
+    fuente: {
+      titulo_original: 'Suspensión de clases',
+      cuerpo: 'Para este martes están suspendidas las clases presenciales en Malargüe, y zonas de Tupungato y Tunuyán. La medida se debe a nevadas, lluvias y temperaturas bajo cero. En el resto de la provincia el servicio educativo se brinda con normalidad.',
+    },
+    editorial: {
+      titulo: 'Suspensión de clases presenciales por mal tiempo',
+      bajada: 'La medida afecta al turno mañana en zonas específicas.',
+      contexto: 'La actividad escolar será virtual.',
+    },
+  });
+
+  const keyFacts = output.scenes.find(scene => scene.visual_role === 'key_fact')?.items.map(item => item.text) || [];
+  const laterContext = output.scenes.find(scene => scene.title === 'Lo que se sabe')?.subtitle || '';
+  assert.ok(keyFacts.every(text => !laterContext.includes(text.replace('…', ''))));
+  assert.equal(output.scenes.at(-1).subtitle, '');
+});

@@ -117,6 +117,5 @@ test('keeps the note context in the Reel closure', () => {
     ] } },
   });
 
-  assert.match(project.scenes.at(-1).body, /Título de la nota/);
-  assert.match(project.scenes.at(-1).body, /Resumen de la nota/);
+  assert.equal(project.scenes.at(-1).body, '');
 });

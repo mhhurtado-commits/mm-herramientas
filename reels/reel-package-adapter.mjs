@@ -40,7 +40,7 @@ export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
     if (extra.length) scenes.push(scene('context', 'Lo que se sabe', extra.join(' '), scenes.length + 1));
   }
   while (scenes.length < MIN_SCENES - 1) scenes.push(scene('context', 'Más información', summary || context, scenes.length + 1));
-  scenes.push(scene('cta', 'Leé la nota completa', summary || context, scenes.length + 1, { layout: 'cta' }));
+  scenes.push(scene('cta', 'Leé la nota completa', '', scenes.length + 1, { layout: 'cta' }));
   return {
     format: 'reel_silent',
     hook: title,
@@ -80,10 +80,10 @@ function extractSentences(value) {
 }
 
 function sameText(value, candidates) {
-  const normalized = clean(value).toLowerCase();
+  const normalized = clean(value).replace(/…$/, '').toLowerCase();
   return candidates.some(candidate => {
-    const other = clean(candidate).toLowerCase();
-    return other === normalized || (normalized.length > 35 && other.includes(normalized));
+    const other = clean(candidate).replace(/…$/, '').toLowerCase();
+    return other === normalized || (normalized.length > 20 && other.length > 20 && (other.includes(normalized) || normalized.includes(other)));
   });
 }
 
