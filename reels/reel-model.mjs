@@ -14,6 +14,7 @@ const SECTION_COLORS = {
 };
 
 import { getRecommendedCategory, normalizeCategoryOptions, resolveCategoryAccent } from '../shared/editorial-taxonomy.mjs';
+import { createReelOutputFromCarouselPlan } from './reel-package-adapter.mjs';
 
 const DEFAULT_FOCUS = { x: 0.5, y: 0.5 };
 
@@ -30,7 +31,9 @@ export function createReelProject(editorialPackage = {}) {
   const title = clean(editorial.titulo || source.titulo_original || '');
   const summary = clean(editorial.bajada);
   const context = clean(editorial.contexto || editorial.datos_clave?.[0]);
-  const storedScenes = editorialPackage.salidas?.reel?.scenes;
+  const storedReel = editorialPackage.salidas?.reel;
+  const storedCarousel = editorialPackage.salidas?.carrusel;
+  const storedScenes = storedReel?.scenes || (storedCarousel ? createReelOutputFromCarouselPlan(storedCarousel, { title, summary, image, url: source.url }).scenes : null);
   if (Array.isArray(storedScenes) && storedScenes.length) {
     return normalizeReelProject({
       version: 1,

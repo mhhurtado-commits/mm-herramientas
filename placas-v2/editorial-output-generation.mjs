@@ -1,7 +1,7 @@
 import { packageToCarouselArticle } from '../shared/editorial-package.mjs';
 import { normalizeCarouselPlan } from '../carousel/parser.js';
-import { buildCarouselPrompt, buildReelPrompt } from '../carousel/prompts.js';
-import { ensureReelClosure } from '../reels/reel-package-adapter.mjs';
+import { buildCarouselPrompt } from '../carousel/prompts.js';
+import { createReelOutputFromCarouselPlan } from '../reels/reel-package-adapter.mjs';
 
 export async function generateEditorialOutputs(editorialPackage = {}, requestedOutputs = [], dependencies = {}) {
   if (typeof dependencies.generateJson !== 'function') {
@@ -16,7 +16,7 @@ export async function generateEditorialOutputs(editorialPackage = {}, requestedO
   const warnings = [];
   let carouselPlan = packageCopy.salidas.carrusel;
 
-  if (requestedOutputs.includes('carrusel') && !carouselPlan) {
+  if ((requestedOutputs.includes('carrusel') || requestedOutputs.includes('reel')) && !carouselPlan) {
     try {
       const rawPlan = await dependencies.generateJson(
         buildCarouselPrompt(article),
@@ -33,16 +33,8 @@ export async function generateEditorialOutputs(editorialPackage = {}, requestedO
     }
   }
 
-  if (requestedOutputs.includes('reel') && !packageCopy.salidas.reel) {
-    try {
-      const rawReel = await dependencies.generateJson(
-        buildReelPrompt(article, carouselPlan?.diagnosis || {}),
-        'Genera el ReelPlan para esta noticia.'
-      );
-      packageCopy.salidas.reel = ensureReelClosure(rawReel, article);
-    } catch {
-      warnings.push('reel_no_disponible');
-    }
+  if (requestedOutputs.includes('reel') && carouselPlan) {
+    packageCopy.salidas.reel = createReelOutputFromCarouselPlan(carouselPlan, article);
   }
 
   return { package: packageCopy, warnings };

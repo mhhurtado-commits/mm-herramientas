@@ -28,25 +28,23 @@ test('genera carrusel y reel una sola vez dentro del paquete editorial', async (
   const result = await generateEditorialOutputs(basePackage, ['carrusel', 'reel'], {
     generateJson: async (prompt, userMsg) => {
       calls.push(userMsg);
-      if (userMsg.includes('carrusel')) {
-        return {
-          version: '1.0',
-          diagnosis: { news_type: 'evergreen', vertical: 'general', complexity: 'brief', tone: 'informative', carousel_type: 'summary', template: 'mm_classic' },
-          cover: { title: 'Título verificable', subtitle: 'Bajada verificable.' },
-          slides: [
-            { type: 'contexto', title: 'Contexto', text: 'Contexto verificable.' },
-            { type: 'clave', title: 'La clave', text: 'El dato principal de la noticia.' },
-            { type: 'end', source: 'Título verificable', cta: 'Leé la nota completa' },
-          ],
-        };
-      }
-      return { format: 'reel_silent', hook: 'Título verificable', scenes: [{ visual_role: 'hook', text: 'Título verificable' }] };
+      return {
+        version: '1.0',
+        diagnosis: { news_type: 'evergreen', vertical: 'general', complexity: 'brief', tone: 'informative', carousel_type: 'summary', template: 'mm_classic' },
+        cover: { title: 'Título verificable', subtitle: 'Bajada verificable.' },
+        slides: [
+          { type: 'contexto', title: 'Contexto', text: 'Contexto verificable.' },
+          { type: 'clave', title: 'La clave', text: 'El dato principal de la noticia.' },
+          { type: 'end', source: 'Título verificable', cta: 'Leé la nota completa' },
+        ],
+      };
     },
   });
 
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 1);
   assert.ok(result.package.salidas.carrusel);
   assert.ok(result.package.salidas.reel);
   assert.equal(result.package.fuente.url, basePackage.fuente.url);
   assert.equal(result.package.salidas.reel.scenes.at(-1).visual_role, 'cta');
+  assert.equal(result.package.salidas.reel.scenes[1].subtitle, 'Contexto verificable.');
 });

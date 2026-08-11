@@ -60,6 +60,26 @@ test('consumes the reel output already stored in the editorial package', () => {
   assert.equal(project.scenes.at(-1).type, 'closure');
 });
 
+test('derives Reel scenes from the stored carousel when Reel output is absent', () => {
+  const project = createReelProject({
+    fuente: { titulo_original: 'Nota', imagen: 'cover.jpg' },
+    editorial: { titulo: 'Nota', bajada: 'Bajada.' },
+    salidas: {
+      carrusel: {
+        cover: { title: 'Nota', subtitle: 'Bajada.' },
+        slides: [
+          { type: 'contexto', title: 'Contexto', text: 'Información del carrusel.' },
+          { type: 'end', cta: 'Leé la nota completa' },
+        ],
+      },
+      reel: null,
+    },
+  });
+
+  assert.equal(project.scenes[1].title, 'Contexto');
+  assert.match(project.scenes[1].body, /Información del carrusel/);
+});
+
 test('keeps stored internal scenes text-only when no image is assigned', () => {
   const project = createReelProject({
     fuente: { imagen: 'cover.jpg' },
