@@ -1,4 +1,3 @@
-const MIN_SCENES = 4;
 const MAX_KEY_FACT_CARDS = 2;
 const MAX_CARD_WORDS = 14;
 
@@ -16,17 +15,9 @@ export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
   const plate = editorialPackage.salidas?.placas?.[0] || {};
   const title = clean(editorial.titulo || plate.titulo || source.titulo_original);
   const summary = clean(editorial.bajada || plate.bajada || source.descripcion);
-  const sourceText = stripTechnicalPrefix(source.cuerpo);
-  const sourceSentences = extractSentences(sourceText);
-  const context = clean(editorial.contexto || plate.contexto || sourceSentences[0] || summary);
+  const context = clean(editorial.contexto || plate.contexto || summary);
   const canonicalText = [title, summary, context];
   const cards = compactCards(buildCards(editorial, plate, canonicalText));
-  const remainingSentences = dedupeTexts(sourceSentences.filter(text => !sameText(text, canonicalText)));
-  if (!cards.length) {
-    const labels = ['El caso', 'La investigación', 'La estrategia'];
-    cards.push(...remainingSentences.slice(0, MAX_KEY_FACT_CARDS).map((text, index) => ({ label: labels[index] || 'Dato clave', text: compactText(text) })));
-  }
-  if (!cards.length && summary) cards.push({ label: 'Resumen', text: summary });
 
   const image = clean(source.imagen || source.imagenes?.[0]);
   const scenes = [
@@ -35,11 +26,6 @@ export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
   ];
 
   if (cards.length) scenes.push(scene('key_fact', 'Puntos clave', '', scenes.length + 1, { layout: 'list', items: cards }));
-  if (remainingSentences.length && cards.length) {
-    const extra = remainingSentences.filter(text => !cards.some(card => sameText(text, [card.text]))).slice(0, 2);
-    if (extra.length) scenes.push(scene('context', 'Lo que se sabe', extra.join(' '), scenes.length + 1));
-  }
-  while (scenes.length < MIN_SCENES - 1) scenes.push(scene('context', 'Más información', summary || context, scenes.length + 1));
   scenes.push(scene('cta', 'Leé la nota completa', '', scenes.length + 1, { layout: 'cta' }));
   return {
     format: 'reel_silent',
@@ -75,33 +61,11 @@ function getVerifiedQuote(value) {
   return clean(match?.cita || match?.texto || match?.text);
 }
 
-function extractSentences(value) {
-  return clean(value).split(/(?<=[.!?])\s+/).map(clean).filter(text => text.length >= 45 && !isTechnicalText(text)).slice(0, 12);
-}
-
-function stripTechnicalPrefix(value) {
-  return clean(value).replace(/^[A-Za-z]:[\\/][^\s]+\s*/i, '').trim();
-}
-
-function isTechnicalText(value) {
-  return /^(?:[A-Za-z]:[\\/]|file:\/\/|\/storage\/|\/cachefiles\/)/i.test(clean(value));
-}
-
 function sameText(value, candidates) {
   const normalized = clean(value).replace(/…$/, '').toLowerCase();
   return candidates.some(candidate => {
     const other = clean(candidate).replace(/…$/, '').toLowerCase();
     return other === normalized || (normalized.length > 20 && other.length > 20 && (other.includes(normalized) || normalized.includes(other)));
-  });
-}
-
-function dedupeTexts(values) {
-  const seen = new Set();
-  return values.filter(value => {
-    const key = clean(value).toLowerCase();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
   });
 }
 

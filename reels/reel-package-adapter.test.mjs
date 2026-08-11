@@ -63,7 +63,7 @@ test('limits key-fact cards to two concise source excerpts for a short Reel', ()
   assert.ok(cards.every(card => card.text.split(/\s+/).length <= 15));
 });
 
-test('does not repeat key facts in the later context scene or closure', () => {
+test('does not import raw body text into extra Reel scenes', () => {
   const output = createReelOutputFromEditorialPackage({
     fuente: {
       titulo_original: 'Suspensión de clases',
@@ -76,8 +76,7 @@ test('does not repeat key facts in the later context scene or closure', () => {
     },
   });
 
-  const keyFacts = output.scenes.find(scene => scene.visual_role === 'key_fact')?.items.map(item => item.text) || [];
-  const laterContext = output.scenes.find(scene => scene.title === 'Lo que se sabe')?.subtitle || '';
-  assert.ok(keyFacts.every(text => !laterContext.includes(text.replace('…', ''))));
+  assert.equal(output.scenes.length, 3);
+  assert.doesNotMatch(JSON.stringify(output), /Malargüe|Tupungato|Tunuyán/);
   assert.equal(output.scenes.at(-1).subtitle, '');
 });
