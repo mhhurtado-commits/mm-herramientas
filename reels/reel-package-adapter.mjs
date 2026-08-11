@@ -36,11 +36,14 @@ export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
     plate.datos_clave,
     Array.isArray(plate.bloques) ? plate.bloques.filter(block => block?.tipo === 'dato-clave').map(block => block.texto) : [],
   ]).filter(text => text !== context);
+  const quote = editorial.textual?.verificada ? clean(editorial.textual.cita) : clean(plate.textual?.verificada ? plate.textual.cita : '');
+  const cards = [...facts.map(text => ({ label: 'Dato clave', text }))];
+  if (quote) cards.push({ label: 'Cita verificada', text: quote });
   const scenes = [];
   const image = clean(source.imagen || source.imagenes?.[0]);
   scenes.push({ order: 1, duration_ms: 3200, visual_type: image ? 'cover_image' : 'text_card', visual_source: image ? 'article.image' : 'generated', visual_role: 'hook', layout: 'cover', text: title, subtitle: summary, items: [] });
   if (context) scenes.push({ order: scenes.length + 1, duration_ms: 3000, visual_type: 'text_card', visual_source: 'generated', visual_role: 'context', layout: 'default', title: 'Qué pasó', text: 'Qué pasó', subtitle: context, items: [] });
-  if (facts.length) scenes.push({ order: scenes.length + 1, duration_ms: 3000, visual_type: 'text_card', visual_source: 'generated', visual_role: 'key_fact', layout: 'list', title: 'Puntos clave', text: 'Puntos clave', subtitle: '', items: facts.map(text => ({ text })) });
+  if (cards.length) scenes.push({ order: scenes.length + 1, duration_ms: 3000, visual_type: 'text_card', visual_source: 'generated', visual_role: 'key_fact', layout: 'list', title: 'Puntos clave', text: 'Puntos clave', subtitle: '', items: cards });
   scenes.push({ order: scenes.length + 1, duration_ms: 3200, visual_type: 'text_card', visual_source: 'generated', visual_role: 'cta', layout: 'cta', text: 'Leé la nota completa', subtitle: [title, summary, context].filter(Boolean).join(' '), items: [] });
   return { format: 'reel_silent', hook: title, cover_text: title, caption: '', hashtags: [], scenes: ensureReelClosure(scenes, { url: source.url }) };
 }

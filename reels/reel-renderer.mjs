@@ -142,7 +142,7 @@ function drawEditorialText(ctx, scene, layout, accent) {
   const textY = hasImage && scene.type === 'cover' && layout.coverCard
     ? layout.coverCard.y + 40
     : y;
-  const titleSize = scene.type === 'cover' ? 76 : 70;
+  let titleSize = scene.type === 'cover' ? 76 : 70;
   ctx.save();
   if (hasImage && scene.type === 'cover') {
     ctx.fillStyle = 'rgba(251, 250, 247, 0.96)';
@@ -174,14 +174,22 @@ function drawEditorialText(ctx, scene, layout, accent) {
   drawPill(ctx, clean(scene.type === 'cover' ? scene.section || '' : scene.type.replace('-', ' ')), x, textY, accent, false, width);
   const titleY = textY + 112;
   ctx.fillStyle = COLORS.ink;
-  ctx.font = `800 ${titleSize}px Arial, sans-serif`;
-  const titleLines = wrapText(ctx, scene.title || 'Media Mendoza', width, hasImage ? 2 : 3);
+  const titleText = scene.title || 'Media Mendoza';
+  let titleLines = [];
+  for (; titleSize >= 52; titleSize -= 2) {
+    ctx.font = `800 ${titleSize}px Arial, sans-serif`;
+    titleLines = wrapText(ctx, titleText, width, hasImage ? 4 : 3);
+    if (titleLines.length <= (hasImage ? 3 : 3) || titleSize === 52) break;
+  }
   drawLines(ctx, titleLines, x, titleY, titleSize * 1.05, COLORS.ink);
   const bodyY = titleY + titleLines.length * titleSize * 1.05 + 54;
   ctx.font = '500 40px Arial, sans-serif';
   const bodyFontSize = hasImage ? 34 : 40;
   const bodyLines = wrapText(ctx, scene.body || '', width, hasImage ? 3 : 8);
-  if (scene.type === 'dato-clave') {
+  const cards = Array.isArray(scene.cards) ? scene.cards : [];
+  if (scene.type === 'dato-clave' && cards.length) {
+    drawFactCards(ctx, cards, x, bodyY - 34, width, accent, hasImage);
+  } else if (scene.type === 'dato-clave') {
     const blockY = bodyY - 34;
     const blockHeight = Math.max(138, bodyLines.length * (hasImage ? 46 : 52) + 62);
     ctx.fillStyle = `${accent}20`;
@@ -197,6 +205,33 @@ function drawEditorialText(ctx, scene, layout, accent) {
   ctx.restore();
 }
 
+function drawFactCards(ctx, cards, x, y, width, accent, hasImage) {
+  const fontSize = hasImage ? 34 : 38;
+  const lineHeight = hasImage ? 42 : 48;
+  const gap = 18;
+  let currentY = y;
+  cards.slice(0, 4).forEach(card => {
+    ctx.font = `600 ${fontSize}px Arial, sans-serif`;
+    const lines = wrapText(ctx, card.text, width - 74, 4);
+    const label = clean(card.label);
+    const labelHeight = label ? 28 : 0;
+    const height = Math.max(118, labelHeight + lines.length * lineHeight + 46);
+    ctx.fillStyle = `${accent}18`;
+    roundedRect(ctx, x - 18, currentY, width + 36, height, 24);
+    ctx.fill();
+    ctx.fillStyle = accent;
+    ctx.fillRect(x - 18, currentY, 8, height);
+    if (label) {
+      ctx.font = `800 22px Arial, sans-serif`;
+      ctx.fillStyle = accent;
+      ctx.fillText(label.toUpperCase(), x + 18, currentY + 30);
+    }
+    ctx.font = `600 ${fontSize}px Arial, sans-serif`;
+    drawLines(ctx, lines, x + 18, currentY + labelHeight + 38, lineHeight, COLORS.ink);
+    currentY += height + gap;
+  });
+}
+
 function drawClosure(ctx, scene, layout, accent, logo) {
   const x = layout.content.x;
   const width = layout.content.width;
@@ -204,9 +239,9 @@ function drawClosure(ctx, scene, layout, accent, logo) {
   drawLogo(ctx, logo, { x, y: layout.height * 0.1, width: width * 0.38, height: layout.height * 0.055 }, COLORS.white);
   ctx.fillStyle = COLORS.white;
   ctx.font = '800 70px Arial, sans-serif';
-  drawLines(ctx, wrapText(ctx, scene.title || 'Seguí informado', width, 2), x, layout.height * 0.45, 78, COLORS.white);
+  drawLines(ctx, wrapText(ctx, scene.title || 'Seguí informado', width, 3), x, layout.height * 0.45, 78, COLORS.white);
   ctx.font = '500 38px Arial, sans-serif';
-  drawLines(ctx, wrapText(ctx, scene.body || '', width, 3), x, layout.height * 0.61, 50, '#dbe3de');
+  drawLines(ctx, wrapText(ctx, scene.body || '', width, 4), x, layout.height * 0.61, 50, '#dbe3de');
   ctx.fillStyle = accent;
   roundedRect(ctx, x, layout.cta.y, width, layout.cta.height, 24);
   ctx.fill();
