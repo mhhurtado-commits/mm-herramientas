@@ -1,5 +1,6 @@
 import { loadReelSession } from './reel-session.mjs';
 import { renderReelProject } from './reel-renderer.mjs';
+import { exportReelVideo } from './reel-video-export.mjs';
 import { parseReelHandoff } from './output-handoff.mjs';
 import { createReelProject } from './reel-model.mjs';
 import { updateSceneFocus } from './ui.mjs';
@@ -7,7 +8,7 @@ import { resolveCategoryAccent } from '../shared/editorial-taxonomy.mjs';
 import { generateEditorialOutputs } from '../placas-v2/editorial-output-generation.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { session: null, sceneIndex: 0, image: null, imageUrl: '', imageRequestId: 0, logo: null, loading: false };
+const state = { session: null, sceneIndex: 0, image: null, imageUrl: '', imageRequestId: 0, logo: null, loading: false, exporting: false };
 const $ = selector => document.querySelector(selector);
 const CATEGORY_COLORS = { actualidad: '#a8d432', policiales: '#c7474f', sociales: '#bd7125', sociedad: '#bd7125', politica: '#6650a4', economía: '#187f72', economia: '#187f72', deportes: '#148a78', clima: '#4d8fb8', general: '#a8d432' };
 
@@ -143,10 +144,10 @@ function render() {
 $('#reelForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (state.loading) return;
-  state.loading = true; $('#reelStatus').textContent = 'Extrayendo y armando el reel…'; $('#downloadButton').disabled = true;
+  state.loading = true; $('#reelStatus').textContent = 'Extrayendo y armando el reel…'; setExportButtons(true);
   try { state.session = await loadReelSession($('#reelUrl').value, { extract, generate }); state.sceneIndex = 0; renderList(); await loadCurrentImage(); render(); $('#downloadButton').disabled = false; $('#reelStatus').textContent = 'Elegí una escena. Podés arrastrar la imagen dentro del canvas.'; }
   catch (error) { $('#reelStatus').textContent = error.message || 'No se pudo generar el reel.'; }
-  finally { state.loading = false; }
+  finally { state.loading = false; setExportButtons(false); }
 });
 
 $('#reelCanvas').addEventListener('pointerdown', event => {
@@ -165,11 +166,90 @@ $('#reelCanvas').addEventListener('pointermove', event => {
 
 $('#downloadButton').addEventListener('click', () => { const canvas = $('#reelCanvas'); const link = document.createElement('a'); link.download = `reel-${state.sceneIndex + 1}.png`; link.href = canvas.toDataURL('image/png'); link.click(); });
 
+$('#downloadVideoButton').addEventListener('click', async () => {
+  if (!state.session?.project || state.exporting) return;
+  state.exporting = true;
+  setExportButtons(true);
+  $('#reelStatus').textContent = 'Renderizando Reel sin audio...';
+  try {
+    const project = state.session.project;
+    const sceneCanvases = await prepareSceneCanvases(project);
+    const canvas = $('#reelCanvas');
+    const result = await exportReelVideo({
+      canvas,
+      project,
+      renderFrame: transition => drawVideoFrame(canvas, sceneCanvases, transition),
+      onProgress: progress => { $('#reelStatus').textContent = `Renderizando Reel sin audio... ${Math.round(progress * 100)}%`; },
+    });
+    const link = document.createElement('a');
+    link.download = `reel-mediamendoza-${Date.now()}.webm`;
+    link.href = URL.createObjectURL(result.blob);
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    $('#reelStatus').textContent = `Reel descargado en WebM, ${Math.round(result.durationMs / 100) / 10}s, sin audio.`;
+  } catch (error) {
+    $('#reelStatus').textContent = error.message || 'No se pudo exportar el Reel.';
+  } finally {
+    state.exporting = false;
+    setExportButtons(false);
+  }
+});
+
+function setExportButtons(exporting) {
+  const hasProject = Boolean(state.session?.project);
+  $('#downloadButton').disabled = exporting || !hasProject;
+  $('#downloadVideoButton').disabled = exporting || !hasProject;
+}
+
+async function prepareSceneCanvases(project) {
+  const canvases = [];
+  for (let index = 0; index < project.scenes.length; index += 1) {
+    const scene = project.scenes[index];
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080; canvas.height = 1920;
+    const image = await loadImageForVideo(scene.image);
+    renderReelProject(canvas, project, { image, imageUrl: scene.image, logo: state.logo }, index);
+    canvases.push(canvas);
+  }
+  return canvases;
+}
+
+async function loadImageForVideo(url) {
+  if (!url) return null;
+  try {
+    const image = new Image();
+    if (/^(data:|blob:)/i.test(url)) {
+      await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = url; });
+      return image;
+    }
+    const response = await fetch(`${WORKER}?image=${encodeURIComponent(url)}`);
+    if (!response.ok) return null;
+    image.src = URL.createObjectURL(await response.blob());
+    await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+    return image;
+  } catch { return null; }
+}
+
+function drawVideoFrame(canvas, sceneCanvases, transition) {
+  const ctx = canvas.getContext('2d');
+  const from = sceneCanvases[transition?.from] || sceneCanvases[0];
+  const to = sceneCanvases[transition?.to] || from;
+  if (!from) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!transition || transition.from === transition.to || transition.progress <= 0) {
+    ctx.drawImage(from, 0, 0);
+    return;
+  }
+  const progress = transition.progress;
+  ctx.save(); ctx.globalAlpha = 1; ctx.drawImage(from, 0, -Math.round(progress * 18)); ctx.restore();
+  ctx.save(); ctx.globalAlpha = progress; ctx.drawImage(to, 0, Math.round((1 - progress) * 18)); ctx.restore();
+}
+
 const handoff = parseReelHandoff(sessionStorage.getItem('mm-editorial-handoff'));
 if (handoff?.package) {
   state.session = { package: handoff.package, project: createReelProject(handoff.package) };
   sessionStorage.removeItem('mm-editorial-handoff');
   renderList(); loadCurrentImage().then(render);
-  $('#downloadButton').disabled = false;
+  setExportButtons(false);
   $('#reelStatus').textContent = 'Paquete recibido desde Placas V2. Elegí una escena para editarla.';
 }
