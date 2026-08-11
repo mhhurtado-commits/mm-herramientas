@@ -1,4 +1,6 @@
 const MIN_SCENES = 4;
+const MAX_KEY_FACT_CARDS = 2;
+const MAX_CARD_WORDS = 14;
 
 export function ensureReelClosure(reelOrScenes, article = {}) {
   const reel = Array.isArray(reelOrScenes) ? { scenes: reelOrScenes } : { ...(reelOrScenes || {}) };
@@ -18,11 +20,11 @@ export function createReelOutputFromEditorialPackage(editorialPackage = {}) {
   const sourceSentences = extractSentences(sourceText);
   const context = clean(editorial.contexto || plate.contexto || sourceSentences[0] || summary);
   const canonicalText = [title, summary, context];
-  const cards = buildCards(editorial, plate, canonicalText);
+  const cards = compactCards(buildCards(editorial, plate, canonicalText));
   const remainingSentences = dedupeTexts(sourceSentences.filter(text => !sameText(text, canonicalText)));
   if (!cards.length) {
     const labels = ['El caso', 'La investigación', 'La estrategia'];
-    cards.push(...remainingSentences.slice(0, 3).map((text, index) => ({ label: labels[index] || 'Dato clave', text })));
+    cards.push(...remainingSentences.slice(0, MAX_KEY_FACT_CARDS).map((text, index) => ({ label: labels[index] || 'Dato clave', text: compactText(text) })));
   }
   if (!cards.length && summary) cards.push({ label: 'Resumen', text: summary });
 
@@ -103,6 +105,19 @@ function dedupeCards(cards) {
     seen.add(key);
     return true;
   });
+}
+
+function compactCards(cards) {
+  return dedupeCards(cards).slice(0, MAX_KEY_FACT_CARDS).map(card => ({
+    ...card,
+    text: compactText(card.text),
+  }));
+}
+
+function compactText(value) {
+  const words = clean(value).split(/\s+/).filter(Boolean);
+  if (words.length <= MAX_CARD_WORDS) return words.join(' ');
+  return `${words.slice(0, MAX_CARD_WORDS).join(' ')}…`;
 }
 
 function scene(role, title, subtitle, order, extra = {}) {

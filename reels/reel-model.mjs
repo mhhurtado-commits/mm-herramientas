@@ -17,6 +17,8 @@ import { getRecommendedCategory, normalizeCategoryOptions, resolveCategoryAccent
 import { createReelOutputFromEditorialPackage } from './reel-package-adapter.mjs';
 
 const DEFAULT_FOCUS = { x: 0.5, y: 0.5 };
+const MAX_KEY_FACT_CARDS = 2;
+const MAX_CARD_WORDS = 14;
 
 export function createReelProject(editorialPackage = {}) {
   const source = editorialPackage.fuente || {};
@@ -122,7 +124,7 @@ function mapStoredScene(source, index, articleSource, images, editorial, section
   const image = type !== 'closure' ? resolveStoredImage(source?.visual_source, articleSource, images) : '';
   const sourceText = clean(source?.text);
   const sourceTitle = clean(source?.title);
-  const items = Array.isArray(source?.items) ? source.items.map(item => clean(item?.text || item?.value)).filter(Boolean) : [];
+  const items = Array.isArray(source?.items) ? source.items.slice(0, MAX_KEY_FACT_CARDS).map(item => compactText(item?.text || item?.value)).filter(Boolean) : [];
   const contractFallback = type === 'que-paso'
     ? clean(editorial?.contexto)
     : type === 'dato-clave'
@@ -137,7 +139,7 @@ function mapStoredScene(source, index, articleSource, images, editorial, section
     type,
     title: clean(source?.text || source?.title || (type === 'closure' ? 'SeguÃ­ informado' : '')),
     body: type === 'closure' ? closureBody : body,
-    cards: Array.isArray(source?.items) ? source.items.map(item => ({ label: clean(item?.label), text: clean(item?.text || item?.value) })).filter(item => item.text) : [],
+    cards: Array.isArray(source?.items) ? source.items.slice(0, MAX_KEY_FACT_CARDS).map(item => ({ label: clean(item?.label), text: compactText(item?.text || item?.value) })).filter(item => item.text) : [],
     image,
     imageMode: image ? 'contain-blur' : 'text',
     focus: { ...DEFAULT_FOCUS },
@@ -191,4 +193,10 @@ function uniqueStrings(groups) {
 
 function clean(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function compactText(value) {
+  const words = clean(value).split(/\s+/).filter(Boolean);
+  if (words.length <= MAX_CARD_WORDS) return words.join(' ');
+  return `${words.slice(0, MAX_CARD_WORDS).join(' ')}…`;
 }

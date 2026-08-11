@@ -44,3 +44,21 @@ test('deduplicates body-derived cards and assigns useful labels', () => {
   assert.equal(new Set(cards.map(card => card.text)).size, cards.length);
   assert.ok(cards.every(card => card.label && card.label !== 'Información'));
 });
+
+test('limits key-fact cards to two concise source excerpts for a short Reel', () => {
+  const output = createReelOutputFromEditorialPackage({
+    editorial: {
+      titulo: 'Nota',
+      bajada: 'Resumen.',
+      datos_clave: [
+        'La primera información extensa debe conservar su origen, pero no ocupar toda la escena del video.',
+        'La segunda información también debe ser breve para poder leerse durante una pieza de quince segundos.',
+        'Este tercer dato queda fuera de la escena breve.',
+      ],
+    },
+  });
+
+  const cards = output.scenes.find(scene => scene.visual_role === 'key_fact')?.items || [];
+  assert.equal(cards.length, 2);
+  assert.ok(cards.every(card => card.text.split(/\s+/).length <= 15));
+});
