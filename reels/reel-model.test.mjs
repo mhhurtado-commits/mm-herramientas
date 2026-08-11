@@ -41,7 +41,7 @@ test('preserves recommended and alternative categories from the package', () => 
   assert.equal(project.sectionLabel, 'Policiales');
 });
 
-test('consumes the reel output already stored in the editorial package', () => {
+test('regenerates Reel copy from the canonical package and keeps the cover image', () => {
   const project = createReelProject({
     fuente: { url: 'https://mediamendoza.com/nota/1', titulo_original: 'Título', imagen: 'cover.jpg', imagenes: ['cover.jpg'] },
     editorial: { seccion: 'Actualidad', titulo: 'Título', bajada: 'Bajada.' },
@@ -49,14 +49,16 @@ test('consumes the reel output already stored in the editorial package', () => {
       reel: {
         format: 'reel_silent',
         scenes: [
-          { order: 1, visual_role: 'hook', visual_source: 'article.image', text: 'Hook guardado', subtitle: 'Bajada guardada.' },
+          { order: 1, visual_role: 'hook', visual_source: 'article.image', text: 'Texto de otra nota', subtitle: 'Contenido contaminado.' },
           { order: 2, visual_role: 'cta', layout: 'cta', text: 'Leé la nota completa', subtitle: 'mediamendoza.com' },
         ],
       },
     },
   });
 
-  assert.equal(project.scenes[0].title, 'Hook guardado');
+  assert.equal(project.scenes[0].title, 'Título');
+  assert.equal(project.scenes[0].image, 'cover.jpg');
+  assert.doesNotMatch(JSON.stringify(project), /Texto de otra nota|Contenido contaminado/);
   assert.equal(project.scenes.at(-1).type, 'closure');
 });
 
@@ -93,36 +95,34 @@ test('keeps stored internal scenes text-only when no image is assigned', () => {
   assert.equal(project.scenes.at(-1).image, '');
 });
 
-test('cleans technical paths and repeated text from stored Reel scenes', () => {
+test('ignores technical paths and stale stored Reel text', () => {
   const project = createReelProject({
-    fuente: { imagen: 'cover.jpg' },
+    fuente: { imagen: 'cover.jpg', cuerpo: String.raw`C:\storage\cachefiles\nota.json Las clases presenciales fueron suspendidas en Malargüe por las condiciones climáticas adversas.` },
     editorial: { titulo: 'Suspensión de clases', bajada: 'La medida afecta al turno mañana.' },
     salidas: { reel: { scenes: [
-      { visual_role: 'hook', text: 'Portada', subtitle: 'La medida afecta al turno mañana.' },
-      { visual_role: 'context', text: 'Qué pasó', subtitle: 'Las clases serán virtuales.' },
-      { visual_role: 'key_fact', text: 'Puntos clave', items: [{ label: 'El caso', text: 'Las clases presenciales fueron suspendidas en Malargüe.' }] },
-      { visual_role: 'context', text: 'Lo que se sabe', subtitle: String.raw`C:\storage\cachefiles\nota.json Las clases presenciales fueron suspendidas en Malargüe.` },
+      { visual_role: 'hook', text: 'Texto de otra nota' },
+      { visual_role: 'context', text: 'Parte contaminada' },
       { visual_role: 'cta', layout: 'cta', text: 'Leé la nota completa' },
     ] } },
   });
 
-  const later = project.scenes.find(scene => scene.title === 'Lo que se sabe');
   assert.doesNotMatch(JSON.stringify(project), /C:\\storage\\cachefiles/);
-  assert.equal(later.body, '');
+  assert.doesNotMatch(JSON.stringify(project), /Texto de otra nota|Parte contaminada/);
+  assert.match(project.scenes[0].body, /La medida afecta/);
 });
 
 test('combines subtitle and items from the editorial contract', () => {
   const project = createReelProject({
     fuente: { imagen: 'cover.jpg' },
-    editorial: { titulo: 'Nota', contexto: 'Contexto general' },
-    salidas: { reel: { scenes: [
-      { visual_role: 'context', text: 'Qué pasó', subtitle: 'La causa avanzó.', items: [{ text: 'El acusado sigue detenido.' }] },
-      { visual_role: 'cta', layout: 'cta', text: 'Leé la nota' },
-    ] } },
+    editorial: {
+      titulo: 'Nota',
+      contexto: 'La causa avanzó con nuevas medidas judiciales y el expediente continúa en investigación.',
+      datos_clave: ['El acusado sigue detenido mientras se resuelven las próximas etapas del proceso judicial.'],
+    },
   });
 
-  assert.match(project.scenes[0].body, /La causa avanzó/);
-  assert.match(project.scenes[0].body, /sigue detenido/);
+  assert.match(project.scenes[1].body, /La causa avanzó/);
+  assert.match(project.scenes[2].cards[0].text, /sigue detenido/);
 });
 
 test('keeps the note context in the Reel closure', () => {

@@ -33,9 +33,19 @@ export function createReelProject(editorialPackage = {}) {
   const title = clean(editorial.titulo || source.titulo_original || '');
   const summary = clean(editorial.bajada);
   const context = clean(editorial.contexto || editorial.datos_clave?.[0]);
-  const storedReel = editorialPackage.salidas?.reel;
-  const storedScenes = storedReel?.scenes || createReelOutputFromEditorialPackage(editorialPackage).scenes;
-  if (Array.isArray(storedScenes) && storedScenes.length) {
+  const generatedScenes = createReelOutputFromEditorialPackage(editorialPackage).scenes;
+  const storedScenes = editorialPackage.salidas?.reel?.scenes;
+  if (Array.isArray(generatedScenes) && generatedScenes.length) {
+    const scenes = generatedScenes.map((generated, index) => {
+      const mapped = mapStoredScene(generated, index, source, images, editorial, sectionLabel, accent);
+      const stored = Array.isArray(storedScenes)
+        ? (storedScenes[index] || storedScenes.find(item => clean(item?.visual_role).toLowerCase() === clean(generated?.visual_role).toLowerCase()))
+        : null;
+      const manualImage = mapped.type !== 'closure' && stored
+        ? resolveStoredImage(stored.visual_source, source, images)
+        : '';
+      return manualImage ? { ...mapped, image: manualImage, imageMode: 'contain-blur' } : mapped;
+    });
     return normalizeReelProject({
       version: 1,
       format: '9:16',
@@ -46,7 +56,7 @@ export function createReelProject(editorialPackage = {}) {
       selectedCategoryId: selectedCategory?.id || '',
       accent,
       images,
-       scenes: cleanStoredScenes(storedScenes.map((stored, index) => mapStoredScene(stored, index, source, images, editorial, sectionLabel, accent))),
+      scenes: cleanStoredScenes(scenes),
     });
   }
   const scenes = [
