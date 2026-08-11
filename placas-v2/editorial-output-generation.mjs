@@ -1,7 +1,7 @@
 import { packageToCarouselArticle } from '../shared/editorial-package.mjs';
 import { normalizeCarouselPlan } from '../carousel/parser.js';
 import { buildCarouselPrompt, buildReelPrompt } from '../carousel/prompts.js';
-import { ensureReelClosure } from '../carousel/reel-package-adapter.js';
+import { ensureReelClosure } from '../reels/reel-package-adapter.mjs';
 
 export async function generateEditorialOutputs(editorialPackage = {}, requestedOutputs = [], dependencies = {}) {
   if (typeof dependencies.generateJson !== 'function') {

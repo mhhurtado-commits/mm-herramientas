@@ -118,18 +118,21 @@ function mapStoredScene(source, index, articleSource, images, editorial, section
   const role = clean(source?.visual_role).toLowerCase();
   const type = role === 'hook' || role === 'cover' ? 'cover' : role === 'cta' || source?.layout === 'cta' ? 'closure' : role === 'key_fact' ? 'dato-clave' : role === 'context' ? 'que-paso' : 'text';
   const image = type !== 'closure' ? resolveStoredImage(source?.visual_source, articleSource, images) : '';
+  const sourceText = clean(source?.text);
+  const sourceTitle = clean(source?.title);
   const items = Array.isArray(source?.items) ? source.items.map(item => clean(item?.text || item?.value)).filter(Boolean) : [];
   const contractFallback = type === 'que-paso'
     ? clean(editorial?.contexto)
     : type === 'dato-clave'
       ? (Array.isArray(editorial?.datos_clave) ? editorial.datos_clave.map(clean).filter(Boolean).join(' ') : clean(editorial?.datos_clave))
       : '';
-  const body = [clean(source?.subtitle), ...items].filter(Boolean).join(' ') || contractFallback;
+  const body = [sourceTitle && sourceText !== sourceTitle ? sourceText : '', clean(source?.subtitle), ...items].filter(Boolean).join(' ') || contractFallback;
+  const closureBody = [clean(editorial?.titulo), clean(editorial?.bajada || editorial?.contexto), clean(source?.subtitle)].filter(Boolean).join(' ');
   return {
     id: clean(source?.id) || `scene-${index + 1}`,
     type,
     title: clean(source?.text || source?.title || (type === 'closure' ? 'SeguÃ­ informado' : '')),
-    body,
+    body: type === 'closure' ? closureBody : body,
     image,
     imageMode: image ? 'contain-blur' : 'text',
     focus: { ...DEFAULT_FOCUS },

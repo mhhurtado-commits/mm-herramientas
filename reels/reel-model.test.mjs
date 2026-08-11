@@ -89,3 +89,17 @@ test('combines subtitle and items from the editorial contract', () => {
   assert.match(project.scenes[0].body, /La causa avanzó/);
   assert.match(project.scenes[0].body, /sigue detenido/);
 });
+
+test('keeps the note context in the Reel closure', () => {
+  const project = createReelProject({
+    fuente: { url: 'https://mediamendoza.com/nota' },
+    editorial: { titulo: 'Título de la nota', bajada: 'Resumen de la nota.' },
+    salidas: { reel: { scenes: [
+      { visual_role: 'hook', text: 'Portada' },
+      { visual_role: 'cta', layout: 'cta', text: 'Leé la nota completa', subtitle: 'mediamendoza.com' },
+    ] } },
+  });
+
+  assert.match(project.scenes.at(-1).body, /Título de la nota/);
+  assert.match(project.scenes.at(-1).body, /Resumen de la nota/);
+});

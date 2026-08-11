@@ -48,4 +48,5 @@ test('genera carrusel y reel una sola vez dentro del paquete editorial', async (
   assert.ok(result.package.salidas.carrusel);
   assert.ok(result.package.salidas.reel);
   assert.equal(result.package.fuente.url, basePackage.fuente.url);
+  assert.equal(result.package.salidas.reel.scenes.at(-1).visual_role, 'cta');
 });
