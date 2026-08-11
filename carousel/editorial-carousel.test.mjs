@@ -198,7 +198,7 @@ test('compacta la portada para reservar más protagonismo a la imagen', () => {
     type: 'cover',
     content: { title: 'Corte total en la Ruta 222', subtitle: 'Accidente múltiple y hielo impiden el tránsito.' },
   });
-  const panel = canvas.calls.fills.find((fill) => fill.width > 900 && fill.height > 400 && fill.y > 500);
+  const panel = canvas.calls.fills.find((fill) => fill.width > 900 && fill.height > 300 && fill.y > 500);
   assert.ok(panel);
   assert.ok(panel.height <= 540, `panel demasiado alto: ${panel.height}`);
 });
@@ -208,9 +208,22 @@ test('baja la tarjeta de portada para no tapar tanto la imagen', () => {
     type: 'cover',
     content: { title: 'Corte total en la Ruta 222', subtitle: 'Accidente multiple y hielo impiden el transito.' },
   });
-  const panel = canvas.calls.fills.find((fill) => fill.width > 900 && fill.height > 400 && fill.y > 500);
+  const panel = canvas.calls.fills.find((fill) => fill.width > 900 && fill.height > 300 && fill.y > 500);
   assert.ok(panel);
   assert.ok(panel.y >= 750, `tarjeta demasiado arriba: ${panel.y}`);
+});
+
+test('ancla la portada al pie y compacta la tarjeta segun el contenido', () => {
+  const canvas = renderEditorialSlide({
+    type: 'cover',
+    content: { title: 'Corte total en la Ruta 222', subtitle: 'Accidente multiple y hielo impiden el transito.' },
+  });
+  const panel = canvas.calls.fills.find((fill) => fill.width > 900 && fill.height > 300 && fill.y > 500);
+  const layout = getCarouselLayout('cover', canvas.width, canvas.height);
+  assert.ok(panel);
+  assert.ok(panel.y >= 800, `tarjeta demasiado arriba: ${panel.y}`);
+  assert.ok(panel.height <= 440, `tarjeta demasiado alta: ${panel.height}`);
+  assert.equal(panel.y + panel.height, layout.safeZones.footer.y - 26);
 });
 
 test('refuerza el contexto sin imagen con una tarjeta editorial visible', () => {
@@ -1799,6 +1812,28 @@ test('limita los titulos internos a dos lineas sin cambiar la portada', () => {
   assert.equal(internalTitle.overflow, true);
   assert.equal(coverTitle.renderedLines, 3);
   assert.equal(coverTitle.overflow, false);
+});
+
+test('ajusta automaticamente subtitulos largos del cover y cuerpos internos', () => {
+  const cover = renderEditorialSlide({
+    type: 'cover',
+    content: {
+      title: 'Caso Collado: la defensa de Yunes busca declararlo inimputable',
+      subtitle: 'A pesar de la pericia oficial que lo considera responsable, la familia del acusado insiste en sostener otra versión de los hechos.',
+    },
+  });
+  const internal = renderEditorialSlide({
+    type: 'contexto',
+    content: {
+      title: 'Qué pasó',
+      text: 'La información confirmada permite explicar el caso con claridad y conservar el contexto necesario sin pedirle al usuario que acorte el texto.',
+    },
+  });
+
+  assert.equal(cover.renderState.blocks.find((block) => block.role === 'subtitle').overflow, false);
+  assert.equal(internal.renderState.blocks.find((block) => block.role === 'context-highlight').overflow, false);
+  assert.equal(cover.editorialOverflow, false);
+  assert.equal(internal.editorialOverflow, false);
 });
 
 test('normaliza el foco de una imagen y desplaza el recorte desde el centro', () => {

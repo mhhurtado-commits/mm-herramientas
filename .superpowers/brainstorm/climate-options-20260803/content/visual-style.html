@@ -1,0 +1,91 @@
+<div id="climate-style-options">
+  <style>
+    #climate-style-options { color:#17221e; }
+    #climate-style-options .intro { margin-bottom:18px; }
+    #climate-style-options .intro p { max-width:760px; }
+    #climate-style-options .mockups { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+    #climate-style-options .option { cursor:pointer; }
+    #climate-style-options .option.selected { outline:3px solid #a9d32f; outline-offset:4px; }
+    #climate-style-options .post { aspect-ratio:1; overflow:hidden; border-radius:16px; position:relative; box-shadow:0 12px 24px rgba(18,30,26,.18); font-family:Arial,sans-serif; }
+    #climate-style-options .post * { box-sizing:border-box; }
+    #climate-style-options .brand { position:absolute; left:8%; top:6%; color:#a9d32f; font-size:10px; font-weight:700; letter-spacing:.8px; }
+    #climate-style-options .mark { position:absolute; right:7%; top:5%; color:#f3f5f1; font-size:14px; font-weight:700; font-style:italic; }
+    #climate-style-options .title { position:absolute; left:8%; top:14%; color:#f8faf6; font-family:Georgia,serif; font-size:28px; line-height:1; }
+    #climate-style-options .meta { position:absolute; right:7%; top:16%; color:#b7c3bd; font-size:7px; }
+    #climate-style-options .eyebrow { color:#b9d766; font-size:8px; font-weight:700; letter-spacing:1px; }
+    #climate-style-options .temp { color:#f7fbf6; font-size:66px; line-height:.9; font-weight:800; letter-spacing:-4px; }
+    #climate-style-options .condition { color:#e2e9e2; font-size:10px; font-weight:700; }
+    #climate-style-options .hero-icon { font-size:48px; filter:drop-shadow(0 5px 4px rgba(0,0,0,.2)); }
+    #climate-style-options .label { color:#b8c8c0; font-size:7px; text-transform:uppercase; letter-spacing:.4px; }
+    #climate-style-options .value { color:#fff; font-size:13px; font-weight:700; }
+    #climate-style-options .small { color:#d9e1dc; font-size:7px; }
+    #climate-style-options .forecast { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+    #climate-style-options .forecast > div { min-width:0; padding:7px 4px; border-radius:8px; }
+    #climate-style-options .day { color:#fff; font-size:8px; font-weight:700; }
+    #climate-style-options .range { color:#c8db68; font-size:8px; font-weight:700; }
+    #climate-style-options .rain { color:#dce6df; font-size:6px; }
+
+    #climate-style-options .a { background:linear-gradient(145deg,#0b2632 0%,#155364 48%,#72a38d 100%); }
+    #climate-style-options .a:before { content:""; position:absolute; inset:31% -12% 0; background:repeating-linear-gradient(118deg,transparent 0 20px,rgba(185,215,102,.15) 21px 22px,transparent 23px 38px); transform:skewY(-8deg); }
+    #climate-style-options .a .now { position:absolute; left:8%; right:8%; top:30%; display:flex; align-items:center; gap:12px; }
+    #climate-style-options .a .now-main { flex:1; }
+    #climate-style-options .a .facts { display:grid; grid-template-columns:1fr 1fr; gap:5px; width:42%; }
+    #climate-style-options .a .fact { background:rgba(8,25,32,.48); border:1px solid rgba(214,235,216,.2); border-radius:8px; padding:7px; }
+    #climate-style-options .a .forecast { position:absolute; left:8%; right:8%; bottom:12%; }
+    #climate-style-options .a .forecast > div { background:rgba(8,25,32,.42); }
+
+    #climate-style-options .b { background:#10253b; }
+    #climate-style-options .b:before { content:""; position:absolute; width:130%; height:54%; left:-15%; top:38%; background:linear-gradient(160deg,rgba(42,128,158,.86),rgba(27,72,97,.45)); clip-path:polygon(0 38%,100% 0,100% 100%,0 100%); }
+    #climate-style-options .b:after { content:""; position:absolute; left:8%; right:8%; top:46%; height:1px; background:rgba(201,222,196,.5); box-shadow:0 18px 0 rgba(201,222,196,.18),0 36px 0 rgba(201,222,196,.12); }
+    #climate-style-options .b .hero { position:absolute; left:8%; top:28%; right:8%; display:flex; align-items:center; justify-content:space-between; z-index:1; }
+    #climate-style-options .b .hero .temp { font-size:76px; }
+    #climate-style-options .b .hero-icon { font-size:53px; }
+    #climate-style-options .b .headline { position:absolute; z-index:2; left:8%; top:59%; color:#f4f8f0; font-size:11px; font-weight:700; }
+    #climate-style-options .b .pills { position:absolute; z-index:2; left:8%; right:8%; top:65%; display:flex; gap:5px; }
+    #climate-style-options .b .pill { flex:1; border-left:2px solid #a9d32f; padding-left:5px; }
+    #climate-style-options .b .forecast { position:absolute; z-index:2; left:8%; right:8%; bottom:9%; }
+    #climate-style-options .b .forecast > div { background:rgba(4,19,30,.55); }
+
+    #climate-style-options .c { background:radial-gradient(circle at 78% 20%,#314b75 0,#18233c 33%,#07111f 100%); }
+    #climate-style-options .c .orbit { position:absolute; width:150px; height:150px; border:1px solid rgba(169,211,47,.3); border-radius:50%; right:-38px; top:12%; }
+    #climate-style-options .c .hero { position:absolute; left:8%; right:8%; top:29%; display:grid; grid-template-columns:45% 55%; align-items:center; z-index:1; }
+    #climate-style-options .c .temp { font-size:72px; }
+    #climate-style-options .c .hero-icon { text-align:right; font-size:62px; }
+    #climate-style-options .c .sun { position:absolute; left:8%; right:8%; top:57%; display:flex; justify-content:space-between; align-items:center; padding:7px 10px; border-top:1px solid rgba(212,232,217,.28); border-bottom:1px solid rgba(212,232,217,.28); }
+    #climate-style-options .c .forecast { position:absolute; left:8%; right:8%; bottom:11%; grid-template-columns:repeat(2,1fr); gap:6px; }
+    #climate-style-options .c .forecast > div { border:1px solid rgba(211,228,218,.22); background:rgba(255,255,255,.08); }
+    #climate-style-options .c .forecast .day { font-size:8px; }
+    #climate-style-options .c .forecast .range { font-size:10px; }
+
+    @media (max-width: 850px) { #climate-style-options .mockups { grid-template-columns:1fr; } #climate-style-options .post { max-width:420px; margin:auto; } }
+  </style>
+  <div class="intro">
+    <h2>Elegí la dirección visual para Clima</h2>
+    <p class="subtitle">Tres caminos para una placa cuadrada con más identidad, lectura rápida y presencia en Instagram. El logo actual se mantiene sin modificaciones.</p>
+  </div>
+  <div class="mockups">
+    <div class="option" data-choice="atmosfera" onclick="toggleSelect(this)">
+      <div class="post a">
+        <div class="brand">MEDIAMENDOZA · CLIMA</div><div class="mark">mediamendoza</div><div class="title">San Rafael</div><div class="meta">SMN · ACTUALIZADO 20:24</div>
+        <div class="now"><div class="hero-icon">🌤️</div><div class="now-main"><div class="eyebrow">AHORA</div><div class="temp">13.9°</div><div class="condition">Algo nublado</div></div><div class="facts"><div class="fact"><div class="label">Humedad</div><div class="value">70%</div></div><div class="fact"><div class="label">Viento</div><div class="value">13 km/h</div></div><div class="fact"><div class="label">Salida</div><div class="value">08:29</div></div><div class="fact"><div class="label">Puesta</div><div class="value">18:51</div></div></div></div>
+        <div class="forecast"><div><div class="day">JUE 30</div><div class="range">8° / 19°</div><div class="rain">☀️ 0% lluvia</div></div><div><div class="day">VIE 31</div><div class="range">6° / 23°</div><div class="rain">🌧️ 40% lluvia</div></div><div><div class="day">SÁB 01</div><div class="range">6° / 15°</div><div class="rain">🌤️ 0% lluvia</div></div><div><div class="day">DOM 02</div><div class="range">6° / 15°</div><div class="rain">🌦️ 10% lluvia</div></div></div>
+      </div>
+      <h3>1 · Atmósfera editorial</h3><p>Gradiente dinámico, textura sutil y la información integrada en una escena climática.</p>
+    </div>
+    <div class="option" data-choice="radar" onclick="toggleSelect(this)">
+      <div class="post b">
+        <div class="brand">MEDIAMENDOZA · CLIMA</div><div class="mark">mediamendoza</div><div class="title">San Rafael</div><div class="meta">SMN · ACTUALIZADO 20:24</div>
+        <div class="hero"><div><div class="eyebrow">AHORA</div><div class="temp">13.9°</div><div class="condition">Algo nublado</div></div><div class="hero-icon">🌤️</div></div><div class="headline">EL TIEMPO EN SAN RAFAEL</div><div class="pills"><div class="pill"><div class="label">Humedad</div><div class="value">70%</div></div><div class="pill"><div class="label">Viento norte</div><div class="value">13 km/h</div></div><div class="pill"><div class="label">Sol</div><div class="value">08:29 / 18:51</div></div></div>
+        <div class="forecast"><div><div class="day">JUE 30</div><div class="range">8° / 19°</div><div class="rain">☀️ 0% lluvia</div></div><div><div class="day">VIE 31</div><div class="range">6° / 23°</div><div class="rain">🌧️ 40% lluvia</div></div><div><div class="day">SÁB 01</div><div class="range">6° / 15°</div><div class="rain">🌤️ 0% lluvia</div></div><div><div class="day">DOM 02</div><div class="range">6° / 15°</div><div class="rain">🌦️ 10% lluvia</div></div></div>
+      </div>
+      <h3>2 · Radar social</h3><p>Composición de alto contraste, con un gesto gráfico fuerte y lectura inmediata en pantalla chica.</p>
+    </div>
+    <div class="option" data-choice="magazine" onclick="toggleSelect(this)">
+      <div class="post c"><div class="orbit"></div>
+        <div class="brand">MEDIAMENDOZA · CLIMA</div><div class="mark">mediamendoza</div><div class="title">San Rafael</div><div class="meta">SMN · ACTUALIZADO 20:24</div>
+        <div class="hero"><div><div class="eyebrow">AHORA</div><div class="temp">13.9°</div><div class="condition">Algo nublado</div></div><div class="hero-icon">🌤️</div></div><div class="sun"><div><div class="label">Salida del sol</div><div class="value">08:29</div></div><div><div class="label">Puesta del sol</div><div class="value">18:51</div></div></div>
+        <div class="forecast"><div><div class="day">JUEVES 30</div><div class="range">Mañana · 8°</div><div class="rain">☀️ 0% lluvia</div></div><div><div class="day">VIERNES 31</div><div class="range">Tarde · 23°</div><div class="rain">🌧️ 40% lluvia</div></div><div><div class="day">SÁBADO 01</div><div class="range">Mañana · 6°</div><div class="rain">🌤️ 0% lluvia</div></div><div><div class="day">DOMINGO 02</div><div class="range">Tarde · 15°</div><div class="rain">🌦️ 10% lluvia</div></div></div>
+      </div><h3>3 · Pronóstico magazine</h3><p>Jerarquía más sobria y premium, con el pronóstico como protagonista y datos solares destacados.</p>
+    </div>
+  </div>
+</div>

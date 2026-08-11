@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="930" viewBox="0 0 1500 930">
+  <rect width="1500" height="930" fill="#f4f6f1"/>
+  <text x="70" y="68" font-family="Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="3" fill="#6f9220">DIRECCIÓN VISUAL · CARRUSEL</text>
+  <text x="70" y="116" font-family="Arial,sans-serif" font-size="37" font-weight="800" fill="#15211b">Portada + diapositiva interna</text>
+  <text x="70" y="149" font-family="Arial,sans-serif" font-size="17" fill="#637067">Tres caminos para llevar la familia de placas-v2 al carrusel.</text>
+  <g transform="translate(70 195)">
+    <rect width="420" height="650" rx="22" fill="#fff" stroke="#a6ce39" stroke-width="4"/>
+    <text x="24" y="39" font-family="Arial,sans-serif" font-size="22" font-weight="800" fill="#15211b">A · Editorial modular</text>
+    <text x="24" y="66" font-family="Arial,sans-serif" font-size="14" fill="#637067">Recomendada · misma familia, más ritmo</text>
+    <g transform="translate(24 92)">
+      <rect width="176" height="330" rx="12" fill="#fff" stroke="#dce4d9"/>
+      <rect width="176" height="142" rx="12" fill="#627e6e"/>
+      <rect y="122" width="176" height="20" fill="#15211b" opacity=".18"/>
+      <text x="120" y="24" font-family="Arial" font-size="9" font-weight="800" fill="#fff">mediamendoza</text>
+      <rect x="14" y="160" width="74" height="21" rx="7" fill="#a6ce39"/>
+      <text x="22" y="175" font-family="Arial" font-size="10" font-weight="800" fill="#15211b">SOCIEDAD</text>
+      <text x="14" y="212" font-family="Arial" font-size="19" font-weight="800" fill="#15211b">Una noticia</text>
+      <text x="14" y="234" font-family="Arial" font-size="19" font-weight="800" fill="#15211b">con lectura clara</text>
+      <text x="14" y="268" font-family="Arial" font-size="11" fill="#637067">La bajada acompaña</text><text x="14" y="284" font-family="Arial" font-size="11" fill="#637067">sin competir.</text>
+      <rect x="14" y="304" width="30" height="4" rx="2" fill="#a6ce39"/>
+      <rect x="204" width="176" height="330" rx="12" fill="#fff" stroke="#dce4d9"/>
+      <text x="220" y="30" font-family="Arial" font-size="10" font-weight="800" fill="#719421">CLAVES DE LA NOTICIA</text>
+      <text x="220" y="78" font-family="Arial" font-size="19" font-weight="800" fill="#15211b">El dato principal</text><text x="220" y="101" font-family="Arial" font-size="19" font-weight="800" fill="#15211b">ocupa el centro</text>
+      <rect x="220" y="190" width="140" height="69" rx="8" fill="#eef5e9"/><rect x="220" y="190" width="6" height="69" rx="3" fill="#a6ce39"/><text x="237" y="215" font-family="Arial" font-size="11" font-weight="700" fill="#15211b">Contexto breve y</text><text x="237" y="233" font-family="Arial" font-size="11" font-weight="700" fill="#15211b">legible, con aire.</text>
+    </g>
+  </g>
+  <g transform="translate(540 195)">
+    <rect width="420" height="650" rx="22" fill="#fff" stroke="#dce4d9"/>
+    <text x="24" y="39" font-family="Arial,sans-serif" font-size="22" font-weight="800" fill="#15211b">B · Foto + impacto</text>
+    <text x="24" y="66" font-family="Arial,sans-serif" font-size="14" fill="#637067">Más dinámico · alterna claro y oscuro</text>
+    <g transform="translate(24 92)">
+      <rect width="176" height="330" rx="12" fill="#fff" stroke="#dce4d9"/><rect width="176" height="205" rx="12" fill="#345064"/><rect x="8" y="176" width="160" height="140" rx="10" fill="#fff"/>
+      <rect x="20" y="198" width="77" height="21" rx="7" fill="#a6ce39"/><text x="27" y="213" font-family="Arial" font-size="10" font-weight="800" fill="#15211b">ACTUALIDAD</text><text x="20" y="252" font-family="Arial" font-size="18" font-weight="800" fill="#15211b">La imagen abre</text><text x="20" y="274" font-family="Arial" font-size="18" font-weight="800" fill="#15211b">la historia</text>
+      <rect x="204" width="176" height="330" rx="12" fill="#17241e"/><text x="220" y="38" font-family="Arial" font-size="10" font-weight="800" fill="#a6ce39">02 · EN CONTEXTO</text><text x="220" y="92" font-family="Arial" font-size="19" font-weight="800" fill="#fff">Una pausa visual</text><text x="220" y="115" font-family="Arial" font-size="19" font-weight="800" fill="#fff">para destacar</text><rect x="220" y="190" width="140" height="69" rx="8" fill="#263c30"/><text x="236" y="217" font-family="Arial" font-size="11" font-weight="700" fill="#fff">Contraste entre</text><text x="236" y="235" font-family="Arial" font-size="11" font-weight="700" fill="#fff">diapositivas.</text>
+    </g>
+  </g>
+  <g transform="translate(1010 195)">
+    <rect width="420" height="650" rx="22" fill="#fff" stroke="#dce4d9"/>
+    <text x="24" y="39" font-family="Arial,sans-serif" font-size="22" font-weight="800" fill="#15211b">C · Revista informativa</text>
+    <text x="24" y="66" font-family="Arial,sans-serif" font-size="14" fill="#637067">Más flexible · datos y capas editoriales</text>
+    <g transform="translate(24 92)">
+      <rect width="176" height="330" rx="12" fill="#fff" stroke="#dce4d9"/><rect width="176" height="112" rx="12" fill="#795976"/><rect x="14" y="132" width="70" height="21" rx="7" fill="#a6ce39"/><text x="21" y="147" font-family="Arial" font-size="10" font-weight="800" fill="#15211b">POLÍTICA</text><text x="14" y="190" font-family="Arial" font-size="18" font-weight="800" fill="#15211b">Titular + dato</text><text x="14" y="212" font-family="Arial" font-size="18" font-weight="800" fill="#15211b">visual</text><rect x="14" y="282" width="30" height="4" rx="2" fill="#a6ce39"/>
+      <rect x="204" width="176" height="330" rx="12" fill="#f3eadc"/><rect x="220" y="18" width="54" height="72" rx="8" fill="#173126"/><text x="229" y="70" font-family="Arial" font-size="20" font-weight="900" fill="#fff">$4,3M</text><text x="286" y="34" font-family="Arial" font-size="10" font-weight="800" fill="#719421">DATO CLAVE</text><text x="286" y="72" font-family="Arial" font-size="16" font-weight="800" fill="#15211b">Una cifra</text><text x="286" y="91" font-family="Arial" font-size="16" font-weight="800" fill="#15211b">ordena</text><rect x="220" y="150" width="140" height="69" rx="8" fill="#fff"/><text x="234" y="178" font-family="Arial" font-size="11" font-weight="700" fill="#15211b">Ideal para notas</text><text x="234" y="196" font-family="Arial" font-size="11" font-weight="700" fill="#15211b">complejas.</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,41 @@
+<style>
+  .board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:22px}
+  .pick{cursor:pointer;transition:transform .2s ease,box-shadow .2s ease;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+  .pick:hover{transform:translateY(-4px);box-shadow:0 16px 38px rgba(0,0,0,.18)}
+  .pick.selected{outline:4px solid #a6ce39;outline-offset:4px}
+  .plate{aspect-ratio:4/5;position:relative;overflow:hidden;color:#fff;font-family:Inter,Arial,sans-serif}
+  .plate small{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}
+  .plate h3{font-size:25px;line-height:1.03;margin:8px 0 0;letter-spacing:-.04em}
+  .plate p{font-size:11px;line-height:1.35;margin:10px 0 0;opacity:.78}
+  .brand{position:absolute;top:18px;left:18px;font-weight:900;font-size:11px;letter-spacing:.08em}
+  .rule{position:absolute;left:18px;right:18px;top:47px;height:3px;background:#a6ce39}
+  .photo{position:absolute;inset:0;background:linear-gradient(145deg,#20382f 0%,#71906d 48%,#d6b67c 49%,#5d392b 100%)}
+  .photo:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.78) 72%)}
+  .a .copy{position:absolute;z-index:2;left:18px;right:18px;bottom:20px}.a .tag{color:#a6ce39}
+  .a .mini{position:absolute;z-index:2;right:18px;top:18px;width:28px;height:28px;border:2px solid #a6ce39;border-radius:50%;font-size:9px;display:grid;place-items:center;font-weight:900}
+  .b{background:#a6ce39;color:#182019}.b .brand{color:#182019}.b .rule{background:#182019}.b .band{position:absolute;left:0;right:0;top:44%;height:32%;background:#182019;transform:skewY(-6deg);transform-origin:left}.b .copy{position:absolute;z-index:2;left:18px;right:18px;top:31%}.b h3{font-size:30px}.b p{color:#fff;opacity:.75}.b .mark{position:absolute;right:18px;bottom:20px;font-size:50px;line-height:1;font-weight:900;opacity:.16}
+  .c{background:#f3f1eb;color:#182019}.c .brand{color:#182019}.c .rule{background:#182019}.c .data{position:absolute;left:18px;right:18px;top:68px;background:#182019;color:#fff;border-radius:14px;padding:14px}.c .data strong{display:block;color:#a6ce39;font-size:13px;line-height:1.15}.c .data span{font-size:10px;opacity:.7}.c .copy{position:absolute;left:18px;right:18px;bottom:20px}.c h3{font-size:23px}.c p{color:#4e5c53;opacity:1}.c .bar{height:5px;background:#a6ce39;border-radius:4px;margin-top:14px;width:68%}
+  .caption{padding:14px 16px 16px}.caption h4{margin:0 0 5px;font-size:15px}.caption p{margin:0;color:#66706b;font-size:12px;line-height:1.35}
+  .note{margin-top:18px;padding:12px 14px;border-left:3px solid #a6ce39;background:rgba(166,206,57,.1);font-size:12px;line-height:1.45}
+  @media(max-width:900px){.board{grid-template-columns:1fr}.plate{aspect-ratio:1/1.18}}
+</style>
+
+<h2>Elegí una dirección editorial</h2>
+<p class="subtitle">Mismo ejemplo de noticia · “El sur de Mendoza tendrá una nueva obra de infraestructura”</p>
+
+<div class="board">
+  <div class="pick" data-choice="fotografica" onclick="toggleSelect(this)">
+    <div class="plate a"><div class="photo"></div><div class="brand">MEDIA MENDOZA</div><div class="mini">MM</div><div class="rule"></div><div class="copy"><small class="tag">Mendoza · Actualidad</small><h3>El sur de Mendoza tendrá una nueva obra de infraestructura</h3><p>La inversión busca mejorar la conexión y los servicios de la región.</p></div></div>
+    <div class="caption"><h4>A · Editorial fotográfica</h4><p>La imagen lleva el peso emocional y el texto se apoya en una jerarquía limpia.</p></div>
+  </div>
+  <div class="pick" data-choice="impacto" onclick="toggleSelect(this)">
+    <div class="plate b"><div class="brand">MEDIA MENDOZA</div><div class="rule"></div><div class="band"></div><div class="copy"><small>Mendoza · Actualidad</small><h3>Una obra que cambia la conexión del sur</h3><p>La inversión busca mejorar la conexión y los servicios de la región.</p></div><div class="mark">01</div></div>
+    <div class="caption"><h4>B · Tipográfica de impacto</h4><p>Más reconocible en el scroll, con alto contraste y una voz visual más decidida.</p></div>
+  </div>
+  <div class="pick" data-choice="modular" onclick="toggleSelect(this)">
+    <div class="plate c"><div class="brand">MEDIA MENDOZA</div><div class="rule"></div><div class="data"><strong>NUEVA INFRAESTRUCTURA</strong><span>Impacto regional · Mendoza</span></div><div class="copy"><small>Actualidad</small><h3>El sur tendrá una nueva obra</h3><p>Una síntesis visual pensada para informar rápido y dejar clara la noticia.</p><div class="bar"></div></div></div>
+    <div class="caption"><h4>C · Modular informativa</h4><p>Más sistema y consistencia; preparada para sumar datos, cifras o bloques breves.</p></div>
+  </div>
+</div>
+
+<div class="note"><strong>Qué mirar:</strong> cuál conserva mejor la identidad de Media Mendoza, cuál se entiende más rápido y cuál te gustaría ver como base para las distintas familias.</div>

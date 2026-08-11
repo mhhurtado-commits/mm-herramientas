@@ -1,0 +1,62 @@
+<style>
+  .climate-test { font-family: Inter, system-ui, sans-serif; }
+  .climate-test h2 { margin-bottom: 6px; }
+  .climate-test .intro { color: #a6a6ad; margin: 0 0 22px; }
+  .climate-test .compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .climate-test .choice { cursor: pointer; }
+  .climate-test .choice-label { color: #b7e52b; font-weight: 700; margin: 0 0 9px 2px; }
+  .climate-test .plate { aspect-ratio: 1; border-radius: 18px; overflow: hidden; position: relative; color: #fff; box-shadow: 0 12px 30px #0005; }
+  .climate-test .plate::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, #06192522 0%, #06192570 56%, #061925e8 100%); }
+  .climate-test .photo { background-image: url('https://images.unsplash.com/photo-1499346030926-9a72daac6c63?auto=format&fit=crop&w=1400&q=85'); background-size: cover; background-position: center; }
+  .climate-test .photo-night { background-image: url('https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1400&q=85'); background-size: cover; background-position: center; }
+  .climate-test .gradient { background: radial-gradient(circle at 70% 20%, #78a69b 0, #244e5c 27%, transparent 50%), linear-gradient(145deg, #081c2d, #0b5360 58%, #173a50); }
+  .climate-test .gradient::before { content: ""; position: absolute; inset: 0; opacity: .3; background: repeating-linear-gradient(112deg, transparent 0 26px, #a7d13822 27px 28px); }
+  .climate-test .brand { position: absolute; z-index: 2; top: 20px; left: 22px; color: #b7e52b; font-size: 11px; letter-spacing: 1.2px; font-weight: 800; }
+  .climate-test .brand span { color: #fff; }
+  .climate-test .logo { position: absolute; z-index: 2; top: 17px; right: 20px; font-size: 15px; font-weight: 800; font-style: italic; }
+  .climate-test .headline { position: absolute; z-index: 2; left: 22px; right: 22px; top: 62px; font-size: 22px; font-weight: 800; line-height: 1.04; }
+  .climate-test .place { position: absolute; z-index: 2; left: 22px; top: 116px; font-size: 12px; color: #e9f2ef; }
+  .climate-test .hero { position: absolute; z-index: 2; left: 22px; right: 22px; top: 150px; display: flex; align-items: center; gap: 12px; }
+  .climate-test .sun { width: 68px; height: 68px; border-radius: 50%; background: #ffd45c; box-shadow: 0 0 0 10px #ffd45c33, 0 0 36px #ffd45c99; flex: none; }
+  .climate-test .temp { font-size: 54px; font-weight: 900; line-height: .9; }
+  .climate-test .condition { font-size: 13px; font-weight: 700; margin-top: 5px; color: #eaf3f0; }
+  .climate-test .metrics { position: absolute; z-index: 2; left: 22px; right: 22px; bottom: 72px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+  .climate-test .metric { border: 1px solid #ffffff55; background: #06192566; border-radius: 10px; padding: 8px 10px; }
+  .climate-test .metric small { display: block; color: #d7e3df; font-size: 9px; text-transform: uppercase; letter-spacing: .5px; }
+  .climate-test .metric strong { display: block; font-size: 18px; margin-top: 2px; }
+  .climate-test .forecast { position: absolute; z-index: 2; left: 22px; right: 22px; bottom: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .climate-test .day { border-top: 1px solid #ffffff66; padding-top: 6px; font-size: 10px; }
+  .climate-test .day strong { display: block; font-size: 13px; }
+  .climate-test .day span { color: #d5e1df; }
+  .climate-test .note { margin: 10px 2px 0; color: #8f9099; font-size: 12px; line-height: 1.35; }
+  @media (max-width: 800px) { .climate-test .compare { grid-template-columns: 1fr; } .climate-test .plate { max-width: 520px; } }
+</style>
+
+<div class="climate-test">
+  <h2>Prueba de fondos fotográficos</h2>
+  <p class="intro">Mismo contenido, misma jerarquía y mismo logo. Solo cambia el tratamiento del fondo para comparar impacto en redes.</p>
+  <div class="compare">
+    <div class="choice" data-choice="fotografia" onclick="toggleSelect(this)">
+      <p class="choice-label">A · Fotografía atmosférica</p>
+      <div class="plate photo">
+        <div class="brand">MEDIAMENDOZA <span>· CLIMA</span></div><div class="logo">mediamendoza</div>
+        <div class="headline">El clima de hoy</div><div class="place">San Rafael · lunes 3 de agosto</div>
+        <div class="hero"><div class="sun"></div><div><div class="temp">18°</div><div class="condition">Parcialmente nublado</div></div></div>
+        <div class="metrics"><div class="metric"><small>Sensación</small><strong>17°</strong></div><div class="metric"><small>Humedad</small><strong>54%</strong></div><div class="metric"><small>Viento</small><strong>25 km/h</strong></div><div class="metric"><small>Visibilidad</small><strong>20 km</strong></div></div>
+        <div class="forecast"><div class="day"><strong>Hoy</strong><span>18° · 0% lluvia</span></div><div class="day"><strong>Mañana</strong><span>16° · 10%</span></div><div class="day"><strong>Mié 5</strong><span>19° · 20%</span></div></div>
+      </div>
+      <p class="note">Más emocional y reconocible en el feed; necesita una capa oscura constante para asegurar lectura.</p>
+    </div>
+    <div class="choice" data-choice="gradiente" onclick="toggleSelect(this)">
+      <p class="choice-label">B · Gradiente editorial actual</p>
+      <div class="plate gradient">
+        <div class="brand">MEDIAMENDOZA <span>· CLIMA</span></div><div class="logo">mediamendoza</div>
+        <div class="headline">El clima de hoy</div><div class="place">San Rafael · lunes 3 de agosto</div>
+        <div class="hero"><div class="sun"></div><div><div class="temp">18°</div><div class="condition">Parcialmente nublado</div></div></div>
+        <div class="metrics"><div class="metric"><small>Sensación</small><strong>17°</strong></div><div class="metric"><small>Humedad</small><strong>54%</strong></div><div class="metric"><small>Viento</small><strong>25 km/h</strong></div><div class="metric"><small>Visibilidad</small><strong>20 km</strong></div></div>
+        <div class="forecast"><div class="day"><strong>Hoy</strong><span>18° · 0% lluvia</span></div><div class="day"><strong>Mañana</strong><span>16° · 10%</span></div><div class="day"><strong>Mié 5</strong><span>19° · 20%</span></div></div>
+      </div>
+      <p class="note">Más controlable y consistente; transmite información con claridad, pero tiene menos impacto emocional.</p>
+    </div>
+  </div>
+</div>
