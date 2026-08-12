@@ -50,7 +50,8 @@ h1 em { color: var(--v-dark); }
 .variant-card strong, .format-option strong, .image-option strong { color: var(--text); }
 .warning { background: var(--vl); color: var(--v-dark); border-color: var(--v); }
 .toast { background: var(--text); color: var(--surface); }
-.spinner { border-color: var(--line); border-top-color: var(--v-dark); }
+.mm-spinner { border-color: var(--line); border-top-color: var(--v-dark); }
+.mm-spinner.is-active { display: inline-block; }
 .preview-head { border-bottom-color: var(--line); }
 .family-badge { color: var(--v-dark); background: var(--vl); }
 .preview-foot { border-top-color: var(--line); }

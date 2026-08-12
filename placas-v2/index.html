@@ -76,6 +76,11 @@
     </section>
   </main>
   <div id="toast" class="toast" role="status"></div>
+  <script>
+    // Keep the loading indicator on the shared suite spinner contract.
+    document.querySelector('#loading .spinner')?.classList.replace('spinner', 'mm-spinner');
+    document.querySelector('#loading .mm-spinner')?.classList.add('is-active');
+  </script>
   <script type="module" src="app.mjs"></script>
 </body>
 </html>

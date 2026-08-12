@@ -255,8 +255,15 @@ body.dark-theme .mm-select {
   border-top-color: var(--v);
   border-radius: 50%;
   animation: mm-spin 0.7s linear infinite;
-  display: inline-block;
+  display: none;
 }
+.mm-spinner.is-active { display: inline-block; }
+/* Spinners created only while a dynamic operation is running. */
+.angulos-loading .mm-spinner,
+.loading-spinner .mm-spinner,
+.reel-export-progress .mm-spinner,
+#reelLoader .mm-spinner,
+.text-dim .mm-spinner { display: inline-block; }
 body.dark-theme .mm-spinner { border-color: rgba(255,255,255,0.15); border-top-color: var(--v); }
 @keyframes mm-spin { to { transform: rotate(360deg); } }
 
