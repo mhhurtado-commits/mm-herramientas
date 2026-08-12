@@ -352,6 +352,58 @@ body.dark-theme .login-logo img {
 .content-protected.show {
   display: block;
 }
+
+/* Hub renovado: agrupacion uniforme de la suite */
+.hub-main {
+  max-width: 1240px;
+  padding: calc(var(--header-h) + 34px) 32px 90px;
+}
+.masthead {
+  border: 1px solid var(--line2);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  margin-bottom: 42px;
+  overflow: hidden;
+}
+.masthead-left { padding: 42px 52px 46px; }
+.logo-hero { margin-bottom: 38px; }
+.logo-hero img { height: 66px; }
+.masthead-h1 { font-family: var(--font-display); font-size: clamp(3.5rem, 8vw, 6.8rem); line-height: .82; letter-spacing: -.5px; }
+.masthead-desc { font-size: 13px; max-width: 460px; margin-top: 18px; }
+.masthead-right { background: var(--bg2); }
+.masthead-logo-sq { flex: 1; min-height: 180px; border-bottom: 1px solid var(--line); }
+.masthead-logo-sq img { width: 124px; height: 124px; opacity: .28; }
+.masthead-meta { padding: 25px 42px; justify-content: space-between; }
+.tools { padding: 0; }
+.legacy-tools { display: none; }
+.tools-header { display: none; }
+.tool-group { margin-bottom: 48px; }
+.tool-group-heading { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 16px; padding: 0 4px 12px; border-bottom: 1px solid var(--line2); }
+.tool-group-index { color: var(--v); font-family: var(--font-display); font-size: 2.2rem; line-height: 1; }
+.tool-group-kicker { display: block; color: var(--v-dark); font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 3px; }
+.tool-group-heading h2 { color: var(--text); font-family: var(--font-display); font-size: 2rem; font-weight: 400; letter-spacing: .2px; line-height: 1; }
+.tool-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.tool-row { min-height: 190px; display: grid; grid-template-columns: 42px 1fr 34px; grid-template-rows: auto 1fr; padding: 22px 22px 20px; border: 1px solid var(--line2); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.tool-row::before { width: 3px; border-radius: 3px; }
+.tool-row:hover { background: var(--surface); border-color: var(--v); box-shadow: var(--shadow-md); transform: translateY(-3px); }
+.tool-cell { padding: 0; justify-content: flex-start; }
+.tool-cell:first-child { grid-row: 1 / span 2; }
+.tool-cell:nth-child(2) { grid-column: 2; }
+.tool-cell.desc-cell { grid-column: 2 / span 2; grid-row: 2; padding-top: 18px; }
+.tool-cell.pills-cell { display: none; }
+.tool-cell.tool-arrow { grid-column: 3; grid-row: 1; align-items: flex-end; color: var(--v); opacity: .8; }
+.tool-num { font-size: 1.3rem; color: var(--v); }
+.tool-name { font-family: var(--font-body); font-size: 1.12rem; font-weight: 700; letter-spacing: -.2px; line-height: 1.15; }
+.tool-name-tag { margin-top: 8px; }
+.tool-desc { max-width: 100%; font-size: 11px; line-height: 1.65; }
+@media (max-width: 760px) {
+  .hub-main { padding-left: 18px; padding-right: 18px; }
+  .masthead-left { padding: 30px 28px 34px; }
+  .masthead-right { display: none; }
+  .tool-grid { grid-template-columns: 1fr; }
+  .tool-group-heading h2 { font-size: 1.7rem; }
+}
 </style>
 </head>
 <body>
@@ -407,7 +459,38 @@ body.dark-theme .login-logo img {
     </div>
   </div>
 
-  <div class="tools">
+  <div class="suite-groups">
+    <section class="tool-group" aria-labelledby="group-writing">
+      <div class="tool-group-heading"><span class="tool-group-index">01</span><div><span class="tool-group-kicker">Flujo editorial</span><h2 id="group-writing">Redaccion y planificacion</h2></div></div>
+      <div class="tool-grid">
+        <a href="/redaccion/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">01</div></div><div class="tool-cell"><div class="tool-name">Redaccion</div><div class="tool-name-tag"><span class="mm-tag">Monitor</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Monitorea fuentes, reformula notas y trabaja con una linea editorial asistida.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+        <a href="/studio/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">02</div></div><div class="tool-cell"><div class="tool-name">Media Studio</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Transcribe audios o entrevistas y convierte el material en notas y subtitulos.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+        <a href="/resumen/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">03</div></div><div class="tool-cell"><div class="tool-name">Resumen</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Selecciona noticias y genera un resumen diario para WhatsApp y redes.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+        <a href="/agenda/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">04</div></div><div class="tool-cell"><div class="tool-name">Agenda</div><div class="tool-name-tag"><span class="mm-tag">Calendario</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Organiza coberturas, efemerides y angulos periodisticos con IA.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+      </div>
+    </section>
+
+    <section class="tool-group" aria-labelledby="group-publishing">
+      <div class="tool-group-heading"><span class="tool-group-index">02</span><div><span class="tool-group-kicker">Contenido para redes</span><h2 id="group-publishing">Diseno y publicacion</h2></div></div>
+      <div class="tool-grid">
+        <a href="/placas-v2/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">05</div></div><div class="tool-cell"><div class="tool-name">Placas v2</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Editorial</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Puerta de entrada para extraer una nota y convertirla en placas, carrusel o reel.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+        <a href="/placas/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">06</div></div><div class="tool-cell"><div class="tool-name">Placas</div><div class="tool-name-tag"><span class="mm-tag">Editor</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Editor visual de produccion para piezas sociales y plantillas existentes.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+        <a href="/social/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">07</div></div><div class="tool-cell"><div class="tool-name">Social</div><div class="tool-name-tag"><span class="mm-tag">Distribucion</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Prepara contenido y copys para Facebook, Instagram y X.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+        <a href="/whatsapp/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">08</div></div><div class="tool-cell"><div class="tool-name">WhatsApp</div><div class="tool-name-tag"><span class="mm-tag">Distribucion</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Genera mensajes para grupos y canales, con envios programados.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+      </div>
+    </section>
+
+    <section class="tool-group" aria-labelledby="group-visual">
+      <div class="tool-group-heading"><span class="tool-group-index">03</span><div><span class="tool-group-kicker">Produccion multimedia</span><h2 id="group-visual">Edicion y recursos visuales</h2></div></div>
+      <div class="tool-grid">
+        <a href="/video-editor/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">09</div></div><div class="tool-cell"><div class="tool-name">Editor de Entrevistas</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Edita videos a partir de la transcripcion y elimina silencios o muletillas.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+        <a href="/bulk-image/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">10</div></div><div class="tool-cell"><div class="tool-name">Editor por Lotes</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Procesa imagenes en serie con redimensionado, ajustes, texto y logo.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+        <a href="/visual-suite/" target="_blank" class="tool-row"><div class="tool-cell"><div class="tool-num">11</div></div><div class="tool-cell"><div class="tool-name">Visual Suite</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div></div><div class="tool-cell desc-cell"><p class="tool-desc">Crea graficos, mapas, lineas de tiempo e infografias para tus notas.</p></div><div class="tool-cell tool-arrow">&#8594;</div></a>
+      </div>
+    </section>
+  </div>
+
+  <div class="tools legacy-tools">
     <div class="tools-header">
       <div class="tools-col-label">—</div>
       <div class="tools-col-label">Herramienta</div>
@@ -448,9 +531,9 @@ body.dark-theme .login-logo img {
       <div class="tool-cell tool-arrow">→</div>
     </a>
 
-    <a href="/reels/" target="_blank" class="tool-row mm-animate mm-animate-6">
+    <a href="/placas-v2/" target="_blank" class="tool-row mm-animate mm-animate-6">
       <div class="tool-cell"><div class="tool-num">05</div></div>
-      <div class="tool-cell"><div class="tool-name">Reels editoriales</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Nuevo</span></div></div>
+      <div class="tool-cell"><div class="tool-name">Placas v2</div><div class="tool-name-tag"><span class="mm-tag mm-tag-green">Editorial</span></div></div>
       <div class="tool-cell desc-cell"><p class="tool-desc">Generá escenas verticales desde una noticia, con imagen completa, foco arrastrable y cierre editorial.</p></div>
       <div class="tool-cell pills-cell"><div class="tool-pills"><span class="tool-pill">9:16</span><span class="tool-pill">Canvas</span><span class="tool-pill">PNG</span></div></div>
       <div class="tool-cell tool-arrow">→</div>
