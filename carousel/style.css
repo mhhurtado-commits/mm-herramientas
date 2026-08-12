@@ -670,7 +670,8 @@
   overflow: hidden;
 }
 
-.carousel-reel-image-input {
+.carousel-reel-image-input,
+.carousel-interior-image-input {
   max-width: 220px;
   color: var(--muted);
   font-size: 11px;

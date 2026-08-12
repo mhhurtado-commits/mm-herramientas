@@ -35,7 +35,7 @@ export function loadEditorialPackage(editorialPackage) {
     ? attachEditorialPackage(project, editorialPackage)
     : openCarouselFromEditorialPackage(editorialPackage);
   if (next.editorialPlan?.cover && Array.isArray(next.editorialPlan.slides)) {
-    next.slides = convertirPlanASlides(next.editorialPlan, next.article, next.settings);
+    next.slides = convertirPlanASlides(next.editorialPlan, next.article, next.settings, next.manualSlideImages);
     next.socialCopy = {
       ...(next.socialCopy || {}),
       caption: editorialPackage.redes?.instagram || next.socialCopy?.caption || '',
@@ -46,7 +46,7 @@ export function loadEditorialPackage(editorialPackage) {
   return next;
 }
 
-export function convertirPlanASlides(plan, article, settings) {
+export function convertirPlanASlides(plan, article, settings, manualSlideImages) {
   const slides = [];
   let order = 0;
   const theme = (plan.diagnosis && plan.diagnosis.template) || "mm_classic";
@@ -81,12 +81,16 @@ export function convertirPlanASlides(plan, article, settings) {
     slide.content.source = item.source || (item.type === "end" ? item.title || "" : "");
     slide.content.cta = item.cta || (item.type === "end" ? item.text || "" : "");
     slide.content.supportImage = resolveSupportImage(item.supportImage, article);
+    if (manualSlideImages && Object.prototype.hasOwnProperty.call(manualSlideImages, slide.id)) {
+      slide.content.supportImage = manualSlideImages[slide.id] || "";
+    }
     slide.content.quoteValidation = item.quoteValidation || "";
     slide.content.validation = item.validation || item.quoteValidation || "";
     if (item.focalPosition !== undefined) {
       slide.content.focalPosition = item.focalPosition;
     }
-    if (!slide.content.supportImage && supportsSecondaryImage(item.type) && supportImages[supportIndex]) {
+    const hasManualImageChoice = manualSlideImages && Object.prototype.hasOwnProperty.call(manualSlideImages, slide.id);
+    if (!slide.content.supportImage && !hasManualImageChoice && supportsSecondaryImage(item.type) && supportImages[supportIndex]) {
       slide.content.supportImage = supportImages[supportIndex++];
     }
     if (item.type === "imagen") {
@@ -138,7 +142,7 @@ export async function generatePlan() {
         return parsed;
       }
       project.editorialPlan = parsed.plan;
-      project.slides = convertirPlanASlides(parsed.plan, project.article, project.settings);
+      project.slides = convertirPlanASlides(parsed.plan, project.article, project.settings, project.manualSlideImages);
       project.editorialPackage = attachCarouselOutput(
         createEditorialEnvelope(project.article, parsed.plan.diagnosis),
         parsed.plan,

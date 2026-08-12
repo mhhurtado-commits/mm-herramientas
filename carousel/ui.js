@@ -223,11 +223,68 @@ function createStageControls(project, activeItem) {
     wrap.appendChild(createCoverLogoControls(project));
   }
 
+  if (activeItem && isCarouselInternalScene(activeItem.slide)) {
+    wrap.appendChild(createCarouselSupportImageControls(project, activeItem.slide));
+  }
+
   if (activeItem && supportsFocalPoint(activeItem.slide)) {
     wrap.appendChild(createFocalPointControls(project, activeItem.slide));
   }
 
   return wrap;
+}
+
+function isCarouselInternalScene(slide) {
+  return !!slide && slide.template !== "cover" && slide.template !== "end";
+}
+
+function createCarouselSupportImageControls(project, slide) {
+  var wrap = document.createElement("div");
+  wrap.className = "carousel-cover-controls carousel-interior-image-controls";
+
+  var label = document.createElement("span");
+  label.className = "carousel-cover-controls-label";
+  label.textContent = "Imagen interior";
+  wrap.appendChild(label);
+
+  var input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.className = "carousel-interior-image-input";
+  input.setAttribute("aria-label", "Cargar imagen para esta diapositiva");
+  input.addEventListener("change", function () {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      updateCarouselSlideSupportImage(project, slide, String(reader.result || ""), file.name);
+    };
+    reader.readAsDataURL(file);
+  });
+  wrap.appendChild(input);
+
+  if (slide.content && slide.content.supportImage) {
+    var clearButton = document.createElement("button");
+    clearButton.type = "button";
+    clearButton.className = "carousel-cover-chip";
+    clearButton.textContent = "Quitar";
+    clearButton.addEventListener("click", function () {
+      updateCarouselSlideSupportImage(project, slide, "", "");
+    });
+    wrap.appendChild(clearButton);
+  }
+
+  return wrap;
+}
+
+function updateCarouselSlideSupportImage(project, slide, source, name) {
+  if (!project || !slide) return;
+  project.manualSlideImages = { ...(project.manualSlideImages || {}), [slide.id]: source };
+  slide.content = { ...(slide.content || {}), supportImage: source };
+  if (name) slide.content.supportImageName = name;
+  else delete slide.content.supportImageName;
+  setProject(project);
+  renderInPreview();
 }
 
 function createCategoryControls(project) {

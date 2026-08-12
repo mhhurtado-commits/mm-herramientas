@@ -13,6 +13,7 @@ export function createCarouselProject() {
     editorialPackage: null,
     categoryOptions: [],
     selectedCategoryId: "",
+    manualSlideImages: {},
     socialCopy: {
       caption: "",
       hashtags: []

@@ -157,7 +157,7 @@ function drawImageFrame(ctx, src, x, y, w, h, radius, focalPosition, theme) {
 function drawSupportImage(ctx, src, x, y, w, h, mode, theme, focalPosition) {
   var image = getCachedImage(src);
   if (!image) return drawImageFallback(ctx, x, y, w, h, 24, theme, "Sin imagen");
-  if (image.width < w * 1.5 || image.height < h * 1.5) return false;
+  if (image.width < 640 || image.height < 360) return false;
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 24);
@@ -565,19 +565,16 @@ function drawText(ctx, slide, project, theme, layout) {
   ctx.fillRect(0, 0, W, H);
   drawLogo(ctx, project, theme, layout, false);
   var supportImage = content.supportImage;
-  var hasSupportImage = supportImage && drawSupportImage(
-    ctx,
-    supportImage,
-    layout.content.x + layout.content.width - 250,
-    layout.content.y + 132,
-    220,
-    180,
-    "contain",
-    theme,
-    content.focalPosition
-  );
-  var textWidth = hasSupportImage ? layout.content.width - 276 : layout.content.width;
-  var titleY = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132, maxWidth: textWidth }) + 8;
+  var headerEnd = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 });
+  var hasSupportImage = false;
+  var titleY = headerEnd + 8;
+  if (supportImage) {
+    var imageY = headerEnd + 22;
+    var imageH = 330;
+    hasSupportImage = drawSupportImage(ctx, supportImage, layout.content.x, imageY, layout.content.width, imageH, "contain", theme, content.focalPosition);
+    if (hasSupportImage) titleY = imageY + imageH + 28;
+  }
+  var textWidth = layout.content.width;
   var titleEnd = drawMeasuredText(ctx, content.title, layout.content.x, titleY, textWidth, {
     fontSize: 58, minFontSize: 38, maxLines: INTERNAL_TITLE_MAX_LINES, lineHeight: 66, weight: "700", color: theme.colors.textPrimary,
     role: "title",
@@ -607,10 +604,10 @@ function drawKey(ctx, slide, project, theme, layout) {
   fillRoundRect(ctx, layout.content.x, cardY, 14, cardHeight, 7, theme.colors.accent);
   var supportImage = content.supportImage;
   var hasSupportImage = supportImage && drawSupportImage(
-    ctx, supportImage, layout.content.x + layout.content.width - 270, cardY + 34,
-    300, Math.min(240, Math.max(140, cardHeight - 68)), "contain", theme, content.focalPosition
+    ctx, supportImage, layout.content.x + layout.content.width - 460, cardY + 34,
+    420, Math.min(300, Math.max(180, cardHeight - 68)), "contain", theme, content.focalPosition
   );
-  var textWidth = hasSupportImage ? layout.content.width - 390 : layout.content.width - 96;
+  var textWidth = hasSupportImage ? layout.content.width - 500 : layout.content.width - 96;
 
   var titleEnd = drawMeasuredText(ctx, content.title, layout.content.x + 48, cardY + 54, textWidth, {
     fontSize: 68, minFontSize: 42, maxLines: INTERNAL_TITLE_MAX_LINES, lineHeight: 76, weight: "700", color: theme.colors.accentDark,
@@ -709,15 +706,15 @@ function drawStats(ctx, slide, project, theme, layout) {
   var hasSupportImage = supportImage && drawSupportImage(
     ctx,
     supportImage,
-    layout.content.x + layout.content.width - 250,
+    layout.content.x + layout.content.width - 460,
     layout.content.y + 132,
-    220,
-    190,
+    420,
+    300,
     "cover",
     theme,
     content.focalPosition
   );
-  var factWidth = hasSupportImage ? layout.content.width - 276 : layout.content.width;
+  var factWidth = hasSupportImage ? layout.content.width - 480 : layout.content.width;
   var headingY = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132, maxWidth: factWidth }) + 12;
   var factEnd = drawMeasuredText(ctx, primary, layout.content.x, headingY, factWidth, {
     fontSize: 138, minFontSize: 58, maxLines: 2, lineHeight: 132, weight: "700", color: theme.colors.accentDark,

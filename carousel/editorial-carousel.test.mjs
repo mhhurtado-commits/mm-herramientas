@@ -254,6 +254,23 @@ test('amplía la imagen de apoyo en la diapositiva de datos', async () => {
   assert.ok(Math.max(...support.args) >= 250);
 });
 
+test('usa una imagen de apoyo protagonista en una interna de contexto', async () => {
+  const source = 'https://example.com/context-support.jpg';
+  installCanvasHarness();
+  const slide = normalizeCarouselSlide({
+    type: 'contexto',
+    content: {
+      title: 'El dato principal',
+      text: 'La informacion relevante debe leerse junto a una imagen amplia.',
+      supportImage: source,
+    },
+  }, 0, 1);
+  await canvasRenderer.preloadCarouselAssets([slide], { article: { images: [source] } });
+  const canvas = renderSlideToCanvas(slide, { article: { images: [source] }, slides: [slide] });
+  const support = canvas.calls.imageDraws.find((draw) => draw.args[2] >= 450 || draw.args[3] >= 300);
+  assert.ok(support, JSON.stringify(canvas.calls.imageDraws));
+});
+
 test('divide una clave extensa en bloques escaneables', () => {
   const canvas = renderEditorialSlide({
     type: 'clave',
@@ -1088,6 +1105,24 @@ test('limita supportImage a imagenes de la nota o fuentes manuales explicitas', 
   assert.equal(preloadedSources.some((source) => source.includes('preload-unsupported.jpg')), false);
 });
 
+test('prioriza y conserva la imagen manual de una escena al regenerar el plan', () => {
+  const plan = {
+    cover: { title: 'Portada', subtitle: 'Bajada' },
+    slides: [
+      { type: 'contexto', title: 'Contexto', text: 'Texto', supportImage: 'article.images[0]' },
+      { type: 'end', title: 'Cierre', text: 'CTA' },
+    ],
+    diagnosis: { template: 'mm_classic' },
+  };
+  const manualImage = 'data:image/png;base64,bWFudWFs';
+  const article = { image: 'https://example.com/cover.jpg', images: ['https://example.com/contract.jpg'] };
+  const slides = carouselEngine.convertirPlanASlides(plan, article, {}, { 'slide-1': manualImage });
+  assert.equal(slides[1].content.supportImage, manualImage);
+
+  const cleared = carouselEngine.convertirPlanASlides(plan, article, { useSecondaryImages: true }, { 'slide-1': '' });
+  assert.equal(cleared[1].content.supportImage, '');
+});
+
 test('conserva una imagen de la nota guardada con el proxy conocido y rechaza proxies ajenos', () => {
   const worker = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
   const articleImage = 'https://example.com/article-support.jpg?width=1200&format=webp';
@@ -1872,7 +1907,7 @@ test('aplica focalPosition a imagenes de apoyo en slides de contexto', () => {
 
   assert.ok(centeredDraw);
   assert.ok(focusedDraw);
-  assert.notEqual(centeredDraw.args[1], focusedDraw.args[1]);
+  assert.notEqual(centeredDraw.args[0], focusedDraw.args[0]);
 });
 
 test('aplica el foco normalizado a las imagenes de apoyo', () => {
