@@ -56,7 +56,7 @@ test('genera metadatos mínimos para registrar el experimento', () => {
     fecha: '2026-08-13',
   });
 });
-import { getContextTypography, renderNewsPlate } from './renderer.mjs';
+import { getContextTypography, getSyntheticTypography, renderNewsPlate } from './renderer.mjs';
 
 const extracted = {
   title: 'El Gobierno anunció una nueva obra de infraestructura para el sur de Mendoza',
@@ -298,4 +298,12 @@ test('renderiza solo el titular sintético y no la bajada en titular arriba', ()
   assert.ok(calls.includes('Titular breve'));
   assert.equal(calls.includes(plate.bajada), false);
   assert.equal(calls.includes(plate.contexto), false);
+});
+
+test('da al titular sintético una escala dominante en 4:5', () => {
+  const typography = getSyntheticTypography('portrait');
+
+  assert.ok(typography.startRatio >= 0.075);
+  assert.ok(typography.minRatio >= 0.03);
+  assert.equal(typography.maxLines, 3);
 });

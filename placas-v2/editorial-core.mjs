@@ -298,7 +298,7 @@ export function calculatePlateLayout(format, plate = {}) {
     const labelH = canvas.h * (isStory ? 0.042 : 0.05);
     const copyY = canvas.h * (isStory ? 0.055 : 0.06);
     const titleY = copyY + labelH + canvas.h * 0.018;
-    const titleH = canvas.h * (isStory ? 0.28 : format === 'portrait' ? 0.29 : 0.25);
+    const titleH = canvas.h * (isStory ? 0.25 : format === 'portrait' ? 0.25 : 0.23);
     const imageY = titleY + titleH + canvas.h * (isStory ? 0.018 : 0.025);
     const imageH = canvas.h - imageY - footerH - margin * 0.55;
     return {

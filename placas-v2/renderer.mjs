@@ -29,9 +29,20 @@ const CONTEXT_TYPOGRAPHY = {
   },
 };
 
+const SYNTHETIC_TYPOGRAPHY = {
+  landscape: { startRatio: 0.072, minRatio: 0.032, maxLines: 3 },
+  square: { startRatio: 0.080, minRatio: 0.032, maxLines: 3 },
+  portrait: { startRatio: 0.085, minRatio: 0.032, maxLines: 3 },
+  story: { startRatio: 0.078, minRatio: 0.030, maxLines: 3 },
+};
+
 export function getContextTypography(format, plateType = 'noticia') {
   const byFormat = CONTEXT_TYPOGRAPHY[format] || CONTEXT_TYPOGRAPHY.square;
   return { reserveLines: 1, ...(byFormat[plateType] || byFormat.noticia) };
+}
+
+export function getSyntheticTypography(format = 'portrait') {
+  return SYNTHETIC_TYPOGRAPHY[format] || SYNTHETIC_TYPOGRAPHY.portrait;
 }
 
 function roundedRect(ctx, x, y, w, h, r) {
@@ -201,9 +212,10 @@ function renderSyntheticPlate(ctx, plate, format, options, family, layout) {
   ctx.fillText(labelText, layout.label.x + labelPadX, layout.label.y + labelH * 0.72);
 
   const title = plate.titulo_sintetico || plate.titulo;
-  const titleStart = Math.max(42, canvas.w * (format === 'story' ? 0.064 : 0.062));
-  const titleMin = Math.max(28, canvas.w * 0.026);
-  fittedText(ctx, title, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, 3, 900, family.secondary, 1.02, layout.title.h);
+  const typography = getSyntheticTypography(format);
+  const titleStart = Math.max(42, canvas.w * typography.startRatio);
+  const titleMin = Math.max(28, canvas.w * typography.minRatio);
+  fittedText(ctx, title, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, typography.maxLines, 900, family.secondary, 1.0, layout.title.h);
 
   ctx.save();
   ctx.beginPath();
