@@ -41,6 +41,16 @@ test('recomienda titular arriba y conserva noticia como alternativa visual', () 
   assert.equal(variants.some(variant => variant.tipo_placa === 'noticia'), true);
 });
 
+test('ofrece titular abajo como segunda variante sintética con el mismo título', () => {
+  const plate = normalizeNewsPlate({ ...extracted, titulo_sintetico: 'Una decisión cambia el escenario' });
+  const variants = buildEditorialVariants(plate);
+
+  assert.equal(variants[0].tipo_placa, 'titular-arriba');
+  assert.equal(variants[1].tipo_placa, 'titular-abajo');
+  assert.equal(variants[1].titulo_sintetico, variants[0].titulo_sintetico);
+  assert.equal(variants[1].recommended, false);
+});
+
 test('calcula layout sintético con titular arriba e imagen debajo', () => {
   const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'titular-arriba' });
   const layout = calculatePlateLayout('portrait', plate);
@@ -48,6 +58,17 @@ test('calcula layout sintético con titular arriba e imagen debajo', () => {
   assert.equal(layout.synthetic, true);
   assert.ok(layout.title.y < layout.image.y);
   assert.ok(layout.title.y + layout.title.h <= layout.image.y);
+  assert.equal(layout.dek.h, 0);
+  assert.equal(layout.context.h, 0);
+});
+
+test('calcula layout sintético con imagen arriba y titular abajo', () => {
+  const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'titular-abajo' });
+  const layout = calculatePlateLayout('portrait', plate);
+
+  assert.equal(layout.synthetic, true);
+  assert.ok(layout.image.y < layout.title.y);
+  assert.ok(layout.image.y + layout.image.h <= layout.title.y);
   assert.equal(layout.dek.h, 0);
   assert.equal(layout.context.h, 0);
 });
@@ -113,7 +134,7 @@ test('genera una propuesta recomendada y dos alternativas determinísticas', () 
 
   assert.equal(variants.length, 3);
   assert.equal(variants[0].recommended, true);
-  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-principal', 'general-editorial']);
+  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-editorial']);
   assert.equal(variants.every(variant => variant.bloques.length > 0), true);
 });
 

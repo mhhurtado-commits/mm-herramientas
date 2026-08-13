@@ -196,8 +196,35 @@ function drawSupportImage(ctx, layout, family, options = {}) {
 
 function renderSyntheticPlate(ctx, plate, format, options, family, layout) {
   const { canvas } = layout;
+  const titleBelow = plate.tipo_placa === 'titular-abajo';
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.w, canvas.h);
+
+  const drawImage = () => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(layout.image.x, layout.image.y, layout.image.w, layout.image.h);
+    ctx.clip();
+    if (!adaptiveImage(ctx, options.image, layout.image, options.focus, options.forceCover)) {
+      const fallback = ctx.createLinearGradient(0, layout.image.y, canvas.w, layout.image.y + layout.image.h);
+      fallback.addColorStop(0, family.secondary);
+      fallback.addColorStop(1, family.color);
+      ctx.fillStyle = fallback;
+      ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h);
+    }
+    const overlay = ctx.createLinearGradient(0, layout.image.y, 0, layout.image.y + layout.image.h * 0.24);
+    overlay.addColorStop(0, 'rgba(0,0,0,.42)');
+    overlay.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = overlay;
+    ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h * 0.24);
+    ctx.restore();
+
+    const logoMargin = canvas.w * 0.045;
+    const logoW = canvas.w * (format === 'landscape' ? 0.22 : 0.30);
+    containImage(ctx, options.logo, { x: canvas.w - logoMargin - logoW, y: layout.image.y + canvas.h * 0.025, w: logoW, h: canvas.h * 0.10 });
+  };
+
+  if (titleBelow) drawImage();
 
   const labelText = String(plate.etiqueta || family.label).toUpperCase();
   const labelSize = Math.max(18, canvas.w * (format === 'story' ? 0.022 : 0.024));
@@ -217,27 +244,7 @@ function renderSyntheticPlate(ctx, plate, format, options, family, layout) {
   const titleMin = Math.max(28, canvas.w * typography.minRatio);
   fittedText(ctx, title, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, typography.maxLines, 900, family.secondary, 1.0, layout.title.h);
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(layout.image.x, layout.image.y, layout.image.w, layout.image.h);
-  ctx.clip();
-  if (!adaptiveImage(ctx, options.image, layout.image, options.focus, options.forceCover)) {
-    const fallback = ctx.createLinearGradient(0, layout.image.y, canvas.w, layout.image.y + layout.image.h);
-    fallback.addColorStop(0, family.secondary);
-    fallback.addColorStop(1, family.color);
-    ctx.fillStyle = fallback;
-    ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h);
-  }
-  const overlay = ctx.createLinearGradient(0, layout.image.y, 0, layout.image.y + layout.image.h * 0.24);
-  overlay.addColorStop(0, 'rgba(0,0,0,.42)');
-  overlay.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = overlay;
-  ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h * 0.24);
-  ctx.restore();
-
-  const logoMargin = canvas.w * 0.045;
-  const logoW = canvas.w * (format === 'landscape' ? 0.22 : 0.30);
-  containImage(ctx, options.logo, { x: canvas.w - logoMargin - logoW, y: layout.image.y + canvas.h * 0.025, w: logoW, h: canvas.h * 0.10 });
+  if (!titleBelow) drawImage();
 
   ctx.strokeStyle = 'rgba(22,32,27,.16)';
   ctx.lineWidth = Math.max(2, canvas.h * 0.001);
@@ -268,7 +275,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.w, canvas.h);
 
-  if (plateType === 'titular-arriba') return renderSyntheticPlate(ctx, plate, format, options, family, layout);
+  if (['titular-arriba', 'titular-abajo'].includes(plateType)) return renderSyntheticPlate(ctx, plate, format, options, family, layout);
 
   const isHeaderless = true;
   if (!isHeaderless) {

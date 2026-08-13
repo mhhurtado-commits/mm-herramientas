@@ -201,7 +201,7 @@ function normalizeNewsPlate(input = {}) {
   const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const normalized = {
     tipo: 'placa_noticia',
     version: 1,
@@ -273,7 +273,7 @@ function buildEditorialVariants(plate) {
   const alternative = family === 'general' ? 'sociales' : 'general';
   return [
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-arriba' }, `${family}-titular-arriba`, family, true),
-    cloneWithTemplate({ ...plate, tipo_placa: 'noticia' }, `${family}-principal`, family, false),
+    cloneWithTemplate({ ...plate, tipo_placa: 'titular-abajo' }, `${family}-titular-abajo`, family, false),
     cloneWithTemplate(plate, `${alternative}-editorial`, alternative, false),
   ];
 }
@@ -362,9 +362,9 @@ REGLAS:
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
 - Genera tambien un titular sintetico idealmente de 6 a 10 palabras para el modelo titular-arriba. Debe conservar sujeto, hecho principal y precision; no agregues contexto secundario ni inventes informacion.
-- Usa titular-arriba como propuesta recomendada cuando la noticia pueda resumirse en una sola idea visual; conserva noticia para la alternativa con bajada.
+- Usa titular-arriba como propuesta recomendada cuando la noticia pueda resumirse en una sola idea visual; titular-abajo es una alternativa sintética válida; conserva noticia para la alternativa con bajada.
 - Las citas textuales deben copiarse literalmente del cuerpo y verificarse; si no existe una cita literal, devolvé una cadena vacía. Detectá personas sólo con atribución clara y devolvé una imagen de la nota si está disponible; la interfaz permite subir otra imagen.
-- Elegí también un tipo de placa entre noticia, textual, retrato-circular y editorial-split. Usá textual sólo con cita verificable y retrato-circular sólo con personas identificables.
+- Elegí también un tipo de placa entre noticia, titular-arriba, titular-abajo, textual, retrato-circular y editorial-split. Usá textual sólo con cita verificable y retrato-circular sólo con personas identificables.
 
 Respondé SOLO con este JSON:
 {
@@ -376,7 +376,7 @@ Respondé SOLO con este JSON:
   "contexto": "dato o contexto clave, o cadena vacía",
   "redes": { "instagram": "copy para Instagram", "facebook": "copy para Facebook" },
   "etiqueta": "nombre de la sección",
-  "tipo_placa": "noticia|titular-arriba|textual|retrato-circular|editorial-split",
+  "tipo_placa": "noticia|titular-arriba|titular-abajo|textual|retrato-circular|editorial-split",
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
   "personas": [{ "nombre": "persona", "rol": "cargo", "imagen": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
   "imagenes_apoyo": [{ "src": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],

@@ -18,6 +18,7 @@ export const FAMILIES = {
 export const PLATE_TYPES = {
   noticia: { id: 'noticia', label: 'Noticia' },
   'titular-arriba': { id: 'titular-arriba', label: 'Titular arriba' },
+  'titular-abajo': { id: 'titular-abajo', label: 'Titular abajo' },
   textual: { id: 'textual', label: 'Textual' },
   'retrato-circular': { id: 'retrato-circular', label: 'Retrato circular' },
   'editorial-split': { id: 'editorial-split', label: 'Editorial split' },
@@ -192,7 +193,7 @@ export function normalizeNewsPlate(input = {}) {
   const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const normalized = {
     tipo: 'placa_noticia',
     version: 1,
@@ -263,7 +264,7 @@ export function buildEditorialVariants(plate) {
   const alternative = family === 'general' ? 'sociales' : 'general';
   return [
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-arriba' }, `${family}-titular-arriba`, family, true),
-    cloneWithTemplate({ ...plate, tipo_placa: 'noticia' }, `${family}-principal`, family, false),
+    cloneWithTemplate({ ...plate, tipo_placa: 'titular-abajo' }, `${family}-titular-abajo`, family, false),
     cloneWithTemplate(plate, `${alternative}-editorial`, alternative, false),
   ];
 }
@@ -304,26 +305,31 @@ export function calculatePlateLayout(format, plate = {}) {
   const canvas = FORMATS[format] || FORMATS.square;
   const margin = canvas.w * 0.055;
   const isStory = format === 'story';
-  const isSynthetic = plate.tipo_placa === 'titular-arriba';
+  const isSynthetic = ['titular-arriba', 'titular-abajo'].includes(plate.tipo_placa);
+  const isTitleBelow = plate.tipo_placa === 'titular-abajo';
   const isHeaderless = true;
   const headerH = isHeaderless ? 0 : canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
   const footerH = canvas.h * (isStory ? 0.055 : 0.07);
   if (isSynthetic) {
     const labelH = canvas.h * (isStory ? 0.042 : 0.05);
-    const copyY = canvas.h * (isStory ? 0.055 : 0.06);
+    const imageY = isTitleBelow ? canvas.h * (isStory ? 0.03 : 0.035) : 0;
+    const imageH = isTitleBelow
+      ? canvas.h * (isStory ? 0.50 : format === 'landscape' ? 0.54 : 0.55)
+      : 0;
+    const copyY = isTitleBelow ? imageY + imageH + canvas.h * 0.025 : canvas.h * (isStory ? 0.055 : 0.06);
     const titleY = copyY + labelH + canvas.h * 0.018;
     const titleH = canvas.h * (isStory ? 0.25 : format === 'portrait' ? 0.25 : 0.23);
-    const imageY = titleY + titleH + canvas.h * (isStory ? 0.018 : 0.025);
-    const imageH = canvas.h - imageY - footerH - margin * 0.55;
+    const calculatedImageY = isTitleBelow ? imageY : titleY + titleH + canvas.h * (isStory ? 0.018 : 0.025);
+    const calculatedImageH = isTitleBelow ? imageH : canvas.h - calculatedImageY - footerH - margin * 0.55;
     return {
       canvas,
       synthetic: true,
       header: { x: 0, y: 0, w: canvas.w, h: 0 },
       label: { x: margin, y: copyY, w: canvas.w - margin * 2, h: labelH },
       title: { x: margin, y: titleY, w: canvas.w - margin * 2, h: titleH },
-      image: { x: 0, y: imageY, w: canvas.w, h: Math.max(0, imageH) },
-      dek: { x: margin, y: imageY, w: canvas.w - margin * 2, h: 0 },
-      context: { x: margin, y: imageY, w: canvas.w - margin * 2, h: 0 },
+      image: { x: 0, y: calculatedImageY, w: canvas.w, h: Math.max(0, calculatedImageH) },
+      dek: { x: margin, y: calculatedImageY, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: calculatedImageY, w: canvas.w - margin * 2, h: 0 },
       footer: { x: margin, y: canvas.h - footerH, w: canvas.w - margin * 2, h: footerH - margin * 0.4 },
     };
   }
