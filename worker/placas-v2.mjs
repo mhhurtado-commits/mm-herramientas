@@ -29,17 +29,17 @@ REGLAS:
 - Generá dos copys para acompañar la placa con foco en engagement: Instagram debe tener 1 o 2 párrafos breves, 2 o 3 emojis pertinentes, una pregunta o invitación a participar y 3 a 5 hashtags relevantes; Facebook debe tener 2 o 3 párrafos breves, 1 o 2 emojis, una pregunta concreta para incentivar comentarios y el enlace editorial al final.
 - No inventes datos, citas ni preguntas que atribuyan hechos no presentes en la noticia. No uses [enlace], links completos ni llamados a la acción repetidos: el sistema normaliza el enlace y el CTA.
 - Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
-- Elegí un tipo de placa entre: noticia, textual, retrato-circular, editorial-split. Usá textual sólo con cita literal verificable y retrato-circular sólo si hay al menos una persona identificable.
+- Elegí un tipo de placa entre: noticia, titular-arriba, titular-abajo, foto-completa, textual, retrato-circular, editorial-split. Usá foto-completa como alternativa de foto a sangre con titular superpuesto; textual sólo con cita literal verificable y retrato-circular sólo si hay al menos una persona identificable.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
 - Genera tambien un titular sintetico idealmente de 6 a 10 palabras para el modelo titular-arriba. Debe conservar sujeto, hecho principal y precision; no agregues contexto secundario ni inventes informacion.
-- Usa titular-arriba como propuesta recomendada cuando la noticia pueda resumirse en una sola idea visual; titular-abajo es una alternativa sintética válida; conserva noticia para la alternativa con bajada.
+- Usa titular-arriba como propuesta recomendada cuando la noticia pueda resumirse en una sola idea visual; titular-abajo y foto-completa son alternativas sintéticas válidas; conserva noticia para la alternativa con bajada.
 
 Respondé SOLO con este JSON:
 {
   "tipo": "placa_noticia",
   "version": 1,
-  "tipo_placa": "noticia|titular-arriba|titular-abajo|textual|retrato-circular|editorial-split",
+  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|textual|retrato-circular|editorial-split",
   "titulo": "titular para la placa",
   "titulo_sintetico": "titular sintetico de maximo 10 palabras",
   "bajada": "bajada breve",

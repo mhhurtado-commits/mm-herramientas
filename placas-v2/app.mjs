@@ -124,7 +124,7 @@ function renderOutputs() {
 
 function renderTemplates() {
   const source = activeVariant();
-  const types = Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || type.id === 'titular-arriba' || type.id === 'titular-abajo' || (type.id === 'textual' && source?.textual?.verificada) || type.id === 'retrato-circular' || type.id === 'editorial-split');
+  const types = Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || type.id === 'titular-arriba' || type.id === 'titular-abajo' || type.id === 'foto-completa' || (type.id === 'textual' && source?.textual?.verificada) || type.id === 'retrato-circular' || type.id === 'editorial-split');
   const current = state.selectedTemplate || source?.tipo_placa || 'noticia';
   $('#templateList').innerHTML = types.map(type => `<button type="button" class="template-option ${current === type.id ? 'active' : ''}" data-template="${type.id}">${type.label}</button>`).join('');
   document.querySelectorAll('.template-option').forEach(button => button.addEventListener('click', () => { state.selectedTemplate = button.dataset.template; syncEditor(); renderTemplates(); render(); }));
@@ -161,7 +161,7 @@ function renderSupportImages() {
   document.querySelectorAll('.support-image-option').forEach(button => button.addEventListener('click', async () => { const item = options[Number(button.dataset.supportIndex)]; source.imagenes_apoyo = [item]; state.supportImageUrl = item.src; state.supportFocus = item.foco; renderSupportImages(); await loadSupportImage(item.src); }));
 }
 function syncSocialCopies() { const variant = activeVariant(); const copies = variant?.redes || {}; const visible = Boolean(copies.instagram || copies.facebook); $('#socialCopies').classList.toggle('is-hidden', !visible); $('#instagramCopy').value = copies.instagram || ''; $('#facebookCopy').value = copies.facebook || ''; }
-function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#syntheticTitleInput').value = variant.titulo_sintetico || ''; syncSyntheticTitleMeta(variant.titulo_sintetico); $('#syntheticControls').classList.toggle('is-hidden', !['titular-arriba', 'titular-abajo'].includes(state.selectedTemplate)); $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderSupportImages(); renderTemplates(); }
+function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#syntheticTitleInput').value = variant.titulo_sintetico || ''; syncSyntheticTitleMeta(variant.titulo_sintetico); $('#syntheticControls').classList.toggle('is-hidden', !['titular-arriba', 'titular-abajo', 'foto-completa'].includes(state.selectedTemplate)); $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderSupportImages(); renderTemplates(); }
 function setSocialText(network, value) { const current = activeVariant(); if (!current) return; current.redes = { ...(current.redes || {}), [network]: value }; if (state.plate === current) state.plate.redes = current.redes; }
 async function copySocial(network) { const value = $(`#${network}Copy`).value.trim(); if (!value) return; try { await navigator.clipboard.writeText(value); toast(`Texto de ${network === 'instagram' ? 'Instagram' : 'Facebook'} copiado.`); } catch { toast('No se pudo copiar el texto.'); } }
 

@@ -22,6 +22,7 @@ test('normaliza un titular sintético separado del titular editorial', () => {
   assert.equal(plate.titulo, 'Titular editorial completo para la nota');
   assert.equal(plate.titulo_sintetico, 'Una decisión cambia el escenario');
   assert.equal(PLATE_TYPES['titular-arriba'].id, 'titular-arriba');
+  assert.equal(PLATE_TYPES['foto-completa'].id, 'foto-completa');
 });
 
 test('acorta solo el titular sintético y conserva el dato central', () => {
@@ -31,14 +32,14 @@ test('acorta solo el titular sintético y conserva el dato central', () => {
   assert.equal(normalizeSyntheticTitle(longTitle), 'García Salazar respondió al ranking salarial docente');
 });
 
-test('recomienda titular arriba y conserva noticia como alternativa visual', () => {
+test('recomienda titular arriba y conserva alternativas sintéticas', () => {
   const plate = normalizeNewsPlate({ ...extracted, titulo_sintetico: 'Una decisión cambia el escenario' });
   const variants = buildEditorialVariants(plate);
 
   assert.equal(variants[0].tipo_placa, 'titular-arriba');
   assert.equal(variants[0].recommended, true);
   assert.equal(variants[0].titulo_sintetico, 'Una decisión cambia el escenario');
-  assert.equal(variants.some(variant => variant.tipo_placa === 'noticia'), true);
+  assert.equal(variants.some(variant => variant.tipo_placa === 'foto-completa'), true);
 });
 
 test('ofrece titular abajo como segunda variante sintética con el mismo título', () => {
@@ -49,6 +50,15 @@ test('ofrece titular abajo como segunda variante sintética con el mismo título
   assert.equal(variants[1].tipo_placa, 'titular-abajo');
   assert.equal(variants[1].titulo_sintetico, variants[0].titulo_sintetico);
   assert.equal(variants[1].recommended, false);
+});
+
+test('ofrece foto completa como tercera variante sintética con el mismo título', () => {
+  const plate = normalizeNewsPlate({ ...extracted, titulo_sintetico: 'Una decisión cambia el escenario' });
+  const variants = buildEditorialVariants(plate);
+
+  assert.equal(variants[2].tipo_placa, 'foto-completa');
+  assert.equal(variants[2].titulo_sintetico, variants[0].titulo_sintetico);
+  assert.equal(variants[2].recommended, false);
 });
 
 test('calcula layout sintético con titular arriba e imagen debajo', () => {
@@ -69,6 +79,21 @@ test('calcula layout sintético con imagen arriba y titular abajo', () => {
   assert.equal(layout.synthetic, true);
   assert.ok(layout.image.y < layout.title.y);
   assert.ok(layout.image.y + layout.image.h <= layout.title.y);
+  assert.equal(layout.dek.h, 0);
+  assert.equal(layout.context.h, 0);
+});
+
+test('calcula layout de foto completa con texto superpuesto y sin bajada', () => {
+  const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'foto-completa' });
+  const layout = calculatePlateLayout('portrait', plate);
+
+  assert.equal(layout.syntheticFullBleed, true);
+  assert.equal(layout.image.x, 0);
+  assert.equal(layout.image.y, 0);
+  assert.equal(layout.image.w, layout.canvas.w);
+  assert.equal(layout.image.h, layout.canvas.h);
+  assert.ok(layout.title.y > layout.canvas.h * 0.55);
+  assert.ok(layout.title.y + layout.title.h < layout.footer.y);
   assert.equal(layout.dek.h, 0);
   assert.equal(layout.context.h, 0);
 });
@@ -134,7 +159,7 @@ test('genera una propuesta recomendada y dos alternativas determinísticas', () 
 
   assert.equal(variants.length, 3);
   assert.equal(variants[0].recommended, true);
-  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-editorial']);
+  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-foto-completa']);
   assert.equal(variants.every(variant => variant.bloques.length > 0), true);
 });
 
@@ -325,6 +350,34 @@ test('renderiza solo el titular sintético y no la bajada en titular arriba', ()
   renderNewsPlate(ctx, plate, 'portrait', {});
 
   assert.ok(calls.includes('Titular breve'));
+  assert.equal(calls.includes(plate.bajada), false);
+  assert.equal(calls.includes(plate.contexto), false);
+});
+
+test('renderiza foto completa sin etiqueta, bajada ni contexto', () => {
+  const calls = [];
+  const ctx = {
+    canvas: {},
+    clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
+    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, fill() {},
+    createLinearGradient() { return { addColorStop() {} }; },
+    measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
+    fillText(value) { calls.push(String(value)); },
+  };
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'foto-completa',
+    titulo: 'Titular editorial completo',
+    titulo_sintetico: 'Titular breve',
+    etiqueta: 'Política',
+    bajada: 'Esta bajada no debe aparecer.',
+    contexto: 'Este contexto tampoco debe aparecer.',
+  });
+
+  renderNewsPlate(ctx, plate, 'portrait', {});
+
+  assert.ok(calls.includes('Titular breve'));
+  assert.equal(calls.includes('POLÍTICA'), false);
   assert.equal(calls.includes(plate.bajada), false);
   assert.equal(calls.includes(plate.contexto), false);
 });

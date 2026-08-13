@@ -260,6 +260,39 @@ function renderSyntheticPlate(ctx, plate, format, options, family, layout) {
   return layout;
 }
 
+function renderFullBleedPlate(ctx, plate, format, options, family, layout) {
+  const { canvas } = layout;
+  ctx.fillStyle = '#17221e';
+  ctx.fillRect(0, 0, canvas.w, canvas.h);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, canvas.w, canvas.h);
+  ctx.clip();
+  if (!adaptiveImage(ctx, options.image, layout.image, options.focus, options.forceCover)) {
+    const fallback = ctx.createLinearGradient(0, 0, canvas.w, canvas.h);
+    fallback.addColorStop(0, family.secondary);
+    fallback.addColorStop(1, family.color);
+    ctx.fillStyle = fallback;
+    ctx.fillRect(0, 0, canvas.w, canvas.h);
+  }
+  const gradient = ctx.createLinearGradient(0, canvas.h * 0.46, 0, canvas.h);
+  gradient.addColorStop(0, 'rgba(0,0,0,0)');
+  gradient.addColorStop(1, 'rgba(0,0,0,.82)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.w, canvas.h);
+  ctx.restore();
+
+  const logoMargin = canvas.w * 0.045;
+  const logoW = canvas.w * (format === 'landscape' ? 0.22 : 0.30);
+  containImage(ctx, options.logo, { x: canvas.w - logoMargin - logoW, y: canvas.h * 0.04, w: logoW, h: canvas.h * 0.10 });
+
+  const typography = getSyntheticTypography(format);
+  const titleStart = Math.max(42, canvas.w * typography.startRatio);
+  const titleMin = Math.max(28, canvas.w * typography.minRatio);
+  fittedText(ctx, plate.titulo_sintetico || plate.titulo, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, typography.maxLines, 900, '#ffffff', 1.0, layout.title.h);
+  return layout;
+}
+
 export function renderNewsPlate(ctx, plate, format, options = {}) {
   const family = FAMILIES[plate.template_sugerido] || FAMILIES.general;
   const plateType = plate.tipo_placa || 'noticia';
@@ -275,6 +308,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.w, canvas.h);
 
+  if (plateType === 'foto-completa') return renderFullBleedPlate(ctx, plate, format, options, family, layout);
   if (['titular-arriba', 'titular-abajo'].includes(plateType)) return renderSyntheticPlate(ctx, plate, format, options, family, layout);
 
   const isHeaderless = true;

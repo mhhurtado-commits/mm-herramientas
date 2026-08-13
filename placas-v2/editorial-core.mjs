@@ -19,6 +19,7 @@ export const PLATE_TYPES = {
   noticia: { id: 'noticia', label: 'Noticia' },
   'titular-arriba': { id: 'titular-arriba', label: 'Titular arriba' },
   'titular-abajo': { id: 'titular-abajo', label: 'Titular abajo' },
+  'foto-completa': { id: 'foto-completa', label: 'Foto completa' },
   textual: { id: 'textual', label: 'Textual' },
   'retrato-circular': { id: 'retrato-circular', label: 'Retrato circular' },
   'editorial-split': { id: 'editorial-split', label: 'Editorial split' },
@@ -193,7 +194,7 @@ export function normalizeNewsPlate(input = {}) {
   const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const normalized = {
     tipo: 'placa_noticia',
     version: 1,
@@ -265,7 +266,7 @@ export function buildEditorialVariants(plate) {
   return [
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-arriba' }, `${family}-titular-arriba`, family, true),
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-abajo' }, `${family}-titular-abajo`, family, false),
-    cloneWithTemplate(plate, `${alternative}-editorial`, alternative, false),
+    cloneWithTemplate({ ...plate, tipo_placa: 'foto-completa' }, `${alternative}-foto-completa`, alternative, false),
   ];
 }
 
@@ -306,10 +307,27 @@ export function calculatePlateLayout(format, plate = {}) {
   const margin = canvas.w * 0.055;
   const isStory = format === 'story';
   const isSynthetic = ['titular-arriba', 'titular-abajo'].includes(plate.tipo_placa);
+  const isFullBleed = plate.tipo_placa === 'foto-completa';
   const isTitleBelow = plate.tipo_placa === 'titular-abajo';
   const isHeaderless = true;
   const headerH = isHeaderless ? 0 : canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
   const footerH = canvas.h * (isStory ? 0.055 : 0.07);
+  if (isFullBleed) {
+    const copyH = canvas.h * (isStory ? 0.30 : format === 'landscape' ? 0.32 : 0.35);
+    const titleY = canvas.h - copyH;
+    return {
+      canvas,
+      synthetic: true,
+      syntheticFullBleed: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      label: { x: 0, y: titleY, w: 0, h: 0 },
+      title: { x: margin, y: titleY, w: canvas.w - margin * 2, h: copyH - canvas.h * 0.04 },
+      image: { x: 0, y: 0, w: canvas.w, h: canvas.h },
+      dek: { x: margin, y: titleY, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: titleY, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: 0, y: canvas.h, w: 0, h: 0 },
+    };
+  }
   if (isSynthetic) {
     const labelH = canvas.h * (isStory ? 0.042 : 0.05);
     const imageY = isTitleBelow ? canvas.h * (isStory ? 0.03 : 0.035) : 0;
