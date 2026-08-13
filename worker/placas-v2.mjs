@@ -1,4 +1,5 @@
 import { normalizeNewsPlate } from '../placas-v2/editorial-core.mjs';
+export { normalizeSyntheticTitle } from '../placas-v2/editorial-core.mjs';
 export { buildEditorialPackage, normalizeRequestedOutputs } from './editorial-package.mjs';
 
 const text = value => String(value || '').replace(/\s+/g, ' ').trim();
@@ -31,7 +32,7 @@ REGLAS:
 - Elegí un tipo de placa entre: noticia, textual, retrato-circular, editorial-split. Usá textual sólo con cita literal verificable y retrato-circular sólo si hay al menos una persona identificable.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
-- Genera tambien un titular sintetico de maximo 10 palabras para el modelo titular-arriba. Debe conservar el hecho central y no inventar informacion.
+- Genera tambien un titular sintetico idealmente de 6 a 10 palabras para el modelo titular-arriba. Debe conservar sujeto, hecho principal y precision; no agregues contexto secundario ni inventes informacion.
 - Usa titular-arriba como propuesta recomendada cuando la noticia pueda resumirse en una sola idea visual; conserva noticia para la alternativa con bajada.
 
 Respondé SOLO con este JSON:

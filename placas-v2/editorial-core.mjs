@@ -34,6 +34,20 @@ const FAMILY_ALIASES = new Map([
 
 const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
 
+export function normalizeSyntheticTitle(value) {
+  const title = clean(value);
+  const words = title.split(/\s+/).filter(Boolean);
+  if (words.length <= 10) return title;
+  const queIndex = words.findIndex(word => word.toLowerCase() === 'que');
+  if (queIndex > 2) {
+    const prefix = words.slice(0, queIndex);
+    const suffix = words.slice(queIndex + 1).filter(word => !/^(a|al|la|el|en|de|del|los|las|y|para|por|con)$/i.test(word)).slice(-2);
+    const compact = clean([...prefix, ...suffix].join(' ')).replace(/\bsalarios docentes\b/gi, 'salarial docente');
+    if (compact.split(/\s+/).length <= 10) return compact;
+  }
+  return words.slice(0, 10).join(' ').replace(/[,:;.!?]+$/, '');
+}
+
 export function normalizeFocus(focus = {}) {
   const clamp = value => Math.max(0, Math.min(1, Number.isFinite(Number(value)) ? Number(value) : 0.5));
   return { x: clamp(focus.x), y: clamp(focus.y) };
@@ -192,7 +206,7 @@ export function normalizeNewsPlate(input = {}) {
       imagenes: images,
     },
     titulo: title,
-    titulo_sintetico: syntheticTitle,
+    titulo_sintetico: normalizeSyntheticTitle(syntheticTitle),
     bajada: description || firstSentence(body),
     etiqueta: family.label,
     contexto: clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description),

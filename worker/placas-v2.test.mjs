@@ -4,6 +4,7 @@ import {
   buildPlateEditorialPrompt,
   normalizeEditorialResponse,
   deterministicEditorialResponse,
+  normalizeSyntheticTitle,
 } from './placas-v2.mjs';
 
 const note = {
@@ -116,4 +117,16 @@ test('normaliza titulo_sintetico sin reemplazar titulo', () => {
   assert.equal(result.titulo, 'Titular editorial completo');
   assert.equal(result.titulo_sintetico, 'Titular breve');
   assert.equal(result.tipo_placa, 'titular-arriba');
+});
+
+test('reduce respuestas largas solo en titulo_sintetico', () => {
+  const result = normalizeEditorialResponse({
+    titulo: 'Titular editorial completo que no debe cambiar',
+    titulo_sintetico: 'García Salazar respondió al ranking que ubica a Mendoza última en salarios docentes',
+    tipo_placa: 'titular-arriba',
+  }, note);
+
+  assert.equal(result.titulo, 'Titular editorial completo que no debe cambiar');
+  assert.equal(result.titulo_sintetico, 'García Salazar respondió al ranking salarial docente');
+  assert.equal(normalizeSyntheticTitle(result.titulo_sintetico).split(/\s+/).length <= 10, true);
 });

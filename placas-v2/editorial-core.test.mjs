@@ -9,6 +9,7 @@ import {
   normalizeFocus,
   PLATE_TYPES,
   buildPlateExportMetadata,
+  normalizeSyntheticTitle,
 } from './editorial-core.mjs';
 
 test('normaliza un titular sintético separado del titular editorial', () => {
@@ -21,6 +22,13 @@ test('normaliza un titular sintético separado del titular editorial', () => {
   assert.equal(plate.titulo, 'Titular editorial completo para la nota');
   assert.equal(plate.titulo_sintetico, 'Una decisión cambia el escenario');
   assert.equal(PLATE_TYPES['titular-arriba'].id, 'titular-arriba');
+});
+
+test('acorta solo el titular sintético y conserva el dato central', () => {
+  const longTitle = 'García Salazar respondió al ranking que ubica a Mendoza última en salarios docentes';
+
+  assert.equal(normalizeSyntheticTitle('García Salazar respondió al ranking salarial docente'), 'García Salazar respondió al ranking salarial docente');
+  assert.equal(normalizeSyntheticTitle(longTitle), 'García Salazar respondió al ranking salarial docente');
 });
 
 test('recomienda titular arriba y conserva noticia como alternativa visual', () => {

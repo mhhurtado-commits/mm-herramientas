@@ -215,7 +215,7 @@ function normalizeNewsPlate(input = {}) {
       imagenes: images,
     },
     titulo: title,
-    titulo_sintetico: syntheticTitle,
+    titulo_sintetico: normalizeSyntheticTitle(syntheticTitle),
     bajada: description || firstSentence(body),
     etiqueta: family.label,
     contexto: clean(input.contexto || input.context || '') || firstSentence(body),
@@ -322,6 +322,20 @@ function calculatePlateLayout(format, plate = {}) {
 
 const text = value => String(value || '').replace(/\s+/g, ' ').trim();
 
+function normalizeSyntheticTitle(value) {
+  const title = text(value);
+  const words = title.split(/\s+/).filter(Boolean);
+  if (words.length <= 10) return title;
+  const queIndex = words.findIndex(word => word.toLowerCase() === 'que');
+  if (queIndex > 2) {
+    const prefix = words.slice(0, queIndex);
+    const suffix = words.slice(queIndex + 1).filter(word => !/^(a|al|la|el|en|de|del|los|las|y|para|por|con)$/i.test(word)).slice(-2);
+    const compact = text([...prefix, ...suffix].join(' ')).replace(/\bsalarios docentes\b/gi, 'salarial docente');
+    if (compact.split(/\s+/).length <= 10) return compact;
+  }
+  return words.slice(0, 10).join(' ').replace(/[,:;.!?]+$/, '');
+}
+
 function buildPlateEditorialPrompt(note = {}) {
   const title = text(note.title || note.titulo);
   const category = text(note.category || note.categoria);
@@ -347,7 +361,7 @@ REGLAS:
 - Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
-- Genera tambien un titular sintetico de maximo 10 palabras para el modelo titular-arriba. Debe conservar el hecho central y no inventar informacion.
+- Genera tambien un titular sintetico idealmente de 6 a 10 palabras para el modelo titular-arriba. Debe conservar sujeto, hecho principal y precision; no agregues contexto secundario ni inventes informacion.
 - Usa titular-arriba como propuesta recomendada cuando la noticia pueda resumirse en una sola idea visual; conserva noticia para la alternativa con bajada.
 - Las citas textuales deben copiarse literalmente del cuerpo y verificarse; si no existe una cita literal, devolvé una cadena vacía. Detectá personas sólo con atribución clara y devolvé una imagen de la nota si está disponible; la interfaz permite subir otra imagen.
 - Elegí también un tipo de placa entre noticia, textual, retrato-circular y editorial-split. Usá textual sólo con cita verificable y retrato-circular sólo con personas identificables.
@@ -378,7 +392,7 @@ function normalizeEditorialResponse(response = {}, note = {}) {
     ...response,
     fuente: base.fuente,
     titulo: text(response.titulo || response.title || base.titulo),
-    titulo_sintetico: text(response.titulo_sintetico || base.titulo_sintetico),
+    titulo_sintetico: normalizeSyntheticTitle(response.titulo_sintetico || base.titulo_sintetico),
     bajada: text(response.bajada || response.descripcion || base.bajada),
     contexto: text(response.contexto || base.contexto),
     category: response.template_sugerido || base.fuente.categoria,

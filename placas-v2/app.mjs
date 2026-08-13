@@ -139,6 +139,7 @@ function renderImages() {
 }
 
 function renderFocus() { const focus = activeFocus(); $('#focusX').value = Math.round(focus.x * 100); $('#focusY').value = Math.round(focus.y * 100); $('#focusXValue').textContent = `${Math.round(focus.x * 100)}%`; $('#focusYValue').textContent = `${Math.round(focus.y * 100)}%`; }
+function syncSyntheticTitleMeta(value = '') { const count = String(value || '').trim().split(/\s+/).filter(Boolean).length; $('#syntheticTitleCount').textContent = `${count}/10 palabras`; $('#syntheticTitleWarning').classList.toggle('is-hidden', count <= 10); }
 function renderPeople() {
   const variant = effectiveVariant();
   const people = variant?.personas || [];
@@ -160,7 +161,7 @@ function renderSupportImages() {
   document.querySelectorAll('.support-image-option').forEach(button => button.addEventListener('click', async () => { const item = options[Number(button.dataset.supportIndex)]; source.imagenes_apoyo = [item]; state.supportImageUrl = item.src; state.supportFocus = item.foco; renderSupportImages(); await loadSupportImage(item.src); }));
 }
 function syncSocialCopies() { const variant = activeVariant(); const copies = variant?.redes || {}; const visible = Boolean(copies.instagram || copies.facebook); $('#socialCopies').classList.toggle('is-hidden', !visible); $('#instagramCopy').value = copies.instagram || ''; $('#facebookCopy').value = copies.facebook || ''; }
-function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#syntheticTitleInput').value = variant.titulo_sintetico || ''; $('#syntheticControls').classList.toggle('is-hidden', state.selectedTemplate !== 'titular-arriba'); $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderSupportImages(); renderTemplates(); }
+function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#syntheticTitleInput').value = variant.titulo_sintetico || ''; syncSyntheticTitleMeta(variant.titulo_sintetico); $('#syntheticControls').classList.toggle('is-hidden', state.selectedTemplate !== 'titular-arriba'); $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderSupportImages(); renderTemplates(); }
 function setSocialText(network, value) { const current = activeVariant(); if (!current) return; current.redes = { ...(current.redes || {}), [network]: value }; if (state.plate === current) state.plate.redes = current.redes; }
 async function copySocial(network) { const value = $(`#${network}Copy`).value.trim(); if (!value) return; try { await navigator.clipboard.writeText(value); toast(`Texto de ${network === 'instagram' ? 'Instagram' : 'Facebook'} copiado.`); } catch { toast('No se pudo copiar el texto.'); } }
 
@@ -210,7 +211,7 @@ async function copy() { try { const blob = await new Promise(resolve => $('#plat
 
 $('#newsForm').addEventListener('submit', generate);
 $('#titleInput').addEventListener('input', event => setActiveText('titulo', event.target.value));
-$('#syntheticTitleInput').addEventListener('input', event => setActiveText('titulo_sintetico', event.target.value));
+$('#syntheticTitleInput').addEventListener('input', event => { syncSyntheticTitleMeta(event.target.value); setActiveText('titulo_sintetico', event.target.value); });
 $('#dekInput').addEventListener('input', event => setActiveText('bajada', event.target.value));
 $('#quoteInput').addEventListener('input', event => { const variant = activeVariant(); if (!variant) return; variant.textual = { ...(variant.textual || {}), cita: event.target.value, verificada: Boolean(event.target.value.trim()) }; render(); });
 $('#quoteAuthorInput').addEventListener('input', event => { const variant = activeVariant(); if (!variant) return; variant.textual = { ...(variant.textual || {}), autor: event.target.value }; render(); });
