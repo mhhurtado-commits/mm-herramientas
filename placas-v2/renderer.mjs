@@ -183,6 +183,64 @@ function drawSupportImage(ctx, layout, family, options = {}) {
   ctx.restore();
 }
 
+function renderSyntheticPlate(ctx, plate, format, options, family, layout) {
+  const { canvas } = layout;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.w, canvas.h);
+
+  const labelText = String(plate.etiqueta || family.label).toUpperCase();
+  const labelSize = Math.max(18, canvas.w * (format === 'story' ? 0.022 : 0.024));
+  const labelPadX = canvas.w * 0.018;
+  ctx.font = `900 ${labelSize}px ${fontFamily}`;
+  const labelW = ctx.measureText(labelText).width + labelPadX * 2;
+  const labelH = Math.max(labelSize * 1.45, layout.label.h);
+  ctx.fillStyle = family.color;
+  roundedRect(ctx, layout.label.x, layout.label.y, labelW, labelH, canvas.w * 0.008);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(labelText, layout.label.x + labelPadX, layout.label.y + labelH * 0.72);
+
+  const title = plate.titulo_sintetico || plate.titulo;
+  const titleStart = Math.max(42, canvas.w * (format === 'story' ? 0.064 : 0.062));
+  const titleMin = Math.max(28, canvas.w * 0.026);
+  fittedText(ctx, title, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, 3, 900, family.secondary, 1.02, layout.title.h);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(layout.image.x, layout.image.y, layout.image.w, layout.image.h);
+  ctx.clip();
+  if (!adaptiveImage(ctx, options.image, layout.image, options.focus, options.forceCover)) {
+    const fallback = ctx.createLinearGradient(0, layout.image.y, canvas.w, layout.image.y + layout.image.h);
+    fallback.addColorStop(0, family.secondary);
+    fallback.addColorStop(1, family.color);
+    ctx.fillStyle = fallback;
+    ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h);
+  }
+  const overlay = ctx.createLinearGradient(0, layout.image.y, 0, layout.image.y + layout.image.h * 0.24);
+  overlay.addColorStop(0, 'rgba(0,0,0,.42)');
+  overlay.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = overlay;
+  ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h * 0.24);
+  ctx.restore();
+
+  const logoMargin = canvas.w * 0.045;
+  const logoW = canvas.w * (format === 'landscape' ? 0.22 : 0.30);
+  containImage(ctx, options.logo, { x: canvas.w - logoMargin - logoW, y: layout.image.y + canvas.h * 0.025, w: logoW, h: canvas.h * 0.10 });
+
+  ctx.strokeStyle = 'rgba(22,32,27,.16)';
+  ctx.lineWidth = Math.max(2, canvas.h * 0.001);
+  ctx.beginPath();
+  ctx.moveTo(layout.footer.x, layout.footer.y + layout.footer.h * 0.12);
+  ctx.lineTo(canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.12);
+  ctx.stroke();
+  ctx.fillStyle = '#526058';
+  ctx.font = `700 ${Math.max(24, canvas.w * (format === 'portrait' ? 0.022 : 0.019))}px ${fontFamily}`;
+  ctx.textAlign = 'right';
+  ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.68);
+  ctx.textAlign = 'left';
+  return layout;
+}
+
 export function renderNewsPlate(ctx, plate, format, options = {}) {
   const family = FAMILIES[plate.template_sugerido] || FAMILIES.general;
   const plateType = plate.tipo_placa || 'noticia';
@@ -197,6 +255,8 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   gradient.addColorStop(1, family.soft);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.w, canvas.h);
+
+  if (plateType === 'titular-arriba') return renderSyntheticPlate(ctx, plate, format, options, family, layout);
 
   const isHeaderless = true;
   if (!isHeaderless) {

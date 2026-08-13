@@ -200,7 +200,8 @@ function normalizeNewsPlate(input = {}) {
   const personas = normalizePeople(input);
   const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
-  const type = textual.verificada ? 'textual' : requestedType === 'editorial-split' ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const normalized = {
     tipo: 'placa_noticia',
     version: 1,
@@ -214,6 +215,7 @@ function normalizeNewsPlate(input = {}) {
       imagenes: images,
     },
     titulo: title,
+    titulo_sintetico: syntheticTitle,
     bajada: description || firstSentence(body),
     etiqueta: family.label,
     contexto: clean(input.contexto || input.context || '') || firstSentence(body),
@@ -270,8 +272,8 @@ function buildEditorialVariants(plate) {
   const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
   const alternative = family === 'general' ? 'sociales' : 'general';
   return [
-    cloneWithTemplate(plate, `${family}-principal`, family, true),
-    cloneWithTemplate(plate, `${family}-datos`, family, false),
+    cloneWithTemplate({ ...plate, tipo_placa: 'titular-arriba' }, `${family}-titular-arriba`, family, true),
+    cloneWithTemplate({ ...plate, tipo_placa: 'noticia' }, `${family}-principal`, family, false),
     cloneWithTemplate(plate, `${alternative}-editorial`, alternative, false),
   ];
 }
@@ -345,6 +347,8 @@ REGLAS:
 - Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
+- Genera tambien un titular sintetico de maximo 10 palabras para el modelo titular-arriba. Debe conservar el hecho central y no inventar informacion.
+- Usa titular-arriba como propuesta recomendada cuando la noticia pueda resumirse en una sola idea visual; conserva noticia para la alternativa con bajada.
 - Las citas textuales deben copiarse literalmente del cuerpo y verificarse; si no existe una cita literal, devolvé una cadena vacía. Detectá personas sólo con atribución clara y devolvé una imagen de la nota si está disponible; la interfaz permite subir otra imagen.
 - Elegí también un tipo de placa entre noticia, textual, retrato-circular y editorial-split. Usá textual sólo con cita verificable y retrato-circular sólo con personas identificables.
 
@@ -353,11 +357,12 @@ Respondé SOLO con este JSON:
   "tipo": "placa_noticia",
   "version": 1,
   "titulo": "titular para la placa",
+  "titulo_sintetico": "titular sintetico de maximo 10 palabras",
   "bajada": "bajada breve",
   "contexto": "dato o contexto clave, o cadena vacía",
   "redes": { "instagram": "copy para Instagram", "facebook": "copy para Facebook" },
   "etiqueta": "nombre de la sección",
-  "tipo_placa": "noticia|textual|retrato-circular|editorial-split",
+  "tipo_placa": "noticia|titular-arriba|textual|retrato-circular|editorial-split",
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
   "personas": [{ "nombre": "persona", "rol": "cargo", "imagen": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
   "imagenes_apoyo": [{ "src": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
@@ -373,6 +378,7 @@ function normalizeEditorialResponse(response = {}, note = {}) {
     ...response,
     fuente: base.fuente,
     titulo: text(response.titulo || response.title || base.titulo),
+    titulo_sintetico: text(response.titulo_sintetico || base.titulo_sintetico),
     bajada: text(response.bajada || response.descripcion || base.bajada),
     contexto: text(response.contexto || base.contexto),
     category: response.template_sugerido || base.fuente.categoria,

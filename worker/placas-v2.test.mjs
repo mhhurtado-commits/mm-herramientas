@@ -97,3 +97,23 @@ test('normaliza una respuesta textual verificable del worker', () => {
   assert.equal(result.textual.verificada, true);
   assert.equal(result.personas.length, 1);
 });
+
+test('el prompt solicita un titular sintético separado y el nuevo tipo de placa', () => {
+  const prompt = buildPlateEditorialPrompt(note);
+
+  assert.match(prompt, /titular\s+sint/i);
+  assert.match(prompt, /titulo_sintetico/);
+  assert.match(prompt, /titular-arriba/);
+});
+
+test('normaliza titulo_sintetico sin reemplazar titulo', () => {
+  const result = normalizeEditorialResponse({
+    titulo: 'Titular editorial completo',
+    titulo_sintetico: 'Titular breve',
+    tipo_placa: 'titular-arriba',
+  }, note);
+
+  assert.equal(result.titulo, 'Titular editorial completo');
+  assert.equal(result.titulo_sintetico, 'Titular breve');
+  assert.equal(result.tipo_placa, 'titular-arriba');
+});

@@ -4,6 +4,7 @@ import {
   buildEditorialPackage,
   normalizeRequestedOutputs,
 } from './editorial-package.mjs';
+import { packageToPlateInput, normalizeEditorialPackage } from '../shared/editorial-package.mjs';
 
 const note = {
   url: 'https://mediamendoza.com/politica/123',
@@ -53,6 +54,16 @@ test('construye un paquete con la placa y los slots de salida solicitados', () =
   assert.equal(result.package.salidas.carrusel, null);
   assert.equal(result.package.salidas.reel, null);
   assert.deepEqual(result.requestedOutputs, ['placa', 'carrusel', 'reel']);
+});
+
+test('conserva titulo_sintetico al pasar por el paquete editorial', () => {
+  const result = buildEditorialPackage(note, { ...plate, titulo_sintetico: 'Obra cambia el sur' }, ['placa']);
+  const normalized = normalizeEditorialPackage(result.package);
+  const input = packageToPlateInput(normalized.package);
+
+  assert.equal(normalized.ok, true);
+  assert.equal(normalized.package.editorial.titulo_sintetico, 'Obra cambia el sur');
+  assert.equal(input.titulo_sintetico, 'Obra cambia el sur');
 });
 
 test('prioriza las imágenes de la nota actual sobre imágenes heredadas de la placa', () => {

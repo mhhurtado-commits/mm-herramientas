@@ -1,4 +1,4 @@
-import { normalizeFocus, calculatePlateLayout, FORMATS, PLATE_TYPES } from './editorial-core.mjs';
+import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
@@ -124,7 +124,7 @@ function renderOutputs() {
 
 function renderTemplates() {
   const source = activeVariant();
-  const types = Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || (type.id === 'textual' && source?.textual?.verificada) || type.id === 'retrato-circular' || type.id === 'editorial-split');
+  const types = Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || type.id === 'titular-arriba' || (type.id === 'textual' && source?.textual?.verificada) || type.id === 'retrato-circular' || type.id === 'editorial-split');
   const current = state.selectedTemplate || source?.tipo_placa || 'noticia';
   $('#templateList').innerHTML = types.map(type => `<button type="button" class="template-option ${current === type.id ? 'active' : ''}" data-template="${type.id}">${type.label}</button>`).join('');
   document.querySelectorAll('.template-option').forEach(button => button.addEventListener('click', () => { state.selectedTemplate = button.dataset.template; syncEditor(); renderTemplates(); render(); }));
@@ -160,7 +160,7 @@ function renderSupportImages() {
   document.querySelectorAll('.support-image-option').forEach(button => button.addEventListener('click', async () => { const item = options[Number(button.dataset.supportIndex)]; source.imagenes_apoyo = [item]; state.supportImageUrl = item.src; state.supportFocus = item.foco; renderSupportImages(); await loadSupportImage(item.src); }));
 }
 function syncSocialCopies() { const variant = activeVariant(); const copies = variant?.redes || {}; const visible = Boolean(copies.instagram || copies.facebook); $('#socialCopies').classList.toggle('is-hidden', !visible); $('#instagramCopy').value = copies.instagram || ''; $('#facebookCopy').value = copies.facebook || ''; }
-function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderSupportImages(); renderTemplates(); }
+function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#syntheticTitleInput').value = variant.titulo_sintetico || ''; $('#syntheticControls').classList.toggle('is-hidden', state.selectedTemplate !== 'titular-arriba'); $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderSupportImages(); renderTemplates(); }
 function setSocialText(network, value) { const current = activeVariant(); if (!current) return; current.redes = { ...(current.redes || {}), [network]: value }; if (state.plate === current) state.plate.redes = current.redes; }
 async function copySocial(network) { const value = $(`#${network}Copy`).value.trim(); if (!value) return; try { await navigator.clipboard.writeText(value); toast(`Texto de ${network === 'instagram' ? 'Instagram' : 'Facebook'} copiado.`); } catch { toast('No se pudo copiar el texto.'); } }
 
@@ -189,7 +189,7 @@ async function generate(event) {
     state.outputs = session.outputs;
     state.plate = session.plate;
     state.variants = session.variants;
-    state.selectedVariant = 0; state.selectedTemplate = state.plate.tipo_placa || 'noticia'; state.imageIndex = 0; state.personImages = {}; state.supportImage = null; state.supportImageUrl = ''; state.imagePositioned = true;
+    state.selectedVariant = 0; state.selectedTemplate = state.variants[0]?.tipo_placa || state.plate.tipo_placa || 'noticia'; state.imageIndex = 0; state.personImages = {}; state.supportImage = null; state.supportImageUrl = ''; state.imagePositioned = true;
     $('#editorControls').classList.remove('is-hidden');
     renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor();
     if (session.warnings?.length) { $('#warning').textContent = 'La propuesta se generó con fallback automático. Revisá la redacción antes de exportar.'; $('#warning').classList.remove('is-hidden'); } else $('#warning').classList.add('is-hidden');
@@ -198,11 +198,19 @@ async function generate(event) {
   } catch (error) { toast(error.message || 'No se pudo generar la placa.'); } finally { setLoading(false); }
 }
 
-function download() { $('#plateCanvas').toBlob(blob => { const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `placa-mediamendoza-${Date.now()}.png`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); }, 'image/png'); }
+function downloadBlob(blob, name) { const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); }
+function download() {
+  const variant = effectiveVariant();
+  const metadata = buildPlateExportMetadata(variant, state.format);
+  const stamp = Date.now();
+  $('#plateCanvas').toBlob(blob => downloadBlob(blob, `placa-mediamendoza-${metadata.modelo}-${metadata.formato}-${stamp}.png`), 'image/png');
+  downloadBlob(new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' }), `placa-mediamendoza-${metadata.modelo}-${metadata.formato}-${stamp}.json`);
+}
 async function copy() { try { const blob = await new Promise(resolve => $('#plateCanvas').toBlob(resolve, 'image/png')); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast('PNG copiado al portapapeles.'); } catch { toast('Tu navegador no permite copiar la imagen; usá Descargar PNG.'); } }
 
 $('#newsForm').addEventListener('submit', generate);
 $('#titleInput').addEventListener('input', event => setActiveText('titulo', event.target.value));
+$('#syntheticTitleInput').addEventListener('input', event => setActiveText('titulo_sintetico', event.target.value));
 $('#dekInput').addEventListener('input', event => setActiveText('bajada', event.target.value));
 $('#quoteInput').addEventListener('input', event => { const variant = activeVariant(); if (!variant) return; variant.textual = { ...(variant.textual || {}), cita: event.target.value, verificada: Boolean(event.target.value.trim()) }; render(); });
 $('#quoteAuthorInput').addEventListener('input', event => { const variant = activeVariant(); if (!variant) return; variant.textual = { ...(variant.textual || {}), autor: event.target.value }; render(); });

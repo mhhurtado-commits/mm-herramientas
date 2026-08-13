@@ -17,6 +17,7 @@ export const FAMILIES = {
 
 export const PLATE_TYPES = {
   noticia: { id: 'noticia', label: 'Noticia' },
+  'titular-arriba': { id: 'titular-arriba', label: 'Titular arriba' },
   textual: { id: 'textual', label: 'Textual' },
   'retrato-circular': { id: 'retrato-circular', label: 'Retrato circular' },
   'editorial-split': { id: 'editorial-split', label: 'Editorial split' },
@@ -176,7 +177,8 @@ export function normalizeNewsPlate(input = {}) {
   const personas = normalizePeople(input);
   const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
-  const type = textual.verificada ? 'textual' : requestedType === 'editorial-split' ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const normalized = {
     tipo: 'placa_noticia',
     version: 1,
@@ -190,6 +192,7 @@ export function normalizeNewsPlate(input = {}) {
       imagenes: images,
     },
     titulo: title,
+    titulo_sintetico: syntheticTitle,
     bajada: description || firstSentence(body),
     etiqueta: family.label,
     contexto: clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description),
@@ -245,10 +248,22 @@ export function buildEditorialVariants(plate) {
   const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
   const alternative = family === 'general' ? 'sociales' : 'general';
   return [
-    cloneWithTemplate(plate, `${family}-principal`, family, true),
-    cloneWithTemplate(plate, `${family}-datos`, family, false),
+    cloneWithTemplate({ ...plate, tipo_placa: 'titular-arriba' }, `${family}-titular-arriba`, family, true),
+    cloneWithTemplate({ ...plate, tipo_placa: 'noticia' }, `${family}-principal`, family, false),
     cloneWithTemplate(plate, `${alternative}-editorial`, alternative, false),
   ];
+}
+
+export function buildPlateExportMetadata(plate = {}, format = 'square', date = new Date()) {
+  const title = clean(plate.titulo_sintetico || plate.titulo);
+  const isoDate = date instanceof Date ? date.toISOString().slice(0, 10) : String(date).slice(0, 10);
+  return {
+    modelo: clean(plate.tipo_placa) || 'noticia',
+    formato: clean(format) || 'square',
+    seccion: clean(plate.template_sugerido) || 'general',
+    longitud_titular: title.length,
+    fecha: isoDate,
+  };
 }
 
 export function fitTextToLines(text, maxCharsPerLine, maxLines) {
@@ -275,9 +290,29 @@ export function calculatePlateLayout(format, plate = {}) {
   const canvas = FORMATS[format] || FORMATS.square;
   const margin = canvas.w * 0.055;
   const isStory = format === 'story';
+  const isSynthetic = plate.tipo_placa === 'titular-arriba';
   const isHeaderless = true;
   const headerH = isHeaderless ? 0 : canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
   const footerH = canvas.h * (isStory ? 0.055 : 0.07);
+  if (isSynthetic) {
+    const labelH = canvas.h * (isStory ? 0.042 : 0.05);
+    const copyY = canvas.h * (isStory ? 0.055 : 0.06);
+    const titleY = copyY + labelH + canvas.h * 0.018;
+    const titleH = canvas.h * (isStory ? 0.28 : format === 'portrait' ? 0.29 : 0.25);
+    const imageY = titleY + titleH + canvas.h * (isStory ? 0.018 : 0.025);
+    const imageH = canvas.h - imageY - footerH - margin * 0.55;
+    return {
+      canvas,
+      synthetic: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      label: { x: margin, y: copyY, w: canvas.w - margin * 2, h: labelH },
+      title: { x: margin, y: titleY, w: canvas.w - margin * 2, h: titleH },
+      image: { x: 0, y: imageY, w: canvas.w, h: Math.max(0, imageH) },
+      dek: { x: margin, y: imageY, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: imageY, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: margin, y: canvas.h - footerH, w: canvas.w - margin * 2, h: footerH - margin * 0.4 },
+    };
+  }
   const headerGap = isHeaderless ? 0 : canvas.h * (isStory ? 0.004 : 0.006);
   const imageY = headerH + headerGap;
   const imageH = canvas.h * (format === 'landscape' ? 0.43 : format === 'square' ? 0.44 : isStory ? 0.40 : 0.46);

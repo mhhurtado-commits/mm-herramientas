@@ -7,8 +7,56 @@ import {
   calculatePlateLayout,
   fitTextToLines,
   normalizeFocus,
+  PLATE_TYPES,
+  buildPlateExportMetadata,
 } from './editorial-core.mjs';
-import { getContextTypography } from './renderer.mjs';
+
+test('normaliza un titular sintético separado del titular editorial', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    titulo: 'Titular editorial completo para la nota',
+    titulo_sintetico: 'Una decisión cambia el escenario',
+  });
+
+  assert.equal(plate.titulo, 'Titular editorial completo para la nota');
+  assert.equal(plate.titulo_sintetico, 'Una decisión cambia el escenario');
+  assert.equal(PLATE_TYPES['titular-arriba'].id, 'titular-arriba');
+});
+
+test('recomienda titular arriba y conserva noticia como alternativa visual', () => {
+  const plate = normalizeNewsPlate({ ...extracted, titulo_sintetico: 'Una decisión cambia el escenario' });
+  const variants = buildEditorialVariants(plate);
+
+  assert.equal(variants[0].tipo_placa, 'titular-arriba');
+  assert.equal(variants[0].recommended, true);
+  assert.equal(variants[0].titulo_sintetico, 'Una decisión cambia el escenario');
+  assert.equal(variants.some(variant => variant.tipo_placa === 'noticia'), true);
+});
+
+test('calcula layout sintético con titular arriba e imagen debajo', () => {
+  const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'titular-arriba' });
+  const layout = calculatePlateLayout('portrait', plate);
+
+  assert.equal(layout.synthetic, true);
+  assert.ok(layout.title.y < layout.image.y);
+  assert.ok(layout.title.y + layout.title.h <= layout.image.y);
+  assert.equal(layout.dek.h, 0);
+  assert.equal(layout.context.h, 0);
+});
+
+test('genera metadatos mínimos para registrar el experimento', () => {
+  const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'titular-arriba', titulo_sintetico: 'Titular breve' });
+  const metadata = buildPlateExportMetadata(plate, 'portrait', new Date('2026-08-13T15:30:00.000Z'));
+
+  assert.deepEqual(metadata, {
+    modelo: 'titular-arriba',
+    formato: 'portrait',
+    seccion: 'politica',
+    longitud_titular: 13,
+    fecha: '2026-08-13',
+  });
+});
+import { getContextTypography, renderNewsPlate } from './renderer.mjs';
 
 const extracted = {
   title: 'El Gobierno anunció una nueva obra de infraestructura para el sur de Mendoza',
@@ -57,7 +105,7 @@ test('genera una propuesta recomendada y dos alternativas determinísticas', () 
 
   assert.equal(variants.length, 3);
   assert.equal(variants[0].recommended, true);
-  assert.deepEqual(variants.map(variant => variant.id), ['politica-principal', 'politica-datos', 'general-editorial']);
+  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-principal', 'general-editorial']);
   assert.equal(variants.every(variant => variant.bloques.length > 0), true);
 });
 
@@ -224,4 +272,30 @@ test('usa tipografías de contexto específicas para formato y tipo', () => {
   assert.ok(textualStory.startRatio > getContextTypography('story', 'editorial-split').startRatio);
   assert.equal(normalPortrait.maxLines, 3);
   assert.equal(normalPortrait.reserveLines, 1);
+});
+
+test('renderiza solo el titular sintético y no la bajada en titular arriba', () => {
+  const calls = [];
+  const ctx = {
+    canvas: {},
+    clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
+    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, fill() {},
+    createLinearGradient() { return { addColorStop() {} }; },
+    measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
+    fillText(value) { calls.push(String(value)); },
+  };
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'titular-arriba',
+    titulo: 'Titular editorial completo',
+    titulo_sintetico: 'Titular breve',
+    bajada: 'Esta bajada no debe aparecer en la placa sintética.',
+    contexto: 'Este contexto tampoco debe aparecer.',
+  });
+
+  renderNewsPlate(ctx, plate, 'portrait', {});
+
+  assert.ok(calls.includes('Titular breve'));
+  assert.equal(calls.includes(plate.bajada), false);
+  assert.equal(calls.includes(plate.contexto), false);
 });
