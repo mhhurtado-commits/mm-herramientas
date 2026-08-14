@@ -454,6 +454,9 @@ test('renderiza dato clave sin bajada ni contexto', () => {
 
   assert.ok(calls.includes('35%'));
   assert.ok(calls.includes('6 meses'));
+  assert.ok(calls.includes('Fuente: Mediamendoza'));
+  assert.ok(calls.includes('www.mediamendoza.com'));
+  assert.equal(calls.includes('Fuente: Media Mendoza'), false);
   assert.equal(calls.includes(plate.bajada), false);
   assert.equal(calls.includes(plate.contexto), false);
 });

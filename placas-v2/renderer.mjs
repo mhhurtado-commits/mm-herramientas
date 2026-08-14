@@ -350,8 +350,11 @@ function renderDataCardPlate(ctx, plate, format, options, family, layout) {
 
   ctx.fillStyle = '#526058';
   ctx.font = `700 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
-  const source = plate.fuente?.url ? 'Fuente: Media Mendoza' : 'Media Mendoza';
+  const source = 'Fuente: Mediamendoza';
   ctx.fillText(`${source}${plate.fecha ? ` · ${plate.fecha}` : ''}`, layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.textAlign = 'right';
+  ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.textAlign = 'left';
   return layout;
 }
 
