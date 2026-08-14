@@ -368,9 +368,6 @@ function renderComparisonPlate(ctx, plate, format, options, family, layout) {
 
   const logoW = canvas.w * (format === 'story' ? 0.30 : 0.26);
   const logoRect = { x: canvas.w - canvas.w * 0.045 - logoW, y: canvas.h * 0.035, w: logoW, h: canvas.h * 0.075 };
-  ctx.fillStyle = family.secondary;
-  roundedRect(ctx, logoRect.x - canvas.w * 0.012, logoRect.y - canvas.h * 0.012, logoRect.w + canvas.w * 0.024, logoRect.h + canvas.h * 0.024, canvas.w * 0.012);
-  ctx.fill();
   containImage(ctx, options.logo, logoRect);
 
   ctx.fillStyle = family.color;

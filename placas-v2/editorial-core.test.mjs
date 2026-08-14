@@ -278,10 +278,17 @@ test('genera una propuesta recomendada y dos alternativas determinísticas', () 
   const plate = normalizeNewsPlate(extracted);
   const variants = buildEditorialVariants(plate);
 
-  assert.equal(variants.length, 4);
+  assert.equal(variants.length, 3);
   assert.equal(variants[0].recommended, true);
-  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-foto-completa', 'politica-dato-clave']);
+  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-foto-completa']);
   assert.equal(variants.every(variant => variant.bloques.length > 0), true);
+});
+
+test('no repite la sección en una tercera alternativa', () => {
+  const plate = normalizeNewsPlate({ ...extracted, category: 'clima' });
+  const variants = buildEditorialVariants(plate);
+  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['titular-arriba', 'titular-abajo', 'foto-completa']);
+  assert.deepEqual(variants.map(variant => variant.etiqueta), ['Clima', 'Clima', 'Actualidad']);
 });
 
 test('calcula layouts sin salir del canvas en los cuatro formatos', () => {
@@ -563,7 +570,7 @@ test('renderiza comparativa con dos valores y sin bajada ni contexto', () => {
   assert.ok(calls.includes('58%'));
   assert.equal(calls.includes(plate.bajada), false);
   assert.equal(calls.includes(plate.contexto), false);
-  assert.equal(fills.some(fill => fill.style === '#251e42'), true);
+  assert.equal(fills.some(fill => fill.style === '#251e42'), false);
 });
 
 test('ajusta datos largos y muestra el logo en dato clave', () => {
