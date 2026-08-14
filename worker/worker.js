@@ -188,6 +188,16 @@ function buildBlocks(data, family, image) {
   return blocks.filter(block => block.tipo === 'imagen' ? Boolean(block.src) : block.tipo !== 'contexto' || Boolean(block.texto));
 }
 
+function normalizeKeyFacts(value, fallback = '') {
+  const items = Array.isArray(value) ? value : [];
+  const normalized = items.map(item => {
+    if (typeof item === 'string') return { label: '', value: clean(item), detail: '' };
+    if (!item || typeof item !== 'object') return null;
+    return { label: clean(item.label || item.nombre || item.titulo), value: clean(item.value || item.valor || item.texto), detail: clean(item.detail || item.detalle || item.subtitulo) };
+  }).filter(item => item?.value).slice(0, 3);
+  return normalized.length || !clean(fallback) ? normalized : [{ label: '', value: clean(fallback), detail: '' }];
+}
+
 function normalizeNewsPlate(input = {}) {
   const source = input.fuente && typeof input.fuente === 'object' ? input.fuente : input;
   const family = classifyNewsFamily(input.template_sugerido || input.category || source.category || source.categoria || input.etiqueta);
@@ -201,7 +211,8 @@ function normalizeNewsPlate(input = {}) {
   const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const context = clean(input.contexto || input.context || '') || firstSentence(body);
   const normalized = {
     tipo: 'placa_noticia',
     version: 1,
@@ -218,7 +229,9 @@ function normalizeNewsPlate(input = {}) {
     titulo_sintetico: normalizeSyntheticTitle(syntheticTitle),
     bajada: description || firstSentence(body),
     etiqueta: family.label,
-    contexto: clean(input.contexto || input.context || '') || firstSentence(body),
+    contexto: context,
+    datos_clave: normalizeKeyFacts(input.datos_clave || source.datos_clave, context),
+    fecha: clean(input.fecha || input.date || source.fecha || source.date),
     template_sugerido: family.id,
     tipo_placa: type,
     textual,
@@ -275,6 +288,7 @@ function buildEditorialVariants(plate) {
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-arriba' }, `${family}-titular-arriba`, family, true),
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-abajo' }, `${family}-titular-abajo`, family, false),
     cloneWithTemplate({ ...plate, tipo_placa: 'foto-completa' }, `${alternative}-foto-completa`, alternative, false),
+    cloneWithTemplate({ ...plate, tipo_placa: 'dato-clave' }, `${family}-dato-clave`, family, false),
   ];
 }
 
@@ -362,6 +376,7 @@ REGLAS:
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
 - Genera tambien un titular sintetico idealmente de 6 a 10 palabras para el modelo titular-arriba. Debe conservar sujeto, hecho principal y precision; no agregues contexto secundario ni inventes informacion.
+- Para el modelo dato-clave, generá hasta tres datos verificables en el campo datos_clave, con un valor principal y detalles opcionales.
 - Usa titular-arriba como propuesta recomendada cuando la noticia pueda resumirse en una sola idea visual; titular-abajo y foto-completa son alternativas sintéticas válidas; conserva noticia para la alternativa con bajada.
 - Las citas textuales deben copiarse literalmente del cuerpo y verificarse; si no existe una cita literal, devolvé una cadena vacía. Detectá personas sólo con atribución clara y devolvé una imagen de la nota si está disponible; la interfaz permite subir otra imagen.
 - Elegí también un tipo de placa entre noticia, titular-arriba, titular-abajo, foto-completa, textual, retrato-circular y editorial-split. Usá foto-completa como alternativa de foto a sangre con titular superpuesto; textual sólo con cita verificable y retrato-circular sólo con personas identificables.
@@ -376,7 +391,8 @@ Respondé SOLO con este JSON:
   "contexto": "dato o contexto clave, o cadena vacía",
   "redes": { "instagram": "copy para Instagram", "facebook": "copy para Facebook" },
   "etiqueta": "nombre de la sección",
-  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|textual|retrato-circular|editorial-split",
+  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|textual|retrato-circular|editorial-split",
+  "datos_clave": [{ "label": "etiqueta breve", "value": "dato verificable", "detail": "detalle opcional" }],
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
   "personas": [{ "nombre": "persona", "rol": "cargo", "imagen": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
   "imagenes_apoyo": [{ "src": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],

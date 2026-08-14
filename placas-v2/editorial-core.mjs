@@ -20,6 +20,7 @@ export const PLATE_TYPES = {
   'titular-arriba': { id: 'titular-arriba', label: 'Titular arriba' },
   'titular-abajo': { id: 'titular-abajo', label: 'Titular abajo' },
   'foto-completa': { id: 'foto-completa', label: 'Foto completa' },
+  'dato-clave': { id: 'dato-clave', label: 'Dato clave' },
   textual: { id: 'textual', label: 'Textual' },
   'retrato-circular': { id: 'retrato-circular', label: 'Retrato circular' },
   'editorial-split': { id: 'editorial-split', label: 'Editorial split' },
@@ -178,7 +179,19 @@ function buildBlocks(data, family, image) {
   data.personas.forEach(person => blocks.push({ tipo: 'retrato', id: person.id, ...person }));
   data.imagenes_apoyo.forEach(image => blocks.push({ tipo: 'imagen-apoyo', id: image.id, ...image }));
   if (data.contexto) blocks.push({ tipo: 'dato-clave', id: 'dato-clave', texto: data.contexto });
+  data.datos_clave.forEach((item, index) => blocks.push({ tipo: 'dato-clave', id: `dato-clave-${index + 1}`, ...item }));
   return blocks.filter(block => block.tipo === 'imagen' ? Boolean(block.src) : block.tipo !== 'contexto' || Boolean(block.texto));
+}
+
+function normalizeKeyFacts(value, fallback = '') {
+  const items = Array.isArray(value) ? value : [];
+  const normalized = items.map(item => {
+    if (typeof item === 'string') return { label: '', value: clean(item), detail: '' };
+    if (!item || typeof item !== 'object') return null;
+    return { label: clean(item.label || item.nombre || item.titulo), value: clean(item.value || item.valor || item.texto), detail: clean(item.detail || item.detalle || item.subtitulo) };
+  }).filter(item => item?.value).slice(0, 3);
+  if (normalized.length || !clean(fallback)) return normalized;
+  return [{ label: '', value: clean(fallback), detail: '' }];
 }
 
 export function normalizeNewsPlate(input = {}) {
@@ -194,7 +207,9 @@ export function normalizeNewsPlate(input = {}) {
   const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const context = clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description);
+  const datos_clave = normalizeKeyFacts(input.datos_clave || source.datos_clave, context);
   const normalized = {
     tipo: 'placa_noticia',
     version: 1,
@@ -209,9 +224,11 @@ export function normalizeNewsPlate(input = {}) {
     },
     titulo: title,
     titulo_sintetico: normalizeSyntheticTitle(syntheticTitle),
+    fecha: clean(input.fecha || input.date || source.fecha || source.date),
     bajada: description || firstSentence(body),
     etiqueta: family.label,
-    contexto: clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description),
+    contexto: context,
+    datos_clave,
     template_sugerido: family.id,
     tipo_placa: type,
     textual,
@@ -267,6 +284,7 @@ export function buildEditorialVariants(plate) {
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-arriba' }, `${family}-titular-arriba`, family, true),
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-abajo' }, `${family}-titular-abajo`, family, false),
     cloneWithTemplate({ ...plate, tipo_placa: 'foto-completa' }, `${alternative}-foto-completa`, alternative, false),
+    cloneWithTemplate({ ...plate, tipo_placa: 'dato-clave' }, `${family}-dato-clave`, family, false),
   ];
 }
 
@@ -308,10 +326,30 @@ export function calculatePlateLayout(format, plate = {}) {
   const isStory = format === 'story';
   const isSynthetic = ['titular-arriba', 'titular-abajo'].includes(plate.tipo_placa);
   const isFullBleed = plate.tipo_placa === 'foto-completa';
+  const isDataCard = plate.tipo_placa === 'dato-clave';
   const isTitleBelow = plate.tipo_placa === 'titular-abajo';
   const isHeaderless = true;
   const headerH = isHeaderless ? 0 : canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
   const footerH = canvas.h * (isStory ? 0.055 : 0.07);
+  if (isDataCard) {
+    const contentY = canvas.h * (isStory ? 0.10 : 0.08);
+    const footerY = canvas.h * 0.91;
+    const primaryY = contentY + canvas.h * (isStory ? 0.23 : 0.25);
+    const secondaryY = primaryY + canvas.h * (isStory ? 0.28 : 0.30);
+    return {
+      canvas,
+      dataCard: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      label: { x: margin, y: contentY, w: canvas.w - margin * 2, h: canvas.h * 0.045 },
+      title: { x: margin, y: contentY + canvas.h * 0.055, w: canvas.w - margin * 2, h: canvas.h * 0.12 },
+      primaryFact: { x: margin, y: primaryY, w: canvas.w - margin * 2, h: canvas.h * 0.23 },
+      secondaryFacts: { x: margin, y: secondaryY, w: canvas.w - margin * 2, h: Math.max(0, footerY - secondaryY - canvas.h * 0.03) },
+      image: { x: 0, y: 0, w: 0, h: 0 },
+      dek: { x: margin, y: primaryY, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: primaryY, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.035 },
+    };
+  }
   if (isFullBleed) {
     const copyH = canvas.h * (isStory ? 0.30 : format === 'landscape' ? 0.32 : 0.35);
     const titleY = canvas.h - copyH;

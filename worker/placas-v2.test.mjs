@@ -106,6 +106,8 @@ test('el prompt solicita un titular sintético separado y el nuevo tipo de placa
   assert.match(prompt, /titulo_sintetico/);
   assert.match(prompt, /titular-arriba/);
   assert.match(prompt, /foto-completa/);
+  assert.match(prompt, /datos_clave/);
+  assert.match(prompt, /dato-clave/);
 });
 
 test('normaliza titulo_sintetico sin reemplazar titulo', () => {

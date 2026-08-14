@@ -61,6 +61,24 @@ test('ofrece foto completa como tercera variante sintética con el mismo título
   assert.equal(variants[2].recommended, false);
 });
 
+test('normaliza hasta tres datos clave y conserva un fallback de contexto', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    datos_clave: [
+      { label: 'Aumento', value: '35%', detail: 'desde agosto' },
+      { label: 'Beneficiarios', value: '12.000' },
+      { label: 'Duración', value: '6 meses' },
+      { label: 'Extra', value: 'no debe entrar' },
+    ],
+  });
+
+  assert.equal(plate.datos_clave.length, 3);
+  assert.deepEqual(plate.datos_clave[0], { label: 'Aumento', value: '35%', detail: 'desde agosto' });
+
+  const fallback = normalizeNewsPlate({ ...extracted, contexto: 'La medida empieza en agosto.' });
+  assert.deepEqual(fallback.datos_clave, [{ label: '', value: 'La medida empieza en agosto.', detail: '' }]);
+});
+
 test('calcula layout sintético con titular arriba e imagen debajo', () => {
   const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'titular-arriba' });
   const layout = calculatePlateLayout('portrait', plate);
@@ -94,6 +112,21 @@ test('calcula layout de foto completa con texto superpuesto y sin bajada', () =>
   assert.equal(layout.image.h, layout.canvas.h);
   assert.ok(layout.title.y > layout.canvas.h * 0.55);
   assert.ok(layout.title.y + layout.title.h < layout.footer.y);
+  assert.equal(layout.dek.h, 0);
+  assert.equal(layout.context.h, 0);
+});
+
+test('calcula layout de dato clave con módulos seguros y sin bajada', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'dato-clave',
+    datos_clave: [{ label: 'Aumento', value: '35%' }, { label: 'Plazo', value: '6 meses' }],
+  });
+  const layout = calculatePlateLayout('portrait', plate);
+
+  assert.equal(layout.dataCard, true);
+  assert.ok(layout.title.y < layout.primaryFact.y);
+  assert.ok(layout.primaryFact.y + layout.primaryFact.h <= layout.footer.y);
   assert.equal(layout.dek.h, 0);
   assert.equal(layout.context.h, 0);
 });
@@ -157,9 +190,9 @@ test('genera una propuesta recomendada y dos alternativas determinísticas', () 
   const plate = normalizeNewsPlate(extracted);
   const variants = buildEditorialVariants(plate);
 
-  assert.equal(variants.length, 3);
+  assert.equal(variants.length, 4);
   assert.equal(variants[0].recommended, true);
-  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-foto-completa']);
+  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-foto-completa', 'politica-dato-clave']);
   assert.equal(variants.every(variant => variant.bloques.length > 0), true);
 });
 
@@ -378,6 +411,33 @@ test('renderiza foto completa sin etiqueta, bajada ni contexto', () => {
 
   assert.ok(calls.includes('Titular breve'));
   assert.equal(calls.includes('POLÍTICA'), false);
+  assert.equal(calls.includes(plate.bajada), false);
+  assert.equal(calls.includes(plate.contexto), false);
+});
+
+test('renderiza dato clave sin bajada ni contexto', () => {
+  const calls = [];
+  const ctx = {
+    canvas: {},
+    clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
+    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, fill() {},
+    createLinearGradient() { return { addColorStop() {} }; },
+    measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
+    fillText(value) { calls.push(String(value)); },
+  };
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'dato-clave',
+    titulo: 'Titular editorial completo',
+    datos_clave: [{ label: 'Aumento', value: '35%', detail: 'desde agosto' }, { label: 'Plazo', value: '6 meses' }],
+    bajada: 'No debe aparecer.',
+    contexto: 'Tampoco debe aparecer.',
+  });
+
+  renderNewsPlate(ctx, plate, 'portrait', {});
+
+  assert.ok(calls.includes('35%'));
+  assert.ok(calls.includes('6 meses'));
   assert.equal(calls.includes(plate.bajada), false);
   assert.equal(calls.includes(plate.contexto), false);
 });

@@ -305,6 +305,55 @@ function renderFullBleedPlate(ctx, plate, format, options, family, layout) {
   return layout;
 }
 
+function renderDataCardPlate(ctx, plate, format, family, layout) {
+  const { canvas } = layout;
+  const facts = (plate.datos_clave || (plate.contexto ? [{ label: '', value: plate.contexto, detail: '' }] : [])).slice(0, 3);
+  ctx.fillStyle = family.soft;
+  ctx.fillRect(0, 0, canvas.w, canvas.h);
+
+  ctx.fillStyle = family.color;
+  ctx.font = `900 ${Math.max(22, canvas.w * 0.026)}px ${fontFamily}`;
+  ctx.fillText('DATO CLAVE', layout.label.x, layout.label.y + layout.label.h * 0.76);
+
+  const titleSize = Math.max(34, canvas.w * (format === 'story' ? 0.052 : 0.046));
+  fittedText(ctx, plate.titulo, layout.title.x, layout.title.y + titleSize, layout.title.w, titleSize, Math.max(24, titleSize * 0.66), 2, 800, family.secondary, 1.08, layout.title.h);
+
+  const primary = facts[0];
+  if (primary) {
+    ctx.fillStyle = family.secondary;
+    ctx.font = `900 ${Math.max(72, canvas.w * (format === 'story' ? 0.145 : 0.13))}px ${fontFamily}`;
+    ctx.fillText(primary.value, layout.primaryFact.x, layout.primaryFact.y + layout.primaryFact.h * 0.58);
+    if (primary.label || primary.detail) {
+      ctx.fillStyle = '#526058';
+      ctx.font = `700 ${Math.max(24, canvas.w * 0.024)}px ${fontFamily}`;
+      ctx.fillText([primary.label, primary.detail].filter(Boolean).join(' · '), layout.primaryFact.x, layout.primaryFact.y + layout.primaryFact.h * 0.82);
+    }
+  }
+
+  const secondary = facts.slice(1);
+  const gap = canvas.w * 0.025;
+  const cardW = (layout.secondaryFacts.w - gap * Math.max(0, secondary.length - 1)) / Math.max(1, secondary.length);
+  secondary.forEach((fact, index) => {
+    const x = layout.secondaryFacts.x + index * (cardW + gap);
+    const card = { x, y: layout.secondaryFacts.y, w: cardW, h: layout.secondaryFacts.h };
+    ctx.fillStyle = '#ffffff';
+    roundedRect(ctx, card.x, card.y, card.w, card.h, canvas.w * 0.012);
+    ctx.fill();
+    ctx.fillStyle = family.secondary;
+    ctx.font = `900 ${Math.max(38, canvas.w * 0.065)}px ${fontFamily}`;
+    ctx.fillText(fact.value, card.x + card.w * 0.08, card.y + card.h * 0.45);
+    ctx.fillStyle = '#526058';
+    ctx.font = `700 ${Math.max(20, canvas.w * 0.019)}px ${fontFamily}`;
+    fittedText(ctx, [fact.label, fact.detail].filter(Boolean).join(' · '), card.x + card.w * 0.08, card.y + card.h * 0.67, card.w * 0.84, Math.max(20, canvas.w * 0.019), 16, 2, 700, '#526058', 1.12, card.h * 0.28);
+  });
+
+  ctx.fillStyle = '#526058';
+  ctx.font = `700 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
+  const source = plate.fuente?.url ? 'Fuente: Media Mendoza' : 'Media Mendoza';
+  ctx.fillText(`${source}${plate.fecha ? ` · ${plate.fecha}` : ''}`, layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  return layout;
+}
+
 export function renderNewsPlate(ctx, plate, format, options = {}) {
   const family = FAMILIES[plate.template_sugerido] || FAMILIES.general;
   const plateType = plate.tipo_placa || 'noticia';
@@ -321,6 +370,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillRect(0, 0, canvas.w, canvas.h);
 
   if (plateType === 'foto-completa') return renderFullBleedPlate(ctx, plate, format, options, family, layout);
+  if (plateType === 'dato-clave') return renderDataCardPlate(ctx, plate, format, family, layout);
   if (['titular-arriba', 'titular-abajo'].includes(plateType)) return renderSyntheticPlate(ctx, plate, format, options, family, layout);
 
   const isHeaderless = true;
