@@ -131,6 +131,22 @@ test('calcula layout de dato clave con módulos seguros y sin bajada', () => {
   assert.equal(layout.context.h, 0);
 });
 
+test('reduce la tarjeta secundaria cuando sólo hay un dato secundario', () => {
+  const single = calculatePlateLayout('portrait', normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'dato-clave',
+    datos_clave: [{ label: 'Zona', value: 'Las Vírgenes' }, { label: 'Causa', value: 'Obras' }],
+  }));
+  const double = calculatePlateLayout('portrait', normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'dato-clave',
+    datos_clave: [{ label: 'Zona', value: 'Las Vírgenes' }, { label: 'Causa', value: 'Obras' }, { label: 'Estado', value: 'Desvío' }],
+  }));
+
+  assert.ok(single.secondaryFacts.h < double.secondaryFacts.h);
+  assert.ok(single.secondaryFacts.y > single.primaryFact.y);
+});
+
 test('genera metadatos mínimos para registrar el experimento', () => {
   const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'titular-arriba', titulo_sintetico: 'Titular breve' });
   const metadata = buildPlateExportMetadata(plate, 'portrait', new Date('2026-08-13T15:30:00.000Z'));

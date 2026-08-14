@@ -332,10 +332,13 @@ export function calculatePlateLayout(format, plate = {}) {
   const headerH = isHeaderless ? 0 : canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
   const footerH = canvas.h * (isStory ? 0.055 : 0.07);
   if (isDataCard) {
+    const factCount = Math.min(3, Math.max(1, Array.isArray(plate.datos_clave) && plate.datos_clave.length ? plate.datos_clave.length : plate.contexto ? 1 : 0));
+    const secondaryCount = Math.max(0, factCount - 1);
     const contentY = canvas.h * (isStory ? 0.10 : 0.08);
     const footerY = canvas.h * 0.91;
-    const primaryY = contentY + canvas.h * (isStory ? 0.23 : 0.25);
-    const secondaryY = primaryY + canvas.h * (isStory ? 0.28 : 0.30);
+    const primaryY = contentY + canvas.h * (isStory ? 0.20 : 0.22);
+    const secondaryY = primaryY + canvas.h * (isStory ? 0.29 : 0.34);
+    const secondaryH = secondaryCount === 1 ? canvas.h * (isStory ? 0.13 : 0.15) : canvas.h * (isStory ? 0.21 : 0.22);
     return {
       canvas,
       dataCard: true,
@@ -343,7 +346,7 @@ export function calculatePlateLayout(format, plate = {}) {
       label: { x: margin, y: contentY, w: canvas.w - margin * 2, h: canvas.h * 0.045 },
       title: { x: margin, y: contentY + canvas.h * 0.055, w: canvas.w - margin * 2, h: canvas.h * 0.12 },
       primaryFact: { x: margin, y: primaryY, w: canvas.w - margin * 2, h: canvas.h * 0.23 },
-      secondaryFacts: { x: margin, y: secondaryY, w: canvas.w - margin * 2, h: Math.max(0, footerY - secondaryY - canvas.h * 0.03) },
+      secondaryFacts: { x: margin, y: secondaryY, w: canvas.w - margin * 2, h: Math.min(secondaryH, Math.max(0, footerY - secondaryY - canvas.h * 0.03)) },
       image: { x: 0, y: 0, w: 0, h: 0 },
       dek: { x: margin, y: primaryY, w: canvas.w - margin * 2, h: 0 },
       context: { x: margin, y: primaryY, w: canvas.w - margin * 2, h: 0 },
