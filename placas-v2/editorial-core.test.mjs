@@ -368,7 +368,7 @@ test('renderiza solo el titular sintético y no la bajada en titular arriba', ()
     clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
     moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, fill() {},
     createLinearGradient() { return { addColorStop() {} }; },
-    measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
+    measureText(value) { const size = Number.parseInt(this.font, 10) || 16; return { width: String(value).length * size / 10, actualBoundingBoxAscent: size, actualBoundingBoxDescent: 3 }; },
     fillText(value) { calls.push(String(value)); },
   };
   const plate = normalizeNewsPlate({
@@ -440,6 +440,32 @@ test('renderiza dato clave sin bajada ni contexto', () => {
   assert.ok(calls.includes('6 meses'));
   assert.equal(calls.includes(plate.bajada), false);
   assert.equal(calls.includes(plate.contexto), false);
+});
+
+test('ajusta datos largos y muestra el logo en dato clave', () => {
+  const calls = [];
+  let imageCalls = 0;
+  const ctx = {
+    canvas: {},
+    clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
+    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, fill() {},
+    createLinearGradient() { return { addColorStop() {} }; },
+    measureText(value) { const size = Number.parseInt(this.font, 10) || 16; return { width: String(value).length * size / 10, actualBoundingBoxAscent: size, actualBoundingBoxDescent: 3 }; },
+    fillText(value) { calls.push(String(value)); },
+    drawImage() { imageCalls += 1; },
+  };
+  const longValue = 'Las Vírgenes y su intersección permanecen con tránsito restringido';
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'dato-clave',
+    datos_clave: [{ label: 'Lugar', value: longValue, detail: 'Intersección del siniestro' }],
+  });
+
+  renderNewsPlate(ctx, plate, 'portrait', { logo: { complete: true, naturalWidth: 120, naturalHeight: 40 } });
+
+  assert.equal(calls.includes(longValue), false);
+  assert.ok(calls.some(value => value.includes('Las Vírgenes')));
+  assert.equal(imageCalls, 1);
 });
 
 test('da al titular sintético una escala dominante en 4:5', () => {
