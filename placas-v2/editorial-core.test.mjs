@@ -79,6 +79,72 @@ test('normaliza hasta tres datos clave y conserva un fallback de contexto', () =
   assert.deepEqual(fallback.datos_clave, [{ label: '', value: 'La medida empieza en agosto.', detail: '' }]);
 });
 
+test('normaliza una comparativa con dos lados y conserva su procedencia', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'comparativa',
+    titulo_sintetico: 'Antes y ahora del salario docente',
+    comparativa: {
+      izquierda: { etiqueta: 'Antes', valor: '42%', detalle: '2025' },
+      derecha: { etiqueta: 'Ahora', valor: '58%', detalle: '2026' },
+      fuente: 'Informe oficial',
+      fecha: '2026-08-14',
+      origen: 'externo',
+    },
+  });
+
+  assert.equal(PLATE_TYPES.comparativa.id, 'comparativa');
+  assert.equal(plate.tipo_placa, 'comparativa');
+  assert.deepEqual(plate.comparativa, {
+    izquierda: { etiqueta: 'Antes', valor: '42%', detalle: '2025' },
+    derecha: { etiqueta: 'Ahora', valor: '58%', detalle: '2026' },
+    fuente: 'Informe oficial',
+    fecha: '2026-08-14',
+    origen: 'externo',
+  });
+});
+
+test('acepta alias antes/ahora y no crea comparativa con un solo lado', () => {
+  const aliases = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'comparativa',
+    comparativa: { antes: { nombre: '2025', valor: '42' }, ahora: { nombre: '2026', valor: '58' } },
+  });
+  assert.deepEqual(aliases.comparativa.izquierda, { etiqueta: '2025', valor: '42', detalle: '' });
+  assert.deepEqual(aliases.comparativa.derecha, { etiqueta: '2026', valor: '58', detalle: '' });
+  assert.equal(aliases.comparativa.origen, 'manual');
+
+  const incomplete = normalizeNewsPlate({ ...extracted, tipo_placa: 'comparativa', comparativa: { izquierda: { valor: '42' } } });
+  assert.equal(incomplete.comparativa, null);
+  assert.notEqual(incomplete.tipo_placa, 'comparativa');
+});
+
+test('ofrece comparativa como variante disponible para una nota con datos', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    comparativa: { izquierda: { etiqueta: 'Antes', valor: '42' }, derecha: { etiqueta: 'Ahora', valor: '58' } },
+  });
+  assert.equal(buildEditorialVariants(plate).some(variant => variant.tipo_placa === 'comparativa'), true);
+});
+
+test('calcula layout comparativo seguro en portrait, square y story', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'comparativa',
+    comparativa: { izquierda: { etiqueta: 'Antes', valor: '42' }, derecha: { etiqueta: 'Ahora', valor: '58' } },
+  });
+  for (const format of ['portrait', 'square', 'story']) {
+    const layout = calculatePlateLayout(format, plate);
+    assert.equal(layout.comparison, true);
+    assert.ok(layout.title.y + layout.title.h <= layout.leftCard.y);
+    assert.ok(layout.leftCard.x + layout.leftCard.w <= layout.canvas.w + 0.001);
+    assert.ok(layout.rightCard.x + layout.rightCard.w <= layout.canvas.w + 0.001);
+    assert.ok(layout.rightCard.y + layout.rightCard.h <= layout.footer.y);
+    assert.equal(layout.dek.h, 0);
+    assert.equal(layout.context.h, 0);
+  }
+});
+
 test('calcula layout sintético con titular arriba e imagen debajo', () => {
   const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'titular-arriba' });
   const layout = calculatePlateLayout('portrait', plate);
@@ -206,9 +272,9 @@ test('genera una propuesta recomendada y dos alternativas determinísticas', () 
   const plate = normalizeNewsPlate(extracted);
   const variants = buildEditorialVariants(plate);
 
-  assert.equal(variants.length, 4);
+  assert.equal(variants.length, 5);
   assert.equal(variants[0].recommended, true);
-  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-foto-completa', 'politica-dato-clave']);
+  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-foto-completa', 'politica-dato-clave', 'politica-comparativa']);
   assert.equal(variants.every(variant => variant.bloques.length > 0), true);
 });
 
@@ -382,7 +448,7 @@ test('renderiza solo el titular sintético y no la bajada en titular arriba', ()
   const ctx = {
     canvas: {},
     clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
-    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, fill() {},
+    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, arc() {}, fill() {},
     createLinearGradient() { return { addColorStop() {} }; },
     measureText(value) { const size = Number.parseInt(this.font, 10) || 16; return { width: String(value).length * size / 10, actualBoundingBoxAscent: size, actualBoundingBoxDescent: 3 }; },
     fillText(value) { calls.push(String(value)); },
@@ -457,6 +523,37 @@ test('renderiza dato clave sin bajada ni contexto', () => {
   assert.ok(calls.includes('Fuente: Mediamendoza'));
   assert.ok(calls.includes('www.mediamendoza.com'));
   assert.equal(calls.includes('Fuente: Media Mendoza'), false);
+  assert.equal(calls.includes(plate.bajada), false);
+  assert.equal(calls.includes(plate.contexto), false);
+});
+
+test('renderiza comparativa con dos valores y sin bajada ni contexto', () => {
+  const calls = [];
+  const ctx = {
+    canvas: {},
+    clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
+    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, arc() {}, fill() {},
+    createLinearGradient() { return { addColorStop() {} }; },
+    measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
+    fillText(value) { calls.push(String(value)); },
+  };
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'comparativa',
+    titulo_sintetico: 'Antes y ahora',
+    bajada: 'Esta bajada no debe aparecer.',
+    contexto: 'Este contexto tampoco debe aparecer.',
+    comparativa: {
+      izquierda: { etiqueta: 'Antes', valor: '42%', detalle: '2025' },
+      derecha: { etiqueta: 'Ahora', valor: '58%', detalle: '2026' },
+    },
+  });
+
+  renderNewsPlate(ctx, plate, 'portrait', {});
+
+  assert.ok(calls.includes('Antes y ahora'));
+  assert.ok(calls.includes('42%'));
+  assert.ok(calls.includes('58%'));
   assert.equal(calls.includes(plate.bajada), false);
   assert.equal(calls.includes(plate.contexto), false);
 });

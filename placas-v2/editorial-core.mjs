@@ -21,6 +21,7 @@ export const PLATE_TYPES = {
   'titular-abajo': { id: 'titular-abajo', label: 'Titular abajo' },
   'foto-completa': { id: 'foto-completa', label: 'Foto completa' },
   'dato-clave': { id: 'dato-clave', label: 'Dato clave' },
+  comparativa: { id: 'comparativa', label: 'Comparativa' },
   textual: { id: 'textual', label: 'Textual' },
   'retrato-circular': { id: 'retrato-circular', label: 'Retrato circular' },
   'editorial-split': { id: 'editorial-split', label: 'Editorial split' },
@@ -194,6 +195,26 @@ function normalizeKeyFacts(value, fallback = '') {
   return [{ label: '', value: clean(fallback), detail: '' }];
 }
 
+function normalizeComparison(value, fallbackSource = '', fallbackDate = '') {
+  if (!value || typeof value !== 'object') return null;
+  const side = (input = {}) => ({
+    etiqueta: clean(input.etiqueta || input.label || input.nombre || input.titulo),
+    valor: clean(input.valor || input.value || input.texto),
+    detalle: clean(input.detalle || input.detail || input.subtitulo),
+  });
+  const izquierda = side(value.izquierda || value.left || value.antes);
+  const derecha = side(value.derecha || value.right || value.ahora);
+  if (!izquierda.valor || !derecha.valor) return null;
+  const origen = ['nota', 'manual', 'externo'].includes(clean(value.origen).toLowerCase()) ? clean(value.origen).toLowerCase() : 'manual';
+  return {
+    izquierda,
+    derecha,
+    fuente: clean(value.fuente || fallbackSource),
+    fecha: clean(value.fecha || fallbackDate),
+    origen,
+  };
+}
+
 export function normalizeNewsPlate(input = {}) {
   const source = input.fuente && typeof input.fuente === 'object' ? input.fuente : input;
   const family = classifyNewsFamily(input.template_sugerido || input.category || source.category || source.categoria || input.etiqueta);
@@ -207,7 +228,8 @@ export function normalizeNewsPlate(input = {}) {
   const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const comparison = normalizeComparison(input.comparativa || source.comparativa, input.fuente_nombre || source.fuente_nombre, input.fecha || input.date || source.fecha || source.date);
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'editorial-split'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const context = clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description);
   const datos_clave = normalizeKeyFacts(input.datos_clave || source.datos_clave, context);
   const normalized = {
@@ -229,6 +251,7 @@ export function normalizeNewsPlate(input = {}) {
     etiqueta: family.label,
     contexto: context,
     datos_clave,
+    comparativa: comparison,
     template_sugerido: family.id,
     tipo_placa: type,
     textual,
@@ -285,6 +308,7 @@ export function buildEditorialVariants(plate) {
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-abajo' }, `${family}-titular-abajo`, family, false),
     cloneWithTemplate({ ...plate, tipo_placa: 'foto-completa' }, `${alternative}-foto-completa`, alternative, false),
     cloneWithTemplate({ ...plate, tipo_placa: 'dato-clave' }, `${family}-dato-clave`, family, false),
+    cloneWithTemplate({ ...plate, tipo_placa: 'comparativa' }, `${family}-comparativa`, family, false),
   ];
 }
 
@@ -327,6 +351,7 @@ export function calculatePlateLayout(format, plate = {}) {
   const isSynthetic = ['titular-arriba', 'titular-abajo'].includes(plate.tipo_placa);
   const isFullBleed = plate.tipo_placa === 'foto-completa';
   const isDataCard = plate.tipo_placa === 'dato-clave';
+  const isComparison = plate.tipo_placa === 'comparativa';
   const isTitleBelow = plate.tipo_placa === 'titular-abajo';
   const isHeaderless = true;
   const headerH = isHeaderless ? 0 : canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
@@ -350,6 +375,30 @@ export function calculatePlateLayout(format, plate = {}) {
       image: { x: 0, y: 0, w: 0, h: 0 },
       dek: { x: margin, y: primaryY, w: canvas.w - margin * 2, h: 0 },
       context: { x: margin, y: primaryY, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.035 },
+    };
+  }
+  if (isComparison) {
+    const titleY = canvas.h * (isStory ? 0.08 : 0.075);
+    const titleH = canvas.h * (isStory ? 0.15 : 0.13);
+    const imageY = titleY + titleH + canvas.h * 0.025;
+    const imageH = canvas.h * (isStory ? 0.13 : 0.12);
+    const cardsY = imageY + imageH + canvas.h * 0.035;
+    const cardsH = canvas.h * (isStory ? 0.38 : 0.35);
+    const gap = canvas.w * 0.025;
+    const cardW = (canvas.w - margin * 2 - gap) / 2;
+    const footerY = canvas.h * 0.90;
+    return {
+      canvas,
+      comparison: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      label: { x: margin, y: titleY, w: canvas.w - margin * 2, h: canvas.h * 0.04 },
+      title: { x: margin, y: titleY + canvas.h * 0.045, w: canvas.w - margin * 2, h: titleH - canvas.h * 0.045 },
+      image: { x: margin, y: imageY, w: canvas.w - margin * 2, h: imageH },
+      leftCard: { x: margin, y: cardsY, w: cardW, h: cardsH },
+      rightCard: { x: margin + cardW + gap, y: cardsY, w: cardW, h: cardsH },
+      dek: { x: margin, y: cardsY, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: cardsY, w: canvas.w - margin * 2, h: 0 },
       footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.035 },
     };
   }

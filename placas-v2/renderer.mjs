@@ -358,6 +358,72 @@ function renderDataCardPlate(ctx, plate, format, options, family, layout) {
   return layout;
 }
 
+function renderComparisonPlate(ctx, plate, format, options, family, layout) {
+  const { canvas } = layout;
+  const comparison = plate.comparativa || {};
+  const left = comparison.izquierda || { etiqueta: 'Antes', valor: 'Dato 1', detalle: '' };
+  const right = comparison.derecha || { etiqueta: 'Ahora', valor: 'Dato 2', detalle: '' };
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.w, canvas.h);
+
+  const logoW = canvas.w * (format === 'story' ? 0.30 : 0.26);
+  containImage(ctx, options.logo, { x: canvas.w - canvas.w * 0.045 - logoW, y: canvas.h * 0.035, w: logoW, h: canvas.h * 0.075 });
+
+  ctx.fillStyle = family.color;
+  ctx.font = `900 ${Math.max(22, canvas.w * 0.026)}px ${fontFamily}`;
+  ctx.fillText('COMPARATIVA', layout.label.x, layout.label.y + layout.label.h * 0.76);
+
+  const titleSize = Math.max(36, canvas.w * (format === 'story' ? 0.052 : 0.046));
+  fittedText(ctx, plate.titulo_sintetico || plate.titulo, layout.title.x, layout.title.y + titleSize, layout.title.w, titleSize, Math.max(24, titleSize * 0.66), 2, 800, family.secondary, 1.08, layout.title.h);
+
+  if (options.image && layout.image.h > 0) {
+    ctx.save();
+    ctx.beginPath();
+    roundedRect(ctx, layout.image.x, layout.image.y, layout.image.w, layout.image.h, canvas.w * 0.012);
+    ctx.clip();
+    if (!adaptiveImage(ctx, options.image, layout.image, options.focus, options.forceCover)) {
+      ctx.fillStyle = family.soft;
+      ctx.fillRect(layout.image.x, layout.image.y, layout.image.w, layout.image.h);
+    }
+    ctx.restore();
+  }
+
+  const cards = [
+    { rect: layout.leftCard, data: left, color: family.soft },
+    { rect: layout.rightCard, data: right, color: '#f5f6f3' },
+  ];
+  cards.forEach(({ rect, data, color }) => {
+    ctx.fillStyle = color;
+    roundedRect(ctx, rect.x, rect.y, rect.w, rect.h, canvas.w * 0.014);
+    ctx.fill();
+    ctx.fillStyle = '#526058';
+    ctx.font = `800 ${Math.max(22, canvas.w * 0.022)}px ${fontFamily}`;
+    fittedText(ctx, data.etiqueta || 'Dato', rect.x + rect.w * 0.08, rect.y + rect.h * 0.18, rect.w * 0.84, Math.max(22, canvas.w * 0.022), 16, 2, 800, '#526058', 1.08, rect.h * 0.16);
+    const valueSize = Math.max(50, canvas.w * (format === 'story' ? 0.085 : 0.075));
+    fittedText(ctx, data.valor || '—', rect.x + rect.w * 0.08, rect.y + rect.h * 0.52, rect.w * 0.84, valueSize, Math.max(28, canvas.w * 0.036), 2, 900, family.secondary, 1.02, rect.h * 0.36);
+    if (data.detalle) {
+      ctx.fillStyle = '#526058';
+      ctx.font = `700 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
+      fittedText(ctx, data.detalle, rect.x + rect.w * 0.08, rect.y + rect.h * 0.86, rect.w * 0.84, Math.max(18, canvas.w * 0.018), 14, 2, 700, '#526058', 1.08, rect.h * 0.12);
+    }
+  });
+
+  ctx.fillStyle = family.color;
+  ctx.font = `900 ${Math.max(20, canvas.w * 0.022)}px ${fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.fillText('VS', canvas.w / 2, layout.leftCard.y + layout.leftCard.h * 0.54);
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = '#526058';
+  ctx.font = `700 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
+  const source = comparison.fuente ? `Fuente: ${comparison.fuente}` : 'Fuente: Mediamendoza';
+  ctx.fillText(`${source}${comparison.fecha ? ` · ${comparison.fecha}` : ''}`, layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.textAlign = 'right';
+  ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.textAlign = 'left';
+  return layout;
+}
+
 export function renderNewsPlate(ctx, plate, format, options = {}) {
   const family = FAMILIES[plate.template_sugerido] || FAMILIES.general;
   const plateType = plate.tipo_placa || 'noticia';
@@ -375,6 +441,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
 
   if (plateType === 'foto-completa') return renderFullBleedPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'dato-clave') return renderDataCardPlate(ctx, plate, format, options, family, layout);
+  if (plateType === 'comparativa') return renderComparisonPlate(ctx, plate, format, options, family, layout);
   if (['titular-arriba', 'titular-abajo'].includes(plateType)) return renderSyntheticPlate(ctx, plate, format, options, family, layout);
 
   const isHeaderless = true;

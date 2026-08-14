@@ -10,6 +10,7 @@ export function buildPlateEditorialPrompt(note = {}) {
   const description = text(note.description || note.descripcion);
   const body = text(note.body || note.texto || note.contenido).slice(0, 12000);
   return `Sos editor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
+Modelo comparativa: si elegís este tipo, devolvé dos lados directamente respaldados por la nota; no inventes cifras ni relaciones y dejá el campo vacío si no hay dos lados claros.
 Convertí una noticia en una propuesta editorial para una placa de redes.
 
 NOTICIA:
@@ -41,7 +42,8 @@ Respondé SOLO con este JSON:
 {
   "tipo": "placa_noticia",
   "version": 1,
-  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|textual|retrato-circular|editorial-split",
+  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|comparativa|textual|retrato-circular|editorial-split",
+  "comparativa": { "izquierda": { "etiqueta": "lado A", "valor": "dato verificable", "detalle": "detalle opcional" }, "derecha": { "etiqueta": "lado B", "valor": "dato verificable", "detalle": "detalle opcional" }, "fuente": "fuente si corresponde", "fecha": "fecha del dato", "origen": "nota|manual|externo" },
   "datos_clave": [{ "label": "etiqueta breve", "value": "dato verificable", "detail": "detalle opcional" }],
   "titulo": "titular para la placa",
   "titulo_sintetico": "titular sintetico de maximo 10 palabras",

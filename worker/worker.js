@@ -198,6 +198,20 @@ function normalizeKeyFacts(value, fallback = '') {
   return normalized.length || !clean(fallback) ? normalized : [{ label: '', value: clean(fallback), detail: '' }];
 }
 
+function normalizeComparison(value, fallbackSource = '', fallbackDate = '') {
+  if (!value || typeof value !== 'object') return null;
+  const side = (input = {}) => ({
+    etiqueta: clean(input.etiqueta || input.label || input.nombre || input.titulo),
+    valor: clean(input.valor || input.value || input.texto),
+    detalle: clean(input.detalle || input.detail || input.subtitulo),
+  });
+  const izquierda = side(value.izquierda || value.left || value.antes);
+  const derecha = side(value.derecha || value.right || value.ahora);
+  if (!izquierda.valor || !derecha.valor) return null;
+  const origen = ['nota', 'manual', 'externo'].includes(clean(value.origen).toLowerCase()) ? clean(value.origen).toLowerCase() : 'manual';
+  return { izquierda, derecha, fuente: clean(value.fuente || fallbackSource), fecha: clean(value.fecha || fallbackDate), origen };
+}
+
 function normalizeNewsPlate(input = {}) {
   const source = input.fuente && typeof input.fuente === 'object' ? input.fuente : input;
   const family = classifyNewsFamily(input.template_sugerido || input.category || source.category || source.categoria || input.etiqueta);
@@ -211,7 +225,8 @@ function normalizeNewsPlate(input = {}) {
   const imagenes_apoyo = normalizeSupportImages(input);
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'editorial-split'].includes(requestedType) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const comparison = normalizeComparison(input.comparativa || source.comparativa, input.fuente_nombre || source.fuente_nombre, input.fecha || input.date || source.fecha || source.date);
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'editorial-split'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const context = clean(input.contexto || input.context || '') || firstSentence(body);
   const normalized = {
     tipo: 'placa_noticia',
@@ -231,6 +246,7 @@ function normalizeNewsPlate(input = {}) {
     etiqueta: family.label,
     contexto: context,
     datos_clave: normalizeKeyFacts(input.datos_clave || source.datos_clave, context),
+    comparativa: comparison,
     fecha: clean(input.fecha || input.date || source.fecha || source.date),
     template_sugerido: family.id,
     tipo_placa: type,
@@ -289,6 +305,7 @@ function buildEditorialVariants(plate) {
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-abajo' }, `${family}-titular-abajo`, family, false),
     cloneWithTemplate({ ...plate, tipo_placa: 'foto-completa' }, `${alternative}-foto-completa`, alternative, false),
     cloneWithTemplate({ ...plate, tipo_placa: 'dato-clave' }, `${family}-dato-clave`, family, false),
+    cloneWithTemplate({ ...plate, tipo_placa: 'comparativa' }, `${family}-comparativa`, family, false),
   ];
 }
 
@@ -392,7 +409,8 @@ Respondé SOLO con este JSON:
   "contexto": "dato o contexto clave, o cadena vacía",
   "redes": { "instagram": "copy para Instagram", "facebook": "copy para Facebook" },
   "etiqueta": "nombre de la sección",
-  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|textual|retrato-circular|editorial-split",
+  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|comparativa|textual|retrato-circular|editorial-split",
+  "comparativa": { "izquierda": { "etiqueta": "lado A", "valor": "dato verificable", "detalle": "detalle opcional" }, "derecha": { "etiqueta": "lado B", "valor": "dato verificable", "detalle": "detalle opcional" }, "fuente": "fuente si corresponde", "fecha": "fecha del dato", "origen": "nota|manual|externo" },
   "datos_clave": [{ "label": "etiqueta breve", "value": "dato verificable", "detail": "detalle opcional" }],
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
   "personas": [{ "nombre": "persona", "rol": "cargo", "imagen": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],

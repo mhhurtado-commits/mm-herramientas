@@ -133,3 +133,26 @@ test('reduce respuestas largas solo en titulo_sintetico', () => {
   assert.equal(result.titulo_sintetico, 'García Salazar respondió al ranking salarial docente');
   assert.equal(normalizeSyntheticTitle(result.titulo_sintetico).split(/\s+/).length <= 10, true);
 });
+
+test('el prompt y la respuesta del worker soportan comparativa con fuente', () => {
+  const prompt = buildPlateEditorialPrompt(note);
+  assert.match(prompt, /comparativa/);
+  assert.match(prompt, /dos lados/i);
+  assert.match(prompt, /no invent/i);
+
+  const result = normalizeEditorialResponse({
+    tipo_placa: 'comparativa',
+    titulo_sintetico: 'Antes y ahora',
+    comparativa: {
+      izquierda: { etiqueta: 'Antes', valor: '42%' },
+      derecha: { etiqueta: 'Ahora', valor: '58%' },
+      fuente: 'Informe oficial',
+      fecha: '2026-08-14',
+      origen: 'externo',
+    },
+  }, note);
+
+  assert.equal(result.tipo_placa, 'comparativa');
+  assert.equal(result.comparativa.fuente, 'Informe oficial');
+  assert.equal(result.comparativa.origen, 'externo');
+});
