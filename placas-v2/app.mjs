@@ -207,7 +207,6 @@ function download() {
   const metadata = buildPlateExportMetadata(variant, state.format);
   const stamp = Date.now();
   $('#plateCanvas').toBlob(blob => downloadBlob(blob, `placa-mediamendoza-${metadata.modelo}-${metadata.formato}-${stamp}.png`), 'image/png');
-  downloadBlob(new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' }), `placa-mediamendoza-${metadata.modelo}-${metadata.formato}-${stamp}.json`);
 }
 async function copy() { try { const blob = await new Promise(resolve => $('#plateCanvas').toBlob(resolve, 'image/png')); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast('PNG copiado al portapapeles.'); } catch { toast('Tu navegador no permite copiar la imagen; usá Descargar PNG.'); } }
 
