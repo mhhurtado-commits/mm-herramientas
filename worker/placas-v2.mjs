@@ -10,7 +10,7 @@ export function buildPlateEditorialPrompt(note = {}) {
   const description = text(note.description || note.descripcion);
   const body = text(note.body || note.texto || note.contenido).slice(0, 12000);
   return `Sos editor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
-Modelo comparativa: si elegís este tipo, devolvé dos lados directamente respaldados por la nota; no inventes cifras ni relaciones y dejá el campo vacío si no hay dos lados claros.
+Modelo comparativa: si la nota presenta contrastes temporales, dos momentos (por ejemplo, viernes y domingo), escenarios o valores verificables, elegí comparativa y devolvé esos dos lados directamente respaldados por la nota. No inventes cifras ni relaciones y dejá el campo vacío si no hay dos lados claros.
 Convertí una noticia en una propuesta editorial para una placa de redes.
 
 NOTICIA:
@@ -30,7 +30,7 @@ REGLAS:
 - Generá dos copys para acompañar la placa con foco en engagement: Instagram debe tener 1 o 2 párrafos breves, 2 o 3 emojis pertinentes, una pregunta o invitación a participar y 3 a 5 hashtags relevantes; Facebook debe tener 2 o 3 párrafos breves, 1 o 2 emojis, una pregunta concreta para incentivar comentarios y el enlace editorial al final.
 - No inventes datos, citas ni preguntas que atribuyan hechos no presentes en la noticia. No uses [enlace], links completos ni llamados a la acción repetidos: el sistema normaliza el enlace y el CTA.
 - Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
-- Elegí un tipo de placa entre: noticia, titular-arriba, titular-abajo, foto-completa, textual, retrato-circular, editorial-split. Usá foto-completa como alternativa de foto a sangre con titular superpuesto; textual sólo con cita literal verificable y retrato-circular sólo si hay al menos una persona identificable.
+- Elegí un tipo de placa entre: noticia, titular-arriba, titular-abajo, foto-completa, dato-clave, comparativa, textual, retrato-circular, editorial-split. Usá comparativa cuando existan dos momentos, escenarios o valores comparables explícitos; foto-completa como alternativa de foto a sangre con titular superpuesto; textual sólo con cita literal verificable y retrato-circular sólo si hay al menos una persona identificable.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
 - Genera tambien un titular sintetico idealmente de 6 a 10 palabras para el modelo titular-arriba. Debe conservar sujeto, hecho principal y precision; no agregues contexto secundario ni inventes informacion.

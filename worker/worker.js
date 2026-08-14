@@ -375,6 +375,7 @@ function buildPlateEditorialPrompt(note = {}) {
   const description = text(note.description || note.descripcion);
   const body = text(note.body || note.texto || note.contenido).slice(0, 12000);
   return `Sos editor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
+Comparativa: si la nota presenta contrastes temporales, dos momentos (por ejemplo, viernes y domingo), escenarios o valores verificables, elegi comparativa y devolve esos dos lados respaldados por la nota. No inventes cifras ni relaciones y deja el campo vacio si no hay dos lados claros.
 Convertí una noticia en una propuesta editorial para una placa de redes.
 
 NOTICIA:
@@ -385,6 +386,7 @@ Cuerpo:
 ${body}
 
 REGLAS:
+- Si la nota contiene contrastes temporales, dos momentos, escenarios o valores comparables explicitos, elegi comparativa y completa sus dos lados con datos de la nota.
 - Leé todo el cuerpo antes de sintetizar.
 - NO inventes datos, cifras, citas, nombres ni contexto que no aparezca en la noticia.
 - Generá un titular breve, claro y atractivo, sin perder precisión.

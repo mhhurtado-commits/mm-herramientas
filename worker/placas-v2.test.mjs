@@ -138,6 +138,8 @@ test('el prompt y la respuesta del worker soportan comparativa con fuente', () =
   const prompt = buildPlateEditorialPrompt(note);
   assert.match(prompt, /comparativa/);
   assert.match(prompt, /dos lados/i);
+  assert.match(prompt, /contrastes temporales/i);
+  assert.match(prompt, /dos momentos/i);
   assert.match(prompt, /no invent/i);
 
   const result = normalizeEditorialResponse({
