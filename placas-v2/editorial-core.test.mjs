@@ -388,10 +388,10 @@ test('ofrece tres composiciones editoriales cuando hay cita o personas', () => {
     personas: [{ nombre: 'Ana Pérez', imagen: extracted.image }],
   });
   const variants = buildEditorialVariants(plate);
-  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['textual', 'noticia', 'noticia']);
+  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['textual', 'titular-arriba', 'foto-completa', 'dato-clave']);
   assert.equal(variants[0].recommended, true);
   assert.ok(variants[1].personas.length);
-  assert.ok(variants[2].bloques.some(block => block.tipo === 'dato-clave'));
+  assert.ok(variants[3].bloques.some(block => block.tipo === 'dato-clave'));
 });
 
 test('calcula áreas seguras para cita, retratos y composición dividida', () => {
@@ -407,7 +407,7 @@ test('calcula áreas seguras para cita, retratos y composición dividida', () =>
 
 test('sin cita literal no ofrece una textual como propuesta', () => {
   const plate = normalizeNewsPlate({ ...extracted, personas: [{ nombre: 'Ana Pérez', imagen: extracted.image }] });
-  assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['noticia', 'noticia', 'noticia']);
+  assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['noticia', 'titular-abajo', 'foto-completa', 'dato-clave']);
 });
 
 test('normaliza imágenes de apoyo para editorial split', () => {
@@ -432,9 +432,9 @@ test('normaliza imágenes de apoyo para editorial split', () => {
 test('mantiene tres tipos distintos cuando la sugerida es editorial split', () => {
   const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'editorial-split' });
   const variants = buildEditorialVariants(plate);
-  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['editorial-split', 'noticia', 'noticia']);
+  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['editorial-split', 'titular-arriba', 'foto-completa', 'dato-clave']);
   assert.equal(variants[0].etiqueta, plate.etiqueta);
-  assert.deepEqual(variants.slice(1).map(variant => variant.etiqueta), ['Actualidad', 'Sociedad']);
+  assert.deepEqual(variants.slice(1).map(variant => variant.etiqueta), ['Actualidad', 'Sociedad', 'Economía']);
 });
 
 test('usa tipografías de contexto específicas para formato y tipo', () => {
@@ -535,13 +535,14 @@ test('renderiza dato clave sin bajada ni contexto', () => {
 
 test('renderiza comparativa con dos valores y sin bajada ni contexto', () => {
   const calls = [];
+  const fills = [];
   const ctx = {
     canvas: {},
-    clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
-    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, arc() {}, fill() {},
+    clearRect() {}, fillRect(x, y, w, h) { fills.push({ style: this.fillStyle, x, y, w, h }); }, save() {}, restore() {}, beginPath() {}, closePath() {},
+    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, arc() {}, fill() { fills.push({ style: this.fillStyle }); },
     createLinearGradient() { return { addColorStop() {} }; },
     measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
-    fillText(value) { calls.push(String(value)); },
+    fillText(value) { calls.push(String(value)); }, drawImage() {},
   };
   const plate = normalizeNewsPlate({
     ...extracted,
@@ -555,13 +556,14 @@ test('renderiza comparativa con dos valores y sin bajada ni contexto', () => {
     },
   });
 
-  renderNewsPlate(ctx, plate, 'portrait', {});
+  renderNewsPlate(ctx, plate, 'portrait', { logo: { complete: true, naturalWidth: 120, naturalHeight: 40 } });
 
   assert.ok(calls.includes('Antes y ahora'));
   assert.ok(calls.includes('42%'));
   assert.ok(calls.includes('58%'));
   assert.equal(calls.includes(plate.bajada), false);
   assert.equal(calls.includes(plate.contexto), false);
+  assert.equal(fills.some(fill => fill.style === '#251e42'), true);
 });
 
 test('ajusta datos largos y muestra el logo en dato clave', () => {

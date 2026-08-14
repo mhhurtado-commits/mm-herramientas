@@ -281,11 +281,13 @@ function buildEditorialVariants(plate) {
   if (plate.textual?.verificada || plate.personas?.length || plate.tipo_placa === 'editorial-split') {
     const firstType = plate.textual?.verificada ? 'textual' : plate.tipo_placa === 'editorial-split' ? 'editorial-split' : 'noticia';
     const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
-    const alternativeFamilies = family === 'general' ? ['sociales', 'politica'] : ['general', 'sociales'];
+    const alternativeFamilies = family === 'general' ? ['sociales', 'politica', 'economia'] : ['general', 'sociales', 'economia'];
+    const alternativeTypes = firstType === 'textual' || firstType === 'editorial-split'
+      ? ['titular-arriba', 'foto-completa', 'dato-clave']
+      : ['titular-abajo', 'foto-completa', 'dato-clave'];
     return [
       { type: firstType, family },
-      { type: 'noticia', family: alternativeFamilies[0] },
-      { type: 'noticia', family: alternativeFamilies[1] },
+      ...alternativeTypes.map((type, index) => ({ type, family: alternativeFamilies[index] })),
     ].map(({ type, family: variantFamily }, index) => {
       const variant = cloneWithTemplate(
         { ...plate, tipo_placa: type },
