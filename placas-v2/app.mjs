@@ -1,4 +1,4 @@
-import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES } from './editorial-core.mjs';
+import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, buildPlateExperimentRecord, experimentRecordToCsv, FORMATS, PLATE_TYPES } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
@@ -205,9 +205,12 @@ function downloadBlob(blob, name) { const link = document.createElement('a'); li
 function download() {
   const variant = effectiveVariant();
   const metadata = buildPlateExportMetadata(variant, state.format);
+  const experiment = buildPlateExperimentRecord(variant, state.format);
   const stamp = Date.now();
   $('#plateCanvas').toBlob(blob => downloadBlob(blob, `placa-mediamendoza-${metadata.modelo}-${metadata.formato}-${stamp}.png`), 'image/png');
   downloadBlob(new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' }), `placa-mediamendoza-${metadata.modelo}-${metadata.formato}-${stamp}.json`);
+  downloadBlob(new Blob([JSON.stringify(experiment, null, 2)], { type: 'application/json' }), `registro-experimento-${metadata.modelo}-${metadata.formato}-${stamp}.json`);
+  downloadBlob(new Blob([experimentRecordToCsv(experiment)], { type: 'text/csv;charset=utf-8' }), `registro-experimento-${metadata.modelo}-${metadata.formato}-${stamp}.csv`);
 }
 async function copy() { try { const blob = await new Promise(resolve => $('#plateCanvas').toBlob(resolve, 'image/png')); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast('PNG copiado al portapapeles.'); } catch { toast('Tu navegador no permite copiar la imagen; usá Descargar PNG.'); } }
 

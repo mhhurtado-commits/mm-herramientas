@@ -9,6 +9,8 @@ import {
   normalizeFocus,
   PLATE_TYPES,
   buildPlateExportMetadata,
+  buildPlateExperimentRecord,
+  experimentRecordToCsv,
   normalizeSyntheticTitle,
 } from './editorial-core.mjs';
 
@@ -231,6 +233,17 @@ test('genera metadatos mínimos para registrar el experimento', () => {
     longitud_titular: 13,
     fecha: '2026-08-13',
   });
+});
+
+test('genera un registro experimental con metricas manuales vacias y CSV', () => {
+  const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'comparativa', titulo_sintetico: 'Frio hoy, lluvia el domingo', comparativa: { izquierda: { etiqueta: 'Viernes', valor: '15 grados' }, derecha: { etiqueta: 'Domingo', valor: '9 grados' } } });
+  const record = buildPlateExperimentRecord(plate, 'portrait', new Date('2026-08-14T15:30:00.000Z'));
+
+  assert.deepEqual(record.metricas, { alcance: '', impresiones: '', clics: '', compartidos: '', guardados: '' });
+  assert.equal(record.modelo, 'comparativa');
+  assert.equal(record.url_nota, 'https://mediamendoza.com/politica/123');
+  assert.match(experimentRecordToCsv(record), /modelo,formato,seccion/);
+  assert.match(experimentRecordToCsv(record), /comparativa,portrait,politica/);
 });
 import { getContextTypography, getFullBleedBranding, getFullBleedTypography, getSyntheticTypography, renderNewsPlate } from './renderer.mjs';
 

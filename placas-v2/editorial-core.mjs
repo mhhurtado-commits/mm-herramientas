@@ -326,6 +326,36 @@ export function buildPlateExportMetadata(plate = {}, format = 'square', date = n
   };
 }
 
+const EXPERIMENT_COLUMNS = [
+  'modelo', 'formato', 'seccion', 'longitud_titular', 'fecha', 'url_nota', 'titulo',
+  'alcance', 'impresiones', 'clics', 'compartidos', 'guardados',
+];
+
+export function buildPlateExperimentRecord(plate = {}, format = 'square', date = new Date(), metrics = {}) {
+  const metadata = buildPlateExportMetadata(plate, format, date);
+  return {
+    ...metadata,
+    url_nota: clean(plate.fuente?.url || plate.url),
+    titulo: clean(plate.titulo_sintetico || plate.titulo),
+    metricas: {
+      alcance: metrics.alcance ?? '',
+      impresiones: metrics.impresiones ?? '',
+      clics: metrics.clics ?? '',
+      compartidos: metrics.compartidos ?? '',
+      guardados: metrics.guardados ?? '',
+    },
+  };
+}
+
+export function experimentRecordToCsv(record = {}) {
+  const valueFor = column => column in (record.metricas || {}) ? record.metricas[column] : record[column];
+  const escapeCsv = value => {
+    const text = String(value ?? '');
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  return `${EXPERIMENT_COLUMNS.join(',')}\n${EXPERIMENT_COLUMNS.map(column => escapeCsv(valueFor(column))).join(',')}\n`;
+}
+
 export function fitTextToLines(text, maxCharsPerLine, maxLines) {
   const words = clean(text).split(' ').filter(Boolean);
   const lines = [];
