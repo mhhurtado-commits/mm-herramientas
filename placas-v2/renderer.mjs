@@ -45,6 +45,17 @@ export function getSyntheticTypography(format = 'portrait') {
   return SYNTHETIC_TYPOGRAPHY[format] || SYNTHETIC_TYPOGRAPHY.portrait;
 }
 
+export function getFullBleedTypography(format = 'portrait') {
+  const base = getSyntheticTypography(format);
+  return format === 'story' ? { ...base, startRatio: 0.095, minRatio: 0.038 } : base;
+}
+
+export function getFullBleedBranding(format = 'portrait') {
+  return format === 'story'
+    ? { logoRatio: 0.38, logoHeightRatio: 0.13, gradientStartRatio: 0.38, gradientAlpha: 0.88 }
+    : { logoRatio: 0.30, logoHeightRatio: 0.10, gradientStartRatio: 0.46, gradientAlpha: 0.82 };
+}
+
 function roundedRect(ctx, x, y, w, h, r) {
   const radius = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -262,6 +273,7 @@ function renderSyntheticPlate(ctx, plate, format, options, family, layout) {
 
 function renderFullBleedPlate(ctx, plate, format, options, family, layout) {
   const { canvas } = layout;
+  const branding = getFullBleedBranding(format);
   ctx.fillStyle = '#17221e';
   ctx.fillRect(0, 0, canvas.w, canvas.h);
   ctx.save();
@@ -275,18 +287,18 @@ function renderFullBleedPlate(ctx, plate, format, options, family, layout) {
     ctx.fillStyle = fallback;
     ctx.fillRect(0, 0, canvas.w, canvas.h);
   }
-  const gradient = ctx.createLinearGradient(0, canvas.h * 0.46, 0, canvas.h);
+  const gradient = ctx.createLinearGradient(0, canvas.h * branding.gradientStartRatio, 0, canvas.h);
   gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(1, 'rgba(0,0,0,.82)');
+  gradient.addColorStop(1, `rgba(0,0,0,${branding.gradientAlpha})`);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.w, canvas.h);
   ctx.restore();
 
   const logoMargin = canvas.w * 0.045;
-  const logoW = canvas.w * (format === 'landscape' ? 0.22 : 0.30);
-  containImage(ctx, options.logo, { x: canvas.w - logoMargin - logoW, y: canvas.h * 0.04, w: logoW, h: canvas.h * 0.10 });
+  const logoW = canvas.w * (format === 'landscape' ? 0.22 : branding.logoRatio);
+  containImage(ctx, options.logo, { x: canvas.w - logoMargin - logoW, y: canvas.h * 0.04, w: logoW, h: canvas.h * branding.logoHeightRatio });
 
-  const typography = getSyntheticTypography(format);
+  const typography = getFullBleedTypography(format);
   const titleStart = Math.max(42, canvas.w * typography.startRatio);
   const titleMin = Math.max(28, canvas.w * typography.minRatio);
   fittedText(ctx, plate.titulo_sintetico || plate.titulo, layout.title.x, layout.title.y + titleStart, layout.title.w, titleStart, titleMin, typography.maxLines, 900, '#ffffff', 1.0, layout.title.h);
