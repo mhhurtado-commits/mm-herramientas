@@ -142,6 +142,7 @@ test('calcula layout comparativo seguro en portrait, square y story', () => {
   for (const format of ['portrait', 'square', 'story']) {
     const layout = calculatePlateLayout(format, plate);
     assert.equal(layout.comparison, true);
+    assert.ok(layout.image.h >= layout.canvas.h * 0.18);
     assert.ok(layout.title.y + layout.title.h <= layout.leftCard.y);
     assert.ok(layout.leftCard.x + layout.leftCard.w <= layout.canvas.w + 0.001);
     assert.ok(layout.rightCard.x + layout.rightCard.w <= layout.canvas.w + 0.001);

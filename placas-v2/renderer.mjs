@@ -86,6 +86,39 @@ function containImage(ctx, image, rect) {
   return true;
 }
 
+function containLightLogo(ctx, image, rect, darkColor) {
+  if (!image || !image.complete || !image.naturalWidth) return false;
+  const width = Math.max(1, Math.round(rect.w));
+  const height = Math.max(1, Math.round(rect.h));
+  try {
+    const surface = typeof OffscreenCanvas !== 'undefined'
+      ? new OffscreenCanvas(width, height)
+      : typeof document !== 'undefined'
+        ? Object.assign(document.createElement('canvas'), { width, height })
+        : null;
+    const surfaceCtx = surface?.getContext('2d');
+    if (!surfaceCtx?.getImageData) return containImage(ctx, image, rect);
+    const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+    const drawW = image.naturalWidth * scale;
+    const drawH = image.naturalHeight * scale;
+    surfaceCtx.drawImage(image, (width - drawW) / 2, (height - drawH) / 2, drawW, drawH);
+    const pixels = surfaceCtx.getImageData(0, 0, width, height);
+    const color = darkColor.match(/[a-f\d]{2}/gi)?.map(value => Number.parseInt(value, 16)) || [22, 32, 27];
+    for (let index = 0; index < pixels.data.length; index += 4) {
+      if (pixels.data[index + 3] > 0 && pixels.data[index] > 220 && pixels.data[index + 1] > 220 && pixels.data[index + 2] > 220) {
+        pixels.data[index] = color[0];
+        pixels.data[index + 1] = color[1];
+        pixels.data[index + 2] = color[2];
+      }
+    }
+    surfaceCtx.putImageData(pixels, 0, 0);
+    ctx.drawImage(surface, rect.x, rect.y, width, height);
+    return true;
+  } catch {
+    return containImage(ctx, image, rect);
+  }
+}
+
 function adaptiveImage(ctx, image, rect, focus = { x: 0.5, y: 0.5 }, forceCover = false) {
   if (!image || !image.complete || !image.naturalWidth) return false;
   const imageRatio = image.naturalWidth / image.naturalHeight;
@@ -368,7 +401,7 @@ function renderComparisonPlate(ctx, plate, format, options, family, layout) {
 
   const logoW = canvas.w * (format === 'story' ? 0.30 : 0.26);
   const logoRect = { x: canvas.w - canvas.w * 0.045 - logoW, y: canvas.h * 0.035, w: logoW, h: canvas.h * 0.075 };
-  containImage(ctx, options.logo, logoRect);
+  containLightLogo(ctx, options.logo, logoRect, family.secondary);
 
   ctx.fillStyle = family.color;
   ctx.font = `900 ${Math.max(22, canvas.w * 0.026)}px ${fontFamily}`;
