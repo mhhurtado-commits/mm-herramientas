@@ -361,8 +361,8 @@ function renderDataCardPlate(ctx, plate, format, options, family, layout) {
 function renderComparisonPlate(ctx, plate, format, options, family, layout) {
   const { canvas } = layout;
   const comparison = plate.comparativa || {};
-  const left = comparison.izquierda || { etiqueta: 'Antes', valor: 'Dato 1', detalle: '' };
-  const right = comparison.derecha || { etiqueta: 'Ahora', valor: 'Dato 2', detalle: '' };
+  const left = comparison.izquierda || { etiqueta: '', valor: '', detalle: '' };
+  const right = comparison.derecha || { etiqueta: '', valor: '', detalle: '' };
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.w, canvas.h);
 
@@ -398,9 +398,9 @@ function renderComparisonPlate(ctx, plate, format, options, family, layout) {
     ctx.fill();
     ctx.fillStyle = '#526058';
     ctx.font = `800 ${Math.max(22, canvas.w * 0.022)}px ${fontFamily}`;
-    fittedText(ctx, data.etiqueta || 'Dato', rect.x + rect.w * 0.08, rect.y + rect.h * 0.18, rect.w * 0.84, Math.max(22, canvas.w * 0.022), 16, 2, 800, '#526058', 1.08, rect.h * 0.16);
+    if (data.etiqueta) fittedText(ctx, data.etiqueta, rect.x + rect.w * 0.08, rect.y + rect.h * 0.18, rect.w * 0.84, Math.max(22, canvas.w * 0.022), 16, 2, 800, '#526058', 1.08, rect.h * 0.16);
     const valueSize = Math.max(50, canvas.w * (format === 'story' ? 0.085 : 0.075));
-    fittedText(ctx, data.valor || '—', rect.x + rect.w * 0.08, rect.y + rect.h * 0.52, rect.w * 0.84, valueSize, Math.max(28, canvas.w * 0.036), 2, 900, family.secondary, 1.02, rect.h * 0.36);
+    if (data.valor) fittedText(ctx, data.valor, rect.x + rect.w * 0.08, rect.y + rect.h * 0.52, rect.w * 0.84, valueSize, Math.max(28, canvas.w * 0.036), 2, 900, family.secondary, 1.02, rect.h * 0.36);
     if (data.detalle) {
       ctx.fillStyle = '#526058';
       ctx.font = `700 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
@@ -408,11 +408,13 @@ function renderComparisonPlate(ctx, plate, format, options, family, layout) {
     }
   });
 
-  ctx.fillStyle = family.color;
-  ctx.font = `900 ${Math.max(20, canvas.w * 0.022)}px ${fontFamily}`;
-  ctx.textAlign = 'center';
-  ctx.fillText('VS', canvas.w / 2, layout.leftCard.y + layout.leftCard.h * 0.54);
-  ctx.textAlign = 'left';
+  if (left.valor && right.valor) {
+    ctx.fillStyle = family.color;
+    ctx.font = `900 ${Math.max(20, canvas.w * 0.022)}px ${fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.fillText('VS', canvas.w / 2, layout.leftCard.y + layout.leftCard.h * 0.54);
+    ctx.textAlign = 'left';
+  }
 
   ctx.fillStyle = '#526058';
   ctx.font = `700 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;

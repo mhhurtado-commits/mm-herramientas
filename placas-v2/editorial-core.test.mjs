@@ -127,6 +127,12 @@ test('ofrece comparativa como variante disponible para una nota con datos', () =
   assert.equal(buildEditorialVariants(plate).some(variant => variant.tipo_placa === 'comparativa'), true);
 });
 
+test('no ofrece comparativa automática cuando la nota no tiene dos lados', () => {
+  const plate = normalizeNewsPlate(extracted);
+  const variants = buildEditorialVariants(plate);
+  assert.equal(variants.some(variant => variant.tipo_placa === 'comparativa'), false);
+});
+
 test('calcula layout comparativo seguro en portrait, square y story', () => {
   const plate = normalizeNewsPlate({
     ...extracted,
@@ -272,9 +278,9 @@ test('genera una propuesta recomendada y dos alternativas determinísticas', () 
   const plate = normalizeNewsPlate(extracted);
   const variants = buildEditorialVariants(plate);
 
-  assert.equal(variants.length, 5);
+  assert.equal(variants.length, 4);
   assert.equal(variants[0].recommended, true);
-  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-foto-completa', 'politica-dato-clave', 'politica-comparativa']);
+  assert.deepEqual(variants.map(variant => variant.id), ['politica-titular-arriba', 'politica-titular-abajo', 'general-foto-completa', 'politica-dato-clave']);
   assert.equal(variants.every(variant => variant.bloques.length > 0), true);
 });
 

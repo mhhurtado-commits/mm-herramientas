@@ -300,13 +300,14 @@ function buildEditorialVariants(plate) {
   }
   const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
   const alternative = family === 'general' ? 'sociales' : 'general';
-  return [
+  const variants = [
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-arriba' }, `${family}-titular-arriba`, family, true),
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-abajo' }, `${family}-titular-abajo`, family, false),
     cloneWithTemplate({ ...plate, tipo_placa: 'foto-completa' }, `${alternative}-foto-completa`, alternative, false),
     cloneWithTemplate({ ...plate, tipo_placa: 'dato-clave' }, `${family}-dato-clave`, family, false),
-    cloneWithTemplate({ ...plate, tipo_placa: 'comparativa' }, `${family}-comparativa`, family, false),
   ];
+  if (plate.comparativa) variants.push(cloneWithTemplate({ ...plate, tipo_placa: 'comparativa' }, `${family}-comparativa`, family, false));
+  return variants;
 }
 
 function fitTextToLines(text, maxCharsPerLine, maxLines) {

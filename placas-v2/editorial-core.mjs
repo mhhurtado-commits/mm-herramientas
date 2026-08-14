@@ -303,13 +303,14 @@ export function buildEditorialVariants(plate) {
   }
   const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
   const alternative = family === 'general' ? 'sociales' : 'general';
-  return [
+  const variants = [
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-arriba' }, `${family}-titular-arriba`, family, true),
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-abajo' }, `${family}-titular-abajo`, family, false),
     cloneWithTemplate({ ...plate, tipo_placa: 'foto-completa' }, `${alternative}-foto-completa`, alternative, false),
     cloneWithTemplate({ ...plate, tipo_placa: 'dato-clave' }, `${family}-dato-clave`, family, false),
-    cloneWithTemplate({ ...plate, tipo_placa: 'comparativa' }, `${family}-comparativa`, family, false),
   ];
+  if (plate.comparativa) variants.push(cloneWithTemplate({ ...plate, tipo_placa: 'comparativa' }, `${family}-comparativa`, family, false));
+  return variants;
 }
 
 export function buildPlateExportMetadata(plate = {}, format = 'square', date = new Date()) {
@@ -384,7 +385,7 @@ export function calculatePlateLayout(format, plate = {}) {
     const imageY = titleY + titleH + canvas.h * 0.025;
     const imageH = canvas.h * (isStory ? 0.13 : 0.12);
     const cardsY = imageY + imageH + canvas.h * 0.035;
-    const cardsH = canvas.h * (isStory ? 0.38 : 0.35);
+    const cardsH = canvas.h * (isStory ? 0.42 : 0.40);
     const gap = canvas.w * 0.025;
     const cardW = (canvas.w - margin * 2 - gap) / 2;
     const footerY = canvas.h * 0.90;

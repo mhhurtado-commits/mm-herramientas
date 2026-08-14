@@ -80,7 +80,7 @@ async function loadSupportImage(url) {
 }
 
 function renderVariants() {
-  $('#variantList').innerHTML = state.variants.map((variant, index) => `<button class="variant ${index === state.selectedVariant ? 'active' : ''}" data-index="${index}" type="button"><span class="variant-dot" style="background:${variant.color_principal}">${index === 0 ? '★' : index + 1}</span><span><strong>${index === 0 ? 'Propuesta recomendada' : `Alternativa ${index}`}</strong><small>${variant.etiqueta} · ${variant.template_sugerido}</small></span>${index === 0 ? '<span class="recommended">Sugerida</span>' : ''}</button>`).join('');
+  $('#variantList').innerHTML = state.variants.map((variant, index) => `<button class="variant ${index === state.selectedVariant ? 'active' : ''}" data-index="${index}" type="button"><span class="variant-dot" style="background:${variant.color_principal}">${index === 0 ? '★' : index + 1}</span><span><strong>${index === 0 ? 'Propuesta recomendada' : `Alternativa ${index}`}</strong><small>${variant.etiqueta} · ${PLATE_TYPES[variant.tipo_placa]?.label || 'Noticia'}</small></span>${index === 0 ? '<span class="recommended">Sugerida</span>' : ''}</button>`).join('');
   document.querySelectorAll('.variant').forEach(button => button.addEventListener('click', () => { state.selectedVariant = Number(button.dataset.index); syncEditor(); render(); }));
   renderTemplates();
 }

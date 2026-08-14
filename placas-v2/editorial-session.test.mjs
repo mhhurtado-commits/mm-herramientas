@@ -59,7 +59,7 @@ test('carga una sesión con una sola extracción y una sola generación', async 
   assert.equal(generationCalls, 1);
   assert.equal(session.package.version, 2);
   assert.equal(session.plate.titulo, note.title);
-  assert.equal(session.variants.length, 5);
+  assert.equal(session.variants.length, 4);
   assert.equal(session.warnings.length, 0);
 });
 
