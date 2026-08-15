@@ -46,9 +46,27 @@ function renderEfemeridesEditor() {
   document.querySelectorAll('[data-efemeride-select]').forEach(input => input.addEventListener('change', event => { const ids = [...document.querySelectorAll('[data-efemeride-select]:checked')].map(item => item.dataset.efemerideSelect); if (ids.length > 3) { event.target.checked = false; return; } state.selectedEfemeridesIds = ids; syncEfemeridesSelection(); }));
   document.querySelectorAll('[data-efemeride-index]').forEach(input => input.addEventListener('input', event => { const item = state.efemeridesItems[Number(event.target.dataset.efemerideIndex)]; if (!item) return; item[event.target.dataset.efemerideKey] = event.target.value; if (state.plate) state.plate.efemerides = selectedEfemerides(); render(); }));
 }
-function loadEfemerides() {
+async function fetchEfemerides(date) {
+  const response = await fetch(WORKER + '/placas/v2/efemerides?fecha=' + encodeURIComponent(date));
+  const data = await response.json();
+  if (!response.ok || data.error) throw new Error(data.error || 'No se pudieron obtener las efemérides.');
+  return data;
+}
+async function loadEfemerides() {
   const date = $('#efemeridesDate').value;
-  state.efemeridesItems = getEfemeridesForDate(date);
+  if (!date) return;
+  $('#loadEfemeridesButton').disabled = true;
+  $('#efemeridesStatus').textContent = 'Buscando y verificando efemérides…';
+  try {
+    const remote = await fetchEfemerides(date);
+    state.efemeridesItems = remote.items || [];
+    $('#efemeridesStatus').dataset.source = remote.meta?.fuente || '';
+  } catch (error) {
+    state.efemeridesItems = getEfemeridesForDate(date);
+    toast(error.message + ' Se usa la caché local disponible.');
+  } finally {
+    $('#loadEfemeridesButton').disabled = false;
+  }
   state.selectedEfemeridesIds = state.efemeridesItems.slice(0, 3).map(item => item.id);
   state.plate = { tipo: 'placa_noticia', version: 1, titulo: `Efemérides del ${formatEfemeridesDate(date)}`, titulo_sintetico: '', bajada: '', contexto: '', etiqueta: 'Efemérides', template_sugerido: 'general', tipo_placa: 'efemerides-social', fecha: date, efemerides: selectedEfemerides(), fuente: { url: '', imagenes: [] }, bloques: [] };
   state.variants = state.plate.efemerides.length ? [state.plate] : [];

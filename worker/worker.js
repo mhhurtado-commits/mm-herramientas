@@ -5676,6 +5676,7 @@ export default {
       if(path==="/social/reel/reset-voces")          return handleResetVoces(env);
       if(path==="/agenda/eventos")                   return handleGetAgendaEventos(url,env);
       if(path==="/agenda/efemerides")                return handleGetAgendaEfemerides(env);
+      if(path==="/placas/v2/efemerides")             return handlePlacasV2Efemerides(url, env);
       if(path==="/agenda/angulos/cache")             return handleGetAngulosCache(url,env);
       if(path==="/resumen/obtener")                  return handleResumenObtener(url, env);
       if(path==="/studio/proyectos")                 return handleStudioObtenerProyectos(env);
@@ -6607,6 +6608,64 @@ Respondé SOLO con el JSON.`;
 // PLACAS V2 - propuesta editorial versionada
 // POST /placas/v2/generar { nota: { ...respuesta de extracción... } }
 // ============================================================
+const PLACAS_V2_EF_CACHE_PREFIX = 'placas-v2:efemerides:';
+const PLACAS_V2_EF_CACHE_TTL = 60 * 60 * 24;
+
+function validEfemeridesDate(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const date = new Date(value + 'T12:00:00Z');
+  return date.getUTCFullYear() === Number(match[1]) && date.getUTCMonth() + 1 === Number(match[2]) && date.getUTCDate() === Number(match[3]);
+}
+
+function stripHtmlForEfemerides(html) {
+  return String(html || '').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/\s+/g, ' ').trim();
+}
+
+async function discoverTyCEfemeridesUrl(date) {
+  const parts = date.split('-');
+  const query = 'site:tycsports.com/interes-general/efemerides efemérides del ' + Number(parts[2]) + ' de agosto';
+  try {
+    const response = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query) + '&kl=es-ar', { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' }, redirect: 'follow' });
+    if (!response.ok) return '';
+    const html = await response.text();
+    const urls = [...html.matchAll(/class="result__a"[^>]*href="[^"]*uddg=([^&"]+)/g)].map(match => decodeURIComponent(match[1])).filter(source => /tycsports\.com\/interes-general\/efemerides\//i.test(source));
+    return urls[0] || '';
+  } catch { return ''; }
+}
+
+async function handlePlacasV2Efemerides(url, env) {
+  const date = url.searchParams.get('fecha') || '';
+  if (!validEfemeridesDate(date)) return jsonError('Fecha inválida. Usá YYYY-MM-DD.', 400);
+  const cacheKey = PLACAS_V2_EF_CACHE_PREFIX + date;
+  if (env.KV) {
+    try {
+      const cached = await env.KV.get(cacheKey, 'json');
+      if (cached && cached.items && cached.items.length) return jsonOk({ ...cached, meta: { ...(cached.meta || {}), cached: true } });
+    } catch {}
+  }
+  const sourceUrl = await discoverTyCEfemeridesUrl(date);
+  if (!sourceUrl) return jsonError('No se encontró una fuente de efemérides para esa fecha.', 502);
+  let sourceText = '';
+  try {
+    const response = await fetch(sourceUrl, { headers: { ...BROWSER_HEADERS, Accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(12000) });
+    if (response.ok) sourceText = stripHtmlForEfemerides(await response.text()).slice(0, 18000);
+  } catch {}
+  if (!sourceText) return jsonError('La fuente de efemérides no respondió.', 502);
+  const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé entre 5 y 8 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, icono y prioridad. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nTexto:\n' + sourceText;
+  const result = await callGemini(prompt, env);
+  if (result.error || !Array.isArray(result.data?.items)) return jsonError('No se pudieron normalizar las efemérides.', 502);
+  const items = result.data.items.map((item, index) => ({
+    id: String(item.id || (date + '-' + (index + 1))).trim(), fecha: date, alcance: item.alcance === 'nacional' ? 'nacional' : 'internacional', categoria: String(item.categoria || 'historia').trim(), icono: String(item.icono || item.categoria || 'historia').trim(),
+    año: String(item.anio || item.año || '').trim(), titulo: String(item.titulo || '').trim(), resumen: String(item.resumen || '').trim(), prioridad: Number(item.prioridad) || index + 1,
+    fuente: 'TyC Sports', url_fuente: sourceUrl, verificada: true, nivel_verificacion: 'fuente_secundaria', fuente_descubrimiento: sourceUrl,
+  })).filter(item => item.titulo && item.año && item.resumen).sort((a, b) => (a.alcance === 'nacional' ? 0 : 1) - (b.alcance === 'nacional' ? 0 : 1) || a.prioridad - b.prioridad);
+  if (items.length < 5) return jsonError('La fuente devolvió menos de cinco opciones utilizables.', 502);
+  const payload = { items, meta: { fecha: date, fuente: sourceUrl, nivel_verificacion: 'fuente_secundaria', generatedAt: new Date().toISOString(), cached: false } };
+  if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: PLACAS_V2_EF_CACHE_TTL }); } catch {} }
+  return jsonOk(payload);
+}
+
 async function handlePlacasV2Generar(body, env) {
   const note = body?.nota && typeof body.nota === 'object' ? body.nota : body;
   const hasContent = String(note?.url || note?.title || note?.titulo || note?.body || note?.texto || '').trim();
