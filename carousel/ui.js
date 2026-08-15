@@ -317,7 +317,13 @@ function createCarouselSupportImageControls(project, slide) {
 function updateCarouselSlideSupportImage(project, slide, source, name) {
   if (!project || !slide) return;
   project.manualSlideImages = { ...(project.manualSlideImages || {}), [slide.id]: source };
-  slide.content = { ...(slide.content || {}), supportImage: source };
+  const isImageSlide = slide.type === "imagen" || slide.template === "image";
+  if (isImageSlide) {
+    const originalImage = slide.content?.originalImage || slide.content?.image || "";
+    slide.content = { ...(slide.content || {}), originalImage, image: source || originalImage };
+  } else {
+    slide.content = { ...(slide.content || {}), supportImage: source };
+  }
   if (name) slide.content.supportImageName = name;
   else delete slide.content.supportImageName;
   setProject(project);

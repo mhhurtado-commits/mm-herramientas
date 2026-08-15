@@ -1123,6 +1123,15 @@ test('prioriza y conserva la imagen manual de una escena al regenerar el plan', 
   assert.equal(cleared[1].content.supportImage, '');
 });
 
+test('la imagen subida reemplaza la imagen original en una slide imagen', () => {
+  const manualImage = 'data:image/png;base64,bmV3LWltYWdl';
+  const article = { image: 'https://example.com/original.jpg', images: [] };
+  const plan = { diagnosis: { template: 'mm_classic' }, cover: { title: 'Portada' }, slides: [{ type: 'imagen', title: 'Hecho', image: 'article.image', text: 'Texto.' }] };
+  const slides = carouselEngine.convertirPlanASlides(plan, article, {}, { 'slide-1': manualImage });
+  assert.equal(slides[1].content.image, manualImage);
+  assert.equal(slides[1].content.supportImage, '');
+});
+
 test('conserva una imagen de la nota guardada con el proxy conocido y rechaza proxies ajenos', () => {
   const worker = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
   const articleImage = 'https://example.com/article-support.jpg?width=1200&format=webp';

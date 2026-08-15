@@ -83,20 +83,21 @@ export function convertirPlanASlides(plan, article, settings, manualSlideImages)
     slide.content.source = item.source || (item.type === "end" ? item.title || "" : "");
     slide.content.cta = item.cta || (item.type === "end" ? item.text || "" : "");
     slide.content.supportImage = resolveSupportImage(item.supportImage, article);
-    if (manualSlideImages && Object.prototype.hasOwnProperty.call(manualSlideImages, slide.id)) {
-      slide.content.supportImage = manualSlideImages[slide.id] || "";
+    const hasManualImageChoice = manualSlideImages && Object.prototype.hasOwnProperty.call(manualSlideImages, slide.id);
+    const manualImage = hasManualImageChoice ? manualSlideImages[slide.id] || "" : "";
+    if (hasManualImageChoice && item.type !== "imagen") {
+      slide.content.supportImage = manualImage;
     }
     slide.content.quoteValidation = item.quoteValidation || "";
     slide.content.validation = item.validation || item.quoteValidation || "";
     if (item.focalPosition !== undefined) {
       slide.content.focalPosition = item.focalPosition;
     }
-    const hasManualImageChoice = manualSlideImages && Object.prototype.hasOwnProperty.call(manualSlideImages, slide.id);
     if (!slide.content.supportImage && !hasManualImageChoice && supportsSecondaryImage(item.type) && supportImages[supportIndex]) {
       slide.content.supportImage = supportImages[supportIndex++];
     }
     if (item.type === "imagen") {
-      const image = resolveEditorialImage(item.image || item.imagen, article);
+      const image = manualImage || resolveEditorialImage(item.image || item.imagen, article);
       if (image) {
         slide.content.image = image;
       } else {
