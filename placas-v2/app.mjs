@@ -4,9 +4,10 @@ import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
 import { generateEditorialOutputs } from './editorial-output-generation.mjs';
 import { getEfemeridesForDate } from './efemerides-data.mjs';
+import { buildEfemeridesSocialPrompt, normalizeEfemeridesSocialCopies } from './efemerides-social.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { mode: 'nota', plate: null, package: null, note: null, outputs: ['placa'], variants: [], efemeridesItems: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, drag: null };
+const state = { mode: 'nota', plate: null, package: null, note: null, outputs: ['placa'], variants: [], efemeridesItems: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, efemeridesCopies: null, efemeridesCopiesKey: null, drag: null };
 const $ = selector => document.querySelector(selector);
 
 const logoImage = new Image();
@@ -37,14 +38,16 @@ function legacyLoadEfemerides() {
   if (state.variants.length) { renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor(); render(); }
 }
 function selectedEfemerides() { const ids = state.selectedEfemeridesIds || []; return state.efemeridesItems.filter(item => ids.includes(item.id)); }
-function syncEfemeridesSelection() { if (!state.plate) return; state.plate.efemerides = selectedEfemerides(); state.variants = state.plate.efemerides.length ? [state.plate] : []; renderEfemeridesEditor(); renderVariants(); render(); }
+function syncEfemeridesSelection() { if (!state.plate) return; state.plate.efemerides = selectedEfemerides(); state.variants = state.plate.efemerides.length ? [state.plate] : []; state.efemeridesCopies = null; state.efemeridesCopiesKey = null; state.plate.redes = { instagram: '', facebook: '' }; renderEfemeridesEditor(); renderEfemeridesSocialCopies(); renderVariants(); render(); }
 function renderEfemeridesEditor() {
   const items = state.efemeridesItems;
   const selected = state.selectedEfemeridesIds || [];
   $('#efemeridesStatus').textContent = items.length ? `${items.length} opciones verificadas · ${selected.length}/3 seleccionadas. Elegí hasta tres para la placa.` : 'No hay efemérides verificadas para esa fecha.';
   $('#efemeridesEditor').innerHTML = items.map((item, index) => `<div class="efemeride-edit"><label><input type="checkbox" data-efemeride-select="${escapeHtml(item.id)}" ${selected.includes(item.id) ? 'checked' : ''}> Usar en la placa</label><strong>${escapeHtml(item.categoria)} · ${escapeHtml(item.titulo)}</strong><input type="text" data-efemeride-index="${index}" data-efemeride-key="titulo" value="${escapeHtml(item.titulo)}" aria-label="Título de efeméride ${index + 1}"><small>${escapeHtml(item.resumen)} · Fuente: <a href="${escapeHtml(item.url_fuente)}" target="_blank" rel="noreferrer">${escapeHtml(item.fuente)}</a></small></div>`).join('');
   document.querySelectorAll('[data-efemeride-select]').forEach(input => input.addEventListener('change', event => { const ids = [...document.querySelectorAll('[data-efemeride-select]:checked')].map(item => item.dataset.efemerideSelect); if (ids.length > 3) { event.target.checked = false; return; } state.selectedEfemeridesIds = ids; syncEfemeridesSelection(); }));
-  document.querySelectorAll('[data-efemeride-index]').forEach(input => input.addEventListener('input', event => { const item = state.efemeridesItems[Number(event.target.dataset.efemerideIndex)]; if (!item) return; item[event.target.dataset.efemerideKey] = event.target.value; if (state.plate) state.plate.efemerides = selectedEfemerides(); render(); }));
+  document.querySelectorAll('[data-efemeride-index]').forEach(input => input.addEventListener('input', event => { const item = state.efemeridesItems[Number(event.target.dataset.efemerideIndex)]; if (!item) return; item[event.target.dataset.efemerideKey] = event.target.value; if (state.plate) { state.plate.efemerides = selectedEfemerides(); state.efemeridesCopies = null; state.efemeridesCopiesKey = null; state.plate.redes = { instagram: '', facebook: '' }; renderEfemeridesSocialCopies(); } render(); }));
+  const confirmButton = $('#confirmEfemeridesButton');
+  if (confirmButton) confirmButton.disabled = selected.length !== 3;
 }
 async function fetchEfemerides(date) {
   const controller = new AbortController();
@@ -74,12 +77,59 @@ async function loadEfemerides() {
     $('#loadEfemeridesButton').disabled = false;
   }
   state.selectedEfemeridesIds = state.efemeridesItems.slice(0, 3).map(item => item.id);
+  state.efemeridesCopies = null;
+  state.efemeridesCopiesKey = null;
   state.plate = { tipo: 'placa_noticia', version: 1, titulo: `Efemérides del ${formatEfemeridesDate(date)}`, titulo_sintetico: '', bajada: '', contexto: '', etiqueta: 'Efemérides', template_sugerido: 'general', tipo_placa: 'efemerides-social', fecha: date, efemerides: selectedEfemerides(), fuente: { url: '', imagenes: [] }, bloques: [] };
   state.variants = state.plate.efemerides.length ? [state.plate] : [];
   state.selectedVariant = 0; state.selectedTemplate = 'efemerides-social'; state.format = 'portrait'; state.image = null; state.imageUrl = '';
   $('#editorControls').classList.toggle('is-hidden', !state.variants.length);
   renderEfemeridesEditor();
+  renderEfemeridesSocialCopies();
   if (state.variants.length) { renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor(); render(); }
+}
+async function confirmEfemeridesCopies() {
+  const items = selectedEfemerides();
+  if (items.length !== 3) { toast('Seleccioná exactamente tres efemérides antes de confirmar.'); return false; }
+  const selectionKey = items.map(item => item.id).join('|');
+  if (state.efemeridesCopies && state.efemeridesCopiesKey === selectionKey) return true;
+  const button = $('#confirmEfemeridesButton');
+  if (button) { button.disabled = true; button.textContent = 'Generando copys…'; }
+  try {
+    const prompt = buildEfemeridesSocialPrompt(items, state.plate?.fecha || $('#efemeridesDate').value);
+    const result = await generateSocialJson(prompt.systemPrompt, prompt.userMsg);
+    state.efemeridesCopies = normalizeEfemeridesSocialCopies(result);
+    state.efemeridesCopiesKey = selectionKey;
+    state.plate.redes = state.efemeridesCopies.placa;
+    renderEfemeridesSocialCopies();
+    toast('Copys de la placa y el carrusel generados.');
+    return true;
+  } catch (error) {
+    toast(error.message || 'No se pudieron generar los copys.');
+    return false;
+  } finally {
+    if (button) { button.disabled = selectedEfemerides().length !== 3; button.textContent = 'Confirmar 3 y generar copys'; }
+  }
+}
+function renderEfemeridesSocialCopies() {
+  const copies = state.efemeridesCopies;
+  const block = $('#efemeridesSocialCopies');
+  if (!block) return;
+  block.classList.toggle('is-hidden', !copies);
+  if (!copies) return;
+  for (const key of ['placaInstagram', 'placaFacebook', 'carruselInstagram', 'carruselFacebook']) {
+    const [output, network] = key.replace(/([A-Z])/g, '-$1').toLowerCase().split('-');
+    const input = $(`#${key}`);
+    if (input) input.value = copies[output]?.[network] || '';
+  }
+}
+function setEfemeridesSocialText(id, value) {
+  if (!state.efemeridesCopies) return;
+  const match = id.match(/^(placa|carrusel)(Instagram|Facebook)$/);
+  if (!match) return;
+  const output = match[1];
+  const network = match[2].toLowerCase();
+  state.efemeridesCopies[output][network] = value;
+  if (output === 'placa' && state.plate) state.plate.redes = state.efemeridesCopies.placa;
 }
 function setMode(mode) { state.mode = mode; const efemerides = mode === 'efemerides'; $('#newsForm').classList.toggle('is-hidden', efemerides); $('#efemeridesForm').classList.toggle('is-hidden', !efemerides); $('#editorControls').classList.toggle('is-hidden', efemerides || !state.variants.length); $('#articleModeButton').classList.toggle('active', !efemerides); $('#efemeridesModeButton').classList.toggle('active', efemerides); if (efemerides && !$('#efemeridesDate').value) $('#efemeridesDate').value = new Date().toISOString().slice(0, 10); }
 function setFocus(axis, value) { const variant = activeVariant(); const imageBlock = variant?.bloques?.find(block => block.tipo === 'imagen'); if (!imageBlock) return; imageBlock.foco = { ...activeFocus(), [axis]: Number(value) / 100 }; renderFocus(); render(); }
@@ -173,6 +223,7 @@ function renderOutputs() {
     }
     if (state.mode === 'efemerides') {
       button.disabled = true;
+      if (!(await confirmEfemeridesCopies())) { button.disabled = false; return; }
       await enrichEfemerideImages();
       button.disabled = false;
     }
@@ -245,7 +296,7 @@ function buildEfemeridesCarouselPackage() {
     fuente: { url: items[0].url_fuente || '', titulo_original: state.plate.titulo, categoria: 'Efemérides', cuerpo: items.map(item => item.resumen).join(' '), imagen: coverImage, imagenes: itemImages },
     editorial: { seccion: 'Efemérides', familia: 'mm_classic', tipo_noticia: 'evergreen', complejidad: 'medium', tono: 'informative', titulo: state.plate.titulo, bajada: 'Tres efemérides verificadas', contexto: '', datos_clave: [], textual: [], personas: [], category_options: [{ id: 'efemerides', label: 'Efemérides', vertical: 'general', recommended: true }] },
     salidas: { placas: [], carrusel: plan, reel: null },
-    redes: { instagram: '', facebook: '' },
+    redes: state.efemeridesCopies?.carrusel || { instagram: '', facebook: '' },
   };
 }
 
@@ -350,6 +401,9 @@ $('#quoteRoleInput').addEventListener('input', event => { const variant = active
 $('#instagramCopy').addEventListener('input', event => setSocialText('instagram', event.target.value));
 $('#facebookCopy').addEventListener('input', event => setSocialText('facebook', event.target.value));
 document.querySelectorAll('.copy-social').forEach(button => button.addEventListener('click', () => copySocial(button.dataset.network)));
+document.querySelectorAll('.copy-efemerides-social').forEach(button => button.addEventListener('click', async () => { const input = $(`#${button.dataset.copyId}`); if (!input?.value.trim()) return; try { await navigator.clipboard.writeText(input.value); toast('Copy de efemérides copiado.'); } catch { toast('No se pudo copiar el copy.'); } }));
+['placaInstagram', 'placaFacebook', 'carruselInstagram', 'carruselFacebook'].forEach(id => $(`#${id}`).addEventListener('input', event => setEfemeridesSocialText(id, event.target.value)));
+$('#confirmEfemeridesButton').addEventListener('click', confirmEfemeridesCopies);
 $('#focusX').addEventListener('input', event => setFocus('x', event.target.value));
 $('#focusY').addEventListener('input', event => setFocus('y', event.target.value));
 $('#downloadButton').addEventListener('click', download); $('#copyButton').addEventListener('click', copy);

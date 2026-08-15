@@ -45,6 +45,14 @@
           <div class="url-row"><input id="efemeridesDate" type="date"><button id="loadEfemeridesButton" class="icon-button" type="button" aria-label="Cargar efemérides">â†’</button></div>
           <p id="efemeridesStatus" class="hint">Sólo se muestran efemérides verificadas con fuente.</p>
           <div id="efemeridesEditor"></div>
+          <button id="confirmEfemeridesButton" class="primary efemeride-confirm" type="button" disabled>Confirmar 3 y generar copys</button>
+          <div id="efemeridesSocialCopies" class="social-copies is-hidden">
+            <div class="social-copy-head"><div><label>Copys de efemérides</label><small>Generados con las tres efemérides confirmadas</small></div></div>
+            <div class="social-copy-card"><div class="social-copy-title"><strong>Placa · Instagram</strong><button type="button" class="copy-efemerides-social" data-copy-id="placaInstagram">Copiar</button></div><textarea id="placaInstagram" rows="6"></textarea></div>
+            <div class="social-copy-card"><div class="social-copy-title"><strong>Placa · Facebook</strong><button type="button" class="copy-efemerides-social" data-copy-id="placaFacebook">Copiar</button></div><textarea id="placaFacebook" rows="6"></textarea></div>
+            <div class="social-copy-card"><div class="social-copy-title"><strong>Carrusel · Instagram</strong><button type="button" class="copy-efemerides-social" data-copy-id="carruselInstagram">Copiar</button></div><textarea id="carruselInstagram" rows="6"></textarea></div>
+            <div class="social-copy-card"><div class="social-copy-title"><strong>Carrusel · Facebook</strong><button type="button" class="copy-efemerides-social" data-copy-id="carruselFacebook">Copiar</button></div><textarea id="carruselFacebook" rows="6"></textarea></div>
+          </div>
         </div>
         <div id="editorControls" class="controls is-hidden">
           <div class="step"><span>02</span><div><strong>Elegí una dirección</strong><small>La recomendada aparece primero</small></div></div>
