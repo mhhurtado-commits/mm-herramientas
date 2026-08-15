@@ -6628,12 +6628,16 @@ async function discoverTyCEfemeridesUrl(date) {
   const monthNames = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const month = monthNames[Number(parts[1])] || '';
   const datePattern = new RegExp(day + '-de-' + month + '(?:-|$)', 'i');
-  const knownTyC = {
-    '08-19': 'https://www.tycsports.com/interes-general/efemerides/efemerides-del-19-de-agosto-que-se-conmemora-hoy-id530017.html',
-  };
-  const knownUrl = knownTyC[parts[1] + '-' + parts[2]];
-  if (knownUrl) return knownUrl;
   const decodeUrl = value => String(value || '').replace(/&amp;/g, '&');
+  const searchQuery = 'site:tycsports.com/interes-general/efemerides efemerides del ' + day + ' de ' + month;
+  try {
+    const searchResponse = await fetch('https://www.bing.com/search?q=' + encodeURIComponent(searchQuery), { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(8000) });
+    if (searchResponse.ok) {
+      const searchHtml = await searchResponse.text();
+      const urls = [...searchHtml.matchAll(/href=["'](https?:\/\/www\.tycsports\.com\/interes-general\/efemerides\/[^"']+)["']/gi)].map(match => decodeUrl(match[1])).filter(source => datePattern.test(source));
+      if (urls[0]) return urls[0];
+    }
+  } catch {}
   try {
     const indexResponse = await fetch('https://www.tycsports.com/efemerides.html', { headers: { ...BROWSER_HEADERS, Accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(8000) });
     if (indexResponse.ok) {
