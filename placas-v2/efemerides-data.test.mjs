@@ -29,6 +29,7 @@ test('la semilla tiene fuentes y no supera tres destacados', () => {
 
 test('la semilla usa iconos especificos para cada efemeride', () => {
   assert.deepEqual(getEfemeridesForDate('08-15').map(item => item.icono), ['futbol', 'canal', 'musica']);
+  assert.deepEqual(getEfemeridesForDate('08-16').slice(0, 3).map(item => item.icono), ['aviacion', 'aviacion', 'teatro']);
 });
 
 test('la semilla usa resúmenes concretos y breves', () => {

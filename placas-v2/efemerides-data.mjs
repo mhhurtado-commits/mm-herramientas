@@ -51,7 +51,7 @@ const SEED = [
   },
   {
     id: 'incendio-rancheria-1792', fecha: '08-16', alcance: 'nacional', categoria: 'cultura', año: '1792',
-    titulo: 'Se incendia el teatro La Ranchería', resumen: 'El primer teatro estable de Buenos Aires queda destruido por un incendio.', icono: 'cultura', prioridad: 3, verificada: true,
+    titulo: 'Se incendia el teatro La Ranchería', resumen: 'El primer teatro estable de Buenos Aires queda destruido por un incendio.', icono: 'teatro', prioridad: 3, verificada: true,
     fuente: 'Buenos Aires Ciudad', url_fuente: 'https://buenosaires.gob.ar/gcaba_historico/laciudad/calendario-historico/agosto',
   },
 ];

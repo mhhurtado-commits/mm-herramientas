@@ -403,6 +403,12 @@ function drawEfemerideIcon(ctx, key, x, y, size, color) {
     ctx.beginPath(); ctx.arc(x, y, size * 0.34, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, size * 0.12, 0, Math.PI * 2); ctx.stroke();
     [[-0.25, -0.1], [0.2, -0.2], [0.18, 0.24], [-0.2, 0.2]].forEach(([dx, dy]) => { ctx.moveTo(x, y); ctx.lineTo(x + size * dx, y + size * dy); }); ctx.stroke();
+  } else if (icon.includes('aviacion') || icon.includes('avion') || icon.includes('vuelo')) {
+    ctx.beginPath(); ctx.moveTo(x - size * 0.46, y); ctx.lineTo(x + size * 0.46, y); ctx.moveTo(x - size * 0.05, y); ctx.lineTo(x - size * 0.28, y - size * 0.34); ctx.moveTo(x - size * 0.05, y); ctx.lineTo(x - size * 0.28, y + size * 0.34); ctx.moveTo(x + size * 0.08, y); ctx.lineTo(x + size * 0.32, y - size * 0.2); ctx.lineTo(x + size * 0.42, y - size * 0.2); ctx.moveTo(x + size * 0.08, y); ctx.lineTo(x + size * 0.32, y + size * 0.2); ctx.lineTo(x + size * 0.42, y + size * 0.2); ctx.stroke();
+  } else if (icon.includes('teatro') || icon.includes('cultura')) {
+    ctx.beginPath(); ctx.arc(x - size * 0.18, y - size * 0.08, size * 0.18, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x + size * 0.18, y - size * 0.08, size * 0.18, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - size * 0.38, y + size * 0.32); ctx.quadraticCurveTo(x - size * 0.18, y + size * 0.06, x, y + size * 0.32); ctx.quadraticCurveTo(x + size * 0.18, y + size * 0.06, x + size * 0.38, y + size * 0.32); ctx.stroke();
   } else if (icon.includes('musica') || icon.includes('woodstock') || icon.includes('guitarra')) {
     ctx.beginPath(); ctx.arc(x - size * 0.12, y + size * 0.24, size * 0.14, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.moveTo(x - size * 0.01, y + size * 0.2); ctx.lineTo(x - size * 0.01, y - size * 0.42); ctx.lineTo(x + size * 0.32, y - size * 0.52); ctx.lineTo(x + size * 0.32, y - size * 0.34); ctx.stroke();
