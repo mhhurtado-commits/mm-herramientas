@@ -391,6 +391,46 @@ function renderDataCardPlate(ctx, plate, format, options, family, layout) {
   return layout;
 }
 
+function renderEfemeridesPlate(ctx, plate, format, options, family, layout) {
+  const { canvas } = layout;
+  const items = (plate.efemerides || []).slice(0, 3);
+  ctx.fillStyle = '#f4f6ef';
+  ctx.fillRect(0, 0, canvas.w, canvas.h);
+  const logoW = canvas.w * (format === 'story' ? 0.30 : 0.26);
+  containLightLogo(ctx, options.logo, { x: canvas.w - canvas.w * 0.045 - logoW, y: canvas.h * 0.035, w: logoW, h: canvas.h * 0.075 }, '#16201b');
+
+  ctx.fillStyle = family.color;
+  ctx.font = `900 ${Math.max(24, canvas.w * 0.026)}px ${fontFamily}`;
+  ctx.fillText('EFEMÉRIDES', layout.label.x, layout.label.y + layout.label.h * 0.76);
+  fittedText(ctx, plate.titulo || 'Agenda del día', layout.title.x, layout.title.y + Math.max(38, canvas.w * 0.052), layout.title.w, Math.max(38, canvas.w * 0.052), Math.max(26, canvas.w * 0.032), 2, 900, family.secondary, 1.04, layout.title.h);
+
+  items.forEach((item, index) => {
+    const card = layout.cards[index];
+    const accent = index === 0 ? family.color : index === 1 ? '#367d9c' : '#b36b27';
+    ctx.fillStyle = '#ffffff';
+    roundedRect(ctx, card.x, card.y, card.w, card.h, canvas.w * 0.012);
+    ctx.fill();
+    ctx.fillStyle = accent;
+    ctx.fillRect(card.x, card.y, canvas.w * 0.012, card.h);
+    const pad = card.w * 0.055;
+    ctx.fillStyle = accent;
+    ctx.font = `900 ${Math.max(34, canvas.w * 0.045)}px ${fontFamily}`;
+    ctx.fillText(item.año || '', card.x + pad, card.y + card.h * 0.43);
+    ctx.fillStyle = '#526058';
+    ctx.font = `800 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
+    ctx.fillText(String(item.categoria || item.alcance || '').toUpperCase(), card.x + pad, card.y + card.h * 0.19);
+    fittedText(ctx, item.titulo || '', card.x + card.w * 0.25, card.y + card.h * 0.44, card.w * 0.68, Math.max(30, canvas.w * 0.031), Math.max(22, canvas.w * 0.022), 2, 800, family.secondary, 1.08, card.h * 0.44);
+  });
+
+  ctx.fillStyle = '#526058';
+  ctx.font = `700 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
+  ctx.fillText('Fuentes verificadas · Media Mendoza', layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.textAlign = 'right';
+  ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.textAlign = 'left';
+  return layout;
+}
+
 function renderComparisonPlate(ctx, plate, format, options, family, layout) {
   const { canvas } = layout;
   const comparison = plate.comparativa || {};
@@ -478,6 +518,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   if (plateType === 'foto-completa') return renderFullBleedPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'dato-clave') return renderDataCardPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'comparativa') return renderComparisonPlate(ctx, plate, format, options, family, layout);
+  if (plateType === 'efemerides-social') return renderEfemeridesPlate(ctx, plate, format, options, family, layout);
   if (['titular-arriba', 'titular-abajo'].includes(plateType)) return renderSyntheticPlate(ctx, plate, format, options, family, layout);
 
   const isHeaderless = true;

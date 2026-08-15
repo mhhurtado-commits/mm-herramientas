@@ -33,12 +33,19 @@
     <section class="workspace">
       <aside class="panel" aria-label="Controles de la placa">
         <div class="step"><span>01</span><div><strong>Fuente de la noticia</strong><small>Partimos siempre de una URL</small></div></div>
+        <div class="mode-switch" aria-label="Tipo de contenido"><button id="articleModeButton" class="mode-button active" type="button">Nota</button><button id="efemeridesModeButton" class="mode-button" type="button">Efemérides</button></div>
         <form id="newsForm" class="url-form">
           <label for="newsUrl">Link de la nota</label>
           <div class="url-row"><input id="newsUrl" type="url" required placeholder="https://mediamendoza.com/..." autocomplete="off"><button class="icon-button" type="submit" aria-label="Generar propuesta">→</button></div>
           <p class="hint">Extraemos título, sección, cuerpo e imágenes disponibles.</p>
         </form>
 
+        <div id="efemeridesForm" class="efemerides-form is-hidden">
+          <label for="efemeridesDate">Fecha</label>
+          <div class="url-row"><input id="efemeridesDate" type="date"><button id="loadEfemeridesButton" class="icon-button" type="button" aria-label="Cargar efemérides">â†’</button></div>
+          <p id="efemeridesStatus" class="hint">Sólo se muestran efemérides verificadas con fuente.</p>
+          <div id="efemeridesEditor"></div>
+        </div>
         <div id="editorControls" class="controls is-hidden">
           <div class="step"><span>02</span><div><strong>Elegí una dirección</strong><small>La recomendada aparece primero</small></div></div>
           <div id="variantList" class="variants"></div>

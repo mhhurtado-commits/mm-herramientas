@@ -3,9 +3,10 @@ import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
 import { generateEditorialOutputs } from './editorial-output-generation.mjs';
+import { getEfemeridesForDate } from './efemerides-data.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { plate: null, package: null, note: null, outputs: ['placa'], variants: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, drag: null };
+const state = { mode: 'nota', plate: null, package: null, note: null, outputs: ['placa'], variants: [], efemeridesItems: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'square', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, drag: null };
 const $ = selector => document.querySelector(selector);
 
 const logoImage = new Image();
@@ -17,6 +18,25 @@ function setLoading(on, message = 'Analizando la noticia…') { $('#loading').cl
 function activeVariant() { return state.variants[state.selectedVariant] || state.plate; }
 function effectiveVariant() { const variant = activeVariant(); return variant ? { ...variant, tipo_placa: state.selectedTemplate || variant.tipo_placa || 'noticia' } : null; }
 function activeFocus() { return normalizeFocus(activeVariant()?.bloques?.find(block => block.tipo === 'imagen')?.foco); }
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character])); }
+function formatEfemeridesDate(value) { return new Date(`${value}T12:00:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'long' }); }
+function renderEfemeridesEditor() {
+  const items = state.efemeridesItems;
+  $('#efemeridesStatus').textContent = items.length ? `${items.length} efemérides verificadas. Podés editar los títulos antes de descargar.` : 'No hay efemérides verificadas para esa fecha.';
+  $('#efemeridesEditor').innerHTML = items.map((item, index) => `<div class="efemeride-edit"><strong>${escapeHtml(item.año)} · ${escapeHtml(item.categoria)}</strong><input type="text" data-efemeride-index="${index}" data-efemeride-key="titulo" value="${escapeHtml(item.titulo)}" aria-label="Título de efeméride ${index + 1}"><small>Fuente: <a href="${escapeHtml(item.url_fuente)}" target="_blank" rel="noreferrer">${escapeHtml(item.fuente)}</a></small></div>`).join('');
+  document.querySelectorAll('[data-efemeride-index]').forEach(input => input.addEventListener('input', event => { const item = state.efemeridesItems[Number(event.target.dataset.efemerideIndex)]; if (!item) return; item[event.target.dataset.efemerideKey] = event.target.value; state.plate.efemerides = state.efemeridesItems; render(); }));
+}
+function loadEfemerides() {
+  const date = $('#efemeridesDate').value;
+  state.efemeridesItems = getEfemeridesForDate(date);
+  state.plate = { tipo: 'placa_noticia', version: 1, titulo: `Efemérides del ${formatEfemeridesDate(date)}`, titulo_sintetico: '', bajada: '', contexto: '', etiqueta: 'Efemérides', template_sugerido: 'general', tipo_placa: 'efemerides-social', fecha: date, efemerides: state.efemeridesItems, fuente: { url: '', imagenes: [] }, bloques: [] };
+  state.variants = state.efemeridesItems.length ? [state.plate] : [];
+  state.selectedVariant = 0; state.selectedTemplate = 'efemerides-social'; state.format = 'portrait'; state.image = null; state.imageUrl = '';
+  $('#editorControls').classList.toggle('is-hidden', !state.variants.length);
+  renderEfemeridesEditor();
+  if (state.variants.length) { renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor(); render(); }
+}
+function setMode(mode) { state.mode = mode; const efemerides = mode === 'efemerides'; $('#newsForm').classList.toggle('is-hidden', efemerides); $('#efemeridesForm').classList.toggle('is-hidden', !efemerides); $('#editorControls').classList.toggle('is-hidden', efemerides || !state.variants.length); $('#articleModeButton').classList.toggle('active', !efemerides); $('#efemeridesModeButton').classList.toggle('active', efemerides); if (efemerides && !$('#efemeridesDate').value) $('#efemeridesDate').value = new Date().toISOString().slice(0, 10); }
 function setFocus(axis, value) { const variant = activeVariant(); const imageBlock = variant?.bloques?.find(block => block.tipo === 'imagen'); if (!imageBlock) return; imageBlock.foco = { ...activeFocus(), [axis]: Number(value) / 100 }; renderFocus(); render(); }
 function setActiveText(key, value) { const current = activeVariant(); if (!current) return; current[key] = value; state.plate[key] = value; state.variants.forEach(variant => { if (variant[key] === current[key] || variant === current) variant[key] = value; }); render(); }
 
@@ -91,7 +111,9 @@ function renderFormats() {
 }
 
 function renderOutputs() {
-  const outputs = [
+  const outputs = state.mode === 'efemerides' ? [
+    { id: 'placa', label: 'Placa' },
+  ] : [
     { id: 'placa', label: 'Placa' },
     { id: 'carrusel', label: 'Carrusel' },
     { id: 'reel', label: 'Reel' },
@@ -124,7 +146,7 @@ function renderOutputs() {
 
 function renderTemplates() {
   const source = activeVariant();
-  const types = Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || type.id === 'titular-arriba' || type.id === 'titular-abajo' || type.id === 'foto-completa' || type.id === 'dato-clave' || type.id === 'comparativa' || (type.id === 'textual' && source?.textual?.verificada) || type.id === 'retrato-circular' || type.id === 'editorial-split');
+  const types = state.mode === 'efemerides' ? [PLATE_TYPES['efemerides-social']] : Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || type.id === 'titular-arriba' || type.id === 'titular-abajo' || type.id === 'foto-completa' || type.id === 'dato-clave' || type.id === 'comparativa' || (type.id === 'textual' && source?.textual?.verificada) || type.id === 'retrato-circular' || type.id === 'editorial-split');
   const current = state.selectedTemplate || source?.tipo_placa || 'noticia';
   $('#templateList').innerHTML = types.map(type => `<button type="button" class="template-option ${current === type.id ? 'active' : ''}" data-template="${type.id}">${type.label}</button>`).join('');
   document.querySelectorAll('.template-option').forEach(button => button.addEventListener('click', () => { state.selectedTemplate = button.dataset.template; syncEditor(); renderTemplates(); render(); }));
@@ -211,6 +233,9 @@ function download() {
 async function copy() { try { const blob = await new Promise(resolve => $('#plateCanvas').toBlob(resolve, 'image/png')); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast('PNG copiado al portapapeles.'); } catch { toast('Tu navegador no permite copiar la imagen; usá Descargar PNG.'); } }
 
 $('#newsForm').addEventListener('submit', generate);
+$('#articleModeButton').addEventListener('click', () => setMode('nota'));
+$('#efemeridesModeButton').addEventListener('click', () => setMode('efemerides'));
+$('#loadEfemeridesButton').addEventListener('click', loadEfemerides);
 $('#titleInput').addEventListener('input', event => setActiveText('titulo', event.target.value));
 $('#syntheticTitleInput').addEventListener('input', event => { syncSyntheticTitleMeta(event.target.value); setActiveText('titulo_sintetico', event.target.value); });
 $('#dekInput').addEventListener('input', event => setActiveText('bajada', event.target.value));

@@ -22,6 +22,7 @@ export const PLATE_TYPES = {
   'foto-completa': { id: 'foto-completa', label: 'Foto completa' },
   'dato-clave': { id: 'dato-clave', label: 'Dato clave' },
   comparativa: { id: 'comparativa', label: 'Comparativa' },
+  'efemerides-social': { id: 'efemerides-social', label: 'Efemérides social' },
   textual: { id: 'textual', label: 'Textual' },
   'retrato-circular': { id: 'retrato-circular', label: 'Retrato circular' },
   'editorial-split': { id: 'editorial-split', label: 'Editorial split' },
@@ -229,7 +230,7 @@ export function normalizeNewsPlate(input = {}) {
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
   const comparison = normalizeComparison(input.comparativa || source.comparativa, input.fuente_nombre || source.fuente_nombre, input.fecha || input.date || source.fecha || source.date);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'editorial-split'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'efemerides-social', 'editorial-split'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const context = clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description);
   const datos_clave = normalizeKeyFacts(input.datos_clave || source.datos_clave, context);
   const normalized = {
@@ -377,6 +378,26 @@ export function calculatePlateLayout(format, plate = {}) {
       image: { x: 0, y: 0, w: 0, h: 0 },
       dek: { x: margin, y: primaryY, w: canvas.w - margin * 2, h: 0 },
       context: { x: margin, y: primaryY, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.035 },
+    };
+  }
+  if (plate.tipo_placa === 'efemerides-social') {
+    const titleY = canvas.h * (isStory ? 0.055 : 0.065);
+    const titleH = canvas.h * (isStory ? 0.13 : 0.14);
+    const cardsY = titleY + titleH + canvas.h * 0.035;
+    const gap = canvas.h * 0.018;
+    const footerY = canvas.h * 0.90;
+    const cardsH = Math.min(canvas.h * (isStory ? 0.20 : 0.225), (footerY - cardsY - gap * 2) / 3);
+    return {
+      canvas,
+      efemerides: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      label: { x: margin, y: titleY, w: canvas.w - margin * 2, h: canvas.h * 0.04 },
+      title: { x: margin, y: titleY + canvas.h * 0.045, w: canvas.w - margin * 2, h: titleH - canvas.h * 0.045 },
+      image: { x: 0, y: 0, w: 0, h: 0 },
+      cards: Array.from({ length: 3 }, (_, index) => ({ x: margin, y: cardsY + index * (cardsH + gap), w: canvas.w - margin * 2, h: cardsH })),
+      dek: { x: margin, y: cardsY, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: cardsY, w: canvas.w - margin * 2, h: 0 },
       footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.035 },
     };
   }

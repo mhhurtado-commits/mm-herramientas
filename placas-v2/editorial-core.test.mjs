@@ -152,6 +152,16 @@ test('calcula layout comparativo seguro en portrait, square y story', () => {
   }
 });
 
+test('calcula layout social de efemérides con hasta tres tarjetas', () => {
+  const plate = { tipo_placa: 'efemerides-social', efemerides: [{}, {}, {}] };
+  const layout = calculatePlateLayout('portrait', plate);
+
+  assert.equal(PLATE_TYPES['efemerides-social'].id, 'efemerides-social');
+  assert.equal(layout.efemerides, true);
+  assert.equal(layout.cards.length, 3);
+  assert.ok(layout.cards.every(card => card.y + card.h <= layout.footer.y));
+});
+
 test('calcula layout sintético con titular arriba e imagen debajo', () => {
   const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'titular-arriba' });
   const layout = calculatePlateLayout('portrait', plate);
