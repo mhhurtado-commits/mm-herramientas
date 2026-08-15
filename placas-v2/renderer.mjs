@@ -452,7 +452,7 @@ function renderEfemeridesPlate(ctx, plate, format, options, family, layout) {
     ctx.fillText(String(item.categoria || item.alcance || '').toUpperCase(), card.x + pad, card.y + card.h * 0.19);
     fittedText(ctx, item.titulo || '', card.x + card.w * 0.25, card.y + card.h * 0.40, card.w * 0.61, Math.max(38, canvas.w * 0.040), Math.max(26, canvas.w * 0.027), 2, 800, family.secondary, 1.06, card.h * 0.28);
     ctx.fillStyle = '#526058';
-    fittedText(ctx, item.resumen || '', card.x + card.w * 0.25, card.y + card.h * 0.72, card.w * 0.61, Math.max(24, canvas.w * 0.023), Math.max(19, canvas.w * 0.019), 2, 600, '#526058', 1.12, card.h * 0.19);
+    fittedText(ctx, item.resumen || '', card.x + card.w * 0.25, card.y + card.h * 0.72, card.w * 0.61, Math.max(30, canvas.w * 0.030), Math.max(23, canvas.w * 0.023), 2, 700, '#526058', 1.10, card.h * 0.19);
   });
 
   ctx.fillStyle = '#526058';
