@@ -121,3 +121,25 @@ test('usa la categoria recomendada del contrato aunque editorial.seccion difiera
   assert.equal(project.editorialDiagnosis.vertical, 'policiales');
   assert.equal(project.selectedCategoryId, 'policiales');
 });
+
+test('usa una familia propia para carruseles de efemérides', () => {
+  const project = openCarouselFromEditorialPackage({
+    ...editorialPackage,
+    editorial: {
+      ...editorialPackage.editorial,
+      seccion: 'Efemérides',
+      familia: 'mm_efemerides',
+      category_options: [
+        { id: 'efemerides', label: 'Efemérides', vertical: 'efemerides', recommended: true },
+      ],
+    },
+    salidas: {
+      ...editorialPackage.salidas,
+      carrusel: { diagnosis: { template: 'mm_efemerides' }, cover: {}, slides: [] },
+    },
+  });
+
+  assert.equal(project.article.category, 'Efemérides');
+  assert.equal(project.editorialDiagnosis.vertical, 'efemerides');
+  assert.equal(project.editorialDiagnosis.template, 'mm_efemerides');
+});

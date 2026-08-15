@@ -107,6 +107,7 @@ var BASE_THEME = {
 
 var SECTION_FAMILIES = {
   general: { label: "Actualidad", accent: "#a6ce39", dark: "#16201b", soft: "#eaf3de" },
+  efemerides: { label: "Efemérides", accent: "#8fb62e", dark: "#20301c", soft: "#eef5d6" },
   clima: { label: "Clima", accent: "#367d9c", dark: "#16303b", soft: "#dcedf3" },
   policiales: { label: "Policiales", accent: "#ba3f42", dark: "#421c1e", soft: "#f8dddd" },
   sociales: { label: "Sociedad", accent: "#b36b27", dark: "#422715", soft: "#f8ead7" },
@@ -117,6 +118,37 @@ var SECTION_FAMILIES = {
 
 var THEME_VARIANTS = {
   mm_classic: {},
+  mm_efemerides: {
+    name: "mm_efemerides",
+    colors: {
+      background: "#f7f8f1",
+      panel: "#ffffff",
+      surface: "#ffffff",
+      surfaceSoft: "#f1f5e6",
+      textPrimary: "#142019",
+      textSecondary: "#435149",
+      textMuted: "#68756b",
+      lineSoft: "#dbe5ca",
+      accent: "#8fb62e",
+      accentSoft: "#eef5d6",
+      brandLine: "rgba(143,182,46,0.42)",
+      coverPanelStroke: "rgba(143,182,46,0.28)",
+      endBackground: "#20301c",
+      endFrame: "rgba(143,182,46,0.42)",
+      endPanelStroke: "rgba(143,182,46,0.28)",
+      endCtaFill: "#a6ce39",
+      endCtaText: "#16201b"
+    },
+    variant: {
+      categoryOnCover: false,
+      categoryInText: true,
+      showQuoteMark: false,
+      showEyebrow: true,
+      textPanelFill: "#f1f5e6",
+      statsCardFill: "#f8fbf0",
+      endUrlLabel: "MEDIAMENDOZA.COM"
+    }
+  },
   mm_editorial: {
     name: "mm_editorial",
     colors: {

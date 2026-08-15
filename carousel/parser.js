@@ -17,8 +17,8 @@ const TYPED_CAROUSEL_SLIDE_RANGES = {
   data_points: { min: 5, max: 6 },
   service: { min: 4, max: 5 }
 };
-const ALLOWED_TEMPLATES = ["mm_classic", "mm_briefing", "mm_impact"];
-const ALLOWED_VERTICALS = ["policiales", "servicios", "sociales", "espectaculos", "clima", "deportes", "politica", "economia", "general"];
+const ALLOWED_TEMPLATES = ["mm_classic", "mm_briefing", "mm_impact", "mm_efemerides"];
+const ALLOWED_VERTICALS = ["policiales", "servicios", "sociales", "espectaculos", "clima", "deportes", "politica", "economia", "efemerides", "general"];
 
 const CAROUSEL_STRUCTURES = {
   summary: ["context", "facts", "impact", "cta"],
@@ -462,6 +462,7 @@ function inferVertical(article) {
   const category = cleanText(article.category).toLowerCase();
   const text = (article.title + " " + article.summary + " " + article.category).toLowerCase();
 
+  if (matchesAny(category + " " + text, ["efemeride", "efemerides"])) return "efemerides";
   if (matchesAny(category + " " + text, ["policial", "policiales", "accidente", "crimen", "fiscal", "homicidio", "robo"])) return "policiales";
   if (matchesAny(category + " " + text, ["clima", "meteorologia", "nevadas", "temperatura", "alerta amarilla", "viento", "zonda"])) return "clima";
   if (matchesAny(category + " " + text, ["servicio", "transito", "cortes", "horarios", "recomendacion", "tramite"])) return "servicios";
@@ -509,6 +510,7 @@ function inferCarouselType(newsType, complexity, vertical) {
 }
 
 function inferTemplate(newsType, carouselType, tone, vertical) {
+  if (vertical === "efemerides") return "mm_efemerides";
   if (vertical === "clima" || vertical === "servicios" || carouselType === "service" || carouselType === "data_points") {
     return "mm_briefing";
   }

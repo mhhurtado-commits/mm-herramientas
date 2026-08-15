@@ -6,7 +6,7 @@ const NEWS_TYPES = new Set(['breaking', 'service', 'institutional', 'analysis', 
 const COMPLEXITIES = new Set(['brief', 'medium', 'deep']);
 const TONES = new Set(['informative', 'explainer', 'chronological', 'impact', 'utility']);
 const CAROUSEL_TYPES = new Set(['summary', 'explainer', 'timeline', 'data_points', 'service']);
-const TEMPLATES = new Set(['mm_classic', 'mm_briefing', 'mm_impact']);
+const TEMPLATES = new Set(['mm_classic', 'mm_briefing', 'mm_impact', 'mm_efemerides']);
 
 export function fromEditorialPackage(editorialPackage = {}) {
   const editorial = editorialPackage.editorial || {};
@@ -60,6 +60,7 @@ export function openCarouselFromEditorialPackage(editorialPackage = {}) {
 
 function mapVertical(value) {
   const normalized = clean(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (normalized.includes('efemerid')) return 'efemerides';
   if (normalized.includes('policial')) return 'policiales';
   if (normalized.includes('clima') || normalized.includes('meteor')) return 'clima';
   if (normalized.includes('servicio')) return 'servicios';
@@ -83,6 +84,7 @@ function inferCarouselType(editorial, category = editorial.seccion) {
 
 function inferTemplate(editorial, category = editorial.seccion) {
   const vertical = mapVertical(category);
+  if (vertical === 'efemerides') return 'mm_efemerides';
   const type = inferCarouselType(editorial, category);
   if (vertical === 'policiales' || type === 'timeline') return 'mm_impact';
   if (vertical === 'clima' || vertical === 'servicios' || type === 'service' || type === 'data_points') return 'mm_briefing';

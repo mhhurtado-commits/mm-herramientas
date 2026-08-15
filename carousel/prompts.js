@@ -29,11 +29,11 @@ export function buildCarouselPrompt(article) {
     "- No escribir estilos, colores, coordenadas ni decisiones de diseno.\n" +
     "- Elegir SOLO una opcion valida para cada campo de diagnostico.\n" +
     '- news_type permitido: "breaking", "service", "institutional", "analysis", "data", "evergreen".\n' +
-    '- vertical permitido: "policiales", "servicios", "sociales", "espectaculos", "clima", "deportes", "politica", "economia", "general".\n' +
+    '- vertical permitido: "policiales", "servicios", "sociales", "espectaculos", "clima", "deportes", "politica", "economia", "efemerides", "general".\n' +
     '- complexity permitido: "brief", "medium", "deep".\n' +
     '- tone permitido: "informative", "explainer", "chronological", "impact", "utility".\n' +
     '- carousel_type permitido: "summary", "explainer", "timeline", "data_points", "service".\n' +
-    '- template permitido: "mm_classic", "mm_briefing", "mm_impact".\n' +
+    '- template permitido: "mm_classic", "mm_briefing", "mm_impact", "mm_efemerides".\n' +
     "- La cantidad total de slides puede variar entre 4 y 7, segun el diagnostico; si carousel_type es summary, debe tener entre 4 y 5 slides totales, incluyendo cover y end.\n" +
     "- Estructuras permitidas segun carousel_type:\n" +
     '  - summary: entre 4 y 5 slides totales\n' +
