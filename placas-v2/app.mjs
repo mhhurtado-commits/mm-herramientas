@@ -170,7 +170,7 @@ function renderOutputs() {
     const handoffPackage = {
       ...sourcePackage,
       editorial: {
-        ...(state.package.editorial || {}),
+        ...(sourcePackage.editorial || {}),
         category_options: state.variants.map((item, index) => ({
           id: item.id || `categoria-${index + 1}`,
           label: item.etiqueta || 'Actualidad',
