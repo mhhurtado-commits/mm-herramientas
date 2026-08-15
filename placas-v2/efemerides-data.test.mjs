@@ -24,6 +24,12 @@ test('la semilla usa iconos especificos para cada efemeride', () => {
   assert.deepEqual(getSeedEfemerides().map(item => item.icono), ['futbol', 'canal', 'musica']);
 });
 
+test('la semilla usa resúmenes concretos y breves', () => {
+  const summaries = getSeedEfemerides().map(item => item.resumen);
+  assert.ok(summaries.every(summary => summary.length <= 72));
+  assert.ok(summaries[0].includes('Villa Crespo'));
+});
+
 test('normaliza un icono explicito y aplica fallback por categoria', () => {
   assert.equal(normalizeEfemeride({ titulo: 'Dato', fecha: '08-15', categoria: 'deportes', fuente: 'Archivo', url_fuente: 'https://example.com', verificada: true }).icono, 'deportes');
   assert.equal(normalizeEfemeride({ titulo: 'Dato', fecha: '08-15', categoria: 'cultura', icono: 'musica', fuente: 'Archivo', url_fuente: 'https://example.com', verificada: true }).icono, 'musica');

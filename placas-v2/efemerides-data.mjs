@@ -3,17 +3,17 @@ const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
 const SEED = [
   {
     id: 'argentinos-juniors-1904', fecha: '08-15', alcance: 'nacional', categoria: 'deportes', año: '1904',
-    titulo: 'Fundación de Argentinos Juniors', resumen: 'Se funda el club en Buenos Aires.', icono: 'futbol', prioridad: 1, verificada: true,
+    titulo: 'Fundación de Argentinos Juniors', resumen: 'Nace en Villa Crespo, en una obra en construcción.', icono: 'futbol', prioridad: 1, verificada: true,
     fuente: 'Argentinos Juniors', url_fuente: 'https://argentinosjuniors.com.ar/el-club/historia/',
   },
   {
     id: 'canal-panama-1914', fecha: '08-15', alcance: 'internacional', categoria: 'mundo', año: '1914',
-    titulo: 'Apertura del Canal de Panamá', resumen: 'El canal se abre oficialmente al tránsito.', icono: 'canal', prioridad: 2, verificada: true,
+    titulo: 'Apertura del Canal de Panamá', resumen: 'La vía interoceánica conecta el Atlántico y el Pacífico.', icono: 'canal', prioridad: 2, verificada: true,
     fuente: 'Autoridad del Canal de Panamá', url_fuente: 'https://pancanal.com/culminacion-de-la-construccion/',
   },
   {
     id: 'woodstock-1969', fecha: '08-15', alcance: 'internacional', categoria: 'cultura', año: '1969',
-    titulo: 'Comienza el festival de Woodstock', resumen: 'El festival musical se inicia en Bethel, Nueva York.', icono: 'musica', prioridad: 3, verificada: true,
+    titulo: 'Comienza el festival de Woodstock', resumen: 'Tres días de música reúnen a miles en Bethel, Nueva York.', icono: 'musica', prioridad: 3, verificada: true,
     fuente: 'Woodstock', url_fuente: 'https://www.woodstock.com/woodstock-1969/',
   },
 ];
