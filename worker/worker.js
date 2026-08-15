@@ -6608,7 +6608,7 @@ Respondé SOLO con el JSON.`;
 // PLACAS V2 - propuesta editorial versionada
 // POST /placas/v2/generar { nota: { ...respuesta de extracción... } }
 // ============================================================
-const PLACAS_V2_EF_CACHE_PREFIX = 'placas-v2:efemerides:';
+const PLACAS_V2_EF_CACHE_PREFIX = 'placas-v2:efemerides:v2:';
 const PLACAS_V2_EF_CACHE_TTL = 60 * 60 * 24;
 
 function validEfemeridesDate(value) {
