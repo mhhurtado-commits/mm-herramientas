@@ -159,11 +159,16 @@ function renderOutputs() {
     { id: 'reel', label: 'Reel' },
   ];
   $('#outputList').innerHTML = outputs.map(output => `<button class="format ${output.id === 'placa' ? 'active' : ''}" type="button" data-output="${output.id}" title="Abrir salida ${output.label}">${output.label}</button>`).join('');
-  document.querySelectorAll('[data-output]').forEach(button => button.addEventListener('click', () => {
+  document.querySelectorAll('[data-output]').forEach(button => button.addEventListener('click', async () => {
     const output = button.dataset.output;
     if (output === 'placa') {
       document.querySelectorAll('[data-output]').forEach(item => item.classList.toggle('active', item === button));
       return;
+    }
+    if (state.mode === 'efemerides') {
+      button.disabled = true;
+      await enrichEfemerideImages();
+      button.disabled = false;
     }
     const sourcePackage = state.mode === 'efemerides' ? buildEfemeridesCarouselPackage() : state.package;
     if (!sourcePackage) return;
@@ -182,6 +187,25 @@ function renderOutputs() {
     };
     sessionStorage.setItem(EDITORIAL_HANDOFF_KEY, createEditorialHandoff(handoffPackage, output));
     window.location.href = output === 'reel' ? '../reels/' : '../carousel/';
+  }));
+}
+
+async function enrichEfemerideImages() {
+  const items = (state.plate?.efemerides || []).slice(0, 3);
+  await Promise.all(items.map(async item => {
+    if (item.imagen) return;
+    const query = String(item.titulo || '').replace(/^(paso a la inmortalidad de|nacimiento de|muere|debuta|debut de|se funda|día de)\s+/i, '').trim();
+    if (!query) return;
+    try {
+      const response = await fetch('https://es.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(query.replace(/\s+/g, '_')));
+      if (!response.ok) return;
+      const data = await response.json();
+      const image = data?.originalimage?.source || data?.thumbnail?.source;
+      if (image) {
+        item.imagen = image;
+        item.imagen_fuente = 'Wikipedia';
+      }
+    } catch {}
   }));
 }
 
