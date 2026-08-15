@@ -6682,6 +6682,22 @@ async function findWikipediaImage(query) {
   } catch { return null; }
 }
 
+async function discoverWikipediaDateUrl(date) {
+  const parts = date.split('-');
+  const monthNames = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const day = Number(parts[2]);
+  const month = monthNames[Number(parts[1])] || '';
+  if (!day || !month) return '';
+  const sourceUrl = 'https://es.wikipedia.org/wiki/' + day + '_de_' + month;
+  try {
+    const response = await fetch(sourceUrl, { headers: { Accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return '';
+    const html = await response.text();
+    if (/página no existe|la página solicitada no existe/i.test(html)) return '';
+    return sourceUrl;
+  } catch { return ''; }
+}
+
 async function handlePlacasV2Efemerides(url, env) {
   const date = url.searchParams.get('fecha') || '';
   if (!validEfemeridesDate(date)) return jsonError('Fecha inválida. Usá YYYY-MM-DD.', 400);
@@ -6692,7 +6708,7 @@ async function handlePlacasV2Efemerides(url, env) {
       if (cached && cached.items && cached.items.length) return jsonOk({ ...cached, meta: { ...(cached.meta || {}), cached: true } });
     } catch {}
   }
-  const sourceUrl = await discoverTyCEfemeridesUrl(date);
+  const sourceUrl = await discoverTyCEfemeridesUrl(date) || await discoverWikipediaDateUrl(date);
   if (!sourceUrl) return jsonError('No se encontró una fuente de efemérides para esa fecha.', 502);
   let sourceText = '';
   let sourceImages = [];
@@ -6705,6 +6721,7 @@ async function handlePlacasV2Efemerides(url, env) {
     }
   } catch {}
   if (!sourceText) return jsonError('La fuente de efemérides no respondió.', 502);
+  const sourceName = /wikipedia\.org/i.test(sourceUrl) ? 'Wikipedia' : 'TyC Sports';
   const imageCatalog = sourceImages.map((image, index) => index + ': ' + image).join('\n');
   const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé entre 5 y 8 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, texto_ampliado de máximo 240 caracteres, icono, icono_descripcion, imagen_descripcion, imagen_indice y prioridad. imagen_indice solo puede apuntar a una imagen del catálogo si es pertinente para ese hecho; si no, usa -1. icono debe ser uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo o canal. icono_descripcion debe describir en 3 a 8 palabras el símbolo concreto que corresponde al hecho. imagen_descripcion debe describir una imagen documental posible, sin inventar que existe una fotografía. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nImágenes disponibles:\n' + imageCatalog + '\nTexto:\n' + sourceText;
   const result = await callGemini(prompt, env);
@@ -6720,7 +6737,7 @@ async function handlePlacasV2Efemerides(url, env) {
   const items = rawItems.map((item, index) => ({
     id: String(item.id || (date + '-' + (index + 1))).trim(), fecha: date, alcance: item.alcance === 'nacional' ? 'nacional' : 'internacional', categoria: String(item.categoria || 'historia').trim(), icono: String(item.icono || item.categoria || 'historia').trim(), icono_descripcion: String(item.icono_descripcion || item.icono || item.categoria || 'símbolo histórico').trim(), imagen_descripcion: String(item.imagen_descripcion || item.icono_descripcion || '').trim(), imagen: searchedImages[index]?.url || '', imagen_fuente: searchedImages[index]?.source || '',
     año: String(item.anio || item.año || '').trim(), titulo: String(item.titulo || '').trim(), resumen: String(item.resumen || '').trim(), texto_ampliado: String(item.texto_ampliado || item.resumen || '').trim(), prioridad: Number(item.prioridad) || index + 1,
-    fuente: 'TyC Sports', url_fuente: sourceUrl, verificada: true, nivel_verificacion: 'fuente_secundaria', fuente_descubrimiento: sourceUrl,
+    fuente: sourceName, url_fuente: sourceUrl, verificada: true, nivel_verificacion: 'fuente_secundaria', fuente_descubrimiento: sourceUrl,
   })).filter(item => item.titulo && item.año && item.resumen).sort((a, b) => (a.alcance === 'nacional' ? 0 : 1) - (b.alcance === 'nacional' ? 0 : 1) || a.prioridad - b.prioridad);
   if (items.length < 5) return jsonError('La fuente devolvió menos de cinco opciones utilizables.', 502);
   const payload = { items, meta: { fecha: date, fuente: sourceUrl, nivel_verificacion: 'fuente_secundaria', generatedAt: new Date().toISOString(), cached: false } };
