@@ -6652,11 +6652,11 @@ async function handlePlacasV2Efemerides(url, env) {
     if (response.ok) sourceText = stripHtmlForEfemerides(await response.text()).slice(0, 18000);
   } catch {}
   if (!sourceText) return jsonError('La fuente de efemérides no respondió.', 502);
-  const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé entre 5 y 8 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, icono y prioridad. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nTexto:\n' + sourceText;
+  const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé entre 5 y 8 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, icono, icono_descripcion y prioridad. icono debe ser uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo o canal. icono_descripcion debe describir en 3 a 8 palabras el símbolo concreto que corresponde al hecho. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nTexto:\n' + sourceText;
   const result = await callGemini(prompt, env);
   if (result.error || !Array.isArray(result.data?.items)) return jsonError('No se pudieron normalizar las efemérides.', 502);
   const items = result.data.items.map((item, index) => ({
-    id: String(item.id || (date + '-' + (index + 1))).trim(), fecha: date, alcance: item.alcance === 'nacional' ? 'nacional' : 'internacional', categoria: String(item.categoria || 'historia').trim(), icono: String(item.icono || item.categoria || 'historia').trim(),
+    id: String(item.id || (date + '-' + (index + 1))).trim(), fecha: date, alcance: item.alcance === 'nacional' ? 'nacional' : 'internacional', categoria: String(item.categoria || 'historia').trim(), icono: String(item.icono || item.categoria || 'historia').trim(), icono_descripcion: String(item.icono_descripcion || item.icono || item.categoria || 'símbolo histórico').trim(),
     año: String(item.anio || item.año || '').trim(), titulo: String(item.titulo || '').trim(), resumen: String(item.resumen || '').trim(), prioridad: Number(item.prioridad) || index + 1,
     fuente: 'TyC Sports', url_fuente: sourceUrl, verificada: true, nivel_verificacion: 'fuente_secundaria', fuente_descubrimiento: sourceUrl,
   })).filter(item => item.titulo && item.año && item.resumen).sort((a, b) => (a.alcance === 'nacional' ? 0 : 1) - (b.alcance === 'nacional' ? 0 : 1) || a.prioridad - b.prioridad);

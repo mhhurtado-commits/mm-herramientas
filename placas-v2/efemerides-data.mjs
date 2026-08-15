@@ -165,7 +165,7 @@ function normalizeDateKey(value) {
 
 export function normalizeEfemeride(item = {}) {
   const normalized = {
-    id: clean(item.id), fecha: normalizeDateKey(item.fecha), alcance: clean(item.alcance), categoria: clean(item.categoria), icono: clean(item.icono) || clean(item.categoria),
+    id: clean(item.id), fecha: normalizeDateKey(item.fecha), alcance: clean(item.alcance), categoria: clean(item.categoria), icono: clean(item.icono) || clean(item.categoria), icono_descripcion: clean(item.icono_descripcion),
     año: clean(item.año || item.anio), titulo: clean(item.titulo), resumen: clean(item.resumen), prioridad: Number(item.prioridad) || 99,
     fuente: clean(item.fuente), url_fuente: clean(item.url_fuente || item.urlFuente), verificada: item.verificada === true,
   };

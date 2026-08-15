@@ -46,4 +46,5 @@ test('la semilla usa resúmenes concretos y breves', () => {
 test('normaliza un icono explicito y aplica fallback por categoria', () => {
   assert.equal(normalizeEfemeride({ titulo: 'Dato', fecha: '08-15', categoria: 'deportes', fuente: 'Archivo', url_fuente: 'https://example.com', verificada: true }).icono, 'deportes');
   assert.equal(normalizeEfemeride({ titulo: 'Dato', fecha: '08-15', categoria: 'cultura', icono: 'musica', fuente: 'Archivo', url_fuente: 'https://example.com', verificada: true }).icono, 'musica');
+  assert.equal(normalizeEfemeride({ titulo: 'Dato', fecha: '08-15', categoria: 'politica', icono: 'politica', icono_descripcion: 'urna electoral', fuente: 'Archivo', url_fuente: 'https://example.com', verificada: true }).icono_descripcion, 'urna electoral');
 });

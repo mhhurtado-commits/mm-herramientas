@@ -420,6 +420,19 @@ function drawEfemerideIcon(ctx, key, x, y, size, color) {
     ctx.beginPath(); ctx.arc(x, y - size * 0.08, size * 0.26, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x - size * 0.38, y + size * 0.2); ctx.lineTo(x + size * 0.38, y + size * 0.2); ctx.lineTo(x + size * 0.2, y + size * 0.36); ctx.lineTo(x - size * 0.28, y + size * 0.36); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(x, y - size * 0.34); ctx.lineTo(x, y - size * 0.58); ctx.moveTo(x, y - size * 0.55); ctx.lineTo(x + size * 0.18, y - size * 0.42); ctx.stroke();
+  } else if (icon.includes('politica')) {
+    ctx.beginPath(); ctx.rect(x - size * 0.28, y - size * 0.34, size * 0.56, size * 0.68); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - size * 0.14, y - size * 0.08); ctx.lineTo(x + size * 0.14, y - size * 0.08); ctx.moveTo(x - size * 0.14, y + size * 0.10); ctx.lineTo(x + size * 0.14, y + size * 0.10); ctx.stroke();
+  } else if (icon.includes('sociedad')) {
+    ctx.beginPath(); ctx.arc(x - size * 0.18, y - size * 0.16, size * 0.14, 0, Math.PI * 2); ctx.arc(x + size * 0.18, y - size * 0.16, size * 0.14, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y + size * 0.12, size * 0.14, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - size * 0.4, y + size * 0.34); ctx.quadraticCurveTo(x - size * 0.18, y + size * 0.04, x, y + size * 0.34); ctx.quadraticCurveTo(x + size * 0.18, y + size * 0.04, x + size * 0.4, y + size * 0.34); ctx.stroke();
+  } else if (icon.includes('economia')) {
+    ctx.beginPath(); ctx.arc(x, y, size * 0.3, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = '900 ' + (size * 0.42) + 'px ' + fontFamily; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', x, y); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  } else if (icon.includes('historia')) {
+    ctx.beginPath(); ctx.moveTo(x - size * 0.34, y - size * 0.30); ctx.lineTo(x, y - size * 0.42); ctx.lineTo(x + size * 0.34, y - size * 0.30); ctx.lineTo(x + size * 0.34, y + size * 0.30); ctx.lineTo(x, y + size * 0.18); ctx.lineTo(x - size * 0.34, y + size * 0.30); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y - size * 0.40); ctx.lineTo(x, y + size * 0.20); ctx.stroke();
   } else {
     ctx.beginPath(); ctx.moveTo(x - size * 0.2, y - size * 0.42); ctx.lineTo(x - size * 0.2, y + size * 0.3); ctx.lineTo(x + size * 0.34, y + size * 0.3); ctx.moveTo(x - size * 0.2, y - size * 0.42); ctx.lineTo(x + size * 0.34, y - size * 0.42); ctx.lineTo(x + size * 0.34, y + size * 0.3); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x - size * 0.42, y - size * 0.2); ctx.quadraticCurveTo(x - size * 0.05, y - size * 0.5, x + size * 0.28, y - size * 0.2); ctx.lineTo(x + size * 0.28, y + size * 0.42); ctx.quadraticCurveTo(x - size * 0.05, y + size * 0.15, x - size * 0.42, y + size * 0.42); ctx.closePath(); ctx.stroke();
