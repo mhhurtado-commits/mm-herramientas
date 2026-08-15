@@ -25,6 +25,11 @@ test('la semilla tiene fuentes y no supera tres destacados', () => {
   assert.ok(items.every(item => item.verificada && item.url_fuente.startsWith('https://')));
   assert.ok(getEfemeridesForDate('08-15').length >= 3);
   assert.ok(getEfemeridesForDate('08-16').length >= 5);
+  for (const date of ['08-01', '08-02', '08-03', '08-04']) {
+    const daily = getEfemeridesForDate(date);
+    assert.ok(daily.length >= 5, `${date} debe ofrecer al menos cinco opciones`);
+    assert.ok(daily.slice(0, 5).every(item => item.alcance === 'nacional'));
+  }
 });
 
 test('la semilla usa iconos especificos para cada efemeride', () => {
