@@ -6646,13 +6646,13 @@ async function discoverTyCEfemeridesUrl(date) {
       if (links[0]) return links[0].startsWith('http') ? links[0] : 'https://www.tycsports.com' + links[0];
     }
   } catch {}
-  const query = 'site:tycsports.com/interes-general/efemerides efemérides del ' + Number(parts[2]) + ' de agosto';
+  const query = 'site:tycsports.com/interes-general/efemerides efemérides del ' + day + ' de ' + month;
   try {
-    const response = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query) + '&kl=es-ar', { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' }, redirect: 'follow' });
+    const response = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query) + '&kl=es-ar', { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(8000) });
     if (!response.ok) return '';
     const html = await response.text();
     const urls = [...html.matchAll(/class="result__a"[^>]*href="[^"]*uddg=([^&"]+)/g)].map(match => decodeURIComponent(match[1])).filter(source => /tycsports\.com\/interes-general\/efemerides\//i.test(source));
-    return urls[0] || '';
+    return urls.find(source => datePattern.test(source)) || '';
   } catch { return ''; }
 }
 
@@ -6708,7 +6708,10 @@ async function handlePlacasV2Efemerides(url, env) {
       if (cached && cached.items && cached.items.length) return jsonOk({ ...cached, meta: { ...(cached.meta || {}), cached: true } });
     } catch {}
   }
-  const sourceUrl = await discoverTyCEfemeridesUrl(date) || await discoverWikipediaDateUrl(date);
+  // La página diaria de Wikipedia es determinística y existe para todos los
+  // días válidos del calendario. Se usa primero para que una búsqueda lenta o
+  // intermitente de TyC no deje al editor sin datos; TyC queda como rescate.
+  const sourceUrl = await discoverWikipediaDateUrl(date) || await discoverTyCEfemeridesUrl(date);
   if (!sourceUrl) return jsonError('No se encontró una fuente de efemérides para esa fecha.', 502);
   let sourceText = '';
   let sourceImages = [];

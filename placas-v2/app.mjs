@@ -48,12 +48,15 @@ function renderEfemeridesEditor() {
 }
 async function fetchEfemerides(date) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
-  const response = await fetch(WORKER + '/placas/v2/efemerides?fecha=' + encodeURIComponent(date), { signal: controller.signal });
-  const data = await response.json();
-  if (!response.ok || data.error) throw new Error(data.error || 'No se pudieron obtener las efemérides.');
-  clearTimeout(timeout);
-  return data;
+  const timeout = setTimeout(() => controller.abort(), 60000);
+  try {
+    const response = await fetch(WORKER + '/placas/v2/efemerides?fecha=' + encodeURIComponent(date), { signal: controller.signal });
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || 'No se pudieron obtener las efemérides.');
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 async function loadEfemerides() {
   const date = $('#efemeridesDate').value;
