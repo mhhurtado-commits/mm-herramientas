@@ -695,6 +695,11 @@
   cursor: grabbing;
 }
 
+.carousel-canvas.is-focal-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
 .carousel-stage-inner::before {
   content: "";
   position: absolute;

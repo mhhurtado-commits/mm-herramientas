@@ -186,25 +186,62 @@ function handleAssetReady() {
 function bindCanvasFocalDrag(canvas, project, slide) {
   if (!canvas || !supportsFocalPoint(slide)) return;
   canvas.classList.add("is-focal-draggable");
+  canvas.style.touchAction = "none";
   canvas.title = "Arrastrá la imagen para ajustar el encuadre";
   var start = null;
   canvas.addEventListener("pointerdown", function (event) {
+    if (event.button !== 0) return;
+    var rect = canvas.getBoundingClientRect();
     start = { x: event.clientX, y: event.clientY };
+    start.rect = { width: rect.width, height: rect.height };
+    start.focus = normalizeFocalPosition(slide.content && slide.content.focalPosition);
+    canvas.classList.add("is-focal-dragging");
     canvas.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+  canvas.addEventListener("pointermove", function (event) {
+    if (!start) return;
+    var next = getDraggedFocalPosition(start.focus, {
+      x: event.clientX - start.x,
+      y: event.clientY - start.y,
+    }, start.rect);
+    updateSlideFocalPosition(project, slide.id, next);
+    refreshDraggedCanvas(canvas, project, slide);
+    event.preventDefault();
   });
   canvas.addEventListener("pointerup", function (event) {
     if (!start) return;
-    var rect = canvas.getBoundingClientRect();
-    var current = normalizeFocalPosition(slide.content && slide.content.focalPosition);
-    var next = {
-      x: current.x - (event.clientX - start.x) / Math.max(1, rect.width),
-      y: current.y - (event.clientY - start.y) / Math.max(1, rect.height),
-    };
     start = null;
-    updateSlideFocalPosition(project, slide.id, next);
+    canvas.classList.remove("is-focal-dragging");
+    canvas.releasePointerCapture?.(event.pointerId);
     renderInPreview();
   });
-  canvas.addEventListener("pointercancel", function () { start = null; });
+  canvas.addEventListener("pointercancel", function () {
+    start = null;
+    canvas.classList.remove("is-focal-dragging");
+  });
+  canvas.addEventListener("lostpointercapture", function () {
+    start = null;
+    canvas.classList.remove("is-focal-dragging");
+  });
+}
+
+function refreshDraggedCanvas(canvas, project, slide) {
+  var frame = renderSlideToCanvas(slide, project);
+  if (!frame || !canvas || !canvas.getContext) return;
+  canvas.width = frame.width;
+  canvas.height = frame.height;
+  canvas.getContext("2d").drawImage(frame, 0, 0);
+}
+
+export function getDraggedFocalPosition(current, delta, size) {
+  var focus = normalizeFocalPosition(current);
+  var width = Math.max(1, Number(size && size.width) || 1);
+  var height = Math.max(1, Number(size && size.height) || 1);
+  return normalizeFocalPosition({
+    x: focus.x - (Number(delta && delta.x) || 0) / width,
+    y: focus.y - (Number(delta && delta.y) || 0) / height,
+  });
 }
 
 function createStageControls(project, activeItem) {
@@ -1640,7 +1677,7 @@ function createSecondaryImagesControls(project) {
 
 function supportsFocalPoint(slide) {
   if (!slide || !slide.content) return false;
-  return slide.template === "cover" || slide.template === "image" || !!slide.content.supportImage;
+  return slide.template === "image" || !!slide.content.supportImage;
 }
 
 function createFocalPointControls(project, slide) {

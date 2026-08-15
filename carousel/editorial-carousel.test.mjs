@@ -1946,3 +1946,15 @@ test('actualiza focalX y focalY en el estado del slide de imagen activo', () => 
   assert.equal(project.slides[0].content.focalX, 1);
   assert.equal(project.slides[0].content.focalY, 0);
 });
+
+test('calcula el foco al arrastrar una imagen y lo limita al area valida', () => {
+  assert.equal(typeof carouselUI.getDraggedFocalPosition, 'function');
+  assert.deepEqual(
+    carouselUI.getDraggedFocalPosition({ x: 0.5, y: 0.5 }, { x: 120, y: -60 }, { width: 600, height: 400 }),
+    { x: 0.3, y: 0.65 }
+  );
+  assert.deepEqual(
+    carouselUI.getDraggedFocalPosition({ x: 0.1, y: 0.1 }, { x: -400, y: 400 }, { width: 200, height: 200 }),
+    { x: 1, y: 0 }
+  );
+});
