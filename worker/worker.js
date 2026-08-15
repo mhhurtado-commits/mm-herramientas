@@ -6608,7 +6608,7 @@ Respondé SOLO con el JSON.`;
 // PLACAS V2 - propuesta editorial versionada
 // POST /placas/v2/generar { nota: { ...respuesta de extracción... } }
 // ============================================================
-const PLACAS_V2_EF_CACHE_PREFIX = 'placas-v2:efemerides:v4:';
+const PLACAS_V2_EF_CACHE_PREFIX = 'placas-v2:efemerides:v5:';
 const PLACAS_V2_EF_CACHE_TTL = 60 * 60 * 24;
 
 function validEfemeridesDate(value) {
@@ -6650,11 +6650,12 @@ async function findEfemerideImage(query) {
 async function findWikipediaImage(query) {
   if (!query) return null;
   try {
-    const title = encodeURIComponent(query.trim().replace(/\s+/g, '_'));
-    const response = await fetch('https://es.wikipedia.org/api/rest_v1/page/summary/' + title, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+    const endpoint = 'https://es.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' + encodeURIComponent(query) + '&gsrlimit=1&prop=pageimages&piprop=original|thumbnail&pithumbsize=1200&format=json&origin=*';
+    const response = await fetch(endpoint, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
     if (!response.ok) return null;
     const data = await response.json();
-    const image = data?.originalimage?.source || data?.thumbnail?.source;
+    const page = Object.values(data?.query?.pages || {})[0];
+    const image = page?.original?.source || page?.thumbnail?.source;
     return image ? { url: image, source: 'Wikipedia' } : null;
   } catch { return null; }
 }
@@ -6691,7 +6692,8 @@ async function handlePlacasV2Efemerides(url, env) {
     const index = Number(item.imagen_indice);
     if (Number.isInteger(index) && index >= 0 && sourceImages[index]) return { url: sourceImages[index], source: 'Fuente original' };
     const title = String(item.titulo || '').replace(/^(paso a la inmortalidad de|nacimiento de|muere|debuta|debut de|se funda|día de)\s+/i, '').trim();
-    return (await findEfemerideImage(title + ' ' + String(item.imagen_descripcion || ''))) || findWikipediaImage(title);
+    const searchTitle = /san mart[ií]n/i.test(title) ? 'José de San Martín' : /messi/i.test(title) ? 'Lionel Messi' : title;
+    return (await findEfemerideImage(searchTitle + ' ' + String(item.imagen_descripcion || ''))) || findWikipediaImage(searchTitle);
   }));
   const items = rawItems.map((item, index) => ({
     id: String(item.id || (date + '-' + (index + 1))).trim(), fecha: date, alcance: item.alcance === 'nacional' ? 'nacional' : 'internacional', categoria: String(item.categoria || 'historia').trim(), icono: String(item.icono || item.categoria || 'historia').trim(), icono_descripcion: String(item.icono_descripcion || item.icono || item.categoria || 'símbolo histórico').trim(), imagen_descripcion: String(item.imagen_descripcion || item.icono_descripcion || '').trim(), imagen: searchedImages[index]?.url || '', imagen_fuente: searchedImages[index]?.source || '',

@@ -195,12 +195,15 @@ async function enrichEfemerideImages() {
   await Promise.all(items.map(async item => {
     if (item.imagen) return;
     const query = String(item.titulo || '').replace(/^(paso a la inmortalidad de|nacimiento de|muere|debuta|debut de|se funda|día de)\s+/i, '').trim();
+    const searchQuery = /san mart[ií]n/i.test(query) ? 'José de San Martín' : /messi/i.test(query) ? 'Lionel Messi' : query;
     if (!query) return;
     try {
-      const response = await fetch('https://es.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(query.replace(/\s+/g, '_')));
+      const endpoint = 'https://es.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' + encodeURIComponent(searchQuery) + '&gsrlimit=1&prop=pageimages&piprop=original|thumbnail&pithumbsize=1200&format=json&origin=*';
+      const response = await fetch(endpoint);
       if (!response.ok) return;
       const data = await response.json();
-      const image = data?.originalimage?.source || data?.thumbnail?.source;
+      const page = Object.values(data?.query?.pages || {})[0];
+      const image = page?.original?.source || page?.thumbnail?.source;
       if (image) {
         item.imagen = image;
         item.imagen_fuente = 'Wikipedia';

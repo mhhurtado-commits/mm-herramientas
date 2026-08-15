@@ -515,7 +515,12 @@ function drawCover(ctx, slide, project, theme, layout) {
   ctx.fillStyle = theme.colors.background;
   ctx.fillRect(0, 0, W, H);
   if (content.imageOnly && content.image) {
-    drawImageFrame(ctx, content.image, 0, 0, W, H, 0, content.focalPosition, theme);
+    var coverImage = getCachedImage(content.image);
+    if (coverImage) {
+      drawImageContain(ctx, coverImage, 0, 0, W, H, content.focalPosition);
+    } else {
+      drawImageFallback(ctx, 0, 0, W, H, 0, theme, "Portada no disponible");
+    }
     return;
   }
   drawImageFrame(ctx, content.image || (project.article && project.article.image), 0, 0, W, imageHeight, 0, content.focalPosition, theme);
