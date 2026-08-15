@@ -6624,6 +6624,19 @@ function stripHtmlForEfemerides(html) {
 
 async function discoverTyCEfemeridesUrl(date) {
   const parts = date.split('-');
+  const day = Number(parts[2]);
+  const monthNames = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const month = monthNames[Number(parts[1])] || '';
+  const datePattern = new RegExp(day + '-de-' + month + '(?:-|$)', 'i');
+  const decodeUrl = value => String(value || '').replace(/&amp;/g, '&');
+  try {
+    const indexResponse = await fetch('https://www.tycsports.com/efemerides.html', { headers: { ...BROWSER_HEADERS, Accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(8000) });
+    if (indexResponse.ok) {
+      const indexHtml = await indexResponse.text();
+      const links = [...indexHtml.matchAll(/href=["']([^"']+)["']/gi)].map(match => decodeUrl(match[1])).filter(link => /tycsports\.com\/interes-general\/efemerides\//i.test(link) && datePattern.test(link));
+      if (links[0]) return links[0].startsWith('http') ? links[0] : 'https://www.tycsports.com' + links[0];
+    }
+  } catch {}
   const query = 'site:tycsports.com/interes-general/efemerides efemérides del ' + Number(parts[2]) + ' de agosto';
   try {
     const response = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query) + '&kl=es-ar', { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' }, redirect: 'follow' });

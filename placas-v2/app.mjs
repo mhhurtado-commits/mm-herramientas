@@ -47,9 +47,12 @@ function renderEfemeridesEditor() {
   document.querySelectorAll('[data-efemeride-index]').forEach(input => input.addEventListener('input', event => { const item = state.efemeridesItems[Number(event.target.dataset.efemerideIndex)]; if (!item) return; item[event.target.dataset.efemerideKey] = event.target.value; if (state.plate) state.plate.efemerides = selectedEfemerides(); render(); }));
 }
 async function fetchEfemerides(date) {
-  const response = await fetch(WORKER + '/placas/v2/efemerides?fecha=' + encodeURIComponent(date));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  const response = await fetch(WORKER + '/placas/v2/efemerides?fecha=' + encodeURIComponent(date), { signal: controller.signal });
   const data = await response.json();
   if (!response.ok || data.error) throw new Error(data.error || 'No se pudieron obtener las efemérides.');
+  clearTimeout(timeout);
   return data;
 }
 async function loadEfemerides() {
