@@ -61,6 +61,8 @@ export function convertirPlanASlides(plan, article, settings, manualSlideImages)
     slide.order = order++;
     slide.content.title = plan.cover.title || "";
     slide.content.subtitle = plan.cover.subtitle || "";
+    slide.content.image = plan.cover.image || "";
+    slide.content.imageOnly = Boolean(plan.cover.imageOnly);
     slide.style.theme = theme;
     slides.push(slide);
   }
