@@ -11,17 +11,19 @@ test('obtiene efemérides verificadas por fecha y prioridad', () => {
   const items = getEfemeridesForDate('2026-08-15');
   assert.equal(items.length, 3);
   assert.deepEqual(items.map(item => item.año), ['1904', '1914', '1969']);
-  assert.equal(getEfemeridesForDate('2026-08-16').length, 0);
+  assert.deepEqual(getEfemeridesForDate('2026-08-16').map(item => item.año), ['1960', '1977', '1896']);
+  assert.equal(getEfemeridesForDate('2026-08-17').length, 0);
 });
 
 test('la semilla tiene fuentes y no supera tres destacados', () => {
   const items = getSeedEfemerides();
   assert.ok(items.every(item => item.verificada && item.url_fuente.startsWith('https://')));
-  assert.ok(items.length <= 3);
+  assert.ok(getEfemeridesForDate('08-15').length <= 3);
+  assert.ok(getEfemeridesForDate('08-16').length <= 3);
 });
 
 test('la semilla usa iconos especificos para cada efemeride', () => {
-  assert.deepEqual(getSeedEfemerides().map(item => item.icono), ['futbol', 'canal', 'musica']);
+  assert.deepEqual(getEfemeridesForDate('08-15').map(item => item.icono), ['futbol', 'canal', 'musica']);
 });
 
 test('la semilla usa resúmenes concretos y breves', () => {

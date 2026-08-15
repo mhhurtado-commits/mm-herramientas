@@ -16,6 +16,21 @@ const SEED = [
     titulo: 'Comienza el festival de Woodstock', resumen: 'Tres días de música reúnen a miles en Bethel, Nueva York.', icono: 'musica', prioridad: 3, verificada: true,
     fuente: 'Woodstock', url_fuente: 'https://www.woodstock.com/woodstock-1969/',
   },
+  {
+    id: 'chipre-independencia-1960', fecha: '08-16', alcance: 'internacional', categoria: 'mundo', año: '1960',
+    titulo: 'Chipre se independiza', resumen: 'La República de Chipre nace tras el fin del dominio británico.', icono: 'mundo', prioridad: 1, verificada: true,
+    fuente: 'Office of the Historian', url_fuente: 'https://history.state.gov/countries/cyprus',
+  },
+  {
+    id: 'elvis-presley-1977', fecha: '08-16', alcance: 'internacional', categoria: 'cultura', año: '1977',
+    titulo: 'Muere Elvis Presley', resumen: 'El cantante fallece a los 42 años en Graceland, Memphis.', icono: 'musica', prioridad: 2, verificada: true,
+    fuente: 'Graceland', url_fuente: 'https://www.graceland.com/1974---1977',
+  },
+  {
+    id: 'oro-klondike-1896', fecha: '08-16', alcance: 'internacional', categoria: 'economia', año: '1896',
+    titulo: 'Descubren oro en el Klondike', resumen: 'El hallazgo en Canadá dispara una de las grandes fiebres del oro.', icono: 'mundo', prioridad: 3, verificada: true,
+    fuente: 'Parks Canada', url_fuente: 'https://parks.canada.ca/lhn-nhs/yt/klondike/culture/lhn-hns-disc',
+  },
 ];
 
 function normalizeDateKey(value) {
