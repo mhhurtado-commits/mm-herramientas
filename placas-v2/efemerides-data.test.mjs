@@ -19,3 +19,8 @@ test('la semilla tiene fuentes y no supera tres destacados', () => {
   assert.ok(items.every(item => item.verificada && item.url_fuente.startsWith('https://')));
   assert.ok(items.length <= 3);
 });
+
+test('normaliza un icono explicito y aplica fallback por categoria', () => {
+  assert.equal(normalizeEfemeride({ titulo: 'Dato', fecha: '08-15', categoria: 'deportes', fuente: 'Archivo', url_fuente: 'https://example.com', verificada: true }).icono, 'deportes');
+  assert.equal(normalizeEfemeride({ titulo: 'Dato', fecha: '08-15', categoria: 'cultura', icono: 'musica', fuente: 'Archivo', url_fuente: 'https://example.com', verificada: true }).icono, 'musica');
+});

@@ -391,6 +391,29 @@ function renderDataCardPlate(ctx, plate, format, options, family, layout) {
   return layout;
 }
 
+function drawEfemerideIcon(ctx, key, x, y, size, color) {
+  const icon = String(key || '').toLowerCase();
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(3, size * 0.08);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (icon.includes('deport') || icon.includes('futbol') || icon.includes('pelota')) {
+    ctx.beginPath(); ctx.arc(x, y, size * 0.34, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, size * 0.12, 0, Math.PI * 2); ctx.stroke();
+    [[-0.25, -0.1], [0.2, -0.2], [0.18, 0.24], [-0.2, 0.2]].forEach(([dx, dy]) => { ctx.moveTo(x, y); ctx.lineTo(x + size * dx, y + size * dy); }); ctx.stroke();
+  } else if (icon.includes('mundo') || icon.includes('internacional') || icon.includes('canal') || icon.includes('barco')) {
+    ctx.beginPath(); ctx.arc(x, y - size * 0.08, size * 0.26, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - size * 0.38, y + size * 0.2); ctx.lineTo(x + size * 0.38, y + size * 0.2); ctx.lineTo(x + size * 0.2, y + size * 0.36); ctx.lineTo(x - size * 0.28, y + size * 0.36); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x, y - size * 0.34); ctx.lineTo(x, y - size * 0.58); ctx.moveTo(x, y - size * 0.55); ctx.lineTo(x + size * 0.18, y - size * 0.42); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.moveTo(x - size * 0.2, y - size * 0.42); ctx.lineTo(x - size * 0.2, y + size * 0.3); ctx.lineTo(x + size * 0.34, y + size * 0.3); ctx.moveTo(x - size * 0.2, y - size * 0.42); ctx.lineTo(x + size * 0.34, y - size * 0.42); ctx.lineTo(x + size * 0.34, y + size * 0.3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - size * 0.42, y - size * 0.2); ctx.quadraticCurveTo(x - size * 0.05, y - size * 0.5, x + size * 0.28, y - size * 0.2); ctx.lineTo(x + size * 0.28, y + size * 0.42); ctx.quadraticCurveTo(x - size * 0.05, y + size * 0.15, x - size * 0.42, y + size * 0.42); ctx.closePath(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function renderEfemeridesPlate(ctx, plate, format, options, family, layout) {
   const { canvas } = layout;
   const items = (plate.efemerides || []).slice(0, 3);
@@ -412,6 +435,7 @@ function renderEfemeridesPlate(ctx, plate, format, options, family, layout) {
     ctx.fill();
     ctx.fillStyle = accent;
     ctx.fillRect(card.x, card.y, canvas.w * 0.012, card.h);
+    drawEfemerideIcon(ctx, item.icono || item.categoria, card.x + card.w * 0.91, card.y + card.h * 0.50, Math.min(card.w, card.h) * 0.18, accent);
     const pad = card.w * 0.055;
     ctx.fillStyle = accent;
     ctx.font = `900 ${Math.max(34, canvas.w * 0.045)}px ${fontFamily}`;
@@ -419,7 +443,7 @@ function renderEfemeridesPlate(ctx, plate, format, options, family, layout) {
     ctx.fillStyle = '#526058';
     ctx.font = `800 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
     ctx.fillText(String(item.categoria || item.alcance || '').toUpperCase(), card.x + pad, card.y + card.h * 0.19);
-    fittedText(ctx, item.titulo || '', card.x + card.w * 0.25, card.y + card.h * 0.44, card.w * 0.68, Math.max(30, canvas.w * 0.031), Math.max(22, canvas.w * 0.022), 2, 800, family.secondary, 1.08, card.h * 0.44);
+    fittedText(ctx, item.titulo || '', card.x + card.w * 0.25, card.y + card.h * 0.44, card.w * 0.61, Math.max(30, canvas.w * 0.031), Math.max(22, canvas.w * 0.022), 2, 800, family.secondary, 1.08, card.h * 0.44);
   });
 
   ctx.fillStyle = '#526058';
