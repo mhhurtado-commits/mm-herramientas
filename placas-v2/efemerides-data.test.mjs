@@ -20,6 +20,10 @@ test('la semilla tiene fuentes y no supera tres destacados', () => {
   assert.ok(items.length <= 3);
 });
 
+test('la semilla usa iconos especificos para cada efemeride', () => {
+  assert.deepEqual(getSeedEfemerides().map(item => item.icono), ['futbol', 'canal', 'musica']);
+});
+
 test('normaliza un icono explicito y aplica fallback por categoria', () => {
   assert.equal(normalizeEfemeride({ titulo: 'Dato', fecha: '08-15', categoria: 'deportes', fuente: 'Archivo', url_fuente: 'https://example.com', verificada: true }).icono, 'deportes');
   assert.equal(normalizeEfemeride({ titulo: 'Dato', fecha: '08-15', categoria: 'cultura', icono: 'musica', fuente: 'Archivo', url_fuente: 'https://example.com', verificada: true }).icono, 'musica');

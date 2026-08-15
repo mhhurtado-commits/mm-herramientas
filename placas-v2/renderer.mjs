@@ -403,7 +403,14 @@ function drawEfemerideIcon(ctx, key, x, y, size, color) {
     ctx.beginPath(); ctx.arc(x, y, size * 0.34, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, size * 0.12, 0, Math.PI * 2); ctx.stroke();
     [[-0.25, -0.1], [0.2, -0.2], [0.18, 0.24], [-0.2, 0.2]].forEach(([dx, dy]) => { ctx.moveTo(x, y); ctx.lineTo(x + size * dx, y + size * dy); }); ctx.stroke();
-  } else if (icon.includes('mundo') || icon.includes('internacional') || icon.includes('canal') || icon.includes('barco')) {
+  } else if (icon.includes('musica') || icon.includes('woodstock') || icon.includes('guitarra')) {
+    ctx.beginPath(); ctx.arc(x - size * 0.12, y + size * 0.24, size * 0.14, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - size * 0.01, y + size * 0.2); ctx.lineTo(x - size * 0.01, y - size * 0.42); ctx.lineTo(x + size * 0.32, y - size * 0.52); ctx.lineTo(x + size * 0.32, y - size * 0.34); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x + size * 0.18, y - size * 0.14, size * 0.14, 0, Math.PI * 2); ctx.fill();
+  } else if (icon.includes('canal') || icon.includes('barco')) {
+    ctx.beginPath(); ctx.moveTo(x - size * 0.42, y + size * 0.18); ctx.lineTo(x + size * 0.42, y + size * 0.18); ctx.lineTo(x + size * 0.22, y + size * 0.38); ctx.lineTo(x - size * 0.28, y + size * 0.38); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - size * 0.23, y + size * 0.12); ctx.lineTo(x - size * 0.23, y - size * 0.25); ctx.lineTo(x + size * 0.1, y - size * 0.25); ctx.lineTo(x + size * 0.1, y + size * 0.12); ctx.moveTo(x + size * 0.18, y + size * 0.12); ctx.lineTo(x + size * 0.18, y - size * 0.42); ctx.lineTo(x + size * 0.42, y - size * 0.24); ctx.stroke();
+  } else if (icon.includes('mundo') || icon.includes('internacional')) {
     ctx.beginPath(); ctx.arc(x, y - size * 0.08, size * 0.26, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x - size * 0.38, y + size * 0.2); ctx.lineTo(x + size * 0.38, y + size * 0.2); ctx.lineTo(x + size * 0.2, y + size * 0.36); ctx.lineTo(x - size * 0.28, y + size * 0.36); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(x, y - size * 0.34); ctx.lineTo(x, y - size * 0.58); ctx.moveTo(x, y - size * 0.55); ctx.lineTo(x + size * 0.18, y - size * 0.42); ctx.stroke();
@@ -448,7 +455,7 @@ function renderEfemeridesPlate(ctx, plate, format, options, family, layout) {
 
   ctx.fillStyle = '#526058';
   ctx.font = `700 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
-  ctx.fillText('Fuentes verificadas · Media Mendoza', layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.fillText('Fuentes verificadas · Mediamendoza', layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
   ctx.textAlign = 'right';
   ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
   ctx.textAlign = 'left';
