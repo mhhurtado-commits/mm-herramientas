@@ -1,5 +1,13 @@
 const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
 
+export const EFEMERIDES_SOURCES = [
+  { id: 'tyc-sports', nombre: 'TyC Sports Efemérides', rol: 'descubrimiento', url: 'https://www.tycsports.com/efemerides.html' },
+  { id: 'argentina-gob', nombre: 'Argentina.gob.ar', rol: 'verificación institucional', url: 'https://www.argentina.gob.ar/' },
+  { id: 'archivo-general', nombre: 'Archivo General de la Nación', rol: 'verificación histórica', url: 'https://www.argentina.gob.ar/interior/archivo-general' },
+  { id: 'biblioteca-nacional', nombre: 'Biblioteca Nacional Mariano Moreno', rol: 'verificación cultural', url: 'https://www.bn.gov.ar/' },
+  { id: 'afa', nombre: 'Asociación del Fútbol Argentino', rol: 'verificación deportiva', url: 'https://www.afa.com.ar/' },
+];
+
 const SEED = [
   {
     id: 'argentinos-juniors-1904', fecha: '08-15', alcance: 'nacional', categoria: 'deportes', año: '1904',

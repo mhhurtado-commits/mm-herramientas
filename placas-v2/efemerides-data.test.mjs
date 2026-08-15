@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { getEfemeridesForDate, getSeedEfemerides, normalizeEfemeride } from './efemerides-data.mjs';
+import { EFEMERIDES_SOURCES, getEfemeridesForDate, getSeedEfemerides, normalizeEfemeride } from './efemerides-data.mjs';
+
+test('prioriza TyC como descubrimiento y conserva fuentes institucionales', () => {
+  assert.equal(EFEMERIDES_SOURCES.find(source => source.id === 'tyc-sports')?.rol, 'descubrimiento');
+  assert.ok(EFEMERIDES_SOURCES.some(source => source.id === 'archivo-general'));
+});
 
 test('normaliza y rechaza efemérides sin fuente verificada', () => {
   assert.equal(normalizeEfemeride({ titulo: 'Dato', fecha: '08-15', verificada: false }), null);
