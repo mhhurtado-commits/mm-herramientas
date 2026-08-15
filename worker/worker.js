@@ -6647,17 +6647,23 @@ async function handlePlacasV2Efemerides(url, env) {
   const sourceUrl = await discoverTyCEfemeridesUrl(date);
   if (!sourceUrl) return jsonError('No se encontró una fuente de efemérides para esa fecha.', 502);
   let sourceText = '';
+  let sourceImages = [];
   try {
     const response = await fetch(sourceUrl, { headers: { ...BROWSER_HEADERS, Accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(12000) });
-    if (response.ok) sourceText = stripHtmlForEfemerides(await response.text()).slice(0, 18000);
+    if (response.ok) {
+      const html = await response.text();
+      sourceText = stripHtmlForEfemerides(html).slice(0, 18000);
+      sourceImages = [...html.matchAll(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/gi), ...html.matchAll(/<img[^>]+src=["'](https?:\/\/[^"']+)/gi)].map(match => match[1]).filter((image, index, images) => image && images.indexOf(image) === index).slice(0, 8);
+    }
   } catch {}
   if (!sourceText) return jsonError('La fuente de efemérides no respondió.', 502);
-  const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé entre 5 y 8 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, icono, icono_descripcion y prioridad. icono debe ser uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo o canal. icono_descripcion debe describir en 3 a 8 palabras el símbolo concreto que corresponde al hecho. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nTexto:\n' + sourceText;
+  const imageCatalog = sourceImages.map((image, index) => index + ': ' + image).join('\n');
+  const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé entre 5 y 8 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, texto_ampliado de máximo 240 caracteres, icono, icono_descripcion, imagen_descripcion, imagen_indice y prioridad. imagen_indice solo puede apuntar a una imagen del catálogo si es pertinente para ese hecho; si no, usa -1. icono debe ser uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo o canal. icono_descripcion debe describir en 3 a 8 palabras el símbolo concreto que corresponde al hecho. imagen_descripcion debe describir una imagen documental posible, sin inventar que existe una fotografía. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nImágenes disponibles:\n' + imageCatalog + '\nTexto:\n' + sourceText;
   const result = await callGemini(prompt, env);
   if (result.error || !Array.isArray(result.data?.items)) return jsonError('No se pudieron normalizar las efemérides.', 502);
   const items = result.data.items.map((item, index) => ({
-    id: String(item.id || (date + '-' + (index + 1))).trim(), fecha: date, alcance: item.alcance === 'nacional' ? 'nacional' : 'internacional', categoria: String(item.categoria || 'historia').trim(), icono: String(item.icono || item.categoria || 'historia').trim(), icono_descripcion: String(item.icono_descripcion || item.icono || item.categoria || 'símbolo histórico').trim(),
-    año: String(item.anio || item.año || '').trim(), titulo: String(item.titulo || '').trim(), resumen: String(item.resumen || '').trim(), prioridad: Number(item.prioridad) || index + 1,
+    id: String(item.id || (date + '-' + (index + 1))).trim(), fecha: date, alcance: item.alcance === 'nacional' ? 'nacional' : 'internacional', categoria: String(item.categoria || 'historia').trim(), icono: String(item.icono || item.categoria || 'historia').trim(), icono_descripcion: String(item.icono_descripcion || item.icono || item.categoria || 'símbolo histórico').trim(), imagen_descripcion: String(item.imagen_descripcion || item.icono_descripcion || '').trim(), imagen: Number.isInteger(Number(item.imagen_indice)) && Number(item.imagen_indice) >= 0 ? (sourceImages[Number(item.imagen_indice)] || '') : '',
+    año: String(item.anio || item.año || '').trim(), titulo: String(item.titulo || '').trim(), resumen: String(item.resumen || '').trim(), texto_ampliado: String(item.texto_ampliado || item.resumen || '').trim(), prioridad: Number(item.prioridad) || index + 1,
     fuente: 'TyC Sports', url_fuente: sourceUrl, verificada: true, nivel_verificacion: 'fuente_secundaria', fuente_descubrimiento: sourceUrl,
   })).filter(item => item.titulo && item.año && item.resumen).sort((a, b) => (a.alcance === 'nacional' ? 0 : 1) - (b.alcance === 'nacional' ? 0 : 1) || a.prioridad - b.prioridad);
   if (items.length < 5) return jsonError('La fuente devolvió menos de cinco opciones utilizables.', 502);

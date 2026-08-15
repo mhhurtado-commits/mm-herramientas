@@ -152,6 +152,7 @@ function renderFormats() {
 function renderOutputs() {
   const outputs = state.mode === 'efemerides' ? [
     { id: 'placa', label: 'Placa' },
+    { id: 'carrusel', label: 'Carrusel' },
   ] : [
     { id: 'placa', label: 'Placa' },
     { id: 'carrusel', label: 'Carrusel' },
@@ -164,9 +165,10 @@ function renderOutputs() {
       document.querySelectorAll('[data-output]').forEach(item => item.classList.toggle('active', item === button));
       return;
     }
-    if (!state.package) return;
+    const sourcePackage = state.mode === 'efemerides' ? buildEfemeridesCarouselPackage() : state.package;
+    if (!sourcePackage) return;
     const handoffPackage = {
-      ...state.package,
+      ...sourcePackage,
       editorial: {
         ...(state.package.editorial || {}),
         category_options: state.variants.map((item, index) => ({
@@ -181,6 +183,35 @@ function renderOutputs() {
     sessionStorage.setItem(EDITORIAL_HANDOFF_KEY, createEditorialHandoff(handoffPackage, output));
     window.location.href = output === 'reel' ? '../reels/' : '../carousel/';
   }));
+}
+
+function buildEfemeridesCarouselPackage() {
+  const items = state.plate?.efemerides || [];
+  if (items.length < 3) return null;
+  const date = state.plate.fecha || $('#efemeridesDate').value;
+  const plan = {
+    diagnosis: { carousel_type: 'explainer', template: 'mm_classic', slide_count: 5, reason: 'Tres efemérides seleccionadas manualmente.' },
+    cover: { title: state.plate.titulo || ('Efemérides del ' + formatEfemeridesDate(date)), subtitle: 'Tres hechos para recordar' },
+    slides: [
+      ...items.slice(0, 3).map(item => ({
+        type: item.imagen ? 'imagen' : 'contexto',
+        title: item.año + ' · ' + item.titulo,
+        text: item.texto_ampliado || item.resumen,
+        image: item.imagen || '',
+        image_description: item.imagen_descripcion || item.icono_descripcion || '',
+        source: item.url_fuente || '',
+      })),
+      { type: 'end', title: 'Fuentes verificadas', text: 'Más contenidos en www.mediamendoza.com', source: items[0].fuente || 'Mediamendoza' },
+    ],
+  };
+  return {
+    tipo: 'noticia_editorial',
+    version: 2,
+    fuente: { url: items[0].url_fuente || '', titulo_original: state.plate.titulo, categoria: 'Efemérides', cuerpo: items.map(item => item.resumen).join(' '), imagen: '', imagenes: [] },
+    editorial: { seccion: 'Efemérides', familia: 'mm_classic', tipo_noticia: 'evergreen', complejidad: 'medium', tono: 'informative', titulo: state.plate.titulo, bajada: 'Tres efemérides verificadas', contexto: '', datos_clave: [], textual: [], personas: [], category_options: [{ id: 'efemerides', label: 'Efemérides', vertical: 'general', recommended: true }] },
+    salidas: { placas: [], carrusel: plan, reel: null },
+    redes: { instagram: '', facebook: '' },
+  };
 }
 
 function renderTemplates() {
