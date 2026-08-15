@@ -6698,6 +6698,14 @@ async function discoverWikipediaDateUrl(date) {
   } catch { return ''; }
 }
 
+function wikipediaDateUrl(date) {
+  const parts = date.split('-');
+  const monthNames = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const day = Number(parts[2]);
+  const month = monthNames[Number(parts[1])] || '';
+  return day && month ? 'https://es.wikipedia.org/wiki/' + day + '_de_' + month : '';
+}
+
 async function handlePlacasV2Efemerides(url, env) {
   const date = url.searchParams.get('fecha') || '';
   if (!validEfemeridesDate(date)) return jsonError('Fecha inválida. Usá YYYY-MM-DD.', 400);
@@ -6711,18 +6719,29 @@ async function handlePlacasV2Efemerides(url, env) {
   // La página diaria de Wikipedia es determinística y existe para todos los
   // días válidos del calendario. Se usa primero para que una búsqueda lenta o
   // intermitente de TyC no deje al editor sin datos; TyC queda como rescate.
-  const sourceUrl = await discoverWikipediaDateUrl(date) || await discoverTyCEfemeridesUrl(date);
+  const sourceUrl = wikipediaDateUrl(date) || await discoverTyCEfemeridesUrl(date);
   if (!sourceUrl) return jsonError('No se encontró una fuente de efemérides para esa fecha.', 502);
   let sourceText = '';
   let sourceImages = [];
   try {
-    const response = await fetch(sourceUrl, { headers: { ...BROWSER_HEADERS, Accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(12000) });
+    const response = await fetch(sourceUrl, { headers: { ...BROWSER_HEADERS, Accept: 'text/html', 'User-Agent': 'MediaMendoza-Efemerides/1.0' }, redirect: 'follow', signal: AbortSignal.timeout(12000) });
     if (response.ok) {
       const html = await response.text();
       sourceText = stripHtmlForEfemerides(html).slice(0, 18000);
       sourceImages = [...html.matchAll(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/gi), ...html.matchAll(/<img[^>]+src=["'](https?:\/\/[^"']+)/gi)].map(match => match[1]).filter((image, index, images) => image && images.indexOf(image) === index).slice(0, 8);
     }
   } catch {}
+  if (!sourceText && /wikipedia\.org\/wiki\//i.test(sourceUrl)) {
+    try {
+      const page = sourceUrl.split('/wiki/')[1] || '';
+      const apiUrl = 'https://es.wikipedia.org/w/api.php?action=parse&page=' + encodeURIComponent(page) + '&prop=text&format=json&origin=*';
+      const response = await fetch(apiUrl, { headers: { Accept: 'application/json', 'User-Agent': 'MediaMendoza-Efemerides/1.0' }, signal: AbortSignal.timeout(12000) });
+      if (response.ok) {
+        const data = await response.json();
+        sourceText = stripHtmlForEfemerides(data?.parse?.text?.['*'] || '').slice(0, 18000);
+      }
+    } catch {}
+  }
   if (!sourceText) return jsonError('La fuente de efemérides no respondió.', 502);
   const sourceName = /wikipedia\.org/i.test(sourceUrl) ? 'Wikipedia' : 'TyC Sports';
   const imageCatalog = sourceImages.map((image, index) => index + ': ' + image).join('\n');
