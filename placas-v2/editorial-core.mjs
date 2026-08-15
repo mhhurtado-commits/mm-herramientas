@@ -382,12 +382,12 @@ export function calculatePlateLayout(format, plate = {}) {
     };
   }
   if (plate.tipo_placa === 'efemerides-social') {
-    const titleY = canvas.h * (isStory ? 0.055 : 0.065);
-    const titleH = canvas.h * (isStory ? 0.13 : 0.14);
-    const cardsY = titleY + titleH + canvas.h * 0.035;
+    const titleY = canvas.h * (isStory ? 0.04 : 0.045);
+    const titleH = canvas.h * (isStory ? 0.11 : 0.115);
+    const cardsY = titleY + titleH + canvas.h * 0.025;
     const gap = canvas.h * 0.018;
-    const footerY = canvas.h * 0.90;
-    const cardsH = Math.min(canvas.h * (isStory ? 0.20 : 0.225), (footerY - cardsY - gap * 2) / 3);
+    const footerY = canvas.h * 0.92;
+    const cardsH = Math.min(canvas.h * (isStory ? 0.22 : 0.25), (footerY - cardsY - gap * 2) / 3);
     return {
       canvas,
       efemerides: true,

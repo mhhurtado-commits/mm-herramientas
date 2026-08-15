@@ -432,27 +432,27 @@ function renderEfemeridesPlate(ctx, plate, format, options, family, layout) {
   ctx.fillStyle = family.color;
   ctx.font = `900 ${Math.max(24, canvas.w * 0.026)}px ${fontFamily}`;
   ctx.fillText('EFEMÉRIDES', layout.label.x, layout.label.y + layout.label.h * 0.76);
-  fittedText(ctx, plate.titulo || 'Agenda del día', layout.title.x, layout.title.y + Math.max(38, canvas.w * 0.052), layout.title.w, Math.max(38, canvas.w * 0.052), Math.max(26, canvas.w * 0.032), 2, 900, family.secondary, 1.04, layout.title.h);
+  fittedText(ctx, plate.titulo || 'Agenda del día', layout.title.x, layout.title.y + Math.max(44, canvas.w * 0.060), layout.title.w, Math.max(44, canvas.w * 0.060), Math.max(30, canvas.w * 0.038), 2, 900, family.secondary, 1.04, layout.title.h);
 
   items.forEach((item, index) => {
     const card = layout.cards[index];
     const accent = index === 0 ? family.color : index === 1 ? '#367d9c' : '#b36b27';
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = index === 0 ? '#edf4e4' : index === 1 ? '#e7f1f5' : '#f7ecdf';
     roundedRect(ctx, card.x, card.y, card.w, card.h, canvas.w * 0.012);
     ctx.fill();
     ctx.fillStyle = accent;
     ctx.fillRect(card.x, card.y, canvas.w * 0.012, card.h);
-    drawEfemerideIcon(ctx, item.icono || item.categoria, card.x + card.w * 0.91, card.y + card.h * 0.48, Math.min(card.w, card.h) * 0.22, accent);
+    drawEfemerideIcon(ctx, item.icono || item.categoria, card.x + card.w * 0.91, card.y + card.h * 0.48, Math.min(card.w, card.h) * 0.25, accent);
     const pad = card.w * 0.055;
     ctx.fillStyle = accent;
-    ctx.font = `900 ${Math.max(34, canvas.w * 0.045)}px ${fontFamily}`;
+    ctx.font = `900 ${Math.max(38, canvas.w * 0.050)}px ${fontFamily}`;
     ctx.fillText(item.año || '', card.x + pad, card.y + card.h * 0.43);
     ctx.fillStyle = '#526058';
-    ctx.font = `800 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
+    ctx.font = `800 ${Math.max(20, canvas.w * 0.020)}px ${fontFamily}`;
     ctx.fillText(String(item.categoria || item.alcance || '').toUpperCase(), card.x + pad, card.y + card.h * 0.19);
-    fittedText(ctx, item.titulo || '', card.x + card.w * 0.25, card.y + card.h * 0.42, card.w * 0.61, Math.max(30, canvas.w * 0.031), Math.max(22, canvas.w * 0.022), 2, 800, family.secondary, 1.08, card.h * 0.27);
+    fittedText(ctx, item.titulo || '', card.x + card.w * 0.25, card.y + card.h * 0.40, card.w * 0.61, Math.max(38, canvas.w * 0.040), Math.max(26, canvas.w * 0.027), 2, 800, family.secondary, 1.06, card.h * 0.28);
     ctx.fillStyle = '#526058';
-    fittedText(ctx, item.resumen || '', card.x + card.w * 0.25, card.y + card.h * 0.73, card.w * 0.61, Math.max(18, canvas.w * 0.018), Math.max(15, canvas.w * 0.015), 2, 600, '#526058', 1.16, card.h * 0.20);
+    fittedText(ctx, item.resumen || '', card.x + card.w * 0.25, card.y + card.h * 0.72, card.w * 0.61, Math.max(24, canvas.w * 0.023), Math.max(19, canvas.w * 0.019), 2, 600, '#526058', 1.12, card.h * 0.19);
   });
 
   ctx.fillStyle = '#526058';
