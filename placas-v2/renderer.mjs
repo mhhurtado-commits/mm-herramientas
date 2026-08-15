@@ -442,7 +442,7 @@ function renderEfemeridesPlate(ctx, plate, format, options, family, layout) {
     ctx.fill();
     ctx.fillStyle = accent;
     ctx.fillRect(card.x, card.y, canvas.w * 0.012, card.h);
-    drawEfemerideIcon(ctx, item.icono || item.categoria, card.x + card.w * 0.91, card.y + card.h * 0.50, Math.min(card.w, card.h) * 0.18, accent);
+    drawEfemerideIcon(ctx, item.icono || item.categoria, card.x + card.w * 0.91, card.y + card.h * 0.48, Math.min(card.w, card.h) * 0.22, accent);
     const pad = card.w * 0.055;
     ctx.fillStyle = accent;
     ctx.font = `900 ${Math.max(34, canvas.w * 0.045)}px ${fontFamily}`;
@@ -450,7 +450,9 @@ function renderEfemeridesPlate(ctx, plate, format, options, family, layout) {
     ctx.fillStyle = '#526058';
     ctx.font = `800 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
     ctx.fillText(String(item.categoria || item.alcance || '').toUpperCase(), card.x + pad, card.y + card.h * 0.19);
-    fittedText(ctx, item.titulo || '', card.x + card.w * 0.25, card.y + card.h * 0.44, card.w * 0.61, Math.max(30, canvas.w * 0.031), Math.max(22, canvas.w * 0.022), 2, 800, family.secondary, 1.08, card.h * 0.44);
+    fittedText(ctx, item.titulo || '', card.x + card.w * 0.25, card.y + card.h * 0.42, card.w * 0.61, Math.max(30, canvas.w * 0.031), Math.max(22, canvas.w * 0.022), 2, 800, family.secondary, 1.08, card.h * 0.27);
+    ctx.fillStyle = '#526058';
+    fittedText(ctx, item.resumen || '', card.x + card.w * 0.25, card.y + card.h * 0.73, card.w * 0.61, Math.max(18, canvas.w * 0.018), Math.max(15, canvas.w * 0.015), 2, 600, '#526058', 1.16, card.h * 0.20);
   });
 
   ctx.fillStyle = '#526058';
