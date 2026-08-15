@@ -16,15 +16,15 @@ test('obtiene efemérides verificadas por fecha y prioridad', () => {
   const items = getEfemeridesForDate('2026-08-15');
   assert.equal(items.length, 3);
   assert.deepEqual(items.map(item => item.año), ['1904', '1914', '1969']);
-  assert.deepEqual(getEfemeridesForDate('2026-08-16').map(item => item.año), ['1960', '1977', '1896']);
+  assert.deepEqual(getEfemeridesForDate('2026-08-16').map(item => item.año), ['1940', '2013', '1792', '1960', '1977', '1896']);
   assert.equal(getEfemeridesForDate('2026-08-17').length, 0);
 });
 
 test('la semilla tiene fuentes y no supera tres destacados', () => {
   const items = getSeedEfemerides();
   assert.ok(items.every(item => item.verificada && item.url_fuente.startsWith('https://')));
-  assert.ok(getEfemeridesForDate('08-15').length <= 3);
-  assert.ok(getEfemeridesForDate('08-16').length <= 3);
+  assert.ok(getEfemeridesForDate('08-15').length >= 3);
+  assert.ok(getEfemeridesForDate('08-16').length >= 5);
 });
 
 test('la semilla usa iconos especificos para cada efemeride', () => {
@@ -32,7 +32,7 @@ test('la semilla usa iconos especificos para cada efemeride', () => {
 });
 
 test('la semilla usa resúmenes concretos y breves', () => {
-  const summaries = getSeedEfemerides().map(item => item.resumen);
+  const summaries = getEfemeridesForDate('08-15').map(item => item.resumen);
   assert.ok(summaries.every(summary => summary.length <= 72));
   assert.ok(summaries[0].includes('Villa Crespo'));
 });

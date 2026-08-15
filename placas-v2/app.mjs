@@ -20,17 +20,38 @@ function effectiveVariant() { const variant = activeVariant(); return variant ? 
 function activeFocus() { return normalizeFocus(activeVariant()?.bloques?.find(block => block.tipo === 'imagen')?.foco); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character])); }
 function formatEfemeridesDate(value) { return new Date(`${value}T12:00:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'long' }); }
-function renderEfemeridesEditor() {
+function legacyRenderEfemeridesEditor() {
   const items = state.efemeridesItems;
   $('#efemeridesStatus').textContent = items.length ? `${items.length} efemérides verificadas. Podés editar los títulos antes de descargar.` : 'No hay efemérides verificadas para esa fecha.';
   $('#efemeridesEditor').innerHTML = items.map((item, index) => `<div class="efemeride-edit"><strong>${escapeHtml(item.año)} · ${escapeHtml(item.categoria)}</strong><input type="text" data-efemeride-index="${index}" data-efemeride-key="titulo" value="${escapeHtml(item.titulo)}" aria-label="Título de efeméride ${index + 1}"><small>Fuente: <a href="${escapeHtml(item.url_fuente)}" target="_blank" rel="noreferrer">${escapeHtml(item.fuente)}</a></small></div>`).join('');
   document.querySelectorAll('[data-efemeride-index]').forEach(input => input.addEventListener('input', event => { const item = state.efemeridesItems[Number(event.target.dataset.efemerideIndex)]; if (!item) return; item[event.target.dataset.efemerideKey] = event.target.value; state.plate.efemerides = state.efemeridesItems; render(); }));
 }
-function loadEfemerides() {
+function legacyLoadEfemerides() {
   const date = $('#efemeridesDate').value;
   state.efemeridesItems = getEfemeridesForDate(date);
   state.plate = { tipo: 'placa_noticia', version: 1, titulo: `Efemérides del ${formatEfemeridesDate(date)}`, titulo_sintetico: '', bajada: '', contexto: '', etiqueta: 'Efemérides', template_sugerido: 'general', tipo_placa: 'efemerides-social', fecha: date, efemerides: state.efemeridesItems, fuente: { url: '', imagenes: [] }, bloques: [] };
   state.variants = state.efemeridesItems.length ? [state.plate] : [];
+  state.selectedVariant = 0; state.selectedTemplate = 'efemerides-social'; state.format = 'portrait'; state.image = null; state.imageUrl = '';
+  $('#editorControls').classList.toggle('is-hidden', !state.variants.length);
+  renderEfemeridesEditor();
+  if (state.variants.length) { renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor(); render(); }
+}
+function selectedEfemerides() { const ids = state.selectedEfemeridesIds || []; return state.efemeridesItems.filter(item => ids.includes(item.id)); }
+function syncEfemeridesSelection() { if (!state.plate) return; state.plate.efemerides = selectedEfemerides(); state.variants = state.plate.efemerides.length ? [state.plate] : []; renderEfemeridesEditor(); renderVariants(); render(); }
+function renderEfemeridesEditor() {
+  const items = state.efemeridesItems;
+  const selected = state.selectedEfemeridesIds || [];
+  $('#efemeridesStatus').textContent = items.length ? `${items.length} opciones verificadas · ${selected.length}/3 seleccionadas. Elegí hasta tres para la placa.` : 'No hay efemérides verificadas para esa fecha.';
+  $('#efemeridesEditor').innerHTML = items.map((item, index) => `<div class="efemeride-edit"><label><input type="checkbox" data-efemeride-select="${escapeHtml(item.id)}" ${selected.includes(item.id) ? 'checked' : ''}> Usar en la placa</label><strong>${escapeHtml(item.categoria)} · ${escapeHtml(item.titulo)}</strong><input type="text" data-efemeride-index="${index}" data-efemeride-key="titulo" value="${escapeHtml(item.titulo)}" aria-label="Título de efeméride ${index + 1}"><small>${escapeHtml(item.resumen)} · Fuente: <a href="${escapeHtml(item.url_fuente)}" target="_blank" rel="noreferrer">${escapeHtml(item.fuente)}</a></small></div>`).join('');
+  document.querySelectorAll('[data-efemeride-select]').forEach(input => input.addEventListener('change', event => { const ids = [...document.querySelectorAll('[data-efemeride-select]:checked')].map(item => item.dataset.efemerideSelect); if (ids.length > 3) { event.target.checked = false; return; } state.selectedEfemeridesIds = ids; syncEfemeridesSelection(); }));
+  document.querySelectorAll('[data-efemeride-index]').forEach(input => input.addEventListener('input', event => { const item = state.efemeridesItems[Number(event.target.dataset.efemerideIndex)]; if (!item) return; item[event.target.dataset.efemerideKey] = event.target.value; if (state.plate) state.plate.efemerides = selectedEfemerides(); render(); }));
+}
+function loadEfemerides() {
+  const date = $('#efemeridesDate').value;
+  state.efemeridesItems = getEfemeridesForDate(date);
+  state.selectedEfemeridesIds = state.efemeridesItems.slice(0, 3).map(item => item.id);
+  state.plate = { tipo: 'placa_noticia', version: 1, titulo: `Efemérides del ${formatEfemeridesDate(date)}`, titulo_sintetico: '', bajada: '', contexto: '', etiqueta: 'Efemérides', template_sugerido: 'general', tipo_placa: 'efemerides-social', fecha: date, efemerides: selectedEfemerides(), fuente: { url: '', imagenes: [] }, bloques: [] };
+  state.variants = state.plate.efemerides.length ? [state.plate] : [];
   state.selectedVariant = 0; state.selectedTemplate = 'efemerides-social'; state.format = 'portrait'; state.image = null; state.imageUrl = '';
   $('#editorControls').classList.toggle('is-hidden', !state.variants.length);
   renderEfemeridesEditor();

@@ -39,6 +39,21 @@ const SEED = [
     titulo: 'Descubren oro en el Klondike', resumen: 'El hallazgo en Canadá dispara una de las grandes fiebres del oro.', icono: 'mundo', prioridad: 3, verificada: true,
     fuente: 'Parks Canada', url_fuente: 'https://parks.canada.ca/lhn-nhs/yt/klondike/culture/lhn-hns-disc',
   },
+  {
+    id: 'curtiss-hawk-1940', fecha: '08-16', alcance: 'nacional', categoria: 'argentina', año: '1940',
+    titulo: 'Primer vuelo del Curtiss Hawk argentino', resumen: 'Eduardo Correa prueba el caza metálico fabricado bajo licencia en el país.', icono: 'aviacion', prioridad: 1, verificada: true,
+    fuente: 'Argentina.gob.ar', url_fuente: 'https://www.argentina.gob.ar/node/418752',
+  },
+  {
+    id: 'grob-g120tp-2013', fecha: '08-16', alcance: 'nacional', categoria: 'argentina', año: '2013',
+    titulo: 'Presentan el entrenador Grob G-120TP', resumen: 'La Fuerza Aérea Argentina incorpora un nuevo entrenador para sus aviadores.', icono: 'aviacion', prioridad: 2, verificada: true,
+    fuente: 'Argentina.gob.ar', url_fuente: 'https://www.argentina.gob.ar/node/418752',
+  },
+  {
+    id: 'incendio-rancheria-1792', fecha: '08-16', alcance: 'nacional', categoria: 'cultura', año: '1792',
+    titulo: 'Se incendia el teatro La Ranchería', resumen: 'El primer teatro estable de Buenos Aires queda destruido por un incendio.', icono: 'cultura', prioridad: 3, verificada: true,
+    fuente: 'Buenos Aires Ciudad', url_fuente: 'https://buenosaires.gob.ar/gcaba_historico/laciudad/calendario-historico/agosto',
+  },
 ];
 
 function normalizeDateKey(value) {
@@ -57,7 +72,7 @@ export function normalizeEfemeride(item = {}) {
 
 export function getEfemeridesForDate(date, items = SEED) {
   const key = normalizeDateKey(date);
-  return items.map(normalizeEfemeride).filter(item => item?.fecha === key).sort((a, b) => a.prioridad - b.prioridad);
+  return items.map(normalizeEfemeride).filter(item => item?.fecha === key).sort((a, b) => (a.alcance === 'nacional' ? 0 : 1) - (b.alcance === 'nacional' ? 0 : 1) || a.prioridad - b.prioridad);
 }
 
 export function getSeedEfemerides() {
