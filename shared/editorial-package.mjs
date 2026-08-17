@@ -63,7 +63,7 @@ export function packageFromPlate(plate = {}) {
       titulo_sintetico: clean(source.titulo_sintetico),
       bajada: clean(source.bajada || source.description),
       contexto: clean(source.contexto || source.context),
-      datos_clave: normalizeStrings(source.datos_clave),
+      datos_clave: normalizeKeyFacts(source.datos_clave),
       textual: normalizeStringsOrObjects(source.textual),
       personas: normalizeObjects(source.personas),
     },
@@ -99,7 +99,7 @@ export function packageFromCarouselArticle(article = {}, diagnosis = {}, plan = 
       titulo: clean(normalizedPlan.cover?.title || source.title),
       bajada: clean(normalizedPlan.cover?.subtitle || source.summary),
       contexto: clean(normalizedPlan.slides?.find(slide => slide?.type === 'context')?.text),
-      datos_clave: normalizeStrings(normalizedPlan.slides?.filter(slide => slide?.type === 'facts').flatMap(slide => slide.items || [])),
+      datos_clave: normalizeKeyFacts(normalizedPlan.slides?.filter(slide => slide?.type === 'facts').flatMap(slide => slide.items || [])),
       textual: [],
       personas: [],
     },
@@ -121,6 +121,9 @@ export function packageToCarouselArticle(editorialPackage = {}) {
     image,
     images: image && !images.includes(image) ? [image, ...images].slice(0, 12) : images.slice(0, 12),
     content: clean(source.cuerpo),
+    editorialContext: clean(editorial.contexto),
+    editorialFacts: normalizeKeyFacts(editorial.datos_clave),
+    editorialTextual: normalizeStringsOrObjects(editorial.textual),
   };
 }
 
@@ -157,7 +160,7 @@ function normalizeEditorial(source, fuente) {
     titulo_sintetico: clean(source.titulo_sintetico),
     bajada: clean(source.bajada),
     contexto: clean(source.contexto),
-    datos_clave: normalizeStrings(source.datos_clave),
+    datos_clave: normalizeKeyFacts(source.datos_clave),
     textual: normalizeStringsOrObjects(source.textual),
     personas: normalizeObjects(source.personas),
   };
@@ -196,6 +199,20 @@ function normalizeStringsOrObjects(values) {
   if (Array.isArray(values)) return values.map(value => (isObject(value) ? { ...value } : clean(value))).filter(value => (isObject(value) ? Object.keys(value).length : Boolean(value))).slice(0, 12);
   if (isObject(values)) return [{ ...values }];
   return [];
+}
+
+function normalizeKeyFacts(values) {
+  if (!Array.isArray(values)) return [];
+  return values.map(value => {
+    if (isObject(value)) {
+      return {
+        label: clean(value.label || value.titulo || value.nombre),
+        value: clean(value.value || value.valor || value.text || value.texto),
+        detail: clean(value.detail || value.detalle || value.description || value.descripcion),
+      };
+    }
+    return { label: '', value: clean(value), detail: '' };
+  }).filter(value => value.value || value.label || value.detail).slice(0, 12);
 }
 
 function normalizeObjects(values) {
