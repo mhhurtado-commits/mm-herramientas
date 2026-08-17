@@ -121,7 +121,7 @@ function uniqueExtendedText(values, excluded) {
       other.length > candidate.length &&
       normalizeKey(other).includes(normalizeKey(candidate))
     )))
-    .slice(0, 4)
+    .slice(0, 2)
     .join(' ');
 }
 

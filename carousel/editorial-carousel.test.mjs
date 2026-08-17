@@ -1967,3 +1967,24 @@ test('calcula el foco al arrastrar una imagen y lo limita al area valida', () =>
     { x: 1, y: 0 }
   );
 });
+
+test('renderiza las senales climaticas sin glifos Unicode frÃ¡giles', () => {
+  const slide = normalizeCarouselSlide({
+    type: 'dato',
+    style: { variant: 'climate' },
+    content: {
+      title: 'Datos del pronÃ³stico',
+      items: [
+        { value: '3 Â°C', label: 'MÃ¡xima provincial', icon: 'temperature' },
+        { value: '40 km/h', label: 'RÃ¡fagas del Sur', icon: 'wind' },
+        { value: 'Lluvias', label: 'Hasta las 17:00', icon: 'rain' },
+      ],
+    },
+  }, 1, 4);
+  installCanvasHarness();
+
+  const canvas = renderSlideToCanvas(slide, { slides: [slide] });
+  assert.equal(canvas.renderState.overflow, false);
+  assert.equal(canvas.calls.text.some((entry) => entry.font === '700 26px Arial, sans-serif'), false);
+  assert.ok(canvas.calls.fills.length >= 6);
+});

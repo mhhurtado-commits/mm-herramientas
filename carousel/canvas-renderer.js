@@ -535,9 +535,10 @@ function drawCover(ctx, slide, project, theme, layout) {
   var panelX = layout.content.x;
   // La portada necesita que la imagen conserve protagonismo: la tarjeta baja
   // sin tocar el pie ni cambiar la composición de las diapositivas internas.
-  var panelY = Math.max(layout.content.y, Math.round(H * 0.56));
+  var coverTextLength = String(content.subtitle || content.text || "").length;
+  var panelH = coverTextLength > 100 ? 520 : 420;
+  var panelY = Math.max(layout.content.y, layout.safeZones.footer.y - panelH - 26);
   var panelW = layout.content.width;
-  var panelH = Math.min(520, layout.safeZones.footer.y - panelY - 26);
   fillRoundRect(ctx, panelX, panelY, panelW, panelH, 34, theme.colors.surface);
   strokeRoundRect(ctx, panelX, panelY, panelW, panelH, 34, theme.colors.coverPanelStroke, 2);
 
@@ -852,7 +853,7 @@ function drawClimateStats(ctx, slide, project, theme, layout) {
     var y = cardY + Math.floor(i / 2) * (cardHeight + gap);
     fillRoundRect(ctx, x, y, cardWidth, cardHeight, 24, theme.colors.surfaceSoft);
     fillRoundRect(ctx, x, y, 10, cardHeight, 5, theme.colors.accent);
-    drawClimateMetricIcon(ctx, item.icon, x + cardWidth - 46, y + 48, theme);
+    drawClimateMetricIconVector(ctx, item.icon, x + cardWidth - 46, y + 48, theme);
     var value = item.value || item.label || "";
     var label = item.value ? item.label : "";
     var valueEnd = drawMeasuredText(ctx, value, x + 28, y + 28, cardWidth - 54, {
@@ -880,6 +881,75 @@ function drawClimateMetricIcon(ctx, icon, x, y, theme) {
   ctx.fillText(glyphs[icon] || glyphs.info, x, y + 1);
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
+}
+
+function drawClimateMetricIconVector(ctx, icon, x, y, theme) {
+  ctx.fillStyle = theme.colors.accent;
+  ctx.beginPath();
+  ctx.arc(x, y, 25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = theme.colors.background;
+  ctx.fillStyle = theme.colors.background;
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  if (icon === "rain") {
+    ctx.arc(x - 5, y - 2, 7, Math.PI, 0);
+    ctx.arc(x + 5, y - 1, 6, Math.PI, 0);
+    ctx.moveTo(x - 12, y - 1);
+    ctx.lineTo(x + 12, y - 1);
+    ctx.moveTo(x - 7, y + 7);
+    ctx.lineTo(x - 10, y + 12);
+    ctx.moveTo(x + 1, y + 7);
+    ctx.lineTo(x - 2, y + 12);
+    ctx.moveTo(x + 9, y + 7);
+    ctx.lineTo(x + 6, y + 12);
+    ctx.stroke();
+  } else if (icon === "wind") {
+    ctx.moveTo(x - 12, y - 7);
+    ctx.lineTo(x + 8, y - 7);
+    ctx.arc(x + 8, y - 3, 4, -Math.PI / 2, Math.PI / 2);
+    ctx.moveTo(x - 12, y + 2);
+    ctx.lineTo(x + 3, y + 2);
+    ctx.arc(x + 3, y + 6, 4, -Math.PI / 2, Math.PI / 2);
+    ctx.stroke();
+  } else if (icon === "temperature") {
+    ctx.moveTo(x, y - 12);
+    ctx.lineTo(x, y + 7);
+    ctx.arc(x, y + 9, 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y - 12, 3, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (icon === "mountain") {
+    ctx.moveTo(x - 13, y + 11);
+    ctx.lineTo(x - 2, y - 10);
+    ctx.lineTo(x + 4, y + 1);
+    ctx.lineTo(x + 8, y - 5);
+    ctx.lineTo(x + 14, y + 11);
+    ctx.closePath();
+    ctx.stroke();
+  } else if (icon === "sun") {
+    ctx.arc(x, y, 7, 0, Math.PI * 2);
+    ctx.stroke();
+    for (var ray = 0; ray < 8; ray++) {
+      var angle = ray * Math.PI / 4;
+      ctx.moveTo(x + Math.cos(angle) * 12, y + Math.sin(angle) * 12);
+      ctx.lineTo(x + Math.cos(angle) * 17, y + Math.sin(angle) * 17);
+    }
+    ctx.stroke();
+  } else {
+    ctx.arc(x, y, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y - 5, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x, y - 1);
+    ctx.lineTo(x, y + 7);
+    ctx.stroke();
+  }
 }
 
 function drawQuote(ctx, slide, project, theme, layout) {

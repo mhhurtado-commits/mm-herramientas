@@ -22,6 +22,26 @@ test('conserva los datos estructurados del contrato para clima', () => {
   ]);
 });
 
+test('compacta el contexto climatico y conserva una sola idea por tarjeta', () => {
+  const result = adaptClimatePlan({ diagnosis: { vertical: 'clima' }, slides: [{ type: 'end' }] }, {
+    editorialVertical: 'clima',
+    editorialContext: 'El Sur de Mendoza atraviesa una jornada marcada por lluvias, nubosidad y bajas temperaturas.',
+    editorialFacts: [{ label: 'Maxima', value: '3 C' }],
+    editorialTextual: [
+      'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza.',
+      'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza.',
+      'El Sur de Mendoza atraviesa una jornada marcada por el frio, la nubosidad y las precipitaciones.',
+      'El viento Sur comenzo a ingresar durante la madrugada y se mantendra hasta aproximadamente las 22.',
+    ],
+  });
+
+  const contextSlides = result.slides.filter((slide) => slide.type === 'contexto');
+  assert.equal(contextSlides.length, 2);
+  assert.equal(contextSlides[0].title, '¿Cómo estará el día?');
+  assert.ok(contextSlides[1].text.length <= 230);
+  assert.equal(contextSlides[1].text.includes('Lluvias y frio marcan este lunes feriado en el Sur de Mendoza. Lluvias'), false);
+});
+
 test('arma una secuencia climática con tarjetas y elimina datos repetidos', () => {
   const article = {
     title: 'Feriado bajo lluvia',
