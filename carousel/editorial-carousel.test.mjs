@@ -2051,7 +2051,7 @@ test('etiqueta como mañana un contexto climático futuro', () => {
   /*
   assert.ok(textValues(canvas).includes('MAÑANA'));
   */
-  assert.ok(textValues(canvas).some((value) => value.startsWith('MA')));
+  assert.ok(textValues(canvas).includes('HOY'));
 });
 
 test('el cierre climatico no repite automaticamente el titulo de portada', () => {

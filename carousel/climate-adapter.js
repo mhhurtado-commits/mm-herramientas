@@ -7,7 +7,11 @@ export function adaptClimatePlan(plan, article = {}) {
   const facts = uniqueFacts(article.editorialFacts);
   const narrativeFacts = facts.filter(isNarrativeFact);
   const metricFacts = facts.filter(fact => !isNarrativeFact(fact));
-  const context = uniqueText([clean(article.editorialContext), ...narrativeFacts.map(factText)], []);
+  const sourceContext = clean(article.editorialContext);
+  const futureContext = isFutureClimateText(sourceContext) ? sourceContext : '';
+  const context = uniqueText([
+    ...(futureContext ? [clean(article.summary), ...narrativeFacts.map(factText)] : [sourceContext, ...narrativeFacts.map(factText)]),
+  ], []);
   const originalEnd = plan.slides?.find((slide) => slide?.type === 'end') || {
     type: 'end',
     title: 'Seguí la nota',
@@ -42,6 +46,7 @@ export function adaptClimatePlan(plan, article = {}) {
     .map(clean)
     .filter(Boolean);
   const extended = uniqueExtendedText([
+    futureContext,
     ...(Array.isArray(article.editorialTextual) ? article.editorialTextual : []),
     ...textCandidates(article.content),
     ...previousSlideText,
@@ -53,6 +58,10 @@ export function adaptClimatePlan(plan, article = {}) {
     slides: [...slides, climateEnd],
     diagnosis: { ...plan.diagnosis, vertical: 'clima', slide_count: slides.length + 2 },
   };
+}
+
+function isFutureClimateText(value) {
+  return /ma\u00f1ana|a partir del|hacia el martes|para el martes|martes|mi\u00e9rcoles/i.test(clean(value));
 }
 
 function uniqueFacts(values) {

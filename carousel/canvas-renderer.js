@@ -637,7 +637,7 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
     var textX = layout.content.x + 42;
     var textWidth = layout.content.width - 84;
     if (groups.length === 1) {
-      drawClimateSignalBadge(ctx, layout.content.x + 92, cardY + cardHeight / 2, theme, 62, climateContextSignalLabelSafe(groups[i]));
+      drawClimateSignalBadge(ctx, layout.content.x + 92, cardY + cardHeight / 2, theme, 62);
       textX = layout.content.x + 190;
       textWidth = layout.content.width - 340;
       drawClimateMetricIconVector(ctx, climateContextIcon(groups[i]), layout.content.x + layout.content.width - 82, cardY + cardHeight / 2, theme);

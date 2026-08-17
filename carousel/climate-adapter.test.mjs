@@ -119,6 +119,19 @@ test('compacta el copy narrativo climático para tarjetas visuales', () => {
   );
 });
 
+test('mantiene el contexto de hoy separado de una mejora futura', () => {
+  const result = adaptClimatePlan({ diagnosis: { vertical: 'clima' }, slides: [{ type: 'end' }] }, {
+    editorialVertical: 'clima',
+    editorialContext: 'Se espera una mejora a partir del martes con cielo despejado.',
+    summary: 'El Sur registra lluvias intermitentes durante la jornada.',
+    editorialFacts: [{ label: 'Maxima provincial', value: '3 C' }],
+    editorialTextual: [],
+  });
+
+  assert.equal(result.slides[0].text, 'El Sur registra lluvias intermitentes durante la jornada.');
+  assert.ok(result.slides.some((slide) => slide.title === 'Lo que sigue' && slide.text.includes('martes')));
+});
+
 function factTextForTest(item) {
   return [item.value, item.label].filter(Boolean).join(' ');
 }
