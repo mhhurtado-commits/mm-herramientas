@@ -118,3 +118,24 @@ test('usa el cuerpo de la nota para completar la secuencia climatica', () => {
   assert.equal(result.slides.filter((slide) => slide.type !== 'end').length, 3);
   assert.match(result.slides[2].text, /La mejora continuara/);
 });
+
+test('elimina frases repetidas al completar la secuencia climatica', () => {
+  const result = adaptClimatePlan({
+    diagnosis: { vertical: 'clima' },
+    slides: [{ type: 'end' }],
+  }, {
+    editorialVertical: 'clima',
+    editorialContext: 'Jornada inestable durante el feriado.',
+    editorialFacts: [{ label: 'Maxima', value: '3 grados' }],
+    editorialTextual: [
+      'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza.',
+      'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza.',
+      'El Sur de Mendoza atraviesa una jornada marcada por el frio, la nubosidad y las precipitaciones.',
+    ],
+  });
+
+  assert.equal(
+    result.slides[2].text,
+    'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza. El Sur de Mendoza atraviesa una jornada marcada por el frio, la nubosidad y las precipitaciones.',
+  );
+});

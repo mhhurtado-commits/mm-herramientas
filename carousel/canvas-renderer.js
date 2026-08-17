@@ -618,18 +618,36 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
   }
   var gap = 20;
   var available = layout.safeZones.footer.y - 42 - (titleEnd + 42);
-  var cardHeight = Math.max(190, Math.min(groups.length === 1 ? 420 : 300, Math.floor((available - gap * Math.max(0, groups.length - 1)) / Math.max(1, groups.length))));
+  var cardHeight = Math.max(190, Math.min(300, Math.floor((available - gap * Math.max(0, groups.length - 1)) / Math.max(1, groups.length))));
   var y = titleEnd + 42;
   for (var i = 0; i < groups.length; i++) {
     var cardY = y + i * (cardHeight + gap);
     fillRoundRect(ctx, layout.content.x, cardY, layout.content.width, cardHeight, 26, theme.colors.surfaceSoft);
     fillRoundRect(ctx, layout.content.x, cardY, 12, cardHeight, 6, theme.colors.accent);
-    drawMeasuredText(ctx, groups[i], layout.content.x + 42, cardY + 34, layout.content.width - 84, {
+    var textX = layout.content.x + 42;
+    var textWidth = layout.content.width - 84;
+    if (groups.length === 1) {
+      drawClimateSignalBadge(ctx, layout.content.x + 92, cardY + cardHeight / 2, theme);
+      textX = layout.content.x + 190;
+      textWidth = layout.content.width - 232;
+    }
+    drawMeasuredText(ctx, groups[i], textX, cardY + 34, textWidth, {
       fontSize: 42, minFontSize: 27, maxLines: 4, lineHeight: 52, color: theme.colors.textPrimary,
       role: "climate-context", maxBottom: cardY + cardHeight - 28,
     });
   }
   drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
+function drawClimateSignalBadge(ctx, x, y, theme) {
+  ctx.fillStyle = theme.colors.accent;
+  ctx.beginPath();
+  ctx.arc(x, y, 52, 0, Math.PI * 2);
+  ctx.fill();
+  drawMeasuredText(ctx, "HOY", x - 42, y - 15, 84, {
+    fontSize: 25, minFontSize: 20, maxLines: 1, lineHeight: 28, weight: "700",
+    color: theme.colors.background, role: "climate-signal", align: "center", maxBottom: y + 20,
+  });
 }
 
 function drawKey(ctx, slide, project, theme, layout) {

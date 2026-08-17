@@ -35,7 +35,7 @@ export function adaptClimatePlan(plan, article = {}) {
     ])
     .map(clean)
     .filter(Boolean);
-  const extended = uniqueText([
+  const extended = uniqueExtendedText([
     ...(Array.isArray(article.editorialTextual) ? article.editorialTextual : []),
     ...textCandidates(article.content),
     ...previousSlideText,
@@ -88,11 +88,38 @@ function uniqueText(values, excluded) {
   return values.map(clean).find(value => value && !blocked.has(value.toLowerCase())) || '';
 }
 
+function uniqueExtendedText(values, excluded) {
+  const blocked = new Set(excluded.map(clean).filter(Boolean).map(normalizeKey));
+  const candidates = values.flatMap(textCandidates)
+    .map(clean)
+    .filter((value) => value && !blocked.has(normalizeKey(value)));
+  const unique = [];
+
+  for (const candidate of candidates) {
+    const key = normalizeKey(candidate);
+    if (!key || unique.some((value) => normalizeKey(value) === key)) continue;
+    unique.push(candidate);
+  }
+
+  return unique
+    .filter((candidate, index, all) => !all.some((other, otherIndex) => (
+      otherIndex !== index &&
+      other.length > candidate.length &&
+      normalizeKey(other).includes(normalizeKey(candidate))
+    )))
+    .slice(0, 4)
+    .join(' ');
+}
+
 function textCandidates(value) {
   return clean(value)
     .split(/(?<=[.!?])\s+/)
     .map((text) => text.trim())
     .filter((text) => text.length >= 30);
+}
+
+function normalizeKey(value) {
+  return clean(value).toLowerCase().replace(/[“”"']/g, '');
 }
 
 function clean(value) {
