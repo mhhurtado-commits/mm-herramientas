@@ -670,8 +670,8 @@ function drawClimateOutlook(ctx, content, theme, layout, titleEnd) {
     var iconX = layout.content.x + 86;
     var iconY = cardY + cardHeight / 2;
     drawClimateMetricIconVector(ctx, climateContextIcon(groups[i]), iconX, iconY, theme);
-    drawMeasuredText(ctx, groups[i], layout.content.x + 160, cardY + 34, layout.content.width - 205, {
-      fontSize: 34, minFontSize: 24, maxLines: 2, lineHeight: 40, color: theme.colors.textPrimary,
+    drawMeasuredText(ctx, groups[i], layout.content.x + 160, cardY + 58, layout.content.width - 205, {
+      fontSize: 46, minFontSize: 34, maxLines: 2, lineHeight: 54, color: theme.colors.textPrimary,
       role: "climate-outlook", maxBottom: cardY + cardHeight - 28,
     });
   }
