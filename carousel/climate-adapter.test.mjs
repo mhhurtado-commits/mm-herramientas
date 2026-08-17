@@ -90,3 +90,16 @@ test('adapta un plan guardado aunque su diagnóstico viejo diga general', () => 
   assert.equal(result.diagnosis.vertical, 'clima');
   assert.equal(result.slides.find((slide) => slide.type === 'dato').items[0].value, '8°C');
 });
+
+test('conserva una escena informativa previa cuando falta textual en el contrato', () => {
+  const result = adaptClimatePlan({
+    diagnosis: { vertical: 'clima' },
+    slides: [{ type: 'contexto', text: 'La mejora continuara durante la tarde.' }, { type: 'end' }],
+  }, {
+    editorialVertical: 'clima',
+    editorialContext: 'Lluvias durante la jornada.',
+    editorialFacts: [{ label: 'Maxima', value: '8 C' }],
+  });
+  assert.equal(result.slides.filter((slide) => slide.type !== 'end').length, 3);
+  assert.equal(result.slides[2].text, 'La mejora continuara durante la tarde.');
+});

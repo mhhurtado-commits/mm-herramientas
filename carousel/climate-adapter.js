@@ -22,8 +22,22 @@ export function adaptClimatePlan(plan, article = {}) {
     slides.push({ type: 'contexto', title: 'Panorama', text: clean(article.summary) });
   }
 
+  const previousSlideText = (plan.slides || [])
+    .filter((slide) => slide && slide.type !== 'end')
+    .flatMap((slide) => [
+      slide.text,
+      slide.subtitle,
+      slide.content?.text,
+      slide.content?.subtitle,
+      ...(Array.isArray(slide.items) ? slide.items.map((item) => (
+        item && typeof item === 'object' ? factText(item) : clean(item)
+      )) : []),
+    ])
+    .map(clean)
+    .filter(Boolean);
   const extended = uniqueText([
-    clean(article.editorialTextual?.[0]?.text || article.editorialTextual?.[0]),
+    ...(Array.isArray(article.editorialTextual) ? article.editorialTextual : []),
+    ...previousSlideText,
   ], [context, ...facts.map(factText)]);
   if (extended) slides.push({ type: 'contexto', title: 'Lo que sigue', text: extended, variant: 'climate' });
 
