@@ -5,7 +5,9 @@ export function adaptClimatePlan(plan, article = {}) {
   if (vertical !== 'clima') return plan;
 
   const facts = uniqueFacts(article.editorialFacts);
-  const context = clean(article.editorialContext);
+  const narrativeFacts = facts.filter(isNarrativeFact);
+  const metricFacts = facts.filter(fact => !isNarrativeFact(fact));
+  const context = uniqueText([clean(article.editorialContext), ...narrativeFacts.map(factText)], []);
   const originalEnd = plan.slides?.find((slide) => slide?.type === 'end') || {
     type: 'end',
     title: 'Seguí la nota',
@@ -14,8 +16,8 @@ export function adaptClimatePlan(plan, article = {}) {
   const slides = [];
 
   if (context) slides.push({ type: 'contexto', title: '¿Cómo estará el día?', text: context });
-  if (facts.length) {
-    slides.push({ type: 'dato', title: 'Datos del pronóstico', items: facts.slice(0, MAX_CLIMATE_FACTS) });
+  if (metricFacts.length) {
+    slides.push({ type: 'dato', title: 'Datos del pronóstico', items: metricFacts.slice(0, MAX_CLIMATE_FACTS), variant: 'climate' });
   } else if (!context && clean(article.summary)) {
     slides.push({ type: 'contexto', title: 'Panorama', text: clean(article.summary) });
   }
@@ -23,7 +25,7 @@ export function adaptClimatePlan(plan, article = {}) {
   const extended = uniqueText([
     clean(article.editorialTextual?.[0]?.text || article.editorialTextual?.[0]),
   ], [context, ...facts.map(factText)]);
-  if (extended) slides.push({ type: 'contexto', title: 'Lo que sigue', text: extended });
+  if (extended) slides.push({ type: 'contexto', title: 'Lo que sigue', text: extended, variant: 'climate' });
 
   return {
     ...plan,
@@ -57,6 +59,11 @@ function normalizeFact(value) {
 
 function factText(fact) {
   return [fact?.value, fact?.label].filter(Boolean).join(' — ');
+}
+
+function isNarrativeFact(fact) {
+  const text = factText(fact);
+  return text.length > 110 || text.split(/\s+/).length > 18;
 }
 
 function uniqueText(values, excluded) {

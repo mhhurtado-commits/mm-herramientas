@@ -704,6 +704,7 @@ function getContextHighlightHeight(ctx, text, textWidth, theme) {
 }
 
 function drawStats(ctx, slide, project, theme, layout) {
+  if (slide.style && slide.style.variant === "climate") return drawClimateStats(ctx, slide, project, theme, layout);
   var content = slide.content || {};
   var stats = resolveStatsContent(content);
   var primary = stats.primary;
@@ -772,6 +773,45 @@ function drawStats(ctx, slide, project, theme, layout) {
     }
   } else {
     drawContextCard(ctx, explanation, layout.content.x, cardY, layout.content.width, layout.safeZones.footer.y - 42, theme, "body");
+  }
+  drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
+function drawClimateStats(ctx, slide, project, theme, layout) {
+  var content = slide.content || {};
+  var items = resolveStatsContent(content).items || [];
+  ctx.fillStyle = theme.colors.background;
+  ctx.fillRect(0, 0, W, H);
+  drawLogo(ctx, project, theme, layout, false);
+  var headingEnd = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132, maxWidth: layout.content.width });
+  var titleEnd = drawMeasuredText(ctx, content.title || "Datos del pronóstico", layout.content.x, headingEnd + 28, layout.content.width, {
+    fontSize: 58, minFontSize: 38, maxLines: 2, lineHeight: 66, weight: "700", color: theme.colors.accentDark,
+    role: "title", maxBottom: layout.safeZones.footer.y - 520,
+  });
+  var gap = 22;
+  var cardWidth = Math.floor((layout.content.width - gap) / 2);
+  var cardHeight = 174;
+  var cardY = Math.max(titleEnd + 44, layout.content.y + 360);
+  var maxBottom = layout.safeZones.footer.y - 42;
+  var visible = items.slice(0, 4);
+  var maxRows = Math.max(1, Math.floor((maxBottom - cardY + gap) / (cardHeight + gap)));
+  visible = visible.slice(0, maxRows * 2);
+  for (var i = 0; i < visible.length; i++) {
+    var item = visible[i];
+    var x = layout.content.x + (i % 2) * (cardWidth + gap);
+    var y = cardY + Math.floor(i / 2) * (cardHeight + gap);
+    fillRoundRect(ctx, x, y, cardWidth, cardHeight, 24, theme.colors.surfaceSoft);
+    fillRoundRect(ctx, x, y, 10, cardHeight, 5, theme.colors.accent);
+    var value = item.value || item.label || "";
+    var label = item.value ? item.label : "";
+    var valueEnd = drawMeasuredText(ctx, value, x + 28, y + 28, cardWidth - 54, {
+      fontSize: 54, minFontSize: 30, maxLines: 2, lineHeight: 58, weight: "700", color: theme.colors.accentDark,
+      role: "climate-value", autoCondense: true, maxBottom: y + 112,
+    });
+    drawMeasuredText(ctx, label, x + 28, Math.max(y + 102, valueEnd + 8), cardWidth - 54, {
+      fontSize: 23, minFontSize: 18, maxLines: 2, lineHeight: 28, color: theme.colors.textPrimary,
+      role: "climate-label", maxBottom: y + cardHeight - 22,
+    });
   }
   drawEditorialFooter(ctx, slide, project, theme, layout);
 }

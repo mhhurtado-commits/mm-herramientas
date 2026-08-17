@@ -92,6 +92,8 @@ export function convertirPlanASlides(plan, article, settings, manualSlideImages)
     }
     slide.content.quoteValidation = item.quoteValidation || "";
     slide.content.validation = item.validation || item.quoteValidation || "";
+    if (item.variant) slide.style.variant = item.variant;
+    if (item.style && typeof item.style === "object") slide.style = { ...slide.style, ...item.style };
     if (item.focalPosition !== undefined) {
       slide.content.focalPosition = item.focalPosition;
     }

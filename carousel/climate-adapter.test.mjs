@@ -50,6 +50,21 @@ test('arma una secuencia climática con tarjetas y elimina datos repetidos', () 
   assert.ok(result.slides.every((slide) => slide.type !== 'contexto' || slide.text !== article.summary));
 });
 
+test('separa una narracion larga de las tarjetas metricas', () => {
+  const result = adaptClimatePlan({ diagnosis: { vertical: 'clima' }, slides: [{ type: 'end' }] }, {
+    editorialVertical: 'clima',
+    editorialFacts: [
+      { label: 'Panorama', value: 'El Sur de Mendoza atraviesa una jornada extensa de lluvias, nubosidad y viento durante gran parte del dia.' },
+      { label: 'Maxima', value: '8 C' },
+      { label: 'Viento', value: '40 km/h' },
+    ],
+  });
+  const data = result.slides.find((slide) => slide.type === 'dato');
+  assert.equal(data.variant, 'climate');
+  assert.deepEqual(data.items.map((item) => item.value), ['8 C', '40 km/h']);
+  assert.match(result.slides.find((slide) => slide.type === 'contexto').text, /Sur de Mendoza/);
+});
+
 test('no modifica el plan general', () => {
   const plan = {
     diagnosis: { vertical: 'policiales' },
