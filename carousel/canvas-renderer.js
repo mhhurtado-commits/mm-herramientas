@@ -650,7 +650,13 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
 
 function drawClimateOutlook(ctx, content, theme, layout, titleEnd) {
   var sentences = (content.text || "").match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [content.text || ""];
-  var groups = sentences.map(function (value) { return value.trim(); }).filter(Boolean).slice(0, 2);
+  var rawGroups = sentences.map(function (value) { return value.trim(); }).filter(Boolean);
+  if (rawGroups.length === 1 && rawGroups[0].split(/\s+/).length > 12) {
+    var words = rawGroups[0].split(/\s+/);
+    var midpoint = Math.ceil(words.length / 2);
+    rawGroups = [words.slice(0, midpoint).join(" "), words.slice(midpoint).join(" ")];
+  }
+  var groups = rawGroups.map(compactClimateOutlookText).filter(Boolean).slice(0, 2);
   var gap = 22;
   var top = titleEnd + 42;
   var bottom = layout.safeZones.footer.y - 42;
@@ -667,6 +673,32 @@ function drawClimateOutlook(ctx, content, theme, layout, titleEnd) {
       role: "climate-outlook", maxBottom: cardY + cardHeight - 28,
     });
   }
+}
+
+function compactClimateOutlookText(value) {
+  var text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  var words = text.split(" ");
+  for (var split = Math.floor(words.length / 3); split >= 8; split--) {
+    var first = words.slice(0, split).join(" ");
+    var second = words.slice(split, split * 2).join(" ");
+    if (climateOutlookKey(first) === climateOutlookKey(second)) {
+      text = first;
+      break;
+    }
+  }
+  words = text.split(" ");
+  if (words.length > 11) text = words.slice(0, 11).join(" ") + "…";
+  return text;
+}
+
+function climateOutlookKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function climateContextIcon(text) {

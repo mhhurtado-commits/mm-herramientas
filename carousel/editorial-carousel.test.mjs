@@ -2025,7 +2025,7 @@ test('convierte lo que sigue en tarjetas visuales breves', () => {
     style: { variant: 'climate' },
     content: {
       title: 'Lo que sigue',
-      text: 'Lluvias y frio marcan el lunes en el Sur de Mendoza. El viento Sur pierde intensidad durante la noche. Se espera una mejora el martes.',
+      text: 'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza Lluvias y frio marcan este lunes feriado en el Sur de Mendoza El Sur de Mendoza atraviesa una jornada inestable. El viento Sur pierde intensidad durante la noche.',
     },
   }, 3, 5);
   installCanvasHarness();
