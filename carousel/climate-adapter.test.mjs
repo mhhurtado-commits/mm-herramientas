@@ -84,6 +84,24 @@ test('manda frases meteorologicas largas sin cifras al contexto y no a las metri
   assert.equal(data.items.some((item) => /mejora progresiva|minimas/.test(factTextForTest(item))), false);
 });
 
+test('deduplica frases climaticas aunque cambien tildes o puntuacion', () => {
+  const result = adaptClimatePlan({ diagnosis: { vertical: 'clima' }, slides: [{ type: 'end' }] }, {
+    editorialVertical: 'Clima',
+    editorialContext: 'Jornada inestable en el Sur.',
+    editorialFacts: [{ label: 'Maxima provincial', value: '3 C' }],
+    editorialTextual: [
+      'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza.',
+      'Lluvias y fr\u00edo marcan este lunes feriado en el Sur de Mendoza.',
+      'El viento Sur pierde intensidad durante la noche.',
+    ],
+  });
+
+  assert.equal(
+    result.slides.find((slide) => slide.title === 'Lo que sigue').text,
+    'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza. El viento Sur pierde intensidad durante la noche.',
+  );
+});
+
 function factTextForTest(item) {
   return [item.value, item.label].filter(Boolean).join(' ');
 }

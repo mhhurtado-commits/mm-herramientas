@@ -612,6 +612,11 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
     fontSize: 62, minFontSize: 40, maxLines: 2, lineHeight: 70, weight: "700",
     color: theme.colors.accentDark, role: "title", maxBottom: layout.safeZones.footer.y - 760,
   });
+  if (/lo que sigue/i.test(content.title || "")) {
+    drawClimateOutlook(ctx, content, theme, layout, titleEnd);
+    drawEditorialFooter(ctx, slide, project, theme, layout);
+    return;
+  }
   var sentences = (content.text || "").match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [content.text || ""];
   var groups = sentences.map(function (value) { return value.trim(); }).filter(Boolean).slice(0, 3);
   if (groups.length === 1 && groups[0].includes(",")) {
@@ -641,6 +646,27 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
     });
   }
   drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
+function drawClimateOutlook(ctx, content, theme, layout, titleEnd) {
+  var sentences = (content.text || "").match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [content.text || ""];
+  var groups = sentences.map(function (value) { return value.trim(); }).filter(Boolean).slice(0, 2);
+  var gap = 22;
+  var top = titleEnd + 42;
+  var bottom = layout.safeZones.footer.y - 42;
+  var cardHeight = Math.max(188, Math.min(232, Math.floor((bottom - top - gap * Math.max(0, groups.length - 1)) / Math.max(1, groups.length))));
+  for (var i = 0; i < groups.length; i++) {
+    var cardY = top + i * (cardHeight + gap);
+    fillRoundRect(ctx, layout.content.x, cardY, layout.content.width, cardHeight, 26, theme.colors.surfaceSoft);
+    fillRoundRect(ctx, layout.content.x, cardY, 12, cardHeight, 6, theme.colors.accent);
+    var iconX = layout.content.x + 86;
+    var iconY = cardY + cardHeight / 2;
+    drawClimateMetricIconVector(ctx, climateContextIcon(groups[i]), iconX, iconY, theme);
+    drawMeasuredText(ctx, groups[i], layout.content.x + 160, cardY + 34, layout.content.width - 205, {
+      fontSize: 34, minFontSize: 24, maxLines: 2, lineHeight: 40, color: theme.colors.textPrimary,
+      role: "climate-outlook", maxBottom: cardY + cardHeight - 28,
+    });
+  }
 }
 
 function climateContextIcon(text) {

@@ -109,15 +109,15 @@ function uniqueText(values, excluded) {
 }
 
 function uniqueExtendedText(values, excluded) {
-  const blocked = new Set(excluded.map(clean).filter(Boolean).map(normalizeKey));
+  const blocked = new Set(excluded.map(clean).filter(Boolean).map(normalizeClimateKey));
   const candidates = values.flatMap(textCandidates)
     .map(clean)
-    .filter((value) => value && !blocked.has(normalizeKey(value)));
+    .filter((value) => value && !blocked.has(normalizeClimateKey(value)));
   const unique = [];
 
   for (const candidate of candidates) {
-    const key = normalizeKey(candidate);
-    if (!key || unique.some((value) => normalizeKey(value) === key)) continue;
+    const key = normalizeClimateKey(candidate);
+    if (!key || unique.some((value) => normalizeClimateKey(value) === key)) continue;
     unique.push(candidate);
   }
 
@@ -125,7 +125,7 @@ function uniqueExtendedText(values, excluded) {
     .filter((candidate, index, all) => !all.some((other, otherIndex) => (
       otherIndex !== index &&
       other.length > candidate.length &&
-      normalizeKey(other).includes(normalizeKey(candidate))
+      normalizeClimateKey(other).includes(normalizeClimateKey(candidate))
     )))
     .slice(0, 2)
     .join(' ');
@@ -138,8 +138,15 @@ function textCandidates(value) {
     .filter((text) => text.length >= 30);
 }
 
-function normalizeKey(value) {
-  return clean(value).toLowerCase().replace(/[“”"']/g, '');
+function normalizeClimateKey(value) {
+  return clean(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/Ã[^\x00-\x7F]?/g, '')
+    .replace(/[^\x00-\x7F]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 function clean(value) {

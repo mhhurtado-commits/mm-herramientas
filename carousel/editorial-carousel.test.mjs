@@ -2019,6 +2019,25 @@ test('mantiene metricas climaticas largas dentro de dos lineas sin desborde', ()
   assert.ok(climateBlocks.every((block) => block.renderedLines <= 2 && block.overflow === false));
 });
 
+test('convierte lo que sigue en tarjetas visuales breves', () => {
+  const slide = normalizeCarouselSlide({
+    type: 'contexto',
+    style: { variant: 'climate' },
+    content: {
+      title: 'Lo que sigue',
+      text: 'Lluvias y frio marcan el lunes en el Sur de Mendoza. El viento Sur pierde intensidad durante la noche. Se espera una mejora el martes.',
+    },
+  }, 3, 5);
+  installCanvasHarness();
+
+  const canvas = renderSlideToCanvas(slide, { slides: [slide] });
+  const outlookBlocks = canvas.renderState.blocks.filter((block) => block.role === 'climate-outlook');
+
+  assert.equal(canvas.renderState.overflow, false);
+  assert.equal(outlookBlocks.length, 2);
+  assert.ok(outlookBlocks.every((block) => block.renderedLines <= 2 && block.overflow === false));
+});
+
 test('el cierre climatico no repite automaticamente el titulo de portada', () => {
   const slide = normalizeCarouselSlide({
     type: 'end',
