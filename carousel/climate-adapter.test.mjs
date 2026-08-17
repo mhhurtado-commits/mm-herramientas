@@ -42,6 +42,32 @@ test('compacta el contexto climatico y conserva una sola idea por tarjeta', () =
   assert.equal(contextSlides[1].text.includes('Lluvias y frio marcan este lunes feriado en el Sur de Mendoza. Lluvias'), false);
 });
 
+test('adapta el contrato de placas-v2 aunque la vertical llegue con mayuscula', () => {
+  const result = adaptClimatePlan({
+    diagnosis: { vertical: 'clima' },
+    slides: [
+      { type: 'contexto', title: 'Lo que sigue', text: 'Las lluvias regresan durante la tarde. Las lluvias regresan durante la tarde. El viento pierde intensidad.' },
+      { type: 'end' },
+    ],
+  }, {
+    editorialVertical: 'Clima',
+    editorialContext: 'Jornada inestable en el Sur.',
+    editorialFacts: [{ label: 'Maxima', value: '3 C' }],
+    editorialTextual: [
+      'Las lluvias regresan durante la tarde.',
+      'Las lluvias regresan durante la tarde.',
+      'El viento pierde intensidad durante la noche.',
+    ],
+  });
+
+  assert.equal(
+    result.slides.find((slide) => slide.title === 'Lo que sigue').text,
+    'Las lluvias regresan durante la tarde. El viento pierde intensidad durante la noche.',
+  );
+  assert.equal(result.slides.filter((slide) => slide.type === 'contexto').length, 2);
+  assert.equal(result.slides[2].text, 'Las lluvias regresan durante la tarde. El viento pierde intensidad durante la noche.');
+});
+
 test('arma una secuencia climática con tarjetas y elimina datos repetidos', () => {
   const article = {
     title: 'Feriado bajo lluvia',

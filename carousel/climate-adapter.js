@@ -1,7 +1,7 @@
 const MAX_CLIMATE_FACTS = 6;
 
 export function adaptClimatePlan(plan, article = {}) {
-  const vertical = clean(article.editorialVertical) || clean(plan?.diagnosis?.vertical);
+  const vertical = (clean(article.editorialVertical) || clean(plan?.diagnosis?.vertical)).toLowerCase();
   if (vertical !== 'clima') return plan;
 
   const facts = uniqueFacts(article.editorialFacts);

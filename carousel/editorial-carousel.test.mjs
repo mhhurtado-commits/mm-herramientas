@@ -1988,3 +1988,10 @@ test('renderiza las senales climaticas sin glifos Unicode frÃ¡giles', () => {
   assert.equal(canvas.calls.text.some((entry) => entry.font === '700 26px Arial, sans-serif'), false);
   assert.ok(canvas.calls.fills.length >= 6);
 });
+
+test('conserva el icono climatico al normalizar una metrica estructurada', () => {
+  assert.deepEqual(
+    canvasRenderer.normalizeStatItem({ value: '3 C', label: 'Maxima', icon: 'temperature' }),
+    { value: '3 C', label: 'Maxima', icon: 'temperature' },
+  );
+});

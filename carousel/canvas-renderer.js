@@ -703,11 +703,11 @@ function getStatText(value) {
   return (typeof value === "string" || typeof value === "number") ? String(value).trim() : "";
 }
 
-function normalizeStatItem(item) {
+export function normalizeStatItem(item) {
   if (item && typeof item === "object" && !Array.isArray(item)) {
-    return { value: getStatText(item.value), label: getStatText(item.label) };
+    return { value: getStatText(item.value), label: getStatText(item.label), icon: getStatText(item.icon) };
   }
-  return { value: getStatText(item), label: "" };
+  return { value: getStatText(item), label: "", icon: "" };
 }
 
 function resolveStatsContent(content) {
