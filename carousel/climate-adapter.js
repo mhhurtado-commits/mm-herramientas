@@ -15,7 +15,7 @@ export function adaptClimatePlan(plan, article = {}) {
   };
   const slides = [];
 
-  if (context) slides.push({ type: 'contexto', title: '¿Cómo estará el día?', text: context });
+  if (context) slides.push({ type: 'contexto', title: '¿Cómo estará el día?', text: context, variant: 'climate' });
   if (metricFacts.length) {
     slides.push({ type: 'dato', title: 'Datos del pronóstico', items: metricFacts.slice(0, MAX_CLIMATE_FACTS), variant: 'climate' });
   } else if (!context && clean(article.summary)) {
@@ -63,7 +63,9 @@ function factText(fact) {
 
 function isNarrativeFact(fact) {
   const text = factText(fact);
-  return text.length > 110 || text.split(/\s+/).length > 18;
+  const label = clean(fact?.label).toLowerCase();
+  return text.length > 110 || text.split(/\s+/).length > 18 ||
+    (text.length > 50 && !/\d/.test(text)) || /panorama|contexto|descripci/.test(label);
 }
 
 function uniqueText(values, excluded) {
@@ -72,5 +74,11 @@ function uniqueText(values, excluded) {
 }
 
 function clean(value) {
+  if (value && typeof value === 'object') {
+    for (const key of ['text', 'value', 'detail', 'title', 'summary', 'description']) {
+      if (value[key] !== undefined && value[key] !== null) return clean(value[key]);
+    }
+    return '';
+  }
   return String(value || '').replace(/\s+/g, ' ').trim();
 }

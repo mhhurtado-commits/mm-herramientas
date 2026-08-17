@@ -569,6 +569,7 @@ function drawCover(ctx, slide, project, theme, layout) {
 }
 
 function drawText(ctx, slide, project, theme, layout) {
+  if (slide.style && slide.style.variant === "climate") return drawClimateContext(ctx, slide, project, theme, layout);
   var content = slide.content || {};
   ctx.fillStyle = theme.colors.background;
   ctx.fillRect(0, 0, W, H);
@@ -596,6 +597,34 @@ function drawText(ctx, slide, project, theme, layout) {
     drawContextCard(ctx, content.text, layout.content.x, cardY, layout.content.width, cardMaxBottom, theme, "body");
   } else {
     drawContextHighlight(ctx, content.text, layout.content.x, cardY, layout.content.width, cardMaxBottom, theme);
+  }
+  drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
+function drawClimateContext(ctx, slide, project, theme, layout) {
+  var content = slide.content || {};
+  ctx.fillStyle = theme.colors.background;
+  ctx.fillRect(0, 0, W, H);
+  drawLogo(ctx, project, theme, layout, false);
+  var headerEnd = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 });
+  var titleEnd = drawMeasuredText(ctx, content.title, layout.content.x, headerEnd + 16, layout.content.width, {
+    fontSize: 62, minFontSize: 40, maxLines: 2, lineHeight: 70, weight: "700",
+    color: theme.colors.accentDark, role: "title", maxBottom: layout.safeZones.footer.y - 760,
+  });
+  var sentences = (content.text || "").match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [content.text || ""];
+  var groups = sentences.map(function (value) { return value.trim(); }).filter(Boolean).slice(0, 3);
+  var gap = 20;
+  var available = layout.safeZones.footer.y - 42 - (titleEnd + 42);
+  var cardHeight = Math.max(190, Math.min(groups.length === 1 ? 420 : 300, Math.floor((available - gap * Math.max(0, groups.length - 1)) / Math.max(1, groups.length))));
+  var y = titleEnd + 42;
+  for (var i = 0; i < groups.length; i++) {
+    var cardY = y + i * (cardHeight + gap);
+    fillRoundRect(ctx, layout.content.x, cardY, layout.content.width, cardHeight, 26, theme.colors.surfaceSoft);
+    fillRoundRect(ctx, layout.content.x, cardY, 12, cardHeight, 6, theme.colors.accent);
+    drawMeasuredText(ctx, groups[i], layout.content.x + 42, cardY + 34, layout.content.width - 84, {
+      fontSize: 42, minFontSize: 27, maxLines: 4, lineHeight: 52, color: theme.colors.textPrimary,
+      role: "climate-context", maxBottom: cardY + cardHeight - 28,
+    });
   }
   drawEditorialFooter(ctx, slide, project, theme, layout);
 }
