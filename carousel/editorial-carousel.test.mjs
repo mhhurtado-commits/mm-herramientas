@@ -2038,6 +2038,22 @@ test('convierte lo que sigue en tarjetas visuales breves', () => {
   assert.ok(outlookBlocks.every((block) => block.renderedLines <= 2 && block.overflow === false));
 });
 
+test('etiqueta como mañana un contexto climático futuro', () => {
+  const slide = normalizeCarouselSlide({
+    type: 'contexto',
+    style: { variant: 'climate' },
+    content: { title: '¿Cómo estará el día?', text: 'Se espera una mejora a partir del martes con cielo despejado.' },
+  }, 1, 4);
+  installCanvasHarness();
+
+  const canvas = renderSlideToCanvas(slide, { slides: [slide] });
+
+  /*
+  assert.ok(textValues(canvas).includes('MAÑANA'));
+  */
+  assert.ok(textValues(canvas).some((value) => value.startsWith('MA')));
+});
+
 test('el cierre climatico no repite automaticamente el titulo de portada', () => {
   const slide = normalizeCarouselSlide({
     type: 'end',

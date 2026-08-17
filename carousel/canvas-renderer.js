@@ -637,7 +637,7 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
     var textX = layout.content.x + 42;
     var textWidth = layout.content.width - 84;
     if (groups.length === 1) {
-      drawClimateSignalBadge(ctx, layout.content.x + 92, cardY + cardHeight / 2, theme, 62);
+      drawClimateSignalBadge(ctx, layout.content.x + 92, cardY + cardHeight / 2, theme, 62, climateContextSignalLabelSafe(groups[i]));
       textX = layout.content.x + 190;
       textWidth = layout.content.width - 340;
       drawClimateMetricIconVector(ctx, climateContextIcon(groups[i]), layout.content.x + layout.content.width - 82, cardY + cardHeight / 2, theme);
@@ -712,14 +712,23 @@ function climateContextIcon(text) {
   return "info";
 }
 
-function drawClimateSignalBadge(ctx, x, y, theme, radius) {
+function climateContextSignalLabelSafe(text) {
+  return /ma\u00f1ana|martes|mi\u00e9rcoles|jueves|viernes|s\u00e1bado|domingo/i.test(String(text || "")) ? "MA\u00d1ANA" : "HOY";
+}
+
+function climateContextSignalLabel(text) {
+  return /maÃ±ana|martes|miÃ©rcoles|jueves|viernes|sÃ¡bado|domingo/i.test(String(text || "")) ? "MAÃ‘ANA" : "HOY";
+}
+
+function drawClimateSignalBadge(ctx, x, y, theme, radius, label) {
   radius = radius || 52;
+  label = label || "HOY";
   ctx.fillStyle = theme.colors.accent;
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.fill();
-  drawMeasuredText(ctx, "HOY", x - 42, y - 15, 84, {
-    fontSize: radius > 52 ? 28 : 25, minFontSize: 20, maxLines: 1, lineHeight: 30, weight: "700",
+  drawMeasuredText(ctx, label, x - 48, y - 15, 96, {
+    fontSize: label.length > 4 ? 20 : (radius > 52 ? 28 : 25), minFontSize: 17, maxLines: 1, lineHeight: 26, weight: "700",
     color: theme.colors.background, role: "climate-signal", align: "center", maxBottom: y + 20,
   });
 }
