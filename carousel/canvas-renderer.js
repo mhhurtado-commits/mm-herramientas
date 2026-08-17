@@ -627,7 +627,9 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
   var cardHeight = groups.length === 1
     ? 250
     : Math.max(190, Math.min(300, Math.floor((available - gap * Math.max(0, groups.length - 1)) / Math.max(1, groups.length))));
-  var y = titleEnd + 42;
+  var y = groups.length === 1
+    ? getBalancedContentY(titleEnd + 80, layout.safeZones.footer.y - 42, cardHeight)
+    : titleEnd + 42;
   for (var i = 0; i < groups.length; i++) {
     var cardY = y + i * (cardHeight + gap);
     fillRoundRect(ctx, layout.content.x, cardY, layout.content.width, cardHeight, 26, theme.colors.surfaceSoft);
@@ -924,14 +926,16 @@ function drawClimateStats(ctx, slide, project, theme, layout) {
     var y = cardY + Math.floor(i / 2) * (cardHeight + gap);
     fillRoundRect(ctx, x, y, cardWidth, cardHeight, 24, theme.colors.surfaceSoft);
     fillRoundRect(ctx, x, y, 10, cardHeight, 5, theme.colors.accent);
+    var iconColumn = 72;
     drawClimateMetricIconVector(ctx, item.icon, x + cardWidth - 46, y + 48, theme);
     var value = item.value || item.label || "";
     var label = item.value ? item.label : "";
-    var valueEnd = drawMeasuredText(ctx, value, x + 28, y + 28, cardWidth - 54, {
+    var textWidth = cardWidth - 28 - iconColumn;
+    var valueEnd = drawMeasuredText(ctx, value, x + 28, y + 28, textWidth, {
       fontSize: 54, minFontSize: 30, maxLines: 2, lineHeight: 58, weight: "700", color: theme.colors.accentDark,
       role: "climate-value", autoCondense: true, maxBottom: y + 112,
     });
-    drawMeasuredText(ctx, label, x + 28, Math.max(y + 102, valueEnd + 8), cardWidth - 54, {
+    drawMeasuredText(ctx, label, x + 28, Math.max(y + 102, valueEnd + 8), textWidth, {
       fontSize: 23, minFontSize: 18, maxLines: 2, lineHeight: 28, color: theme.colors.textPrimary,
       role: "climate-label", maxBottom: y + cardHeight - 22,
     });

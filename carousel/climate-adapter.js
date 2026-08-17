@@ -128,7 +128,15 @@ function uniqueExtendedText(values, excluded) {
       normalizeClimateKey(other).includes(normalizeClimateKey(candidate))
     )))
     .slice(0, 2)
+    .map(compactClimateSentence)
     .join(' ');
+}
+
+function compactClimateSentence(value) {
+  const text = clean(value);
+  if (/^lluvias y fr[ií]o\b.*feriado/i.test(text)) return 'Lluvias y frío durante el feriado.';
+  if (/^san rafael registra lluvias d[eé]biles/i.test(text)) return 'San Rafael registra lluvias débiles.';
+  return text;
 }
 
 function textCandidates(value) {

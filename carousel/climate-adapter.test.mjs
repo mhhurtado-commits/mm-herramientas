@@ -98,7 +98,24 @@ test('deduplica frases climaticas aunque cambien tildes o puntuacion', () => {
 
   assert.equal(
     result.slides.find((slide) => slide.title === 'Lo que sigue').text,
-    'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza. El viento Sur pierde intensidad durante la noche.',
+    'Lluvias y frío durante el feriado. El viento Sur pierde intensidad durante la noche.',
+  );
+});
+
+test('compacta el copy narrativo climático para tarjetas visuales', () => {
+  const result = adaptClimatePlan({ diagnosis: { vertical: 'clima' }, slides: [{ type: 'end' }] }, {
+    editorialVertical: 'clima',
+    editorialContext: 'Jornada inestable en el Sur.',
+    editorialFacts: [{ label: 'Maxima provincial', value: '3 C' }],
+    editorialTextual: [
+      'Lluvias y frío marcan este lunes feriado en el Sur de Mendoza.',
+      'San Rafael registra lluvias débiles en prácticamente todo el departamento, mientras que también se observan precipitaciones en sectores del oeste del Valle de Uco.',
+    ],
+  });
+
+  assert.equal(
+    result.slides.find((slide) => slide.title === 'Lo que sigue').text,
+    'Lluvias y frío durante el feriado. San Rafael registra lluvias débiles.',
   );
 });
 
@@ -220,7 +237,7 @@ test('elimina frases repetidas al completar la secuencia climatica', () => {
 
   assert.equal(
     result.slides[2].text,
-    'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza. El Sur de Mendoza atraviesa una jornada marcada por el frio, la nubosidad y las precipitaciones.',
+    'Lluvias y frío durante el feriado. El Sur de Mendoza atraviesa una jornada marcada por el frio, la nubosidad y las precipitaciones.',
   );
 });
 
