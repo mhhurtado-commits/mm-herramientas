@@ -1995,3 +1995,43 @@ test('conserva el icono climatico al normalizar una metrica estructurada', () =>
     { value: '3 C', label: 'Maxima', icon: 'temperature' },
   );
 });
+
+test('mantiene metricas climaticas largas dentro de dos lineas sin desborde', () => {
+  const slide = normalizeCarouselSlide({
+    type: 'dato',
+    style: { variant: 'climate' },
+    content: {
+      title: 'Datos del pronostico',
+      items: [
+        { value: 'Maxima provincial estimada en solo 3 C.', icon: 'temperature' },
+        { value: 'Mejora de las condiciones en el llano hacia las 19:00.', icon: 'sun' },
+        { value: 'Malargue registra temperaturas minimas.', icon: 'temperature' },
+        { value: 'Ascenso termico previsto para el miercoles.', icon: 'sun' },
+      ],
+    },
+  }, 1, 4);
+  installCanvasHarness();
+
+  const canvas = renderSlideToCanvas(slide, { slides: [slide] });
+  const climateBlocks = canvas.renderState.blocks.filter((block) => block.role === 'climate-value' || block.role === 'climate-label');
+
+  assert.equal(canvas.renderState.overflow, false);
+  assert.ok(climateBlocks.every((block) => block.renderedLines <= 2 && block.overflow === false));
+});
+
+test('el cierre climatico no repite automaticamente el titulo de portada', () => {
+  const slide = normalizeCarouselSlide({
+    type: 'end',
+    style: { variant: 'climate' },
+    content: { title: 'Mas informacion', text: 'Consulta el pronostico completo.', cta: 'Lee la nota completa' },
+  }, 4, 5);
+  installCanvasHarness();
+
+  const canvas = renderSlideToCanvas(slide, {
+    article: { title: 'Feriado pasado por agua y frio en el Sur mendocino', editorialVertical: 'Clima' },
+    slides: [slide],
+  });
+
+  assert.equal(textValues(canvas).includes('Feriado pasado por agua y frio en el Sur mendocino'), false);
+  assert.equal(textValues(canvas).includes('Mas informacion'), true);
+});

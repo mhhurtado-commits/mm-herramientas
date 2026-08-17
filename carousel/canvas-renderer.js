@@ -619,7 +619,9 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
   }
   var gap = 20;
   var available = layout.safeZones.footer.y - 42 - (titleEnd + 42);
-  var cardHeight = Math.max(190, Math.min(300, Math.floor((available - gap * Math.max(0, groups.length - 1)) / Math.max(1, groups.length))));
+  var cardHeight = groups.length === 1
+    ? 250
+    : Math.max(190, Math.min(300, Math.floor((available - gap * Math.max(0, groups.length - 1)) / Math.max(1, groups.length))));
   var y = titleEnd + 42;
   for (var i = 0; i < groups.length; i++) {
     var cardY = y + i * (cardHeight + gap);
@@ -628,9 +630,10 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
     var textX = layout.content.x + 42;
     var textWidth = layout.content.width - 84;
     if (groups.length === 1) {
-      drawClimateSignalBadge(ctx, layout.content.x + 92, cardY + cardHeight / 2, theme);
+      drawClimateSignalBadge(ctx, layout.content.x + 92, cardY + cardHeight / 2, theme, 62);
       textX = layout.content.x + 190;
-      textWidth = layout.content.width - 232;
+      textWidth = layout.content.width - 340;
+      drawClimateMetricIconVector(ctx, climateContextIcon(groups[i]), layout.content.x + layout.content.width - 82, cardY + cardHeight / 2, theme);
     }
     drawMeasuredText(ctx, groups[i], textX, cardY + 34, textWidth, {
       fontSize: 42, minFontSize: 27, maxLines: 4, lineHeight: 52, color: theme.colors.textPrimary,
@@ -640,13 +643,23 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
   drawEditorialFooter(ctx, slide, project, theme, layout);
 }
 
-function drawClimateSignalBadge(ctx, x, y, theme) {
+function climateContextIcon(text) {
+  var value = String(text || "").toLowerCase();
+  if (/mejora|despejad|ascenso|sol|cielo/.test(value)) return "sun";
+  if (/viento|rÃ¡f|rafag/.test(value)) return "wind";
+  if (/lluv|precipit|nieve|granizo/.test(value)) return "rain";
+  if (/frÃ­o|frio|temper|grados|helad/.test(value)) return "temperature";
+  return "info";
+}
+
+function drawClimateSignalBadge(ctx, x, y, theme, radius) {
+  radius = radius || 52;
   ctx.fillStyle = theme.colors.accent;
   ctx.beginPath();
-  ctx.arc(x, y, 52, 0, Math.PI * 2);
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.fill();
   drawMeasuredText(ctx, "HOY", x - 42, y - 15, 84, {
-    fontSize: 25, minFontSize: 20, maxLines: 1, lineHeight: 28, weight: "700",
+    fontSize: radius > 52 ? 28 : 25, minFontSize: 20, maxLines: 1, lineHeight: 30, weight: "700",
     color: theme.colors.background, role: "climate-signal", align: "center", maxBottom: y + 20,
   });
 }
@@ -1029,7 +1042,11 @@ function drawEnd(ctx, slide, project, theme, layout) {
   ctx.fillRect(0, 0, W, H);
   drawLogo(ctx, project, theme, layout, "end");
   var y = layout.content.y + 150;
-  var source = (project.article && project.article.title) || content.source || content.title || "";
+  var climateEnd = Boolean((slide.style && slide.style.variant === "climate") ||
+    (project.article && String(project.article.editorialVertical || "").toLowerCase() === "clima"));
+  var source = climateEnd
+    ? (content.title || "Más información")
+    : ((project.article && project.article.title) || content.source || content.title || "");
   drawEditorialHeader(ctx, { content: { label: "SEGUÍ LA NOTA" } }, project, theme, layout, { y: y, light: true });
   y += 88;
   y = drawMeasuredText(ctx, source, layout.content.x, y, layout.content.width, {

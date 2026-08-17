@@ -68,6 +68,26 @@ test('adapta el contrato de placas-v2 aunque la vertical llegue con mayuscula', 
   assert.equal(result.slides[2].text, 'Las lluvias regresan durante la tarde. El viento pierde intensidad durante la noche.');
 });
 
+test('manda frases meteorologicas largas sin cifras al contexto y no a las metricas', () => {
+  const result = adaptClimatePlan({ diagnosis: { vertical: 'clima' }, slides: [{ type: 'end' }] }, {
+    editorialVertical: 'Clima',
+    editorialContext: 'Jornada fria e inestable en el Sur.',
+    editorialFacts: [
+      { label: 'Se espera una mejora progresiva en el llano hacia las 19:00' },
+      { label: 'Maxima provincial', value: '3 C' },
+      { label: 'Malargue registra temperaturas minimas durante toda la jornada' },
+    ],
+  });
+
+  const data = result.slides.find((slide) => slide.type === 'dato');
+  assert.deepEqual(data.items.map((item) => item.value), ['3 C']);
+  assert.equal(data.items.some((item) => /mejora progresiva|minimas/.test(factTextForTest(item))), false);
+});
+
+function factTextForTest(item) {
+  return [item.value, item.label].filter(Boolean).join(' ');
+}
+
 test('arma una secuencia climática con tarjetas y elimina datos repetidos', () => {
   const article = {
     title: 'Feriado bajo lluvia',

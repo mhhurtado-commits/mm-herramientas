@@ -13,6 +13,12 @@ export function adaptClimatePlan(plan, article = {}) {
     title: 'Seguí la nota',
     cta: 'Leé la nota completa',
   };
+  const articleTitle = clean(article.title);
+  const climateEnd = {
+    ...originalEnd,
+    title: clean(originalEnd.title) && clean(originalEnd.title) !== articleTitle ? originalEnd.title : 'Más información',
+    variant: 'climate',
+  };
   const slides = [];
 
   if (context) slides.push({ type: 'contexto', title: '¿Cómo estará el día?', text: context, variant: 'climate' });
@@ -44,7 +50,7 @@ export function adaptClimatePlan(plan, article = {}) {
 
   return {
     ...plan,
-    slides: [...slides, originalEnd],
+    slides: [...slides, climateEnd],
     diagnosis: { ...plan.diagnosis, vertical: 'clima', slide_count: slides.length + 2 },
   };
 }
@@ -94,7 +100,7 @@ function isNarrativeFact(fact) {
   const text = factText(fact);
   const label = clean(fact?.label).toLowerCase();
   return text.length > 110 || text.split(/\s+/).length > 18 ||
-    (text.length > 50 && !/\d/.test(text)) || /panorama|contexto|descripci/.test(label);
+    text.length > 45 || /panorama|contexto|descripci/.test(label);
 }
 
 function uniqueText(values, excluded) {
