@@ -613,6 +613,9 @@ function drawClimateContext(ctx, slide, project, theme, layout) {
   });
   var sentences = (content.text || "").match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [content.text || ""];
   var groups = sentences.map(function (value) { return value.trim(); }).filter(Boolean).slice(0, 3);
+  if (groups.length === 1 && groups[0].includes(",")) {
+    groups = groups[0].split(/,\s+/).map(function (value) { return value.trim(); }).filter(Boolean).slice(0, 3);
+  }
   var gap = 20;
   var available = layout.safeZones.footer.y - 42 - (titleEnd + 42);
   var cardHeight = Math.max(190, Math.min(groups.length === 1 ? 420 : 300, Math.floor((available - gap * Math.max(0, groups.length - 1)) / Math.max(1, groups.length))));

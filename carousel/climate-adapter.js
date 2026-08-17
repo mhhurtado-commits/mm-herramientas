@@ -37,6 +37,7 @@ export function adaptClimatePlan(plan, article = {}) {
     .filter(Boolean);
   const extended = uniqueText([
     ...(Array.isArray(article.editorialTextual) ? article.editorialTextual : []),
+    ...textCandidates(article.content),
     ...previousSlideText,
   ], [context, ...facts.map(factText)]);
   if (extended) slides.push({ type: 'contexto', title: 'Lo que sigue', text: extended, variant: 'climate' });
@@ -85,6 +86,13 @@ function isNarrativeFact(fact) {
 function uniqueText(values, excluded) {
   const blocked = new Set(excluded.map(clean).filter(Boolean).map(value => value.toLowerCase()));
   return values.map(clean).find(value => value && !blocked.has(value.toLowerCase())) || '';
+}
+
+function textCandidates(value) {
+  return clean(value)
+    .split(/(?<=[.!?])\s+/)
+    .map((text) => text.trim())
+    .filter((text) => text.length >= 30);
 }
 
 function clean(value) {

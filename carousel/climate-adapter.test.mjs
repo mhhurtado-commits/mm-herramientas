@@ -103,3 +103,18 @@ test('conserva una escena informativa previa cuando falta textual en el contrato
   assert.equal(result.slides.filter((slide) => slide.type !== 'end').length, 3);
   assert.equal(result.slides[2].text, 'La mejora continuara durante la tarde.');
 });
+
+test('usa el cuerpo de la nota para completar la secuencia climatica', () => {
+  const result = adaptClimatePlan({
+    diagnosis: { vertical: 'clima' },
+    slides: [{ type: 'end' }],
+  }, {
+    editorialVertical: 'clima',
+    editorialContext: 'Lluvias durante la jornada.',
+    editorialFacts: [{ label: 'Maxima', value: '8 C' }],
+    content: 'La mejora continuara durante la tarde. El viento disminuira durante la noche.',
+  });
+
+  assert.equal(result.slides.filter((slide) => slide.type !== 'end').length, 3);
+  assert.match(result.slides[2].text, /La mejora continuara/);
+});
