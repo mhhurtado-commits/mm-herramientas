@@ -139,3 +139,17 @@ test('elimina frases repetidas al completar la secuencia climatica', () => {
     'Lluvias y frio marcan este lunes feriado en el Sur de Mendoza. El Sur de Mendoza atraviesa una jornada marcada por el frio, la nubosidad y las precipitaciones.',
   );
 });
+
+test('asigna una señal visual según el dato climático', () => {
+  const result = adaptClimatePlan({ diagnosis: { vertical: 'clima' }, slides: [{ type: 'end' }] }, {
+    editorialVertical: 'clima',
+    editorialContext: 'Jornada inestable.',
+    editorialFacts: [
+      { label: 'Lluvias', value: '20 mm' },
+      { label: 'Viento', value: '40 km/h' },
+      { label: 'Temperatura', value: '8°C' },
+    ],
+  });
+
+  assert.deepEqual(result.slides.find((slide) => slide.type === 'dato').items.map((item) => item.icon), ['rain', 'wind', 'temperature']);
+});

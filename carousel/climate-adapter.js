@@ -67,9 +67,23 @@ function normalizeFact(value) {
     const label = clean(value.label);
     const factValue = clean(value.value || value.text || value.detail);
     const detail = clean(value.detail);
-    return { value: factValue, label: [label, detail && detail !== factValue ? detail : ''].filter(Boolean).join(' — ') };
+    return {
+      value: factValue,
+      label: [label, detail && detail !== factValue ? detail : ''].filter(Boolean).join(' — '),
+      icon: climateIcon(`${label} ${factValue} ${detail}`),
+    };
   }
-  return { value: clean(value), label: '' };
+  return { value: clean(value), label: '', icon: climateIcon(value) };
+}
+
+function climateIcon(value) {
+  const text = clean(value).toLowerCase();
+  if (/lluv|precipit|lloviz|nieve|granizo/.test(text)) return 'rain';
+  if (/viento|ráf|rafag|km\/h/.test(text)) return 'wind';
+  if (/temper|maxim|minim|grados|°c|\bc\b/.test(text)) return 'temperature';
+  if (/monta|cordillera/.test(text)) return 'mountain';
+  if (/mejora|despejad|sol|cielo/.test(text)) return 'sun';
+  return 'info';
 }
 
 function factText(fact) {

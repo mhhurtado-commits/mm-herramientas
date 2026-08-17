@@ -852,6 +852,7 @@ function drawClimateStats(ctx, slide, project, theme, layout) {
     var y = cardY + Math.floor(i / 2) * (cardHeight + gap);
     fillRoundRect(ctx, x, y, cardWidth, cardHeight, 24, theme.colors.surfaceSoft);
     fillRoundRect(ctx, x, y, 10, cardHeight, 5, theme.colors.accent);
+    drawClimateMetricIcon(ctx, item.icon, x + cardWidth - 46, y + 48, theme);
     var value = item.value || item.label || "";
     var label = item.value ? item.label : "";
     var valueEnd = drawMeasuredText(ctx, value, x + 28, y + 28, cardWidth - 54, {
@@ -864,6 +865,21 @@ function drawClimateStats(ctx, slide, project, theme, layout) {
     });
   }
   drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
+function drawClimateMetricIcon(ctx, icon, x, y, theme) {
+  var glyphs = { rain: "☔", wind: "≋", temperature: "°", mountain: "▲", sun: "☀", info: "•" };
+  ctx.fillStyle = theme.colors.accent;
+  ctx.beginPath();
+  ctx.arc(x, y, 25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = theme.colors.background;
+  ctx.font = "700 26px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(glyphs[icon] || glyphs.info, x, y + 1);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
 }
 
 function drawQuote(ctx, slide, project, theme, layout) {
