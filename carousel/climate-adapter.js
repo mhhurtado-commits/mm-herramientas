@@ -1,7 +1,8 @@
 const MAX_CLIMATE_FACTS = 6;
 
 export function adaptClimatePlan(plan, article = {}) {
-  if (!plan?.diagnosis || plan.diagnosis.vertical !== 'clima') return plan;
+  const vertical = clean(article.editorialVertical) || clean(plan?.diagnosis?.vertical);
+  if (vertical !== 'clima') return plan;
 
   const facts = uniqueFacts(article.editorialFacts);
   const context = clean(article.editorialContext);
@@ -27,7 +28,7 @@ export function adaptClimatePlan(plan, article = {}) {
   return {
     ...plan,
     slides: [...slides, originalEnd],
-    diagnosis: { ...plan.diagnosis, slide_count: slides.length + 2 },
+    diagnosis: { ...plan.diagnosis, vertical: 'clima', slide_count: slides.length + 2 },
   };
 }
 

@@ -59,3 +59,19 @@ test('no modifica el plan general', () => {
 
   assert.deepEqual(adaptClimatePlan(plan, { editorialFacts: [] }), plan);
 });
+
+test('adapta un plan guardado aunque su diagnóstico viejo diga general', () => {
+  const plan = {
+    diagnosis: { vertical: 'general' },
+    cover: { title: 'Clima', subtitle: 'Resumen' },
+    slides: [{ type: 'contexto', title: 'Condiciones actuales', text: 'Texto anterior' }, { type: 'end', cta: 'Leer' }],
+  };
+  const result = adaptClimatePlan(plan, {
+    editorialVertical: 'clima',
+    editorialContext: 'Lluvias durante la jornada.',
+    editorialFacts: [{ label: 'Máxima', value: '8°C', detail: 'en el Sur' }],
+  });
+
+  assert.equal(result.diagnosis.vertical, 'clima');
+  assert.equal(result.slides.find((slide) => slide.type === 'dato').items[0].value, '8°C');
+});

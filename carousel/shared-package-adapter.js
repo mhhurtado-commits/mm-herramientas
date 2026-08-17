@@ -18,6 +18,7 @@ export function fromEditorialPackage(editorialPackage = {}) {
   article.title = clean(editorial.titulo) || article.title;
   article.summary = clean(editorial.bajada) || article.summary;
   article.category = selectedCategoryLabel || clean(editorial.seccion) || article.category;
+  article.editorialVertical = mapVertical(selectedCategoryVertical || editorial.seccion);
 
   const existingPlan = editorialPackage.salidas?.carrusel;
   const diagnosis = existingPlan?.diagnosis || {};

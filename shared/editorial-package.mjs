@@ -121,6 +121,7 @@ export function packageToCarouselArticle(editorialPackage = {}) {
     image,
     images: image && !images.includes(image) ? [image, ...images].slice(0, 12) : images.slice(0, 12),
     content: clean(source.cuerpo),
+    editorialVertical: clean(editorial.seccion),
     editorialContext: clean(editorial.contexto),
     editorialFacts: normalizeKeyFacts(editorial.datos_clave),
     editorialTextual: normalizeStringsOrObjects(editorial.textual),
