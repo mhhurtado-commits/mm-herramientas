@@ -281,6 +281,22 @@ test('cierra las frases de pronostico futuro sin puntos suspensivos', () => {
 
   assert.equal(
     result.slides.find((slide) => slide.title === 'Lo que sigue').text,
-    'El invierno da una tregua: sol y ascenso t\u00e9rmico este martes. Malarg\u00fce tendr\u00e1 una ma\u00f1ana muy fr\u00eda.',
+    'El invierno da una tregua: sol este martes y ascenso t\u00e9rmico. Malarg\u00fce volver\u00e1 a tener una ma\u00f1ana fr\u00eda.',
+  );
+});
+
+test('compacta una frase climática desconocida sin depender de nombres fijos', () => {
+  const result = adaptClimatePlan({ diagnosis: { vertical: 'clima' }, slides: [{ type: 'end' }] }, {
+    editorialVertical: 'clima',
+    editorialContext: 'Jornada estable.',
+    editorialFacts: [{ label: 'Maxima', value: '18 C' }],
+    editorialTextual: [
+      'La región, sin embargo, continuará con lluvias persistentes, con ráfagas fuertes durante la noche.',
+    ],
+  });
+
+  assert.equal(
+    result.slides.find((slide) => slide.title === 'Lo que sigue').text,
+    'La región continuará con lluvias persistentes.',
   );
 });

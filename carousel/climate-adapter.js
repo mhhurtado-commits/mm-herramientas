@@ -137,18 +137,25 @@ function uniqueExtendedText(values, excluded) {
       normalizeClimateKey(other).includes(normalizeClimateKey(candidate))
     )))
     .slice(0, 2)
-    .map(compactClimateSentenceV2)
+    .map(compactClimateSentenceGeneral)
     .join(' ');
 }
 
-function compactClimateSentenceV2(value) {
-  const text = clean(value);
-  const key = normalizeClimateKey(text);
-  if (/^lluvias y frio\b.*feriado/i.test(key)) return 'Lluvias y fr\u00edo durante el feriado.';
-  if (/^san rafael registra lluvias debiles/i.test(key)) return 'San Rafael registra lluvias d\u00e9biles.';
-  if (key.startsWith('el invierno da una tregua')) return 'El invierno da una tregua: sol y ascenso t\u00e9rmico este martes.';
-  if (key.startsWith('malargue') && key.includes('manana muy fria')) return 'Malarg\u00fce tendr\u00e1 una ma\u00f1ana muy fr\u00eda.';
-  return text;
+function compactClimateSentenceGeneral(value) {
+  let text = clean(value).replace(/\s+/g, ' ');
+  text = text
+    .replace(/\b(sin embargo|por su parte|adem\u00e1s)\b[,;:]?\s*/gi, '')
+    .replace(/\bfuerte\s+/gi, '')
+    .replace(/\bascenso de las temperaturas\b/gi, 'ascenso t\u00e9rmico')
+    .replace(/\bvolver\u00e1 a registrar\b/gi, 'volver\u00e1 a tener')
+    .replace(/\bma\u00f1ana muy fr\u00eda\b/gi, 'ma\u00f1ana fr\u00eda')
+    .replace(/^lluvias y fr(?:i|\u00ed)o marcan .* feriado.*$/i, 'Lluvias y fr\u00edo durante el feriado.')
+    .replace(/\s+en pr\u00e1cticamente todo.*$/i, '')
+    .replace(/,\s*(con|mientras|aunque|debido a)\b.*$/i, '')
+    .replace(/^([^,]{2,40}),\s+(?=(volver\u00e1|tendr\u00e1|registrar\u00e1|mantendr\u00e1|continuar\u00e1))/i, '$1 ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return /[.!?]$/.test(text) ? text : `${text}.`;
 }
 
 function compactClimateSentence(value) {
