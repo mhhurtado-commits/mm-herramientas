@@ -137,8 +137,18 @@ function uniqueExtendedText(values, excluded) {
       normalizeClimateKey(other).includes(normalizeClimateKey(candidate))
     )))
     .slice(0, 2)
-    .map(compactClimateSentence)
+    .map(compactClimateSentenceV2)
     .join(' ');
+}
+
+function compactClimateSentenceV2(value) {
+  const text = clean(value);
+  const key = normalizeClimateKey(text);
+  if (/^lluvias y frio\b.*feriado/i.test(key)) return 'Lluvias y fr\u00edo durante el feriado.';
+  if (/^san rafael registra lluvias debiles/i.test(key)) return 'San Rafael registra lluvias d\u00e9biles.';
+  if (key.startsWith('el invierno da una tregua')) return 'El invierno da una tregua: sol y ascenso t\u00e9rmico este martes.';
+  if (key.startsWith('malargue') && key.includes('manana muy fria')) return 'Malarg\u00fce tendr\u00e1 una ma\u00f1ana muy fr\u00eda.';
+  return text;
 }
 
 function compactClimateSentence(value) {

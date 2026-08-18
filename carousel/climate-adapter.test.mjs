@@ -267,3 +267,20 @@ test('asigna una señal visual según el dato climático', () => {
 
   assert.deepEqual(result.slides.find((slide) => slide.type === 'dato').items.map((item) => item.icon), ['rain', 'wind', 'temperature']);
 });
+
+test('cierra las frases de pronostico futuro sin puntos suspensivos', () => {
+  const result = adaptClimatePlan({ diagnosis: { vertical: 'clima' }, slides: [{ type: 'end' }] }, {
+    editorialVertical: 'clima',
+    editorialContext: 'Tras las lluvias y el frio.',
+    editorialFacts: [{ label: 'Maxima provincial', value: '15 C' }],
+    editorialTextual: [
+      'El invierno da una tregua: sol este martes y fuerte ascenso de las temperaturas.',
+      'Malarg\u00fce, sin embargo, volver\u00e1 a registrar una ma\u00f1ana muy fr\u00eda, con m\u00ednimas bajo cero.',
+    ],
+  });
+
+  assert.equal(
+    result.slides.find((slide) => slide.title === 'Lo que sigue').text,
+    'El invierno da una tregua: sol y ascenso t\u00e9rmico este martes. Malarg\u00fce tendr\u00e1 una ma\u00f1ana muy fr\u00eda.',
+  );
+});
