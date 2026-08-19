@@ -674,12 +674,13 @@ test('refuerza jerarquía de foto completa específicamente en Story', () => {
 test('renderiza las señales de Pulso, Conversación y Claves sin bajada', () => {
   for (const [type, signal] of [['pulso', 'PULSO'], ['conversacion', 'CONVERSACIÓN'], ['claves', 'CLAVES']]) {
     const calls = [];
+    let imageCalls = 0;
     const ctx = {
       canvas: {}, clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
       moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, arc() {}, fill() {},
       createLinearGradient() { return { addColorStop() {} }; },
       measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
-      fillText(value) { calls.push(String(value)); }, drawImage() {},
+      fillText(value) { calls.push(String(value)); }, drawImage() { imageCalls += 1; },
     };
     const plate = normalizeNewsPlate({
       ...extracted, tipo_placa: type, titulo_sintetico: 'Una noticia para compartir',
@@ -687,8 +688,9 @@ test('renderiza las señales de Pulso, Conversación y Claves sin bajada', () =>
       datos_clave: [{ label: 'Inicio', value: 'Septiembre' }, { label: 'Inversión', value: '$20 millones' }],
       bajada: 'Esta bajada no debe aparecer.',
     });
-    renderNewsPlate(ctx, plate, 'portrait', {});
+    renderNewsPlate(ctx, plate, 'portrait', { logo: { complete: true, naturalWidth: 120, naturalHeight: 40 } });
     assert.ok(calls.includes(signal), type);
     assert.equal(calls.includes(plate.bajada), false, type);
+    assert.equal(imageCalls, 1, `${type}: logo institucional`);
   }
 });
