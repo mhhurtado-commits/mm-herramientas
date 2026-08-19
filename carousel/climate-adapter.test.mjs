@@ -132,6 +132,17 @@ test('mantiene el contexto de hoy separado de una mejora futura', () => {
   assert.ok(result.slides.some((slide) => slide.title === 'Lo que sigue' && slide.text.includes('martes')));
 });
 
+test('reconoce cualquier día posterior como futuro usando la fecha del paquete', () => {
+  const result = adaptClimatePlan({ diagnosis: { vertical: 'clima' }, slides: [{ type: 'end' }] }, {
+    editorialVertical: 'clima',
+    date: '2026-08-19',
+    editorialContext: 'El jueves se espera un nuevo ascenso de la temperatura.',
+    summary: 'Miércoles con temperaturas agradables.',
+  });
+  assert.equal(result.slides[0].text, 'Miércoles con temperaturas agradables.');
+  assert.match(result.slides.find((slide) => slide.title === 'Lo que sigue').text, /jueves/i);
+});
+
 function factTextForTest(item) {
   return [item.value, item.label].filter(Boolean).join(' ');
 }

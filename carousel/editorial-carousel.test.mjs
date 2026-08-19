@@ -2035,7 +2035,8 @@ test('convierte lo que sigue en tarjetas visuales breves', () => {
 
   assert.equal(canvas.renderState.overflow, false);
   assert.equal(outlookBlocks.length, 2);
-  assert.ok(outlookBlocks.every((block) => block.renderedLines <= 2 && block.overflow === false));
+  assert.ok(outlookBlocks.every((block) => block.renderedLines <= 4 && block.overflow === false));
+  assert.equal(textValues(canvas).some((value) => value.includes('…')), false);
 });
 
 test('etiqueta como mañana un contexto climático futuro', () => {

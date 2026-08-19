@@ -8,7 +8,7 @@ export function adaptClimatePlan(plan, article = {}) {
   const narrativeFacts = facts.filter(isNarrativeFact);
   const metricFacts = facts.filter(fact => !isNarrativeFact(fact));
   const sourceContext = clean(article.editorialContext);
-  const futureContext = isFutureClimateText(sourceContext) ? sourceContext : '';
+  const futureContext = isFutureClimateText(sourceContext, article.date) ? sourceContext : '';
   const context = uniqueText([
     ...(futureContext ? [clean(article.summary), ...narrativeFacts.map(factText)] : [sourceContext, ...narrativeFacts.map(factText)]),
   ], []);
@@ -60,8 +60,22 @@ export function adaptClimatePlan(plan, article = {}) {
   };
 }
 
-function isFutureClimateText(value) {
-  return /ma\u00f1ana|a partir del|hacia el martes|para el martes|martes|mi\u00e9rcoles/i.test(clean(value));
+function isFutureClimateText(value, referenceDate) {
+  const text = clean(value);
+  if (/ma\u00f1ana|a partir del|hacia el|para el/i.test(text)) return true;
+  const match = text.match(/lunes|martes|mi\u00e9rcoles|jueves|viernes|s\u00e1bado|domingo/i);
+  const date = parseDate(referenceDate);
+  if (!match || !date) return false;
+  const weekdays = ['domingo', 'lunes', 'martes', 'mi\u00e9rcoles', 'jueves', 'viernes', 's\u00e1bado'];
+  const target = weekdays.indexOf(normalizeClimateKey(match[0]));
+  return target >= 0 && (target - date.getUTCDay() + 7) % 7 > 0;
+}
+
+function parseDate(value) {
+  const match = clean(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function uniqueFacts(values) {
@@ -149,6 +163,7 @@ function compactClimateSentenceGeneral(value) {
     .replace(/\bascenso de las temperaturas\b/gi, 'ascenso t\u00e9rmico')
     .replace(/\bvolver\u00e1 a registrar\b/gi, 'volver\u00e1 a tener')
     .replace(/\bma\u00f1ana muy fr\u00eda\b/gi, 'ma\u00f1ana fr\u00eda')
+    .replace(/:\s*as\u00ed estar\u00e1\b.*$/i, '.')
     .replace(/^lluvias y fr(?:i|\u00ed)o marcan .* feriado.*$/i, 'Lluvias y fr\u00edo durante el feriado.')
     .replace(/\s+en pr\u00e1cticamente todo.*$/i, '')
     .replace(/,\s*(con|mientras|aunque|debido a)\b.*$/i, '')

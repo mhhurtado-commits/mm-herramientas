@@ -35,7 +35,20 @@ test('normaliza un paquete editorial común y lo adapta a carrusel', () => {
     image: '',
     images: [],
     content: 'Texto',
+    editorialVertical: 'Tiempo libre',
+    editorialContext: '',
+    editorialFacts: [],
+    editorialTextual: [],
   });
+});
+
+test('conserva la fecha para resolver hoy y futuro en el carrusel', () => {
+  const result = normalizeEditorialPackage({
+    tipo: 'noticia_editorial', version: 2, fecha: '2026-08-19',
+    fuente: { url: 'https://example.com/1', titulo_original: 'Clima', categoria: 'Clima' },
+    editorial: { seccion: 'Clima', bajada: 'Jornada actual' },
+  });
+  assert.equal(packageToCarouselArticle(result.package).date, '2026-08-19');
 });
 
 test('adapta una placa existente al paquete y vuelve a input de placas', () => {

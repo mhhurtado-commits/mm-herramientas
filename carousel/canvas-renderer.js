@@ -671,7 +671,7 @@ function drawClimateOutlook(ctx, content, theme, layout, titleEnd) {
     var iconY = cardY + cardHeight / 2;
     drawClimateMetricIconVector(ctx, climateContextIcon(groups[i]), iconX, iconY, theme);
     drawMeasuredText(ctx, groups[i], layout.content.x + 160, cardY + 58, layout.content.width - 205, {
-      fontSize: 46, minFontSize: 34, maxLines: 2, lineHeight: 54, color: theme.colors.textPrimary,
+      fontSize: 46, minFontSize: 18, maxLines: 4, lineHeight: 38, color: theme.colors.textPrimary,
       role: "climate-outlook", maxBottom: cardY + cardHeight - 28,
     });
   }
@@ -681,7 +681,7 @@ function compactClimateOutlookText(value) {
   var text = String(value || "").replace(/\s+/g, " ").trim();
   if (!text) return "";
   var words = text.split(" ");
-  for (var split = Math.floor(words.length / 3); split >= 8; split--) {
+  for (var split = Math.floor(words.length / 2); split >= 6; split--) {
     var first = words.slice(0, split).join(" ");
     var second = words.slice(split, split * 2).join(" ");
     if (climateOutlookKey(first) === climateOutlookKey(second)) {
@@ -690,7 +690,6 @@ function compactClimateOutlookText(value) {
     }
   }
   words = text.split(" ");
-  if (words.length > 11) text = words.slice(0, 11).join(" ") + "…";
   return text;
 }
 

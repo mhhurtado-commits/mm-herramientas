@@ -26,6 +26,7 @@ export function normalizeEditorialPackage(input = {}) {
   const normalized = {
     tipo: 'noticia_editorial',
     version: EDITORIAL_PACKAGE_VERSION,
+    ...(clean(source.fecha || source.date) ? { fecha: clean(source.fecha || source.date) } : {}),
     fuente,
     editorial,
     salidas: normalizeOutputs(source.salidas),
@@ -45,6 +46,7 @@ export function packageFromPlate(plate = {}) {
   return {
     tipo: 'noticia_editorial',
     version: EDITORIAL_PACKAGE_VERSION,
+    ...(clean(source.fecha || source.date) ? { fecha: clean(source.fecha || source.date) } : {}),
     fuente: {
       url: clean(fuenteSource.url || source.url),
       titulo_original: clean(fuenteSource.titulo_original || fuenteSource.title || source.titulo),
@@ -121,6 +123,7 @@ export function packageToCarouselArticle(editorialPackage = {}) {
     image,
     images: image && !images.includes(image) ? [image, ...images].slice(0, 12) : images.slice(0, 12),
     content: clean(source.cuerpo),
+    ...(clean(editorialPackage.fecha || editorialPackage.date) ? { date: clean(editorialPackage.fecha || editorialPackage.date) } : {}),
     editorialVertical: clean(editorial.seccion),
     editorialContext: clean(editorial.contexto),
     editorialFacts: normalizeKeyFacts(editorial.datos_clave),
