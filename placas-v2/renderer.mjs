@@ -552,6 +552,16 @@ function renderComparisonPlate(ctx, plate, format, options, family, layout) {
   return layout;
 }
 
+function drawInstitutionalFooter(ctx, layout, plate, color) {
+  const { canvas } = layout;
+  ctx.fillStyle = color;
+  ctx.font = `700 ${Math.max(18, canvas.w * 0.018)}px ${fontFamily}`;
+  ctx.fillText(`Fuente: ${plate.fuente?.nombre || 'mediamendoza'}`, layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.textAlign = 'right';
+  ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.textAlign = 'left';
+}
+
 function renderPulsoPlate(ctx, plate, format, options, family, layout) {
   const { canvas } = layout;
   ctx.fillStyle = family.secondary;
@@ -568,8 +578,7 @@ function renderPulsoPlate(ctx, plate, format, options, family, layout) {
   ctx.fillText('PULSO', layout.label.x, layout.label.y + layout.label.h * 0.74);
   const titleSize = Math.max(46, canvas.w * (format === 'story' ? 0.072 : 0.062));
   fittedText(ctx, plate.titulo_sintetico || plate.titulo, layout.impact.x, layout.impact.y + titleSize, layout.impact.w, titleSize, Math.max(28, titleSize * 0.58), 3, 900, '#ffffff', 1.0, layout.impact.h);
-  ctx.fillStyle = '#ffffff'; ctx.font = `700 ${Math.max(17, canvas.w * 0.018)}px ${fontFamily}`;
-  ctx.fillText('mediamendoza', layout.footer.x, layout.footer.y + layout.footer.h * 0.62);
+  drawInstitutionalFooter(ctx, layout, plate, '#ffffff');
   return layout;
 }
 
@@ -591,36 +600,27 @@ function renderConversationPlate(ctx, plate, format, options, family, layout) {
   ctx.fillText('“', layout.question.x, layout.question.y + canvas.w * 0.04);
   const questionSize = Math.max(30, canvas.w * (format === 'story' ? 0.045 : 0.040));
   fittedText(ctx, plate.pregunta_social || '¿Qué opinás?', layout.question.x + canvas.w * 0.04, layout.question.y + questionSize, layout.question.w - canvas.w * 0.06, questionSize, Math.max(20, questionSize * 0.65), 3, 800, family.secondary, 1.1, layout.question.h);
-  ctx.fillStyle = '#526058'; ctx.font = `700 ${Math.max(17, canvas.w * 0.018)}px ${fontFamily}`;
-  ctx.fillText('mediamendoza', layout.footer.x, layout.footer.y + layout.footer.h * 0.62);
+  drawInstitutionalFooter(ctx, layout, plate, '#526058');
   return layout;
 }
 
-function renderClavesPlate(ctx, plate, format, options, family, layout) {
+function renderUpdatePlate(ctx, plate, format, options, family, layout) {
   const { canvas } = layout;
-  const facts = (plate.datos_clave || []).filter(fact => fact?.value).slice(0, 3);
-  ctx.fillStyle = family.secondary; ctx.fillRect(0, 0, canvas.w, canvas.h);
+  ctx.fillStyle = family.soft; ctx.fillRect(0, 0, canvas.w, canvas.h);
+  if (adaptiveImage(ctx, options.image, layout.image, options.focus, options.forceCover)) {
+    const overlay = ctx.createLinearGradient(0, 0, 0, layout.image.h);
+    overlay.addColorStop(0, 'rgba(0,0,0,.08)'); overlay.addColorStop(1, 'rgba(0,0,0,.52)');
+    ctx.fillStyle = overlay; ctx.fillRect(0, 0, canvas.w, layout.image.h);
+  }
   const logoW = canvas.w * (format === 'landscape' ? 0.18 : 0.26);
   containImage(ctx, options.logo, { x: canvas.w - canvas.w * 0.05 - logoW, y: canvas.h * 0.035, w: logoW, h: canvas.h * 0.08 });
   ctx.fillStyle = family.color; ctx.font = `900 ${Math.max(20, canvas.w * 0.024)}px ${fontFamily}`;
-  ctx.fillText('CLAVES', layout.label.x, layout.label.y + layout.label.h * 0.74);
+  ctx.fillText('ACTUALIZACIÓN', layout.label.x, layout.label.y + layout.label.h * 0.74);
   const titleSize = Math.max(32, canvas.w * 0.042);
   fittedText(ctx, plate.titulo_sintetico || plate.titulo, layout.title.x, layout.title.y + titleSize, layout.title.w, titleSize, Math.max(22, titleSize * 0.66), 2, 800, '#ffffff', 1.05, layout.title.h);
-  const gap = canvas.h * 0.018;
-  const cardH = (layout.facts.h - gap * Math.max(0, facts.length - 1)) / Math.max(1, facts.length);
-  facts.forEach((fact, index) => {
-    const card = { x: layout.facts.x, y: layout.facts.y + index * (cardH + gap), w: layout.facts.w, h: cardH };
-    ctx.fillStyle = index === 0 ? family.color : 'rgba(255,255,255,.10)'; roundedRect(ctx, card.x, card.y, card.w, card.h, canvas.w * 0.014); ctx.fill();
-    const numberX = card.x + card.w * 0.06;
-    const valueX = card.x + card.w * 0.19;
-    const valueSize = Math.max(28, canvas.w * 0.042);
-    ctx.fillStyle = index === 0 ? family.secondary : family.color; ctx.font = `900 ${Math.max(18, canvas.w * 0.024)}px ${fontFamily}`;
-    ctx.fillText(String(index + 1).padStart(2, '0'), numberX, card.y + card.h * 0.31);
-    fittedText(ctx, fact.value, valueX, card.y + valueSize * 1.08, card.w * 0.72, valueSize, Math.max(20, valueSize * 0.64), 2, 900, index === 0 ? family.secondary : '#ffffff', 1.0, card.h * 0.58);
-    if (fact.label || fact.detail) fittedText(ctx, [fact.label, fact.detail].filter(Boolean).join(' · '), valueX, card.y + card.h * 0.83, card.w * 0.72, Math.max(16, canvas.w * 0.018), 14, 2, 700, index === 0 ? family.secondary : '#dce6df', 1.05, card.h * 0.22);
-  });
-  ctx.fillStyle = '#dce6df'; ctx.font = `700 ${Math.max(17, canvas.w * 0.018)}px ${fontFamily}`;
-  ctx.fillText('mediamendoza', layout.footer.x, layout.footer.y + layout.footer.h * 0.62);
+  const contextSize = Math.max(28, canvas.w * (format === 'story' ? 0.040 : 0.035));
+  fittedText(ctx, plate.contexto || plate.bajada, layout.update.x, layout.update.y + contextSize, layout.update.w, contextSize, Math.max(20, contextSize * 0.65), 3, 700, family.secondary, 1.15, layout.update.h);
+  drawInstitutionalFooter(ctx, layout, plate, '#526058');
   return layout;
 }
 
@@ -645,7 +645,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   if (plateType === 'efemerides-social') return renderEfemeridesPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'pulso') return renderPulsoPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'conversacion') return renderConversationPlate(ctx, plate, format, options, family, layout);
-  if (plateType === 'claves') return renderClavesPlate(ctx, plate, format, options, family, layout);
+  if (plateType === 'actualizacion') return renderUpdatePlate(ctx, plate, format, options, family, layout);
   if (['titular-arriba', 'titular-abajo'].includes(plateType)) return renderSyntheticPlate(ctx, plate, format, options, family, layout);
 
   const isHeaderless = true;

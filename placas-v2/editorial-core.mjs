@@ -28,7 +28,7 @@ export const PLATE_TYPES = {
   'editorial-split': { id: 'editorial-split', label: 'Editorial split' },
   pulso: { id: 'pulso', label: 'Pulso' },
   conversacion: { id: 'conversacion', label: 'Conversación' },
-  claves: { id: 'claves', label: 'Claves' },
+  actualizacion: { id: 'actualizacion', label: 'Actualización' },
 };
 
 const FAMILY_ALIASES = new Map([
@@ -231,10 +231,11 @@ export function normalizeNewsPlate(input = {}) {
   const textual = normalizeTextual(input, [body, title, description].filter(Boolean).join(' '));
   const personas = normalizePeople(input);
   const imagenes_apoyo = normalizeSupportImages(input);
-  const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
+  const rawRequestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
+  const requestedType = rawRequestedType === 'claves' ? 'actualizacion' : rawRequestedType;
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
   const comparison = normalizeComparison(input.comparativa || source.comparativa, input.fuente_nombre || source.fuente_nombre, input.fecha || input.date || source.fecha || source.date);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'efemerides-social', 'editorial-split', 'pulso', 'conversacion', 'claves'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'efemerides-social', 'editorial-split', 'pulso', 'conversacion', 'actualizacion'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const context = clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description);
   const datos_clave = normalizeKeyFacts(input.datos_clave || source.datos_clave, context);
   const normalized = {
@@ -289,10 +290,18 @@ function cloneWithTemplate(plate, id, template, recommended = false) {
 
 export function buildEditorialVariants(plate) {
   const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
+  const contractType = PLATE_TYPES[plate.tipo_placa] ? plate.tipo_placa : 'noticia';
+  if (contractType === 'actualizacion') {
+    return [cloneWithTemplate(
+      { ...plate, tipo_placa: contractType },
+      `${family}-${contractType}`,
+      family,
+      true,
+    )];
+  }
   const socialTypes = [];
   if (plate.titulo_sintetico && plate.fuente?.imagen) socialTypes.push('pulso');
   if (plate.pregunta_social && plate.pregunta_social !== '¿Qué opinás?') socialTypes.push('conversacion');
-  if ((plate.datos_clave || []).filter(item => item?.value).length >= 2) socialTypes.push('claves');
   if (socialTypes.length) {
     return socialTypes.map((type, index) => cloneWithTemplate(
       { ...plate, tipo_placa: type },
@@ -405,18 +414,18 @@ export function calculatePlateLayout(format, plate = {}) {
       footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.025 },
     };
   }
-  if (plate.tipo_placa === 'claves') {
+  if (plate.tipo_placa === 'actualizacion') {
     const footerY = canvas.h * 0.92;
     return {
       canvas,
-      claves: true,
+      actualizacion: true,
       header: { x: 0, y: 0, w: canvas.w, h: 0 },
-      image: { x: 0, y: 0, w: 0, h: 0 },
       label: { x: margin, y: canvas.h * 0.08, w: canvas.w - margin * 2, h: canvas.h * 0.045 },
       title: { x: margin, y: canvas.h * 0.14, w: canvas.w - margin * 2, h: canvas.h * 0.14 },
-      facts: { x: margin, y: canvas.h * 0.32, w: canvas.w - margin * 2, h: footerY - canvas.h * 0.36 },
-      dek: { x: margin, y: canvas.h * 0.32, w: canvas.w - margin * 2, h: 0 },
-      context: { x: margin, y: canvas.h * 0.32, w: canvas.w - margin * 2, h: 0 },
+      image: { x: 0, y: 0, w: canvas.w, h: canvas.h * 0.50 },
+      update: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: footerY - canvas.h * 0.59 },
+      dek: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: 0 },
       footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.025 },
     };
   }

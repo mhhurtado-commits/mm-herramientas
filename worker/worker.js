@@ -224,10 +224,11 @@ function normalizeNewsPlate(input = {}) {
   const textual = normalizeTextual(input, [body, title, description].filter(Boolean).join(' '));
   const personas = normalizePeople(input);
   const imagenes_apoyo = normalizeSupportImages(input);
-  const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
+  const rawRequestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
+  const requestedType = rawRequestedType === 'claves' ? 'actualizacion' : rawRequestedType;
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
   const comparison = normalizeComparison(input.comparativa || source.comparativa, input.fuente_nombre || source.fuente_nombre, input.fecha || input.date || source.fecha || source.date);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'editorial-split', 'pulso', 'conversacion', 'claves'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'editorial-split', 'pulso', 'conversacion', 'actualizacion'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const context = clean(input.contexto || input.context || '') || firstSentence(body);
   const normalized = {
     tipo: 'placa_noticia',
@@ -417,7 +418,7 @@ Respondé SOLO con este JSON:
   "pregunta_social": "pregunta breve basada en la nota",
   "redes": { "instagram": "copy para Instagram", "facebook": "copy para Facebook" },
   "etiqueta": "nombre de la sección",
-  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|comparativa|textual|retrato-circular|editorial-split|pulso|conversacion|claves",
+  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|comparativa|textual|retrato-circular|editorial-split|pulso|conversacion|actualizacion",
   "comparativa": { "izquierda": { "etiqueta": "lado A", "valor": "dato verificable", "detalle": "detalle opcional" }, "derecha": { "etiqueta": "lado B", "valor": "dato verificable", "detalle": "detalle opcional" }, "fuente": "fuente si corresponde", "fecha": "fecha del dato", "origen": "nota|manual|externo" },
   "datos_clave": [{ "label": "etiqueta breve", "value": "dato verificable", "detail": "detalle opcional" }],
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },

@@ -25,7 +25,7 @@ test('normaliza un titular sintético separado del titular editorial', () => {
   assert.equal(PLATE_TYPES['foto-completa'].id, 'foto-completa');
   assert.equal(PLATE_TYPES.pulso.id, 'pulso');
   assert.equal(PLATE_TYPES.conversacion.id, 'conversacion');
-  assert.equal(PLATE_TYPES.claves.id, 'claves');
+  assert.equal(PLATE_TYPES.actualizacion.id, 'actualizacion');
 });
 
 test('normaliza pregunta social y habilita los tres modelos nuevos sin alterar la fuente', () => {
@@ -38,11 +38,11 @@ test('normaliza pregunta social y habilita los tres modelos nuevos sin alterar l
 
   assert.equal(plate.pregunta_social, '¿Cómo impactará la obra en tu zona?');
   assert.equal(plate.fuente.url, extracted.url);
-  assert.deepEqual(buildEditorialVariants(plate).slice(0, 3).map(variant => variant.tipo_placa), ['pulso', 'conversacion', 'claves']);
+  assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['pulso', 'conversacion']);
   assert.equal(buildEditorialVariants(plate)[0].recommended, true);
 });
 
-test('usa una pregunta neutral cuando falta la pregunta social y no recomienda claves con un solo dato', () => {
+test('usa una pregunta neutral cuando falta la pregunta social y no recomienda actualización con un solo dato', () => {
   const plate = normalizeNewsPlate({
     ...extracted,
     titulo_sintetico: 'Nueva obra para el sur',
@@ -50,23 +50,30 @@ test('usa una pregunta neutral cuando falta la pregunta social y no recomienda c
   });
 
   assert.equal(plate.pregunta_social, '¿Qué opinás?');
-  assert.equal(buildEditorialVariants(plate).some(variant => variant.tipo_placa === 'claves'), false);
+  assert.equal(buildEditorialVariants(plate).some(variant => variant.tipo_placa === 'actualizacion'), false);
 });
 
-test('calcula áreas seguras para pulso, conversación y claves en los cuatro formatos', () => {
-  for (const type of ['pulso', 'conversacion', 'claves']) {
+test('calcula áreas seguras para pulso, conversación y actualización en los cuatro formatos', () => {
+  for (const type of ['pulso', 'conversacion', 'actualizacion']) {
     for (const format of ['landscape', 'square', 'portrait', 'story']) {
       const layout = calculatePlateLayout(format, {
         tipo_placa: type,
         datos_clave: [{ value: 'Uno' }, { value: 'Dos' }],
       });
-      const area = layout[type === 'conversacion' ? 'question' : type === 'claves' ? 'facts' : 'impact'];
+      const area = layout[type === 'conversacion' ? 'question' : type === 'actualizacion' ? 'update' : 'impact'];
       assert.ok(area);
       assert.ok(area.x >= 0 && area.y >= 0, `${type}/${format}: origen seguro`);
       assert.ok(area.x + area.w <= layout.canvas.w, `${type}/${format}: ancho seguro`);
       assert.ok(area.y + area.h <= layout.footer.y, `${type}/${format}: alto seguro`);
     }
   }
+});
+
+test('prioriza el tipo indicado por el contrato sobre las variantes sociales', () => {
+  const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'actualizacion', titulo_sintetico: 'Nueva obra para el sur', pregunta_social: '¿Cómo impacta en tu zona?' });
+  const variants = buildEditorialVariants(plate);
+  assert.equal(variants[0].tipo_placa, 'actualizacion');
+  assert.equal(variants[0].recommended, true);
 });
 
 test('acorta solo el titular sintético y conserva el dato central', () => {
@@ -671,8 +678,8 @@ test('refuerza jerarquía de foto completa específicamente en Story', () => {
   assert.equal(branding.gradientStartRatio < getFullBleedBranding('portrait').gradientStartRatio, true);
 });
 
-test('renderiza las señales de Pulso, Conversación y Claves sin bajada', () => {
-  for (const [type, signal] of [['pulso', 'PULSO'], ['conversacion', 'CONVERSACIÓN'], ['claves', 'CLAVES']]) {
+test('renderiza las señales y footer institucional de Pulso, Conversación y Actualización', () => {
+  for (const [type, signal] of [['pulso', 'PULSO'], ['conversacion', 'CONVERSACIÓN'], ['actualizacion', 'ACTUALIZACIÓN']]) {
     const calls = [];
     let imageCalls = 0;
     const ctx = {
@@ -692,5 +699,7 @@ test('renderiza las señales de Pulso, Conversación y Claves sin bajada', () =>
     assert.ok(calls.includes(signal), type);
     assert.equal(calls.includes(plate.bajada), false, type);
     assert.equal(imageCalls, 1, `${type}: logo institucional`);
+    assert.ok(calls.includes('Fuente: mediamendoza'), `${type}: fuente institucional`);
+    assert.ok(calls.includes('www.mediamendoza.com'), `${type}: dominio institucional`);
   }
 });
