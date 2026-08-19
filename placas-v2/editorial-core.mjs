@@ -26,6 +26,9 @@ export const PLATE_TYPES = {
   textual: { id: 'textual', label: 'Textual' },
   'retrato-circular': { id: 'retrato-circular', label: 'Retrato circular' },
   'editorial-split': { id: 'editorial-split', label: 'Editorial split' },
+  pulso: { id: 'pulso', label: 'Pulso' },
+  conversacion: { id: 'conversacion', label: 'Conversación' },
+  claves: { id: 'claves', label: 'Claves' },
 };
 
 const FAMILY_ALIASES = new Map([
@@ -178,6 +181,7 @@ function buildBlocks(data, family, image) {
     { tipo: 'fuente', id: 'fuente', texto: data.fuente.url || 'Media Mendoza' },
   ];
   if (data.textual?.verificada) blocks.push({ tipo: 'cita', id: 'cita', texto: data.textual.cita, autor: data.textual.autor, cargo: data.textual.cargo, verificada: true });
+  if (data.pregunta_social) blocks.push({ tipo: 'pregunta-social', id: 'pregunta-social', texto: data.pregunta_social });
   data.personas.forEach(person => blocks.push({ tipo: 'retrato', id: person.id, ...person }));
   data.imagenes_apoyo.forEach(image => blocks.push({ tipo: 'imagen-apoyo', id: image.id, ...image }));
   if (data.contexto) blocks.push({ tipo: 'dato-clave', id: 'dato-clave', texto: data.contexto });
@@ -230,7 +234,7 @@ export function normalizeNewsPlate(input = {}) {
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
   const comparison = normalizeComparison(input.comparativa || source.comparativa, input.fuente_nombre || source.fuente_nombre, input.fecha || input.date || source.fecha || source.date);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'efemerides-social', 'editorial-split'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'efemerides-social', 'editorial-split', 'pulso', 'conversacion', 'claves'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const context = clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description);
   const datos_clave = normalizeKeyFacts(input.datos_clave || source.datos_clave, context);
   const normalized = {
@@ -251,6 +255,7 @@ export function normalizeNewsPlate(input = {}) {
     bajada: description || firstSentence(body),
     etiqueta: family.label,
     contexto: context,
+    pregunta_social: clean(input.pregunta_social || source.pregunta_social) || '¿Qué opinás?',
     datos_clave,
     comparativa: comparison,
     template_sugerido: family.id,
@@ -283,9 +288,21 @@ function cloneWithTemplate(plate, id, template, recommended = false) {
 }
 
 export function buildEditorialVariants(plate) {
+  const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
+  const socialTypes = [];
+  if (plate.titulo_sintetico && plate.fuente?.imagen) socialTypes.push('pulso');
+  if (plate.pregunta_social && plate.pregunta_social !== '¿Qué opinás?') socialTypes.push('conversacion');
+  if ((plate.datos_clave || []).filter(item => item?.value).length >= 2) socialTypes.push('claves');
+  if (socialTypes.length) {
+    return socialTypes.map((type, index) => cloneWithTemplate(
+      { ...plate, tipo_placa: type },
+      `${family}-${type}`,
+      family,
+      index === 0,
+    ));
+  }
   if (plate.textual?.verificada || plate.personas?.length || plate.tipo_placa === 'editorial-split') {
     const firstType = plate.textual?.verificada ? 'textual' : plate.tipo_placa === 'editorial-split' ? 'editorial-split' : 'noticia';
-    const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
     const alternativeFamilies = family === 'general' ? ['sociales', 'politica', 'economia'] : ['general', 'sociales', 'economia'];
     const alternativeTypes = firstType === 'textual' || firstType === 'editorial-split'
       ? ['titular-arriba', 'foto-completa', 'dato-clave']
@@ -304,7 +321,6 @@ export function buildEditorialVariants(plate) {
       bloques: [...variant.bloques, ...(variant.tipo_placa === 'editorial-split' ? [{ tipo: 'dato-clave', id: 'dato-clave', texto: variant.contexto }] : [])],
     }));
   }
-  const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
   const alternative = family === 'general' ? 'sociales' : 'general';
   const variants = [
     cloneWithTemplate({ ...plate, tipo_placa: 'titular-arriba' }, `${family}-titular-arriba`, family, true),
@@ -359,6 +375,51 @@ export function calculatePlateLayout(format, plate = {}) {
   const isHeaderless = true;
   const headerH = isHeaderless ? 0 : canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
   const footerH = canvas.h * (isStory ? 0.055 : 0.07);
+  if (plate.tipo_placa === 'pulso') {
+    const footerY = canvas.h * 0.92;
+    return {
+      canvas,
+      pulso: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      image: { x: 0, y: 0, w: canvas.w, h: canvas.h },
+      label: { x: margin, y: canvas.h * 0.08, w: canvas.w - margin * 2, h: canvas.h * 0.045 },
+      title: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: canvas.h * 0.27 },
+      impact: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: canvas.h * 0.27 },
+      dek: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.025 },
+    };
+  }
+  if (plate.tipo_placa === 'conversacion') {
+    const footerY = canvas.h * 0.92;
+    return {
+      canvas,
+      conversacion: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      image: { x: 0, y: 0, w: canvas.w, h: canvas.h * 0.48 },
+      label: { x: margin, y: canvas.h * 0.54, w: canvas.w - margin * 2, h: canvas.h * 0.04 },
+      title: { x: margin, y: canvas.h * 0.60, w: canvas.w - margin * 2, h: canvas.h * 0.12 },
+      question: { x: margin, y: canvas.h * 0.74, w: canvas.w - margin * 2, h: footerY - canvas.h * 0.77 },
+      dek: { x: margin, y: canvas.h * 0.74, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: canvas.h * 0.74, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.025 },
+    };
+  }
+  if (plate.tipo_placa === 'claves') {
+    const footerY = canvas.h * 0.92;
+    return {
+      canvas,
+      claves: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      image: { x: 0, y: 0, w: 0, h: 0 },
+      label: { x: margin, y: canvas.h * 0.08, w: canvas.w - margin * 2, h: canvas.h * 0.045 },
+      title: { x: margin, y: canvas.h * 0.14, w: canvas.w - margin * 2, h: canvas.h * 0.14 },
+      facts: { x: margin, y: canvas.h * 0.32, w: canvas.w - margin * 2, h: footerY - canvas.h * 0.36 },
+      dek: { x: margin, y: canvas.h * 0.32, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: canvas.h * 0.32, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.025 },
+    };
+  }
   if (isDataCard) {
     const factCount = Math.min(3, Math.max(1, Array.isArray(plate.datos_clave) && plate.datos_clave.length ? plate.datos_clave.length : plate.contexto ? 1 : 0));
     const secondaryCount = Math.max(0, factCount - 1);

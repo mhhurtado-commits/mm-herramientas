@@ -23,6 +23,50 @@ test('normaliza un titular sintético separado del titular editorial', () => {
   assert.equal(plate.titulo_sintetico, 'Una decisión cambia el escenario');
   assert.equal(PLATE_TYPES['titular-arriba'].id, 'titular-arriba');
   assert.equal(PLATE_TYPES['foto-completa'].id, 'foto-completa');
+  assert.equal(PLATE_TYPES.pulso.id, 'pulso');
+  assert.equal(PLATE_TYPES.conversacion.id, 'conversacion');
+  assert.equal(PLATE_TYPES.claves.id, 'claves');
+});
+
+test('normaliza pregunta social y habilita los tres modelos nuevos sin alterar la fuente', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    titulo_sintetico: 'Nueva obra para el sur',
+    pregunta_social: '¿Cómo impactará la obra en tu zona?',
+    datos_clave: [{ label: 'Inicio', value: 'Septiembre' }, { label: 'Inversión', value: '$20 millones' }],
+  });
+
+  assert.equal(plate.pregunta_social, '¿Cómo impactará la obra en tu zona?');
+  assert.equal(plate.fuente.url, extracted.url);
+  assert.deepEqual(buildEditorialVariants(plate).slice(0, 3).map(variant => variant.tipo_placa), ['pulso', 'conversacion', 'claves']);
+  assert.equal(buildEditorialVariants(plate)[0].recommended, true);
+});
+
+test('usa una pregunta neutral cuando falta la pregunta social y no recomienda claves con un solo dato', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    titulo_sintetico: 'Nueva obra para el sur',
+    datos_clave: [{ label: 'Inicio', value: 'Septiembre' }],
+  });
+
+  assert.equal(plate.pregunta_social, '¿Qué opinás?');
+  assert.equal(buildEditorialVariants(plate).some(variant => variant.tipo_placa === 'claves'), false);
+});
+
+test('calcula áreas seguras para pulso, conversación y claves en los cuatro formatos', () => {
+  for (const type of ['pulso', 'conversacion', 'claves']) {
+    for (const format of ['landscape', 'square', 'portrait', 'story']) {
+      const layout = calculatePlateLayout(format, {
+        tipo_placa: type,
+        datos_clave: [{ value: 'Uno' }, { value: 'Dos' }],
+      });
+      const area = layout[type === 'conversacion' ? 'question' : type === 'claves' ? 'facts' : 'impact'];
+      assert.ok(area);
+      assert.ok(area.x >= 0 && area.y >= 0, `${type}/${format}: origen seguro`);
+      assert.ok(area.x + area.w <= layout.canvas.w, `${type}/${format}: ancho seguro`);
+      assert.ok(area.y + area.h <= layout.footer.y, `${type}/${format}: alto seguro`);
+    }
+  }
 });
 
 test('acorta solo el titular sintético y conserva el dato central', () => {
@@ -32,33 +76,30 @@ test('acorta solo el titular sintético y conserva el dato central', () => {
   assert.equal(normalizeSyntheticTitle(longTitle), 'García Salazar respondió al ranking salarial docente');
 });
 
-test('recomienda titular arriba y conserva alternativas sintéticas', () => {
+test('recomienda pulso cuando hay foto y titular sintético', () => {
   const plate = normalizeNewsPlate({ ...extracted, titulo_sintetico: 'Una decisión cambia el escenario' });
   const variants = buildEditorialVariants(plate);
 
-  assert.equal(variants[0].tipo_placa, 'titular-arriba');
+  assert.equal(variants[0].tipo_placa, 'pulso');
   assert.equal(variants[0].recommended, true);
   assert.equal(variants[0].titulo_sintetico, 'Una decisión cambia el escenario');
-  assert.equal(variants.some(variant => variant.tipo_placa === 'foto-completa'), true);
+  assert.equal(variants[0].titulo_sintetico, 'Una decisión cambia el escenario');
 });
 
-test('ofrece titular abajo como segunda variante sintética con el mismo título', () => {
+test('mantiene pulso como única recomendación social si no hay pregunta ni dos datos', () => {
   const plate = normalizeNewsPlate({ ...extracted, titulo_sintetico: 'Una decisión cambia el escenario' });
   const variants = buildEditorialVariants(plate);
 
-  assert.equal(variants[0].tipo_placa, 'titular-arriba');
-  assert.equal(variants[1].tipo_placa, 'titular-abajo');
-  assert.equal(variants[1].titulo_sintetico, variants[0].titulo_sintetico);
-  assert.equal(variants[1].recommended, false);
+  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['pulso']);
+  assert.equal(variants[0].titulo_sintetico, 'Una decisión cambia el escenario');
 });
 
-test('ofrece foto completa como tercera variante sintética con el mismo título', () => {
+test('pulso conserva el mismo titular sintético', () => {
   const plate = normalizeNewsPlate({ ...extracted, titulo_sintetico: 'Una decisión cambia el escenario' });
   const variants = buildEditorialVariants(plate);
 
-  assert.equal(variants[2].tipo_placa, 'foto-completa');
-  assert.equal(variants[2].titulo_sintetico, variants[0].titulo_sintetico);
-  assert.equal(variants[2].recommended, false);
+  assert.equal(variants[0].tipo_placa, 'pulso');
+  assert.equal(variants[0].titulo_sintetico, 'Una decisión cambia el escenario');
 });
 
 test('normaliza hasta tres datos clave y conserva un fallback de contexto', () => {
@@ -628,4 +669,26 @@ test('refuerza jerarquía de foto completa específicamente en Story', () => {
   assert.ok(story.minRatio > normal.minRatio);
   assert.equal(branding.logoRatio > getFullBleedBranding('portrait').logoRatio, true);
   assert.equal(branding.gradientStartRatio < getFullBleedBranding('portrait').gradientStartRatio, true);
+});
+
+test('renderiza las señales de Pulso, Conversación y Claves sin bajada', () => {
+  for (const [type, signal] of [['pulso', 'PULSO'], ['conversacion', 'CONVERSACIÓN'], ['claves', 'CLAVES']]) {
+    const calls = [];
+    const ctx = {
+      canvas: {}, clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
+      moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, arc() {}, fill() {},
+      createLinearGradient() { return { addColorStop() {} }; },
+      measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
+      fillText(value) { calls.push(String(value)); }, drawImage() {},
+    };
+    const plate = normalizeNewsPlate({
+      ...extracted, tipo_placa: type, titulo_sintetico: 'Una noticia para compartir',
+      pregunta_social: '¿Cómo impacta esta obra en tu zona?',
+      datos_clave: [{ label: 'Inicio', value: 'Septiembre' }, { label: 'Inversión', value: '$20 millones' }],
+      bajada: 'Esta bajada no debe aparecer.',
+    });
+    renderNewsPlate(ctx, plate, 'portrait', {});
+    assert.ok(calls.includes(signal), type);
+    assert.equal(calls.includes(plate.bajada), false, type);
+  }
 });

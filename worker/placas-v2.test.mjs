@@ -158,3 +158,17 @@ test('el prompt y la respuesta del worker soportan comparativa con fuente', () =
   assert.equal(result.comparativa.fuente, 'Informe oficial');
   assert.equal(result.comparativa.origen, 'externo');
 });
+
+test('el prompt y la respuesta del worker preservan una pregunta social basada en la nota', () => {
+  const prompt = buildPlateEditorialPrompt(note);
+  assert.match(prompt, /pregunta_social/);
+  assert.match(prompt, /pregunta_social.*sin atribuir hechos/i);
+
+  const result = normalizeEditorialResponse({
+    pregunta_social: '¿Cómo creés que impactará la obra en la región?',
+    tipo_placa: 'conversacion',
+  }, note);
+
+  assert.equal(result.pregunta_social, '¿Cómo creés que impactará la obra en la región?');
+  assert.equal(result.tipo_placa, 'conversacion');
+});

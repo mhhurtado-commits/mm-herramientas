@@ -182,6 +182,7 @@ function buildBlocks(data, family, image) {
     { tipo: 'fuente', id: 'fuente', texto: data.fuente.url || 'Media Mendoza' },
   ];
   if (data.textual?.verificada) blocks.push({ tipo: 'cita', id: 'cita', texto: data.textual.cita, autor: data.textual.autor, cargo: data.textual.cargo, verificada: true });
+  if (data.pregunta_social) blocks.push({ tipo: 'pregunta-social', id: 'pregunta-social', texto: data.pregunta_social });
   data.personas.forEach(person => blocks.push({ tipo: 'retrato', id: person.id, ...person }));
   data.imagenes_apoyo.forEach(image => blocks.push({ tipo: 'imagen-apoyo', id: image.id, ...image }));
   if (data.contexto) blocks.push({ tipo: 'dato-clave', id: 'dato-clave', texto: data.contexto });
@@ -226,7 +227,7 @@ function normalizeNewsPlate(input = {}) {
   const requestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
   const comparison = normalizeComparison(input.comparativa || source.comparativa, input.fuente_nombre || source.fuente_nombre, input.fecha || input.date || source.fecha || source.date);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'editorial-split'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'editorial-split', 'pulso', 'conversacion', 'claves'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const context = clean(input.contexto || input.context || '') || firstSentence(body);
   const normalized = {
     tipo: 'placa_noticia',
@@ -245,6 +246,7 @@ function normalizeNewsPlate(input = {}) {
     bajada: description || firstSentence(body),
     etiqueta: family.label,
     contexto: context,
+    pregunta_social: clean(input.pregunta_social || source.pregunta_social) || '¿Qué opinás?',
     datos_clave: normalizeKeyFacts(input.datos_clave || source.datos_clave, context),
     comparativa: comparison,
     fecha: clean(input.fecha || input.date || source.fecha || source.date),
@@ -399,6 +401,7 @@ REGLAS:
 - Genera tambien un titular sintetico idealmente de 6 a 10 palabras para el modelo titular-arriba. Debe conservar sujeto, hecho principal y precision; no agregues contexto secundario ni inventes informacion.
 - Para el modelo dato-clave, generá hasta tres datos verificables en el campo datos_clave, con un valor principal y detalles opcionales.
 - En datos_clave, usá etiquetas específicas como Zona afectada, Calles afectadas, Causa, Estado o Plazo cuando la noticia lo permita; evitá etiquetas genéricas como Lugar o Contexto.
+- Generá pregunta_social como una invitación breve a conversar, basada sólo en la nota y sin atribuir hechos nuevos.
 - Usa titular-arriba como propuesta recomendada cuando la noticia pueda resumirse en una sola idea visual; titular-abajo y foto-completa son alternativas sintéticas válidas; conserva noticia para la alternativa con bajada.
 - Las citas textuales deben copiarse literalmente del cuerpo y verificarse; si no existe una cita literal, devolvé una cadena vacía. Detectá personas sólo con atribución clara y devolvé una imagen de la nota si está disponible; la interfaz permite subir otra imagen.
 - Elegí también un tipo de placa entre noticia, titular-arriba, titular-abajo, foto-completa, textual, retrato-circular y editorial-split. Usá foto-completa como alternativa de foto a sangre con titular superpuesto; textual sólo con cita verificable y retrato-circular sólo con personas identificables.
@@ -411,9 +414,10 @@ Respondé SOLO con este JSON:
   "titulo_sintetico": "titular sintetico de maximo 10 palabras",
   "bajada": "bajada breve",
   "contexto": "dato o contexto clave, o cadena vacía",
+  "pregunta_social": "pregunta breve basada en la nota",
   "redes": { "instagram": "copy para Instagram", "facebook": "copy para Facebook" },
   "etiqueta": "nombre de la sección",
-  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|comparativa|textual|retrato-circular|editorial-split",
+  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|comparativa|textual|retrato-circular|editorial-split|pulso|conversacion|claves",
   "comparativa": { "izquierda": { "etiqueta": "lado A", "valor": "dato verificable", "detalle": "detalle opcional" }, "derecha": { "etiqueta": "lado B", "valor": "dato verificable", "detalle": "detalle opcional" }, "fuente": "fuente si corresponde", "fecha": "fecha del dato", "origen": "nota|manual|externo" },
   "datos_clave": [{ "label": "etiqueta breve", "value": "dato verificable", "detail": "detalle opcional" }],
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
@@ -6837,9 +6841,11 @@ async function handlePlacasV2Paquete(body, env) {
       complejidad: 'medium',
       tono: 'informative',
       titulo: placa.titulo || '',
+      titulo_sintetico: placa.titulo_sintetico || '',
       bajada: placa.bajada || '',
       contexto: placa.contexto || '',
-      datos_clave: placa.contexto ? [placa.contexto] : [],
+      pregunta_social: placa.pregunta_social || '',
+      datos_clave: Array.isArray(placa.datos_clave) && placa.datos_clave.length ? placa.datos_clave : placa.contexto ? [placa.contexto] : [],
       textual: placa.textual || [],
       personas: Array.isArray(placa.personas) ? placa.personas : [],
     },

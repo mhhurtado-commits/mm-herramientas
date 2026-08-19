@@ -66,6 +66,7 @@ test('adapta una placa existente al paquete y vuelve a input de placas', () => {
     titulo: 'Titular editorial',
     bajada: 'Bajada editorial',
     contexto: 'Contexto editorial',
+    pregunta_social: '¿Cómo impacta esta medida?',
     etiqueta: 'Policiales',
     template_sugerido: 'policiales',
     tipo_placa: 'noticia',
@@ -78,6 +79,7 @@ test('adapta una placa existente al paquete y vuelve a input de placas', () => {
   assert.equal(input.titulo, 'Titular editorial');
   assert.equal(input.bajada, 'Bajada editorial');
   assert.equal(input.contexto, 'Contexto editorial');
+  assert.equal(input.pregunta_social, '¿Cómo impacta esta medida?');
   assert.equal(input.cuerpo, 'Cuerpo de la noticia');
   assert.deepEqual(input.images, ['https://example.com/cover.jpg', 'https://example.com/second.jpg']);
 });
