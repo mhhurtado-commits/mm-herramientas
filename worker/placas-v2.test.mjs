@@ -172,3 +172,16 @@ test('el prompt y la respuesta del worker preservan una pregunta social basada e
   assert.equal(result.pregunta_social, '¿Cómo creés que impactará la obra en la región?');
   assert.equal(result.tipo_placa, 'conversacion');
 });
+
+test('el prompt y la respuesta del worker preservan impactos verificables', () => {
+  const prompt = buildPlateEditorialPrompt(note);
+  assert.match(prompt, /impactos/);
+
+  const result = normalizeEditorialResponse({
+    tipo_placa: 'que-cambia',
+    impactos: [{ label: 'Alcance', value: 'A 12.000 vecinos' }],
+  }, note);
+
+  assert.equal(result.tipo_placa, 'que-cambia');
+  assert.deepEqual(result.impactos, [{ label: 'Alcance', value: 'A 12.000 vecinos', detail: '' }]);
+});

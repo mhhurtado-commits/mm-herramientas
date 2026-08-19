@@ -23,12 +23,12 @@ test('normaliza un titular sintético separado del titular editorial', () => {
   assert.equal(plate.titulo_sintetico, 'Una decisión cambia el escenario');
   assert.equal(PLATE_TYPES['titular-arriba'].id, 'titular-arriba');
   assert.equal(PLATE_TYPES['foto-completa'].id, 'foto-completa');
-  assert.equal(PLATE_TYPES.pulso.id, 'pulso');
+  assert.equal(PLATE_TYPES.pulso, undefined);
   assert.equal(PLATE_TYPES.conversacion.id, 'conversacion');
   assert.equal(PLATE_TYPES.actualizacion.id, 'actualizacion');
 });
 
-test('normaliza pregunta social y habilita los tres modelos nuevos sin alterar la fuente', () => {
+test('normaliza pregunta social y habilita conversación sin alterar la fuente', () => {
   const plate = normalizeNewsPlate({
     ...extracted,
     titulo_sintetico: 'Nueva obra para el sur',
@@ -38,7 +38,7 @@ test('normaliza pregunta social y habilita los tres modelos nuevos sin alterar l
 
   assert.equal(plate.pregunta_social, '¿Cómo impactará la obra en tu zona?');
   assert.equal(plate.fuente.url, extracted.url);
-  assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['pulso', 'conversacion']);
+  assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['conversacion']);
   assert.equal(buildEditorialVariants(plate)[0].recommended, true);
 });
 
@@ -53,14 +53,14 @@ test('usa una pregunta neutral cuando falta la pregunta social y no recomienda a
   assert.equal(buildEditorialVariants(plate).some(variant => variant.tipo_placa === 'actualizacion'), false);
 });
 
-test('calcula áreas seguras para pulso, conversación y actualización en los cuatro formatos', () => {
-  for (const type of ['pulso', 'conversacion', 'actualizacion']) {
+test('calcula áreas seguras para conversación y actualización en los cuatro formatos', () => {
+  for (const type of ['conversacion', 'actualizacion']) {
     for (const format of ['landscape', 'square', 'portrait', 'story']) {
       const layout = calculatePlateLayout(format, {
         tipo_placa: type,
         datos_clave: [{ value: 'Uno' }, { value: 'Dos' }],
       });
-      const area = layout[type === 'conversacion' ? 'question' : type === 'actualizacion' ? 'update' : 'impact'];
+      const area = layout[type === 'conversacion' ? 'question' : 'update'];
       assert.ok(area);
       assert.ok(area.x >= 0 && area.y >= 0, `${type}/${format}: origen seguro`);
       assert.ok(area.x + area.w <= layout.canvas.w, `${type}/${format}: ancho seguro`);
@@ -83,30 +83,55 @@ test('acorta solo el titular sintético y conserva el dato central', () => {
   assert.equal(normalizeSyntheticTitle(longTitle), 'García Salazar respondió al ranking salarial docente');
 });
 
-test('recomienda pulso cuando hay foto y titular sintético', () => {
+test('no recomienda Pulso cuando hay foto y titular sintético', () => {
   const plate = normalizeNewsPlate({ ...extracted, titulo_sintetico: 'Una decisión cambia el escenario' });
   const variants = buildEditorialVariants(plate);
 
-  assert.equal(variants[0].tipo_placa, 'pulso');
+  assert.notEqual(variants[0].tipo_placa, 'pulso');
   assert.equal(variants[0].recommended, true);
   assert.equal(variants[0].titulo_sintetico, 'Una decisión cambia el escenario');
   assert.equal(variants[0].titulo_sintetico, 'Una decisión cambia el escenario');
 });
 
-test('mantiene pulso como única recomendación social si no hay pregunta ni dos datos', () => {
+test('no agrega una variante social si no hay pregunta', () => {
   const plate = normalizeNewsPlate({ ...extracted, titulo_sintetico: 'Una decisión cambia el escenario' });
   const variants = buildEditorialVariants(plate);
 
-  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['pulso']);
-  assert.equal(variants[0].titulo_sintetico, 'Una decisión cambia el escenario');
+  assert.equal(variants.some(variant => variant.tipo_placa === 'pulso'), false);
 });
 
-test('pulso conserva el mismo titular sintético', () => {
-  const plate = normalizeNewsPlate({ ...extracted, titulo_sintetico: 'Una decisión cambia el escenario' });
-  const variants = buildEditorialVariants(plate);
+test('convierte contratos heredados de Pulso a Foto completa', () => {
+  const plate = normalizeNewsPlate({ ...extracted, tipo_placa: 'pulso' });
+  assert.equal(plate.tipo_placa, 'foto-completa');
+});
 
-  assert.equal(variants[0].tipo_placa, 'pulso');
-  assert.equal(variants[0].titulo_sintetico, 'Una decisión cambia el escenario');
+test('normaliza hasta tres impactos verificables para Qué cambia', () => {
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    impactos: [
+      { label: 'Desde cuándo', value: 'Desde septiembre' },
+      { label: 'Alcance', value: 'A 12.000 vecinos', detail: 'en el sur' },
+      { label: 'Estado', value: 'Obra terminada' },
+      { label: 'Extra', value: 'No debe entrar' },
+    ],
+  });
+
+  assert.equal(PLATE_TYPES['que-cambia'].id, 'que-cambia');
+  assert.deepEqual(plate.impactos, [
+    { label: 'Desde cuándo', value: 'Desde septiembre', detail: '' },
+    { label: 'Alcance', value: 'A 12.000 vecinos', detail: 'en el sur' },
+    { label: 'Estado', value: 'Obra terminada', detail: '' },
+  ]);
+  assert.equal(plate.bloques.filter(block => block.tipo === 'impacto').length, 3);
+});
+
+test('calcula áreas seguras de Qué cambia en los cuatro formatos', () => {
+  for (const format of ['landscape', 'square', 'portrait', 'story']) {
+    const layout = calculatePlateLayout(format, { tipo_placa: 'que-cambia' });
+    assert.ok(layout.impacts.x >= 0 && layout.impacts.y >= 0, format);
+    assert.ok(layout.impacts.x + layout.impacts.w <= layout.canvas.w, format);
+    assert.ok(layout.impacts.y + layout.impacts.h <= layout.footer.y, format);
+  }
 });
 
 test('normaliza hasta tres datos clave y conserva un fallback de contexto', () => {
@@ -678,8 +703,8 @@ test('refuerza jerarquía de foto completa específicamente en Story', () => {
   assert.equal(branding.gradientStartRatio < getFullBleedBranding('portrait').gradientStartRatio, true);
 });
 
-test('renderiza las señales y footer institucional de Pulso, Conversación y Actualización', () => {
-  for (const [type, signal] of [['pulso', 'PULSO'], ['conversacion', 'CONVERSACIÓN'], ['actualizacion', 'ACTUALIZACIÓN']]) {
+test('renderiza las señales y footer institucional de Conversación y Actualización', () => {
+  for (const [type, signal] of [['conversacion', 'CONVERSACIÓN'], ['actualizacion', 'ACTUALIZACIÓN']]) {
     const calls = [];
     let imageCalls = 0;
     const ctx = {
@@ -702,4 +727,29 @@ test('renderiza las señales y footer institucional de Pulso, Conversación y Ac
     assert.ok(calls.includes('Fuente: mediamendoza'), `${type}: fuente institucional`);
     assert.ok(calls.includes('www.mediamendoza.com'), `${type}: dominio institucional`);
   }
+});
+
+test('renderiza Qué cambia con impactos, logo y footer institucional', () => {
+  const calls = [];
+  let imageCalls = 0;
+  const ctx = {
+    canvas: {}, clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
+    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, arc() {}, fill() {},
+    createLinearGradient() { return { addColorStop() {} }; },
+    measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
+    fillText(value) { calls.push(String(value)); }, drawImage() { imageCalls += 1; },
+  };
+  const plate = normalizeNewsPlate({
+    ...extracted,
+    tipo_placa: 'que-cambia',
+    impactos: [{ label: 'Desde cuándo', value: 'Desde septiembre' }, { label: 'Alcance', value: 'A 12.000 vecinos' }],
+  });
+  const layout = calculatePlateLayout('portrait', plate);
+  renderNewsPlate(ctx, plate, 'portrait', { logo: { complete: true, naturalWidth: 120, naturalHeight: 40 } });
+
+  assert.ok(layout.impacts.y + layout.impacts.h <= layout.footer.y);
+  assert.ok(calls.includes('QUÉ CAMBIA'));
+  assert.ok(calls.includes('Fuente: mediamendoza'));
+  assert.ok(calls.includes('www.mediamendoza.com'));
+  assert.equal(imageCalls, 1);
 });

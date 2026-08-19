@@ -562,26 +562,6 @@ function drawInstitutionalFooter(ctx, layout, plate, color) {
   ctx.textAlign = 'left';
 }
 
-function renderPulsoPlate(ctx, plate, format, options, family, layout) {
-  const { canvas } = layout;
-  ctx.fillStyle = family.secondary;
-  ctx.fillRect(0, 0, canvas.w, canvas.h);
-  if (adaptiveImage(ctx, options.image, layout.image, options.focus, options.forceCover)) {
-    const overlay = ctx.createLinearGradient(0, canvas.h * 0.30, 0, canvas.h);
-    overlay.addColorStop(0, 'rgba(0,0,0,0)'); overlay.addColorStop(1, 'rgba(0,0,0,.86)');
-    ctx.fillStyle = overlay; ctx.fillRect(0, 0, canvas.w, canvas.h);
-  }
-  const logoW = canvas.w * (format === 'landscape' ? 0.18 : 0.26);
-  containImage(ctx, options.logo, { x: canvas.w - canvas.w * 0.05 - logoW, y: canvas.h * 0.05, w: logoW, h: canvas.h * 0.08 });
-  ctx.fillStyle = family.color;
-  ctx.font = `900 ${Math.max(20, canvas.w * 0.024)}px ${fontFamily}`;
-  ctx.fillText('PULSO', layout.label.x, layout.label.y + layout.label.h * 0.74);
-  const titleSize = Math.max(46, canvas.w * (format === 'story' ? 0.072 : 0.062));
-  fittedText(ctx, plate.titulo_sintetico || plate.titulo, layout.impact.x, layout.impact.y + titleSize, layout.impact.w, titleSize, Math.max(28, titleSize * 0.58), 3, 900, '#ffffff', 1.0, layout.impact.h);
-  drawInstitutionalFooter(ctx, layout, plate, '#ffffff');
-  return layout;
-}
-
 function renderConversationPlate(ctx, plate, format, options, family, layout) {
   const { canvas } = layout;
   ctx.fillStyle = family.soft; ctx.fillRect(0, 0, canvas.w, canvas.h);
@@ -624,6 +604,30 @@ function renderUpdatePlate(ctx, plate, format, options, family, layout) {
   return layout;
 }
 
+function renderWhatChangesPlate(ctx, plate, format, options, family, layout) {
+  const { canvas } = layout;
+  const impacts = (plate.impactos?.length ? plate.impactos : plate.contexto ? [{ label: '', value: plate.contexto, detail: '' }] : []).slice(0, 3);
+  ctx.fillStyle = family.soft; ctx.fillRect(0, 0, canvas.w, canvas.h);
+  const logoW = canvas.w * (format === 'landscape' ? 0.18 : 0.26);
+  containImage(ctx, options.logo, { x: canvas.w - canvas.w * 0.05 - logoW, y: canvas.h * 0.035, w: logoW, h: canvas.h * 0.08 });
+  ctx.fillStyle = family.color; ctx.font = `900 ${Math.max(20, canvas.w * 0.024)}px ${fontFamily}`;
+  ctx.fillText('QUÉ CAMBIA', layout.label.x, layout.label.y + layout.label.h * 0.74);
+  const titleSize = Math.max(32, canvas.w * 0.042);
+  fittedText(ctx, plate.titulo_sintetico || plate.titulo, layout.title.x, layout.title.y + titleSize, layout.title.w, titleSize, Math.max(22, titleSize * 0.66), 2, 800, family.secondary, 1.05, layout.title.h);
+  const gap = canvas.h * 0.018;
+  const cardH = (layout.impacts.h - gap * Math.max(0, impacts.length - 1)) / Math.max(1, impacts.length);
+  impacts.forEach((impact, index) => {
+    const card = { x: layout.impacts.x, y: layout.impacts.y + index * (cardH + gap), w: layout.impacts.w, h: cardH };
+    ctx.fillStyle = '#ffffff'; roundedRect(ctx, card.x, card.y, card.w, card.h, canvas.w * 0.014); ctx.fill();
+    ctx.fillStyle = family.color; roundedRect(ctx, card.x, card.y, Math.max(8, canvas.w * 0.010), card.h, canvas.w * 0.008); ctx.fill();
+    const valueSize = Math.max(26, canvas.w * 0.034);
+    fittedText(ctx, impact.value, card.x + card.w * 0.07, card.y + valueSize * 1.10, card.w * 0.86, valueSize, Math.max(20, valueSize * 0.66), 2, 800, family.secondary, 1.05, card.h * 0.60);
+    if (impact.label || impact.detail) fittedText(ctx, [impact.label, impact.detail].filter(Boolean).join(' · '), card.x + card.w * 0.07, card.y + card.h * 0.86, card.w * 0.86, Math.max(16, canvas.w * 0.018), 14, 2, 700, '#526058', 1.08, card.h * 0.22);
+  });
+  drawInstitutionalFooter(ctx, layout, plate, '#526058');
+  return layout;
+}
+
 export function renderNewsPlate(ctx, plate, format, options = {}) {
   const family = FAMILIES[plate.template_sugerido] || FAMILIES.general;
   const plateType = plate.tipo_placa || 'noticia';
@@ -643,9 +647,9 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   if (plateType === 'dato-clave') return renderDataCardPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'comparativa') return renderComparisonPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'efemerides-social') return renderEfemeridesPlate(ctx, plate, format, options, family, layout);
-  if (plateType === 'pulso') return renderPulsoPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'conversacion') return renderConversationPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'actualizacion') return renderUpdatePlate(ctx, plate, format, options, family, layout);
+  if (plateType === 'que-cambia') return renderWhatChangesPlate(ctx, plate, format, options, family, layout);
   if (['titular-arriba', 'titular-abajo'].includes(plateType)) return renderSyntheticPlate(ctx, plate, format, options, family, layout);
 
   const isHeaderless = true;

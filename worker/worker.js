@@ -183,6 +183,7 @@ function buildBlocks(data, family, image) {
   ];
   if (data.textual?.verificada) blocks.push({ tipo: 'cita', id: 'cita', texto: data.textual.cita, autor: data.textual.autor, cargo: data.textual.cargo, verificada: true });
   if (data.pregunta_social) blocks.push({ tipo: 'pregunta-social', id: 'pregunta-social', texto: data.pregunta_social });
+  data.impactos.forEach((item, index) => blocks.push({ tipo: 'impacto', id: `impacto-${index + 1}`, ...item }));
   data.personas.forEach(person => blocks.push({ tipo: 'retrato', id: person.id, ...person }));
   data.imagenes_apoyo.forEach(image => blocks.push({ tipo: 'imagen-apoyo', id: image.id, ...image }));
   if (data.contexto) blocks.push({ tipo: 'dato-clave', id: 'dato-clave', texto: data.contexto });
@@ -225,10 +226,10 @@ function normalizeNewsPlate(input = {}) {
   const personas = normalizePeople(input);
   const imagenes_apoyo = normalizeSupportImages(input);
   const rawRequestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
-  const requestedType = rawRequestedType === 'claves' ? 'actualizacion' : rawRequestedType;
+  const requestedType = rawRequestedType === 'claves' ? 'actualizacion' : rawRequestedType === 'pulso' ? 'foto-completa' : rawRequestedType;
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
   const comparison = normalizeComparison(input.comparativa || source.comparativa, input.fuente_nombre || source.fuente_nombre, input.fecha || input.date || source.fecha || source.date);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'editorial-split', 'pulso', 'conversacion', 'actualizacion'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'editorial-split', 'conversacion', 'actualizacion', 'que-cambia'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const context = clean(input.contexto || input.context || '') || firstSentence(body);
   const normalized = {
     tipo: 'placa_noticia',
@@ -249,6 +250,7 @@ function normalizeNewsPlate(input = {}) {
     contexto: context,
     pregunta_social: clean(input.pregunta_social || source.pregunta_social) || '¿Qué opinás?',
     datos_clave: normalizeKeyFacts(input.datos_clave || source.datos_clave, context),
+    impactos: normalizeKeyFacts(input.impactos || source.impactos),
     comparativa: comparison,
     fecha: clean(input.fecha || input.date || source.fecha || source.date),
     template_sugerido: family.id,
@@ -403,9 +405,10 @@ REGLAS:
 - Para el modelo dato-clave, generá hasta tres datos verificables en el campo datos_clave, con un valor principal y detalles opcionales.
 - En datos_clave, usá etiquetas específicas como Zona afectada, Calles afectadas, Causa, Estado o Plazo cuando la noticia lo permita; evitá etiquetas genéricas como Lugar o Contexto.
 - Generá pregunta_social como una invitación breve a conversar, basada sólo en la nota y sin atribuir hechos nuevos.
+- Para qué cambia, generá hasta tres impactos verificables directamente respaldados por la nota; no infieras consecuencias.
 - Usa titular-arriba como propuesta recomendada cuando la noticia pueda resumirse en una sola idea visual; titular-abajo y foto-completa son alternativas sintéticas válidas; conserva noticia para la alternativa con bajada.
 - Las citas textuales deben copiarse literalmente del cuerpo y verificarse; si no existe una cita literal, devolvé una cadena vacía. Detectá personas sólo con atribución clara y devolvé una imagen de la nota si está disponible; la interfaz permite subir otra imagen.
-- Elegí también un tipo de placa entre noticia, titular-arriba, titular-abajo, foto-completa, textual, retrato-circular y editorial-split. Usá foto-completa como alternativa de foto a sangre con titular superpuesto; textual sólo con cita verificable y retrato-circular sólo con personas identificables.
+- Elegí también un tipo de placa entre noticia, titular-arriba, titular-abajo, foto-completa, dato-clave, comparativa, textual, retrato-circular, editorial-split, conversacion, actualizacion y que-cambia. Usá foto-completa como alternativa de foto a sangre con titular superpuesto; textual sólo con cita verificable, retrato-circular sólo con personas identificables y qué cambia sólo con impactos verificables.
 
 Respondé SOLO con este JSON:
 {
@@ -418,9 +421,10 @@ Respondé SOLO con este JSON:
   "pregunta_social": "pregunta breve basada en la nota",
   "redes": { "instagram": "copy para Instagram", "facebook": "copy para Facebook" },
   "etiqueta": "nombre de la sección",
-  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|comparativa|textual|retrato-circular|editorial-split|pulso|conversacion|actualizacion",
+  "tipo_placa": "noticia|titular-arriba|titular-abajo|foto-completa|dato-clave|comparativa|textual|retrato-circular|editorial-split|conversacion|actualizacion|que-cambia",
   "comparativa": { "izquierda": { "etiqueta": "lado A", "valor": "dato verificable", "detalle": "detalle opcional" }, "derecha": { "etiqueta": "lado B", "valor": "dato verificable", "detalle": "detalle opcional" }, "fuente": "fuente si corresponde", "fecha": "fecha del dato", "origen": "nota|manual|externo" },
   "datos_clave": [{ "label": "etiqueta breve", "value": "dato verificable", "detail": "detalle opcional" }],
+  "impactos": [{ "label": "a quién o desde cuándo", "value": "consecuencia verificable", "detail": "detalle opcional" }],
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
   "personas": [{ "nombre": "persona", "rol": "cargo", "imagen": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
   "imagenes_apoyo": [{ "src": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],

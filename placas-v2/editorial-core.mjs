@@ -26,9 +26,9 @@ export const PLATE_TYPES = {
   textual: { id: 'textual', label: 'Textual' },
   'retrato-circular': { id: 'retrato-circular', label: 'Retrato circular' },
   'editorial-split': { id: 'editorial-split', label: 'Editorial split' },
-  pulso: { id: 'pulso', label: 'Pulso' },
   conversacion: { id: 'conversacion', label: 'Conversación' },
   actualizacion: { id: 'actualizacion', label: 'Actualización' },
+  'que-cambia': { id: 'que-cambia', label: 'Qué cambia' },
 };
 
 const FAMILY_ALIASES = new Map([
@@ -182,6 +182,7 @@ function buildBlocks(data, family, image) {
   ];
   if (data.textual?.verificada) blocks.push({ tipo: 'cita', id: 'cita', texto: data.textual.cita, autor: data.textual.autor, cargo: data.textual.cargo, verificada: true });
   if (data.pregunta_social) blocks.push({ tipo: 'pregunta-social', id: 'pregunta-social', texto: data.pregunta_social });
+  data.impactos.forEach((item, index) => blocks.push({ tipo: 'impacto', id: `impacto-${index + 1}`, ...item }));
   data.personas.forEach(person => blocks.push({ tipo: 'retrato', id: person.id, ...person }));
   data.imagenes_apoyo.forEach(image => blocks.push({ tipo: 'imagen-apoyo', id: image.id, ...image }));
   if (data.contexto) blocks.push({ tipo: 'dato-clave', id: 'dato-clave', texto: data.contexto });
@@ -232,10 +233,10 @@ export function normalizeNewsPlate(input = {}) {
   const personas = normalizePeople(input);
   const imagenes_apoyo = normalizeSupportImages(input);
   const rawRequestedType = clean(input.tipo_placa || input.type || '').toLowerCase();
-  const requestedType = rawRequestedType === 'claves' ? 'actualizacion' : rawRequestedType;
+  const requestedType = rawRequestedType === 'claves' ? 'actualizacion' : rawRequestedType === 'pulso' ? 'foto-completa' : rawRequestedType;
   const syntheticTitle = clean(input.titulo_sintetico || source.titulo_sintetico);
   const comparison = normalizeComparison(input.comparativa || source.comparativa, input.fuente_nombre || source.fuente_nombre, input.fecha || input.date || source.fecha || source.date);
-  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'efemerides-social', 'editorial-split', 'pulso', 'conversacion', 'actualizacion'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
+  const type = textual.verificada ? 'textual' : ['titular-arriba', 'titular-abajo', 'foto-completa', 'dato-clave', 'comparativa', 'efemerides-social', 'editorial-split', 'conversacion', 'actualizacion', 'que-cambia'].includes(requestedType) && (requestedType !== 'comparativa' || comparison) ? requestedType : requestedType === 'retrato-circular' && personas.length ? requestedType : personas.length ? 'retrato-circular' : 'noticia';
   const context = clean(input.contexto || input.context || source.contexto || source.contextual) || firstSentence(body) || firstSentence(description);
   const datos_clave = normalizeKeyFacts(input.datos_clave || source.datos_clave, context);
   const normalized = {
@@ -258,6 +259,7 @@ export function normalizeNewsPlate(input = {}) {
     contexto: context,
     pregunta_social: clean(input.pregunta_social || source.pregunta_social) || '¿Qué opinás?',
     datos_clave,
+    impactos: normalizeKeyFacts(input.impactos || source.impactos),
     comparativa: comparison,
     template_sugerido: family.id,
     tipo_placa: type,
@@ -300,7 +302,6 @@ export function buildEditorialVariants(plate) {
     )];
   }
   const socialTypes = [];
-  if (plate.titulo_sintetico && plate.fuente?.imagen) socialTypes.push('pulso');
   if (plate.pregunta_social && plate.pregunta_social !== '¿Qué opinás?') socialTypes.push('conversacion');
   if (socialTypes.length) {
     return socialTypes.map((type, index) => cloneWithTemplate(
@@ -384,21 +385,6 @@ export function calculatePlateLayout(format, plate = {}) {
   const isHeaderless = true;
   const headerH = isHeaderless ? 0 : canvas.h * (isStory ? 0.12 : canvas.w / canvas.h > 1.2 ? 0.14 : 0.15);
   const footerH = canvas.h * (isStory ? 0.055 : 0.07);
-  if (plate.tipo_placa === 'pulso') {
-    const footerY = canvas.h * 0.92;
-    return {
-      canvas,
-      pulso: true,
-      header: { x: 0, y: 0, w: canvas.w, h: 0 },
-      image: { x: 0, y: 0, w: canvas.w, h: canvas.h },
-      label: { x: margin, y: canvas.h * 0.08, w: canvas.w - margin * 2, h: canvas.h * 0.045 },
-      title: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: canvas.h * 0.27 },
-      impact: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: canvas.h * 0.27 },
-      dek: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: 0 },
-      context: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: 0 },
-      footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.025 },
-    };
-  }
   if (plate.tipo_placa === 'conversacion') {
     const footerY = canvas.h * 0.92;
     return {
@@ -426,6 +412,21 @@ export function calculatePlateLayout(format, plate = {}) {
       update: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: footerY - canvas.h * 0.59 },
       dek: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: 0 },
       context: { x: margin, y: canvas.h * 0.55, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.025 },
+    };
+  }
+  if (plate.tipo_placa === 'que-cambia') {
+    const footerY = canvas.h * 0.92;
+    return {
+      canvas,
+      queCambia: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      label: { x: margin, y: canvas.h * 0.08, w: canvas.w - margin * 2, h: canvas.h * 0.045 },
+      title: { x: margin, y: canvas.h * 0.14, w: canvas.w - margin * 2, h: canvas.h * 0.15 },
+      impacts: { x: margin, y: canvas.h * 0.35, w: canvas.w - margin * 2, h: footerY - canvas.h * 0.39 },
+      image: { x: 0, y: 0, w: 0, h: 0 },
+      dek: { x: margin, y: canvas.h * 0.35, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: canvas.h * 0.35, w: canvas.w - margin * 2, h: 0 },
       footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.025 },
     };
   }
