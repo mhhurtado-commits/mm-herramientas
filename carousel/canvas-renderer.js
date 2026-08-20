@@ -569,36 +569,18 @@ function drawCover(ctx, slide, project, theme, layout) {
   drawSlideProgress(ctx, slide, project, theme, layout);
 }
 
-var INTERNAL_COMPOSITION_LABELS = {
-  focus: "DATO CLAVE",
-  comparison: "COMPARATIVA",
-  conversation: "CONVERSACIÓN",
-  update: "ACTUALIZACIÓN",
-  changes: "QUÉ CAMBIA"
-};
-
-function withInternalLabel(slide, composition) {
-  var content = slide.content || {};
-  if (content.eyebrow || content.kicker || content.label) return slide;
-  return {
-    ...slide,
-    content: { ...content, label: INTERNAL_COMPOSITION_LABELS[composition] || "" }
-  };
-}
-
 function drawInternalComposition(ctx, slide, project, theme, layout, composition) {
-  var labeledSlide = withInternalLabel(slide, composition);
-  if (composition === "comparison") return drawEditorialComparison(ctx, labeledSlide, project, theme, layout);
-  if (composition === "changes") return drawEditorialChanges(ctx, labeledSlide, project, theme, layout);
-  if (composition === "conversation") return drawQuote(ctx, labeledSlide, project, theme, layout);
+  if (composition === "comparison") return drawEditorialComparison(ctx, slide, project, theme, layout);
+  if (composition === "changes") return drawEditorialChanges(ctx, slide, project, theme, layout);
+  if (composition === "conversation") return drawQuote(ctx, slide, project, theme, layout);
   if (composition === "focus") {
     return slide.type === "clave"
-      ? drawKey(ctx, labeledSlide, project, theme, layout)
-      : drawStats(ctx, labeledSlide, project, theme, layout);
+      ? drawKey(ctx, slide, project, theme, layout)
+      : drawStats(ctx, slide, project, theme, layout);
   }
   return slide.template === "image"
-    ? drawImage(ctx, labeledSlide, project, theme, layout)
-    : drawText(ctx, labeledSlide, project, theme, layout);
+    ? drawImage(ctx, slide, project, theme, layout)
+    : drawText(ctx, slide, project, theme, layout);
 }
 
 function drawEditorialComparison(ctx, slide, project, theme, layout) {

@@ -214,7 +214,7 @@ test('renderiza las cinco composiciones internas como escenas editoriales comple
     const rendered = textValues(canvas);
     const renderedText = rendered.join(' ');
     assert.equal(canvas.internalComposition, fixture.composition);
-    assert.ok(rendered.includes(fixture.label), `${fixture.composition}: ${rendered.join(' | ')}`);
+    assert.equal(rendered.includes(fixture.label), false, `${fixture.composition}: no debe mostrar ${fixture.label}`);
     for (const value of fixture.expected) assert.ok(renderedText.includes(value), `${fixture.composition}: ${value}`);
     assert.ok(canvas.calls.fills.length >= 2, fixture.composition);
     if (fixture.image) assert.ok(canvas.calls.images.some((source) => source.includes(fixture.image)));
