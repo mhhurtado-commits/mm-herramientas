@@ -1,7 +1,16 @@
 // Media Mendoza Worker ? archivo ?nico para pegar en el dashboard de Cloudflare.
 // Incluye solo los helpers de f?tbol usados por el Worker y el n?cleo editorial de Placas V2.
 // @ts-nocheck
-import { buildFluxKlein4bInput } from './image-generation-config.mjs';
+
+function buildFluxKlein4bInput(prompt,seed){
+  const form=new FormData();
+  form.append("prompt",prompt);
+  form.append("width","1200");
+  form.append("height","630");
+  form.append("seed",String(seed));
+  const serialized=new Response(form);
+  return {model:"@cf/black-forest-labs/flux-2-klein-4b",multipart:{body:serialized.body,contentType:serialized.headers.get("content-type")}};
+}
 
 const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
