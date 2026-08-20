@@ -51,6 +51,26 @@ test('conserva la fecha para resolver hoy y futuro en el carrusel', () => {
   assert.equal(packageToCarouselArticle(result.package).date, '2026-08-19');
 });
 
+test('aplana datos clave anidados sin convertir objetos en texto visible', () => {
+  const result = normalizeEditorialPackage({
+    tipo: 'noticia_editorial',
+    version: 2,
+    fuente: { url: 'https://example.com/clima', titulo_original: 'Pronóstico', categoria: 'Clima' },
+    editorial: {
+      seccion: 'Clima',
+      datos_clave: [
+        { label: 'Temperatura máxima', value: { value: '19°C', label: 'miércoles' } },
+        { label: 'Mínima', value: '-1°C' },
+      ],
+    },
+  });
+
+  assert.deepEqual(result.package.editorial.datos_clave, [
+    { label: 'Temperatura máxima', value: '19°C', detail: '' },
+    { label: 'Mínima', value: '-1°C', detail: '' },
+  ]);
+});
+
 test('adapta una placa existente al paquete y vuelve a input de placas', () => {
   const packageResult = normalizeEditorialPackage(packageFromPlate({
     tipo: 'placa_noticia',

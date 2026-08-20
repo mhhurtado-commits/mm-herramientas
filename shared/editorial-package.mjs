@@ -214,13 +214,20 @@ function normalizeKeyFacts(values) {
   return values.map(value => {
     if (isObject(value)) {
       return {
-        label: clean(value.label || value.titulo || value.nombre),
-        value: clean(value.value || value.valor || value.text || value.texto),
-        detail: clean(value.detail || value.detalle || value.description || value.descripcion),
+        label: cleanFactValue(value.label || value.titulo || value.nombre),
+        value: cleanFactValue(value.value || value.valor || value.text || value.texto),
+        detail: cleanFactValue(value.detail || value.detalle || value.description || value.descripcion),
       };
     }
-    return { label: '', value: clean(value), detail: '' };
+    return { label: '', value: cleanFactValue(value), detail: '' };
   }).filter(value => value.value || value.label || value.detail).slice(0, 12);
+}
+
+function cleanFactValue(value) {
+  if (isObject(value)) {
+    return cleanFactValue(value.value || value.valor || value.text || value.texto || value.detail || value.detalle || value.label || value.nombre || value.titulo);
+  }
+  return clean(value);
 }
 
 function normalizeObjects(values) {
