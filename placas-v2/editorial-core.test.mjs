@@ -38,8 +38,14 @@ test('normaliza pregunta social y habilita conversación sin alterar la fuente',
 
   assert.equal(plate.pregunta_social, '¿Cómo impactará la obra en tu zona?');
   assert.equal(plate.fuente.url, extracted.url);
-  assert.deepEqual(buildEditorialVariants(plate).map(variant => variant.tipo_placa), ['conversacion']);
+  const variants = buildEditorialVariants(plate);
+  assert.deepEqual(variants.map(variant => variant.tipo_placa), ['noticia', 'conversacion', 'foto-completa']);
+  assert.ok(new Set(variants.map(variant => variant.template_sugerido)).size >= 3);
   assert.equal(buildEditorialVariants(plate)[0].recommended, true);
+
+  const contracted = normalizeNewsPlate({ ...plate, tipo_placa: 'conversacion' });
+  assert.equal(buildEditorialVariants(contracted).length, 3);
+  assert.ok(new Set(buildEditorialVariants(contracted).map(variant => variant.template_sugerido)).size >= 3);
 });
 
 test('usa una pregunta neutral cuando falta la pregunta social y no recomienda actualización con un solo dato', () => {

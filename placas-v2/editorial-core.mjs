@@ -302,26 +302,30 @@ function cloneWithTemplate(plate, id, template, recommended = false) {
   };
 }
 
+function suggestedFamilies(primary, count = 3) {
+  const candidates = ['general', 'sociales', 'politica', 'economia', 'clima', 'policiales', 'deportes'];
+  return [primary, ...candidates.filter(family => family !== primary)].slice(0, count);
+}
+
 export function buildEditorialVariants(plate) {
   const family = FAMILIES[plate.template_sugerido] ? plate.template_sugerido : 'general';
   const contractType = PLATE_TYPES[plate.tipo_placa] ? plate.tipo_placa : 'noticia';
   if (contractType === 'actualizacion') {
-    return [cloneWithTemplate(
-      { ...plate, tipo_placa: contractType },
-      `${family}-${contractType}`,
-      family,
-      true,
-    )];
+    return [contractType, 'titular-arriba', 'foto-completa'].map((type, index) => {
+      const variantFamily = suggestedFamilies(family)[index];
+      return cloneWithTemplate({ ...plate, tipo_placa: type }, `${variantFamily}-${type}`, variantFamily, index === 0);
+    });
   }
   const socialTypes = [];
   if (plate.pregunta_social && plate.pregunta_social !== '¿Qué opinás?') socialTypes.push('conversacion');
   if (socialTypes.length) {
-    return socialTypes.map((type, index) => cloneWithTemplate(
-      { ...plate, tipo_placa: type },
-      `${family}-${type}`,
-      family,
-      index === 0,
-    ));
+    const types = [contractType, socialTypes[0] === contractType ? 'titular-arriba' : socialTypes[0], 'foto-completa']
+      .filter((type, index, all) => all.indexOf(type) === index)
+      .slice(0, 3);
+    return types.map((type, index) => {
+      const variantFamily = suggestedFamilies(family)[index];
+      return cloneWithTemplate({ ...plate, tipo_placa: type }, `${variantFamily}-${type}`, variantFamily, index === 0);
+    });
   }
   if (plate.textual?.verificada || plate.personas?.length || plate.tipo_placa === 'editorial-split') {
     const firstType = plate.textual?.verificada ? 'textual' : plate.tipo_placa === 'editorial-split' ? 'editorial-split' : 'noticia';
