@@ -4732,7 +4732,7 @@ async function handleGenerarImagen(body,env){
     return null;
   }
 
-  let bytes=null,modeloUsado="",motorUsado="";
+  let bytes=null,modeloUsado="",motorUsado="",falloPrimario="";
 
   // ── MOTOR 1: FLUX.2 Klein 4B en Cloudflare Workers AI (primario editorial) ──
   if(!bytes&&env.AI&&!modelo){
@@ -4741,7 +4741,10 @@ async function handleGenerarImagen(body,env){
       const result=await env.AI.run(kleinInput.model,kleinInput.multipart);
       bytes=await extraerBytesCF(result);
       if(bytes){modeloUsado="flux-2-klein-4b";motorUsado="Cloudflare AI";}
-    }catch(e){}
+    }catch(e){
+      falloPrimario=String(e?.message||e||"Error desconocido").slice(0,280);
+      console.warn("[generar-imagen] FLUX.2 Klein 4B falló:",falloPrimario);
+    }
   }
 
   // ── MOTOR 2: FLUX-1-schnell (fallback local rápido) ──
@@ -4788,7 +4791,7 @@ async function handleGenerarImagen(body,env){
   const imagenB64=btoa(binary);
   // Guardar en KV para permitir edición iterativa con Kontext (toma la imagen por URL pública)
   const imgTempId=guardarImagenTemp(env,imagenB64);
-  return jsonOk({imagen:imagenB64,formato:"image/jpeg",estilo_usado:estilo,modelo:modeloUsado,motor:motorUsado,prompt_gemini:gp.error?false:true,imgTempId,editable:true});
+  return jsonOk({imagen:imagenB64,formato:"image/jpeg",estilo_usado:estilo,modelo:modeloUsado,motor:motorUsado,prompt_gemini:gp.error?false:true,imgTempId,editable:true,diagnostico:falloPrimario?{fallo_primario:falloPrimario}:undefined});
 }
 
 // ── Helpers de imagen temporal en KV (para edición iterativa con Kontext) ──

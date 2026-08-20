@@ -18,8 +18,16 @@ test('el Worker prueba Klein 4B antes de FLUX 1 Schnell', async () => {
   assert.ok(source.indexOf('flux-2-klein-4b') < source.indexOf('flux-1-schnell'));
 });
 
+test('devuelve el motivo cuando Klein 4B cae al fallback', async () => {
+  const source = await readFile(new URL('./worker.js', import.meta.url), 'utf8');
+
+  assert.match(source, /fallo_primario/);
+  assert.match(source, /flux-2-klein-4b/);
+});
+
 test('Redacción etiqueta Klein 4B', async () => {
   const source = await readFile(new URL('../redaccion/index.html', import.meta.url), 'utf8');
 
   assert.match(source, /"flux-2-klein-4b":"FLUX\.2 Klein 4B"/);
+  assert.match(source, /fallo_primario/);
 });
