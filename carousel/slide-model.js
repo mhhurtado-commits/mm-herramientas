@@ -47,9 +47,55 @@ const EDITORIAL_LABELS = {
   end: "Cierre"
 };
 
+const INTERNAL_COMPOSITIONS = new Set([
+  "focus",
+  "comparison",
+  "conversation",
+  "update",
+  "changes"
+]);
+
+const COMPOSITION_ALIASES = {
+  foco: "focus",
+  "dato-clave": "focus",
+  comparativa: "comparison",
+  conversacion: "conversation",
+  "conversación": "conversation",
+  actualizacion: "update",
+  "actualización": "update",
+  "que-cambia": "changes",
+  "qué-cambia": "changes"
+};
+
 export function getEditorialSlideLabel(type) {
   const normalizedType = cleanText(type).toLowerCase();
   return EDITORIAL_LABELS[normalizedType] || normalizedType;
+}
+
+export function resolveInternalComposition(slide) {
+  const source = isPlainObject(slide) ? slide : {};
+  const style = isPlainObject(source.style) ? source.style : {};
+  const content = isPlainObject(source.content) ? source.content : source;
+  const explicit = normalizeComposition(style.composition);
+  if (explicit) return explicit;
+
+  const type = cleanText(source.type).toLowerCase();
+  if (type === "cover" || type === "end") return "";
+  if (type === "clave") return "focus";
+  if (type === "cita") return "conversation";
+  if (type === "imagen") return "update";
+  if (type === "impact") return "changes";
+
+  const title = firstText(content.title, source.title);
+  const text = firstText(content.text, source.text, content.quote, source.quote);
+  const searchable = (title + " " + text).toLowerCase();
+  const items = Array.isArray(content.items) ? content.items : (Array.isArray(source.items) ? source.items : []);
+
+  if (/qu[eé]\s+cambia|impacto|consecuenc|efecto|a partir de ahora/.test(searchable)) return "changes";
+  if (/^\s*[¿?]|\?$/.test(title) || /conversaci[oó]n|para debatir/.test(searchable)) return "conversation";
+  if (items.length >= 2 && /compar|\bvs\.?\b|versus|antes\s+y\s+ahora|diferencia|frente a/.test(searchable)) return "comparison";
+  if (type === "dato") return "focus";
+  return "update";
 }
 
 export function normalizeCarouselSlide(slide, index, total) {
@@ -115,6 +161,13 @@ export function normalizeCarouselSlide(slide, index, total) {
     content.focalY = focus.y;
   }
 
+  const composition = resolveInternalComposition({
+    ...source,
+    type: rawType === "impact" ? rawType : type,
+    content: content,
+    style: sourceStyle
+  });
+
   return {
     ...source,
     type: type,
@@ -126,9 +179,16 @@ export function normalizeCarouselSlide(slide, index, total) {
       ...sourceStyle,
       theme: firstText(sourceStyle.theme, "mm_editorial"),
       background: firstText(sourceStyle.background, "paper"),
-      accent: firstText(sourceStyle.accent)
+      accent: firstText(sourceStyle.accent),
+      ...(composition ? { composition } : {})
     }
   };
+}
+
+function normalizeComposition(value) {
+  const normalized = cleanText(value).toLowerCase();
+  const resolved = COMPOSITION_ALIASES[normalized] || normalized;
+  return INTERNAL_COMPOSITIONS.has(resolved) ? resolved : "";
 }
 
 function firstText(...values) {

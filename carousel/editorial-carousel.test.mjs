@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getEditorialSlideLabel, normalizeCarouselSlide } from './slide-model.js';
+import { getEditorialSlideLabel, normalizeCarouselSlide, resolveInternalComposition } from './slide-model.js';
 import { getCarouselExportEligibility, getSlideLabel } from './ui.js';
 import * as carouselUI from './ui.js';
 import { getCarouselLayout } from './core/layout.js';
@@ -173,6 +173,72 @@ function renderEditorialSlide(source, project = {}, harnessOptions = {}) {
   return renderSlideToCanvas(slide, { ...project, slides: [slide] });
 }
 
+test('renderiza las cinco composiciones internas como escenas editoriales completas', () => {
+  const fixtures = [
+    {
+      composition: 'focus',
+      label: 'DATO CLAVE',
+      source: { type: 'dato', content: { title: 'La cifra central', items: [{ value: '47%', label: 'Aumento confirmado.' }, { value: '12', label: 'Municipios alcanzados.' }] } },
+      expected: ['47%', 'Aumento confirmado.', '12', 'Municipios alcanzados.'],
+    },
+    {
+      composition: 'comparison',
+      label: 'COMPARATIVA',
+      source: { type: 'dato', style: { composition: 'comparison' }, content: { title: 'Antes y ahora', items: [{ value: '2025', label: 'Escenario anterior' }, { value: '2026', label: 'Escenario actual' }] } },
+      expected: ['2025', 'Escenario anterior', '2026', 'Escenario actual'],
+    },
+    {
+      composition: 'conversation',
+      label: 'CONVERSACIÓN',
+      source: { type: 'cita', style: { composition: 'conversation' }, content: { quote: 'La conversación necesita contexto.', validation: 'validated', author: 'Ana Pérez', role: 'Investigadora' } },
+      expected: ['La conversación necesita contexto.', 'Ana Pérez', 'Investigadora'],
+    },
+    {
+      composition: 'update',
+      label: 'ACTUALIZACIÓN',
+      source: { type: 'contexto', style: { composition: 'update' }, content: { title: 'Qué pasó', text: 'La información confirmada y completa.', supportImage: 'https://example.com/update.jpg' } },
+      expected: ['Qué pasó', 'La información confirmada y completa.'],
+      image: 'update.jpg',
+      project: { article: { images: ['https://example.com/update.jpg'] } },
+    },
+    {
+      composition: 'changes',
+      label: 'QUÉ CAMBIA',
+      source: { type: 'contexto', style: { composition: 'changes' }, content: { title: 'Desde ahora', items: [{ value: 'Primero', label: 'Impacto inicial.' }, { value: 'Después', label: 'Segundo impacto.' }, { value: 'Finalmente', label: 'Tercer impacto.' }] } },
+      expected: ['Primero', 'Impacto inicial.', 'Después', 'Segundo impacto.', 'Finalmente', 'Tercer impacto.'],
+    },
+  ];
+
+  for (const fixture of fixtures) {
+    const canvas = renderEditorialSlide(fixture.source, fixture.project);
+    const rendered = textValues(canvas);
+    const renderedText = rendered.join(' ');
+    assert.equal(canvas.internalComposition, fixture.composition);
+    assert.ok(rendered.includes(fixture.label), `${fixture.composition}: ${rendered.join(' | ')}`);
+    for (const value of fixture.expected) assert.ok(renderedText.includes(value), `${fixture.composition}: ${value}`);
+    assert.ok(canvas.calls.fills.length >= 2, fixture.composition);
+    if (fixture.image) assert.ok(canvas.calls.images.some((source) => source.includes(fixture.image)));
+    assertContentBaselinesBeforeFooter(canvas, fixture.source.type === 'dato' ? 'stats' : fixture.source.type === 'cita' ? 'quote' : 'internal');
+  }
+});
+
+test('ocupa el espacio de foco con un bloque principal y apoyos de gran formato', () => {
+  const canvas = renderEditorialSlide({
+    type: 'dato',
+    content: {
+      title: 'El dato que explica la noticia',
+      items: [
+        { value: '47%', label: 'Aumento interanual confirmado.' },
+        { value: '12', label: 'Municipios alcanzados por la medida.' },
+      ],
+    },
+  });
+
+  assert.ok(canvas.calls.fills.some((fill) => fill.color === '#eaf3de' && fill.width > 400 && fill.height >= 280));
+  assert.ok(canvas.calls.fills.some((fill) => fill.width > 800 && fill.height >= 180));
+  assert.equal(canvas.editorialOverflow, false);
+});
+
 test('renderiza clave como una tarjeta editorial destacada y no como contexto', () => {
   const keySlide = normalizeCarouselSlide({
     type: 'clave',
@@ -191,6 +257,31 @@ test('renderiza clave como una tarjeta editorial destacada y no como contexto', 
   assert.equal(contextSlide.template, 'text');
   assert.ok(keyCanvas.calls.fills.some((fill) => fill.width <= 20 && fill.height > 200));
   assert.equal(contextCanvas.calls.fills.some((fill) => fill.color === '#edf6ce' && fill.width > 800 && fill.height > 200), false);
+});
+
+test('elige una composicion editorial interna segun el contenido y respeta la eleccion manual', () => {
+  const cases = [
+    [{ type: 'clave', content: { title: 'La clave' } }, 'focus'],
+    [{ type: 'cita', content: { quote: 'Una cita confirmada.', validation: 'validated' } }, 'conversation'],
+    [{ type: 'impact', content: { title: 'Qué cambia', text: 'Impacto concreto.' } }, 'changes'],
+    [{ type: 'contexto', content: { title: '¿Qué significa?', text: 'Una respuesta.' } }, 'conversation'],
+    [{ type: 'dato', content: { title: 'Antes y ahora', items: ['Antes', 'Ahora'] } }, 'comparison'],
+    [{ type: 'contexto', content: { title: 'Actualización', text: 'Contexto confirmado.' } }, 'update'],
+  ];
+
+  for (const [source, expected] of cases) {
+    const slide = normalizeCarouselSlide(source, 1, 4);
+    assert.equal(slide.style.composition, expected, source.type);
+    assert.equal(resolveInternalComposition(slide), expected, source.type);
+  }
+
+  const manual = normalizeCarouselSlide({
+    type: 'contexto',
+    style: { composition: 'comparison' },
+    content: { title: 'Contexto común', items: ['Uno', 'Dos'] },
+  }, 1, 4);
+
+  assert.equal(manual.style.composition, 'comparison');
 });
 
 test('compacta la portada para reservar más protagonismo a la imagen', () => {
@@ -494,6 +585,7 @@ test('normaliza un slide dato al template stats y completa su contenido', () => 
     theme: 'mm_editorial',
     background: 'paper',
     accent: '',
+    composition: 'focus',
   });
 });
 
@@ -1993,6 +2085,37 @@ test('actualiza focalX y focalY en el estado del slide de imagen activo', () => 
   assert.deepEqual(project.slides[0].content.focalPosition, { x: 1, y: 0 });
   assert.equal(project.slides[0].content.focalX, 1);
   assert.equal(project.slides[0].content.focalY, 0);
+});
+
+test('cambia manualmente el diseño interno sin modificar el contenido del slide', () => {
+  const previousProject = getProject();
+  const slide = normalizeCarouselSlide({
+    id: 'slide-interno-1',
+    type: 'contexto',
+    content: {
+      title: 'Contenido confirmado',
+      text: 'Este texto debe conservarse.',
+      items: [{ value: '47%', label: 'Dato completo.' }],
+      supportImage: 'data:image/png;base64,abc',
+    },
+  }, 1, 4);
+  const project = { slides: [slide] };
+  const contentBefore = structuredClone(slide.content);
+
+  try {
+    assert.equal(typeof carouselUI.updateCarouselSlideComposition, 'function');
+    const updated = carouselUI.updateCarouselSlideComposition(project, 'slide-interno-1', 'changes');
+
+    assert.equal(updated, project);
+    assert.equal(project.slides[0].style.composition, 'changes');
+    assert.deepEqual(project.slides[0].content, contentBefore);
+    assert.equal(getProject(), project);
+
+    carouselUI.updateCarouselSlideComposition(project, 'slide-interno-1', 'invalido');
+    assert.equal(project.slides[0].style.composition, 'changes');
+  } finally {
+    setProject(previousProject);
+  }
 });
 
 test('calcula el foco al arrastrar una imagen y lo limita al area valida', () => {

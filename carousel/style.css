@@ -591,6 +591,20 @@
   min-height: 100%;
 }
 
+.carousel-stage-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.carousel-internal-design-controls {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface2) 84%, transparent);
+}
+
 .carousel-cover-controls {
   display: flex;
   flex-wrap: wrap;

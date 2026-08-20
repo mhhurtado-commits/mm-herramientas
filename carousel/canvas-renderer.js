@@ -2,7 +2,7 @@ import { createCanvas } from "./core/canvas.js";
 import { getCarouselLayout } from "./core/layout.js";
 import { drawImageContain, drawImageCover } from "./core/image.js";
 import { resolveCarouselTheme } from "./core/theme.js";
-import { normalizeCarouselSlide } from "./slide-model.js";
+import { normalizeCarouselSlide, resolveInternalComposition } from "./slide-model.js";
 import { resolveSupportImage } from "./image-provenance.js";
 
 var W = 1080;
@@ -569,6 +569,142 @@ function drawCover(ctx, slide, project, theme, layout) {
   drawSlideProgress(ctx, slide, project, theme, layout);
 }
 
+var INTERNAL_COMPOSITION_LABELS = {
+  focus: "DATO CLAVE",
+  comparison: "COMPARATIVA",
+  conversation: "CONVERSACIÓN",
+  update: "ACTUALIZACIÓN",
+  changes: "QUÉ CAMBIA"
+};
+
+function withInternalLabel(slide, composition) {
+  var content = slide.content || {};
+  if (content.eyebrow || content.kicker || content.label) return slide;
+  return {
+    ...slide,
+    content: { ...content, label: INTERNAL_COMPOSITION_LABELS[composition] || "" }
+  };
+}
+
+function drawInternalComposition(ctx, slide, project, theme, layout, composition) {
+  var labeledSlide = withInternalLabel(slide, composition);
+  if (composition === "comparison") return drawEditorialComparison(ctx, labeledSlide, project, theme, layout);
+  if (composition === "changes") return drawEditorialChanges(ctx, labeledSlide, project, theme, layout);
+  if (composition === "conversation") return drawQuote(ctx, labeledSlide, project, theme, layout);
+  if (composition === "focus") {
+    return slide.type === "clave"
+      ? drawKey(ctx, labeledSlide, project, theme, layout)
+      : drawStats(ctx, labeledSlide, project, theme, layout);
+  }
+  return slide.template === "image"
+    ? drawImage(ctx, labeledSlide, project, theme, layout)
+    : drawText(ctx, labeledSlide, project, theme, layout);
+}
+
+function drawEditorialComparison(ctx, slide, project, theme, layout) {
+  var content = slide.content || {};
+  var items = Array.isArray(content.items) ? content.items.map(normalizeStatItem) : [];
+  ctx.fillStyle = theme.colors.background;
+  ctx.fillRect(0, 0, W, H);
+  drawLogo(ctx, project, theme, layout, false);
+
+  var headerEnd = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 });
+  var titleEnd = drawMeasuredText(ctx, content.title, layout.content.x, headerEnd + 8, layout.content.width, {
+    fontSize: 58, minFontSize: 38, maxLines: INTERNAL_TITLE_MAX_LINES, lineHeight: 66, weight: "700",
+    color: theme.colors.textPrimary, role: "title", maxBottom: layout.safeZones.footer.y - 520
+  });
+  var detail = content.text || content.subtitle || "";
+  var detailReserve = detail ? 150 : 0;
+  var panelY = titleEnd + 34;
+  var panelBottom = layout.safeZones.footer.y - 42 - detailReserve;
+  var gap = 30;
+  var panelWidth = Math.floor((layout.content.width - gap) / 2);
+  var panelHeight = Math.max(300, panelBottom - panelY);
+
+  for (var index = 0; index < Math.min(2, items.length); index++) {
+    var item = items[index];
+    var panelX = layout.content.x + index * (panelWidth + gap);
+    fillRoundRect(ctx, panelX, panelY, panelWidth, panelHeight, 30, index === 0 ? theme.colors.surface : theme.colors.accentSoft);
+    fillRoundRect(ctx, panelX, panelY, panelWidth, 14, 7, theme.colors.accent);
+    var valueEnd = drawMeasuredText(ctx, item.value, panelX + 34, panelY + 54, panelWidth - 68, {
+      fontSize: 72, minFontSize: 38, maxLines: 3, lineHeight: 76, weight: "700", color: theme.colors.accentDark,
+      role: "comparison-value", autoCondense: true, maxBottom: panelY + Math.round(panelHeight * 0.55)
+    });
+    drawMeasuredText(ctx, item.label, panelX + 34, Math.max(valueEnd + 22, panelY + Math.round(panelHeight * 0.58)), panelWidth - 68, {
+      fontSize: 31, minFontSize: 22, maxLines: 5, lineHeight: 39, color: theme.colors.textPrimary,
+      role: "comparison-label", maxBottom: panelY + panelHeight - 34
+    });
+  }
+
+  if (items.length < 2) {
+    drawMeasuredText(ctx, detail || content.title, layout.content.x + 34, panelY + 54, layout.content.width - 68, {
+      fontSize: 38, minFontSize: 26, maxLines: 8, lineHeight: 48, color: theme.colors.textPrimary,
+      role: "comparison-label", maxBottom: panelBottom - 30
+    });
+  } else {
+    fillRoundRect(ctx, W / 2 - 34, panelY + panelHeight / 2 - 34, 68, 68, 34, theme.colors.accent);
+    drawMeasuredText(ctx, "VS", W / 2 - 26, panelY + panelHeight / 2 - 12, 52, {
+      fontSize: 24, minFontSize: 20, maxLines: 1, lineHeight: 28, weight: "700", color: theme.colors.accentDark,
+      role: "comparison-marker", align: "center", maxBottom: panelY + panelHeight / 2 + 20
+    });
+  }
+
+  if (detail) {
+    drawContextCard(ctx, detail, layout.content.x, panelBottom + 20, layout.content.width, layout.safeZones.footer.y - 34, theme, "body");
+  }
+  for (var extraIndex = 2; extraIndex < items.length; extraIndex++) {
+    var extra = items[extraIndex];
+    drawMeasuredText(ctx, [extra.value, extra.label].filter(Boolean).join(" — "), layout.content.x, layout.safeZones.footer.y + 10, layout.content.width, {
+      fontSize: 22, minFontSize: 18, maxLines: 1, lineHeight: 27, color: theme.colors.textPrimary,
+      role: "comparison-extra", maxBottom: layout.safeZones.footer.y - 10
+    });
+  }
+  drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
+function drawEditorialChanges(ctx, slide, project, theme, layout) {
+  var content = slide.content || {};
+  var items = Array.isArray(content.items) ? content.items.map(normalizeStatItem) : [];
+  if (!items.length) {
+    items = String(content.text || content.subtitle || "")
+      .match(/[^.!?]+[.!?]+|[^.!?]+$/g)
+      ?.map(function (value) { return { value: value.trim(), label: "" }; })
+      .filter(function (item) { return item.value; }) || [];
+  }
+  ctx.fillStyle = theme.colors.background;
+  ctx.fillRect(0, 0, W, H);
+  drawLogo(ctx, project, theme, layout, false);
+
+  var headerEnd = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 });
+  var titleEnd = drawMeasuredText(ctx, content.title, layout.content.x, headerEnd + 8, layout.content.width, {
+    fontSize: 58, minFontSize: 38, maxLines: INTERNAL_TITLE_MAX_LINES, lineHeight: 66, weight: "700",
+    color: theme.colors.textPrimary, role: "title", maxBottom: layout.safeZones.footer.y - 470
+  });
+  var top = titleEnd + 32;
+  var bottom = layout.safeZones.footer.y - 42;
+  var gap = 18;
+  var visibleCount = Math.max(1, Math.min(4, items.length));
+  var cardHeight = Math.max(142, Math.min(205, Math.floor((bottom - top - gap * (visibleCount - 1)) / visibleCount)));
+
+  for (var index = 0; index < items.length; index++) {
+    var item = items[index];
+    var cardY = top + index * (cardHeight + gap);
+    if (index < 4) {
+      fillRoundRect(ctx, layout.content.x, cardY, layout.content.width, cardHeight, 26, theme.colors.surface);
+      fillRoundRect(ctx, layout.content.x, cardY, 12, cardHeight, 6, theme.colors.accent);
+    }
+    var valueEnd = drawMeasuredText(ctx, item.value, layout.content.x + 46, cardY + 28, layout.content.width - 92, {
+      fontSize: 39, minFontSize: 26, maxLines: item.label ? 2 : 4, lineHeight: 46, weight: "700", color: theme.colors.accentDark,
+      role: "change-value", autoCondense: true, maxBottom: Math.min(cardY + cardHeight - (item.label ? 56 : 24), bottom)
+    });
+    drawMeasuredText(ctx, item.label, layout.content.x + 46, valueEnd + 10, layout.content.width - 92, {
+      fontSize: 25, minFontSize: 20, maxLines: 2, lineHeight: 31, color: theme.colors.textSecondary,
+      role: "change-label", maxBottom: Math.min(cardY + cardHeight - 22, bottom)
+    });
+  }
+  drawEditorialFooter(ctx, slide, project, theme, layout);
+}
+
 function drawText(ctx, slide, project, theme, layout) {
   if (slide.style && slide.style.variant === "climate") return drawClimateContext(ctx, slide, project, theme, layout);
   var content = slide.content || {};
@@ -577,6 +713,15 @@ function drawText(ctx, slide, project, theme, layout) {
   drawLogo(ctx, project, theme, layout, false);
   var supportImage = content.supportImage;
   var headerEnd = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 });
+  fillRoundRect(
+    ctx,
+    layout.content.x,
+    headerEnd + 4,
+    layout.content.width,
+    Math.max(0, layout.safeZones.footer.y - headerEnd - 46),
+    32,
+    theme.colors.surface
+  );
   var hasSupportImage = false;
   var titleY = headerEnd + 8;
   if (supportImage) {
@@ -741,7 +886,8 @@ function drawKey(ctx, slide, project, theme, layout) {
   var headerEnd = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 });
   var cardY = headerEnd + 26;
   var cardBottom = layout.safeZones.footer.y - 42;
-  var cardHeight = Math.min(360, Math.max(0, cardBottom - cardY));
+  var cardHeight = Math.max(0, cardBottom - cardY);
+  fillRoundRect(ctx, layout.content.x, cardY, layout.content.width, cardHeight, 30, theme.colors.surface);
   fillRoundRect(ctx, layout.content.x, cardY, 14, cardHeight, 7, theme.colors.accent);
   var supportImage = content.supportImage;
   var hasSupportImage = supportImage && drawSupportImage(
@@ -858,25 +1004,33 @@ function drawStats(ctx, slide, project, theme, layout) {
   );
   var factWidth = hasSupportImage ? layout.content.width - 480 : layout.content.width;
   var headingY = drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132, maxWidth: factWidth }) + 12;
-  var factEnd = drawMeasuredText(ctx, primary, layout.content.x, headingY, factWidth, {
+  var primaryPanelHeight = hasSupportImage ? 300 : 340;
+  fillRoundRect(ctx, layout.content.x, headingY, factWidth, primaryPanelHeight, 30, theme.colors.accentSoft);
+  fillRoundRect(ctx, layout.content.x, headingY, 14, primaryPanelHeight, 7, theme.colors.accent);
+  var factX = layout.content.x + 38;
+  var factTextWidth = factWidth - 76;
+  var factEnd = drawMeasuredText(ctx, primary, factX, headingY + 34, factTextWidth, {
     fontSize: 138, minFontSize: 58, maxLines: 2, lineHeight: 132, weight: "700", color: theme.colors.accentDark,
     role: "stat", autoCondense: true,
-    maxBottom: layout.safeZones.footer.y - 250,
+    maxBottom: headingY + primaryPanelHeight - 120,
   });
-  var primaryLabelEnd = drawMeasuredText(ctx, stats.primaryLabel, layout.content.x, factEnd + 8, factWidth, {
+  var primaryLabelEnd = drawMeasuredText(ctx, stats.primaryLabel, factX, factEnd + 8, factTextWidth, {
     fontSize: 26, minFontSize: 20, maxLines: 2, lineHeight: 32, weight: "700", color: theme.colors.textPrimary,
-    role: "stat-label", maxBottom: layout.safeZones.footer.y - 180
+    role: "stat-label", maxBottom: headingY + primaryPanelHeight - 76
   });
-  var titleEnd = drawMeasuredText(ctx, content.title && content.title !== primary ? content.title : "", layout.content.x, Math.max(factEnd + 12, primaryLabelEnd + 24), factWidth, {
+  var titleEnd = drawMeasuredText(ctx, content.title && content.title !== primary ? content.title : "", factX, Math.max(factEnd + 12, primaryLabelEnd + 18), factTextWidth, {
     fontSize: 44, minFontSize: 30, maxLines: INTERNAL_TITLE_MAX_LINES, lineHeight: 52, weight: "700", color: theme.colors.textPrimary,
     role: "title",
-    maxBottom: layout.safeZones.footer.y - 180,
+    maxBottom: headingY + primaryPanelHeight - 28,
   });
   var items = stats.items || [];
-  var cardY = Math.max(titleEnd + 32, layout.content.y + 560);
+  var cardY = Math.max(titleEnd + 32, headingY + primaryPanelHeight + 28, layout.content.y + 560);
   if (items.length > 1) {
     var cardWidth = layout.content.width;
     var secondaryItems = items.slice(1);
+    var secondaryGap = 14;
+    var availableHeight = layout.safeZones.footer.y - 42 - cardY;
+    var secondaryCardHeight = Math.max(146, Math.min(220, Math.floor((availableHeight - secondaryGap * Math.max(0, secondaryItems.length - 1)) / Math.max(1, secondaryItems.length))));
     if (items.length > 5) {
       drawMeasuredText(ctx, secondaryItems.map(function (item) {
         return [item.value, item.label].filter(Boolean).join(" — ");
@@ -888,20 +1042,20 @@ function drawStats(ctx, slide, project, theme, layout) {
     for (var itemIndex = 0; itemIndex < secondaryItems.length; itemIndex++) {
       var item = secondaryItems[itemIndex];
       var itemX = layout.content.x;
-      var itemY = cardY + itemIndex * 154;
-      fillRoundRect(ctx, itemX, itemY, cardWidth, 146, 22, theme.colors.surfaceSoft);
-      fillRoundRect(ctx, itemX, itemY, 10, 146, 5, theme.colors.accent);
-      var itemValueEnd = drawMeasuredText(ctx, item.value, itemX + 30, itemY + 20, cardWidth - 54, {
+      var itemY = cardY + itemIndex * (secondaryCardHeight + secondaryGap);
+      fillRoundRect(ctx, itemX, itemY, cardWidth, secondaryCardHeight, 24, theme.colors.surface);
+      fillRoundRect(ctx, itemX, itemY, 12, secondaryCardHeight, 6, theme.colors.accent);
+      var itemValueEnd = drawMeasuredText(ctx, item.value, itemX + 38, itemY + 28, cardWidth - 76, {
         fontSize: 42, minFontSize: 28, maxLines: 2, lineHeight: 42, weight: "700", color: theme.colors.accentDark,
-        role: "stat-item", autoCondense: true, maxBottom: Math.min(itemY + 104, layout.safeZones.footer.y - 30)
+        role: "stat-item", autoCondense: true, maxBottom: Math.min(itemY + secondaryCardHeight - 74, layout.safeZones.footer.y - 30)
       });
-      drawMeasuredText(ctx, item.label, itemX + 30, Math.max(itemY + 76, itemValueEnd + 8), cardWidth - 54, {
-        fontSize: 22, minFontSize: 18, maxLines: 3, lineHeight: 27, color: theme.colors.textPrimary,
-        role: "body", maxBottom: Math.min(itemY + 138, layout.safeZones.footer.y - 30)
+      drawMeasuredText(ctx, item.label, itemX + 38, Math.max(itemY + Math.round(secondaryCardHeight * 0.52), itemValueEnd + 12), cardWidth - 76, {
+        fontSize: 25, minFontSize: 19, maxLines: 3, lineHeight: 31, color: theme.colors.textPrimary,
+        role: "body", maxBottom: Math.min(itemY + secondaryCardHeight - 26, layout.safeZones.footer.y - 30)
       });
     }
     if (explanation) {
-      drawContextCard(ctx, explanation, layout.content.x, cardY + secondaryItems.length * 154, layout.content.width, layout.safeZones.footer.y - 42, theme, "body");
+      drawContextCard(ctx, explanation, layout.content.x, cardY + secondaryItems.length * (secondaryCardHeight + secondaryGap), layout.content.width, layout.safeZones.footer.y - 42, theme, "body");
     }
   } else {
     drawContextCard(ctx, explanation, layout.content.x, cardY, layout.content.width, layout.safeZones.footer.y - 42, theme, "body");
@@ -1042,6 +1196,8 @@ function drawQuote(ctx, slide, project, theme, layout) {
   ctx.fillRect(0, 0, W, H);
   drawLogo(ctx, project, theme, layout, false);
   drawEditorialHeader(ctx, slide, project, theme, layout, { y: layout.content.y + 132 });
+  fillRoundRect(ctx, layout.content.x, layout.content.y + 292, layout.content.width, layout.safeZones.footer.y - layout.content.y - 334, 34, theme.colors.accentSoft);
+  fillRoundRect(ctx, layout.content.x, layout.content.y + 292, 14, layout.safeZones.footer.y - layout.content.y - 334, 7, theme.colors.accent);
   ctx.font = "700 170px Georgia, serif";
   ctx.fillStyle = theme.colors.accent;
   ctx.textBaseline = "top";
@@ -1175,6 +1331,16 @@ export function renderSlideToCanvas(slide, project) {
     var renderState = { overflow: false, blocks: [] };
     canvas.renderState = renderState;
     ctx.__carouselRenderState = renderState;
+
+    var internalComposition = resolveInternalComposition(safeSlide);
+    var useInternalComposition = safeSlide.template !== "cover" && safeSlide.template !== "end" &&
+      !(safeSlide.style && safeSlide.style.variant === "climate") && !!internalComposition;
+    if (useInternalComposition) {
+      drawInternalComposition(ctx, safeSlide, safeProject, theme, layout, internalComposition);
+      canvas.internalComposition = internalComposition;
+      canvas.editorialOverflow = renderState.overflow;
+      return canvas;
+    }
 
     switch (safeSlide.template) {
       case "cover": drawCover(ctx, safeSlide, safeProject, theme, layout); break;

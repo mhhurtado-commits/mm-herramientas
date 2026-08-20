@@ -9,6 +9,13 @@ import { buildInstagramCaptionPrompt } from "./prompts.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 var activeSlideIndex = 0;
+const INTERNAL_COMPOSITION_OPTIONS = [
+  { id: "focus", label: "Foco" },
+  { id: "comparison", label: "Comparativa" },
+  { id: "conversation", label: "Conversación" },
+  { id: "update", label: "Actualización" },
+  { id: "changes", label: "Qué cambia" }
+];
 
 export function initUI() {
   window.removeEventListener("carousel:asset-ready", handleAssetReady);
@@ -261,6 +268,7 @@ function createStageControls(project, activeItem) {
   }
 
   if (activeItem && isCarouselInternalScene(activeItem.slide)) {
+    wrap.appendChild(createInternalCompositionControls(project, activeItem.slide));
     wrap.appendChild(createCarouselSupportImageControls(project, activeItem.slide));
   }
 
@@ -273,6 +281,40 @@ function createStageControls(project, activeItem) {
 
 function isCarouselInternalScene(slide) {
   return !!slide && slide.template !== "cover" && slide.template !== "end";
+}
+
+function createInternalCompositionControls(project, slide) {
+  var wrap = document.createElement("div");
+  wrap.className = "carousel-cover-controls carousel-internal-design-controls";
+
+  var label = document.createElement("span");
+  label.className = "carousel-cover-controls-label";
+  label.textContent = "Diseño interno";
+  wrap.appendChild(label);
+
+  INTERNAL_COMPOSITION_OPTIONS.forEach(function (option) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "carousel-cover-chip" + (slide.style && slide.style.composition === option.id ? " is-active" : "");
+    button.textContent = option.label;
+    button.addEventListener("click", function () {
+      updateCarouselSlideComposition(project, slide.id, option.id);
+      renderInPreview();
+    });
+    wrap.appendChild(button);
+  });
+
+  return wrap;
+}
+
+export function updateCarouselSlideComposition(project, slideId, composition) {
+  if (!project || !Array.isArray(project.slides)) return project;
+  if (!INTERNAL_COMPOSITION_OPTIONS.some(function (option) { return option.id === composition; })) return project;
+  var slide = project.slides.find(function (candidate) { return candidate && candidate.id === slideId; });
+  if (!slide || !isCarouselInternalScene(slide)) return project;
+  slide.style = { ...(slide.style || {}), composition: composition };
+  setProject(project);
+  return project;
 }
 
 function createCarouselSupportImageControls(project, slide) {
