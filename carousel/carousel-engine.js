@@ -6,7 +6,6 @@ import { normalizeCarouselPlan } from "./parser.js";
 import { attachCarouselOutput, createEditorialEnvelope } from "./editorial-contract.js";
 import { attachEditorialPackage, openCarouselFromEditorialPackage } from "./shared-package-adapter.js";
 import { resolveArticleImage, resolveSupportImage } from "./image-provenance.js";
-import { adaptClimatePlan } from "./climate-adapter.js";
 
 const WORKER = "https://mm-herramientas-worker.mhhurtado.workers.dev";
 
@@ -36,7 +35,6 @@ export function loadEditorialPackage(editorialPackage) {
     ? attachEditorialPackage(project, editorialPackage)
     : openCarouselFromEditorialPackage(editorialPackage);
   if (next.editorialPlan?.cover && Array.isArray(next.editorialPlan.slides)) {
-    next.editorialPlan = adaptClimatePlan(next.editorialPlan, next.article);
     next.slides = convertirPlanASlides(next.editorialPlan, next.article, next.settings, next.manualSlideImages);
     next.socialCopy = {
       ...(next.socialCopy || {}),
@@ -148,12 +146,11 @@ export async function generatePlan() {
         console.warn("Carousel plan rejected:", parsed.errors);
         return parsed;
       }
-      const adaptedPlan = adaptClimatePlan(parsed.plan, project.article);
-      project.editorialPlan = adaptedPlan;
-      project.slides = convertirPlanASlides(adaptedPlan, project.article, project.settings, project.manualSlideImages);
+      project.editorialPlan = parsed.plan;
+      project.slides = convertirPlanASlides(parsed.plan, project.article, project.settings, project.manualSlideImages);
       project.editorialPackage = attachCarouselOutput(
         createEditorialEnvelope(project.article, parsed.plan.diagnosis),
-        adaptedPlan,
+        parsed.plan,
         project.socialCopy
       );
       setProject(project);

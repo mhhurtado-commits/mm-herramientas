@@ -912,6 +912,45 @@ test('conserva el plan anterior cuando la respuesta editorial no supera la norma
   }
 });
 
+test('usa el carrusel general para clima sin aplicar un adaptador especial', async () => {
+  const previousProject = getProject();
+  const previousFetch = globalThis.fetch;
+  const project = {
+    article: {
+      title: 'Jueves agradable en el Sur mendocino',
+      category: 'Clima',
+      editorialVertical: 'clima',
+      summary: 'Temperaturas agradables y cielo seminublado.',
+    },
+    settings: {},
+    slides: [],
+  };
+  const plan = {
+    diagnosis: {
+      news_type: 'evergreen', vertical: 'clima', complexity: 'medium',
+      tone: 'informative', carousel_type: 'summary', template: 'mm_classic',
+      reason: 'Secuencia general.',
+    },
+    cover: { title: project.article.title, subtitle: project.article.summary },
+    slides: [
+      { type: 'contexto', title: 'El panorama', text: 'La jornada será estable.' },
+      { type: 'dato', title: 'Datos clave', items: [{ label: 'Máxima', value: '21 °C' }] },
+      { type: 'end', source: 'Media Mendoza', cta: 'Seguí leyendo.' },
+    ],
+  };
+  setProject(project);
+  globalThis.fetch = async () => ({ json: async () => ({ ok: true, result: plan }) });
+
+  try {
+    const result = await carouselEngine.generatePlan();
+    assert.equal(result.ok, true);
+    assert.ok(project.slides.every((slide) => slide.style.variant !== 'climate'));
+  } finally {
+    globalThis.fetch = previousFetch;
+    setProject(previousProject);
+  }
+});
+
 test('prioriza el título editorial normalizado y mantiene source y cta fuera de FUENTE', () => {
   installCanvasHarness();
   const cover = normalizeCarouselSlide({
