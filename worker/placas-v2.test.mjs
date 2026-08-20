@@ -185,3 +185,15 @@ test('el prompt y la respuesta del worker preservan impactos verificables', () =
   assert.equal(result.tipo_placa, 'que-cambia');
   assert.deepEqual(result.impactos, [{ label: 'Alcance', value: 'A 12.000 vecinos', detail: '' }]);
 });
+
+test('normaliza datos climáticos anidados sin convertirlos en texto visible', () => {
+  const result = normalizeEditorialResponse({
+    datos_clave: [
+      { label: 'Temperatura máxima', value: { value: '21 grados centígrados' } },
+      { label: 'Viento', value: 'débil desde las 13 horas' },
+    ],
+  }, { ...note, category: 'clima', fecha: '2026-08-20' });
+
+  assert.equal(result.datos_clave[0].value, '21 grados centígrados');
+  assert.notEqual(result.datos_clave[0].value, '[object Object]');
+});

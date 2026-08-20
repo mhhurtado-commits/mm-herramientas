@@ -195,10 +195,22 @@ function normalizeKeyFacts(value, fallback = '') {
   const normalized = items.map(item => {
     if (typeof item === 'string') return { label: '', value: clean(item), detail: '' };
     if (!item || typeof item !== 'object') return null;
-    return { label: clean(item.label || item.nombre || item.titulo), value: clean(item.value || item.valor || item.texto), detail: clean(item.detail || item.detalle || item.subtitulo) };
+    return {
+      label: clean(item.label || item.nombre || item.titulo),
+      value: cleanFactValue(item.value || item.valor || item.texto),
+      detail: cleanFactValue(item.detail || item.detalle || item.subtitulo),
+    };
   }).filter(item => item?.value).slice(0, 3);
   if (normalized.length || !clean(fallback)) return normalized;
   return [{ label: '', value: clean(fallback), detail: '' }];
+}
+
+function cleanFactValue(value) {
+  if (!value || typeof value !== 'object') return clean(value);
+  for (const key of ['value', 'valor', 'text', 'texto', 'detail', 'detalle', 'label', 'nombre', 'titulo']) {
+    if (value[key] !== undefined && value[key] !== null) return cleanFactValue(value[key]);
+  }
+  return '';
 }
 
 function normalizeComparison(value, fallbackSource = '', fallbackDate = '') {

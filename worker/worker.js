@@ -72,6 +72,14 @@ const FAMILY_ALIASES = new Map([
 
 const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
 
+function cleanFactValue(value) {
+  if (!value || typeof value !== 'object') return clean(value);
+  for (const key of ['value', 'valor', 'text', 'texto', 'detail', 'detalle', 'label', 'nombre', 'titulo']) {
+    if (value[key] !== undefined && value[key] !== null) return cleanFactValue(value[key]);
+  }
+  return '';
+}
+
 function normalizeFocus(focus = {}) {
   const clamp = value => Math.max(0, Math.min(1, Number.isFinite(Number(value)) ? Number(value) : 0.5));
   return { x: clamp(focus.x), y: clamp(focus.y) };
@@ -195,7 +203,11 @@ function normalizeKeyFacts(value, fallback = '') {
   const normalized = items.map(item => {
     if (typeof item === 'string') return { label: '', value: clean(item), detail: '' };
     if (!item || typeof item !== 'object') return null;
-    return { label: clean(item.label || item.nombre || item.titulo), value: clean(item.value || item.valor || item.texto), detail: clean(item.detail || item.detalle || item.subtitulo) };
+    return {
+      label: clean(item.label || item.nombre || item.titulo),
+      value: cleanFactValue(item.value || item.valor || item.texto),
+      detail: cleanFactValue(item.detail || item.detalle || item.subtitulo),
+    };
   }).filter(item => item?.value).slice(0, 3);
   return normalized.length || !clean(fallback) ? normalized : [{ label: '', value: clean(fallback), detail: '' }];
 }
@@ -6831,6 +6843,7 @@ async function handlePlacasV2Paquete(body, env) {
   const paquete = {
     tipo: 'noticia_editorial',
     version: 2,
+    fecha: placa.fecha || note.fecha || note.date || '',
     fuente: {
       url: placa.fuente?.url || note.url || '',
       titulo_original: placa.fuente?.titulo_original || note.title || note.titulo || '',

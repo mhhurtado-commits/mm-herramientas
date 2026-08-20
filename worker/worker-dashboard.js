@@ -92,6 +92,28 @@ const FAMILY_ALIASES = new Map([
 
 const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
 
+function cleanFactValue(value) {
+  if (!value || typeof value !== 'object') return clean(value);
+  for (const key of ['value', 'valor', 'text', 'texto', 'detail', 'detalle', 'label', 'nombre', 'titulo']) {
+    if (value[key] !== undefined && value[key] !== null) return cleanFactValue(value[key]);
+  }
+  return '';
+}
+
+function normalizeKeyFacts(value, fallback = '') {
+  const items = Array.isArray(value) ? value : [];
+  const normalized = items.map(item => {
+    if (typeof item === 'string') return { label: '', value: clean(item), detail: '' };
+    if (!item || typeof item !== 'object') return null;
+    return {
+      label: clean(item.label || item.nombre || item.titulo),
+      value: cleanFactValue(item.value || item.valor || item.texto),
+      detail: cleanFactValue(item.detail || item.detalle || item.subtitulo),
+    };
+  }).filter(item => item?.value).slice(0, 3);
+  return normalized.length || !clean(fallback) ? normalized : [{ label: '', value: clean(fallback), detail: '' }];
+}
+
 function normalizeFocus(focus = {}) {
   const clamp = value => Math.max(0, Math.min(1, Number.isFinite(Number(value)) ? Number(value) : 0.5));
   return { x: clamp(focus.x), y: clamp(focus.y) };
@@ -237,6 +259,8 @@ function normalizeNewsPlate(input = {}) {
     bajada: description || firstSentence(body),
     etiqueta: family.label,
     contexto: clean(input.contexto || input.context || '') || firstSentence(body),
+    fecha: clean(input.fecha || input.date || source.fecha || source.date),
+    datos_clave: normalizeKeyFacts(input.datos_clave || source.datos_clave, clean(input.contexto || input.context || '')),
     template_sugerido: family.id,
     tipo_placa: type,
     textual,
@@ -6617,6 +6641,7 @@ async function handlePlacasV2Paquete(body, env) {
   const paquete = {
     tipo: 'noticia_editorial',
     version: 2,
+    fecha: placa.fecha || note.fecha || note.date || '',
     fuente: {
       url: placa.fuente?.url || note.url || '',
       titulo_original: placa.fuente?.titulo_original || note.title || note.titulo || '',
@@ -6634,7 +6659,7 @@ async function handlePlacasV2Paquete(body, env) {
       titulo: placa.titulo || '',
       bajada: placa.bajada || '',
       contexto: placa.contexto || '',
-      datos_clave: placa.contexto ? [placa.contexto] : [],
+      datos_clave: Array.isArray(placa.datos_clave) && placa.datos_clave.length ? placa.datos_clave : placa.contexto ? [placa.contexto] : [],
       textual: placa.textual || [],
       personas: Array.isArray(placa.personas) ? placa.personas : [],
     },
