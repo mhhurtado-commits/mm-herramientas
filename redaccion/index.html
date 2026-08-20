@@ -819,7 +819,7 @@ async function generarImagenIA(){
     _imgGeneradaB64='data:image/jpeg;base64,'+data.imagen;
     window._imgTempId=data.imgTempId||null;
     switchImgTab('ia');
-    const modeloLabel={"flux-2-dev":"FLUX 2 Dev","imagen-4":"Imagen 4",kontext:"Kontext","gptimage-large":"GPT Image 1.5","qwen-image":"Qwen Image","gpt-image-2":"GPT Image 2","wan-image":"Wan Image",flux:"Flux (Pollinations)",zimage:"Z-Image (Pollinations)",klein:"FLUX.2 Klein",gptimage:"GPT Image 1 Mini","flux-1-schnell":"FLUX 1 Schnell","dreamshaper-8":"DreamShaper 8","sdxl-cf":"SDXL (Cloudflare)","img2img":"img2img (CF AI)"};
+    const modeloLabel={"flux-2-dev":"FLUX 2 Dev","flux-2-klein-4b":"FLUX.2 Klein 4B","imagen-4":"Imagen 4",kontext:"Kontext","gptimage-large":"GPT Image 1.5","qwen-image":"Qwen Image","gpt-image-2":"GPT Image 2","wan-image":"Wan Image",flux:"Flux (Pollinations)",zimage:"Z-Image (Pollinations)",klein:"FLUX.2 Klein",gptimage:"GPT Image 1 Mini","flux-1-schnell":"FLUX 1 Schnell","dreamshaper-8":"DreamShaper 8","sdxl-cf":"SDXL (Cloudflare)","img2img":"img2img (CF AI)"};
     const badgeLabel=(modeloLabel[data.modelo]||data.modelo||'IA')+(data.motor?' · '+data.motor:'');
     const geminiTag=data.prompt_gemini?' · ✨ prompt IA':'';
     const editTag=data.editable?' · ✏ editable':'';

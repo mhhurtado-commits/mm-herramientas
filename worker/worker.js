@@ -1,6 +1,7 @@
 // Media Mendoza Worker ? archivo ?nico para pegar en el dashboard de Cloudflare.
 // Incluye solo los helpers de f?tbol usados por el Worker y el n?cleo editorial de Placas V2.
 // @ts-nocheck
+import { buildFluxKlein4bInput } from './image-generation-config.mjs';
 
 const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
@@ -4724,7 +4725,17 @@ async function handleGenerarImagen(body,env){
 
   let bytes=null,modeloUsado="",motorUsado="";
 
-  // ── MOTOR 1: FLUX-1-schnell en Cloudflare Workers AI (primario, mejor fotorrealismo, gratis) ──
+  // ── MOTOR 1: FLUX.2 Klein 4B en Cloudflare Workers AI (primario editorial) ──
+  if(!bytes&&env.AI&&!modelo){
+    try{
+      const kleinInput=buildFluxKlein4bInput(promptText,seed);
+      const result=await env.AI.run(kleinInput.model,kleinInput.multipart);
+      bytes=await extraerBytesCF(result);
+      if(bytes){modeloUsado="flux-2-klein-4b";motorUsado="Cloudflare AI";}
+    }catch(e){}
+  }
+
+  // ── MOTOR 2: FLUX-1-schnell (fallback local rápido) ──
   if(!bytes&&env.AI&&!modelo){
     try{
       const result=await env.AI.run('@cf/black-forest-labs/flux-1-schnell',{prompt:promptText,steps:8,seed});
@@ -4733,7 +4744,7 @@ async function handleGenerarImagen(body,env){
     }catch(e){}
   }
 
-  // ── MOTOR 2: Pollinations (secundario). 'flux' es el único modelo fiable hoy en el endpoint legacy. ──
+  // ── MOTOR 3: Pollinations (fallback externo) ──
   if(!bytes){
     const modelosPoll=modelo?[modelo]:["flux","zimage"];
     for(const m of modelosPoll){
@@ -4745,7 +4756,7 @@ async function handleGenerarImagen(body,env){
     }
   }
 
-  // ── MOTOR 3: DreamShaper-8 en CF (fine-tuneado para fotorrealismo, soporta negative_prompt) ──
+  // ── MOTOR 4: DreamShaper-8 en CF (fine-tuneado para fotorrealismo, soporta negative_prompt) ──
   if(!bytes&&env.AI&&!modelo){
     try{
       const result=await env.AI.run('@cf/lykon/dreamshaper-8',{prompt:promptText,negative_prompt:negativePrompt,steps:30,guidance:7});
@@ -4754,7 +4765,7 @@ async function handleGenerarImagen(body,env){
     }catch(e){}
   }
 
-  // ── MOTOR 4: SDXL-base en CF (último recurso) ──
+  // ── MOTOR 5: SDXL-base en CF (último recurso) ──
   if(!bytes&&env.AI){
     try{
       const result=await env.AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0',{prompt:promptText,negative_prompt:negativePrompt,steps:20});
