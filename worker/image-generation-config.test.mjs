@@ -15,6 +15,7 @@ test('el Worker prueba Klein 4B antes de FLUX 1 Schnell', async () => {
   const source = await readFile(new URL('./worker.js', import.meta.url), 'utf8');
 
   assert.match(source, /buildFluxKlein4bInput/);
+  assert.match(source, /env\.AI\.run\(kleinInput\.model,\{multipart:kleinInput\.multipart\}\)/);
   assert.ok(source.indexOf('flux-2-klein-4b') < source.indexOf('flux-1-schnell'));
 });
 

@@ -4738,7 +4738,7 @@ async function handleGenerarImagen(body,env){
   if(!bytes&&env.AI&&!modelo){
     try{
       const kleinInput=buildFluxKlein4bInput(promptText,seed);
-      const result=await env.AI.run(kleinInput.model,kleinInput.multipart);
+      const result=await env.AI.run(kleinInput.model,{multipart:kleinInput.multipart});
       bytes=await extraerBytesCF(result);
       if(bytes){modeloUsado="flux-2-klein-4b";motorUsado="Cloudflare AI";}
     }catch(e){
