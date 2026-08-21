@@ -1,4 +1,5 @@
 import { buildExportCommand, exportEditorialVideo } from './video-export.mjs';
+import { createFfmpegRuntime } from './ffmpeg-runtime.mjs';
 import { parseVideoHandoff, validateVideoFile } from './video-input.mjs';
 import { createVideoProject } from './video-project.mjs';
 import { drawEditorialOverlay, drawVideoPreview } from './video-renderer.mjs';
@@ -77,8 +78,7 @@ function setCanvasFormat() { canvas.width = 1080; canvas.height = state.project.
 
 async function loadFfmpeg() {
   if (state.ffmpeg?.isLoaded?.()) return state.ffmpeg;
-  if (!window.FFmpeg?.createFFmpeg) throw new Error('No se pudo cargar FFmpeg. Revisá tu conexión e intentá de nuevo.');
-  state.ffmpeg = window.FFmpeg.createFFmpeg({ log: false }); await state.ffmpeg.load({ coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js' }); return state.ffmpeg;
+  state.ffmpeg = createFfmpegRuntime({ createFFmpeg: window.FFmpeg?.createFFmpeg }); await state.ffmpeg.load(); return state.ffmpeg;
 }
 
 function formatTime(value) { const seconds = Math.max(0, Math.floor(Number(value) || 0)); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; }
