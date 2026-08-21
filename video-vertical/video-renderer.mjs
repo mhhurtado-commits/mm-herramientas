@@ -1,6 +1,6 @@
 import { getOverlayLayout, getVideoFramePlan } from './video-framing.mjs';
 
-export function drawVideoPreview(ctx, video, project, { width = ctx.canvas.width, height = ctx.canvas.height, time = 0 } = {}) {
+export function drawVideoPreview(ctx, video, project, { width = ctx.canvas.width, height = ctx.canvas.height, time = 0, logo = null } = {}) {
   const plan = getVideoFramePlan({ sourceWidth: video?.videoWidth, sourceHeight: video?.videoHeight, width, height, mode: project?.framing?.mode, focus: project?.framing?.focus });
   const layout = getOverlayLayout({ width, height });
   ctx.clearRect(0, 0, width, height);
@@ -9,11 +9,12 @@ export function drawVideoPreview(ctx, video, project, { width = ctx.canvas.width
   ctx.fillStyle = 'rgba(8,13,11,.2)'; ctx.fillRect(0, 0, width, height);
   ctx.save(); ctx.beginPath(); ctx.rect(0, 0, width, height); ctx.clip();
   ctx.drawImage(video, plan.foreground.x, plan.foreground.y, plan.foreground.width, plan.foreground.height); ctx.restore();
-  drawEditorialOverlay(ctx, project, { time, layout });
+  drawEditorialOverlay(ctx, project, { time, layout, logo });
   return { plan, layout };
 }
 
-export function drawEditorialOverlay(ctx, project, { time = 0, layout = getOverlayLayout({ width: ctx.canvas.width, height: ctx.canvas.height }) } = {}) {
+export function drawEditorialOverlay(ctx, project, { time = 0, layout = getOverlayLayout({ width: ctx.canvas.width, height: ctx.canvas.height }), logo = null } = {}) {
+  drawBrandLogo(ctx, logo, layout.safe);
   drawHook(ctx, project?.lowerThird, layout.hook);
   drawLowerThird(ctx, project?.lowerThird, layout.lowerThird);
   drawCaption(ctx, activeCaption(project?.captions, time), layout.caption);
@@ -44,7 +45,13 @@ function drawLowerThird(ctx, lowerThird = {}, box) {
   ctx.font = '800 42px Arial, sans-serif'; const title = fitVideoText(lowerThird.title, maxWidth, value => ctx.measureText(value).width).lines.slice(0, 2);
   ctx.fillStyle = '#fff'; title.forEach((line, index) => ctx.fillText(line, x, box.y + 52 + index * 47));
   ctx.font = '500 22px Arial, sans-serif'; ctx.fillStyle = '#d7dfda'; ctx.fillText(lowerThird.source || 'mediamendoza', x, box.y + box.height - 28);
-  ctx.font = '700 21px Arial, sans-serif'; ctx.fillStyle = lowerThird.accent || '#a6ce39'; ctx.textAlign = 'right'; ctx.fillText('mediamendoza', box.x + box.width - 26, box.y + box.height - 28); ctx.restore();
+  ctx.restore();
+}
+
+function drawBrandLogo(ctx, logo, safe) {
+  if (!logo?.width || !logo?.height) return;
+  const width = ctx.canvas.width * 0.26; const height = Math.min(ctx.canvas.height * 0.075, width * logo.height / logo.width);
+  ctx.save(); ctx.globalAlpha = 0.96; ctx.drawImage(logo, safe.right - width, ctx.canvas.height * 0.035, width, height); ctx.restore();
 }
 
 function drawCaption(ctx, caption, box) {

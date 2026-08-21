@@ -6,10 +6,13 @@ import { suggestClipWindows } from './video-suggestions.mjs';
 
 const $ = selector => document.querySelector(selector);
 const handoff = parseVideoHandoff(sessionStorage.getItem('mm-editorial-handoff'));
-const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', ffmpeg: null, exporting: false };
+const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', ffmpeg: null, exporting: false, logo: null };
 const canvas = $('#previewCanvas');
 const ctx = canvas.getContext('2d');
 const video = $('#sourceVideo');
+const logo = new Image();
+logo.onload = () => { state.logo = logo; draw(); };
+logo.src = '../assets/logo.png';
 
 hydrate();
 if (handoff) { sessionStorage.removeItem('mm-editorial-handoff'); setStatus('Paquete editorial recibido. Subí el video fuente.'); }
@@ -49,7 +52,7 @@ function refreshSuggestions() {
   if (state.project.profile === 'hablado') setStatus('Candidatos iniciales listos. La transcripción se integrará cuando el Worker esté disponible.');
 }
 
-function draw() { if (video.readyState >= 2) drawVideoPreview(ctx, video, state.project, { time: video.currentTime }); else { ctx.fillStyle = '#101712'; ctx.fillRect(0, 0, canvas.width, canvas.height); } }
+function draw() { if (video.readyState >= 2) drawVideoPreview(ctx, video, state.project, { time: video.currentTime, logo: state.logo }); else { ctx.fillStyle = '#101712'; ctx.fillRect(0, 0, canvas.width, canvas.height); } }
 function tick() { if (!video.paused) { draw(); requestAnimationFrame(tick); } }
 
 async function exportVideo() {
@@ -67,7 +70,7 @@ async function exportVideo() {
   finally { state.exporting = false; $('#exportButton').disabled = false; }
 }
 
-function overlayBlob() { return new Promise((resolve, reject) => { const overlay = document.createElement('canvas'); overlay.width = canvas.width; overlay.height = canvas.height; drawEditorialOverlay(overlay.getContext('2d'), state.project, { time: video.currentTime }); overlay.toBlob(blob => blob ? resolve(blob) : reject(new Error('No se pudo crear el zócalo.')), 'image/png'); }); }
+function overlayBlob() { return new Promise((resolve, reject) => { const overlay = document.createElement('canvas'); overlay.width = canvas.width; overlay.height = canvas.height; drawEditorialOverlay(overlay.getContext('2d'), state.project, { time: video.currentTime, logo: state.logo }); overlay.toBlob(blob => blob ? resolve(blob) : reject(new Error('No se pudo crear el zócalo.')), 'image/png'); }); }
 
 function setCanvasFormat() { canvas.width = 1080; canvas.height = state.project.format === '4:5' ? 1350 : 1920; }
 
