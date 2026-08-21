@@ -213,6 +213,7 @@ function renderOutputs() {
     { id: 'placa', label: 'Placa' },
     { id: 'carrusel', label: 'Carrusel' },
     { id: 'reel', label: 'Reel' },
+    { id: 'video', label: 'Video' },
   ];
   $('#outputList').innerHTML = outputs.map(output => `<button class="format ${output.id === 'placa' ? 'active' : ''}" type="button" data-output="${output.id}" title="Abrir salida ${output.label}">${output.label}</button>`).join('');
   document.querySelectorAll('[data-output]').forEach(button => button.addEventListener('click', async () => {
@@ -243,7 +244,7 @@ function renderOutputs() {
       },
     };
     sessionStorage.setItem(EDITORIAL_HANDOFF_KEY, createEditorialHandoff(handoffPackage, output));
-    window.location.href = output === 'reel' ? '../reels/' : '../carousel/';
+    window.location.href = output === 'reel' ? '../reels/' : output === 'video' ? '../video-vertical/' : '../carousel/';
   }));
 }
 

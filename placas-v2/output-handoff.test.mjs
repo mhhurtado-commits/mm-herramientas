@@ -9,8 +9,12 @@ test('crea y recupera un handoff de salida editorial', () => {
   assert.deepEqual(handoff.package, editorialPackage);
 });
 
+test('preserva el destino video para el editor vertical', () => {
+  const handoff = parseEditorialHandoff(createEditorialHandoff({ tipo: 'noticia_editorial' }, 'video'));
+  assert.equal(handoff.output, 'video');
+});
+
 test('rechaza handoffs incompletos o inválidos', () => {
   assert.equal(parseEditorialHandoff('{"output":"placa","package":{}}'), null);
   assert.equal(parseEditorialHandoff('no-json'), null);
 });
-
