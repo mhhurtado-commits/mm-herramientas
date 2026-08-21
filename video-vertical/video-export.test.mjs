@@ -19,6 +19,14 @@ test('builds a 4:5 MP4 at 1080 by 1350 when requested', () => {
   assert.match(joined, /crop=1080:1350/);
 });
 
+test('uses a lower-resolution background and veryfast encoder in fast mode', () => {
+  const joined = buildExportCommand({ quality: 'rapido' }).join(' ');
+  assert.match(joined, /scale=540:960/);
+  assert.match(joined, /scale=1080:1920\[bg\]/);
+  assert.match(joined, /-preset veryfast/);
+  assert.match(joined, /-crf 22/);
+});
+
 test('maps music or a mix instead of the source audio when selected', () => {
   const music = buildExportCommand({ inputName: 'source.mp4', overlayName: 'overlay.png', musicName: 'music.mp3', audioMode: 'musica' }).join(' ');
   const mix = buildExportCommand({ inputName: 'source.mp4', overlayName: 'overlay.png', musicName: 'music.mp3', audioMode: 'mezcla' }).join(' ');

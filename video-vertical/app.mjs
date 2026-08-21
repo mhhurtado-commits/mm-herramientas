@@ -23,6 +23,7 @@ $('#profileInput').addEventListener('change', event => { state.project.profile =
 $('#formatInput').addEventListener('change', event => { state.project.format = event.target.value; setCanvasFormat(); draw(); });
 $('#frameInput').addEventListener('change', event => { state.project.framing.mode = event.target.value; draw(); });
 $('#audioInput').addEventListener('change', event => { state.project.audioMode = event.target.value; $('#musicWrap').classList.toggle('is-hidden', event.target.value === 'original'); });
+$('#qualityInput').addEventListener('change', event => { state.project.exportQuality = event.target.value; });
 for (const [id, key] of [['sectionInput', 'section'], ['titleInput', 'title'], ['sourceTextInput', 'source'], ['accentInput', 'accent']]) $("#" + id).addEventListener('input', event => { state.project.lowerThird[key] = event.target.value; $('#previewTitle').textContent = state.project.lowerThird.title || 'Video vertical'; draw(); });
 $('#captionInput').addEventListener('input', event => { state.project.captions = event.target.value.trim() ? [{ start: 0, end: state.duration || Infinity, text: event.target.value.trim() }] : []; draw(); });
 $('#suggestButton').addEventListener('click', refreshSuggestions);
@@ -35,7 +36,7 @@ video.addEventListener('timeupdate', draw);
 
 function hydrate() {
   const data = state.project.lowerThird;
-  $('#profileInput').value = state.project.profile; $('#formatInput').value = state.project.format; $('#frameInput').value = state.project.framing.mode; $('#audioInput').value = state.project.audioMode;
+  $('#profileInput').value = state.project.profile; $('#formatInput').value = state.project.format; $('#frameInput').value = state.project.framing.mode; $('#audioInput').value = state.project.audioMode; $('#qualityInput').value = state.project.exportQuality;
   $('#sectionInput').value = data.section; $('#titleInput').value = data.title; $('#sourceTextInput').value = data.source; $('#accentInput').value = data.accent; $('#previewTitle').textContent = data.title || 'Video vertical';
 }
 
@@ -64,7 +65,7 @@ async function exportVideo() {
     const overlay = await overlayBlob();
     const ffmpeg = await loadFfmpeg();
     setStatus('Exportando MP4 vertical… 0%');
-    const result = await exportEditorialVideo({ ffmpeg, fetchFile: window.FFmpeg.fetchFile, source: state.source, overlay, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, onProgress: ratio => setStatus(`Exportando MP4… ${Math.round(ratio * 100)}%`) });
+    const result = await exportEditorialVideo({ ffmpeg, fetchFile: window.FFmpeg.fetchFile, source: state.source, overlay, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, quality: state.project.exportQuality, onProgress: ratio => setStatus(`Exportando MP4… ${Math.round(ratio * 100)}%`) });
     const url = URL.createObjectURL(result); const link = document.createElement('a'); link.href = url; link.download = `mediamendoza-vertical-${Date.now()}.mp4`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); setStatus('MP4 listo para descargar.');
   } catch (error) { setStatus(error.message || 'No se pudo exportar el video.'); }
   finally { state.exporting = false; $('#exportButton').disabled = false; }

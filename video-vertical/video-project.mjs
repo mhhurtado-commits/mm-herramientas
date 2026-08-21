@@ -22,6 +22,7 @@ export function normalizeVideoProject(project = {}) {
     format: input.format === '4:5' ? '4:5' : '9:16',
     profile: PROFILES.has(input.profile) ? input.profile : 'hablado',
     audioMode: AUDIO_MODES.has(input.audioMode) ? input.audioMode : 'original',
+    exportQuality: input.exportQuality === 'rapido' ? 'rapido' : 'alta',
     lowerThird: {
       title: clean(lowerThird.title), summary: clean(lowerThird.summary), section: clean(lowerThird.section) || 'Actualidad',
       accent: clean(lowerThird.accent) || '#a6ce39', source: clean(lowerThird.source) || 'mediamendoza',
