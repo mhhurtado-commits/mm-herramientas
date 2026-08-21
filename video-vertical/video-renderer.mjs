@@ -9,10 +9,15 @@ export function drawVideoPreview(ctx, video, project, { width = ctx.canvas.width
   ctx.fillStyle = 'rgba(8,13,11,.2)'; ctx.fillRect(0, 0, width, height);
   ctx.save(); ctx.beginPath(); ctx.rect(0, 0, width, height); ctx.clip();
   ctx.drawImage(video, plan.foreground.x, plan.foreground.y, plan.foreground.width, plan.foreground.height); ctx.restore();
+  drawEditorialOverlay(ctx, project, { time, layout });
+  return { plan, layout };
+}
+
+export function drawEditorialOverlay(ctx, project, { time = 0, layout = getOverlayLayout({ width: ctx.canvas.width, height: ctx.canvas.height }) } = {}) {
   drawHook(ctx, project?.lowerThird, layout.hook);
   drawLowerThird(ctx, project?.lowerThird, layout.lowerThird);
   drawCaption(ctx, activeCaption(project?.captions, time), layout.caption);
-  return { plan, layout };
+  return layout;
 }
 
 export function fitVideoText(text, maxWidth, measure = value => value.length) {
