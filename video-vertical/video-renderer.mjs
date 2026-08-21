@@ -1,0 +1,53 @@
+import { getOverlayLayout, getVideoFramePlan } from './video-framing.mjs';
+
+export function drawVideoPreview(ctx, video, project, { width = ctx.canvas.width, height = ctx.canvas.height, time = 0 } = {}) {
+  const plan = getVideoFramePlan({ sourceWidth: video?.videoWidth, sourceHeight: video?.videoHeight, width, height, mode: project?.framing?.mode, focus: project?.framing?.focus });
+  const layout = getOverlayLayout({ width, height });
+  ctx.clearRect(0, 0, width, height);
+  ctx.save(); ctx.filter = `blur(${plan.background.blur}px) brightness(0.58)`;
+  ctx.drawImage(video, plan.background.x, plan.background.y, plan.background.width, plan.background.height); ctx.restore();
+  ctx.fillStyle = 'rgba(8,13,11,.2)'; ctx.fillRect(0, 0, width, height);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, width, height); ctx.clip();
+  ctx.drawImage(video, plan.foreground.x, plan.foreground.y, plan.foreground.width, plan.foreground.height); ctx.restore();
+  drawHook(ctx, project?.lowerThird, layout.hook);
+  drawLowerThird(ctx, project?.lowerThird, layout.lowerThird);
+  drawCaption(ctx, activeCaption(project?.captions, time), layout.caption);
+  return { plan, layout };
+}
+
+export function fitVideoText(text, maxWidth, measure = value => value.length) {
+  const words = String(text || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  const lines = []; let line = '';
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && measure(candidate) > maxWidth) { lines.push(line); line = word; } else line = candidate;
+  }
+  if (line) lines.push(line);
+  return { lines };
+}
+
+function drawHook(ctx, lowerThird = {}, box) {
+  if (!lowerThird.title) return;
+  ctx.save(); ctx.fillStyle = lowerThird.accent || '#a6ce39'; roundRect(ctx, box.x, box.y, Math.min(box.width, 290), 52, 26); ctx.fill();
+  ctx.font = '700 25px Arial, sans-serif'; ctx.fillStyle = '#122019'; ctx.fillText((lowerThird.section || 'Actualidad').toUpperCase(), box.x + 22, box.y + 33); ctx.restore();
+}
+
+function drawLowerThird(ctx, lowerThird = {}, box) {
+  ctx.save(); ctx.fillStyle = 'rgba(10,17,14,.92)'; roundRect(ctx, box.x, box.y, box.width, box.height, 28); ctx.fill();
+  ctx.fillStyle = lowerThird.accent || '#a6ce39'; ctx.fillRect(box.x, box.y, 12, box.height);
+  const x = box.x + 34; const maxWidth = box.width - 68;
+  ctx.font = '800 42px Arial, sans-serif'; const title = fitVideoText(lowerThird.title, maxWidth, value => ctx.measureText(value).width).lines.slice(0, 2);
+  ctx.fillStyle = '#fff'; title.forEach((line, index) => ctx.fillText(line, x, box.y + 52 + index * 47));
+  ctx.font = '500 22px Arial, sans-serif'; ctx.fillStyle = '#d7dfda'; ctx.fillText(lowerThird.source || 'mediamendoza', x, box.y + box.height - 28);
+  ctx.font = '700 21px Arial, sans-serif'; ctx.fillStyle = lowerThird.accent || '#a6ce39'; ctx.textAlign = 'right'; ctx.fillText('mediamendoza', box.x + box.width - 26, box.y + box.height - 28); ctx.restore();
+}
+
+function drawCaption(ctx, caption, box) {
+  if (!caption?.text) return;
+  ctx.save(); ctx.font = '700 34px Arial, sans-serif'; const lines = fitVideoText(caption.text, box.width - 44, value => ctx.measureText(value).width).lines.slice(0, 2);
+  const height = lines.length * 42 + 30; ctx.fillStyle = 'rgba(0,0,0,.76)'; roundRect(ctx, box.x, box.y + box.height - height, box.width, height, 22); ctx.fill(); ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+  lines.forEach((line, index) => ctx.fillText(line, box.x + box.width / 2, box.y + box.height - height + 42 + index * 42)); ctx.restore();
+}
+
+function activeCaption(captions, time) { return Array.isArray(captions) ? captions.find(caption => Number(caption.start) <= time && Number(caption.end) >= time) : null; }
+function roundRect(ctx, x, y, width, height, radius) { ctx.beginPath(); ctx.roundRect(x, y, width, height, radius); }
