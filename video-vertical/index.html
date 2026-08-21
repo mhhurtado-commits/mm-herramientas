@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Video vertical editorial · mediamendoza</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="mm-header"><a class="mm-header-brand" href="../index.html"><img class="mm-header-logo" src="../assets/logo.png" alt="mediamendoza"><span class="mm-header-name">mediamendoza</span></a><div class="mm-header-section"><span class="mm-header-label">Video vertical editorial</span></div></header>
+  <main class="vv-shell">
+    <section class="vv-intro"><p class="eyebrow">SALIDA 9:16</p><h1>Tu video horizontal,<br><em>listo para vertical.</em></h1><p>Conservá el plano completo, editá el zócalo y exportá un MP4. Usá archivos propios o autorizados.</p></section>
+    <section class="vv-workspace">
+      <aside class="vv-panel">
+        <label class="mm-label" for="sourceInput">Video fuente</label><input id="sourceInput" class="mm-input" type="file" accept="video/mp4,video/quicktime,video/webm,video/x-m4v">
+        <p id="sourceMeta" class="vv-help">Subí un MP4, MOV, WebM o M4V. No se descargan enlaces de YouTube.</p>
+        <div class="mm-row2"><div class="mm-field"><label class="mm-label" for="profileInput">Perfil</label><select id="profileInput" class="mm-select"><option value="hablado">Hablado</option><option value="broll">B-roll</option></select></div><div class="mm-field"><label class="mm-label" for="frameInput">Encuadre</label><select id="frameInput" class="mm-select"><option value="contain">Plano completo</option><option value="cover">Recorte vertical</option></select></div></div>
+        <div class="mm-field"><label class="mm-label" for="sectionInput">Sección</label><input id="sectionInput" class="mm-input" maxlength="36"></div>
+        <div class="mm-field"><label class="mm-label" for="titleInput">Titular del zócalo</label><textarea id="titleInput" class="mm-textarea" rows="3" maxlength="120"></textarea></div>
+        <div class="mm-row2"><div class="mm-field"><label class="mm-label" for="sourceTextInput">Fuente</label><input id="sourceTextInput" class="mm-input" maxlength="50"></div><div class="mm-field"><label class="mm-label" for="accentInput">Color</label><input id="accentInput" class="vv-color" type="color"></div></div>
+        <div class="mm-field"><label class="mm-label" for="audioInput">Audio</label><select id="audioInput" class="mm-select"><option value="original">Original</option><option value="musica">Música</option><option value="mezcla">Mezcla</option></select></div>
+        <div id="musicWrap" class="mm-field is-hidden"><label class="mm-label" for="musicInput">Pista de música</label><input id="musicInput" class="mm-input" type="file" accept="audio/*"></div>
+        <div class="mm-field"><label class="mm-label" for="captionInput">Subtítulo manual</label><textarea id="captionInput" class="mm-textarea" rows="2" placeholder="Opcional: texto visible durante la previsualización."></textarea></div>
+        <div class="vv-actions"><button id="suggestButton" class="mm-btn" type="button" disabled>Proponer clips</button><button id="exportButton" class="mm-btn mm-btn-primary" type="button" disabled>Exportar MP4</button></div>
+        <p id="status" class="vv-status" role="status">Cargá un video para comenzar.</p>
+      </aside>
+      <section class="vv-preview"><div class="vv-preview-head"><div><p class="eyebrow">VISTA PREVIA</p><h2 id="previewTitle">Video vertical</h2></div><button id="playButton" class="mm-btn mm-btn-sm" type="button" disabled>Reproducir</button></div><div class="vv-canvas-wrap"><canvas id="previewCanvas" width="1080" height="1920"></canvas></div><video id="sourceVideo" playsinline preload="metadata" class="is-hidden"></video><div class="vv-timeline"><strong>Clips sugeridos</strong><div id="clipList" class="vv-clips"><span>Se proponen después de cargar el video.</span></div></div></section>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>

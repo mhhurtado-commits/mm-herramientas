@@ -1,0 +1,34 @@
+const AUDIO_MODES = new Set(['original', 'musica', 'mezcla']);
+
+export function buildExportCommand({ inputName = 'source.mp4', overlayName = 'overlay.png', musicName = 'music.mp3', audioMode = 'original', outputName = 'output.mp4' } = {}) {
+  if (!AUDIO_MODES.has(audioMode)) throw new Error('Modo de audio inválido.');
+  const graph = [
+    '[0:v]split=2[bgsrc][fgsrc]',
+    '[bgsrc]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20:1[bg]',
+    '[fgsrc]scale=1080:-2[fg]',
+    '[bg][fg]overlay=(W-w)/2:(H-h)/2[base]',
+    '[base][1:v]overlay=0:0[outv]',
+    ...(audioMode === 'mezcla' ? ['[0:a][2:a]amix=inputs=2:duration=first[outa]'] : []),
+  ].join(';');
+  const inputs = ['-i', inputName, '-i', overlayName];
+  if (audioMode !== 'original') inputs.push('-i', musicName);
+  const audioMap = audioMode === 'original' ? ['-map', '0:a?'] : audioMode === 'musica' ? ['-map', '2:a?'] : ['-map', '[outa]'];
+  return [...inputs, '-filter_complex', graph, '-map', '[outv]', ...audioMap, '-r', '30', '-c:v', 'libx264', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', outputName];
+}
+
+export async function exportEditorialVideo({ ffmpeg, fetchFile, source, overlay, music, audioMode = 'original', onProgress = () => {} } = {}) {
+  if (!ffmpeg?.FS || typeof ffmpeg.run !== 'function' || typeof fetchFile !== 'function') throw new Error('FFmpeg no está disponible en este navegador.');
+  if (!source || !overlay) throw new Error('Faltan el video fuente o el zócalo.');
+  if (audioMode !== 'original' && !music) throw new Error('Elegí una pista de música para este modo de audio.');
+  const sourceName = `source.${extension(source.name, 'mp4')}`;
+  const musicName = `music.${extension(music?.name, 'mp3')}`;
+  if (typeof ffmpeg.setProgress === 'function') ffmpeg.setProgress(({ ratio = 0 }) => onProgress(Math.max(0, Math.min(1, ratio))));
+  ffmpeg.FS('writeFile', sourceName, await fetchFile(source));
+  ffmpeg.FS('writeFile', 'overlay.png', await fetchFile(overlay));
+  if (audioMode !== 'original') ffmpeg.FS('writeFile', musicName, await fetchFile(music));
+  await ffmpeg.run(...buildExportCommand({ inputName: sourceName, overlayName: 'overlay.png', musicName, audioMode }));
+  const data = ffmpeg.FS('readFile', 'output.mp4');
+  return new Blob([data.buffer], { type: 'video/mp4' });
+}
+
+function extension(name, fallback) { return String(name || '').split('.').pop()?.replace(/[^a-z0-9]/gi, '').toLowerCase() || fallback; }
