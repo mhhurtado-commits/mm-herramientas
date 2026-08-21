@@ -202,7 +202,7 @@ function renderVariants() {
 
 function renderFormats() {
   $('#formatList').innerHTML = Object.entries(FORMATS).map(([key, format]) => `<button class="format ${state.format === key ? 'active' : ''}" type="button" data-format="${key}">${format.label}</button>`).join('');
-  document.querySelectorAll('.format').forEach(button => button.addEventListener('click', () => { state.format = button.dataset.format; renderFormats(); render(); }));
+  document.querySelectorAll('#formatList [data-format]').forEach(button => button.addEventListener('click', () => { state.format = button.dataset.format; renderFormats(); render(); }));
 }
 
 function renderOutputs() {
