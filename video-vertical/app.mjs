@@ -17,6 +17,7 @@ if (handoff) { sessionStorage.removeItem('mm-editorial-handoff'); setStatus('Paq
 $('#sourceInput').addEventListener('change', event => loadSource(event.target.files?.[0]));
 $('#musicInput').addEventListener('change', event => { state.music = event.target.files?.[0] || null; setStatus(state.music ? 'Pista de música cargada.' : 'Elegí una pista para este modo.'); });
 $('#profileInput').addEventListener('change', event => { state.project.profile = event.target.value; refreshSuggestions(); });
+$('#formatInput').addEventListener('change', event => { state.project.format = event.target.value; setCanvasFormat(); draw(); });
 $('#frameInput').addEventListener('change', event => { state.project.framing.mode = event.target.value; draw(); });
 $('#audioInput').addEventListener('change', event => { state.project.audioMode = event.target.value; $('#musicWrap').classList.toggle('is-hidden', event.target.value === 'original'); });
 for (const [id, key] of [['sectionInput', 'section'], ['titleInput', 'title'], ['sourceTextInput', 'source'], ['accentInput', 'accent']]) $("#" + id).addEventListener('input', event => { state.project.lowerThird[key] = event.target.value; $('#previewTitle').textContent = state.project.lowerThird.title || 'Video vertical'; draw(); });
@@ -31,7 +32,7 @@ video.addEventListener('timeupdate', draw);
 
 function hydrate() {
   const data = state.project.lowerThird;
-  $('#profileInput').value = state.project.profile; $('#frameInput').value = state.project.framing.mode; $('#audioInput').value = state.project.audioMode;
+  $('#profileInput').value = state.project.profile; $('#formatInput').value = state.project.format; $('#frameInput').value = state.project.framing.mode; $('#audioInput').value = state.project.audioMode;
   $('#sectionInput').value = data.section; $('#titleInput').value = data.title; $('#sourceTextInput').value = data.source; $('#accentInput').value = data.accent; $('#previewTitle').textContent = data.title || 'Video vertical';
 }
 
@@ -60,13 +61,15 @@ async function exportVideo() {
     const overlay = await overlayBlob();
     const ffmpeg = await loadFfmpeg();
     setStatus('Exportando MP4 vertical… 0%');
-    const result = await exportEditorialVideo({ ffmpeg, fetchFile: window.FFmpeg.fetchFile, source: state.source, overlay, music: state.music, audioMode: state.project.audioMode, onProgress: ratio => setStatus(`Exportando MP4 vertical… ${Math.round(ratio * 100)}%`) });
+    const result = await exportEditorialVideo({ ffmpeg, fetchFile: window.FFmpeg.fetchFile, source: state.source, overlay, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, onProgress: ratio => setStatus(`Exportando MP4… ${Math.round(ratio * 100)}%`) });
     const url = URL.createObjectURL(result); const link = document.createElement('a'); link.href = url; link.download = `mediamendoza-vertical-${Date.now()}.mp4`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); setStatus('MP4 listo para descargar.');
   } catch (error) { setStatus(error.message || 'No se pudo exportar el video.'); }
   finally { state.exporting = false; $('#exportButton').disabled = false; }
 }
 
 function overlayBlob() { return new Promise((resolve, reject) => { const overlay = document.createElement('canvas'); overlay.width = canvas.width; overlay.height = canvas.height; drawEditorialOverlay(overlay.getContext('2d'), state.project, { time: video.currentTime }); overlay.toBlob(blob => blob ? resolve(blob) : reject(new Error('No se pudo crear el zócalo.')), 'image/png'); }); }
+
+function setCanvasFormat() { canvas.width = 1080; canvas.height = state.project.format === '4:5' ? 1350 : 1920; }
 
 async function loadFfmpeg() {
   if (state.ffmpeg?.isLoaded?.()) return state.ffmpeg;

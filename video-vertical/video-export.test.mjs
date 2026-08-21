@@ -13,6 +13,12 @@ test('builds a complete vertical MP4 with original audio', () => {
   assert.match(joined, /output.mp4/);
 });
 
+test('builds a 4:5 MP4 at 1080 by 1350 when requested', () => {
+  const joined = buildExportCommand({ width: 1080, height: 1350 }).join(' ');
+  assert.match(joined, /scale=1080:1350/);
+  assert.match(joined, /crop=1080:1350/);
+});
+
 test('maps music or a mix instead of the source audio when selected', () => {
   const music = buildExportCommand({ inputName: 'source.mp4', overlayName: 'overlay.png', musicName: 'music.mp3', audioMode: 'musica' }).join(' ');
   const mix = buildExportCommand({ inputName: 'source.mp4', overlayName: 'overlay.png', musicName: 'music.mp3', audioMode: 'mezcla' }).join(' ');

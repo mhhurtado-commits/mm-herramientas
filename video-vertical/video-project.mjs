@@ -19,7 +19,7 @@ export function normalizeVideoProject(project = {}) {
   const lowerThird = object(input.lowerThird);
   const framing = object(input.framing);
   return {
-    format: '9:16',
+    format: input.format === '4:5' ? '4:5' : '9:16',
     profile: PROFILES.has(input.profile) ? input.profile : 'hablado',
     audioMode: AUDIO_MODES.has(input.audioMode) ? input.audioMode : 'original',
     lowerThird: {

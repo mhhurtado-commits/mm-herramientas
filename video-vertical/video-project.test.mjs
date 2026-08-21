@@ -17,3 +17,7 @@ test('normalizes invalid profile, audio mode and focus', () => {
   assert.equal(project.audioMode, 'original');
   assert.deepEqual(project.framing.focus, { x: 1, y: 0 });
 });
+
+test('preserves the 4:5 editorial format', () => {
+  assert.equal(normalizeVideoProject({ format: '4:5' }).format, '4:5');
+});

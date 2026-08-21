@@ -1,11 +1,11 @@
 const AUDIO_MODES = new Set(['original', 'musica', 'mezcla']);
 
-export function buildExportCommand({ inputName = 'source.mp4', overlayName = 'overlay.png', musicName = 'music.mp3', audioMode = 'original', outputName = 'output.mp4' } = {}) {
+export function buildExportCommand({ inputName = 'source.mp4', overlayName = 'overlay.png', musicName = 'music.mp3', audioMode = 'original', outputName = 'output.mp4', width = 1080, height = 1920 } = {}) {
   if (!AUDIO_MODES.has(audioMode)) throw new Error('Modo de audio inválido.');
   const graph = [
     '[0:v]split=2[bgsrc][fgsrc]',
-    '[bgsrc]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20:1[bg]',
-    '[fgsrc]scale=1080:-2[fg]',
+    `[bgsrc]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},boxblur=20:1[bg]`,
+    `[fgsrc]scale=${width}:-2[fg]`,
     '[bg][fg]overlay=(W-w)/2:(H-h)/2[base]',
     '[base][1:v]overlay=0:0[outv]',
     ...(audioMode === 'mezcla' ? ['[0:a][2:a]amix=inputs=2:duration=first[outa]'] : []),
@@ -16,7 +16,7 @@ export function buildExportCommand({ inputName = 'source.mp4', overlayName = 'ov
   return [...inputs, '-filter_complex', graph, '-map', '[outv]', ...audioMap, '-r', '30', '-c:v', 'libx264', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', outputName];
 }
 
-export async function exportEditorialVideo({ ffmpeg, fetchFile, source, overlay, music, audioMode = 'original', onProgress = () => {} } = {}) {
+export async function exportEditorialVideo({ ffmpeg, fetchFile, source, overlay, music, audioMode = 'original', width = 1080, height = 1920, onProgress = () => {} } = {}) {
   if (!ffmpeg?.FS || typeof ffmpeg.run !== 'function' || typeof fetchFile !== 'function') throw new Error('FFmpeg no está disponible en este navegador.');
   if (!source || !overlay) throw new Error('Faltan el video fuente o el zócalo.');
   if (audioMode !== 'original' && !music) throw new Error('Elegí una pista de música para este modo de audio.');
@@ -26,7 +26,7 @@ export async function exportEditorialVideo({ ffmpeg, fetchFile, source, overlay,
   ffmpeg.FS('writeFile', sourceName, await fetchFile(source));
   ffmpeg.FS('writeFile', 'overlay.png', await fetchFile(overlay));
   if (audioMode !== 'original') ffmpeg.FS('writeFile', musicName, await fetchFile(music));
-  await ffmpeg.run(...buildExportCommand({ inputName: sourceName, overlayName: 'overlay.png', musicName, audioMode }));
+  await ffmpeg.run(...buildExportCommand({ inputName: sourceName, overlayName: 'overlay.png', musicName, audioMode, width, height }));
   const data = ffmpeg.FS('readFile', 'output.mp4');
   return new Blob([data.buffer], { type: 'video/mp4' });
 }
