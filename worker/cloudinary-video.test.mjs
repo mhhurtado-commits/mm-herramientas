@@ -6,7 +6,7 @@ import {
   parseCloudinaryVideoJobId,
   signCloudinaryParams,
   verifyCloudinaryWebhook,
-} from './cloudinary-video.mjs';
+} from './worker.js';
 
 test('genera una transformación vertical con padding y zócalo', () => {
   assert.equal(
