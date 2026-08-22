@@ -21,10 +21,18 @@ test('builds a 4:5 MP4 at 1080 by 1350 when requested', () => {
 
 test('uses a lower-resolution background and veryfast encoder in fast mode', () => {
   const joined = buildExportCommand({ quality: 'rapido' }).join(' ');
-  assert.match(joined, /scale=540:960/);
-  assert.match(joined, /scale=1080:1920\[bg\]/);
+  assert.match(joined, /color=c=#111a15:s=1080x1920\[bg\]/);
   assert.match(joined, /-preset veryfast/);
   assert.match(joined, /-crf 22/);
+});
+
+test('reports file-copy and composition stages to the interface', async () => {
+  const stages = [];
+  const writes = [];
+  const ffmpeg = { FS: (action, name) => action === 'readFile' ? new Uint8Array([1]) : writes.push(name), run: async () => {}, setProgress() {} };
+  await (await import('./video-export.mjs')).exportEditorialVideo({ ffmpeg, fetchFile: async () => new Uint8Array([1]), source: new Blob(['x']), overlay: new Blob(['x']), onStage: stage => stages.push(stage) });
+  assert.deepEqual(stages, ['copiando', 'componiendo', 'finalizando']);
+  assert.deepEqual(writes, ['source.mp4', 'overlay.png']);
 });
 
 test('maps music or a mix instead of the source audio when selected', () => {
