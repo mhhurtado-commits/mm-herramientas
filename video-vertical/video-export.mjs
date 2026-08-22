@@ -2,12 +2,15 @@ const AUDIO_MODES = new Set(['original', 'musica', 'mezcla']);
 
 export function buildExportCommand({ inputName = 'source.mp4', overlayName = 'overlay.png', musicName = 'music.mp3', audioMode = 'original', outputName = 'output.mp4', width = 1080, height = 1920, quality = 'alta' } = {}) {
   if (!AUDIO_MODES.has(audioMode)) throw new Error('Modo de audio inválido.');
-  const fast = quality === 'rapido'; const backgroundWidth = fast ? Math.round(width / 2) : width; const backgroundHeight = fast ? Math.round(height / 2) : height;
+  const fast = quality === 'rapido';
+  const outputWidth = fast ? 720 : width;
+  const outputHeight = fast ? Math.round((height / width) * outputWidth) : height;
   const graph = [
-    ...(fast ? [`color=c=#111a15:s=${width}x${height}[bg]`, '[0:v]null[fgsrc]'] : ['[0:v]split=2[bgsrc][fgsrc]', `[bgsrc]scale=${backgroundWidth}:${backgroundHeight}:force_original_aspect_ratio=increase,crop=${backgroundWidth}:${backgroundHeight},boxblur=20:1[bg]`]),
-    `[fgsrc]scale=${width}:-2[fg]`,
+    ...(fast ? [`color=c=#111a15:s=${outputWidth}x${outputHeight}[bg]`, '[0:v]null[fgsrc]'] : ['[0:v]split=2[bgsrc][fgsrc]', `[bgsrc]scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase,crop=${outputWidth}:${outputHeight},boxblur=20:1[bg]`]),
+    `[fgsrc]scale=${outputWidth}:-2[fg]`,
     '[bg][fg]overlay=(W-w)/2:(H-h)/2[base]',
-    '[base][1:v]overlay=0:0[outv]',
+    `[1:v]scale=${outputWidth}:${outputHeight}[graphics]`,
+    '[base][graphics]overlay=0:0[outv]',
     ...(audioMode === 'mezcla' ? ['[0:a][2:a]amix=inputs=2:duration=first[outa]'] : []),
   ].join(';');
   const inputs = ['-i', inputName, '-i', overlayName];

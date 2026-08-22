@@ -19,11 +19,19 @@ test('builds a 4:5 MP4 at 1080 by 1350 when requested', () => {
   assert.match(joined, /crop=1080:1350/);
 });
 
-test('uses a lower-resolution background and veryfast encoder in fast mode', () => {
+test('exports a 720p Reel with a scaled editorial overlay in fast mode', () => {
   const joined = buildExportCommand({ quality: 'rapido' }).join(' ');
-  assert.match(joined, /color=c=#111a15:s=1080x1920\[bg\]/);
+  assert.match(joined, /color=c=#111a15:s=720x1280\[bg\]/);
+  assert.match(joined, /\[fgsrc\]scale=720:-2\[fg\]/);
+  assert.match(joined, /\[1:v\]scale=720:1280\[graphics\]/);
   assert.match(joined, /-preset veryfast/);
   assert.match(joined, /-crf 22/);
+});
+
+test('exports 4:5 fast mode at 720 by 900', () => {
+  const joined = buildExportCommand({ width: 1080, height: 1350, quality: 'rapido' }).join(' ');
+  assert.match(joined, /color=c=#111a15:s=720x900\[bg\]/);
+  assert.match(joined, /\[1:v\]scale=720:900\[graphics\]/);
 });
 
 test('uses the current FFmpeg file and progress API', async () => {

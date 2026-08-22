@@ -22,7 +22,8 @@ test('preserves the 4:5 editorial format', () => {
   assert.equal(normalizeVideoProject({ format: '4:5' }).format, '4:5');
 });
 
-test('defaults to high quality and preserves fast export selection', () => {
-  assert.equal(normalizeVideoProject({}).exportQuality, 'alta');
+test('defaults to fast export and preserves high-quality selection', () => {
+  assert.equal(normalizeVideoProject({}).exportQuality, 'rapido');
   assert.equal(normalizeVideoProject({ exportQuality: 'rapido' }).exportQuality, 'rapido');
+  assert.equal(normalizeVideoProject({ exportQuality: 'alta' }).exportQuality, 'alta');
 });
