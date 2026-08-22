@@ -1,5 +1,5 @@
-export const FFMPEG_CORE_URL = './vendor/ffmpeg/ffmpeg-core.js';
-export const FFMPEG_WASM_URL = './vendor/ffmpeg/ffmpeg-core.wasm';
+export const FFMPEG_CORE_URL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js';
+export const FFMPEG_WASM_URL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm';
 
 export function createFfmpegRuntime({ FFmpeg } = {}) {
   if (typeof FFmpeg !== 'function') throw new Error('No se pudo cargar FFmpeg. Revisá tu conexión e intentá de nuevo.');
