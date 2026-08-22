@@ -66,7 +66,7 @@ async function exportVideo() {
     const overlay = await overlayBlob();
     const ffmpeg = await loadFfmpeg();
     setStatus('Exportando MP4 vertical… 0%');
-    const result = await exportEditorialVideo({ ffmpeg, fetchFile: window.FFmpeg.fetchFile, source: state.source, overlay, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, quality: state.project.exportQuality, onProgress: ratio => setStatus(`Exportando MP4… ${Math.round(ratio * 100)}%`) });
+    const result = await exportEditorialVideo({ ffmpeg, fetchFile: window.FFmpeg.fetchFile, source: state.source, overlay, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, quality: state.project.exportQuality, onStage: stage => setStatus(stage === 'copiando' ? 'Copiando el video a memoria…' : stage === 'componiendo' ? 'Componiendo el video…' : 'Preparando la descarga…'), onProgress: ratio => setStatus(`Componiendo el video… ${Math.round(ratio * 100)}%`) });
     const url = URL.createObjectURL(result); const link = document.createElement('a'); link.href = url; link.download = `mediamendoza-vertical-${Date.now()}.mp4`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); setStatus('MP4 listo para descargar.');
   } catch (error) { setStatus(error.message || 'No se pudo exportar el video.'); }
   finally { state.exporting = false; $('#exportButton').disabled = false; }
