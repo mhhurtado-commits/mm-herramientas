@@ -4,7 +4,9 @@ import { createFfmpegRuntime, loadFfmpegRuntime } from './ffmpeg-runtime.mjs';
 import { parseVideoHandoff, validateVideoFile } from './video-input.mjs';
 import { createVideoProject } from './video-project.mjs';
 import { drawEditorialOverlay, drawVideoPreview } from './video-renderer.mjs';
+import { createSpeakerMarker, normalizeSpeakerMarkers } from './video-speakers.mjs';
 import { suggestClipWindows } from './video-suggestions.mjs';
+import { clampTimelineTime, getTimelineRatio, stepTimelineTime } from './video-timeline.mjs';
 
 const $ = selector => document.querySelector(selector);
 const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
@@ -31,16 +33,21 @@ for (const [id, key] of [['sectionInput', 'section'], ['titleInput', 'title'], [
 $('#captionInput').addEventListener('input', event => { state.project.captions = event.target.value.trim() ? [{ start: 0, end: state.duration || Infinity, text: event.target.value.trim() }] : []; draw(); });
 $('#suggestButton').addEventListener('click', refreshSuggestions);
 $('#playButton').addEventListener('click', () => video.paused ? video.play() : video.pause());
+$('#skipBackButton').addEventListener('click', () => seekBy(-5));
+$('#skipForwardButton').addEventListener('click', () => seekBy(5));
+$('#timelineInput').addEventListener('input', event => seekTo(event.target.value));
+$('#addSpeakerButton').addEventListener('click', addSpeaker);
 $('#exportButton').addEventListener('click', exportVideo);
-video.addEventListener('loadedmetadata', () => { state.duration = video.duration; $('#sourceMeta').textContent = `${Math.round(video.videoWidth)}×${Math.round(video.videoHeight)} · ${formatTime(video.duration)} · el original se mantiene intacto.`; refreshSuggestions(); draw(); $('#playButton').disabled = false; $('#suggestButton').disabled = false; $('#exportButton').disabled = false; });
+video.addEventListener('loadedmetadata', () => { state.duration = video.duration; $('#sourceMeta').textContent = `${Math.round(video.videoWidth)}×${Math.round(video.videoHeight)} · ${formatTime(video.duration)} · el original se mantiene intacto.`; refreshSuggestions(); draw(); updateTimeline(); renderSpeakers(); setSpeakerControlsEnabled(true); $('#playButton').disabled = false; $('#skipBackButton').disabled = false; $('#skipForwardButton').disabled = false; $('#suggestButton').disabled = false; $('#exportButton').disabled = false; });
 video.addEventListener('play', () => { $('#playButton').textContent = 'Pausar'; tick(); });
-video.addEventListener('pause', () => { $('#playButton').textContent = 'Reproducir'; draw(); });
-video.addEventListener('timeupdate', draw);
+video.addEventListener('pause', () => { $('#playButton').textContent = 'Reproducir'; draw(); updateTimeline(); });
+video.addEventListener('timeupdate', () => { draw(); updateTimeline(); });
 
 function hydrate() {
   const data = state.project.lowerThird;
   $('#profileInput').value = state.project.profile; $('#formatInput').value = state.project.format; $('#frameInput').value = state.project.framing.mode; $('#audioInput').value = state.project.audioMode; $('#qualityInput').value = state.project.exportQuality;
   $('#sectionInput').value = data.section; $('#titleInput').value = data.title; $('#sourceTextInput').value = data.source; $('#accentInput').value = data.accent; $('#previewTitle').textContent = data.title || 'Video vertical';
+  renderSpeakers(); updateTimeline();
 }
 
 function loadSource(file) {
@@ -48,6 +55,7 @@ function loadSource(file) {
   if (!check.ok) return setStatus(check.error);
   clearDownload();
   if (state.sourceUrl) URL.revokeObjectURL(state.sourceUrl);
+  state.duration = 0; state.project.speakers = []; clearSpeakerError(); renderSpeakers(); updateTimeline(); setSpeakerControlsEnabled(false);
   state.source = file; state.sourceUrl = URL.createObjectURL(file); video.src = state.sourceUrl; video.load(); setStatus('Leyendo el video local…');
 }
 
@@ -58,7 +66,76 @@ function refreshSuggestions() {
 }
 
 function draw() { if (video.readyState >= 2) drawVideoPreview(ctx, video, state.project, { time: video.currentTime, logo: state.logo }); else { ctx.fillStyle = '#101712'; ctx.fillRect(0, 0, canvas.width, canvas.height); } }
-function tick() { if (!video.paused) { draw(); requestAnimationFrame(tick); } }
+function tick() { if (!video.paused) { draw(); updateTimeline(); requestAnimationFrame(tick); } }
+
+function seekBy(seconds) { seekTo(stepTimelineTime(video.currentTime, seconds, state.duration)); }
+function seekTo(time) { if (!state.duration) return; video.currentTime = clampTimelineTime(time, state.duration); draw(); updateTimeline(); }
+
+function updateTimeline() {
+  const duration = Math.max(0, Number(state.duration) || 0);
+  const current = clampTimelineTime(video.currentTime, duration);
+  const ratio = getTimelineRatio(current, duration);
+  const timeline = $('#timelineInput');
+  timeline.max = duration; timeline.value = current; timeline.setAttribute('aria-valuemax', String(duration)); timeline.setAttribute('aria-valuenow', String(current));
+  $('#timelineProgress').style.width = `${ratio * 100}%`;
+  $('#timeDisplay').textContent = `${formatTime(current)} / ${formatTime(duration)}`;
+  for (const pin of $('#speakerPins').children) pin.classList.toggle('is-active', current >= Number(pin.dataset.start) && current < Number(pin.dataset.start) + Number(pin.dataset.duration));
+}
+
+function setSpeakerControlsEnabled(enabled) {
+  for (const id of ['speakerNameInput', 'speakerRoleInput', 'addSpeakerButton', 'timelineInput']) $(`#${id}`).disabled = !enabled;
+}
+
+function addSpeaker() {
+  clearSpeakerError();
+  if (!state.source || !state.duration) return setSpeakerError('Cargá un video antes de agregar una persona.');
+  if (!video.paused) return setSpeakerError('Pausá el video en el momento en que querés mostrar el rótulo.');
+  const name = $('#speakerNameInput').value.trim();
+  if (!name) return setSpeakerError('Ingresá el nombre de la persona.');
+  try {
+    const marker = createSpeakerMarker({ start: video.currentTime, name, role: $('#speakerRoleInput').value }, state.duration);
+    state.project.speakers = normalizeSpeakerMarkers([...state.project.speakers, marker], state.duration);
+    $('#speakerNameInput').value = ''; $('#speakerRoleInput').value = ''; renderSpeakers(); draw(); updateTimeline();
+  } catch (error) { setSpeakerError(error.message || 'No se pudo agregar la persona.'); }
+}
+
+function renderSpeakers() {
+  const list = $('#speakerList'); list.replaceChildren();
+  if (!state.project.speakers.length) { const empty = document.createElement('li'); empty.className = 'vv-empty-speakers'; empty.textContent = state.source ? 'Todavía no agregaste personas.' : 'Cargá un video para agregar personas.'; list.append(empty); renderSpeakerPins(); return; }
+  for (const marker of state.project.speakers) {
+    const item = document.createElement('li'); item.className = 'vv-speaker-item';
+    const name = speakerField('Nombre', 'text', marker.name, 48); const role = speakerField('Rol', 'text', marker.role, 72); const start = speakerField('Inicio', 'number', marker.start, null);
+    start.input.min = '4'; start.input.max = String(state.duration); start.input.step = '0.01'; start.field.classList.add('vv-speaker-time');
+    for (const input of [name.input, role.input, start.input]) input.addEventListener('change', () => updateSpeaker(marker.id, { name: name.input.value, role: role.input.value, start: start.input.value }));
+    const remove = document.createElement('button'); remove.className = 'mm-btn mm-btn-sm vv-speaker-delete'; remove.type = 'button'; remove.textContent = 'Eliminar'; remove.addEventListener('click', () => { state.project.speakers = state.project.speakers.filter(speaker => speaker.id !== marker.id); clearSpeakerError(); renderSpeakers(); draw(); updateTimeline(); });
+    item.append(name.field, role.field, start.field, remove); list.append(item);
+  }
+  renderSpeakerPins();
+}
+
+function speakerField(label, type, value, maxLength) {
+  const field = document.createElement('div'); field.className = 'vv-speaker-field'; const caption = document.createElement('label'); caption.textContent = label; const input = document.createElement('input'); input.className = 'mm-input'; input.type = type; input.value = value; if (maxLength) input.maxLength = maxLength; field.append(caption, input); return { field, input };
+}
+
+function updateSpeaker(id, changes) {
+  clearSpeakerError();
+  const current = state.project.speakers.find(marker => marker.id === id);
+  if (!current) return;
+  if (!String(changes.name || '').trim()) return setSpeakerError('El nombre de la persona es obligatorio.');
+  try {
+    const marker = createSpeakerMarker({ ...current, ...changes }, state.duration);
+    state.project.speakers = normalizeSpeakerMarkers(state.project.speakers.map(item => item.id === id ? marker : item), state.duration);
+    renderSpeakers(); draw(); updateTimeline();
+  } catch (error) { setSpeakerError(error.message || 'No se pudo actualizar la persona.'); renderSpeakers(); }
+}
+
+function renderSpeakerPins() {
+  const pins = $('#speakerPins'); pins.replaceChildren();
+  for (const marker of state.project.speakers) { const pin = document.createElement('span'); pin.className = 'vv-speaker-pin'; pin.dataset.start = marker.start; pin.dataset.duration = marker.duration; pin.style.left = `${getTimelineRatio(marker.start, state.duration) * 100}%`; pins.append(pin); }
+}
+
+function setSpeakerError(message) { $('#speakerError').textContent = message; }
+function clearSpeakerError() { setSpeakerError(''); }
 
 async function exportVideo() {
   if (!state.source || state.exporting) return;

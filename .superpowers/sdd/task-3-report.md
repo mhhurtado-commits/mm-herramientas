@@ -95,3 +95,45 @@ The suite covers normalization and layout safety, plus Canvas rendering of:
 - The focused Node suite uses a minimal Canvas/Image harness. Browser preview
   and PNG rendering share the same production entry point, but a visual browser
   snapshot was not run in this environment.
+
+## Video timeline and speaker-marker UI
+
+## RED
+
+Command:
+
+```powershell
+node --test --test-isolation=none video-vertical/video-timeline.test.mjs
+```
+
+Observed expected failure: `ERR_MODULE_NOT_FOUND` for `video-timeline.mjs`.
+
+## GREEN
+
+Added the pure timeline math module for bounded seek positions, progress ratios,
+pointer-position conversion and five-second stepping. The UI now provides
+play/pause, plus/minus five-second controls, current/duration display, a native
+range timeline for click/drag/keyboard seek, and visible speaker pins.
+
+Speaker controls require a name (48 characters maximum), accept an optional
+role (72 characters maximum), require paused playback to add at the current
+time, and support editing/deleting existing markers. Loading a replacement
+video clears existing speaker markers. Validation errors stay visible in the
+speaker panel.
+
+Fresh verification:
+
+```powershell
+node --check video-vertical/app.mjs
+node --check video-vertical/video-timeline.mjs
+node --test --test-isolation=none video-vertical/video-timeline.test.mjs video-vertical/video-speakers.test.mjs video-vertical/video-project.test.mjs video-vertical/video-renderer.test.mjs video-vertical/video-overlay-layers.test.mjs
+git diff --check
+```
+
+Result: 20 passing tests, 0 failing; syntax and whitespace checks exited 0.
+
+## Verification boundary
+
+The in-app browser could not attach to the local `localhost` webview, so no
+manual visual browser pass was available in this environment. The UI module was
+syntax-checked and the timeline logic is covered by focused automated tests.
