@@ -10,10 +10,11 @@ class MemoryKV {
 
 test('el Worker firma una carga y publica el MP4 solo luego del webhook válido', async () => {
   const env = { CLOUDINARY_CLOUD_NAME: 'demo', CLOUDINARY_API_KEY: 'key', CLOUDINARY_API_SECRET: 'secret', KV: new MemoryKV() };
-  const response = await worker.fetch(new Request('https://worker.test/video-vertical/cloudinary/crear', { method: 'POST', body: JSON.stringify({ format: '9:16', source: { size: 100 } }) }), env);
+  const response = await worker.fetch(new Request('https://worker.test/video-vertical/cloudinary/crear', { method: 'POST', body: JSON.stringify({ format: '9:16', source: { size: 100 }, layers: [{ id: 'fixed', kind: 'fixed', start: 0, duration: null }, { id: 'speaker', kind: 'speaker', start: 4, duration: 4 }] }) }), env);
   const created = await response.json();
   assert.equal(response.status, 200);
   assert.match(created.videoUpload.publicId, /^mm-video-vertical\/input-/);
+  assert.equal(created.layerUploads.length, 2);
   const publicId = created.videoUpload.publicId;
   const payload = JSON.stringify({ public_id: publicId, eager: [{ secure_url: 'https://res.cloudinary.com/demo/video/upload/result.mp4' }] });
   const timestamp = Math.floor(Date.now() / 1000);

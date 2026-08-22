@@ -8,17 +8,17 @@ import {
   verifyCloudinaryWebhook,
 } from './worker.js';
 
-test('genera una transformación vertical con padding y zócalo', () => {
+test('genera una transformación vertical con capas fijas y temporizadas', () => {
   assert.equal(
-    buildCloudinaryEagerTransform({ overlayPublicId: 'mm-video-vertical/overlay-job_123', width: 720, height: 1280 }),
-    'b_rgb:111a15,c_pad,h_1280,w_720/l_mm-video-vertical:overlay-job_123/c_scale,h_1280,w_720/fl_layer_apply,g_center/ac_aac,f_mp4,q_auto:good,vc_h264/fl_attachment',
+    buildCloudinaryEagerTransform({ layers: [{ publicId: 'mm-video-vertical/overlay-job_123-fixed', kind: 'fixed' }, { publicId: 'mm-video-vertical/overlay-job_123-speaker', kind: 'speaker', start: 4, duration: 4 }], width: 720, height: 1280 }),
+    'b_rgb:111a15,c_pad,h_1280,w_720/l_mm-video-vertical:overlay-job_123-fixed/c_scale,h_1280,w_720/fl_layer_apply,g_center/l_mm-video-vertical:overlay-job_123-speaker/c_scale,h_1280,w_720/fl_layer_apply,g_center,so_4,du_4/ac_aac,f_mp4,q_auto:good,vc_h264/fl_attachment',
   );
 });
 
 test('genera un recorte vertical centrado cuando se elige ese encuadre', () => {
   assert.equal(
-    buildCloudinaryEagerTransform({ overlayPublicId: 'mm-video-vertical/overlay-job_123', width: 720, height: 1280, framingMode: 'cover' }),
-    'c_fill,g_center,h_1280,w_720/l_mm-video-vertical:overlay-job_123/c_scale,h_1280,w_720/fl_layer_apply,g_center/ac_aac,f_mp4,q_auto:good,vc_h264/fl_attachment',
+    buildCloudinaryEagerTransform({ layers: [{ publicId: 'mm-video-vertical/overlay-job_123-fixed', kind: 'fixed' }], width: 720, height: 1280, framingMode: 'cover' }),
+    'c_fill,g_center,h_1280,w_720/l_mm-video-vertical:overlay-job_123-fixed/c_scale,h_1280,w_720/fl_layer_apply,g_center/ac_aac,f_mp4,q_auto:good,vc_h264/fl_attachment',
   );
 });
 

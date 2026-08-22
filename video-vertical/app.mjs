@@ -2,8 +2,9 @@ import { buildExportCommand, exportEditorialVideo } from './video-export.mjs';
 import { exportCloudinaryVideo } from './cloudinary-export.mjs';
 import { createFfmpegRuntime, loadFfmpegRuntime } from './ffmpeg-runtime.mjs';
 import { parseVideoHandoff, validateVideoFile } from './video-input.mjs';
+import { getOverlayLayerPlan } from './video-overlay-layers.mjs';
 import { createVideoProject } from './video-project.mjs';
-import { drawEditorialOverlay, drawVideoPreview } from './video-renderer.mjs';
+import { drawEditorialLayer, drawVideoPreview } from './video-renderer.mjs';
 import { createSpeakerMarker, normalizeSpeakerMarkers } from './video-speakers.mjs';
 import { suggestClipWindows } from './video-suggestions.mjs';
 import { clampTimelineTime, getTimelineRatio, stepTimelineTime } from './video-timeline.mjs';
@@ -142,14 +143,14 @@ async function exportVideo() {
   if (state.project.audioMode !== 'original' && !state.music) return setStatus('Elegí una pista de música o volvé a audio original.');
   clearDownload(); state.exporting = true; $('#exportButton').disabled = true;
   try {
-    setStatus('Preparando el zócalo…');
-    const overlay = await overlayBlob();
+    setStatus('Preparando las capas editoriales…');
+    const layers = await overlayLayers();
     if (state.project.exportQuality === 'rapido') {
       if (state.project.audioMode !== 'original') throw new Error('La exportación rápida remota conserva el audio original. Para música o mezcla usá Alta calidad.');
       const result = await exportCloudinaryVideo({
         workerUrl: WORKER_URL,
         source: state.source,
-        overlay,
+        layers,
         format: state.project.format,
         framingMode: state.project.framing.mode,
         onStage: stage => setStatus(remoteExportStatus(stage)),
@@ -159,13 +160,24 @@ async function exportVideo() {
     }
     const ffmpeg = await loadFfmpeg();
     setStatus('Exportando MP4 vertical… 0%');
-    const result = await exportEditorialVideo({ ffmpeg, source: state.source, overlay, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, quality: state.project.exportQuality, onStage: stage => setStatus(stage === 'copiando' ? 'Copiando el video a memoria…' : stage === 'componiendo' ? 'Componiendo el video…' : 'Preparando la descarga…'), onProgress: ratio => setStatus(`Componiendo el video… ${Math.round(ratio * 100)}%`) });
+    const result = await exportEditorialVideo({ ffmpeg, source: state.source, layers, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, quality: state.project.exportQuality, onStage: stage => setStatus(stage === 'copiando' ? 'Copiando el video a memoria…' : stage === 'componiendo' ? 'Componiendo el video…' : 'Preparando la descarga…'), onProgress: ratio => setStatus(`Componiendo el video… ${Math.round(ratio * 100)}%`) });
     showDownload(URL.createObjectURL(result), { objectUrl: true }); setStatus('MP4 listo. Usá el botón Descargar MP4.');
   } catch (error) { setStatus(error.message || 'No se pudo exportar el video.'); }
   finally { state.exporting = false; $('#exportButton').disabled = false; }
 }
 
-function overlayBlob() { return new Promise((resolve, reject) => { const overlay = document.createElement('canvas'); overlay.width = canvas.width; overlay.height = canvas.height; drawEditorialOverlay(overlay.getContext('2d'), state.project, { time: video.currentTime, logo: state.logo }); overlay.toBlob(blob => blob ? resolve(blob) : reject(new Error('No se pudo crear el zócalo.')), 'image/png'); }); }
+async function overlayLayers() {
+  return Promise.all(getOverlayLayerPlan(state.project).map(async layer => ({ ...layer, blob: await layerBlob(layer) })));
+}
+
+function layerBlob(layer) {
+  return new Promise((resolve, reject) => {
+    const overlay = document.createElement('canvas');
+    overlay.width = canvas.width; overlay.height = canvas.height;
+    drawEditorialLayer(overlay.getContext('2d'), state.project, layer, { logo: state.logo });
+    overlay.toBlob(blob => blob ? resolve(blob) : reject(new Error('No se pudo crear una capa editorial.')), 'image/png');
+  });
+}
 
 function setCanvasFormat() { canvas.width = 1080; canvas.height = state.project.format === '4:5' ? 1350 : 1920; }
 
@@ -177,7 +189,7 @@ async function loadFfmpeg() {
 
 function formatTime(value) { const seconds = Math.max(0, Math.floor(Number(value) || 0)); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; }
 function setStatus(value) { $('#status').textContent = value; }
-function remoteExportStatus(stage) { return ({ preparando: 'Preparando la exportación remota…', 'subiendo-video': 'Subiendo el video…', 'subiendo-zocalo': 'Subiendo el zócalo…', renderizando: 'Generando MP4 en Cloudinary…', esperando: 'Generando MP4 en Cloudinary…' })[stage] || 'Generando MP4…'; }
+function remoteExportStatus(stage) { return ({ preparando: 'Preparando la exportación remota…', 'subiendo-video': 'Subiendo el video…', 'subiendo-capas': 'Subiendo las capas editoriales…', renderizando: 'Generando MP4 en Cloudinary…', esperando: 'Generando MP4 en Cloudinary…' })[stage] || 'Generando MP4…'; }
 function showDownload(url, { objectUrl = false } = {}) { const link = $('#downloadLink'); link.href = url; link.download = `mediamendoza-vertical-${Date.now()}.mp4`; state.downloadObjectUrl = objectUrl ? url : ''; link.classList.remove('is-hidden'); }
 function clearDownload() { const link = $('#downloadLink'); if (state.downloadObjectUrl) URL.revokeObjectURL(state.downloadObjectUrl); state.downloadObjectUrl = ''; link.removeAttribute('href'); link.classList.add('is-hidden'); }
 
