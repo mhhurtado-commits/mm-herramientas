@@ -1,4 +1,5 @@
 import { getOverlayLayout, getVideoFramePlan } from './video-framing.mjs';
+import { TITLE_DURATION, getActiveSpeaker } from './video-speakers.mjs';
 
 export function drawVideoPreview(ctx, video, project, { width = ctx.canvas.width, height = ctx.canvas.height, time = 0, logo = null } = {}) {
   const plan = getVideoFramePlan({ sourceWidth: video?.videoWidth, sourceHeight: video?.videoHeight, width, height, mode: project?.framing?.mode, focus: project?.framing?.focus });
@@ -14,11 +15,22 @@ export function drawVideoPreview(ctx, video, project, { width = ctx.canvas.width
 }
 
 export function drawEditorialOverlay(ctx, project, { time = 0, layout = getOverlayLayout({ width: ctx.canvas.width, height: ctx.canvas.height }), logo = null } = {}) {
-  drawBrandLogo(ctx, logo, layout.safe);
-  drawHook(ctx, project?.lowerThird, layout.hook);
-  drawLowerThird(ctx, project?.lowerThird, layout.lowerThird);
+  drawEditorialLayer(ctx, project, { kind: 'fixed' }, { layout, logo });
+  if (time < TITLE_DURATION) drawEditorialLayer(ctx, project, { kind: 'title' }, { layout, logo });
+  const speaker = getActiveSpeaker(project?.speakers || [], time);
+  if (speaker) drawEditorialLayer(ctx, project, { kind: 'speaker', speaker }, { layout, logo });
   drawCaption(ctx, activeCaption(project?.captions, time), layout.caption);
   return layout;
+}
+
+export function drawEditorialLayer(ctx, project, layer = {}, { layout = getOverlayLayout({ width: ctx.canvas.width, height: ctx.canvas.height }), logo = null } = {}) {
+  const lowerThird = project?.lowerThird || {};
+  if (layer.kind === 'fixed') {
+    drawBrandLogo(ctx, logo, layout.safe);
+    drawHook(ctx, lowerThird, layout.hook);
+  }
+  if (layer.kind === 'title') drawLowerThird(ctx, lowerThird, layout.lowerThird);
+  if (layer.kind === 'speaker') drawSpeakerLowerThird(ctx, layer.speaker, lowerThird.accent, layout.lowerThird);
 }
 
 export function fitVideoText(text, maxWidth, measure = value => value.length) {
@@ -33,9 +45,20 @@ export function fitVideoText(text, maxWidth, measure = value => value.length) {
 }
 
 function drawHook(ctx, lowerThird = {}, box) {
-  if (!lowerThird.title) return;
+  if (!lowerThird.section) return;
   ctx.save(); ctx.fillStyle = lowerThird.accent || '#a6ce39'; roundRect(ctx, box.x, box.y, Math.min(box.width, 290), 52, 26); ctx.fill();
   ctx.font = '700 25px Arial, sans-serif'; ctx.fillStyle = '#122019'; ctx.fillText((lowerThird.section || 'Actualidad').toUpperCase(), box.x + 22, box.y + 33); ctx.restore();
+}
+
+function drawSpeakerLowerThird(ctx, speaker = {}, accent, box) {
+  const name = String(speaker.name || '').trim();
+  if (!name) return;
+  ctx.save(); ctx.fillStyle = 'rgba(10,17,14,.92)'; roundRect(ctx, box.x, box.y, box.width, box.height, 28); ctx.fill();
+  ctx.fillStyle = accent || '#a6ce39'; ctx.fillRect(box.x, box.y, 12, box.height);
+  const x = box.x + 34;
+  ctx.font = '800 42px Arial, sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText(name.toUpperCase(), x, box.y + 58);
+  if (speaker.role) { ctx.font = '500 25px Arial, sans-serif'; ctx.fillStyle = '#d7dfda'; ctx.fillText(String(speaker.role), x, box.y + 102); }
+  ctx.restore();
 }
 
 function drawLowerThird(ctx, lowerThird = {}, box) {
