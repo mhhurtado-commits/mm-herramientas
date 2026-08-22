@@ -26,13 +26,15 @@ test('uses a lower-resolution background and veryfast encoder in fast mode', () 
   assert.match(joined, /-crf 22/);
 });
 
-test('reports file-copy and composition stages to the interface', async () => {
+test('uses the current FFmpeg file and progress API', async () => {
   const stages = [];
   const writes = [];
-  const ffmpeg = { FS: (action, name) => action === 'readFile' ? new Uint8Array([1]) : writes.push(name), run: async () => {}, setProgress() {} };
-  await (await import('./video-export.mjs')).exportEditorialVideo({ ffmpeg, fetchFile: async () => new Uint8Array([1]), source: new Blob(['x']), overlay: new Blob(['x']), onStage: stage => stages.push(stage) });
+  const progressListeners = [];
+  const ffmpeg = { writeFile: async name => writes.push(name), exec: async () => {}, readFile: async () => new Uint8Array([1]), on: (event, listener) => progressListeners.push([event, listener]) };
+  await (await import('./video-export.mjs')).exportEditorialVideo({ ffmpeg, source: new Blob(['x']), overlay: new Blob(['x']), onStage: stage => stages.push(stage) });
   assert.deepEqual(stages, ['copiando', 'componiendo', 'finalizando']);
   assert.deepEqual(writes, ['source.mp4', 'overlay.png']);
+  assert.equal(progressListeners[0][0], 'progress');
 });
 
 test('maps music or a mix instead of the source audio when selected', () => {

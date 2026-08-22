@@ -1,11 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FFMPEG_CORE_PATH, createFfmpegRuntime } from './ffmpeg-runtime.mjs';
+import { FFMPEG_CORE_URL, FFMPEG_WASM_URL, createFfmpegRuntime, loadFfmpegRuntime } from './ffmpeg-runtime.mjs';
 
-test('pins the compatible FFmpeg core through corePath', () => {
+test('loads the current FFmpeg runtime with same-origin core assets', async () => {
   let options;
-  const runtime = createFfmpegRuntime({ createFFmpeg: value => { options = value; return { load() {} }; } });
-  assert.equal(options.corePath, FFMPEG_CORE_PATH);
-  assert.equal(options.log, false);
-  assert.ok(runtime);
+  class FFmpeg {
+    async load(value) { options = value; }
+  }
+  const runtime = createFfmpegRuntime({ FFmpeg });
+  await loadFfmpegRuntime(runtime);
+  assert.equal(options.coreURL, FFMPEG_CORE_URL);
+  assert.equal(options.wasmURL, FFMPEG_WASM_URL);
+  assert.ok(runtime instanceof FFmpeg);
 });

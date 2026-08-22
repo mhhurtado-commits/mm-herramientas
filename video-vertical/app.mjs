@@ -1,5 +1,5 @@
 import { buildExportCommand, exportEditorialVideo } from './video-export.mjs';
-import { createFfmpegRuntime } from './ffmpeg-runtime.mjs';
+import { createFfmpegRuntime, loadFfmpegRuntime } from './ffmpeg-runtime.mjs';
 import { parseVideoHandoff, validateVideoFile } from './video-input.mjs';
 import { createVideoProject } from './video-project.mjs';
 import { drawEditorialOverlay, drawVideoPreview } from './video-renderer.mjs';
@@ -66,7 +66,7 @@ async function exportVideo() {
     const overlay = await overlayBlob();
     const ffmpeg = await loadFfmpeg();
     setStatus('Exportando MP4 vertical… 0%');
-    const result = await exportEditorialVideo({ ffmpeg, fetchFile: window.FFmpeg.fetchFile, source: state.source, overlay, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, quality: state.project.exportQuality, onStage: stage => setStatus(stage === 'copiando' ? 'Copiando el video a memoria…' : stage === 'componiendo' ? 'Componiendo el video…' : 'Preparando la descarga…'), onProgress: ratio => setStatus(`Componiendo el video… ${Math.round(ratio * 100)}%`) });
+    const result = await exportEditorialVideo({ ffmpeg, source: state.source, overlay, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, quality: state.project.exportQuality, onStage: stage => setStatus(stage === 'copiando' ? 'Copiando el video a memoria…' : stage === 'componiendo' ? 'Componiendo el video…' : 'Preparando la descarga…'), onProgress: ratio => setStatus(`Componiendo el video… ${Math.round(ratio * 100)}%`) });
     const url = URL.createObjectURL(result); const link = document.createElement('a'); link.href = url; link.download = `mediamendoza-vertical-${Date.now()}.mp4`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); setStatus('MP4 listo para descargar.');
   } catch (error) { setStatus(error.message || 'No se pudo exportar el video.'); }
   finally { state.exporting = false; $('#exportButton').disabled = false; }
@@ -77,8 +77,9 @@ function overlayBlob() { return new Promise((resolve, reject) => { const overlay
 function setCanvasFormat() { canvas.width = 1080; canvas.height = state.project.format === '4:5' ? 1350 : 1920; }
 
 async function loadFfmpeg() {
-  if (state.ffmpeg?.isLoaded?.()) return state.ffmpeg;
-  state.ffmpeg = createFfmpegRuntime({ createFFmpeg: window.FFmpeg?.createFFmpeg }); await state.ffmpeg.load(); return state.ffmpeg;
+  if (state.ffmpeg) return state.ffmpeg;
+  const runtime = createFfmpegRuntime({ FFmpeg: window.FFmpegWASM?.FFmpeg });
+  await loadFfmpegRuntime(runtime); state.ffmpeg = runtime; return runtime;
 }
 
 function formatTime(value) { const seconds = Math.max(0, Math.floor(Number(value) || 0)); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; }
