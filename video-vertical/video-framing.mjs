@@ -20,7 +20,7 @@ export function getOverlayLayout({ width = 1080, height = 1920 } = {}) {
   const lowerThird = { x: safe.left, y: height * 0.71, width: safe.right - safe.left, height: height * 0.16 };
   return {
     safe,
-    hook: { x: safe.left, y: height * 0.09, width: safe.right - safe.left, height: height * 0.15 },
+    hook: { x: safe.left, y: height * 0.035, width: safe.right - safe.left, height: height * 0.15 },
     caption: { x: safe.left, y: height * 0.56, width: safe.right - safe.left, height: height * 0.1 },
     lowerThird,
   };

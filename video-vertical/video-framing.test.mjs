@@ -22,3 +22,8 @@ test('reserves separate safe spaces for caption and lower third', () => {
   assert.ok(layout.caption.y + layout.caption.height < layout.lowerThird.y);
   assert.ok(layout.lowerThird.y + layout.lowerThird.height <= layout.safe.bottom);
 });
+
+test('alinea la categoría superior con el logo de marca', () => {
+  const layout = getOverlayLayout({ width: 1080, height: 1920 });
+  assert.equal(layout.hook.y, 1920 * 0.035);
+});
