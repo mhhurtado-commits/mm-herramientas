@@ -16,7 +16,7 @@ export function drawVideoPreview(ctx, video, project, { width = ctx.canvas.width
 
 export function drawEditorialOverlay(ctx, project, { time = 0, layout = getOverlayLayout({ width: ctx.canvas.width, height: ctx.canvas.height }), logo = null } = {}) {
   drawEditorialLayer(ctx, project, { kind: 'fixed' }, { layout, logo });
-  if (time < TITLE_DURATION) drawEditorialLayer(ctx, project, { kind: 'title' }, { layout, logo });
+  if (time >= 0 && time < TITLE_DURATION) drawEditorialLayer(ctx, project, { kind: 'title' }, { layout, logo });
   const speaker = getActiveSpeaker(project?.speakers || [], time);
   if (speaker) drawEditorialLayer(ctx, project, { kind: 'speaker', speaker }, { layout, logo });
   drawCaption(ctx, activeCaption(project?.captions, time), layout.caption);

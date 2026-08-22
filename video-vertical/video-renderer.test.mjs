@@ -26,21 +26,19 @@ test('renders a speaker layer without the title lower third', () => {
   assert.ok(!calls.includes('Titulo editorial'));
 });
 
-test('preview keeps fixed branding, limits title to opening and replaces it with active speaker', () => {
+test('preview keeps fixed branding and limits the title to 0 <= t < 4', () => {
   const project = {
     lowerThird: { title: 'Titulo editorial', section: 'Actualidad', accent: '#a6ce39' },
     speakers: [{ id: 'ana', start: 4, duration: 4, name: 'Ana Pérez', role: 'Especialista' }],
   };
-  const opening = []; drawEditorialOverlay(createContext(opening), project, { time: 0, logo: { width: 500, height: 100 } });
+  const before = []; drawEditorialOverlay(createContext(before), project, { time: -1, logo: { width: 500, height: 100 } });
+  const opening = []; drawEditorialOverlay(createContext(opening), project, { time: 3.999, logo: { width: 500, height: 100 } });
   const speaker = []; drawEditorialOverlay(createContext(speaker), project, { time: 4, logo: { width: 500, height: 100 } });
-  const later = []; drawEditorialOverlay(createContext(later), project, { time: 9, logo: { width: 500, height: 100 } });
-  assert.ok(opening.includes('logo'));
-  assert.ok(speaker.includes('logo'));
-  assert.ok(later.includes('logo'));
+  for (const calls of [before, opening, speaker]) assert.ok(calls.includes('logo'));
+  assert.ok(!before.includes('Titulo editorial'));
   assert.ok(opening.includes('Titulo editorial'));
   assert.ok(!speaker.includes('Titulo editorial'));
   assert.ok(speaker.includes('ANA PÉREZ'));
-  assert.ok(!later.includes('Titulo editorial'));
 });
 
 function createContext(calls) {
