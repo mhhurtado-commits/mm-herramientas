@@ -1,6 +1,7 @@
 // Media Mendoza Worker ? archivo ?nico para pegar en el dashboard de Cloudflare.
 // Incluye solo los helpers de f?tbol usados por el Worker y el n?cleo editorial de Placas V2.
 // @ts-nocheck
+import { buildCloudinaryEagerTransform, createCloudinaryVideoJob, parseCloudinaryVideoJobId, signCloudinaryParams, verifyCloudinaryWebhook } from './cloudinary-video.mjs';
 
 function buildFluxKlein4bInput(prompt,seed){
   const form=new FormData();
@@ -5691,6 +5692,118 @@ async function handleMundialIDs(env) {
 
 
 // ============================================================
+// VIDEO VERTICAL - Cloudinary (la API secret nunca sale del Worker)
+// ============================================================
+const CLOUDINARY_VIDEO_TTL = 60 * 60 * 24;
+const CLOUDINARY_VIDEO_PREFIX = 'video:cloudinary:';
+
+function cloudinaryReady(env) {
+  return Boolean(env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET && env.KV);
+}
+
+async function saveCloudinaryVideoJob(env, job) {
+  await env.KV.put(`${CLOUDINARY_VIDEO_PREFIX}${job.id}`, JSON.stringify(job), { expirationTtl: CLOUDINARY_VIDEO_TTL });
+}
+
+async function handleCloudinaryVideoCreate(body, url, env) {
+  if (!cloudinaryReady(env)) return jsonError('Cloudinary no está configurado en el Worker.', 503);
+  if (Number(body?.source?.size) > 100 * 1024 * 1024) return jsonError('La exportación rápida admite videos de hasta 100 MB.', 400);
+  const id = crypto.randomUUID().replaceAll('-', '');
+  const job = createCloudinaryVideoJob({ id, format: body?.format, origin: url.origin });
+  await saveCloudinaryVideoJob(env, job);
+  const timestamp = Math.floor(Date.now() / 1000);
+  const upload = async (resourceType, publicId) => {
+    const params = { public_id: publicId, timestamp };
+    return {
+      endpoint: `https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
+      apiKey: env.CLOUDINARY_API_KEY,
+      timestamp,
+      signature: await signCloudinaryParams(params, env.CLOUDINARY_API_SECRET),
+      publicId,
+    };
+  };
+  return jsonOk({
+    jobId: job.id,
+    videoUpload: await upload('video', job.inputPublicId),
+    overlayUpload: await upload('image', job.overlayPublicId),
+  });
+}
+
+async function handleCloudinaryVideoRender(body, id, env) {
+  if (!cloudinaryReady(env)) return jsonError('Cloudinary no está configurado en el Worker.', 503);
+  const job = await env.KV.get(`${CLOUDINARY_VIDEO_PREFIX}${id}`, 'json');
+  if (!job) return jsonError('La exportación no existe o venció.', 404);
+  if (job.status === 'listo') return jsonOk({ status: job.status, downloadUrl: job.downloadUrl });
+  const eager = buildCloudinaryEagerTransform(job);
+  const timestamp = Math.floor(Date.now() / 1000);
+  const params = {
+    eager,
+    eager_async: 'true',
+    eager_notification_url: job.webhookUrl,
+    public_id: job.inputPublicId,
+    timestamp,
+    type: 'upload',
+  };
+  const signature = await signCloudinaryParams(params, env.CLOUDINARY_API_SECRET);
+  let response;
+  try {
+    response = await fetch(`https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/video/explicit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ ...params, api_key: env.CLOUDINARY_API_KEY, signature }),
+    });
+  } catch (error) {
+    return jsonError(`No se pudo iniciar Cloudinary: ${error.message}`, 502);
+  }
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) return jsonError(result?.error?.message || 'Cloudinary rechazó la exportación.', response.status);
+  job.status = 'renderizando';
+  job.batchId = result.batch_id || null;
+  job.updatedAt = Date.now();
+  await saveCloudinaryVideoJob(env, job);
+  return jsonOk({ status: job.status });
+}
+
+async function handleCloudinaryVideoStatus(id, env) {
+  if (!env.KV) return jsonError('KV no está disponible.', 503);
+  const job = await env.KV.get(`${CLOUDINARY_VIDEO_PREFIX}${id}`, 'json');
+  if (!job) return jsonError('La exportación no existe o venció.', 404);
+  return jsonOk({ status: job.status, downloadUrl: job.downloadUrl || null, error: job.error || null });
+}
+
+async function handleCloudinaryVideoWebhook(request, env) {
+  if (!env.CLOUDINARY_API_SECRET || !env.KV) return jsonError('Webhook no disponible.', 503);
+  const raw = await request.text();
+  const valid = await verifyCloudinaryWebhook({
+    body: raw,
+    timestamp: request.headers.get('X-Cld-Timestamp'),
+    signature: request.headers.get('X-Cld-Signature'),
+    apiSecret: env.CLOUDINARY_API_SECRET,
+  });
+  if (!valid) return jsonError('Firma de Cloudinary inválida.', 401);
+  let payload;
+  try { payload = JSON.parse(raw); } catch { return jsonError('Webhook Cloudinary inválido.', 400); }
+  const id = parseCloudinaryVideoJobId(payload.public_id);
+  if (!id) return jsonOk({ ignored: true });
+  const job = await env.KV.get(`${CLOUDINARY_VIDEO_PREFIX}${id}`, 'json');
+  if (!job) return jsonOk({ ignored: true });
+  const downloadUrl = payload.eager?.find(item => item?.secure_url)?.secure_url;
+  if (downloadUrl) {
+    job.status = 'listo';
+    job.downloadUrl = downloadUrl;
+    job.error = null;
+  } else if (payload.status === 'failed' || payload.state === 'failed') {
+    job.status = 'error';
+    job.error = payload.error?.message || payload.error?.reason || 'Cloudinary no pudo generar el MP4.';
+  } else {
+    return jsonOk({ ignored: true });
+  }
+  job.updatedAt = Date.now();
+  await saveCloudinaryVideoJob(env, job);
+  return jsonOk({ received: true });
+}
+
+// ============================================================
 // ROUTER PRINCIPAL
 // ============================================================
 
@@ -5702,6 +5815,7 @@ export default {
 
     // ── GET ──
     if(request.method==="GET"){
+      if(path.startsWith('/video-vertical/cloudinary/estado/')) return handleCloudinaryVideoStatus(path.split('/').pop(), env);
       if(path==="/"&&url.searchParams.has("url"))    return handlePlacasUrl(url);
       if(path==="/"&&url.searchParams.has("image"))  return handlePlacasImage(url);
       if(path==="/rss")                              return handleRSS(url);
@@ -6441,6 +6555,9 @@ export default {
     if (path === "/procesar-imagenes") {
       return handleProcesarImagenes(request, env);
     }
+    if (path === '/video-vertical/cloudinary/webhook') {
+      return handleCloudinaryVideoWebhook(request, env);
+    }
 
     // ============================================================
     // DESPUÉS: rutas que usan JSON
@@ -6492,6 +6609,8 @@ export default {
     if(path==="/visual/ilustrar")                    return handleVisualIlustrar(body, env);
     if(path==="/placas/v2/generar")                  return handlePlacasV2Generar(body, env);
     if(path==="/placas/v2/paquete")                  return handlePlacasV2Paquete(body, env);
+    if(path==="/video-vertical/cloudinary/crear")    return handleCloudinaryVideoCreate(body, url, env);
+    if(path.startsWith('/video-vertical/cloudinary/render/')) return handleCloudinaryVideoRender(body, path.split('/').pop(), env);
 
     return jsonError("Ruta no encontrada",404);
   },

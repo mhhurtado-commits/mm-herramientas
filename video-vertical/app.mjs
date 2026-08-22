@@ -1,4 +1,5 @@
 import { buildExportCommand, exportEditorialVideo } from './video-export.mjs';
+import { exportCloudinaryVideo } from './cloudinary-export.mjs';
 import { createFfmpegRuntime, loadFfmpegRuntime } from './ffmpeg-runtime.mjs';
 import { parseVideoHandoff, validateVideoFile } from './video-input.mjs';
 import { createVideoProject } from './video-project.mjs';
@@ -6,6 +7,7 @@ import { drawEditorialOverlay, drawVideoPreview } from './video-renderer.mjs';
 import { suggestClipWindows } from './video-suggestions.mjs';
 
 const $ = selector => document.querySelector(selector);
+const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const handoff = parseVideoHandoff(sessionStorage.getItem('mm-editorial-handoff'));
 const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', ffmpeg: null, exporting: false, logo: null };
 const canvas = $('#previewCanvas');
@@ -64,6 +66,18 @@ async function exportVideo() {
   try {
     setStatus('Preparando el zócalo…');
     const overlay = await overlayBlob();
+    if (state.project.exportQuality === 'rapido') {
+      if (state.project.audioMode !== 'original') throw new Error('La exportación rápida remota conserva el audio original. Para música o mezcla usá Alta calidad.');
+      const result = await exportCloudinaryVideo({
+        workerUrl: WORKER_URL,
+        source: state.source,
+        overlay,
+        format: state.project.format,
+        onStage: stage => setStatus(remoteExportStatus(stage)),
+      });
+      const link = document.createElement('a'); link.href = result.downloadUrl; link.download = `mediamendoza-vertical-${Date.now()}.mp4`; link.rel = 'noopener'; document.body.append(link); link.click(); link.remove(); setStatus('MP4 listo para descargar.');
+      return;
+    }
     const ffmpeg = await loadFfmpeg();
     setStatus('Exportando MP4 vertical… 0%');
     const result = await exportEditorialVideo({ ffmpeg, source: state.source, overlay, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, quality: state.project.exportQuality, onStage: stage => setStatus(stage === 'copiando' ? 'Copiando el video a memoria…' : stage === 'componiendo' ? 'Componiendo el video…' : 'Preparando la descarga…'), onProgress: ratio => setStatus(`Componiendo el video… ${Math.round(ratio * 100)}%`) });
@@ -84,5 +98,6 @@ async function loadFfmpeg() {
 
 function formatTime(value) { const seconds = Math.max(0, Math.floor(Number(value) || 0)); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; }
 function setStatus(value) { $('#status').textContent = value; }
+function remoteExportStatus(stage) { return ({ preparando: 'Preparando la exportación remota…', 'subiendo-video': 'Subiendo el video…', 'subiendo-zocalo': 'Subiendo el zócalo…', renderizando: 'Generando MP4 en Cloudinary…', esperando: 'Generando MP4 en Cloudinary…' })[stage] || 'Generando MP4…'; }
 
 export { buildExportCommand };

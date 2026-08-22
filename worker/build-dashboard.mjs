@@ -9,11 +9,12 @@ function inlineModule(source) {
     .replace(/\bexport\s+(?=(?:async\s+)?function\b|const\b|let\b|var\b|class\b)/g, '');
 }
 
-const [football, editorialCore, plates, imageGenerationConfig, worker] = await Promise.all([
+const [football, editorialCore, plates, imageGenerationConfig, cloudinaryVideo, worker] = await Promise.all([
   read('worker/football-daily.mjs'),
   read('placas-v2/editorial-core.mjs'),
   read('worker/placas-v2.mjs'),
   read('worker/image-generation-config.mjs'),
+  read('worker/cloudinary-video.mjs'),
   read('worker/worker.js'),
 ]);
 
@@ -25,6 +26,7 @@ const bundle = [
   inlineModule(editorialCore),
   inlineModule(plates),
   inlineModule(imageGenerationConfig),
+  inlineModule(cloudinaryVideo),
   workerWithoutImports,
 ].join('\n\n');
 
