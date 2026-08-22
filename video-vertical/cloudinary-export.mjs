@@ -1,6 +1,6 @@
 const MAX_SOURCE_BYTES = 100 * 1024 * 1024;
 
-export async function exportCloudinaryVideo({ workerUrl, source, overlay, format = '9:16', fetcher = fetch, wait = delay => new Promise(resolve => setTimeout(resolve, delay)), onStage = () => {} } = {}) {
+export async function exportCloudinaryVideo({ workerUrl, source, overlay, format = '9:16', framingMode = 'contain', fetcher = fetch, wait = delay => new Promise(resolve => setTimeout(resolve, delay)), onStage = () => {} } = {}) {
   if (!source || !overlay) throw new Error('Faltan el video fuente o el zócalo.');
   if (Number(source.size) > MAX_SOURCE_BYTES) throw new Error('La exportación rápida admite videos de hasta 100 MB.');
   const root = String(workerUrl || '').replace(/\/$/, '');
@@ -8,7 +8,7 @@ export async function exportCloudinaryVideo({ workerUrl, source, overlay, format
 
   onStage('preparando');
   const created = await requestJson(fetcher, `${root}/video-vertical/cloudinary/crear`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ format, source: { name: source.name || 'video.mp4', size: source.size || 0, type: source.type || '' } }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ format, framingMode, source: { name: source.name || 'video.mp4', size: source.size || 0, type: source.type || '' } }),
   });
   if (!created?.videoUpload || !created?.overlayUpload || !created?.jobId) throw new Error('El servicio de exportación no devolvió las credenciales de carga.');
 

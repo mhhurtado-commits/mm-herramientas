@@ -15,8 +15,9 @@ test('sube video y zócalo firmados, inicia render y espera descarga', async () 
   };
   const file = new Blob(['video'], { type: 'video/mp4' }); file.name = 'fuente.mp4';
   const overlay = new Blob(['overlay'], { type: 'image/png' });
-  const result = await exportCloudinaryVideo({ workerUrl: 'https://worker.test', source: file, overlay, format: '9:16', fetcher, wait: async () => {} });
+  const result = await exportCloudinaryVideo({ workerUrl: 'https://worker.test', source: file, overlay, format: '9:16', framingMode: 'cover', fetcher, wait: async () => {} });
   assert.equal(result.downloadUrl, 'https://res.cloudinary.com/demo/video/upload/result.mp4');
+  assert.equal(JSON.parse(calls[0][1].body).framingMode, 'cover');
   assert.equal(calls.filter(([url]) => url.includes('/upload/')).length, 2);
   assert.equal(calls.at(-1)[0], 'https://worker.test/video-vertical/cloudinary/estado/job_123');
 });

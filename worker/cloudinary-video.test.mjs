@@ -15,6 +15,13 @@ test('genera una transformación vertical con padding y zócalo', () => {
   );
 });
 
+test('genera un recorte vertical centrado cuando se elige ese encuadre', () => {
+  assert.equal(
+    buildCloudinaryEagerTransform({ overlayPublicId: 'mm-video-vertical/overlay-job_123', width: 720, height: 1280, framingMode: 'cover' }),
+    'c_fill,g_center,h_1280,w_720/l_mm-video-vertical:overlay-job_123/c_scale,h_1280,w_720/fl_layer_apply,g_center/ac_aac,f_mp4,q_auto:good,vc_h264/fl_attachment',
+  );
+});
+
 test('firma parámetros de Cloudinary sin incluir api_key', async () => {
   const params = { timestamp: 1315060510, public_id: 'sample', api_key: 'public-key' };
   assert.equal(canonicalizeCloudinaryParams(params), 'public_id=sample&timestamp=1315060510');

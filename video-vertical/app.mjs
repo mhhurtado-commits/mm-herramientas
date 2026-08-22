@@ -74,6 +74,7 @@ async function exportVideo() {
         source: state.source,
         overlay,
         format: state.project.format,
+        framingMode: state.project.framing.mode,
         onStage: stage => setStatus(remoteExportStatus(stage)),
       });
       showDownload(result.downloadUrl); setStatus('MP4 listo. Usá el botón Descargar MP4.');
