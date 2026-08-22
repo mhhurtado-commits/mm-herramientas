@@ -1,4 +1,5 @@
 import { adaptVideoPackage } from './video-package-adapter.mjs';
+import { normalizeSpeakerMarkers } from './video-speakers.mjs';
 
 const PROFILES = new Set(['hablado', 'broll']);
 const AUDIO_MODES = new Set(['original', 'musica', 'mezcla']);
@@ -11,6 +12,7 @@ export function createVideoProject(editorialPackage = {}, options = {}) {
     lowerThird: editorial,
     framing: options.framing,
     clips: options.clips,
+    speakers: options.speakers,
   });
 }
 
@@ -18,6 +20,7 @@ export function normalizeVideoProject(project = {}) {
   const input = object(project);
   const lowerThird = object(input.lowerThird);
   const framing = object(input.framing);
+  const duration = Number.isFinite(Number(input.duration)) ? input.duration : Infinity;
   return {
     format: input.format === '4:5' ? '4:5' : '9:16',
     profile: PROFILES.has(input.profile) ? input.profile : 'hablado',
@@ -31,6 +34,7 @@ export function normalizeVideoProject(project = {}) {
     framing: { mode: framing.mode === 'cover' ? 'cover' : 'contain', focus: clampFocus(framing.focus) },
     clips: Array.isArray(input.clips) ? input.clips.map(clip => ({ ...clip })) : [],
     captions: Array.isArray(input.captions) ? input.captions.map(caption => ({ ...caption })) : [],
+    speakers: normalizeSpeakerMarkers(input.speakers, duration),
   };
 }
 

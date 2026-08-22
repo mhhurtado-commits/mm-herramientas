@@ -27,3 +27,14 @@ test('defaults to fast export and preserves high-quality selection', () => {
   assert.equal(normalizeVideoProject({ exportQuality: 'rapido' }).exportQuality, 'rapido');
   assert.equal(normalizeVideoProject({ exportQuality: 'alta' }).exportQuality, 'alta');
 });
+
+test('normalizes and persists speaker markers', () => {
+  const project = normalizeVideoProject({ duration: 30, speakers: [{ id: 'ana', start: 1, name: 'Ana Pérez' }] });
+  assert.deepEqual(project.speakers, [{ id: 'ana', start: 4, duration: 4, name: 'Ana Pérez', role: '' }]);
+});
+
+test('passes speaker markers from project creation options', () => {
+  const project = createVideoProject({}, { speakers: [{ id: 'ana', start: 8, name: 'Ana Pérez' }] });
+  assert.equal(project.speakers[0].id, 'ana');
+  assert.equal(project.speakers[0].start, 8);
+});
