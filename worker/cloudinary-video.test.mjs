@@ -10,9 +10,23 @@ import {
 
 test('genera una transformación vertical con capas fijas y temporizadas', () => {
   assert.equal(
-    buildCloudinaryEagerTransform({ layers: [{ publicId: 'mm-video-vertical/overlay-job_123-fixed', kind: 'fixed' }, { publicId: 'mm-video-vertical/overlay-job_123-speaker', kind: 'speaker', start: 4, duration: 4 }], width: 720, height: 1280 }),
-    'b_rgb:111a15,c_pad,h_1280,w_720/l_mm-video-vertical:overlay-job_123-fixed/c_scale,h_1280,w_720/fl_layer_apply,g_center/l_mm-video-vertical:overlay-job_123-speaker/c_scale,h_1280,w_720/fl_layer_apply,g_center,so_4,du_4/ac_aac,f_mp4,q_auto:good,vc_h264/fl_attachment',
+    buildCloudinaryEagerTransform({ inputPublicId: 'mm-video-vertical/input-job_123', layers: [{ publicId: 'mm-video-vertical/overlay-job_123-fixed', kind: 'fixed' }, { publicId: 'mm-video-vertical/overlay-job_123-speaker', kind: 'speaker', start: 4, duration: 4 }], width: 720, height: 1280 }),
+    'c_fill,g_center,h_1280,w_720/e_blur:1000/e_brightness:-42/l_video:mm-video-vertical:input-job_123/c_fit,h_1280,w_720/fl_layer_apply,g_center/l_mm-video-vertical:overlay-job_123-fixed/c_scale,h_1280,w_720/fl_layer_apply,g_center/l_mm-video-vertical:overlay-job_123-speaker/c_scale,h_1280,w_720/fl_layer_apply,g_center,so_4,du_4/ac_aac,f_mp4,q_auto:good,vc_h264/fl_attachment',
   );
+});
+
+test('mantiene la capa fija y recrea el fondo borroso en encuadre contener', () => {
+  const transform = buildCloudinaryEagerTransform({
+    inputPublicId: 'mm-video-vertical/input-job_123',
+    layers: [{ publicId: 'mm-video-vertical/overlay-job_123-fixed', kind: 'fixed', start: 0, duration: null }],
+    width: 720,
+    height: 1280,
+    framingMode: 'contain',
+  });
+  assert.match(transform, /c_fill,g_center,h_1280,w_720\/e_blur:1000\/e_brightness:-42/);
+  assert.match(transform, /l_video:mm-video-vertical:input-job_123\/c_fit,h_1280,w_720\/fl_layer_apply,g_center/);
+  assert.match(transform, /overlay-job_123-fixed\/c_scale,h_1280,w_720\/fl_layer_apply,g_center\/ac_aac/);
+  assert.doesNotMatch(transform, /overlay-job_123-fixed[^/]*\/c_scale[^/]*\/fl_layer_apply,g_center,so_/);
 });
 
 test('genera un recorte vertical centrado cuando se elige ese encuadre', () => {
