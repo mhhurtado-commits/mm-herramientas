@@ -2,15 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TITLE_DURATION, createSpeakerMarker, getActiveSpeaker, normalizeSpeakerMarkers } from './video-speakers.mjs';
 
+test('keeps title and speaker labels visible for six seconds', () => {
+  assert.equal(TITLE_DURATION, 6);
+});
+
 test('moves an opening speaker marker after the title', () => {
   const markers = normalizeSpeakerMarkers([{ id: 'ana', start: 1, name: 'Ana Pérez', role: 'Especialista' }], 30);
-  assert.deepEqual(markers[0], { id: 'ana', start: TITLE_DURATION, duration: 4, name: 'Ana Pérez', role: 'Especialista' });
+  assert.deepEqual(markers[0], { id: 'ana', start: TITLE_DURATION, duration: TITLE_DURATION, name: 'Ana Pérez', role: 'Especialista' });
 });
 
 test('clamps a speaker marker start to the video duration', () => {
   const marker = createSpeakerMarker({ id: 'ana', start: 90, name: 'Ana Pérez' }, 30);
   assert.equal(marker.start, 30);
-  assert.equal(marker.duration, 4);
+  assert.equal(marker.duration, TITLE_DURATION);
 });
 
 test('normalizes speaker text to the field limits', () => {
@@ -30,10 +34,10 @@ test('rejects overlapping visible intervals', () => {
   ], 30), /superponen/i);
 });
 
-test('finds the current speaker only during its four seconds', () => {
+test('finds the current speaker only during its six seconds', () => {
   const marker = createSpeakerMarker({ id: 'ana', start: 8, name: 'Ana Pérez', role: 'Especialista' }, 30);
   assert.equal(getActiveSpeaker([marker], 10).id, 'ana');
-  assert.equal(getActiveSpeaker([marker], 12), null);
+  assert.equal(getActiveSpeaker([marker], 14), null);
 });
 
 test('requires a non-empty speaker name', () => {

@@ -27,3 +27,9 @@ test('alinea la categoría superior con el logo de marca', () => {
   const layout = getOverlayLayout({ width: 1080, height: 1920 });
   assert.equal(layout.hook.y, 1920 * 0.035);
 });
+
+test('baja la tarjeta editorial y reserva un footer fijo debajo', () => {
+  const layout = getOverlayLayout({ width: 1080, height: 1920 });
+  assert.equal(layout.lowerThird.y, 1920 * 0.74);
+  assert.ok(layout.lowerThird.y + layout.lowerThird.height < layout.footer.y);
+});

@@ -28,6 +28,7 @@ export function drawEditorialLayer(ctx, project, layer = {}, { layout = getOverl
   if (layer.kind === 'fixed') {
     drawBrandLogo(ctx, logo, layout.safe);
     drawHook(ctx, lowerThird, layout.hook);
+    drawFooter(ctx, layout.footer);
   }
   if (layer.kind === 'title') drawLowerThird(ctx, lowerThird, layout.lowerThird);
   if (layer.kind === 'speaker') drawSpeakerLowerThird(ctx, layer.speaker, lowerThird.accent, layout.lowerThird);
@@ -47,7 +48,7 @@ export function fitVideoText(text, maxWidth, measure = value => value.length) {
 function drawHook(ctx, lowerThird = {}, box) {
   if (!lowerThird.section) return;
   ctx.save(); ctx.fillStyle = lowerThird.accent || '#a6ce39'; roundRect(ctx, box.x, box.y, Math.min(box.width, 290), 52, 26); ctx.fill();
-  ctx.font = '700 25px Arial, sans-serif'; ctx.fillStyle = '#122019'; ctx.fillText((lowerThird.section || 'Actualidad').toUpperCase(), box.x + 22, box.y + 33); ctx.restore();
+  ctx.font = '700 25px Arial, sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText((lowerThird.section || 'Actualidad').toUpperCase(), box.x + 22, box.y + 33); ctx.restore();
 }
 
 function drawSpeakerLowerThird(ctx, speaker = {}, accent, box) {
@@ -67,8 +68,11 @@ function drawLowerThird(ctx, lowerThird = {}, box) {
   const x = box.x + 34; const maxWidth = box.width - 68;
   ctx.font = '800 42px Arial, sans-serif'; const title = fitVideoText(lowerThird.title, maxWidth, value => ctx.measureText(value).width).lines.slice(0, 2);
   ctx.fillStyle = '#fff'; title.forEach((line, index) => ctx.fillText(line, x, box.y + 52 + index * 47));
-  ctx.font = '500 22px Arial, sans-serif'; ctx.fillStyle = '#d7dfda'; ctx.fillText(lowerThird.source || 'mediamendoza', x, box.y + box.height - 28);
   ctx.restore();
+}
+
+function drawFooter(ctx, box) {
+  ctx.save(); ctx.font = '600 21px Arial, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.textAlign = 'center'; ctx.fillText('www.mediamendoza.com', box.x + box.width / 2, box.y); ctx.restore();
 }
 
 function drawBrandLogo(ctx, logo, safe) {

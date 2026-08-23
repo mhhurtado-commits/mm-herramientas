@@ -5,7 +5,7 @@ import { parseVideoHandoff, validateVideoFile } from './video-input.mjs';
 import { getOverlayLayerPlan } from './video-overlay-layers.mjs';
 import { createVideoProject } from './video-project.mjs';
 import { drawEditorialLayer, drawVideoPreview } from './video-renderer.mjs';
-import { createSpeakerMarker, normalizeSpeakerMarkers } from './video-speakers.mjs';
+import { TITLE_DURATION, createSpeakerMarker, normalizeSpeakerMarkers } from './video-speakers.mjs';
 import { suggestClipWindows } from './video-suggestions.mjs';
 import { clampTimelineTime, getTimelineRatio, stepTimelineTime } from './video-timeline.mjs';
 
@@ -106,7 +106,7 @@ function renderSpeakers() {
   for (const marker of state.project.speakers) {
     const item = document.createElement('li'); item.className = 'vv-speaker-item';
     const name = speakerField('Nombre', 'text', marker.name, 48); const role = speakerField('Rol', 'text', marker.role, 72); const start = speakerField('Inicio', 'number', marker.start, null);
-    start.input.min = '4'; start.input.max = String(state.duration); start.input.step = '0.01'; start.field.classList.add('vv-speaker-time');
+    start.input.min = String(TITLE_DURATION); start.input.max = String(state.duration); start.input.step = '0.01'; start.field.classList.add('vv-speaker-time');
     for (const input of [name.input, role.input, start.input]) input.addEventListener('change', () => updateSpeaker(marker.id, { name: name.input.value, role: role.input.value, start: start.input.value }));
     const remove = document.createElement('button'); remove.className = 'mm-btn mm-btn-sm vv-speaker-delete'; remove.type = 'button'; remove.textContent = 'Eliminar'; remove.addEventListener('click', () => { state.project.speakers = state.project.speakers.filter(speaker => speaker.id !== marker.id); clearSpeakerError(); renderSpeakers(); draw(); updateTimeline(); });
     item.append(name.field, role.field, start.field, remove); list.append(item);

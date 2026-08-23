@@ -17,11 +17,12 @@ export function getVideoFramePlan({ sourceWidth = 16, sourceHeight = 9, width = 
 
 export function getOverlayLayout({ width = 1080, height = 1920 } = {}) {
   const safe = { top: height * 0.07, bottom: height * 0.9, left: width * 0.07, right: width * 0.93 };
-  const lowerThird = { x: safe.left, y: height * 0.71, width: safe.right - safe.left, height: height * 0.16 };
+  const lowerThird = { x: safe.left, y: height * 0.74, width: safe.right - safe.left, height: height * 0.14 };
   return {
     safe,
     hook: { x: safe.left, y: height * 0.035, width: safe.right - safe.left, height: height * 0.15 },
     caption: { x: safe.left, y: height * 0.56, width: safe.right - safe.left, height: height * 0.1 },
+    footer: { x: safe.left, y: height * 0.955, width: safe.right - safe.left },
     lowerThird,
   };
 }

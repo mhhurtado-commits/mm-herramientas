@@ -1,4 +1,4 @@
-export const TITLE_DURATION = 4;
+export const TITLE_DURATION = 6;
 
 export function normalizeSpeakerMarkers(markers = [], duration = Infinity) {
   if (!Array.isArray(markers)) return [];

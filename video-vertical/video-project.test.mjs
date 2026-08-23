@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createVideoProject, normalizeVideoProject } from './video-project.mjs';
+import { TITLE_DURATION } from './video-speakers.mjs';
 
 test('creates a vertical project with editable defaults from the package', () => {
   const project = createVideoProject({ editorial: { titulo: 'Una noticia', seccion: 'Política' }, fuente: { url: 'https://mediamendoza.com/nota' } });
@@ -30,7 +31,7 @@ test('defaults to fast export and preserves high-quality selection', () => {
 
 test('normalizes and persists speaker markers', () => {
   const project = normalizeVideoProject({ duration: 30, speakers: [{ id: 'ana', start: 1, name: 'Ana Pérez' }] });
-  assert.deepEqual(project.speakers, [{ id: 'ana', start: 4, duration: 4, name: 'Ana Pérez', role: '' }]);
+  assert.deepEqual(project.speakers, [{ id: 'ana', start: TITLE_DURATION, duration: TITLE_DURATION, name: 'Ana Pérez', role: '' }]);
 });
 
 test('passes speaker markers from project creation options', () => {
