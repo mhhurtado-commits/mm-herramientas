@@ -1,0 +1,37 @@
+<h2>¿Cómo cargarías los rótulos de las personas?</h2>
+<p class="subtitle">El titular aparece al inicio. Después, los rótulos de nombre y cargo se activan en los tramos que marcás manualmente.</p>
+
+<div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+  <div class="card" data-choice="marcadores" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#102017;color:#e9f0eb;min-height:250px">
+      <div style="height:100px;background:linear-gradient(135deg,#414b48,#192b25);border-radius:8px;position:relative"><span style="position:absolute;right:10px;top:9px;font-size:10px;color:#a6ce39">mediamendoza</span><span style="position:absolute;left:10px;bottom:11px;background:#101712;padding:5px 7px;font-size:10px"><b>ANA PÉREZ</b><br>Especialista ambiental</span></div>
+      <div style="margin-top:16px;display:flex;gap:8px;align-items:center"><button style="border:0;border-radius:50%;width:28px;height:28px;background:#a6ce39">▶</button><span style="font-size:11px">01:22 / 03:30</span></div>
+      <div style="height:40px;margin-top:12px;border-radius:5px;background:#26342e;position:relative"><i style="position:absolute;left:24%;top:4px;width:38%;height:32px;background:#a6ce39;border-radius:4px;display:block"></i><span style="position:absolute;left:27%;top:13px;font-size:9px;color:#102017">Ana Pérez · especialista</span></div>
+      <button style="margin-top:12px;width:100%;padding:8px;border-radius:5px;border:1px solid #a6ce39;background:transparent;color:#a6ce39">+ Rótulo en 01:22</button>
+    </div>
+    <div class="card-body"><h3>A. Marcadores en la línea de tiempo</h3><p>Reproducís, pausás y agregás el rótulo en el segundo actual. Luego ajustás inicio y fin arrastrando sus extremos.</p></div>
+  </div>
+
+  <div class="card" data-choice="tramos" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#102017;color:#e9f0eb;min-height:250px">
+      <div style="height:100px;background:linear-gradient(135deg,#414b48,#192b25);border-radius:8px;display:flex;align-items:end;padding:10px"><span style="background:#101712;padding:5px 7px;font-size:10px"><b>ANA PÉREZ</b><br>Especialista ambiental</span></div>
+      <div style="margin-top:14px;font-size:10px;display:grid;grid-template-columns:54px 1fr 45px;gap:6px;color:#c9d4ce"><b>INICIO</b><b>PERSONA</b><b>FIN</b><span>00:18</span><span>Ana Pérez<br><small>Especialista</small></span><span>01:05</span><span>01:22</span><span>Juan Soto<br><small>Vecino</small></span><span>02:11</span></div>
+      <button style="margin-top:16px;width:100%;padding:8px;border-radius:5px;border:1px solid #a6ce39;background:transparent;color:#a6ce39">+ Agregar tramo</button>
+    </div>
+    <div class="card-body"><h3>B. Lista de tramos</h3><p>Cargás tiempos exactos, nombre y cargo en una tabla. Es precisa, pero obliga a escribir los segundos.</p></div>
+  </div>
+
+  <div class="card" data-choice="pistas" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#102017;color:#e9f0eb;min-height:250px">
+      <div style="height:100px;background:linear-gradient(135deg,#414b48,#192b25);border-radius:8px;position:relative"><span style="position:absolute;left:10px;bottom:11px;background:#101712;padding:5px 7px;font-size:10px"><b>ANA PÉREZ</b><br>Especialista ambiental</span></div>
+      <div style="margin-top:16px;font-size:10px;color:#c9d4ce">VIDEO</div><div style="height:17px;background:#38473f;border-radius:3px"></div>
+      <div style="margin-top:10px;font-size:10px;color:#c9d4ce">ANA PÉREZ</div><div style="height:18px;background:#a6ce39;border-radius:3px;width:42%"></div>
+      <div style="margin-top:10px;font-size:10px;color:#c9d4ce">JUAN SOTO</div><div style="height:18px;background:#77a6d6;border-radius:3px;width:31%;margin-left:44%"></div>
+      <button style="margin-top:14px;width:100%;padding:8px;border-radius:5px;border:1px solid #a6ce39;background:transparent;color:#a6ce39">+ Nueva pista</button>
+    </div>
+    <div class="card-body"><h3>C. Pistas por persona</h3><p>Cada persona tiene su propia línea. Sirve para entrevistas largas, pero agrega complejidad sin aportar mucho en la mayoría de las notas.</p></div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px"><div class="pros-cons"><div class="pros"><h4>Recomendación: A</h4><ul><li>La línea de reproducción es la referencia natural.</li><li>No exige anotar tiempos.</li><li>Escala de una a muchas personas sin saturar.</li></ul></div><div class="cons"><h4>Comportamiento editorial</h4><ul><li>Titular: primeros 3–4 segundos.</li><li>Después: nombre y cargo solo mientras habla.</li><li>Cada rótulo puede ocultarse, editarse o borrarse.</li></ul></div></div></div>
+<p class="subtitle" style="margin-top:12px">Elegí una opción haciendo clic y respondé también por este chat.</p>
