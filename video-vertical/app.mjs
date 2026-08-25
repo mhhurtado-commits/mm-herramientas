@@ -38,14 +38,15 @@ $('#captionInput').addEventListener('input', event => { state.project.captions =
 $('#suggestButton').addEventListener('click', proposeClips);
 $('#useSelectionButton').addEventListener('click', useSelection);
 $('#playButton').addEventListener('click', () => video.paused ? video.play() : video.pause());
+$('#canvasPlayButton').addEventListener('click', () => video.paused ? video.play() : video.pause());
 $('#skipBackButton').addEventListener('click', () => seekBy(-5));
 $('#skipForwardButton').addEventListener('click', () => seekBy(5));
 $('#timelineInput').addEventListener('input', event => seekTo(event.target.value));
 $('#addSpeakerButton').addEventListener('click', addSpeaker);
 $('#exportButton').addEventListener('click', exportVideo);
-video.addEventListener('loadedmetadata', () => { state.duration = video.duration; $('#sourceMeta').textContent = `${Math.round(video.videoWidth)}×${Math.round(video.videoHeight)} · ${formatTime(video.duration)} · el original se mantiene intacto.`; state.trim = { start: 0, end: Math.min(state.duration, 30) }; refreshSuggestions(); renderSuggestionMarkers(); renderTimelineSelection(); updateExportButton(); draw(); updateTimeline(); renderSpeakers(); setSpeakerControlsEnabled(true); $('#playButton').disabled = false; $('#skipBackButton').disabled = false; $('#skipForwardButton').disabled = false; $('#suggestButton').disabled = false; $('#exportButton').disabled = false; });
-video.addEventListener('play', () => { $('#playButton').textContent = 'Pausar'; tick(); });
-video.addEventListener('pause', () => { $('#playButton').textContent = 'Reproducir'; draw(); updateTimeline(); });
+video.addEventListener('loadedmetadata', () => { state.duration = video.duration; $('#sourceMeta').textContent = `${Math.round(video.videoWidth)}×${Math.round(video.videoHeight)} · ${formatTime(video.duration)} · el original se mantiene intacto.`; state.trim = { start: 0, end: Math.min(state.duration, 30) }; refreshSuggestions(); renderSuggestionMarkers(); renderTimelineSelection(); updateExportButton(); draw(); updateTimeline(); renderSpeakers(); setSpeakerControlsEnabled(true); $('#playButton').disabled = false; $('#skipBackButton').disabled = false; $('#skipForwardButton').disabled = false; $('#suggestButton').disabled = false; $('#exportButton').disabled = false; $('#canvasPlayButton').classList.remove('is-hidden'); });
+video.addEventListener('play', () => { $('#playButton').textContent = 'Pausar'; $('#canvasPlayButton').classList.add('is-hidden'); tick(); });
+video.addEventListener('pause', () => { $('#playButton').textContent = 'Reproducir'; $('#canvasPlayButton').classList.remove('is-hidden'); draw(); updateTimeline(); });
 video.addEventListener('timeupdate', () => { draw(); updateTimeline(); });
 
 function hydrate() {
@@ -62,7 +63,7 @@ function loadSource(file) {
   if (state.sourceUrl) URL.revokeObjectURL(state.sourceUrl);
   state.duration = 0; state.project.speakers = []; clearSpeakerError(); renderSpeakers(); updateTimeline(); setSpeakerControlsEnabled(false);
   state.transcript = []; state.transcriptWords = []; state.selectedClipIndex = null; state.trim = { start: 0, end: 0 };
-  state.source = file; state.sourceUrl = URL.createObjectURL(file); video.src = state.sourceUrl; video.load(); setStatus('Leyendo el video local…');
+  state.source = file; state.sourceUrl = URL.createObjectURL(file); video.src = state.sourceUrl; video.load(); $('#canvasPlayButton').classList.add('is-hidden'); setStatus('Leyendo el video local…');
 }
 
 function refreshSuggestions() {
