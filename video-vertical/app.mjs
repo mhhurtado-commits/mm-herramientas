@@ -400,17 +400,19 @@ async function exportVideo() {
   try {
     setStatus('Preparando las capas editoriales…');
     const layers = await overlayLayers(useClip ? buildClipProject(state.project, clip) : state.project);
-    if (!useClip && state.project.exportQuality === 'rapido') {
+    if (state.project.exportQuality === 'rapido') {
       if (state.project.audioMode !== 'original') throw new Error('La exportación rápida remota conserva el audio original. Para música o mezcla usá Alta calidad.');
+      if (useClip) setStatus(`Exportando clip ${state.selectedClipIndex + 1} (rápido, en el servidor)…`);
       const result = await exportCloudinaryVideo({
         workerUrl: WORKER_URL,
         source: state.source,
         layers,
         format: state.project.format,
         framingMode: state.project.framing.mode,
+        trim: useClip ? { start: clip.start, end: clip.end } : null,
         onStage: stage => setStatus(remoteExportStatus(stage)),
       });
-      showDownload(result.downloadUrl); setStatus('MP4 listo. Usá el botón Descargar MP4.');
+      showDownload(result.downloadUrl); setStatus(useClip ? `Clip ${state.selectedClipIndex + 1} listo. Usá el botón Descargar MP4.` : 'MP4 listo. Usá el botón Descargar MP4.');
       return;
     }
     const ffmpeg = await loadFfmpeg();

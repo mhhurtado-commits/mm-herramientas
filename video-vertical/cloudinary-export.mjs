@@ -1,15 +1,16 @@
 const MAX_SOURCE_BYTES = 100 * 1024 * 1024;
 
-export async function exportCloudinaryVideo({ workerUrl, source, layers, format = '9:16', framingMode = 'contain', fetcher = fetch, wait = delay => new Promise(resolve => setTimeout(resolve, delay)), onStage = () => {} } = {}) {
+export async function exportCloudinaryVideo({ workerUrl, source, layers, format = '9:16', framingMode = 'contain', trim = null, fetcher = fetch, wait = delay => new Promise(resolve => setTimeout(resolve, delay)), onStage = () => {} } = {}) {
   const layerPlan = normalizeLayers(layers);
   if (!source || !layerPlan.length || !layerPlan.every(layer => layer.blob)) throw new Error('Faltan el video fuente o las capas editoriales.');
   if (Number(source.size) > MAX_SOURCE_BYTES) throw new Error('La exportación rápida admite videos de hasta 100 MB.');
   const root = String(workerUrl || '').replace(/\/$/, '');
   if (!root) throw new Error('No está disponible el servicio de exportación rápida.');
+  const trimPayload = trim && Number.isFinite(Number(trim.start)) && Number.isFinite(Number(trim.end)) && Number(trim.end) > Number(trim.start) ? { start: Number(trim.start), end: Number(trim.end) } : null;
 
   onStage('preparando');
   const created = await requestJson(fetcher, `${root}/video-vertical/cloudinary/crear`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ format, framingMode, source: { name: source.name || 'video.mp4', size: source.size || 0, type: source.type || '' }, layers: layerPlan.map(({ id, kind, start, duration }) => ({ id, kind, start, duration })) }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ format, framingMode, trim: trimPayload, source: { name: source.name || 'video.mp4', size: source.size || 0, type: source.type || '' }, layers: layerPlan.map(({ id, kind, start, duration }) => ({ id, kind, start, duration })) }),
   });
   if (!created?.videoUpload || !Array.isArray(created?.layerUploads) || created.layerUploads.length !== layerPlan.length || !created?.jobId) throw new Error('El servicio de exportación no devolvió las credenciales de carga.');
 
@@ -18,7 +19,7 @@ export async function exportCloudinaryVideo({ workerUrl, source, layers, format 
   onStage('subiendo-capas');
   for (let index = 0; index < layerPlan.length; index += 1) await upload(fetcher, layerPlan[index].blob, created.layerUploads[index]);
   onStage('renderizando');
-  await requestJson(fetcher, `${root}/video-vertical/cloudinary/render/${encodeURIComponent(created.jobId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+  await requestJson(fetcher, `${root}/video-vertical/cloudinary/render/${encodeURIComponent(created.jobId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(trimPayload ? { trim: trimPayload } : {}) });
 
   for (let attempts = 0; attempts < 80; attempts += 1) {
     const status = await requestJson(fetcher, `${root}/video-vertical/cloudinary/estado/${encodeURIComponent(created.jobId)}`);
