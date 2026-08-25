@@ -260,6 +260,7 @@ function updateTimeline() {
   const timeline = $('#timelineInput');
   timeline.max = duration; timeline.value = current; timeline.setAttribute('aria-valuemax', String(duration)); timeline.setAttribute('aria-valuenow', String(current));
   $('#timelineProgress').style.width = `${ratio * 100}%`;
+  $('#timelinePlayhead').style.left = `${ratio * 100}%`;
   $('#timeDisplay').textContent = `${formatTime(current)} / ${formatTime(duration)}`;
   for (const pin of $('#speakerPins').children) pin.classList.toggle('is-active', current >= Number(pin.dataset.start) && current < Number(pin.dataset.start) + Number(pin.dataset.duration));
 }
