@@ -14,7 +14,7 @@ import { clampTimelineTime, getTimelineRatio, stepTimelineTime } from './video-t
 const $ = selector => document.querySelector(selector);
 const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const handoff = parseVideoHandoff(sessionStorage.getItem('mm-editorial-handoff'));
-const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', downloadObjectUrl: '', ffmpeg: null, exporting: false, logo: null, transcript: [], transcriptWords: [], selectedClipIndex: null, trim: { start: 0, end: 0 } };
+const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', downloadObjectUrl: '', ffmpeg: null, exporting: false, logo: null, transcript: [], transcriptWords: [], selectedClipIndex: null, trim: { start: 0, end: 0 }, zoom: 0, fitZoom: 0 };
 const canvas = $('#previewCanvas');
 const ctx = canvas.getContext('2d');
 const video = $('#sourceVideo');
@@ -41,10 +41,12 @@ $('#playButton').addEventListener('click', () => video.paused ? video.play() : v
 $('#canvasPlayButton').addEventListener('click', () => video.paused ? video.play() : video.pause());
 $('#skipBackButton').addEventListener('click', () => seekBy(-5));
 $('#skipForwardButton').addEventListener('click', () => seekBy(5));
+$('#zoomOutButton').addEventListener('click', () => zoomTimeline(1 / 1.6));
+$('#zoomInButton').addEventListener('click', () => zoomTimeline(1.6));
 $('#timelineInput').addEventListener('input', event => seekTo(event.target.value));
 $('#addSpeakerButton').addEventListener('click', addSpeaker);
 $('#exportButton').addEventListener('click', exportVideo);
-video.addEventListener('loadedmetadata', () => { state.duration = video.duration; $('#sourceMeta').textContent = `${Math.round(video.videoWidth)}×${Math.round(video.videoHeight)} · ${formatTime(video.duration)} · el original se mantiene intacto.`; state.trim = { start: 0, end: Math.min(state.duration, 30) }; refreshSuggestions(); renderSuggestionMarkers(); renderTimelineSelection(); updateExportButton(); draw(); updateTimeline(); renderSpeakers(); setSpeakerControlsEnabled(true); $('#playButton').disabled = false; $('#skipBackButton').disabled = false; $('#skipForwardButton').disabled = false; $('#suggestButton').disabled = false; $('#exportButton').disabled = false; $('#canvasPlayButton').classList.remove('is-hidden'); });
+video.addEventListener('loadedmetadata', () => { state.duration = video.duration; $('#sourceMeta').textContent = `${Math.round(video.videoWidth)}×${Math.round(video.videoHeight)} · ${formatTime(video.duration)} · el original se mantiene intacto.`; state.trim = { start: 0, end: Math.min(state.duration, 30) }; const scroll = $('.vv-timeline-scroll'); state.fitZoom = Math.max(2, scroll.clientWidth / state.duration); state.zoom = state.fitZoom; layoutTimeline(); refreshSuggestions(); renderSuggestionMarkers(); renderTimelineSelection(); updateExportButton(); draw(); updateTimeline(); renderSpeakers(); setSpeakerControlsEnabled(true); $('#playButton').disabled = false; $('#skipBackButton').disabled = false; $('#skipForwardButton').disabled = false; $('#suggestButton').disabled = false; $('#exportButton').disabled = false; $('#zoomInButton').disabled = false; $('#zoomOutButton').disabled = false; $('#canvasPlayButton').classList.remove('is-hidden'); });
 video.addEventListener('play', () => { $('#playButton').textContent = 'Pausar'; $('#canvasPlayButton').classList.add('is-hidden'); tick(); });
 video.addEventListener('pause', () => { $('#playButton').textContent = 'Reproducir'; $('#canvasPlayButton').classList.remove('is-hidden'); draw(); updateTimeline(); });
 video.addEventListener('timeupdate', () => { draw(); updateTimeline(); });
@@ -198,19 +200,88 @@ function timeFromClientX(clientX) {
 function startHandleDrag(which) {
   return event => {
     event.preventDefault();
+    const track = $('#timelineTrack');
+    showTrimTooltip();
+    const position = (moveEvent, time) => {
+      const rect = track.getBoundingClientRect();
+      const tip = $('#trimTooltip');
+      tip.style.left = `${moveEvent.clientX}px`;
+      tip.style.top = `${rect.top - 30}px`;
+      tip.textContent = formatClipTime(time);
+    };
     const move = moveEvent => {
       const time = timeFromClientX(moveEvent.clientX);
       const range = getActiveRange();
       if (which === 'start') setActiveRange(Math.min(time, range.end - 0.5), range.end);
       else setActiveRange(range.start, Math.max(time, range.start + 0.5));
+      position(moveEvent, time);
     };
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      hideTrimTooltip();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };
+}
+
+function zoomTimeline(factor) {
+  if (!state.duration) return;
+  const scroll = $('.vv-timeline-scroll');
+  const next = Math.max(state.fitZoom, Math.min(state.zoom * factor, 240));
+  if (next === state.zoom) return;
+  state.zoom = next;
+  layoutTimeline();
+  updateTimeline();
+  const contentWidth = state.duration * state.zoom;
+  const playheadX = (clampTimelineTime(video.currentTime, state.duration) / state.duration) * contentWidth;
+  scroll.scrollLeft = Math.max(0, Math.min(playheadX - scroll.clientWidth / 2, contentWidth - scroll.clientWidth));
+}
+
+function formatClipTime(seconds) {
+  const s = Math.max(0, Number(seconds) || 0);
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  const dec = Math.round((s - Math.floor(s)) * 10);
+  return `${m}:${String(sec).padStart(2, '0')}.${dec}`;
+}
+
+function showTrimTooltip() { $('#trimTooltip').style.display = 'block'; }
+function hideTrimTooltip() { $('#trimTooltip').style.display = 'none'; }
+
+function layoutTimeline() {
+  const content = $('#timelineContent');
+  if (!state.duration) { content.style.width = ''; return; }
+  content.style.width = `${state.duration * state.zoom}px`;
+  renderRuler();
+}
+
+function renderRuler() {
+  const ruler = $('#timelineRuler');
+  ruler.replaceChildren();
+  const duration = state.duration || 0;
+  if (!duration || !state.zoom) return;
+  const targetPx = 90;
+  const raw = targetPx / state.zoom;
+  const niceSteps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800];
+  const step = niceSteps.find(s => s >= raw) || 1800;
+  const frag = document.createDocumentFragment();
+  for (let t = 0; t <= duration + 1e-6; t += step / 5) {
+    const normalized = t % step;
+    const isMajor = normalized < 1e-6 || step - normalized < 1e-6;
+    const tick = document.createElement('span');
+    tick.className = `vv-ruler-tick${isMajor ? ' is-major' : ''}`;
+    tick.style.left = `${(t / duration) * 100}%`;
+    if (isMajor) {
+      const label = document.createElement('span');
+      label.className = 'vv-ruler-label';
+      label.textContent = formatTime(t);
+      tick.append(label);
+    }
+    frag.append(tick);
+  }
+  ruler.append(frag);
 }
 
 function initTimelineTrim() {
