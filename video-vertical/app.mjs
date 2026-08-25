@@ -14,7 +14,7 @@ import { clampTimelineTime, getTimelineRatio, stepTimelineTime } from './video-t
 const $ = selector => document.querySelector(selector);
 const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const handoff = parseVideoHandoff(sessionStorage.getItem('mm-editorial-handoff'));
-const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', downloadObjectUrl: '', ffmpeg: null, exporting: false, logo: null, transcript: [], selectedClipIndex: null };
+const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', downloadObjectUrl: '', ffmpeg: null, exporting: false, logo: null, transcript: [], transcriptWords: [], selectedClipIndex: null };
 const canvas = $('#previewCanvas');
 const ctx = canvas.getContext('2d');
 const video = $('#sourceVideo');
@@ -59,12 +59,12 @@ function loadSource(file) {
   clearDownload();
   if (state.sourceUrl) URL.revokeObjectURL(state.sourceUrl);
   state.duration = 0; state.project.speakers = []; clearSpeakerError(); renderSpeakers(); updateTimeline(); setSpeakerControlsEnabled(false);
-  state.transcript = []; state.selectedClipIndex = null;
+  state.transcript = []; state.transcriptWords = []; state.selectedClipIndex = null;
   state.source = file; state.sourceUrl = URL.createObjectURL(file); video.src = state.sourceUrl; video.load(); setStatus('Leyendo el video local…');
 }
 
 function refreshSuggestions() {
-  const clips = suggestClipWindows({ duration: state.duration, profile: state.project.profile, transcript: state.transcript });
+  const clips = suggestClipWindows({ duration: state.duration, profile: state.project.profile, transcript: state.transcript, words: state.transcriptWords });
   state.project.clips = clips;
   renderClipList(clips);
   if (!state.transcript.length && state.duration >= 20) setStatus('Pulsá "Proponer clips" para sugerir cortes según el contenido del video.');
@@ -86,6 +86,7 @@ async function proposeClips() {
         onProgress: ratio => setStatus(`Transcribiendo el contenido… ${Math.round(ratio * 100)}%`),
       });
       state.transcript = Array.isArray(result.segments) ? result.segments : [];
+      state.transcriptWords = Array.isArray(result.words) ? result.words : [];
     }
     refreshSuggestions();
     if (!state.project.clips.length) setStatus('No se encontraron fragmentos de al menos 20 segundos. Probá con otro perfil.');
