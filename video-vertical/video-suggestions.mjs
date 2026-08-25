@@ -4,7 +4,7 @@ const MAX_DURATION = 45;
 export function suggestClipWindows({ duration = 0, profile = 'broll', transcript = [] } = {}) {
   const total = Math.max(0, Number(duration) || 0);
   if (total < MIN_DURATION) return [];
-  if (profile === 'hablado' && Array.isArray(transcript) && transcript.length) return spokenSuggestions(total, transcript);
+  if (Array.isArray(transcript) && transcript.length) return spokenSuggestions(total, transcript);
   return brollSuggestions(total);
 }
 
@@ -21,7 +21,7 @@ function spokenSuggestions(total, transcript) {
       text = `${text} ${String(segment.text || '').trim()}`.trim();
     }
     end = Math.min(total, Math.min(start + MAX_DURATION, end));
-    if (end - start >= MIN_DURATION && !clips.some(clip => clip.end > start)) clips.push({ start, end, label: text || 'Fragmento sugerido', reason: 'Idea completa de la transcripción' });
+    if (end - start >= MIN_DURATION && !clips.some(clip => clip.end > start)) clips.push({ id: `clip-${clips.length}`, start, end, label: text || 'Fragmento sugerido', reason: 'Idea completa de la transcripción' });
     if (clips.length === 3) break;
   }
   return clips.length ? clips : brollSuggestions(total);
@@ -33,6 +33,6 @@ function brollSuggestions(total) {
   return Array.from({ length: count }, (_, index) => {
     const start = Math.round(index * gap);
     const end = Math.min(total, start + Math.min(MAX_DURATION, Math.max(MIN_DURATION, Math.round(gap * 0.75))));
-    return { start, end, label: `Clip visual ${index + 1}`, reason: 'Ventana visual para revisar' };
+    return { id: `clip-${index}`, start, end, label: `Clip visual ${index + 1}`, reason: 'Ventana visual para revisar' };
   }).filter(clip => clip.end - clip.start >= MIN_DURATION);
 }

@@ -82,3 +82,14 @@ test('maps music or a mix instead of the source audio when selected', () => {
 test('rejects an invalid audio mode before rendering', () => {
   assert.throws(() => buildExportCommand({ audioMode: 'silencio' }), /audio inválido/i);
 });
+
+test('seeks and limits the source to the clip window when trimmed', () => {
+  const joined = buildExportCommand({ inputName: 'source.mp4', overlayName: 'overlay.png', trim: { start: 40, end: 60 } }).join(' ');
+  assert.match(joined, /-ss 40 -to 60 -i source\.mp4/);
+});
+
+test('does not add seek options when no trim is requested', () => {
+  const joined = buildExportCommand({ inputName: 'source.mp4', overlayName: 'overlay.png' }).join(' ');
+  assert.doesNotMatch(joined, /\s-ss\s/);
+  assert.doesNotMatch(joined, /\s-to\s/);
+});

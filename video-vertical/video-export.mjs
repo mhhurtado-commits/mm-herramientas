@@ -1,6 +1,6 @@
 const AUDIO_MODES = new Set(['original', 'musica', 'mezcla']);
 
-export function buildExportCommand({ inputName = 'source.mp4', overlayName = 'overlay.png', layers, musicName = 'music.mp3', audioMode = 'original', outputName = 'output.mp4', width = 1080, height = 1920, quality = 'alta' } = {}) {
+export function buildExportCommand({ inputName = 'source.mp4', overlayName = 'overlay.png', layers, musicName = 'music.mp3', audioMode = 'original', outputName = 'output.mp4', width = 1080, height = 1920, quality = 'alta', trim = null } = {}) {
   if (!AUDIO_MODES.has(audioMode)) throw new Error('Modo de audio inválido.');
   const fast = quality === 'rapido';
   const outputWidth = fast ? 720 : width;
@@ -16,6 +16,12 @@ export function buildExportCommand({ inputName = 'source.mp4', overlayName = 'ov
     return [input, `[${previous}][layer${index}]overlay=0:0:eof_action=repeat${timing}[${output}]`];
   });
   const musicInputIndex = layerPlan.length + 1;
+  const trimArgs = [];
+  const trimStart = Number(trim?.start);
+  const trimEnd = Number(trim?.end);
+  if (Number.isFinite(trimStart) && Number.isFinite(trimEnd) && trimEnd > trimStart) {
+    trimArgs.push('-ss', formatSeconds(trimStart), '-to', formatSeconds(trimEnd));
+  }
   const graph = [
     ...(fast ? [`color=c=#111a15:s=${outputWidth}x${outputHeight}[bg]`, '[0:v]null[fgsrc]'] : ['[0:v]split=2[bgsrc][fgsrc]', `[bgsrc]scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase,crop=${outputWidth}:${outputHeight},boxblur=20:1[bg]`]),
     `[fgsrc]scale=${outputWidth}:-2[fg]`,
@@ -23,13 +29,13 @@ export function buildExportCommand({ inputName = 'source.mp4', overlayName = 'ov
     ...graphics,
     ...(audioMode === 'mezcla' ? [`[0:a][${musicInputIndex}:a]amix=inputs=2:duration=first[outa]`] : []),
   ].join(';');
-  const inputs = ['-i', inputName, ...layerPlan.flatMap(layer => ['-i', layer.name])];
+  const inputs = [...trimArgs, '-i', inputName, ...layerPlan.flatMap(layer => ['-i', layer.name])];
   if (audioMode !== 'original') inputs.push('-i', musicName);
   const audioMap = audioMode === 'original' ? ['-map', '0:a?'] : audioMode === 'musica' ? ['-map', `${musicInputIndex}:a?`] : ['-map', '[outa]'];
   return [...inputs, '-filter_complex', graph, '-map', '[outv]', ...audioMap, '-r', '30', '-c:v', 'libx264', '-preset', fast ? 'veryfast' : 'medium', '-crf', fast ? '22' : '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', outputName];
 }
 
-export async function exportEditorialVideo({ ffmpeg, source, overlay, layers, music, audioMode = 'original', width = 1080, height = 1920, quality = 'alta', onProgress = () => {}, onStage = () => {} } = {}) {
+export async function exportEditorialVideo({ ffmpeg, source, overlay, layers, music, audioMode = 'original', width = 1080, height = 1920, quality = 'alta', trim = null, onProgress = () => {}, onStage = () => {} } = {}) {
   if (typeof ffmpeg?.writeFile !== 'function' || typeof ffmpeg.exec !== 'function' || typeof ffmpeg.readFile !== 'function') throw new Error('FFmpeg no está disponible en este navegador.');
   const layerPlan = normalizeLayers(layers, 'overlay.png', overlay);
   if (!source || !layerPlan.every(layer => layer.blob)) throw new Error('Faltan el video fuente o las capas editoriales.');
@@ -42,7 +48,7 @@ export async function exportEditorialVideo({ ffmpeg, source, overlay, layers, mu
   for (const layer of layerPlan) await ffmpeg.writeFile(layer.name, await fileData(layer.blob));
   if (audioMode !== 'original') await ffmpeg.writeFile(musicName, await fileData(music));
   onStage('componiendo');
-  await ffmpeg.exec(buildExportCommand({ inputName: sourceName, layers: layerPlan, musicName, audioMode, width, height, quality }));
+  await ffmpeg.exec(buildExportCommand({ inputName: sourceName, layers: layerPlan, musicName, audioMode, width, height, quality, trim }));
   onStage('finalizando');
   const data = await ffmpeg.readFile('output.mp4');
   return new Blob([data.buffer], { type: 'video/mp4' });

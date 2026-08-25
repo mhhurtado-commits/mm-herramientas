@@ -7,12 +7,14 @@ import { createVideoProject } from './video-project.mjs';
 import { drawEditorialLayer, drawVideoPreview } from './video-renderer.mjs';
 import { TITLE_DURATION, createSpeakerMarker, normalizeSpeakerMarkers } from './video-speakers.mjs';
 import { suggestClipWindows } from './video-suggestions.mjs';
+import { buildClipProject, isClipWindow } from './video-clip.mjs';
+import { transcribeVideo } from './video-transcribe.mjs';
 import { clampTimelineTime, getTimelineRatio, stepTimelineTime } from './video-timeline.mjs';
 
 const $ = selector => document.querySelector(selector);
 const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const handoff = parseVideoHandoff(sessionStorage.getItem('mm-editorial-handoff'));
-const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', downloadObjectUrl: '', ffmpeg: null, exporting: false, logo: null };
+const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', downloadObjectUrl: '', ffmpeg: null, exporting: false, logo: null, transcript: [], selectedClipIndex: null };
 const canvas = $('#previewCanvas');
 const ctx = canvas.getContext('2d');
 const video = $('#sourceVideo');
@@ -32,14 +34,14 @@ $('#audioInput').addEventListener('change', event => { state.project.audioMode =
 $('#qualityInput').addEventListener('change', event => { state.project.exportQuality = event.target.value; });
 for (const [id, key] of [['sectionInput', 'section'], ['titleInput', 'title'], ['sourceTextInput', 'source'], ['accentInput', 'accent']]) $("#" + id).addEventListener('input', event => { state.project.lowerThird[key] = event.target.value; $('#previewTitle').textContent = state.project.lowerThird.title || 'Video vertical'; draw(); });
 $('#captionInput').addEventListener('input', event => { state.project.captions = event.target.value.trim() ? [{ start: 0, end: state.duration || Infinity, text: event.target.value.trim() }] : []; draw(); });
-$('#suggestButton').addEventListener('click', refreshSuggestions);
+$('#suggestButton').addEventListener('click', proposeClips);
 $('#playButton').addEventListener('click', () => video.paused ? video.play() : video.pause());
 $('#skipBackButton').addEventListener('click', () => seekBy(-5));
 $('#skipForwardButton').addEventListener('click', () => seekBy(5));
 $('#timelineInput').addEventListener('input', event => seekTo(event.target.value));
 $('#addSpeakerButton').addEventListener('click', addSpeaker);
 $('#exportButton').addEventListener('click', exportVideo);
-video.addEventListener('loadedmetadata', () => { state.duration = video.duration; $('#sourceMeta').textContent = `${Math.round(video.videoWidth)}×${Math.round(video.videoHeight)} · ${formatTime(video.duration)} · el original se mantiene intacto.`; refreshSuggestions(); draw(); updateTimeline(); renderSpeakers(); setSpeakerControlsEnabled(true); $('#playButton').disabled = false; $('#skipBackButton').disabled = false; $('#skipForwardButton').disabled = false; $('#suggestButton').disabled = false; $('#exportButton').disabled = false; });
+video.addEventListener('loadedmetadata', () => { state.duration = video.duration; $('#sourceMeta').textContent = `${Math.round(video.videoWidth)}×${Math.round(video.videoHeight)} · ${formatTime(video.duration)} · el original se mantiene intacto.`; refreshSuggestions(); updateExportButton(); draw(); updateTimeline(); renderSpeakers(); setSpeakerControlsEnabled(true); $('#playButton').disabled = false; $('#skipBackButton').disabled = false; $('#skipForwardButton').disabled = false; $('#suggestButton').disabled = false; $('#exportButton').disabled = false; });
 video.addEventListener('play', () => { $('#playButton').textContent = 'Pausar'; tick(); });
 video.addEventListener('pause', () => { $('#playButton').textContent = 'Reproducir'; draw(); updateTimeline(); });
 video.addEventListener('timeupdate', () => { draw(); updateTimeline(); });
@@ -57,13 +59,88 @@ function loadSource(file) {
   clearDownload();
   if (state.sourceUrl) URL.revokeObjectURL(state.sourceUrl);
   state.duration = 0; state.project.speakers = []; clearSpeakerError(); renderSpeakers(); updateTimeline(); setSpeakerControlsEnabled(false);
+  state.transcript = []; state.selectedClipIndex = null;
   state.source = file; state.sourceUrl = URL.createObjectURL(file); video.src = state.sourceUrl; video.load(); setStatus('Leyendo el video local…');
 }
 
 function refreshSuggestions() {
-  state.project.clips = suggestClipWindows({ duration: state.duration, profile: state.project.profile, transcript: [] });
-  $('#clipList').innerHTML = state.project.clips.length ? state.project.clips.map((clip, index) => `<span class="vv-clip">${index + 1}. ${formatTime(clip.start)}–${formatTime(clip.end)}</span>`).join('') : '<span>El video debe tener al menos 20 segundos para sugerir clips.</span>';
-  if (state.project.profile === 'hablado') setStatus('Candidatos iniciales listos. La transcripción se integrará cuando el Worker esté disponible.');
+  const clips = suggestClipWindows({ duration: state.duration, profile: state.project.profile, transcript: state.transcript });
+  state.project.clips = clips;
+  renderClipList(clips);
+  if (!state.transcript.length && state.duration >= 20) setStatus('Pulsá "Proponer clips" para sugerir cortes según el contenido del video.');
+}
+
+async function proposeClips() {
+  if (state.exporting) return;
+  if (!state.duration) return setStatus('Cargá un video antes de proponer clips.');
+  if (state.duration < 20) { refreshSuggestions(); return setStatus('El video debe tener al menos 20 segundos para sugerir clips.'); }
+  const button = $('#suggestButton');
+  button.disabled = true;
+  try {
+    if (!state.transcript.length) {
+      setStatus('Transcribiendo el audio para entender el contenido…');
+      const result = await transcribeVideo({
+        workerUrl: WORKER_URL,
+        file: state.source,
+        onStage: stage => setStatus(stage === 'extrayendo-audio' ? 'Extrayendo el audio del video…' : 'Transcribiendo el contenido…'),
+        onProgress: ratio => setStatus(`Transcribiendo el contenido… ${Math.round(ratio * 100)}%`),
+      });
+      state.transcript = Array.isArray(result.segments) ? result.segments : [];
+    }
+    refreshSuggestions();
+    if (!state.project.clips.length) setStatus('No se encontraron fragmentos de al menos 20 segundos. Probá con otro perfil.');
+    else setStatus(`Se encontraron ${state.project.clips.length} clip(s) sugeridos por contenido. Selecciona uno para previsualizarlo.`);
+  } catch (error) {
+    setStatus(error.message || 'No se pudo transcribir el video. Se usan ventanas de referencia.');
+    refreshSuggestions();
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function renderClipList(clips) {
+  const list = $('#clipList');
+  list.replaceChildren();
+  if (!clips.length) {
+    const empty = document.createElement('span');
+    empty.textContent = state.duration >= 20 ? 'Sin cortes sugeridos todavía.' : 'El video debe tener al menos 20 segundos para sugerir clips.';
+    list.append(empty);
+    return;
+  }
+  clips.forEach((clip, index) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = `vv-clip${index === state.selectedClipIndex ? ' is-selected' : ''}`;
+    item.dataset.index = String(index);
+    item.innerHTML = `<span class="vv-clip-index">${index + 1}</span><span class="vv-clip-range">${formatTime(clip.start)}–${formatTime(clip.end)}</span><span class="vv-clip-label">${clip.label || 'Fragmento sugerido'}</span>`;
+    item.addEventListener('click', () => selectClip(index));
+    list.append(item);
+  });
+}
+
+function selectClip(index) {
+  clearDownload();
+  state.selectedClipIndex = state.selectedClipIndex === index ? null : index;
+  const clip = state.project.clips[state.selectedClipIndex];
+  for (const item of $('#clipList').children) item.classList.toggle('is-selected', Number(item.dataset.index) === state.selectedClipIndex);
+  updateExportButton();
+  if (clip) {
+    seekTo(clip.start);
+    video.pause();
+    setStatus(`Clip seleccionado: ${formatTime(clip.start)}–${formatTime(clip.end)}. Reproducé para previsualizar o exportalo como MP4 vertical.`);
+  } else {
+    setStatus(state.project.clips.length ? 'Seleccioná un clip sugerido para previsualizarlo.' : 'Sin cortes sugeridos.');
+  }
+}
+
+function updateExportButton() {
+  const button = $('#exportButton');
+  if (!button) return;
+  if (state.selectedClipIndex !== null && isClipWindow(state.project.clips[state.selectedClipIndex])) {
+    button.textContent = `Exportar clip ${state.selectedClipIndex + 1}`;
+  } else {
+    button.textContent = 'Exportar MP4';
+  }
 }
 
 function draw() { if (video.readyState >= 2) drawVideoPreview(ctx, video, state.project, { time: video.currentTime, logo: state.logo }); else { ctx.fillStyle = '#101712'; ctx.fillRect(0, 0, canvas.width, canvas.height); } }
@@ -141,11 +218,13 @@ function clearSpeakerError() { setSpeakerError(''); }
 async function exportVideo() {
   if (!state.source || state.exporting) return;
   if (state.project.audioMode !== 'original' && !state.music) return setStatus('Elegí una pista de música o volvé a audio original.');
+  const clip = state.selectedClipIndex !== null ? state.project.clips[state.selectedClipIndex] : null;
+  const useClip = clip && isClipWindow(clip);
   clearDownload(); state.exporting = true; $('#exportButton').disabled = true;
   try {
     setStatus('Preparando las capas editoriales…');
-    const layers = await overlayLayers();
-    if (state.project.exportQuality === 'rapido') {
+    const layers = await overlayLayers(useClip ? buildClipProject(state.project, clip) : state.project);
+    if (!useClip && state.project.exportQuality === 'rapido') {
       if (state.project.audioMode !== 'original') throw new Error('La exportación rápida remota conserva el audio original. Para música o mezcla usá Alta calidad.');
       const result = await exportCloudinaryVideo({
         workerUrl: WORKER_URL,
@@ -159,15 +238,29 @@ async function exportVideo() {
       return;
     }
     const ffmpeg = await loadFfmpeg();
-    setStatus('Exportando MP4 vertical… 0%');
-    const result = await exportEditorialVideo({ ffmpeg, source: state.source, layers, music: state.music, audioMode: state.project.audioMode, width: canvas.width, height: canvas.height, quality: state.project.exportQuality, onStage: stage => setStatus(stage === 'copiando' ? 'Copiando el video a memoria…' : stage === 'componiendo' ? 'Componiendo el video…' : 'Preparando la descarga…'), onProgress: ratio => setStatus(`Componiendo el video… ${Math.round(ratio * 100)}%`) });
-    showDownload(URL.createObjectURL(result), { objectUrl: true }); setStatus('MP4 listo. Usá el botón Descargar MP4.');
+    const quality = state.project.exportQuality === 'rapido' ? 'rapido' : 'alta';
+    setStatus(useClip ? `Exportando clip ${state.selectedClipIndex + 1}… 0%` : 'Exportando MP4 vertical… 0%');
+    const result = await exportEditorialVideo({
+      ffmpeg,
+      source: state.source,
+      layers,
+      music: state.music,
+      audioMode: state.project.audioMode,
+      width: canvas.width,
+      height: canvas.height,
+      quality,
+      trim: useClip ? { start: clip.start, end: clip.end } : null,
+      onStage: stage => setStatus(stage === 'copiando' ? 'Copiando el video a memoria…' : stage === 'componiendo' ? (useClip ? 'Recortando y componiendo el clip…' : 'Componiendo el video…') : 'Preparando la descarga…'),
+      onProgress: ratio => setStatus(`Componiendo el video… ${Math.round(ratio * 100)}%`),
+    });
+    showDownload(URL.createObjectURL(result), { objectUrl: true, nameSuffix: useClip ? `-clip${state.selectedClipIndex + 1}` : '' });
+    setStatus(useClip ? `Clip ${state.selectedClipIndex + 1} listo. Usá el botón Descargar MP4.` : 'MP4 listo. Usá el botón Descargar MP4.');
   } catch (error) { setStatus(error.message || 'No se pudo exportar el video.'); }
   finally { state.exporting = false; $('#exportButton').disabled = false; }
 }
 
-async function overlayLayers() {
-  return Promise.all(getOverlayLayerPlan(state.project).map(async layer => ({ ...layer, blob: await layerBlob(layer) })));
+async function overlayLayers(project = state.project) {
+  return Promise.all(getOverlayLayerPlan(project).map(async layer => ({ ...layer, blob: await layerBlob(layer) })));
 }
 
 function layerBlob(layer) {
@@ -190,7 +283,7 @@ async function loadFfmpeg() {
 function formatTime(value) { const seconds = Math.max(0, Math.floor(Number(value) || 0)); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; }
 function setStatus(value) { $('#status').textContent = value; }
 function remoteExportStatus(stage) { return ({ preparando: 'Preparando la exportación remota…', 'subiendo-video': 'Subiendo el video…', 'subiendo-capas': 'Subiendo las capas editoriales…', renderizando: 'Generando MP4 en Cloudinary…', esperando: 'Generando MP4 en Cloudinary…' })[stage] || 'Generando MP4…'; }
-function showDownload(url, { objectUrl = false } = {}) { const link = $('#downloadLink'); link.href = url; link.download = `mediamendoza-vertical-${Date.now()}.mp4`; state.downloadObjectUrl = objectUrl ? url : ''; link.classList.remove('is-hidden'); }
+function showDownload(url, { objectUrl = false, nameSuffix = '' } = {}) { const link = $('#downloadLink'); link.href = url; link.download = `mediamendoza-vertical${nameSuffix}-${Date.now()}.mp4`; state.downloadObjectUrl = objectUrl ? url : ''; link.classList.remove('is-hidden'); }
 function clearDownload() { const link = $('#downloadLink'); if (state.downloadObjectUrl) URL.revokeObjectURL(state.downloadObjectUrl); state.downloadObjectUrl = ''; link.removeAttribute('href'); link.classList.add('is-hidden'); }
 
 export { buildExportCommand };
