@@ -7,14 +7,14 @@ import { createVideoProject } from './video-project.mjs';
 import { drawEditorialLayer, drawVideoPreview } from './video-renderer.mjs';
 import { TITLE_DURATION, createSpeakerMarker, normalizeSpeakerMarkers } from './video-speakers.mjs';
 import { suggestClipWindows } from './video-suggestions.mjs';
-import { buildClipProject, isClipWindow } from './video-clip.mjs';
+import { buildClipProject, isClipWindow, clampTrim } from './video-clip.mjs';
 import { transcribeVideo } from './video-transcribe.mjs';
 import { clampTimelineTime, getTimelineRatio, stepTimelineTime } from './video-timeline.mjs';
 
 const $ = selector => document.querySelector(selector);
 const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const handoff = parseVideoHandoff(sessionStorage.getItem('mm-editorial-handoff'));
-const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', downloadObjectUrl: '', ffmpeg: null, exporting: false, logo: null, transcript: [], transcriptWords: [], selectedClipIndex: null };
+const state = { project: createVideoProject(handoff?.package), source: null, music: null, duration: 0, sourceUrl: '', downloadObjectUrl: '', ffmpeg: null, exporting: false, logo: null, transcript: [], transcriptWords: [], selectedClipIndex: null, trim: { start: 0, end: 0 } };
 const canvas = $('#previewCanvas');
 const ctx = canvas.getContext('2d');
 const video = $('#sourceVideo');
@@ -23,6 +23,7 @@ logo.onload = () => { state.logo = logo; draw(); };
 logo.src = '../assets/logo.png';
 
 hydrate();
+initTimelineTrim();
 if (handoff) { sessionStorage.removeItem('mm-editorial-handoff'); setStatus('Paquete editorial recibido. Subí el video fuente.'); }
 
 $('#sourceInput').addEventListener('change', event => loadSource(event.target.files?.[0]));
@@ -35,13 +36,14 @@ $('#qualityInput').addEventListener('change', event => { state.project.exportQua
 for (const [id, key] of [['sectionInput', 'section'], ['titleInput', 'title'], ['sourceTextInput', 'source'], ['accentInput', 'accent']]) $("#" + id).addEventListener('input', event => { state.project.lowerThird[key] = event.target.value; $('#previewTitle').textContent = state.project.lowerThird.title || 'Video vertical'; draw(); });
 $('#captionInput').addEventListener('input', event => { state.project.captions = event.target.value.trim() ? [{ start: 0, end: state.duration || Infinity, text: event.target.value.trim() }] : []; draw(); });
 $('#suggestButton').addEventListener('click', proposeClips);
+$('#useSelectionButton').addEventListener('click', useSelection);
 $('#playButton').addEventListener('click', () => video.paused ? video.play() : video.pause());
 $('#skipBackButton').addEventListener('click', () => seekBy(-5));
 $('#skipForwardButton').addEventListener('click', () => seekBy(5));
 $('#timelineInput').addEventListener('input', event => seekTo(event.target.value));
 $('#addSpeakerButton').addEventListener('click', addSpeaker);
 $('#exportButton').addEventListener('click', exportVideo);
-video.addEventListener('loadedmetadata', () => { state.duration = video.duration; $('#sourceMeta').textContent = `${Math.round(video.videoWidth)}×${Math.round(video.videoHeight)} · ${formatTime(video.duration)} · el original se mantiene intacto.`; refreshSuggestions(); updateExportButton(); draw(); updateTimeline(); renderSpeakers(); setSpeakerControlsEnabled(true); $('#playButton').disabled = false; $('#skipBackButton').disabled = false; $('#skipForwardButton').disabled = false; $('#suggestButton').disabled = false; $('#exportButton').disabled = false; });
+video.addEventListener('loadedmetadata', () => { state.duration = video.duration; $('#sourceMeta').textContent = `${Math.round(video.videoWidth)}×${Math.round(video.videoHeight)} · ${formatTime(video.duration)} · el original se mantiene intacto.`; state.trim = { start: 0, end: Math.min(state.duration, 30) }; refreshSuggestions(); renderSuggestionMarkers(); renderTimelineSelection(); updateExportButton(); draw(); updateTimeline(); renderSpeakers(); setSpeakerControlsEnabled(true); $('#playButton').disabled = false; $('#skipBackButton').disabled = false; $('#skipForwardButton').disabled = false; $('#suggestButton').disabled = false; $('#exportButton').disabled = false; });
 video.addEventListener('play', () => { $('#playButton').textContent = 'Pausar'; tick(); });
 video.addEventListener('pause', () => { $('#playButton').textContent = 'Reproducir'; draw(); updateTimeline(); });
 video.addEventListener('timeupdate', () => { draw(); updateTimeline(); });
@@ -59,7 +61,7 @@ function loadSource(file) {
   clearDownload();
   if (state.sourceUrl) URL.revokeObjectURL(state.sourceUrl);
   state.duration = 0; state.project.speakers = []; clearSpeakerError(); renderSpeakers(); updateTimeline(); setSpeakerControlsEnabled(false);
-  state.transcript = []; state.transcriptWords = []; state.selectedClipIndex = null;
+  state.transcript = []; state.transcriptWords = []; state.selectedClipIndex = null; state.trim = { start: 0, end: 0 };
   state.source = file; state.sourceUrl = URL.createObjectURL(file); video.src = state.sourceUrl; video.load(); setStatus('Leyendo el video local…');
 }
 
@@ -67,6 +69,7 @@ function refreshSuggestions() {
   const clips = suggestClipWindows({ duration: state.duration, profile: state.project.profile, transcript: state.transcript, words: state.transcriptWords });
   state.project.clips = clips;
   renderClipList(clips);
+  renderSuggestionMarkers();
   if (!state.transcript.length && state.duration >= 20) setStatus('Pulsá "Proponer clips" para sugerir cortes según el contenido del video.');
 }
 
@@ -124,14 +127,113 @@ function selectClip(index) {
   state.selectedClipIndex = state.selectedClipIndex === index ? null : index;
   const clip = state.project.clips[state.selectedClipIndex];
   for (const item of $('#clipList').children) item.classList.toggle('is-selected', Number(item.dataset.index) === state.selectedClipIndex);
-  updateExportButton();
+  for (const marker of $('#suggestionMarkers').children) marker.classList.toggle('is-selected', Number(marker.dataset.index) === state.selectedClipIndex);
   if (clip) {
+    state.trim = { start: clip.start, end: clip.end };
     seekTo(clip.start);
     video.pause();
-    setStatus(`Clip seleccionado: ${formatTime(clip.start)}–${formatTime(clip.end)}. Reproducé para previsualizar o exportalo como MP4 vertical.`);
+    setStatus(`Clip seleccionado: ${formatTime(clip.start)}–${formatTime(clip.end)}. Ajustá los handles o exportalo como MP4 vertical.`);
   } else {
-    setStatus(state.project.clips.length ? 'Seleccioná un clip sugerido para previsualizarlo.' : 'Sin cortes sugeridos.');
+    state.trim = { start: 0, end: Math.min(state.duration, 30) };
+    setStatus(state.project.clips.length ? 'Seleccioná un clip sugerido o ajustá los handles para definir el recorte.' : 'Sin cortes sugeridos.');
   }
+  renderTimelineSelection();
+  updateExportButton();
+}
+
+function getActiveRange() {
+  const clip = state.selectedClipIndex !== null ? state.project.clips[state.selectedClipIndex] : null;
+  return clip ? { start: clip.start, end: clip.end } : state.trim;
+}
+
+function setActiveRange(start, end) {
+  const duration = state.duration || 0;
+  const ordered = clampTrim({ start, end }, duration);
+  if (state.selectedClipIndex !== null && state.project.clips[state.selectedClipIndex]) {
+    state.project.clips[state.selectedClipIndex].start = ordered.start;
+    state.project.clips[state.selectedClipIndex].end = ordered.end;
+  } else {
+    state.trim = ordered;
+  }
+  renderTimelineSelection();
+}
+
+function renderTimelineSelection() {
+  const duration = state.duration || 0;
+  if (!duration) return;
+  const range = getActiveRange();
+  const startRatio = getTimelineRatio(range.start, duration);
+  const endRatio = getTimelineRatio(range.end, duration);
+  $('#timelineSelection').style.left = `${startRatio * 100}%`;
+  $('#timelineSelection').style.width = `${(endRatio - startRatio) * 100}%`;
+  $('#trimHandleStart').style.left = `${startRatio * 100}%`;
+  $('#trimHandleEnd').style.left = `${endRatio * 100}%`;
+  $('#useSelectionButton').disabled = !state.source;
+}
+
+function renderSuggestionMarkers() {
+  const markers = $('#suggestionMarkers');
+  markers.replaceChildren();
+  const duration = state.duration || 0;
+  if (!duration) return;
+  state.project.clips.forEach((clip, index) => {
+    const marker = document.createElement('span');
+    marker.className = 'vv-suggestion-marker';
+    marker.dataset.index = String(index);
+    marker.style.left = `${getTimelineRatio(clip.start, duration) * 100}%`;
+    marker.title = `Ir al clip ${index + 1}: ${formatTime(clip.start)}–${formatTime(clip.end)}`;
+    marker.addEventListener('click', () => selectClip(index));
+    markers.append(marker);
+  });
+}
+
+function timeFromClientX(clientX) {
+  const track = $('#timelineTrack');
+  const rect = track.getBoundingClientRect();
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  return clampTimelineTime(ratio * state.duration, state.duration);
+}
+
+function startHandleDrag(which) {
+  return event => {
+    event.preventDefault();
+    const move = moveEvent => {
+      const time = timeFromClientX(moveEvent.clientX);
+      const range = getActiveRange();
+      if (which === 'start') setActiveRange(Math.min(time, range.end - 0.5), range.end);
+      else setActiveRange(range.start, Math.max(time, range.start + 0.5));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+}
+
+function initTimelineTrim() {
+  $('#trimHandleStart').addEventListener('pointerdown', startHandleDrag('start'));
+  $('#trimHandleEnd').addEventListener('pointerdown', startHandleDrag('end'));
+}
+
+function useSelection() {
+  const range = getActiveRange();
+  if (range.end - range.start < 1) return setStatus('Seleccioná un rango válido (al menos 1 segundo) para el clip.');
+  const start = range.start;
+  const end = range.end;
+  let index = state.project.clips.findIndex(clip => Math.abs(clip.start - start) < 0.5 && Math.abs(clip.end - end) < 0.5);
+  if (index === -1) {
+    index = state.project.clips.length;
+    state.project.clips.push({ id: `clip-${index}`, start, end, label: `Clip ${index + 1} (manual)`, reason: 'Selección manual en la timeline' });
+  }
+  state.selectedClipIndex = index;
+  state.trim = { start, end };
+  renderClipList(state.project.clips);
+  renderSuggestionMarkers();
+  renderTimelineSelection();
+  updateExportButton();
+  setStatus(`Clip ${index + 1} listo (${formatTime(start)}–${formatTime(end)}). Exportalo como MP4 vertical.`);
 }
 
 function updateExportButton() {

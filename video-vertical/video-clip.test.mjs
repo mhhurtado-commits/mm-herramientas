@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildClipProject, isClipWindow } from './video-clip.mjs';
+import { buildClipProject, isClipWindow, clampTrim } from './video-clip.mjs';
 
 const SPEAKERS = [
   { id: 's0', start: 5, name: 'A' },
@@ -29,4 +29,11 @@ test('isClipWindow validates the window bounds', () => {
   assert.equal(isClipWindow({ start: 30, end: 10 }), false);
   assert.equal(isClipWindow({ start: 10, end: 10 }), false);
   assert.equal(isClipWindow({}), false);
+});
+
+test('clampTrim bounds the range to the duration and orders the edges', () => {
+  assert.deepEqual(clampTrim({ start: 40, end: 60 }, 120), { start: 40, end: 60 });
+  assert.deepEqual(clampTrim({ start: 200, end: 60 }, 120), { start: 60, end: 120 });
+  assert.deepEqual(clampTrim({ start: 60, end: 40 }, 120), { start: 40, end: 60 });
+  assert.deepEqual(clampTrim({ start: -5, end: 10 }, 120), { start: 0, end: 10 });
 });

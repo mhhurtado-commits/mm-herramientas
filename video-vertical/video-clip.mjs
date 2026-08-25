@@ -20,3 +20,13 @@ export function isClipWindow(clip = {}) {
   const end = Number(clip.end);
   return Number.isFinite(start) && Number.isFinite(end) && end > start;
 }
+
+export function clampTrim(range = {}, duration = 0) {
+  const total = Math.max(0, Number(duration) || 0);
+  const rawStart = Number(range?.start);
+  const rawEnd = Number(range?.end);
+  let start = Math.min(total, Math.max(0, Number.isFinite(rawStart) ? rawStart : 0));
+  let end = Math.min(total, Math.max(0, Number.isFinite(rawEnd) ? rawEnd : 0));
+  if (start > end) { const swap = start; start = end; end = swap; }
+  return { start, end };
+}
