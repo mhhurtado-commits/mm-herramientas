@@ -645,6 +645,7 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const hora = alert.hora || '';
   const zona = alert.zona || '';
   const nivel = resolveAlertSeverity(alert.nivel);
+  const SEVERITY_GLYPH = { verde: '🌦️', amarillo: '🌧️', naranja: '⛈️', rojo: '🌩️' };
   const fechaLarga = formatAlertDate(plate.fecha);
   const bannerH = canvas.h * (isStory ? 0.165 : 0.145);
 
@@ -664,7 +665,7 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   if (fuente) {
     const sourceSize = Math.max(20, canvas.w * (isStory ? 0.026 : 0.022));
     ctx.font = `700 ${sourceSize}px ${fontFamily}`;
-    ctx.fillText(fuente, layout.label.x, bannerH * 0.78);
+    ctx.fillText(`📡 ${fuente}`, layout.label.x, bannerH * 0.78);
   }
 
   const logoW = canvas.w * (isStory ? 0.30 : 0.24);
@@ -676,7 +677,7 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   ctx.fillStyle = '#ffffff';
   ctx.font = `800 ${Math.max(22, canvas.w * 0.026)}px ${fontFamily}`;
   ctx.textAlign = 'center';
-  ctx.fillText(`NIVEL ${nivel.label.toUpperCase()}`, canvas.w / 2, sev.y + sev.h * 0.68);
+  ctx.fillText(`${SEVERITY_GLYPH[nivel.id] || '⚠'} NIVEL ${nivel.label.toUpperCase()}`, canvas.w / 2, sev.y + sev.h * 0.68);
   ctx.textAlign = 'left';
 
   const chipH = Math.min(layout.timestamp.h, canvas.h * 0.060);
