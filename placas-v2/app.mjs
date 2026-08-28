@@ -178,12 +178,13 @@ async function generateSocialJson(systemPrompt, userMsg) {
 }
 
 const ALERT_SEVERITY_LEVELS = ['verde', 'amarillo', 'naranja', 'rojo'];
-const ALERT_EXTRACTION_PROMPT = `Sos un editor meteorológico de Media Mendoza. Recibís el texto original de una alerta o aviso climático pegado por un redactor. Extraé y estructurá SOLO los siguientes campos en un objeto JSON válido, sin backticks ni markdown:
-- mensaje: el texto principal de la alerta, redactado en una o dos frases claras y concisas (máximo 200 caracteres). No incluyas firma ni fuente.
-- fuente: la persona, cuenta u organismo que emite la alerta (por ejemplo "Radar San Rafael - Marcelo Peña"). Si no aparece, usá "Medio Mendoza".
-- nivel: severidad inferida del texto, UNO solo de "verde" (lluvias leves, sin complicaciones), "amarillo" (tormentas aisladas, precaución), "naranja" (tormentas fuertes, riesgo) o "rojo" (situación severa, peligro).
-- zona: zona o localidades afectadas mencionadas en el texto, unidas por coma. Si no aparece, usá "Mendoza".
-Responde SOLO con el objeto JSON: {"mensaje":"...","fuente":"...","nivel":"...","zona":"..."}.`;
+const ALERT_EXTRACTION_PROMPT = `Sos editor de servicio meteorológico de Media Mendoza. Recibís el parte original pegado por el redactor y debes REESCRIBIRLO para una placa de servicio a corto plazo que se lee en 2 segundos en el feed.
+Extraé y REESCRIBÍ SOLO estos campos en JSON válido sin backticks ni markdown:
+- mensaje: REESCRIBÍ el parte en 1 o 2 frases cortas, voz activa, tono servicio, máximo 160 caracteres. Empezá por el hecho ("Sigue lloviendo...", "Tormenta con granizo en..."), mencioná la zona una sola vez y si aplica cerrá con instrucción breve ("Transitá con precaución.", "Evitá la zona."). No repitas la zona, no incluyas firma ni fuente. Dale más importancia: que suene útil e inmediato, no genérico.
+- fuente: persona/cuenta/organismo que emite la alerta (ej "Radar San Rafael - Marcelo Peña"). Si no aparece, "Medio Mendoza".
+- nivel: UNO solo de "verde" (lluvias leves sin complicaciones, servicio preventivo), "amarillo" (tormentas aisladas, precaución), "naranja" (tormentas fuertes, riesgo) o "rojo" (situación severa, peligro).
+- zona: localidades/zonas afectadas mencionadas, unidas por coma. Si no aparece, "Mendoza".
+Responde SOLO JSON: {"mensaje":"...","fuente":"...","nivel":"...","zona":"..."}.`;
 
 async function extractAlertData(texto) {
   const result = await generateSocialJson(ALERT_EXTRACTION_PROMPT, texto);

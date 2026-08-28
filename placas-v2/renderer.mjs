@@ -658,28 +658,48 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   ctx.fillStyle = 'rgba(0,0,0,.14)';
   ctx.fillRect(0, bannerH - canvas.h * 0.012, canvas.w, canvas.h * 0.012);
 
+  const logoW = canvas.w * (isStory ? 0.30 : 0.24);
+  const logoX = canvas.w - canvas.w * 0.045 - logoW;
+  const titleMaxW = Math.max(120, logoX - layout.label.x - canvas.w * 0.03);
   ctx.textAlign = 'left';
-  const labelSize = Math.max(46, canvas.w * (isStory ? 0.064 : 0.058));
+  let labelSize = Math.max(46, canvas.w * (isStory ? 0.064 : 0.058));
   ctx.fillStyle = '#ffffff';
+  while (labelSize > 28) {
+    ctx.font = `900 ${labelSize}px ${fontFamily}`;
+    if (ctx.measureText('ALERTA DE TORMENTAS').width <= titleMaxW) break;
+    labelSize -= 1;
+  }
   ctx.font = `900 ${labelSize}px ${fontFamily}`;
   ctx.fillText('ALERTA DE TORMENTAS', layout.label.x, bannerH * 0.50);
   if (fuente) {
     const sourceSize = Math.max(18, canvas.w * (isStory ? 0.024 : 0.020));
     ctx.fillStyle = 'rgba(255,255,255,.94)';
     ctx.font = `800 ${sourceSize}px ${fontFamily}`;
-    ctx.fillText(String(fuente).toUpperCase(), layout.label.x, bannerH * 0.78);
+    let fuenteText = String(fuente).toUpperCase();
+    if (ctx.measureText(fuenteText).width > titleMaxW) {
+      while (fuenteText.length > 12 && ctx.measureText(`${fuenteText}…`).width > titleMaxW) fuenteText = fuenteText.slice(0, -1).trim();
+      fuenteText = `${fuenteText.trim()}…`;
+      ctx.font = `800 ${sourceSize}px ${fontFamily}`;
+    }
+    ctx.fillText(fuenteText, layout.label.x, bannerH * 0.78);
   }
 
-  const logoW = canvas.w * (isStory ? 0.30 : 0.24);
-  containImage(ctx, options.logo, { x: canvas.w - canvas.w * 0.045 - logoW, y: bannerH * 0.18, w: logoW, h: bannerH * 0.46 });
+  containImage(ctx, options.logo, { x: logoX, y: bannerH * 0.18, w: logoW, h: bannerH * 0.46 });
 
   const sev = layout.severity;
   ctx.fillStyle = nivel.secondary;
   ctx.fillRect(sev.x, sev.y, sev.w, sev.h);
   ctx.fillStyle = '#ffffff';
-  ctx.font = `900 ${Math.max(22, canvas.w * 0.028)}px ${fontFamily}`;
   ctx.textAlign = 'center';
-  ctx.fillText(`NIVEL ${nivel.label.toUpperCase()}`, canvas.w / 2, sev.y + sev.h * 0.68);
+  const bandDetail = { verde: 'LLUVIA LEVE · SIN RIESGO', amarillo: 'PRECAUCIÓN', naranja: 'RIESGO', rojo: 'PELIGRO' }[nivel.id] || '';
+  let bandText = `NIVEL ${nivel.label.toUpperCase()}${bandDetail ? ` \u00B7 ${bandDetail}` : ''}`;
+  let bandSize = Math.max(22, canvas.w * 0.028);
+  ctx.font = `900 ${bandSize}px ${fontFamily}`;
+  while (bandSize > 18 && ctx.measureText(bandText).width > sev.w - canvas.w * 0.06) {
+    bandSize -= 1;
+    ctx.font = `900 ${bandSize}px ${fontFamily}`;
+  }
+  ctx.fillText(bandText, canvas.w / 2, sev.y + sev.h * 0.68);
   ctx.textAlign = 'left';
 
   const chipH = Math.min(layout.timestamp.h, canvas.h * 0.060);
