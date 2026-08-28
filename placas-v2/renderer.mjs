@@ -720,6 +720,25 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
     ctx.fillText(`ZONA AFECTADA: ${String(zona).toUpperCase()}`, layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
   }
 
+  const pad = canvas.w * 0.038;
+  const accentW = Math.max(8, canvas.w * 0.010);
+  const card = layout.message;
+  roundedRect(ctx, card.x, card.y, card.w, card.h, canvas.w * 0.014);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(22,32,27,.08)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.save();
+  roundedRect(ctx, card.x, card.y, card.w, card.h, canvas.w * 0.014);
+  ctx.clip();
+  ctx.fillStyle = nivel.color;
+  ctx.fillRect(card.x, card.y, accentW, card.h);
+  ctx.restore();
+
+  const innerW = card.w - pad * 2 - accentW * 0.6;
+  const innerX = card.x + pad + accentW;
+  const innerH = card.h - pad * 2;
   const messageSize = Math.max(52, canvas.w * (isStory ? 0.062 : 0.058));
   const minMessageSize = Math.max(36, canvas.w * 0.032);
   let fittedSize = messageSize;
@@ -727,13 +746,13 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   let fittedLineH = messageSize * 1.18;
   while (fittedSize >= minMessageSize) {
     ctx.font = `900 ${fittedSize}px ${fontFamily}`;
-    const probe = wrapMeasuredText(ctx, mensaje, layout.message.w);
+    const probe = wrapMeasuredText(ctx, mensaje, innerW);
     fittedLineH = fittedSize * 1.18;
-    if (probe.length <= 5 && probe.length * fittedLineH <= layout.message.h) { fittedLines = probe; break; }
+    if (probe.length <= 5 && probe.length * fittedLineH <= innerH) { fittedLines = probe; break; }
     fittedSize -= 1;
-    if (fittedSize < minMessageSize) { fittedLines = wrapMeasuredText(ctx, mensaje, layout.message.w); break; }
+    if (fittedSize < minMessageSize) { fittedLines = wrapMeasuredText(ctx, mensaje, innerW); break; }
   }
-  if (!fittedLines.length) fittedLines = wrapMeasuredText(ctx, mensaje, layout.message.w);
+  if (!fittedLines.length) fittedLines = wrapMeasuredText(ctx, mensaje, innerW);
   if (fittedLines.length > 5) {
     fittedLines = fittedLines.slice(0, 5);
     fittedLines[4] = `${fittedLines[4].replace(/[.…]+$/, '').slice(0, Math.max(1, Math.floor(fittedLines[4].length * 0.94))).trim()}…`;
@@ -741,9 +760,9 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   ctx.font = `900 ${fittedSize}px ${fontFamily}`;
   ctx.fillStyle = nivel.secondary;
   const usedH = fittedLines.length * fittedLineH;
-  const yOffset = Math.max(0, (layout.message.h - usedH) * 0.36);
-  const drawY = layout.message.y + fittedSize + yOffset;
-  fittedLines.forEach((line, index) => ctx.fillText(line, layout.message.x, drawY + index * fittedLineH));
+  const yOffset = Math.max(0, (innerH - usedH) * 0.42);
+  const drawY = card.y + pad + fittedSize + yOffset;
+  fittedLines.forEach((line, index) => ctx.fillText(line, innerX, drawY + index * fittedLineH));
 
   ctx.strokeStyle = 'rgba(22,32,27,.16)';
   ctx.lineWidth = Math.max(2, canvas.h * 0.001);
