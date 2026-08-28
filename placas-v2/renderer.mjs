@@ -645,63 +645,85 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const hora = alert.hora || '';
   const zona = alert.zona || '';
   const nivel = resolveAlertSeverity(alert.nivel);
-  const SEVERITY_GLYPH = { verde: '🌦️', amarillo: '🌧️', naranja: '⛈️', rojo: '🌩️' };
   const fechaLarga = formatAlertDate(plate.fecha);
   const bannerH = canvas.h * (isStory ? 0.165 : 0.145);
 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.w, canvas.h);
+  ctx.fillStyle = nivel.soft;
+  ctx.fillRect(0, bannerH, canvas.w, canvas.h - bannerH);
 
   ctx.fillStyle = nivel.color;
   ctx.fillRect(0, 0, canvas.w, bannerH);
-  ctx.fillStyle = 'rgba(0,0,0,.15)';
+  ctx.fillStyle = 'rgba(0,0,0,.14)';
   ctx.fillRect(0, bannerH - canvas.h * 0.012, canvas.w, canvas.h * 0.012);
 
   ctx.textAlign = 'left';
-  const labelSize = Math.max(30, canvas.w * (isStory ? 0.044 : 0.040));
-  ctx.fillStyle = nivel.secondary;
+  const labelSize = Math.max(46, canvas.w * (isStory ? 0.064 : 0.058));
+  ctx.fillStyle = '#ffffff';
   ctx.font = `900 ${labelSize}px ${fontFamily}`;
-  ctx.fillText('⚠ ALERTA DE TORMENTAS', layout.label.x, bannerH * 0.42);
+  ctx.fillText('ALERTA DE TORMENTAS', layout.label.x, bannerH * 0.50);
   if (fuente) {
-    const sourceSize = Math.max(20, canvas.w * (isStory ? 0.026 : 0.022));
-    ctx.font = `700 ${sourceSize}px ${fontFamily}`;
-    ctx.fillText(`📡 ${fuente}`, layout.label.x, bannerH * 0.78);
+    const sourceSize = Math.max(18, canvas.w * (isStory ? 0.024 : 0.020));
+    ctx.fillStyle = 'rgba(255,255,255,.94)';
+    ctx.font = `800 ${sourceSize}px ${fontFamily}`;
+    ctx.fillText(String(fuente).toUpperCase(), layout.label.x, bannerH * 0.78);
   }
 
   const logoW = canvas.w * (isStory ? 0.30 : 0.24);
-  containImage(ctx, options.logo, { x: canvas.w - canvas.w * 0.045 - logoW, y: bannerH * 0.20, w: logoW, h: bannerH * 0.42 });
+  containImage(ctx, options.logo, { x: canvas.w - canvas.w * 0.045 - logoW, y: bannerH * 0.18, w: logoW, h: bannerH * 0.46 });
 
   const sev = layout.severity;
   ctx.fillStyle = nivel.secondary;
   ctx.fillRect(sev.x, sev.y, sev.w, sev.h);
   ctx.fillStyle = '#ffffff';
-  ctx.font = `800 ${Math.max(22, canvas.w * 0.026)}px ${fontFamily}`;
+  ctx.font = `900 ${Math.max(22, canvas.w * 0.028)}px ${fontFamily}`;
   ctx.textAlign = 'center';
-  ctx.fillText(`${SEVERITY_GLYPH[nivel.id] || '⚠'} NIVEL ${nivel.label.toUpperCase()}`, canvas.w / 2, sev.y + sev.h * 0.68);
+  ctx.fillText(`NIVEL ${nivel.label.toUpperCase()}`, canvas.w / 2, sev.y + sev.h * 0.68);
   ctx.textAlign = 'left';
 
   const chipH = Math.min(layout.timestamp.h, canvas.h * 0.060);
   const chipPad = canvas.w * 0.022;
-  const chipText = `Vigente: ${[fechaLarga, hora].filter(Boolean).join(' · ')}`;
+  const chipText = `Vigente: ${[fechaLarga, hora].filter(Boolean).join(' \u00B7 ')}`;
   ctx.font = `800 ${Math.max(22, canvas.w * 0.024)}px ${fontFamily}`;
-  const chipW = Math.min(layout.timestamp.w, ctx.measureText(chipText).width + chipPad * 2 + canvas.w * 0.05);
+  const chipW = Math.min(layout.timestamp.w, ctx.measureText(chipText).width + chipPad * 2);
   roundedRect(ctx, layout.timestamp.x, layout.timestamp.y, chipW, chipH, canvas.w * 0.010);
   ctx.fillStyle = nivel.secondary;
   ctx.fill();
   ctx.fillStyle = '#ffffff';
-  ctx.fillText('⏱', layout.timestamp.x + chipPad, layout.timestamp.y + chipH * 0.68);
-  ctx.fillText(chipText, layout.timestamp.x + chipPad + canvas.w * 0.05, layout.timestamp.y + chipH * 0.68);
+  ctx.fillText(chipText, layout.timestamp.x + chipPad, layout.timestamp.y + chipH * 0.68);
 
   if (zona) {
     const zonaSize = Math.max(22, canvas.w * (isStory ? 0.028 : 0.024));
     ctx.fillStyle = nivel.secondary;
     ctx.font = `800 ${zonaSize}px ${fontFamily}`;
-    ctx.fillText('📍', layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
-    ctx.fillText(`Zona afectada: ${zona}`, layout.zona.x + canvas.w * 0.045, layout.zona.y + layout.zona.h * 0.72);
+    ctx.fillText(`ZONA AFECTADA: ${String(zona).toUpperCase()}`, layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
   }
 
-  const messageSize = Math.max(40, canvas.w * (isStory ? 0.052 : 0.046));
-  fittedText(ctx, mensaje, layout.message.x, layout.message.y + messageSize, layout.message.w, messageSize, Math.max(26, canvas.w * 0.024), 7, 700, nivel.secondary, 1.22, layout.message.h);
+  const messageSize = Math.max(52, canvas.w * (isStory ? 0.062 : 0.058));
+  const minMessageSize = Math.max(36, canvas.w * 0.032);
+  let fittedSize = messageSize;
+  let fittedLines = [];
+  let fittedLineH = messageSize * 1.18;
+  while (fittedSize >= minMessageSize) {
+    ctx.font = `900 ${fittedSize}px ${fontFamily}`;
+    const probe = wrapMeasuredText(ctx, mensaje, layout.message.w);
+    fittedLineH = fittedSize * 1.18;
+    if (probe.length <= 5 && probe.length * fittedLineH <= layout.message.h) { fittedLines = probe; break; }
+    fittedSize -= 1;
+    if (fittedSize < minMessageSize) { fittedLines = wrapMeasuredText(ctx, mensaje, layout.message.w); break; }
+  }
+  if (!fittedLines.length) fittedLines = wrapMeasuredText(ctx, mensaje, layout.message.w);
+  if (fittedLines.length > 5) {
+    fittedLines = fittedLines.slice(0, 5);
+    fittedLines[4] = `${fittedLines[4].replace(/[.…]+$/, '').slice(0, Math.max(1, Math.floor(fittedLines[4].length * 0.94))).trim()}…`;
+  }
+  ctx.font = `900 ${fittedSize}px ${fontFamily}`;
+  ctx.fillStyle = nivel.secondary;
+  const usedH = fittedLines.length * fittedLineH;
+  const yOffset = Math.max(0, (layout.message.h - usedH) * 0.36);
+  const drawY = layout.message.y + fittedSize + yOffset;
+  fittedLines.forEach((line, index) => ctx.fillText(line, layout.message.x, drawY + index * fittedLineH));
 
   ctx.strokeStyle = 'rgba(22,32,27,.16)';
   ctx.lineWidth = Math.max(2, canvas.h * 0.001);
