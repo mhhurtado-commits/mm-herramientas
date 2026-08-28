@@ -17,6 +17,7 @@ export const FAMILIES = {
 };
 
 export const ALERT_SEVERITIES = {
+  verde: { id: 'verde', label: 'Verde', color: '#3a9d3a', secondary: '#1e4d1e', soft: '#e6f3e6' },
   amarillo: { id: 'amarillo', label: 'Amarillo', color: '#e3b505', secondary: '#5b4a00', soft: '#fbf6df' },
   naranja: { id: 'naranja', label: 'Naranja', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0' },
   rojo: { id: 'rojo', label: 'Rojo', color: '#c0392b', secondary: '#5b1409', soft: '#fbe6e2' },
@@ -312,7 +313,7 @@ export function normalizeAlertPlate(input = {}, now = new Date()) {
     tipo: 'placa_noticia',
     version: 1,
     fuente: { url: '', titulo_original: '', categoria: 'Alerta', descripcion: '', texto: '', imagen: '', imagenes: [] },
-    titulo: 'Alerta meteorológica',
+    titulo: 'Alerta tormentas',
     titulo_sintetico: '',
     fecha,
     bajada: mensaje,
@@ -538,21 +539,22 @@ export function calculatePlateLayout(format, plate = {}) {
     };
   }
   if (plate.tipo_placa === 'alerta') {
-    const footerY = canvas.h * 0.92;
-    const labelY = canvas.h * 0.155;
-    const metaH = canvas.h * 0.062;
-    const timestampY = labelY + canvas.h * 0.055;
+    const bannerH = canvas.h * (isStory ? 0.165 : 0.145);
+    const severityH = canvas.h * (isStory ? 0.055 : 0.05);
+    const severityY = bannerH + canvas.h * 0.020;
+    const metaH = canvas.h * 0.060;
+    const timestampY = severityY + severityH + canvas.h * 0.025;
     const zonaY = timestampY + metaH + canvas.h * 0.020;
     const messageY = zonaY + metaH + canvas.h * 0.020;
+    const footerY = canvas.h * 0.92;
     const messageH = Math.max(0, footerY - messageY - canvas.h * 0.03);
-    const chipGap = canvas.w * 0.025;
     return {
       canvas,
       alerta: true,
       header: { x: 0, y: 0, w: canvas.w, h: 0 },
-      label: { x: margin, y: labelY, w: canvas.w - margin * 2, h: canvas.h * 0.05 },
-      timestamp: { x: margin, y: timestampY, w: canvas.w * 0.46 - chipGap / 2, h: metaH },
-      severity: { x: margin + canvas.w * 0.46 + chipGap / 2, y: timestampY, w: canvas.w * 0.54 - chipGap / 2, h: metaH },
+      label: { x: margin, y: bannerH * 0.02, w: canvas.w - margin * 2, h: bannerH * 0.4 },
+      severity: { x: margin, y: severityY, w: canvas.w - margin * 2, h: severityH },
+      timestamp: { x: margin, y: timestampY, w: canvas.w - margin * 2, h: metaH },
       zona: { x: margin, y: zonaY, w: canvas.w - margin * 2, h: metaH },
       message: { x: margin, y: messageY, w: canvas.w - margin * 2, h: messageH },
       image: { x: 0, y: 0, w: 0, h: 0 },

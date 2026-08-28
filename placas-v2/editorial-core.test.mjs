@@ -72,6 +72,20 @@ test('resolveAlertSeverity desconocido cae en naranja', () => {
   assert.equal(severity.id, 'naranja');
 });
 
+test('el nivel verde aplica su paleta y el título es Alerta tormentas', () => {
+  const plate = normalizeAlertPlate({ mensaje: 'Lluvia sin complicaciones', nivel: 'verde' }, new Date('2026-08-28T14:35:00'));
+  assert.equal(plate.alerta.nivel, 'verde');
+  assert.equal(plate.color_principal, '#3a9d3a');
+  assert.equal(plate.titulo, 'Alerta tormentas');
+});
+
+test('calculatePlateLayout de alerta usa banda de nivel full-width', () => {
+  const plate = normalizeAlertPlate({ mensaje: 'Tormenta', nivel: 'rojo' }, new Date('2026-08-28T14:35:00'));
+  const layout = calculatePlateLayout('portrait', plate);
+  assert.equal(layout.alerta, true);
+  assert.ok(layout.severity.w > 1000);
+});
+
 test('calculatePlateLayout define regiones para el tipo alerta', () => {
   const plate = normalizeAlertPlate({ mensaje: 'Tormenta' }, new Date('2026-08-28T14:35:00'));
   const layout = calculatePlateLayout('portrait', plate);

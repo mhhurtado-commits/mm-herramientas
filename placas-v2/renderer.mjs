@@ -646,11 +646,11 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const zona = alert.zona || '';
   const nivel = resolveAlertSeverity(alert.nivel);
   const fechaLarga = formatAlertDate(plate.fecha);
+  const bannerH = canvas.h * (isStory ? 0.165 : 0.145);
 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.w, canvas.h);
 
-  const bannerH = canvas.h * (isStory ? 0.165 : 0.145);
   ctx.fillStyle = nivel.color;
   ctx.fillRect(0, 0, canvas.w, bannerH);
   ctx.fillStyle = 'rgba(0,0,0,.15)';
@@ -660,7 +660,7 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const labelSize = Math.max(30, canvas.w * (isStory ? 0.044 : 0.040));
   ctx.fillStyle = nivel.secondary;
   ctx.font = `900 ${labelSize}px ${fontFamily}`;
-  ctx.fillText('⚠ ALERTA METEOROLÓGICA', layout.label.x, bannerH * 0.42);
+  ctx.fillText('⚠ ALERTA DE TORMENTAS', layout.label.x, bannerH * 0.42);
   if (fuente) {
     const sourceSize = Math.max(20, canvas.w * (isStory ? 0.026 : 0.022));
     ctx.font = `700 ${sourceSize}px ${fontFamily}`;
@@ -670,7 +670,16 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const logoW = canvas.w * (isStory ? 0.30 : 0.24);
   containImage(ctx, options.logo, { x: canvas.w - canvas.w * 0.045 - logoW, y: bannerH * 0.20, w: logoW, h: bannerH * 0.42 });
 
-  const chipH = Math.min(layout.timestamp.h, canvas.h * 0.062);
+  const sev = layout.severity;
+  ctx.fillStyle = nivel.secondary;
+  ctx.fillRect(sev.x, sev.y, sev.w, sev.h);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `800 ${Math.max(22, canvas.w * 0.026)}px ${fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`NIVEL ${nivel.label.toUpperCase()}`, canvas.w / 2, sev.y + sev.h * 0.68);
+  ctx.textAlign = 'left';
+
+  const chipH = Math.min(layout.timestamp.h, canvas.h * 0.060);
   const chipPad = canvas.w * 0.022;
   const chipText = `Vigente: ${[fechaLarga, hora].filter(Boolean).join(' · ')}`;
   ctx.font = `800 ${Math.max(22, canvas.w * 0.024)}px ${fontFamily}`;
@@ -682,16 +691,6 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   ctx.fillText('⏱', layout.timestamp.x + chipPad, layout.timestamp.y + chipH * 0.68);
   ctx.fillText(chipText, layout.timestamp.x + chipPad + canvas.w * 0.05, layout.timestamp.y + chipH * 0.68);
 
-  const sevRect = layout.severity;
-  roundedRect(ctx, sevRect.x, sevRect.y, sevRect.w, sevRect.h, canvas.w * 0.010);
-  ctx.fillStyle = nivel.secondary;
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `800 ${Math.max(20, canvas.w * 0.024)}px ${fontFamily}`;
-  ctx.textAlign = 'center';
-  ctx.fillText(`NIVEL ${nivel.label.toUpperCase()}`, sevRect.x + sevRect.w / 2, sevRect.y + sevRect.h * 0.68);
-  ctx.textAlign = 'left';
-
   if (zona) {
     const zonaSize = Math.max(22, canvas.w * (isStory ? 0.028 : 0.024));
     ctx.fillStyle = nivel.secondary;
@@ -700,8 +699,8 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
     ctx.fillText(`Zona afectada: ${zona}`, layout.zona.x + canvas.w * 0.045, layout.zona.y + layout.zona.h * 0.72);
   }
 
-  const messageSize = Math.max(34, canvas.w * (isStory ? 0.046 : 0.040));
-  fittedText(ctx, mensaje, layout.message.x, layout.message.y + messageSize, layout.message.w, messageSize, Math.max(24, canvas.w * 0.020), 6, 700, nivel.secondary, 1.18, layout.message.h);
+  const messageSize = Math.max(40, canvas.w * (isStory ? 0.052 : 0.046));
+  fittedText(ctx, mensaje, layout.message.x, layout.message.y + messageSize, layout.message.w, messageSize, Math.max(26, canvas.w * 0.024), 7, 700, nivel.secondary, 1.22, layout.message.h);
 
   ctx.strokeStyle = 'rgba(22,32,27,.16)';
   ctx.lineWidth = Math.max(2, canvas.h * 0.001);
