@@ -458,6 +458,9 @@ async function generateAlert(event) {
   const manualNivel = $('#alertaNivel')?.value || 'naranja';
   const manualZona = $('#alertaZona').value.trim();
   if (!texto) { toast('Pegá el texto de la alerta para continuar.'); return; }
+  const button = $('#loadAlertaButton');
+  if (button) button.disabled = true;
+  setLoading(true, 'Extrayendo datos y armando la placa…');
   const now = new Date();
 
   const manual = { mensaje: texto, fuente: manualFuente, nivel: manualNivel, zona: manualZona };
@@ -493,6 +496,8 @@ async function generateAlert(event) {
   if (usoIA) toast('Datos extraídos por el asistente. Revisalos y ajustalos si hace falta.');
 
   renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor(); render();
+  setLoading(false);
+  if (button) button.disabled = false;
 }
 
 $('#newsForm').addEventListener('submit', generate);
