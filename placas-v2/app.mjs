@@ -177,6 +177,25 @@ async function generateSocialJson(systemPrompt, userMsg) {
   return data.result;
 }
 
+const ALERT_SEVERITY_LEVELS = ['verde', 'amarillo', 'naranja', 'rojo'];
+const ALERT_EXTRACTION_PROMPT = `Sos un editor meteorológico de Media Mendoza. Recibís el texto original de una alerta o aviso climático pegado por un redactor. Extraé y estructurá SOLO los siguientes campos en un objeto JSON válido, sin backticks ni markdown:
+- mensaje: el texto principal de la alerta, redactado en una o dos frases claras y concisas (máximo 200 caracteres). No incluyas firma ni fuente.
+- fuente: la persona, cuenta u organismo que emite la alerta (por ejemplo "Radar San Rafael - Marcelo Peña"). Si no aparece, usá "Medio Mendoza".
+- nivel: severidad inferida del texto, UNO solo de "verde" (lluvias leves, sin complicaciones), "amarillo" (tormentas aisladas, precaución), "naranja" (tormentas fuertes, riesgo) o "rojo" (situación severa, peligro).
+- zona: zona o localidades afectadas mencionadas en el texto, unidas por coma. Si no aparece, usá "Mendoza".
+Responde SOLO con el objeto JSON: {"mensaje":"...","fuente":"...","nivel":"...","zona":"..."}.`;
+
+async function extractAlertData(texto) {
+  const result = await generateSocialJson(ALERT_EXTRACTION_PROMPT, texto);
+  const nivel = ALERT_SEVERITY_LEVELS.includes(result?.nivel) ? result.nivel : 'naranja';
+  return {
+    mensaje: String(result?.mensaje || '').trim(),
+    fuente: String(result?.fuente || '').trim(),
+    nivel,
+    zona: String(result?.zona || '').trim(),
+  };
+}
+
 async function loadImage(url) {
   state.image = null; state.imageUrl = url || '';
   if (!url) return;
@@ -434,18 +453,44 @@ async function copy() { try { const blob = await new Promise(resolve => $('#plat
 async function generateAlert(event) {
   if (event) event.preventDefault();
   const texto = $('#alertaText').value.trim();
-  const fuente = $('#alertaSource').value.trim();
+  const manualFuente = $('#alertaSource').value.trim();
+  const manualNivel = $('#alertaNivel')?.value || 'naranja';
+  const manualZona = $('#alertaZona').value.trim();
   if (!texto) { toast('Pegá el texto de la alerta para continuar.'); return; }
-  const nivel = $('#alertaNivel')?.value || 'naranja';
-  const zona = $('#alertaZona').value.trim();
   const now = new Date();
-  state.plate = normalizeAlertPlate({ mensaje: texto, fuente, nivel, zona }, now);
+
+  const manual = { mensaje: texto, fuente: manualFuente, nivel: manualNivel, zona: manualZona };
+  let extraido = manual;
+  let usoIA = false;
+  try {
+    const ia = await extractAlertData(texto);
+    extraido = {
+      mensaje: ia.mensaje || texto,
+      fuente: ia.fuente || manualFuente,
+      nivel: ia.nivel || manualNivel,
+      zona: ia.zona || manualZona,
+    };
+    usoIA = true;
+  } catch (err) {
+    extraido = manual;
+    toast('El asistente no respondió: completá los datos manualmente.');
+  }
+
+  state.plate = normalizeAlertPlate(extraido, now);
   state.variants = [state.plate];
   state.selectedVariant = 0;
   state.selectedTemplate = 'alerta';
   state.format = 'portrait';
   state.image = null; state.imageUrl = '';
   $('#editorControls').classList.remove('is-hidden');
+
+  const v = state.plate.alerta || {};
+  $('#alertaMessageInput').value = v.mensaje || '';
+  $('#alertaSourceInput').value = v.fuente || '';
+  if ($('#alertaNivelInput')) $('#alertaNivelInput').value = v.nivel || 'naranja';
+  $('#alertaZonaInput').value = v.zona || '';
+  if (usoIA) toast('Datos extraídos por el asistente. Revisalos y ajustalos si hace falta.');
+
   renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor(); render();
 }
 
