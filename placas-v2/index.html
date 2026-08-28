@@ -33,7 +33,7 @@
     <section class="workspace">
       <aside class="panel" aria-label="Controles de la placa">
         <div class="step"><span>01</span><div><strong>Fuente de la noticia</strong><small>Partimos siempre de una URL</small></div></div>
-        <div class="mode-switch" aria-label="Tipo de contenido"><button id="articleModeButton" class="mode-button active" type="button">Nota</button><button id="efemeridesModeButton" class="mode-button" type="button">Efemérides</button></div>
+        <div class="mode-switch" aria-label="Tipo de contenido"><button id="articleModeButton" class="mode-button active" type="button">Nota</button><button id="efemeridesModeButton" class="mode-button" type="button">Efemérides</button><button id="alertaModeButton" class="mode-button" type="button">Alerta</button></div>
         <form id="newsForm" class="url-form">
           <label for="newsUrl">Link de la nota</label>
           <div class="url-row"><input id="newsUrl" type="url" required placeholder="https://mediamendoza.com/..." autocomplete="off"><button class="icon-button" type="submit" aria-label="Generar propuesta">→</button></div>
@@ -58,6 +58,14 @@
             </div>
           </div>
         </div>
+        <form id="alertaForm" class="alerta-form is-hidden">
+          <label for="alertaText">Texto de la alerta</label>
+          <textarea id="alertaText" rows="6" placeholder="Pegá aquí el parte de la alerta meteorológica…"></textarea>
+          <label for="alertaSource">Fuente / atribución</label>
+          <input id="alertaSource" type="text" placeholder="Ej: Radar San Rafael · Sr. Marcelo Peña">
+          <div class="url-row"><button id="loadAlertaButton" class="icon-button" type="submit" aria-label="Generar placa">→</button></div>
+          <p class="hint">Se captura la fecha y hora actual al generar. No requiere link ni contrato.</p>
+        </form>
         <div id="editorControls" class="controls is-hidden">
           <div class="step"><span>02</span><div><strong>Elegí una dirección</strong><small>La recomendada aparece primero</small></div></div>
           <div id="variantList" class="variants"></div>
@@ -81,6 +89,13 @@
             <div class="field-row"><div class="field"><label for="quoteAuthorInput">Persona</label><input id="quoteAuthorInput" type="text"></div><div class="field"><label for="quoteRoleInput">Cargo</label><input id="quoteRoleInput" type="text"></div></div>
             <div class="people-editor"><div class="people-head"><label>Personas en círculos</label><small>Podés subir una imagen por persona</small></div><div id="peopleList"></div><div class="people-actions"><button id="addPersonButton" type="button" class="secondary">Agregar persona</button><label class="upload-people"><input id="peopleUpload" type="file" accept="image/*" multiple>Subir imágenes</label></div></div>
             <div id="supportControls" class="support-editor"><div class="people-head"><label>Imagen de apoyo</label><small>Para editorial split</small></div><div id="supportImageList" class="support-image-list"></div><div class="people-actions"><label class="upload-people"><input id="supportUpload" type="file" accept="image/*">Agregar imagen</label></div></div>
+          </div>
+          <div id="alertControls" class="field is-hidden">
+            <label for="alertaMessageInput">Mensaje de la alerta</label>
+            <textarea id="alertaMessageInput" rows="6"></textarea>
+            <label for="alertaSourceInput">Fuente / atribución</label>
+            <input id="alertaSourceInput" type="text">
+            <small class="control-note">La fecha y hora se fijaron al generar la placa.</small>
           </div>
           <div id="socialCopies" class="social-copies is-hidden">
             <div class="social-copy-head"><div><label>Texto para redes</label><small>Variantes listas para acompañar la placa</small></div></div>

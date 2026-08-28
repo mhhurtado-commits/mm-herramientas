@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeNewsPlate,
+  normalizeAlertPlate,
   classifyNewsFamily,
   buildEditorialVariants,
   calculatePlateLayout,
@@ -26,6 +27,37 @@ test('normaliza un titular sintético separado del titular editorial', () => {
   assert.equal(PLATE_TYPES.pulso, undefined);
   assert.equal(PLATE_TYPES.conversacion.id, 'conversacion');
   assert.equal(PLATE_TYPES.actualizacion.id, 'actualizacion');
+});
+
+test('normaliza una alerta meteorológica de forma determinística', () => {
+  const now = new Date('2026-08-28T14:35:00');
+  const plate = normalizeAlertPlate({
+    mensaje: 'Continúa la tormenta con precipitaciones de lluvia débil a moderada sobre la Ruta 143.',
+    fuente: 'Radar San Rafael · Sr. Marcelo Peña',
+  }, now);
+
+  assert.equal(plate.tipo_placa, 'alerta');
+  assert.equal(plate.template_sugerido, 'clima');
+  assert.equal(plate.etiqueta, 'Alerta meteorológica');
+  assert.equal(plate.alerta.mensaje, 'Continúa la tormenta con precipitaciones de lluvia débil a moderada sobre la Ruta 143.');
+  assert.equal(plate.alerta.fuente, 'Radar San Rafael · Sr. Marcelo Peña');
+  assert.equal(plate.fecha, '2026-08-28');
+  assert.match(plate.alerta.hora, /^\d{2}:\d{2}$/);
+  assert.equal(plate.bajada, plate.alerta.mensaje);
+});
+
+test('la alerta sin fuente queda con atribución vacía y fecha según now', () => {
+  const plate = normalizeAlertPlate({ mensaje: 'Alerta de granizo' }, new Date('2026-01-05T09:00:00'));
+  assert.equal(plate.alerta.fuente, '');
+  assert.equal(plate.fecha, '2026-01-05');
+});
+
+test('calculatePlateLayout define regiones para el tipo alerta', () => {
+  const plate = normalizeAlertPlate({ mensaje: 'Tormenta' }, new Date('2026-08-28T14:35:00'));
+  const layout = calculatePlateLayout('portrait', plate);
+  assert.equal(layout.alerta, true);
+  assert.ok(layout.label && layout.timestamp && layout.message && layout.footer);
+  assert.equal(layout.image.w, 0);
 });
 
 test('normaliza pregunta social y habilita conversación sin alterar la fuente', () => {

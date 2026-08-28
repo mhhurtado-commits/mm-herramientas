@@ -29,6 +29,7 @@ export const PLATE_TYPES = {
   conversacion: { id: 'conversacion', label: 'Conversación' },
   actualizacion: { id: 'actualizacion', label: 'Actualización' },
   'que-cambia': { id: 'que-cambia', label: 'Qué cambia' },
+  'alerta': { id: 'alerta', label: 'Alerta meteorológica' },
 };
 
 const FAMILY_ALIASES = new Map([
@@ -287,6 +288,41 @@ export function normalizeNewsPlate(input = {}) {
   return normalized;
 }
 
+export function normalizeAlertPlate(input = {}, now = new Date()) {
+  const mensaje = clean(input.mensaje || input.texto || input.message || input.bajada || '');
+  const fuente = clean(input.fuente || input.source || input.atribucion || '');
+  const date = now instanceof Date ? now : new Date(now);
+  const fecha = Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+  const hora = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const familia = FAMILIES.clima;
+  const plate = {
+    tipo: 'placa_noticia',
+    version: 1,
+    fuente: { url: '', titulo_original: '', categoria: 'Clima', descripcion: '', texto: '', imagen: '', imagenes: [] },
+    titulo: 'Alerta meteorológica',
+    titulo_sintetico: '',
+    fecha,
+    bajada: mensaje,
+    etiqueta: 'Alerta meteorológica',
+    contexto: '',
+    pregunta_social: '',
+    datos_clave: [],
+    impactos: [],
+    comparativa: null,
+    template_sugerido: 'clima',
+    tipo_placa: 'alerta',
+    textual: { cita: '', autor: '', cargo: '', verificada: false },
+    personas: [],
+    imagenes_apoyo: [],
+    color_principal: familia.color,
+    color_secundario: familia.secondary,
+    alerta: { mensaje, fuente, hora },
+    bloques: [],
+    redes: { instagram: '', facebook: '' },
+  };
+  return plate;
+}
+
 function cloneWithTemplate(plate, id, template, recommended = false) {
   const family = FAMILIES[template] || FAMILIES.general;
   const blocks = plate.bloques.map(block => ({ ...block }));
@@ -486,6 +522,25 @@ export function calculatePlateLayout(format, plate = {}) {
       dek: { x: margin, y: cardsY, w: canvas.w - margin * 2, h: 0 },
       context: { x: margin, y: cardsY, w: canvas.w - margin * 2, h: 0 },
       footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.035 },
+    };
+  }
+  if (plate.tipo_placa === 'alerta') {
+    const footerY = canvas.h * 0.92;
+    const labelY = canvas.h * (isStory ? 0.155 : 0.155);
+    const timestampY = labelY + canvas.h * 0.075;
+    const messageY = timestampY + canvas.h * 0.10;
+    const messageH = Math.max(0, footerY - messageY - canvas.h * 0.03);
+    return {
+      canvas,
+      alerta: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      label: { x: margin, y: labelY, w: canvas.w - margin * 2, h: canvas.h * 0.05 },
+      timestamp: { x: margin, y: timestampY, w: canvas.w - margin * 2, h: canvas.h * 0.075 },
+      message: { x: margin, y: messageY, w: canvas.w - margin * 2, h: messageH },
+      image: { x: 0, y: 0, w: 0, h: 0 },
+      dek: { x: margin, y: messageY, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: messageY, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.025 },
     };
   }
   if (isComparison) {

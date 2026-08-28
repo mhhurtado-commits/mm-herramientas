@@ -1,4 +1,4 @@
-import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES } from './editorial-core.mjs';
+import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
@@ -131,7 +131,19 @@ function setEfemeridesSocialText(id, value) {
   state.efemeridesCopies[output][network] = value;
   if (output === 'placa' && state.plate) state.plate.redes = state.efemeridesCopies.placa;
 }
-function setMode(mode) { state.mode = mode; const efemerides = mode === 'efemerides'; $('#newsForm').classList.toggle('is-hidden', efemerides); $('#efemeridesForm').classList.toggle('is-hidden', !efemerides); $('#editorControls').classList.toggle('is-hidden', efemerides || !state.variants.length); $('#articleModeButton').classList.toggle('active', !efemerides); $('#efemeridesModeButton').classList.toggle('active', efemerides); if (efemerides && !$('#efemeridesDate').value) $('#efemeridesDate').value = new Date().toISOString().slice(0, 10); }
+function setMode(mode) {
+  state.mode = mode;
+  const efemerides = mode === 'efemerides';
+  const alerta = mode === 'alerta';
+  $('#newsForm').classList.toggle('is-hidden', efemerides || alerta);
+  $('#efemeridesForm').classList.toggle('is-hidden', !efemerides);
+  $('#alertaForm').classList.toggle('is-hidden', !alerta);
+  $('#editorControls').classList.toggle('is-hidden', (efemerides || alerta) && !state.variants.length);
+  $('#articleModeButton').classList.toggle('active', mode === 'nota');
+  $('#efemeridesModeButton').classList.toggle('active', efemerides);
+  $('#alertaModeButton').classList.toggle('active', alerta);
+  if (efemerides && !$('#efemeridesDate').value) $('#efemeridesDate').value = new Date().toISOString().slice(0, 10);
+}
 function setFocus(axis, value) { const variant = activeVariant(); const imageBlock = variant?.bloques?.find(block => block.tipo === 'imagen'); if (!imageBlock) return; imageBlock.foco = { ...activeFocus(), [axis]: Number(value) / 100 }; renderFocus(); render(); }
 function setActiveText(key, value) { const current = activeVariant(); if (!current) return; current[key] = value; state.plate[key] = value; state.variants.forEach(variant => { if (variant[key] === current[key] || variant === current) variant[key] = value; }); render(); }
 
@@ -206,15 +218,24 @@ function renderFormats() {
 }
 
 function renderOutputs() {
-  const outputs = state.mode === 'efemerides' ? [
-    { id: 'placa', label: 'Placa' },
-    { id: 'carrusel', label: 'Carrusel' },
-  ] : [
-    { id: 'placa', label: 'Placa' },
-    { id: 'carrusel', label: 'Carrusel' },
-    { id: 'reel', label: 'Reel' },
-    { id: 'video', label: 'Video' },
-  ];
+  let outputs;
+  if (state.mode === 'efemerides') {
+    outputs = [
+      { id: 'placa', label: 'Placa' },
+      { id: 'carrusel', label: 'Carrusel' },
+    ];
+  } else if (state.mode === 'alerta') {
+    outputs = [
+      { id: 'placa', label: 'Placa' },
+    ];
+  } else {
+    outputs = [
+      { id: 'placa', label: 'Placa' },
+      { id: 'carrusel', label: 'Carrusel' },
+      { id: 'reel', label: 'Reel' },
+      { id: 'video', label: 'Video' },
+    ];
+  }
   $('#outputList').innerHTML = outputs.map(output => `<button class="format ${output.id === 'placa' ? 'active' : ''}" type="button" data-output="${output.id}" title="Abrir salida ${output.label}">${output.label}</button>`).join('');
   document.querySelectorAll('[data-output]').forEach(button => button.addEventListener('click', async () => {
     const output = button.dataset.output;
@@ -303,7 +324,10 @@ function buildEfemeridesCarouselPackage() {
 
 function renderTemplates() {
   const source = activeVariant();
-  const types = state.mode === 'efemerides' ? [PLATE_TYPES['efemerides-social']] : Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || type.id === 'titular-arriba' || type.id === 'titular-abajo' || type.id === 'foto-completa' || type.id === 'dato-clave' || type.id === 'comparativa' || type.id === 'conversacion' || type.id === 'actualizacion' || type.id === 'que-cambia' || (type.id === 'textual' && source?.textual?.verificada) || type.id === 'retrato-circular' || type.id === 'editorial-split');
+  let types;
+  if (state.mode === 'efemerides') types = [PLATE_TYPES['efemerides-social']];
+  else if (state.mode === 'alerta') types = [PLATE_TYPES['alerta']];
+  else types = Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || type.id === 'titular-arriba' || type.id === 'titular-abajo' || type.id === 'foto-completa' || type.id === 'dato-clave' || type.id === 'comparativa' || type.id === 'conversacion' || type.id === 'actualizacion' || type.id === 'que-cambia' || (type.id === 'textual' && source?.textual?.verificada) || type.id === 'retrato-circular' || type.id === 'editorial-split');
   const current = state.selectedTemplate || source?.tipo_placa || 'noticia';
   $('#templateList').innerHTML = types.map(type => `<button type="button" class="template-option ${current === type.id ? 'active' : ''}" data-template="${type.id}">${type.label}</button>`).join('');
   document.querySelectorAll('.template-option').forEach(button => button.addEventListener('click', () => { state.selectedTemplate = button.dataset.template; syncEditor(); renderTemplates(); render(); }));
@@ -343,7 +367,22 @@ function syncSocialCopies() { const variant = activeVariant(); const copies = va
 function renderDataControls() { const variant = activeVariant(); const isImpact = state.selectedTemplate === 'que-cambia'; const visible = state.selectedTemplate === 'dato-clave' || isImpact; $('#dataControls').classList.toggle('is-hidden', !visible); if (!visible || !variant) return; const field = isImpact ? 'impactos' : 'datos_clave'; const facts = variant[field] || (variant.contexto ? [{ label: '', value: variant.contexto, detail: '' }] : []); $('#dataFactList').innerHTML = [0, 1, 2].map(index => { const fact = facts[index] || { label: '', value: '', detail: '' }; const noun = isImpact ? 'Impacto' : 'Dato'; return `<div class="field-row data-fact-row"><input type="text" data-fact-index="${index}" data-fact-key="label" value="${fact.label || ''}" placeholder="Etiqueta" aria-label="Etiqueta del ${noun.toLowerCase()} ${index + 1}"><input type="text" data-fact-index="${index}" data-fact-key="value" value="${fact.value || ''}" placeholder="${noun} ${index + 1}" aria-label="Valor del ${noun.toLowerCase()} ${index + 1}"><input type="text" data-fact-index="${index}" data-fact-key="detail" value="${fact.detail || ''}" placeholder="Detalle opcional" aria-label="Detalle del ${noun.toLowerCase()} ${index + 1}"></div>`; }).join(''); document.querySelectorAll('[data-fact-index]').forEach(input => input.addEventListener('input', event => { const index = Number(event.target.dataset.factIndex); const items = variant[field] || []; items[index] = items[index] || { label: '', value: '', detail: '' }; items[index][event.target.dataset.factKey] = event.target.value; variant[field] = items; render(); })); }
 function renderQuestionControls() { const variant = activeVariant(); const visible = state.selectedTemplate === 'conversacion'; $('#questionControls').classList.toggle('is-hidden', !visible); if (!visible || !variant) return; $('#socialQuestionInput').value = variant.pregunta_social || '¿Qué opinás?'; }
 function renderComparisonControls() { const variant = activeVariant(); const visible = state.selectedTemplate === 'comparativa'; $('#comparisonControls').classList.toggle('is-hidden', !visible); if (!visible || !variant) return; const comparison = variant.comparativa || {}; const left = comparison.izquierda || {}; const right = comparison.derecha || {}; $('#comparisonList').innerHTML = `<div class="field-row data-fact-row"><input type="text" data-comparison-side="izquierda" data-comparison-key="etiqueta" value="${left.etiqueta || ''}" placeholder="Etiqueta izquierda" aria-label="Etiqueta izquierda"><input type="text" data-comparison-side="izquierda" data-comparison-key="valor" value="${left.valor || ''}" placeholder="Valor izquierdo" aria-label="Valor izquierdo"><input type="text" data-comparison-side="izquierda" data-comparison-key="detalle" value="${left.detalle || ''}" placeholder="Detalle opcional" aria-label="Detalle izquierdo"></div><div class="field-row data-fact-row"><input type="text" data-comparison-side="derecha" data-comparison-key="etiqueta" value="${right.etiqueta || ''}" placeholder="Etiqueta derecha" aria-label="Etiqueta derecha"><input type="text" data-comparison-side="derecha" data-comparison-key="valor" value="${right.valor || ''}" placeholder="Valor derecho" aria-label="Valor derecho"><input type="text" data-comparison-side="derecha" data-comparison-key="detalle" value="${right.detalle || ''}" placeholder="Detalle opcional" aria-label="Detalle derecho"></div>`; $('#comparisonSource').value = comparison.fuente || ''; $('#comparisonDate').value = comparison.fecha || ''; $('#comparisonOrigin').value = comparison.origen || 'manual'; document.querySelectorAll('[data-comparison-side]').forEach(input => input.addEventListener('input', event => { const side = event.target.dataset.comparisonSide; const key = event.target.dataset.comparisonKey; const current = variant.comparativa || { izquierda: {}, derecha: {}, origen: 'manual' }; current[side] = { ...(current[side] || {}), [key]: event.target.value }; variant.comparativa = current; render(); })); ['comparisonSource', 'comparisonDate', 'comparisonOrigin'].forEach(id => { const input = $(`#${id}`); input.oninput = () => { const current = variant.comparativa || { izquierda: {}, derecha: {}, origen: 'manual' }; current[id === 'comparisonSource' ? 'fuente' : id === 'comparisonDate' ? 'fecha' : 'origen'] = input.value; variant.comparativa = current; render(); }; }); }
-function syncEditor() { const variant = activeVariant(); if (!variant) return; $('#titleInput').value = variant.titulo || ''; $('#syntheticTitleInput').value = variant.titulo_sintetico || ''; syncSyntheticTitleMeta(variant.titulo_sintetico); $('#syntheticControls').classList.toggle('is-hidden', !['titular-arriba', 'titular-abajo', 'foto-completa', 'comparativa'].includes(state.selectedTemplate)); $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderSupportImages(); renderDataControls(); renderQuestionControls(); renderComparisonControls(); renderTemplates(); }
+function syncEditor() {
+  const variant = activeVariant();
+  if (!variant) return;
+  const isAlerta = state.mode === 'alerta';
+  $('#alertControls').classList.toggle('is-hidden', !isAlerta);
+  $('#titleInput').parentElement.classList.toggle('is-hidden', isAlerta);
+  $('#dekInput').parentElement.classList.toggle('is-hidden', isAlerta);
+  if (isAlerta) {
+    $('#alertaMessageInput').value = variant.alerta?.mensaje || '';
+    $('#alertaSourceInput').value = variant.alerta?.fuente || '';
+    syncEditorAlert();
+    return;
+  }
+  $('#titleInput').value = variant.titulo || ''; $('#syntheticTitleInput').value = variant.titulo_sintetico || ''; syncSyntheticTitleMeta(variant.titulo_sintetico); $('#syntheticControls').classList.toggle('is-hidden', !['titular-arriba', 'titular-abajo', 'foto-completa', 'comparativa'].includes(state.selectedTemplate)); $('#dekInput').value = variant.bajada || ''; syncSocialCopies(); renderFocus(); renderPeople(); renderSupportImages(); renderDataControls(); renderQuestionControls(); renderComparisonControls(); renderTemplates();
+}
+function syncEditorAlert() { renderPeople(); renderSupportImages(); renderDataControls(); renderQuestionControls(); renderComparisonControls(); renderTemplates(); }
 function setSocialText(network, value) { const current = activeVariant(); if (!current) return; current.redes = { ...(current.redes || {}), [network]: value }; if (state.plate === current) state.plate.redes = current.redes; }
 async function copySocial(network) { const value = $(`#${network}Copy`).value.trim(); if (!value) return; try { await navigator.clipboard.writeText(value); toast(`Texto de ${network === 'instagram' ? 'Instagram' : 'Facebook'} copiado.`); } catch { toast('No se pudo copiar el texto.'); } }
 
@@ -390,9 +429,29 @@ function download() {
 }
 async function copy() { try { const blob = await new Promise(resolve => $('#plateCanvas').toBlob(resolve, 'image/png')); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast('PNG copiado al portapapeles.'); } catch { toast('Tu navegador no permite copiar la imagen; usá Descargar PNG.'); } }
 
+async function generateAlert(event) {
+  if (event) event.preventDefault();
+  const texto = $('#alertaText').value.trim();
+  const fuente = $('#alertaSource').value.trim();
+  if (!texto) { toast('Pegá el texto de la alerta para continuar.'); return; }
+  const now = new Date();
+  state.plate = normalizeAlertPlate({ mensaje: texto, fuente }, now);
+  state.variants = [state.plate];
+  state.selectedVariant = 0;
+  state.selectedTemplate = 'alerta';
+  state.format = 'portrait';
+  state.image = null; state.imageUrl = '';
+  $('#editorControls').classList.remove('is-hidden');
+  renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor(); render();
+}
+
 $('#newsForm').addEventListener('submit', generate);
 $('#articleModeButton').addEventListener('click', () => setMode('nota'));
 $('#efemeridesModeButton').addEventListener('click', () => setMode('efemerides'));
+$('#alertaModeButton').addEventListener('click', () => setMode('alerta'));
+$('#alertaForm').addEventListener('submit', generateAlert);
+$('#alertaMessageInput').addEventListener('input', event => { const v = activeVariant(); if (!v) return; v.alerta = { ...(v.alerta || {}), mensaje: event.target.value }; state.plate.alerta = v.alerta; render(); });
+$('#alertaSourceInput').addEventListener('input', event => { const v = activeVariant(); if (!v) return; v.alerta = { ...(v.alerta || {}), fuente: event.target.value }; state.plate.alerta = v.alerta; render(); });
 $('#loadEfemeridesButton').addEventListener('click', loadEfemerides);
 $('#titleInput').addEventListener('input', event => setActiveText('titulo', event.target.value));
 $('#syntheticTitleInput').addEventListener('input', event => { syncSyntheticTitleMeta(event.target.value); setActiveText('titulo_sintetico', event.target.value); });

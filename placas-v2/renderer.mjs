@@ -628,6 +628,78 @@ function renderWhatChangesPlate(ctx, plate, format, options, family, layout) {
   return layout;
 }
 
+function formatAlertDate(value) {
+  if (!value) return '';
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  const text = date.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function renderAlertPlate(ctx, plate, format, options, family, layout) {
+  const { canvas } = layout;
+  const isStory = format === 'story';
+  const alert = plate.alerta || {};
+  const mensaje = alert.mensaje || plate.bajada || '';
+  const fuente = alert.fuente || '';
+  const hora = alert.hora || '';
+  const fechaLarga = formatAlertDate(plate.fecha);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.w, canvas.h);
+
+  const bannerH = canvas.h * (isStory ? 0.165 : 0.145);
+  ctx.fillStyle = family.color;
+  ctx.fillRect(0, 0, canvas.w, bannerH);
+  ctx.fillStyle = 'rgba(255,255,255,.18)';
+  ctx.fillRect(0, bannerH - canvas.h * 0.012, canvas.w, canvas.h * 0.012);
+
+  ctx.textAlign = 'left';
+  const labelSize = Math.max(30, canvas.w * (isStory ? 0.044 : 0.040));
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `900 ${labelSize}px ${fontFamily}`;
+  ctx.fillText('⚠ ALERTA METEOROLÓGICA', layout.label.x, bannerH * 0.42);
+  if (fuente) {
+    const sourceSize = Math.max(20, canvas.w * (isStory ? 0.026 : 0.022));
+    ctx.font = `700 ${sourceSize}px ${fontFamily}`;
+    ctx.fillText(fuente, layout.label.x, bannerH * 0.78);
+  }
+
+  const logoW = canvas.w * (isStory ? 0.30 : 0.24);
+  containImage(ctx, options.logo, { x: canvas.w - canvas.w * 0.045 - logoW, y: bannerH * 0.20, w: logoW, h: bannerH * 0.42 });
+
+  const chipH = Math.min(layout.timestamp.h, canvas.h * 0.062);
+  const chipPad = canvas.w * 0.022;
+  const chipText = `Vigente: ${[fechaLarga, hora].filter(Boolean).join(' · ')}`;
+  ctx.font = `800 ${Math.max(22, canvas.w * 0.024)}px ${fontFamily}`;
+  const chipW = Math.min(layout.timestamp.w, ctx.measureText(chipText).width + chipPad * 2 + canvas.w * 0.05);
+  roundedRect(ctx, layout.timestamp.x, layout.timestamp.y, chipW, chipH, canvas.w * 0.010);
+  ctx.fillStyle = family.secondary;
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('⏱', layout.timestamp.x + chipPad, layout.timestamp.y + chipH * 0.68);
+  ctx.fillText(chipText, layout.timestamp.x + chipPad + canvas.w * 0.05, layout.timestamp.y + chipH * 0.68);
+
+  const messageSize = Math.max(34, canvas.w * (isStory ? 0.046 : 0.040));
+  fittedText(ctx, mensaje, layout.message.x, layout.message.y + messageSize, layout.message.w, messageSize, Math.max(24, canvas.w * 0.020), 6, 700, family.secondary, 1.18, layout.message.h);
+
+  ctx.strokeStyle = 'rgba(22,32,27,.16)';
+  ctx.lineWidth = Math.max(2, canvas.h * 0.001);
+  ctx.beginPath();
+  ctx.moveTo(layout.footer.x, layout.footer.y + layout.footer.h * 0.12);
+  ctx.lineTo(canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.12);
+  ctx.stroke();
+  ctx.fillStyle = '#526058';
+  ctx.font = `700 ${Math.max(20, canvas.w * 0.019)}px ${fontFamily}`;
+  ctx.textAlign = 'left';
+  const footerSource = fuente ? `Fuente: ${fuente}` : 'mediamendoza';
+  ctx.fillText(footerSource, layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.textAlign = 'right';
+  ctx.fillText('www.mediamendoza.com', canvas.w - layout.footer.x, layout.footer.y + layout.footer.h * 0.56);
+  ctx.textAlign = 'left';
+  return layout;
+}
+
 export function renderNewsPlate(ctx, plate, format, options = {}) {
   const family = FAMILIES[plate.template_sugerido] || FAMILIES.general;
   const plateType = plate.tipo_placa || 'noticia';
@@ -643,6 +715,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.w, canvas.h);
 
+  if (plateType === 'alerta') return renderAlertPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'foto-completa') return renderFullBleedPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'dato-clave') return renderDataCardPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'comparativa') return renderComparisonPlate(ctx, plate, format, options, family, layout);

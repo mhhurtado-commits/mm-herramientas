@@ -19,6 +19,8 @@
 .mode-button { border: 1px solid #d6ddd0; border-radius: 999px; background: #fff; color: #526058; cursor: pointer; padding: 8px 14px; font-weight: 800; }
 .mode-button.active { background: #16201b; border-color: #16201b; color: #fff; }
 .efemerides-form { padding: 12px 0 4px; }
+.alerta-form { padding: 12px 0 4px; display: grid; gap: 10px; }
+.alerta-form textarea { min-height: 120px; resize: vertical; }
 .efemeride-edit { border: 1px solid #dfe5da; border-radius: 12px; display: grid; gap: 7px; margin-top: 10px; padding: 12px; }
 .efemeride-edit input { border: 1px solid #d6ddd0; border-radius: 8px; padding: 9px; font: inherit; }
 .efemeride-edit small { color: #68736d; }
