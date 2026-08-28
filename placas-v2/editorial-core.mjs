@@ -16,6 +16,16 @@ export const FAMILIES = {
   alerta: { id: 'alerta', label: 'Alerta meteorológica', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0', symbol: '⚠' },
 };
 
+export const ALERT_SEVERITIES = {
+  amarillo: { id: 'amarillo', label: 'Amarillo', color: '#e3b505', secondary: '#5b4a00', soft: '#fbf6df' },
+  naranja: { id: 'naranja', label: 'Naranja', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0' },
+  rojo: { id: 'rojo', label: 'Rojo', color: '#c0392b', secondary: '#5b1409', soft: '#fbe6e2' },
+};
+
+export function resolveAlertSeverity(nivel = '') {
+  return ALERT_SEVERITIES[String(nivel || '').toLowerCase()] || ALERT_SEVERITIES.naranja;
+}
+
 export const PLATE_TYPES = {
   noticia: { id: 'noticia', label: 'Noticia' },
   'titular-arriba': { id: 'titular-arriba', label: 'Titular arriba' },
@@ -292,10 +302,12 @@ export function normalizeNewsPlate(input = {}) {
 export function normalizeAlertPlate(input = {}, now = new Date()) {
   const mensaje = clean(input.mensaje || input.texto || input.message || input.bajada || '');
   const fuente = clean(input.fuente || input.source || input.atribucion || '');
+  const zona = clean(input.zona || input.zona_afectada || '');
+  const nivel = resolveAlertSeverity(input.nivel || input.severidad).id;
   const date = now instanceof Date ? now : new Date(now);
   const fecha = Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
   const hora = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
-  const familia = FAMILIES.alerta;
+  const palette = resolveAlertSeverity(nivel);
   const plate = {
     tipo: 'placa_noticia',
     version: 1,
@@ -315,9 +327,9 @@ export function normalizeAlertPlate(input = {}, now = new Date()) {
     textual: { cita: '', autor: '', cargo: '', verificada: false },
     personas: [],
     imagenes_apoyo: [],
-    color_principal: familia.color,
-    color_secundario: familia.secondary,
-    alerta: { mensaje, fuente, hora },
+    color_principal: palette.color,
+    color_secundario: palette.secondary,
+    alerta: { mensaje, fuente, hora, nivel, zona },
     bloques: [],
     redes: { instagram: '', facebook: '' },
   };
@@ -527,16 +539,21 @@ export function calculatePlateLayout(format, plate = {}) {
   }
   if (plate.tipo_placa === 'alerta') {
     const footerY = canvas.h * 0.92;
-    const labelY = canvas.h * (isStory ? 0.155 : 0.155);
-    const timestampY = labelY + canvas.h * 0.075;
-    const messageY = timestampY + canvas.h * 0.10;
+    const labelY = canvas.h * 0.155;
+    const metaH = canvas.h * 0.062;
+    const timestampY = labelY + canvas.h * 0.055;
+    const zonaY = timestampY + metaH + canvas.h * 0.020;
+    const messageY = zonaY + metaH + canvas.h * 0.020;
     const messageH = Math.max(0, footerY - messageY - canvas.h * 0.03);
+    const chipGap = canvas.w * 0.025;
     return {
       canvas,
       alerta: true,
       header: { x: 0, y: 0, w: canvas.w, h: 0 },
       label: { x: margin, y: labelY, w: canvas.w - margin * 2, h: canvas.h * 0.05 },
-      timestamp: { x: margin, y: timestampY, w: canvas.w - margin * 2, h: canvas.h * 0.075 },
+      timestamp: { x: margin, y: timestampY, w: canvas.w * 0.46 - chipGap / 2, h: metaH },
+      severity: { x: margin + canvas.w * 0.46 + chipGap / 2, y: timestampY, w: canvas.w * 0.54 - chipGap / 2, h: metaH },
+      zona: { x: margin, y: zonaY, w: canvas.w - margin * 2, h: metaH },
       message: { x: margin, y: messageY, w: canvas.w - margin * 2, h: messageH },
       image: { x: 0, y: 0, w: 0, h: 0 },
       dek: { x: margin, y: messageY, w: canvas.w - margin * 2, h: 0 },

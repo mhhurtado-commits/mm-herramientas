@@ -1,4 +1,4 @@
-import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate } from './editorial-core.mjs';
+import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate, resolveAlertSeverity } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
@@ -377,6 +377,8 @@ function syncEditor() {
   if (isAlerta) {
     $('#alertaMessageInput').value = variant.alerta?.mensaje || '';
     $('#alertaSourceInput').value = variant.alerta?.fuente || '';
+    $('#alertaNivelInput').value = variant.alerta?.nivel || 'naranja';
+    $('#alertaZonaInput').value = variant.alerta?.zona || '';
     syncEditorAlert();
     return;
   }
@@ -434,8 +436,10 @@ async function generateAlert(event) {
   const texto = $('#alertaText').value.trim();
   const fuente = $('#alertaSource').value.trim();
   if (!texto) { toast('Pegá el texto de la alerta para continuar.'); return; }
+  const nivel = $('#alertaNivel')?.value || 'naranja';
+  const zona = $('#alertaZona').value.trim();
   const now = new Date();
-  state.plate = normalizeAlertPlate({ mensaje: texto, fuente }, now);
+  state.plate = normalizeAlertPlate({ mensaje: texto, fuente, nivel, zona }, now);
   state.variants = [state.plate];
   state.selectedVariant = 0;
   state.selectedTemplate = 'alerta';
@@ -452,6 +456,9 @@ $('#alertaModeButton').addEventListener('click', () => setMode('alerta'));
 $('#alertaForm').addEventListener('submit', generateAlert);
 $('#alertaMessageInput').addEventListener('input', event => { const v = activeVariant(); if (!v) return; v.alerta = { ...(v.alerta || {}), mensaje: event.target.value }; state.plate.alerta = v.alerta; render(); });
 $('#alertaSourceInput').addEventListener('input', event => { const v = activeVariant(); if (!v) return; v.alerta = { ...(v.alerta || {}), fuente: event.target.value }; state.plate.alerta = v.alerta; render(); });
+$('#alertaNivel').addEventListener('change', event => { const v = activeVariant(); if (!v) return; const palette = resolveAlertSeverity(event.target.value); v.alerta = { ...(v.alerta || {}), nivel: palette.id }; v.color_principal = palette.color; v.color_secundario = palette.secondary; state.plate.alerta = v.alerta; state.plate.color_principal = palette.color; state.plate.color_secundario = palette.secondary; renderVariants(); render(); });
+$('#alertaNivelInput').addEventListener('change', event => { const v = activeVariant(); if (!v) return; const palette = resolveAlertSeverity(event.target.value); v.alerta = { ...(v.alerta || {}), nivel: palette.id }; v.color_principal = palette.color; v.color_secundario = palette.secondary; state.plate.alerta = v.alerta; state.plate.color_principal = palette.color; state.plate.color_secundario = palette.secondary; renderVariants(); render(); });
+$('#alertaZonaInput').addEventListener('input', event => { const v = activeVariant(); if (!v) return; v.alerta = { ...(v.alerta || {}), zona: event.target.value }; state.plate.alerta = v.alerta; render(); });
 $('#loadEfemeridesButton').addEventListener('click', loadEfemerides);
 $('#titleInput').addEventListener('input', event => setActiveText('titulo', event.target.value));
 $('#syntheticTitleInput').addEventListener('input', event => { syncSyntheticTitleMeta(event.target.value); setActiveText('titulo_sintetico', event.target.value); });

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeNewsPlate,
   normalizeAlertPlate,
+  resolveAlertSeverity,
   classifyNewsFamily,
   buildEditorialVariants,
   calculatePlateLayout,
@@ -50,6 +51,25 @@ test('la alerta sin fuente queda con atribución vacía y fecha según now', () 
   const plate = normalizeAlertPlate({ mensaje: 'Alerta de granizo' }, new Date('2026-01-05T09:00:00'));
   assert.equal(plate.alerta.fuente, '');
   assert.equal(plate.fecha, '2026-01-05');
+});
+
+test('la alerta aplica nivel, zona y paleta de severidad', () => {
+  const plate = normalizeAlertPlate({ mensaje: 'Tormenta', fuente: 'Radar', nivel: 'rojo', zona: 'Ruta 143' }, new Date('2026-08-28T14:35:00'));
+  assert.equal(plate.alerta.nivel, 'rojo');
+  assert.equal(plate.alerta.zona, 'Ruta 143');
+  assert.equal(plate.color_principal, '#c0392b');
+  assert.equal(plate.color_secundario, '#5b1409');
+});
+
+test('la alerta usa naranja por defecto cuando no se indica nivel', () => {
+  const plate = normalizeAlertPlate({ mensaje: 'Tormenta' }, new Date('2026-08-28T14:35:00'));
+  assert.equal(plate.alerta.nivel, 'naranja');
+  assert.equal(plate.color_principal, '#e08e0b');
+});
+
+test('resolveAlertSeverity desconocido cae en naranja', () => {
+  const severity = resolveAlertSeverity('inexistente');
+  assert.equal(severity.id, 'naranja');
 });
 
 test('calculatePlateLayout define regiones para el tipo alerta', () => {

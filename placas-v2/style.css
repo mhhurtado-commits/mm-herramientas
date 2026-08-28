@@ -21,6 +21,10 @@
 .efemerides-form { padding: 12px 0 4px; }
 .alerta-form { padding: 12px 0 4px; display: grid; gap: 10px; }
 .alerta-form textarea { min-height: 120px; resize: vertical; }
+.alerta-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.alerta-field { display: grid; gap: 5px; }
+.alerta-field--grow { flex: 1 1 220px; }
+.alerta-field select, .alerta-field input { border: 1px solid #d6ddd0; border-radius: 8px; padding: 9px; font: inherit; background: #fff; color: #16201b; }
 .efemeride-edit { border: 1px solid #dfe5da; border-radius: 12px; display: grid; gap: 7px; margin-top: 10px; padding: 12px; }
 .efemeride-edit input { border: 1px solid #d6ddd0; border-radius: 8px; padding: 9px; font: inherit; }
 .efemeride-edit small { color: #68736d; }
