@@ -37,7 +37,7 @@ test('normaliza una alerta meteorológica de forma determinística', () => {
   }, now);
 
   assert.equal(plate.tipo_placa, 'alerta');
-  assert.equal(plate.template_sugerido, 'clima');
+  assert.equal(plate.template_sugerido, 'alerta');
   assert.equal(plate.etiqueta, 'Alerta meteorológica');
   assert.equal(plate.alerta.mensaje, 'Continúa la tormenta con precipitaciones de lluvia débil a moderada sobre la Ruta 143.');
   assert.equal(plate.alerta.fuente, 'Radar San Rafael · Sr. Marcelo Peña');

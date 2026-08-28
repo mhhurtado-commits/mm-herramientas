@@ -651,12 +651,12 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const bannerH = canvas.h * (isStory ? 0.165 : 0.145);
   ctx.fillStyle = family.color;
   ctx.fillRect(0, 0, canvas.w, bannerH);
-  ctx.fillStyle = 'rgba(255,255,255,.18)';
+  ctx.fillStyle = 'rgba(0,0,0,.15)';
   ctx.fillRect(0, bannerH - canvas.h * 0.012, canvas.w, canvas.h * 0.012);
 
   ctx.textAlign = 'left';
   const labelSize = Math.max(30, canvas.w * (isStory ? 0.044 : 0.040));
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = family.secondary;
   ctx.font = `900 ${labelSize}px ${fontFamily}`;
   ctx.fillText('⚠ ALERTA METEOROLÓGICA', layout.label.x, bannerH * 0.42);
   if (fuente) {

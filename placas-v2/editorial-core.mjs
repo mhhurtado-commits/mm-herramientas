@@ -13,6 +13,7 @@ export const FAMILIES = {
   politica: { id: 'politica', label: 'Política', color: '#5b4c91', secondary: '#251e42', soft: '#e9e4f7', symbol: '◈' },
   economia: { id: 'economia', label: 'Economía', color: '#507118', secondary: '#213009', soft: '#eaf3de', symbol: '$' },
   deportes: { id: 'deportes', label: 'Deportes', color: '#16806a', secondary: '#103c33', soft: '#d9f1eb', symbol: '↗' },
+  alerta: { id: 'alerta', label: 'Alerta meteorológica', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0', symbol: '⚠' },
 };
 
 export const PLATE_TYPES = {
@@ -294,11 +295,11 @@ export function normalizeAlertPlate(input = {}, now = new Date()) {
   const date = now instanceof Date ? now : new Date(now);
   const fecha = Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
   const hora = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
-  const familia = FAMILIES.clima;
+  const familia = FAMILIES.alerta;
   const plate = {
     tipo: 'placa_noticia',
     version: 1,
-    fuente: { url: '', titulo_original: '', categoria: 'Clima', descripcion: '', texto: '', imagen: '', imagenes: [] },
+    fuente: { url: '', titulo_original: '', categoria: 'Alerta', descripcion: '', texto: '', imagen: '', imagenes: [] },
     titulo: 'Alerta meteorológica',
     titulo_sintetico: '',
     fecha,
@@ -309,7 +310,7 @@ export function normalizeAlertPlate(input = {}, now = new Date()) {
     datos_clave: [],
     impactos: [],
     comparativa: null,
-    template_sugerido: 'clima',
+    template_sugerido: 'alerta',
     tipo_placa: 'alerta',
     textual: { cita: '', autor: '', cargo: '', verificada: false },
     personas: [],
