@@ -440,6 +440,16 @@
   line-height: 1.7;
 }
 
+/* Filtros: estado on/off */
+.filtro { opacity: 0.45; transition: opacity 0.15s, border-color 0.15s, background 0.15s; }
+.filtro.on { opacity: 1; border-color: var(--v) !important; background: var(--v-dim) !important; color: var(--text) !important; }
+
+/* Layout responsive */
+@media (max-width: 900px) {
+  .mm-layout { grid-template-columns: 1fr !important; }
+  .panel-sticky { position: static !important; }
+}
+
 /* ── Responsive calendario móvil ── */
 @media (max-width: 700px) {
   .cal-celda { min-height: 60px; }
@@ -642,7 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
         <div style="position: relative; flex: 1; min-width: 180px;">
           <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--dim); font-size: 13px;">🔍</span>
-          <input type="text" id="busqueda" placeholder="Buscar eventos, efemérides..." class="mm-input" style="padding-left: 32px;" oninput="renderVista()">
+          <input type="text" id="busqueda" placeholder="Buscar eventos, efemérides..." class="mm-input" style="padding-left: 32px;" oninput="onBusquedaInput()">
         </div>
         <button class="mm-tab" id="btnCalendario" onclick="cambiarVista('calendario')" style="background: var(--surface); border-radius: 20px;">📅 Calendario</button>
         <button class="mm-tab" id="btnLista" onclick="cambiarVista('lista')" style="background: var(--surface); border-radius: 20px;">☰ Lista</button>
@@ -813,15 +823,20 @@ document.addEventListener('DOMContentLoaded', () => {
 <script>
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 
-let HOY          = new Date();
+// TODO Fase 4: mover PROTECT_PASSWORD a Worker (env.AGENDA_PASSWORD) — hoy queda en cliente por compatibilidad Pages
+function hoyActual(){ return new Date(); }
+let HOY          = hoyActual();
 let MES_ACTUAL   = new Date(HOY.getFullYear(), HOY.getMonth(), 1);
 let DIA_SEL      = null;
 let EF_JSON      = [];
 let EF_KV        = [];
 let EVENTOS_KV   = [];
+let EVENTOS_ALL  = [];
+let EVENTOS_ALL_CARGADOS = false;
 let FILTROS      = {feriado:true,efemeride:true,evento:true,cobertura:true,local:true};
 let VISTA        = 'calendario';
 let _detalleEv   = null;
+let _busquedaTimer = null;
 
 const MESES      = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS_CORTO = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -838,6 +853,18 @@ function chipCls(tipo){return {feriado:'chip-feriado',efemeride:'chip-efemeride'
 function badgeCls(tipo){return {feriado:'badge-feriado',efemeride:'badge-efemeride',evento:'badge-evento',cobertura:'badge-cobertura',alerta:'badge-cobertura',local:'badge-local'}[tipo]||'badge-efemeride';}
 function tv(ev){return ev.alcance==='local'?'local':ev.tipo;}
 function qb(){return (document.getElementById('busqueda').value||'').toLowerCase().trim();}
+function onBusquedaInput(){
+  clearTimeout(_busquedaTimer);
+  _busquedaTimer=setTimeout(()=>{ if(qb() && !EVENTOS_ALL_CARGADOS){ cargarEventosAll().then(renderVista); } else { renderVista(); } }, 250);
+}
+function hashKvKey(s){
+  let h=0; for(let i=0;i<s.length;i++) h=(h*31 + s.charCodeAt(i))>>>0;
+  return h.toString(36)+'_'+s.length;
+}
+function buildAngulosKvKey(ev){
+  const base=`${ev.titulo||''}|${ev.descripcion||''}|${ev.fecha||ev.dia||''}|${ev.tipo||''}`;
+  return hashKvKey(base).substring(0,80);
+}
 
 async function cargarEfemerides(){
   try{const r=await fetch('../agenda/efemerides.json');const d=await r.json();EF_JSON=d.efemerides||[]}catch(e){EF_JSON=[];}
@@ -849,8 +876,19 @@ async function cargarEventosKV(){
   try{
     const mes=`${MES_ACTUAL.getFullYear()}-${String(MES_ACTUAL.getMonth()+1).padStart(2,'0')}`;
     const r=await fetch(WORKER+'/agenda/eventos?mes='+mes);const d=await r.json();
-    if(d.ok)EVENTOS_KV=d.eventos||[];
-  }catch(e){EVENTOS_KV=[];}
+    if(d.ok){EVENTOS_KV=d.eventos||[]; return;}
+  }catch(e){}
+  EVENTOS_KV=[];
+}
+async function cargarEventosAll(){
+  try{
+    const year=hoyActual().getFullYear();
+    const r=await fetch(WORKER+'/agenda/eventos?year='+year);const d=await r.json();
+    if(d.ok){EVENTOS_ALL=d.eventos||[]; EVENTOS_ALL_CARGADOS=true; return;}
+    // fallback: sin filtro
+    const r2=await fetch(WORKER+'/agenda/eventos');const d2=await r2.json();
+    if(d2.ok){EVENTOS_ALL=d2.eventos||[]; EVENTOS_ALL_CARGADOS=true;}
+  }catch(e){EVENTOS_ALL=[];}
 }
 
 function efDelDia(mes,dia){
@@ -860,13 +898,19 @@ function efDelDia(mes,dia){
   return [...json.filter(e=>!kvTit.has(e.titulo)), ...kv];
 }
 
+function eventosPoolParaFecha(iso){
+  // Lista/búsqueda o con texto usa pool anual si está cargado; calendario usa mes actual
+  if((VISTA==='lista' || qb()) && EVENTOS_ALL_CARGADOS) return EVENTOS_ALL;
+  return EVENTOS_KV;
+}
 function eventosDelDia(fecha){
   const mes=fecha.getMonth()+1, dia=fecha.getDate(), iso=fechaISO(fecha);
   const q=qb();
   const match=e=>!q||(e.titulo||'').toLowerCase().includes(q)||(e.descripcion||'').toLowerCase().includes(q);
+  const pool=eventosPoolParaFecha(iso);
   return [
     ...efDelDia(mes,dia).map(e=>({...e,fuente:e.id?'efkv':'efjson'})),
-    ...EVENTOS_KV.filter(e=>e.fecha===iso).map(e=>({...e,fuente:'evkv'}))
+    ...pool.filter(e=>e.fecha===iso).map(e=>({...e,fuente:'evkv'}))
   ].filter(e=>{
     if(!match(e)) return false;
     if(e.alcance==='local'&&!FILTROS.local) return false;
@@ -884,6 +928,11 @@ function cambiarVista(v){
   document.getElementById('vistaLista').classList.toggle('activo',v==='lista');
   document.getElementById('btnCalendario').classList.toggle('active',v==='calendario');
   document.getElementById('btnLista').classList.toggle('active',v==='lista');
+  if(v==='lista' && !EVENTOS_ALL_CARGADOS){
+    cargarEventosAll().then(renderVista);
+    document.getElementById('listaContenido').innerHTML='<div class="placeholder"><p>Cargando eventos del año...</p></div>';
+    return;
+  }
   renderVista();
 }
 function renderVista(){VISTA==='calendario'?renderCalendario():renderLista();}
@@ -905,7 +954,7 @@ function crearCelda(fecha,otroMes){
   cel.className='cal-celda'+(otroMes?' otro-mes':'');
   const iso=fechaISO(fecha);
   cel.dataset.iso=iso;
-  if(iso===fechaISO(HOY)) cel.classList.add('hoy');
+  if(iso===fechaISO(hoyActual())) cel.classList.add('hoy');
   if(DIA_SEL&&iso===fechaISO(DIA_SEL)) cel.classList.add('seleccionado');
   const num=document.createElement('div'); num.className='cal-num'; num.textContent=fecha.getDate(); cel.appendChild(num);
   const evts=eventosDelDia(fecha);
@@ -928,8 +977,9 @@ function seleccionarDia(fecha){
   renderPanelDia(fecha);
 }
 
+let LISTA_CACHE=[];
 function renderLista(){
-  const ahora=new Date(); let porMes={};
+  const ahora=hoyActual(); let porMes={};
   for(let m=0;m<12;m++){
     const diasMes=new Date(ahora.getFullYear(),m+1,0).getDate();
     for(let d=1;d<=diasMes;d++){
@@ -939,13 +989,16 @@ function renderLista(){
     }
   }
   const meses=Object.keys(porMes).map(Number).sort((a,b)=>a-b);
-  if(!meses.length){document.getElementById('listaContenido').innerHTML='<div class="placeholder"><p>No se encontraron eventos</p></div>';return;}
+  const cont=document.getElementById('listaContenido');
+  if(!meses.length){cont.innerHTML='<div class="placeholder"><p>No se encontraron eventos</p></div>';LISTA_CACHE=[];return;}
+  LISTA_CACHE=[];
   let html='';
   meses.forEach(m=>{
     html+=`<div class="lista-mes-header">${MESES[m]} ${ahora.getFullYear()}</div>`;
     porMes[m].sort((a,b)=>a._fecha-b._fecha).forEach(ev=>{
       const t=tv(ev); const esEv=ev.fuente==='evkv'; const esEf=ev.fuente==='efkv';
-      html+=`<div class="lista-item ${t}" onclick="abrirDetalle(${JSON.stringify(ev).replace(/"/g,'&quot;')})">
+      const idx=LISTA_CACHE.length; LISTA_CACHE.push(ev);
+      html+=`<div class="lista-item ${t}" data-lista-idx="${idx}">
         <div class="lista-fecha-col">
           <div class="lista-fecha-dia">${ev._fecha.getDate()}</div>
           <div class="lista-fecha-dow">${DIAS_CORTO[ev._fecha.getDay()]}</div>
@@ -953,36 +1006,54 @@ function renderLista(){
         <div class="lista-info">
           <div class="lista-titulo">${esc(ev.titulo)}${esEf?'<span class="ef-kv-badge">personalizada</span>':''}</div>
           <div class="evento-meta" style="margin-bottom:3px">
-            <span class="tipo-badge ${badgeCls(t)}">${ev.tipo||'evento'}</span>
-            ${ev.alcance?`<span class="alcance-badge">${ev.alcance}</span>`:''}
-            ${ev.hora?`<span class="alcance-badge">🕐 ${ev.hora}</span>`:''}
-            ${ev.periodista?`<span class="alcance-badge">👤 ${ev.periodista}</span>`:''}
+            <span class="tipo-badge ${badgeCls(t)}">${esc(ev.tipo||'evento')}</span>
+            ${ev.alcance?`<span class="alcance-badge">${esc(ev.alcance)}</span>`:''}
+            ${ev.hora?`<span class="alcance-badge">🕐 ${esc(ev.hora)}</span>`:''}
+            ${ev.periodista?`<span class="alcance-badge">👤 ${esc(ev.periodista)}</span>`:''}
           </div>
           ${ev.descripcion?`<div class="lista-desc">${esc(ev.descripcion)}</div>`:''}
         </div>
-        <div class="lista-acciones" onclick="event.stopPropagation()">
-          ${esEv?`<button class="mm-btn mm-btn-sm" onclick="abrirModalEditarEvento(${JSON.stringify(ev).replace(/"/g,'&quot;')})">✎</button>`:''}
-          ${esEf?`<button class="mm-btn mm-btn-sm" onclick="abrirModalEditarEfemeride(${JSON.stringify(ev).replace(/"/g,'&quot;')})">✎</button>`:''}
-          ${esEv?`<button class="mm-btn mm-btn-sm mm-btn-danger" onclick="eliminarEvento('${ev.id}')">✕</button>`:''}
-          ${esEf?`<button class="mm-btn mm-btn-sm mm-btn-danger" onclick="eliminarEfemeride('${ev.id}')">✕</button>`:''}
+        <div class="lista-acciones">
+          ${esEv?`<button type="button" class="mm-btn mm-btn-sm" data-lista-edit-ev="${idx}">✎</button>`:''}
+          ${esEf?`<button type="button" class="mm-btn mm-btn-sm" data-lista-edit-ef="${idx}">✎</button>`:''}
+          ${esEv?`<button type="button" class="mm-btn mm-btn-sm mm-btn-danger" data-del-ev="${esc(ev.id)}">✕</button>`:''}
+          ${esEf?`<button type="button" class="mm-btn mm-btn-sm mm-btn-danger" data-del-ef="${esc(ev.id)}">✕</button>`:''}
         </div>
       </div>`;
     });
   });
-  document.getElementById('listaContenido').innerHTML=html;
+  cont.innerHTML=html;
+  // delegación sin inline JS
+  cont.querySelectorAll('.lista-item').forEach(el=>{
+    el.addEventListener('click', ()=>{ const ev=LISTA_CACHE[parseInt(el.dataset.listaIdx,10)]; if(ev) abrirDetalle(ev); });
+  });
+  cont.querySelectorAll('[data-lista-edit-ev]').forEach(b=>{
+    b.addEventListener('click', e=>{ e.stopPropagation(); const ev=LISTA_CACHE[parseInt(b.dataset.listaEditEv,10)]; if(ev) abrirModalEditarEvento(ev); });
+  });
+  cont.querySelectorAll('[data-lista-edit-ef]').forEach(b=>{
+    b.addEventListener('click', e=>{ e.stopPropagation(); const ev=LISTA_CACHE[parseInt(b.dataset.listaEditEf,10)]; if(ev) abrirModalEditarEfemeride(ev); });
+  });
+  cont.querySelectorAll('[data-del-ev]').forEach(b=>{
+    b.addEventListener('click', e=>{ e.stopPropagation(); eliminarEvento(b.dataset.delEv); });
+  });
+  cont.querySelectorAll('[data-del-ef]').forEach(b=>{
+    b.addEventListener('click', e=>{ e.stopPropagation(); eliminarEfemeride(b.dataset.delEf); });
+  });
 }
 
+let PANEL_CACHE=[];
 function renderPanelDia(fecha){
   const evts=eventosDelDia(fecha);
   const iso=fechaISO(fecha);
   const mes=fecha.getMonth(), dia=fecha.getDate();
   const label=`${DIAS_CORTO[fecha.getDay()]} ${dia} de ${MESES[mes]}`;
+  PANEL_CACHE=evts.slice();
   let html=`
-    <div class="mm-panel-header">${label}</div>
+    <div class="mm-panel-header">${esc(label)}</div>
     <div class="panel-sub">${evts.length} evento${evts.length!==1?'s':''} este día</div>
     <div style="display:flex;gap:6px;margin-bottom:10px">
-      <button class="mm-btn mm-btn-primary" style="margin:0;flex:1" onclick="abrirModalNuevoEvento('${iso}')">+ Evento</button>
-      <button class="mm-btn mm-btn-primary" style="margin:0;flex:1;background:var(--v);color:var(--bg)" onclick="abrirModalNuevaEfemeride(${mes+1},${dia})">+ Efeméride</button>
+      <button type="button" class="mm-btn mm-btn-primary" style="margin:0;flex:1" data-nuevo-ev="${esc(iso)}">+ Evento</button>
+      <button type="button" class="mm-btn mm-btn-primary" style="margin:0;flex:1;background:var(--v);color:var(--bg)" data-nueva-ef="${mes+1}-${dia}">+ Efeméride</button>
     </div>`;
   if(!evts.length){
     html+=`<div class="placeholder" style="padding:20px 10px"><span style="font-size:1.8rem">📭</span><p>Sin eventos. Podés agregar<br>coberturas o efemérides.</p></div>`;
@@ -993,30 +1064,44 @@ function renderPanelDia(fecha){
       html+=`<div class="evento-item ${t}">
         <div class="evento-titulo">${esc(ev.titulo)}${esEf?'<span class="ef-kv-badge">personalizada</span>':''}</div>
         <div class="evento-meta">
-          <span class="tipo-badge ${badgeCls(t)}">${ev.tipo||'evento'}</span>
-          ${ev.alcance?`<span class="alcance-badge">${ev.alcance}</span>`:''}
-          ${ev.hora?`<span class="alcance-badge">🕐 ${ev.hora}</span>`:''}
-          ${ev.periodista?`<span class="alcance-badge">👤 ${ev.periodista}</span>`:''}
+          <span class="tipo-badge ${badgeCls(t)}">${esc(ev.tipo||'evento')}</span>
+          ${ev.alcance?`<span class="alcance-badge">${esc(ev.alcance)}</span>`:''}
+          ${ev.hora?`<span class="alcance-badge">🕐 ${esc(ev.hora)}</span>`:''}
+          ${ev.periodista?`<span class="alcance-badge">👤 ${esc(ev.periodista)}</span>`:''}
         </div>
         ${ev.descripcion?`<div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5">${esc(ev.descripcion)}</div>`:''}
         <div class="quick-btns">
-          <button class="btn-ia" onclick="generarAngulos('${ck}',${JSON.stringify(ev).replace(/"/g,'&quot;')})">✦ Ángulos IA</button>
-          <button class="mm-btn mm-btn-sm" onclick="abrirDetalle(${JSON.stringify(ev).replace(/"/g,'&quot;')})">Ver detalle</button>
-          ${esEv?`<button class="mm-btn mm-btn-sm" onclick="abrirModalEditarEvento(${JSON.stringify(ev).replace(/"/g,'&quot;')})">✎ Editar</button>`:''}
-          ${esEf?`<button class="mm-btn mm-btn-sm" onclick="abrirModalEditarEfemeride(${JSON.stringify(ev).replace(/"/g,'&quot;')})">✎ Editar</button>`:''}
-          ${esEv?`<button class="mm-btn mm-btn-sm mm-btn-danger" onclick="eliminarEvento('${ev.id}')">✕ Eliminar</button>`:''}
-          ${esEf?`<button class="mm-btn mm-btn-sm mm-btn-danger" onclick="eliminarEfemeride('${ev.id}')">✕ Eliminar</button>`:''}
+          <button type="button" class="btn-ia" data-angulos="${esc(ck)}" data-panel-idx="${i}">✦ Ángulos IA</button>
+          <button type="button" class="mm-btn mm-btn-sm" data-detalle="${i}">Ver detalle</button>
+          ${esEv?`<button type="button" class="mm-btn mm-btn-sm" data-edit-ev="${i}">✎ Editar</button>`:''}
+          ${esEf?`<button type="button" class="mm-btn mm-btn-sm" data-edit-ef="${i}">✎ Editar</button>`:''}
+          ${esEv?`<button type="button" class="mm-btn mm-btn-sm mm-btn-danger" data-del-ev="${esc(ev.id)}">✕ Eliminar</button>`:''}
+          ${esEf?`<button type="button" class="mm-btn mm-btn-sm mm-btn-danger" data-del-ef="${esc(ev.id)}">✕ Eliminar</button>`:''}
         </div>
         <div id="angulos-${ck}"></div>
       </div>`;
     });
   }
-  document.getElementById('panelContenido').innerHTML=html;
+  const pc=document.getElementById('panelContenido');
+  pc.innerHTML=html;
+  // delegación
+  const btnEv=pc.querySelector('[data-nuevo-ev]'); if(btnEv) btnEv.addEventListener('click', ()=> abrirModalNuevoEvento(btnEv.dataset.nuevoEv));
+  const btnEf=pc.querySelector('[data-nueva-ef]'); if(btnEf){ btnEf.addEventListener('click', ()=>{ const [m,d]=btnEf.dataset.nuevaEf.split('-').map(Number); abrirModalNuevaEfemeride(m,d); }); }
+  pc.querySelectorAll('[data-angulos]').forEach(b=>{
+    b.addEventListener('click', ()=>{ const ev=PANEL_CACHE[parseInt(b.dataset.panelIdx,10)]; if(ev) generarAngulos(b.dataset.angulos, ev); });
+  });
+  pc.querySelectorAll('[data-detalle]').forEach(b=>{
+    b.addEventListener('click', ()=>{ const ev=PANEL_CACHE[parseInt(b.dataset.detalle,10)]; if(ev) abrirDetalle(ev); });
+  });
+  pc.querySelectorAll('[data-edit-ev]').forEach(b=> b.addEventListener('click', ()=>{ const ev=PANEL_CACHE[parseInt(b.dataset.editEv,10)]; if(ev) abrirModalEditarEvento(ev); }));
+  pc.querySelectorAll('[data-edit-ef]').forEach(b=> b.addEventListener('click', ()=>{ const ev=PANEL_CACHE[parseInt(b.dataset.editEf,10)]; if(ev) abrirModalEditarEfemeride(ev); }));
+  pc.querySelectorAll('[data-del-ev]').forEach(b=> b.addEventListener('click', ()=> eliminarEvento(b.dataset.delEv)));
+  pc.querySelectorAll('[data-del-ef]').forEach(b=> b.addEventListener('click', ()=> eliminarEfemeride(b.dataset.delEf)));
   evts.forEach((_,i)=>{const k=`${iso}_${i}`;const c=sessionStorage.getItem('angulos_'+k);const el=document.getElementById('angulos-'+k);if(c&&el)el.innerHTML=c});
 }
 
 function renderProximaSemana(){
-  const inicio=new Date(HOY); inicio.setDate(inicio.getDate()+1);
+  const inicio=hoyActual(); inicio.setDate(inicio.getDate()+1);
   let html=`<div class="mm-panel" style="margin-top:0"><div class="semana-header">Próximos 7 días</div>`;
   let hay=false;
   for(let i=0;i<7;i++){
@@ -1053,15 +1138,19 @@ function irADia(isoStr){
 }
 
 function renderProximosHoy(){
-  const evHoy=eventosDelDia(HOY);
+  const hoy=hoyActual();
+  const evHoy=eventosDelDia(hoy);
   if(!evHoy.length){document.getElementById('proximosHoy').innerHTML='';return;}
+  const isoHoy=fechaISO(hoy);
   document.getElementById('proximosHoy').innerHTML=`<div style="margin-top:10px">
-    <div class="semana-header" style="cursor:pointer" onclick="irADia('${fechaISO(HOY)}')">
-      Hoy — ${HOY.getDate()} de ${MESES[HOY.getMonth()]} ↗
+    <div class="semana-header" style="cursor:pointer" data-hoy-iso="${isoHoy}">
+      Hoy — ${hoy.getDate()} de ${MESES[hoy.getMonth()]} ↗
     </div>
     ${evHoy.map(ev=>`<div style="font-size:12px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--line)">
-      <span class="tipo-badge ${badgeCls(tv(ev))}" style="margin-right:5px">${ev.tipo}</span>${esc(ev.titulo)}</div>`).join('')}
+      <span class="tipo-badge ${badgeCls(tv(ev))}" style="margin-right:5px">${esc(ev.tipo)}</span>${esc(ev.titulo)}</div>`).join('')}
   </div>`;
+  const hdr=document.querySelector('[data-hoy-iso]');
+  if(hdr) hdr.addEventListener('click', ()=> irADia(hdr.dataset.hoyIso));
 }
 
 async function generarAngulos(key,ev){
@@ -1069,7 +1158,7 @@ async function generarAngulos(key,ev){
   const ses=sessionStorage.getItem('angulos_'+key);
   if(ses){container.innerHTML=ses;return;}
   container.innerHTML=`<div class="angulos-box"><div class="angulos-loading"><span class="mm-spinner"></span> Generando sugerencias...</div></div>`;
-  const kvKey=`${ev.titulo}_${ev.mes||''}_${ev.dia||ev.fecha||''}`.replace(/\s+/g,'_').substring(0,80);
+  const kvKey=buildAngulosKvKey(ev);
   try{
     const kr=await fetch(WORKER+'/agenda/angulos/cache?key='+encodeURIComponent(kvKey));
     if(kr.ok){const kd=await kr.json();if(kd.ok&&kd.data){const h=renderAngulosHTML(kd.data,true);sessionStorage.setItem('angulos_'+key,h);container.innerHTML=h;return;}}
@@ -1101,8 +1190,8 @@ function abrirDetalle(ev){
       <div><span class="tipo-badge ${badgeCls(t)}">${tipos[ev.tipo]||ev.tipo||'—'}</span>
       ${ev.alcance?`<span class="alcance-badge" style="margin-left:8px">${ev.alcance}</span>`:''}</div>
     </div>
-    ${(ev.dia||ev.fecha)?`<div class="mm-field"><div class="mm-label">Fecha</div><div class="text-muted">${ev.fecha||(ev.dia+'/'+ev.mes)}</div></div>`:''}
-    ${ev.hora?`<div class="mm-field"><div class="mm-label">Hora</div><div class="text-muted">${ev.hora}</div></div>`:''}
+    ${(ev.dia||ev.fecha)?`<div class="mm-field"><div class="mm-label">Fecha</div><div class="text-muted">${esc(ev.fecha||(ev.dia+'/'+ev.mes))}</div></div>`:''}
+    ${ev.hora?`<div class="mm-field"><div class="mm-label">Hora</div><div class="text-muted">${esc(ev.hora)}</div></div>`:''}
     ${ev.descripcion?`<div class="mm-field"><div class="mm-label">Descripción</div><div class="text-muted">${esc(ev.descripcion)}</div></div>`:''}
     ${ev.periodista?`<div class="mm-field"><div class="mm-label">Periodista asignado</div><div class="text-muted">👤 ${esc(ev.periodista)}</div></div>`:''}
     <div id="detalleAngulos"></div>`;
@@ -1162,7 +1251,7 @@ async function guardarEvento(){
     const res=await fetch(WORKER+'/agenda/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json(); if(!data.ok) throw new Error(data.error);
     cerrarModalEvento(); toast(id?'✓ Evento actualizado':'✓ Evento guardado');
-    await cargarEventosKV(); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
+    EVENTOS_ALL_CARGADOS=false; await Promise.all([cargarEventosKV(), cargarEventosAll()]); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
   }catch(e){toast('✗ '+e.message);}
   document.getElementById('spinEvento').style.display='none';
   document.getElementById('btnEventoText').textContent='Guardar evento';
@@ -1171,7 +1260,7 @@ async function eliminarEvento(id){
   if(!confirm('¿Eliminar este evento?')) return;
   try{
     await fetch(WORKER+'/agenda/evento?id='+encodeURIComponent(id),{method:'DELETE'});
-    toast('Evento eliminado'); await cargarEventosKV(); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
+    toast('Evento eliminado'); EVENTOS_ALL_CARGADOS=false; await Promise.all([cargarEventosKV(), cargarEventosAll()]); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
   }catch(e){toast('✗ '+e.message);}
 }
 
@@ -1199,7 +1288,9 @@ async function guardarEfemeride(){
   const titulo=document.getElementById('efTitulo').value.trim();
   const dia=parseInt(document.getElementById('efDia').value);
   const mes=parseInt(document.getElementById('efMes').value);
-  if(!titulo||!dia||dia<1||dia>31){toast('⚠ Completá título y día válido');return;}
+  if(!titulo||!dia||!mes||dia<1||mes<1||mes>12){toast('⚠ Completá título, día y mes válidos');return;}
+  const maxDia=new Date(2024, mes, 0).getDate();
+  if(dia>maxDia){toast(`⚠ Día inválido para ${MESES[mes-1]} (máx ${maxDia})`);return;}
   document.getElementById('spinEfemeride').style.display='inline-block';
   document.getElementById('btnEfemerideText').textContent='Guardando...';
   try{
@@ -1223,15 +1314,23 @@ async function eliminarEfemeride(id){
 }
 
 function cambiarMes(delta){MES_ACTUAL=new Date(MES_ACTUAL.getFullYear(),MES_ACTUAL.getMonth()+delta,1);cargarEventosKV().then(renderCalendario);}
-function irAHoy(){MES_ACTUAL=new Date(HOY.getFullYear(),HOY.getMonth(),1);DIA_SEL=HOY;cargarEventosKV().then(()=>{renderCalendario();renderPanelDia(HOY);});}
-function toggleFiltro(tipo,el){FILTROS[tipo]=!FILTROS[tipo];el.classList.toggle('active',FILTROS[tipo]);renderCalendario();}
+function irAHoy(){const h=hoyActual(); MES_ACTUAL=new Date(h.getFullYear(),h.getMonth(),1);DIA_SEL=h;HOY=h;cargarEventosKV().then(()=>{renderCalendario();renderPanelDia(h);});}
+function toggleFiltro(tipo,el){FILTROS[tipo]=!FILTROS[tipo];el.classList.toggle('on',FILTROS[tipo]);renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);}
 
 async function init(){
   await cargarEfemerides();
   await Promise.all([cargarEfemeridesKV(), cargarEventosKV()]);
-  DIA_SEL=HOY; renderCalendario(); renderPanelDia(HOY);
+  DIA_SEL=hoyActual(); HOY=DIA_SEL; renderCalendario(); renderPanelDia(HOY);
 }
 init();
+
+// Refrescar "hoy" si la pestaña queda abierta
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible'){
+    const h=hoyActual();
+    if(fechaISO(h)!==fechaISO(HOY)){ HOY=h; renderCalendario(); if(DIA_SEL) renderPanelDia(DIA_SEL); }
+  }
+});
 </script>
 <!-- TOGGLE CLARO/OSCURO -->
 <div class="theme-toggle" id="themeToggle">

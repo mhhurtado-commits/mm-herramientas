@@ -577,7 +577,16 @@ function normalizarTituloSitio(t=""){return t.replace(/\s+[|\-–—]\s+(Media M
 function inferirCategoriaDesdeUrl(url){try{const u=new URL(url);const f=u.pathname.split("/").filter(Boolean)[0]||"";return limpiarEspacios(f.replace(/[-_]+/g," "))}catch{return""}}
 function generarId(p){return `${p}${Date.now()}_${Math.random().toString(36).slice(2,8)}`}
 function acortarUrlNota(url){try{const u=new URL(url);const p=u.pathname.split("/").filter(Boolean);if(p.length>=2){const n=p[1].match(/^(\d+)/);if(n)return `${u.origin}/${p[0]}/${n[1]}`}return `${u.origin}${u.pathname}`}catch{return url}}
-async function listarObjetosKV(env,prefix){const list=await env.KV.list({prefix});const items=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)items.push(v)}return items}
+async function listarObjetosKV(env,prefix){
+  const items=[]; let cursor;
+  do{
+    const list=await env.KV.list({prefix, cursor});
+    for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)items.push(v)}
+    cursor=list.list_complete ? undefined : list.cursor;
+    if(items.length>5000) break;
+  }while(cursor);
+  return items;
+}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
 function jsonError(msg,status=400){return new Response(JSON.stringify({ok:false,error:msg}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
@@ -4979,8 +4988,18 @@ async function handleAgendaAngulos(body,env){
   return jsonOk(data);
 }
 async function handleGetAgendaEventos(url,env){
-  try{const mes=String(url.searchParams.get("mes")||"").trim();let ev=await listarObjetosKV(env,AGENDA_EV_PREFIX);if(mes)ev=ev.filter(e=>String(e.fecha||"").startsWith(mes));ev.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));return jsonOk({eventos:ev})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{
+    const mes=String(url.searchParams.get("mes")||"").trim();
+    const desde=String(url.searchParams.get("desde")||"").trim();
+    const hasta=String(url.searchParams.get("hasta")||"").trim();
+    const year=String(url.searchParams.get("year")||"").trim();
+    let ev=await listarObjetosKV(env,AGENDA_EV_PREFIX);
+    if(mes) ev=ev.filter(e=>String(e.fecha||"").startsWith(mes));
+    else if(desde||hasta) ev=ev.filter(e=>{const f=String(e.fecha||"");return (!desde||f>=desde)&&(!hasta||f<=hasta);});
+    else if(year) ev=ev.filter(e=>String(e.fecha||"").startsWith(year+"-"));
+    ev.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));
+    return jsonOk({eventos:ev});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostAgendaEvento(body,env){
   const titulo=String(body.titulo||"").trim();const fecha=String(body.fecha||"").trim();
