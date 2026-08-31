@@ -915,15 +915,6 @@ function onBusquedaInput(){
   clearTimeout(_busquedaTimer);
   _busquedaTimer=setTimeout(()=>{ if(qb() && !EVENTOS_ALL_CARGADOS){ cargarEventosAll().then(renderVista); } else { renderVista(); } }, 250);
 }
-function hashKvKey(s){
-  let h=0; for(let i=0;i<s.length;i++) h=(h*31 + s.charCodeAt(i))>>>0;
-  return h.toString(36)+'_'+s.length;
-}
-function buildAngulosKvKey(ev){
-  const base=`${ev.titulo||''}|${ev.descripcion||''}|${ev.fecha||ev.dia||''}|${ev.tipo||''}`;
-  return hashKvKey(base).substring(0,80);
-}
-
 async function cargarEfemerides(){
   try{const r=await fetch('../agenda/efemerides.json');const d=await r.json();EF_JSON=d.efemerides||[]}catch(e){EF_JSON=[];}
 }
@@ -1232,7 +1223,6 @@ function renderPanelDia(fecha){
   pc.querySelectorAll('[data-suite-placa]').forEach(b=> b.addEventListener('click', ()=>{ const ev=PANEL_CACHE[parseInt(b.dataset.suitePlaca,10)]; if(ev) suitePlaca(ev); }));
   pc.querySelectorAll('[data-del-ev]').forEach(b=> b.addEventListener('click', ()=> eliminarEvento(b.dataset.delEv)));
   pc.querySelectorAll('[data-del-ef]').forEach(b=> b.addEventListener('click', ()=> eliminarEfemeride(b.dataset.delEf)));
-  evts.forEach((_,i)=>{const k=`${iso}_${i}`;const c=sessionStorage.getItem('angulos_'+k);const el=document.getElementById('angulos-'+k);if(c&&el)el.innerHTML=c});
 }
 
 function renderProximaSemana(){
@@ -1292,18 +1282,11 @@ function renderProximosHoy(){
 
 async function generarAngulos(key,ev){
   const container=document.getElementById('angulos-'+key); if(!container) return;
-  const ses=sessionStorage.getItem('angulos_'+key);
-  if(ses){container.innerHTML=ses;return;}
   container.innerHTML=`<div class="angulos-box"><div class="angulos-loading"><span class="mm-spinner"></span> Generando sugerencias...</div></div>`;
-  const kvKey=buildAngulosKvKey(ev);
   try{
-    const kr=await fetch(WORKER+'/agenda/angulos/cache?key='+encodeURIComponent(kvKey));
-    if(kr.ok){const kd=await kr.json();if(kd.ok&&kd.data){const h=renderAngulosHTML(kd.data,true);sessionStorage.setItem('angulos_'+key,h);container.innerHTML=h;return;}}
-  }catch(e){}
-  try{
-    const res=await fetch(WORKER+'/agenda/angulos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:ev.titulo,descripcion:ev.descripcion||'',fecha:ev.fecha||ev.dia,tipo:ev.tipo,alcance:ev.alcance||'local',kvKey})});
+    const res=await fetch(WORKER+'/agenda/angulos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:ev.titulo,descripcion:ev.descripcion||'',fecha:ev.fecha||ev.dia,tipo:ev.tipo,alcance:ev.alcance||'local'})});
     const data=await res.json(); if(!data.ok) throw new Error(data.error);
-    const html=renderAngulosHTML(data,false); sessionStorage.setItem('angulos_'+key,html); container.innerHTML=html;
+    container.innerHTML=renderAngulosHTML(data,false);
   }catch(e){container.innerHTML=`<div style="font-size:11px;color:red;padding:6px">Error: ${esc(e.message)}</div>`;}
 }
 function renderAngulosHTML(data,desdeCache){

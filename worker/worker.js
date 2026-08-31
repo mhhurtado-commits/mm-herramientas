@@ -4987,8 +4987,6 @@ async function handleSugerirEfemerideDesc(body,env){
 }
 async function handleAgendaAngulos(body,env){
   const titulo=String(body.titulo||"").trim();if(!titulo) return jsonError("Falta titulo",400);
-  const kvKey=String(body.kvKey||"").trim();
-  if(kvKey){try{const c=await env.KV.get(ANGULOS_PREFIX+kvKey,"json");if(c) return jsonOk({...c,fromCache:true})}catch(e){}}
   const prompt=`Sos editor jefe de Media Mendoza (diario del sur mendocino, Argentina). Generá pauta de cobertura para este evento. Español rioplatense, tono periodístico directo.
 
 EVENTO:
@@ -5009,7 +5007,6 @@ Responde SOLO con JSON sin backticks:
 {"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"","gancho":""}`;
   const r=await callGemini(prompt,env);if(r.error) return jsonError(r.error,500);
   const data={angulos:Array.isArray(r.data?.angulos)?r.data.angulos:[],preguntas:Array.isArray(r.data?.preguntas)?r.data.preguntas:[],fuentes_sugeridas:Array.isArray(r.data?.fuentes_sugeridas)?r.data.fuentes_sugeridas:[],consejo:String(r.data?.consejo||"").trim(),gancho:String(r.data?.gancho||"").trim()};
-  if(kvKey){try{await env.KV.put(ANGULOS_PREFIX+kvKey,JSON.stringify(data),{expirationTtl:ANGULOS_TTL})}catch(e){}}
   return jsonOk(data);
 }
 async function handleGetAgendaEventos(url,env){
