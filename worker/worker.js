@@ -5004,7 +5004,9 @@ async function handleGetAgendaEventos(url,env){
 async function handlePostAgendaEvento(body,env){
   const titulo=String(body.titulo||"").trim();const fecha=String(body.fecha||"").trim();
   if(!titulo||!fecha) return jsonError("Faltan campos",400);
-  const ev={id:body.id||generarId("ag_"),titulo,fecha,hora:String(body.hora||"").trim(),tipo:String(body.tipo||"evento").trim(),alcance:String(body.alcance||"local").trim(),descripcion:String(body.descripcion||"").trim(),periodista:String(body.periodista||"").trim(),creado:body.creado||Date.now()};
+  const estadoRaw=String(body.estado||"pendiente").trim().toLowerCase();
+  const estado=["pendiente","en_curso","publicado"].includes(estadoRaw)?estadoRaw:"pendiente";
+  const ev={id:body.id||generarId("ag_"),titulo,fecha,hora:String(body.hora||"").trim(),tipo:String(body.tipo||"evento").trim(),alcance:String(body.alcance||"local").trim(),estado,descripcion:String(body.descripcion||"").trim(),periodista:String(body.periodista||"").trim(),creado:body.creado||Date.now()};
   try{await env.KV.put(`${AGENDA_EV_PREFIX}${ev.id}`,JSON.stringify(ev));return jsonOk({guardado:true,id:ev.id,evento:ev})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }

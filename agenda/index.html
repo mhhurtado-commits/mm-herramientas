@@ -444,6 +444,22 @@
 .filtro { opacity: 0.45; transition: opacity 0.15s, border-color 0.15s, background 0.15s; }
 .filtro.on { opacity: 1; border-color: var(--v) !important; background: var(--v-dim) !important; color: var(--text) !important; }
 
+/* Vista semana */
+.semana-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 8px; }
+.semana-col { background: var(--surface); border: 1px solid var(--line2); border-radius: var(--radius-lg); overflow: hidden; min-height: 140px; }
+.semana-col.hoy { border-color: var(--v); }
+.semana-col-head { padding: 8px; text-align: center; border-bottom: 1px solid var(--line); background: var(--surface2); cursor: pointer; }
+.semana-col-head.hoy { background: var(--v-dim); }
+.semana-col-dia { font-family: var(--font-serif); font-size: 1.1rem; color: var(--white); line-height: 1; }
+.semana-col-dow { font-size: 9px; font-weight: 700; color: var(--dim); text-transform: uppercase; }
+.semana-col-body { padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.semana-evt { font-size: 10px; font-weight: 600; padding: 4px 6px; border-radius: 6px; line-height: 1.3; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge-hoy { font-size: 9px; font-weight: 700; background: var(--v); color: var(--bg); padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
+.estado-pendiente { background: var(--surface2); color: var(--dim); border: 1px solid var(--line2); }
+.estado-en_curso { background: rgba(255,193,7,0.15); color: #b58900; border: 1px solid rgba(255,193,7,0.3); }
+.estado-publicado { background: rgba(166,206,57,0.15); color: var(--v-dark); border: 1px solid rgba(166,206,57,0.3); }
+@media (max-width: 700px){ .semana-grid{ grid-template-columns: 1fr; } .semana-col{ min-height: auto; } }
+
 /* Layout responsive */
 @media (max-width: 900px) {
   .mm-layout { grid-template-columns: 1fr !important; }
@@ -654,8 +670,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--dim); font-size: 13px;">🔍</span>
           <input type="text" id="busqueda" placeholder="Buscar eventos, efemérides..." class="mm-input" style="padding-left: 32px;" oninput="onBusquedaInput()">
         </div>
-        <button class="mm-tab" id="btnCalendario" onclick="cambiarVista('calendario')" style="background: var(--surface); border-radius: 20px;">📅 Calendario</button>
+        <button class="mm-tab" id="btnCalendario" onclick="cambiarVista('calendario')" style="background: var(--surface); border-radius: 20px;">📅 Mes</button>
+        <button class="mm-tab" id="btnSemana" onclick="cambiarVista('semana')" style="background: var(--surface); border-radius: 20px;">🗓 Semana</button>
         <button class="mm-tab" id="btnLista" onclick="cambiarVista('lista')" style="background: var(--surface); border-radius: 20px;">☰ Lista</button>
+        <span id="badgeHoy" class="badge-hoy" style="display:none"></span>
       </div>
 
       <!-- Vista Calendario -->
@@ -692,6 +710,17 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="cal-celdas" id="calCeldas"></div>
         </div>
         <div id="proximaSemana" style="margin-top: 16px;"></div>
+      </div>
+
+      <!-- Vista Semana -->
+      <div id="vistaSemana" class="lista-wrap">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <button class="mm-btn mm-btn-sm" onclick="cambiarSemana(-1)">‹ Semana</button>
+          <div class="cal-mes" id="semanaLabel" style="flex:1"></div>
+          <button class="mm-btn mm-btn-sm" onclick="cambiarSemana(1)">Semana ›</button>
+          <button class="cal-hoy" onclick="irAHoy()">Hoy</button>
+        </div>
+        <div class="semana-grid" id="semanaGrid"></div>
       </div>
 
       <!-- Vista Lista -->
@@ -751,10 +780,12 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="mm-field"><label class="mm-label">Alcance</label>
           <select id="evAlcance" class="mm-select"><option value="local">Local</option><option value="provincial">Provincial</option><option value="nacional">Nacional</option></select></div>
       </div>
+      <div class="mm-field"><label class="mm-label">Estado</label>
+        <select id="evEstado" class="mm-select"><option value="pendiente">Pendiente</option><option value="en_curso">En curso</option><option value="publicado">Publicado</option></select></div>
       <div class="mm-field"><label class="mm-label">Descripción / notas</label>
         <textarea id="evDesc" class="mm-textarea" rows="3" placeholder="Detalles, contactos, notas de cobertura..."></textarea></div>
       <div class="mm-field"><label class="mm-label">Periodista asignado (opcional)</label>
-        <input type="text" id="evPeriodista" class="mm-input" placeholder="Nombre del periodista..."></div>
+        <input type="text" id="evPeriodista" class="mm-input" placeholder="Nombre del periodista..." list="listaPeriodistas"><datalist id="listaPeriodistas"></datalist></div>
     </div>
     <div class="mm-modal-footer">
       <button class="mm-btn mm-btn-primary" style="flex: 1" onclick="guardarEvento()">
@@ -833,10 +864,18 @@ let EF_KV        = [];
 let EVENTOS_KV   = [];
 let EVENTOS_ALL  = [];
 let EVENTOS_ALL_CARGADOS = false;
+let SEMANA_ACTUAL = startOfWeek(hoyActual());
 let FILTROS      = {feriado:true,efemeride:true,evento:true,cobertura:true,local:true};
-let VISTA        = 'calendario';
+let VISTA        = localStorage.getItem('mm-agenda-vista') || 'calendario';
 let _detalleEv   = null;
 let _busquedaTimer = null;
+
+const ESTADOS = { pendiente:{label:'Pendiente', cls:'estado-pendiente'}, en_curso:{label:'En curso', cls:'estado-en_curso'}, publicado:{label:'Publicado', cls:'estado-publicado'} };
+function estadoCls(e){ return (ESTADOS[e]||ESTADOS.pendiente).cls; }
+function estadoLabel(e){ return (ESTADOS[e]||ESTADOS.pendiente).label; }
+function semanaISO(d){ const t=new Date(d); const day=t.getDay(); const diff=t.getDate()-day+(day===0?-6:1); return new Date(t.setDate(diff)); }
+function startOfWeek(d){ const t=new Date(d); const day=t.getDay(); const diff=t.getDate()-day+(day===0?-6:1); t.setDate(diff); t.setHours(0,0,0,0); return t; }
+function addDays(d,n){ const t=new Date(d); t.setDate(t.getDate()+n); return t; }
 
 const MESES      = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS_CORTO = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -899,8 +938,7 @@ function efDelDia(mes,dia){
 }
 
 function eventosPoolParaFecha(iso){
-  // Lista/búsqueda o con texto usa pool anual si está cargado; calendario usa mes actual
-  if((VISTA==='lista' || qb()) && EVENTOS_ALL_CARGADOS) return EVENTOS_ALL;
+  if((VISTA==='lista' || VISTA==='semana' || qb()) && EVENTOS_ALL_CARGADOS) return EVENTOS_ALL;
   return EVENTOS_KV;
 }
 function eventosDelDia(fecha){
@@ -922,20 +960,43 @@ function eventosDelDia(fecha){
   });
 }
 
+function actualizarTabs(){
+  document.getElementById('btnCalendario')?.classList.toggle('active', VISTA==='calendario');
+  document.getElementById('btnSemana')?.classList.toggle('active', VISTA==='semana');
+  document.getElementById('btnLista')?.classList.toggle('active', VISTA==='lista');
+}
 function cambiarVista(v){
   VISTA=v;
+  localStorage.setItem('mm-agenda-vista', v);
   document.getElementById('vistaCalendario').style.display=v==='calendario'?'block':'none';
+  document.getElementById('vistaSemana').style.display=v==='semana'?'block':'none';
   document.getElementById('vistaLista').classList.toggle('activo',v==='lista');
-  document.getElementById('btnCalendario').classList.toggle('active',v==='calendario');
-  document.getElementById('btnLista').classList.toggle('active',v==='lista');
-  if(v==='lista' && !EVENTOS_ALL_CARGADOS){
+  actualizarTabs();
+  if((v==='semana' || v==='lista') && !EVENTOS_ALL_CARGADOS){
     cargarEventosAll().then(renderVista);
-    document.getElementById('listaContenido').innerHTML='<div class="placeholder"><p>Cargando eventos del año...</p></div>';
+    if(v==='lista') document.getElementById('listaContenido').innerHTML='<div class="placeholder"><p>Cargando eventos del año...</p></div>';
+    if(v==='semana') document.getElementById('semanaGrid').innerHTML='<div class="placeholder"><p>Cargando semana...</p></div>';
     return;
   }
   renderVista();
 }
-function renderVista(){VISTA==='calendario'?renderCalendario():renderLista();}
+function renderVista(){
+  if(VISTA==='calendario') renderCalendario();
+  else if(VISTA==='semana') renderSemana();
+  else renderLista();
+  actualizarBadgeHoy();
+}
+function cambiarSemana(delta){
+  SEMANA_ACTUAL=addDays(SEMANA_ACTUAL, delta*7);
+  renderSemana();
+}
+function actualizarBadgeHoy(){
+  const hoy=hoyActual(); const n=eventosDelDia(hoy).length;
+  const b=document.getElementById('badgeHoy');
+  if(!b) return;
+  if(n>0){ b.textContent=`Hoy: ${n}`; b.style.display='inline-block'; b.onclick=()=>{ irAHoy(); if(VISTA!=='calendario') cambiarVista('calendario'); }; }
+  else { b.style.display='none'; }
+}
 
 function renderCalendario(){
   document.getElementById('calMes').textContent=`${MESES[MES_ACTUAL.getMonth()]} ${MES_ACTUAL.getFullYear()}`;
@@ -946,7 +1007,44 @@ function renderCalendario(){
   for(let d=1;d<=ultimo.getDate();d++) cel.appendChild(crearCelda(new Date(MES_ACTUAL.getFullYear(),MES_ACTUAL.getMonth(),d),false));
   const falt=(7-cel.children.length%7)%7;
   for(let i=1;i<=falt;i++){const d=new Date(ultimo);d.setDate(d.getDate()+i);cel.appendChild(crearCelda(d,true));}
-  renderProximaSemana(); renderProximosHoy();
+  renderProximaSemana(); renderProximosHoy(); actualizarBadgeHoy();
+}
+function renderSemana(){
+  const inicio=SEMANA_ACTUAL;
+  const fin=addDays(inicio,6);
+  document.getElementById('semanaLabel').textContent=`${inicio.getDate()} ${MESES[inicio.getMonth()]} — ${fin.getDate()} ${MESES[fin.getMonth()]} ${fin.getFullYear()}`;
+  const grid=document.getElementById('semanaGrid'); grid.innerHTML='';
+  const hoyIso=fechaISO(hoyActual());
+  for(let i=0;i<7;i++){
+    const d=addDays(inicio,i); const iso=fechaISO(d); const esHoy=iso===hoyIso;
+    const evts=eventosDelDia(d);
+    const col=document.createElement('div'); col.className='semana-col'+(esHoy?' hoy':'');
+    const head=document.createElement('div'); head.className='semana-col-head'+(esHoy?' hoy':'');
+    head.innerHTML=`<div class="semana-col-dia">${d.getDate()}</div><div class="semana-col-dow">${DIAS_CORTO[d.getDay()]}</div>`;
+    head.onclick=()=> seleccionarDia(d);
+    col.appendChild(head);
+    const body=document.createElement('div'); body.className='semana-col-body';
+    if(!evts.length){
+      const empty=document.createElement('div'); empty.style.cssText='font-size:10px;color:var(--dim);text-align:center;padding:12px 0'; empty.textContent='—';
+      body.appendChild(empty);
+    } else {
+      evts.forEach(ev=>{
+        const chip=document.createElement('div');
+        chip.className='semana-evt '+chipCls(tv(ev));
+        const est=ev.estado||'pendiente';
+        chip.innerHTML=`${esc(ev.titulo)} <span style="font-size:8px;opacity:.7">· ${esc(estadoLabel(est))}</span>`;
+        chip.title=`${ev.titulo} — ${estadoLabel(est)}`;
+        chip.onclick=()=> abrirDetalle(ev);
+        body.appendChild(chip);
+      });
+    }
+    const addBtn=document.createElement('button'); addBtn.className='mm-btn mm-btn-sm'; addBtn.style.cssText='margin-top:6px;width:100%'; addBtn.textContent='+';
+    addBtn.onclick=()=> abrirModalNuevoEvento(iso);
+    body.appendChild(addBtn);
+    col.appendChild(body);
+    grid.appendChild(col);
+  }
+  renderProximaSemana(); renderProximosHoy(); actualizarBadgeHoy();
 }
 
 function crearCelda(fecha,otroMes){
@@ -1008,6 +1106,7 @@ function renderLista(){
           <div class="evento-meta" style="margin-bottom:3px">
             <span class="tipo-badge ${badgeCls(t)}">${esc(ev.tipo||'evento')}</span>
             ${ev.alcance?`<span class="alcance-badge">${esc(ev.alcance)}</span>`:''}
+            ${ev.estado?`<span class="tipo-badge ${estadoCls(ev.estado)}">${esc(estadoLabel(ev.estado))}</span>`:''}
             ${ev.hora?`<span class="alcance-badge">🕐 ${esc(ev.hora)}</span>`:''}
             ${ev.periodista?`<span class="alcance-badge">👤 ${esc(ev.periodista)}</span>`:''}
           </div>
@@ -1016,6 +1115,7 @@ function renderLista(){
         <div class="lista-acciones">
           ${esEv?`<button type="button" class="mm-btn mm-btn-sm" data-lista-edit-ev="${idx}">✎</button>`:''}
           ${esEf?`<button type="button" class="mm-btn mm-btn-sm" data-lista-edit-ef="${idx}">✎</button>`:''}
+          ${esEv?`<button type="button" class="mm-btn mm-btn-sm" data-lista-red="${idx}">→R</button>`:''}
           ${esEv?`<button type="button" class="mm-btn mm-btn-sm mm-btn-danger" data-del-ev="${esc(ev.id)}">✕</button>`:''}
           ${esEf?`<button type="button" class="mm-btn mm-btn-sm mm-btn-danger" data-del-ef="${esc(ev.id)}">✕</button>`:''}
         </div>
@@ -1038,6 +1138,9 @@ function renderLista(){
   });
   cont.querySelectorAll('[data-del-ef]').forEach(b=>{
     b.addEventListener('click', e=>{ e.stopPropagation(); eliminarEfemeride(b.dataset.delEf); });
+  });
+  cont.querySelectorAll('[data-lista-red]').forEach(b=>{
+    b.addEventListener('click', e=>{ e.stopPropagation(); const ev=LISTA_CACHE[parseInt(b.dataset.listaRed,10)]; if(ev) suiteRedaccion(ev); });
   });
 }
 
@@ -1066,6 +1169,7 @@ function renderPanelDia(fecha){
         <div class="evento-meta">
           <span class="tipo-badge ${badgeCls(t)}">${esc(ev.tipo||'evento')}</span>
           ${ev.alcance?`<span class="alcance-badge">${esc(ev.alcance)}</span>`:''}
+          ${ev.estado?`<span class="tipo-badge ${estadoCls(ev.estado)}">${esc(estadoLabel(ev.estado))}</span>`:''}
           ${ev.hora?`<span class="alcance-badge">🕐 ${esc(ev.hora)}</span>`:''}
           ${ev.periodista?`<span class="alcance-badge">👤 ${esc(ev.periodista)}</span>`:''}
         </div>
@@ -1075,6 +1179,8 @@ function renderPanelDia(fecha){
           <button type="button" class="mm-btn mm-btn-sm" data-detalle="${i}">Ver detalle</button>
           ${esEv?`<button type="button" class="mm-btn mm-btn-sm" data-edit-ev="${i}">✎ Editar</button>`:''}
           ${esEf?`<button type="button" class="mm-btn mm-btn-sm" data-edit-ef="${i}">✎ Editar</button>`:''}
+          ${esEv?`<button type="button" class="mm-btn mm-btn-sm" data-suite-red="${i}">→ Redacción</button>`:''}
+          ${esEv?`<button type="button" class="mm-btn mm-btn-sm" data-suite-placa="${i}">→ Placa</button>`:''}
           ${esEv?`<button type="button" class="mm-btn mm-btn-sm mm-btn-danger" data-del-ev="${esc(ev.id)}">✕ Eliminar</button>`:''}
           ${esEf?`<button type="button" class="mm-btn mm-btn-sm mm-btn-danger" data-del-ef="${esc(ev.id)}">✕ Eliminar</button>`:''}
         </div>
@@ -1095,6 +1201,8 @@ function renderPanelDia(fecha){
   });
   pc.querySelectorAll('[data-edit-ev]').forEach(b=> b.addEventListener('click', ()=>{ const ev=PANEL_CACHE[parseInt(b.dataset.editEv,10)]; if(ev) abrirModalEditarEvento(ev); }));
   pc.querySelectorAll('[data-edit-ef]').forEach(b=> b.addEventListener('click', ()=>{ const ev=PANEL_CACHE[parseInt(b.dataset.editEf,10)]; if(ev) abrirModalEditarEfemeride(ev); }));
+  pc.querySelectorAll('[data-suite-red]').forEach(b=> b.addEventListener('click', ()=>{ const ev=PANEL_CACHE[parseInt(b.dataset.suiteRed,10)]; if(ev) suiteRedaccion(ev); }));
+  pc.querySelectorAll('[data-suite-placa]').forEach(b=> b.addEventListener('click', ()=>{ const ev=PANEL_CACHE[parseInt(b.dataset.suitePlaca,10)]; if(ev) suitePlaca(ev); }));
   pc.querySelectorAll('[data-del-ev]').forEach(b=> b.addEventListener('click', ()=> eliminarEvento(b.dataset.delEv)));
   pc.querySelectorAll('[data-del-ef]').forEach(b=> b.addEventListener('click', ()=> eliminarEfemeride(b.dataset.delEf)));
   evts.forEach((_,i)=>{const k=`${iso}_${i}`;const c=sessionStorage.getItem('angulos_'+k);const el=document.getElementById('angulos-'+k);if(c&&el)el.innerHTML=c});
@@ -1128,12 +1236,14 @@ function renderProximaSemana(){
 function irADia(isoStr){
   const [y,m,d]=isoStr.split('-').map(Number);
   const fecha=new Date(y,m-1,d);
+  SEMANA_ACTUAL=startOfWeek(fecha);
   if(fecha.getFullYear()!==MES_ACTUAL.getFullYear()||fecha.getMonth()!==MES_ACTUAL.getMonth()){
     MES_ACTUAL=new Date(fecha.getFullYear(),fecha.getMonth(),1);
     DIA_SEL=fecha;
-    cargarEventosKV().then(()=>{renderCalendario();renderPanelDia(fecha);});
+    cargarEventosKV().then(()=>{renderVista();renderPanelDia(fecha);});
   } else {
     seleccionarDia(fecha);
+    if(VISTA==='semana') renderSemana();
   }
 }
 
@@ -1188,12 +1298,14 @@ function abrirDetalle(ev){
   document.getElementById('detalleBody').innerHTML=`
     <div class="mm-field"><div class="mm-label">Tipo</div>
       <div><span class="tipo-badge ${badgeCls(t)}">${tipos[ev.tipo]||ev.tipo||'—'}</span>
-      ${ev.alcance?`<span class="alcance-badge" style="margin-left:8px">${ev.alcance}</span>`:''}</div>
+      ${ev.alcance?`<span class="alcance-badge" style="margin-left:8px">${esc(ev.alcance)}</span>`:''}
+      ${ev.estado?`<span class="tipo-badge ${estadoCls(ev.estado)}" style="margin-left:6px">${esc(estadoLabel(ev.estado))}</span>`:''}</div>
     </div>
     ${(ev.dia||ev.fecha)?`<div class="mm-field"><div class="mm-label">Fecha</div><div class="text-muted">${esc(ev.fecha||(ev.dia+'/'+ev.mes))}</div></div>`:''}
     ${ev.hora?`<div class="mm-field"><div class="mm-label">Hora</div><div class="text-muted">${esc(ev.hora)}</div></div>`:''}
     ${ev.descripcion?`<div class="mm-field"><div class="mm-label">Descripción</div><div class="text-muted">${esc(ev.descripcion)}</div></div>`:''}
     ${ev.periodista?`<div class="mm-field"><div class="mm-label">Periodista asignado</div><div class="text-muted">👤 ${esc(ev.periodista)}</div></div>`:''}
+    ${ev.fuente==='evkv'?`<div class="mm-field"><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="mm-btn mm-btn-sm" onclick="suiteRedaccion(_detalleEv)">→ Redacción</button><button type="button" class="mm-btn mm-btn-sm" onclick="suitePlaca(_detalleEv)">→ Placa</button><button type="button" class="mm-btn mm-btn-sm" onclick="suiteWhatsapp(_detalleEv)">→ WhatsApp</button></div></div>`:''}
     <div id="detalleAngulos"></div>`;
   document.getElementById('modalDetalle').classList.add('open');
 }
@@ -1216,14 +1328,33 @@ async function generarAngulosDesdeDetalle(){
   }catch(e){container.innerHTML=`<div style="font-size:11px;color:red;padding:6px">Error: ${esc(e.message)}</div>`;}
   btn.disabled=false; btn.textContent='✦ Ángulos IA';
 }
+function suiteRedaccion(ev){
+  const q=new URLSearchParams({agenda_titulo:ev.titulo||'', agenda_desc:ev.descripcion||'', agenda_fecha:ev.fecha||''}).toString();
+  window.open('/redaccion/?'+q, '_blank');
+}
+function suitePlaca(ev){
+  const q=new URLSearchParams({agenda_titulo:ev.titulo||'', agenda_desc:ev.descripcion||''}).toString();
+  window.open('/placas-v2/?'+q, '_blank');
+}
+function suiteWhatsapp(ev){
+  const q=new URLSearchParams({agenda_titulo:ev.titulo||'', agenda_desc:ev.descripcion||'', agenda_fecha:ev.fecha||''}).toString();
+  window.open('/whatsapp/?'+q, '_blank');
+}
+function refreshPeriodistasDatalist(){
+  const pool=[...EVENTOS_KV, ...EVENTOS_ALL];
+  const set=new Set(pool.map(e=> (e.periodista||'').trim()).filter(Boolean));
+  const dl=document.getElementById('listaPeriodistas');
+  if(dl) dl.innerHTML=[...set].sort().map(n=>`<option value="${esc(n)}">`).join('');
+}
 
-function _fillEvento(id,titulo,fecha,hora,tipo,alcance,desc,per,btnText){
+function _fillEvento(id,titulo,fecha,hora,tipo,alcance,estado,desc,per,btnText){
   document.getElementById('evId').value=id||'';
   document.getElementById('evTitulo').value=titulo||'';
   document.getElementById('evFecha').value=fecha||'';
   document.getElementById('evHora').value=hora||'';
   document.getElementById('evTipo').value=tipo||'evento';
   document.getElementById('evAlcance').value=alcance||'local';
+  document.getElementById('evEstado').value=estado||'pendiente';
   document.getElementById('evDesc').value=desc||'';
   document.getElementById('evPeriodista').value=per||'';
   document.getElementById('btnEventoText').textContent=btnText;
@@ -1231,11 +1362,11 @@ function _fillEvento(id,titulo,fecha,hora,tipo,alcance,desc,per,btnText){
 }
 function abrirModalNuevoEvento(isoStr){
   document.getElementById('modalEventoTitulo').textContent='Nuevo evento';
-  _fillEvento('','',isoStr,'','evento','local','','','Guardar evento');
+  _fillEvento('','',isoStr,'','evento','local','pendiente','','','Guardar evento');
 }
 function abrirModalEditarEvento(ev){
   document.getElementById('modalEventoTitulo').textContent='Editar evento';
-  _fillEvento(ev.id,ev.titulo,ev.fecha,ev.hora,ev.tipo,ev.alcance,ev.descripcion,ev.periodista,'Guardar cambios');
+  _fillEvento(ev.id,ev.titulo,ev.fecha,ev.hora,ev.tipo,ev.alcance,ev.estado||'pendiente',ev.descripcion,ev.periodista,'Guardar cambios');
 }
 function cerrarModalEvento(){document.getElementById('modalEvento').classList.remove('open');}
 async function guardarEvento(){
@@ -1246,12 +1377,12 @@ async function guardarEvento(){
   document.getElementById('btnEventoText').textContent='Guardando...';
   try{
     const id=document.getElementById('evId').value;
-    const body={titulo,fecha,hora:document.getElementById('evHora').value,tipo:document.getElementById('evTipo').value,alcance:document.getElementById('evAlcance').value,descripcion:document.getElementById('evDesc').value.trim(),periodista:document.getElementById('evPeriodista').value.trim()};
+    const body={titulo,fecha,hora:document.getElementById('evHora').value,tipo:document.getElementById('evTipo').value,alcance:document.getElementById('evAlcance').value,estado:document.getElementById('evEstado').value,descripcion:document.getElementById('evDesc').value.trim(),periodista:document.getElementById('evPeriodista').value.trim()};
     if(id) body.id=id;
     const res=await fetch(WORKER+'/agenda/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json(); if(!data.ok) throw new Error(data.error);
     cerrarModalEvento(); toast(id?'✓ Evento actualizado':'✓ Evento guardado');
-    EVENTOS_ALL_CARGADOS=false; await Promise.all([cargarEventosKV(), cargarEventosAll()]); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
+    EVENTOS_ALL_CARGADOS=false; await Promise.all([cargarEventosKV(), cargarEventosAll()]); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL); refreshPeriodistasDatalist();
   }catch(e){toast('✗ '+e.message);}
   document.getElementById('spinEvento').style.display='none';
   document.getElementById('btnEventoText').textContent='Guardar evento';
@@ -1313,14 +1444,25 @@ async function eliminarEfemeride(id){
   }catch(e){toast('✗ '+e.message);}
 }
 
-function cambiarMes(delta){MES_ACTUAL=new Date(MES_ACTUAL.getFullYear(),MES_ACTUAL.getMonth()+delta,1);cargarEventosKV().then(renderCalendario);}
-function irAHoy(){const h=hoyActual(); MES_ACTUAL=new Date(h.getFullYear(),h.getMonth(),1);DIA_SEL=h;HOY=h;cargarEventosKV().then(()=>{renderCalendario();renderPanelDia(h);});}
+function cambiarMes(delta){MES_ACTUAL=new Date(MES_ACTUAL.getFullYear(),MES_ACTUAL.getMonth()+delta,1);cargarEventosKV().then(()=>{ renderVista(); refreshPeriodistasDatalist(); });}
+function irAHoy(){
+  const h=hoyActual(); MES_ACTUAL=new Date(h.getFullYear(),h.getMonth(),1); DIA_SEL=h; HOY=h; SEMANA_ACTUAL=startOfWeek(h);
+  cargarEventosKV().then(()=>{ cargarEventosAll().then(()=>{ renderVista(); renderPanelDia(h); refreshPeriodistasDatalist(); }); });
+}
 function toggleFiltro(tipo,el){FILTROS[tipo]=!FILTROS[tipo];el.classList.toggle('on',FILTROS[tipo]);renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);}
 
 async function init(){
   await cargarEfemerides();
-  await Promise.all([cargarEfemeridesKV(), cargarEventosKV()]);
-  DIA_SEL=hoyActual(); HOY=DIA_SEL; renderCalendario(); renderPanelDia(HOY);
+  await Promise.all([cargarEfemeridesKV(), cargarEventosKV(), cargarEventosAll()]);
+  DIA_SEL=hoyActual(); HOY=DIA_SEL; SEMANA_ACTUAL=startOfWeek(HOY);
+  // restaurar vista guardada
+  const vSaved=localStorage.getItem('mm-agenda-vista');
+  if(vSaved==='semana' || vSaved==='lista' || vSaved==='calendario') VISTA=vSaved;
+  actualizarTabs();
+  document.getElementById('vistaCalendario').style.display=VISTA==='calendario'?'block':'none';
+  document.getElementById('vistaSemana').style.display=VISTA==='semana'?'block':'none';
+  document.getElementById('vistaLista').classList.toggle('activo',VISTA==='lista');
+  renderVista(); renderPanelDia(HOY); refreshPeriodistasDatalist();
 }
 init();
 
@@ -1328,7 +1470,7 @@ init();
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState==='visible'){
     const h=hoyActual();
-    if(fechaISO(h)!==fechaISO(HOY)){ HOY=h; renderCalendario(); if(DIA_SEL) renderPanelDia(DIA_SEL); }
+    if(fechaISO(h)!==fechaISO(HOY)){ HOY=h; SEMANA_ACTUAL=startOfWeek(h); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL); }
   }
 });
 </script>
