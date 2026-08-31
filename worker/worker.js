@@ -4977,13 +4977,38 @@ async function handleGetAngulosCache(url,env){
   try{const v=await env.KV.get(ANGULOS_PREFIX+key,"json");return jsonOk({data:v||null})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
+async function handleSugerirEfemerideDesc(body,env){
+  const titulo=String(body.titulo||"").trim(); if(!titulo) return jsonError("Falta titulo",400);
+  const mes=parseInt(body.mes)||0; const dia=parseInt(body.dia)||0;
+  const alcance=String(body.alcance||"local").trim();
+  const prompt=`Sos editor de Media Mendoza. Escribí una descripción breve (2-3 líneas, máx 40 palabras) para esta efeméride del calendario del sur mendocino.\nTítulo: ${titulo}\nFecha: ${dia}/${mes}\nAlcance: ${alcance}\n\nResponde SOLO con JSON: {"descripcion":"..."}`;
+  const r=await callGemini(prompt,env); if(r.error) return jsonError(r.error,500);
+  return jsonOk({descripcion:String(r.data?.descripcion||"").trim()});
+}
 async function handleAgendaAngulos(body,env){
   const titulo=String(body.titulo||"").trim();if(!titulo) return jsonError("Falta titulo",400);
   const kvKey=String(body.kvKey||"").trim();
   if(kvKey){try{const c=await env.KV.get(ANGULOS_PREFIX+kvKey,"json");if(c) return jsonOk({...c,fromCache:true})}catch(e){}}
-  const prompt=`Sos editor de agenda de Media Mendoza.\nEVENTO:\nTitulo: ${titulo}\nDescripcion: ${String(body.descripcion||"").trim()}\nFecha: ${String(body.fecha||"").trim()}\nTipo: ${String(body.tipo||"").trim()}\n\nResponde SOLO con JSON sin backticks:\n{"angulos":["a1"],"preguntas":["p1"],"fuentes_sugeridas":["f1"],"consejo":""}`;
+  const prompt=`Sos editor jefe de Media Mendoza (diario del sur mendocino, Argentina). Generá pauta de cobertura para este evento. Español rioplatense, tono periodístico directo.
+
+EVENTO:
+Título: ${titulo}
+Descripción: ${String(body.descripcion||"").trim() || "(sin descripción)"}
+Fecha: ${String(body.fecha||"").trim() || "sin fecha"}
+Tipo: ${String(body.tipo||"").trim() || "evento"}
+Alcance: ${String(body.alcance||"local").trim()}
+
+INSTRUCCIONES:
+- 3 ángulos periodísticos distintos (titulares posibles, 1 línea cada uno)
+- 3 preguntas clave para la cobertura
+- 3 fuentes sugeridas concretas (ej: "Secretaría de Prensa Municipal", "Vecinos de barrio X")
+- 1 consejo breve (≤20 palabras)
+- 1 gancho para reel/placa (frase de ≤12 palabras, impactante)
+
+Responde SOLO con JSON sin backticks:
+{"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"","gancho":""}`;
   const r=await callGemini(prompt,env);if(r.error) return jsonError(r.error,500);
-  const data={angulos:Array.isArray(r.data?.angulos)?r.data.angulos:[],preguntas:Array.isArray(r.data?.preguntas)?r.data.preguntas:[],fuentes_sugeridas:Array.isArray(r.data?.fuentes_sugeridas)?r.data.fuentes_sugeridas:[],consejo:String(r.data?.consejo||"").trim()};
+  const data={angulos:Array.isArray(r.data?.angulos)?r.data.angulos:[],preguntas:Array.isArray(r.data?.preguntas)?r.data.preguntas:[],fuentes_sugeridas:Array.isArray(r.data?.fuentes_sugeridas)?r.data.fuentes_sugeridas:[],consejo:String(r.data?.consejo||"").trim(),gancho:String(r.data?.gancho||"").trim()};
   if(kvKey){try{await env.KV.put(ANGULOS_PREFIX+kvKey,JSON.stringify(data),{expirationTtl:ANGULOS_TTL})}catch(e){}}
   return jsonOk(data);
 }
@@ -6628,6 +6653,7 @@ export default {
     if(path==="/agenda/evento")                      return handlePostAgendaEvento(body,env);
     if(path==="/agenda/efemeride")                   return handlePostAgendaEfemeride(body,env);
     if(path==="/agenda/angulos")                     return handleAgendaAngulos(body,env);
+    if(path==="/agenda/efemeride/descripcion")       return handleSugerirEfemerideDesc(body,env);
     if(path==="/resumen/generar")                    return handleResumenGenerar(body, env);
     if(path==="/resumen/agregar")                    return handleResumenAgregar(body, env);
     if(path==="/resumen/eliminar")                   return handleResumenEliminar(body, env);

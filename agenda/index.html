@@ -460,6 +460,13 @@
 .estado-publicado { background: rgba(166,206,57,0.15); color: var(--v-dark); border: 1px solid rgba(166,206,57,0.3); }
 @media (max-width: 700px){ .semana-grid{ grid-template-columns: 1fr; } .semana-col{ min-height: auto; } }
 
+/* Print pauta */
+@media print {
+  .mm-header, .mm-footer, .theme-toggle, .cal-hoy, .quick-btns, #proximaSemana, .filtro, #filtroEstado { display:none !important; }
+  .mm-layout { display:block !important; }
+  .panel-sticky { position:static !important; }
+  .cal-grid, .semana-grid { break-inside: avoid; }
+}
 /* Layout responsive */
 @media (max-width: 900px) {
   .mm-layout { grid-template-columns: 1fr !important; }
@@ -696,6 +703,16 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="filtro on cobertura" onclick="toggleFiltro('cobertura',this)" style="font-size: 10px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1.5px solid var(--line2); background: var(--surface); color: var(--dim); cursor: pointer;">🟡 Coberturas</div>
           <div class="filtro on local" onclick="toggleFiltro('local',this)" style="font-size: 10px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1.5px solid var(--line2); background: var(--surface); color: var(--dim); cursor: pointer;">🩵 Local</div>
         </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+          <span style="font-size:9px;font-weight:700;color:var(--dim)">Estado:</span>
+          <select id="filtroEstado" class="mm-select" style="width:auto;min-width:140px;padding:6px 28px 6px 10px" onchange="cambiarFiltroEstado(this.value)">
+            <option value="todos">Todos</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en_curso">En curso</option>
+            <option value="publicado">Publicado</option>
+          </select>
+          <button class="mm-btn mm-btn-sm" onclick="window.print()" title="Imprimir pauta del día/semana">🖨 Imprimir</button>
+        </div>
 
         <div class="cal-grid">
           <div class="cal-dias-semana">
@@ -823,7 +840,8 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="mm-field"><label class="mm-label">Alcance</label>
         <select id="efAlcance" class="mm-select"><option value="local">Local</option><option value="provincial">Provincial</option><option value="nacional">Nacional</option></select></div>
       <div class="mm-field"><label class="mm-label">Descripción</label>
-        <textarea id="efDesc" class="mm-textarea" rows="3" placeholder="Contexto, cobertura sugerida..."></textarea></div>
+        <textarea id="efDesc" class="mm-textarea" rows="3" placeholder="Contexto, cobertura sugerida..."></textarea>
+        <button type="button" class="mm-btn mm-btn-sm" id="btnSugerirDesc" onclick="sugerirDescEfemeride()" style="margin-top:6px">✦ Sugerir descripción con IA</button></div>
     </div>
     <div class="mm-modal-footer">
       <button class="mm-btn mm-btn-primary" style="flex:1; background: var(--v); color: var(--bg);" onclick="guardarEfemeride()">
@@ -866,6 +884,7 @@ let EVENTOS_ALL  = [];
 let EVENTOS_ALL_CARGADOS = false;
 let SEMANA_ACTUAL = startOfWeek(hoyActual());
 let FILTROS      = {feriado:true,efemeride:true,evento:true,cobertura:true,local:true};
+let FILTRO_ESTADO = localStorage.getItem('mm-agenda-estado') || 'todos';
 let VISTA        = localStorage.getItem('mm-agenda-vista') || 'calendario';
 let _detalleEv   = null;
 let _busquedaTimer = null;
@@ -956,6 +975,7 @@ function eventosDelDia(fecha){
     if(e.tipo==='efemeride'&&!FILTROS.efemeride) return false;
     if((e.tipo==='evento'||e.tipo==='alerta')&&!FILTROS.evento) return false;
     if(e.tipo==='cobertura'&&!FILTROS.cobertura) return false;
+    if(FILTRO_ESTADO!=='todos' && e.fuente==='evkv' && (e.estado||'pendiente')!==FILTRO_ESTADO) return false;
     return true;
   });
 }
@@ -980,11 +1000,18 @@ function cambiarVista(v){
   }
   renderVista();
 }
+function cambiarFiltroEstado(v){
+  FILTRO_ESTADO=v;
+  localStorage.setItem('mm-agenda-estado', v);
+  renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
+}
 function renderVista(){
   if(VISTA==='calendario') renderCalendario();
   else if(VISTA==='semana') renderSemana();
   else renderLista();
   actualizarBadgeHoy();
+  const sel=document.getElementById('filtroEstado');
+  if(sel && sel.value!==FILTRO_ESTADO) sel.value=FILTRO_ESTADO;
 }
 function cambiarSemana(delta){
   SEMANA_ACTUAL=addDays(SEMANA_ACTUAL, delta*7);
@@ -1274,7 +1301,7 @@ async function generarAngulos(key,ev){
     if(kr.ok){const kd=await kr.json();if(kd.ok&&kd.data){const h=renderAngulosHTML(kd.data,true);sessionStorage.setItem('angulos_'+key,h);container.innerHTML=h;return;}}
   }catch(e){}
   try{
-    const res=await fetch(WORKER+'/agenda/angulos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:ev.titulo,descripcion:ev.descripcion||'',fecha:ev.fecha||ev.dia,tipo:ev.tipo,kvKey})});
+    const res=await fetch(WORKER+'/agenda/angulos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:ev.titulo,descripcion:ev.descripcion||'',fecha:ev.fecha||ev.dia,tipo:ev.tipo,alcance:ev.alcance||'local',kvKey})});
     const data=await res.json(); if(!data.ok) throw new Error(data.error);
     const html=renderAngulosHTML(data,false); sessionStorage.setItem('angulos_'+key,html); container.innerHTML=html;
   }catch(e){container.innerHTML=`<div style="font-size:11px;color:red;padding:6px">Error: ${esc(e.message)}</div>`;}
@@ -1282,6 +1309,7 @@ async function generarAngulos(key,ev){
 function renderAngulosHTML(data,desdeCache){
   return `<div class="angulos-box">
     <div class="angulos-titulo">✦ Sugerencias de cobertura${desdeCache?'<span class="angulo-guardado-badge">guardado</span>':''}</div>
+    ${data.gancho?`<div class="consejo-box" style="background:var(--v);color:var(--bg);font-style:normal;font-weight:700;border-left:none">🎬 Gancho: ${esc(data.gancho)}</div>`:''}
     <div class="angulo-tag">Ángulos</div>${(data.angulos||[]).map(a=>`<div class="angulo-item">• ${esc(a)}</div>`).join('')}
     <div class="angulo-tag">Preguntas clave</div>${(data.preguntas||[]).map(p=>`<div class="pregunta-item">${esc(p)}</div>`).join('')}
     <div class="angulo-tag">Fuentes sugeridas</div>${(data.fuentes_sugeridas||[]).map(f=>`<div class="angulo-item" style="font-size:11px">🔎 ${esc(f)}</div>`).join('')}
@@ -1322,7 +1350,7 @@ async function generarAngulosDesdeDetalle(){
   container.innerHTML=`<div class="angulos-box"><div class="angulos-loading"><span class="mm-spinner"></span> Generando sugerencias...</div></div>`;
   const ev=_detalleEv;
   try{
-    const res=await fetch(WORKER+'/agenda/angulos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:ev.titulo,descripcion:ev.descripcion||'',fecha:ev.fecha||ev.dia,tipo:ev.tipo})});
+    const res=await fetch(WORKER+'/agenda/angulos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:ev.titulo,descripcion:ev.descripcion||'',fecha:ev.fecha||ev.dia,tipo:ev.tipo,alcance:ev.alcance||'local'})});
     const data=await res.json(); if(!data.ok) throw new Error(data.error);
     container.innerHTML=renderAngulosHTML(data,false);
   }catch(e){container.innerHTML=`<div style="font-size:11px;color:red;padding:6px">Error: ${esc(e.message)}</div>`;}
@@ -1415,6 +1443,20 @@ function abrirModalEditarEfemeride(ev){
   _fillEfemeride(ev.id,ev.titulo,ev.dia,ev.mes,ev.tipo,ev.alcance,ev.descripcion,'Guardar cambios');
 }
 function cerrarModalEfemeride(){document.getElementById('modalEfemeride').classList.remove('open');}
+async function sugerirDescEfemeride(){
+  const titulo=document.getElementById('efTitulo').value.trim();
+  const dia=parseInt(document.getElementById('efDia').value)||0;
+  const mes=parseInt(document.getElementById('efMes').value)||0;
+  if(!titulo){toast('⚠ Escribí un título primero'); return;}
+  const btn=document.getElementById('btnSugerirDesc'); btn.disabled=true; btn.textContent='Generando...';
+  try{
+    const res=await fetch(WORKER+'/agenda/efemeride/descripcion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo,dia,mes,alcance:document.getElementById('efAlcance').value})});
+    const data=await res.json(); if(!data.ok) throw new Error(data.error);
+    if(data.descripcion) document.getElementById('efDesc').value=data.descripcion;
+    toast('✓ Descripción sugerida');
+  }catch(e){toast('✗ '+e.message);}
+  btn.disabled=false; btn.textContent='✦ Sugerir descripción con IA';
+}
 async function guardarEfemeride(){
   const titulo=document.getElementById('efTitulo').value.trim();
   const dia=parseInt(document.getElementById('efDia').value);
