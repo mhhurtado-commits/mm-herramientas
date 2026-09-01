@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Contexto · Media Mendoza</title>
+<link rel="icon" type="image/png" href="../assets/logo-cuadrado.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="mm-header">
+  <a class="mm-header-brand" href="../index.html">
+    <img class="mm-header-logo" src="../assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section"><span class="mm-header-label">Contexto y antecedentes</span></div>
+  <div class="mm-header-status"><span class="mm-status-dot"></span><span class="mm-status-txt">Activo</span><a class="mm-header-back" href="../index.html">← Hub</a></div>
+</header>
+
+<main class="ctx-shell">
+
+  <!-- HERO -->
+  <section class="ctx-hero">
+    <div>
+      <p class="ctx-eyebrow">Contexto y antecedentes</p>
+      <h1>Para entender.<br><em>En 3 datos.</em></h1>
+      <p class="ctx-lead">Pegá el link de cualquier nota y generá el bloque de contexto, antecedentes y línea de tiempo — listo para copiar a tu CMS o descargar como placa.</p>
+    </div>
+    <div class="ctx-hero-card">
+      <span class="ctx-live"><span class="dot"></span> Pegá un link para empezar</span>
+      <p>Generá un bloque explicativo para acompañar tu nota.</p>
+      <small>Funciona con Los Andes, Infobae, MDZ, La Nación y cualquier sitio externo.</small>
+    </div>
+  </section>
+
+  <!-- INPUT -->
+  <section class="ctx-input-panel">
+    <label for="ctxUrl">Link de la nota</label>
+    <div class="ctx-url-row">
+      <input id="ctxUrl" type="url" placeholder="https://www.losandes.com.ar/.../aumento-colectivo-mendoza" autocomplete="off">
+      <button id="ctxGenerate" class="ctx-btn-primary" type="button">Generar contexto →</button>
+    </div>
+    <p class="ctx-hint">Probá con un ejemplo o pegá cualquier link externo.</p>
+    <div class="ctx-examples">
+      <span>Ejemplos rápidos:</span>
+      <button type="button" class="ctx-chip" data-url="https://www.losandes.com.ar/mendoza/aumento-colectivo-junio-2026/">Colectivo Mendoza</button>
+      <button type="button" class="ctx-chip" data-url="https://www.infobae.com/politica/ley-alquileres-2026/">Ley alquileres</button>
+      <button type="button" class="ctx-chip" data-url="https://www.mdzol.com/sociedad/alerta-meteorologica-sur-mendoza/">Alerta meteorológica</button>
+    </div>
+  </section>
+
+  <!-- LOADING -->
+  <div id="ctxLoading" class="ctx-loading is-hidden">
+    <span class="mm-spinner is-active"></span>
+    <span>Analizando la nota y generando contexto...</span>
+  </div>
+
+  <!-- RESULTADOS -->
+  <section id="ctxResults" class="ctx-results is-hidden">
+
+    <div class="ctx-results-head">
+      <div>
+        <p class="ctx-eyebrow">RESULTADO</p>
+        <h2 id="ctxResultTitle">Aumento del colectivo en Mendoza</h2>
+        <small id="ctxResultUrl" class="ctx-result-url"></small>
+      </div>
+      <span class="ctx-badge">Listo para copiar</span>
+    </div>
+
+    <div class="ctx-grid">
+
+      <!-- 1 PARA ENTENDER -->
+      <article class="ctx-card">
+        <div class="ctx-card-head">
+          <h3>Para entender en 3 datos</h3>
+          <button class="ctx-copy" type="button" data-copy="paraEntender">Copiar</button>
+        </div>
+        <p class="ctx-card-desc">Párrafo listo para pegar en el cuerpo de tu nota, debajo del primer párrafo.</p>
+        <div id="ctxParaEntender" class="ctx-copy-box">
+          <strong>Para entender:</strong> 1) La tarifa actual es de $750 desde enero de 2026. 2) Desde el 10 de junio pasa a $850 (+13%). 3) Afecta a 300.000 usuarios del Gran Mendoza y San Rafael.
+        </div>
+        <small class="ctx-source">Fuentes: Los Andes 15/01/26 · MDZ 10/01/26 · Gobierno de Mendoza</small>
+      </article>
+
+      <!-- 2 QUE PASO ANTES -->
+      <article class="ctx-card">
+        <div class="ctx-card-head">
+          <h3>Qué pasó antes</h3>
+          <button class="ctx-copy" type="button" data-copy="quePaso">Copiar</button>
+        </div>
+        <p class="ctx-card-desc">3 antecedentes con link, para bloque "Contexto" o "Ver también".</p>
+        <div id="ctxQuePaso" class="ctx-copy-box ctx-links">
+          <div>• <strong>15/01/26 — Los Andes:</strong> Último aumento del boleto a $750 <br><span>https://www.losandes.com.ar/mendoza/ultimo-aumento-750/</span></div>
+          <div>• <strong>10/12/25 — MDZ:</strong> Reclamo de choferes por subsidios nacionales <br><span>https://www.mdzol.com/sociedad/reclamo-choferes-subsidios/</span></div>
+          <div>• <strong>03/06/26 — Prensa Gobierno:</strong> Nuevo cuadro tarifario oficial <br><span>https://www.mendoza.gov.ar/prensa/cuadro-tarifario-junio/</span></div>
+        </div>
+      </article>
+
+      <!-- 3 GANCHO WHATSAPP -->
+      <article class="ctx-card">
+        <div class="ctx-card-head">
+          <h3>Gancho WhatsApp <span class="ctx-tag">60 palabras</span></h3>
+          <button class="ctx-copy" type="button" data-copy="gancho">Copiar</button>
+        </div>
+        <p class="ctx-card-desc">Para canal/grupo, listo para pegar en <a href="../whatsapp/" target="_blank">WhatsApp</a> o <a href="../resumen/" target="_blank">Resumen</a>.</p>
+        <div id="ctxGancho" class="ctx-copy-box">
+          Desde el 10 de junio el colectivo en Mendoza cuesta $850. Son $100 más que hoy. Te contamos en 3 datos qué cambia, a quién afecta y qué pasó en los últimos aumentos. Leé la nota completa acá.
+        </div>
+      </article>
+
+      <!-- 4 TIMELINE VISUAL -->
+      <article class="ctx-card ctx-card--wide">
+        <div class="ctx-card-head">
+          <h3>Línea de tiempo visual</h3>
+          <button id="ctxDownloadPng" class="ctx-btn-dark" type="button">Descargar PNG ↓</button>
+        </div>
+        <p class="ctx-card-desc">Imagen lista para descargar y subir como placa.</p>
+        <div class="ctx-canvas-wrap">
+          <canvas id="ctxTimelineCanvas" width="1350" height="1688" aria-label="Placa contexto"></canvas>
+        </div>
+        <small class="ctx-source">Formato vertical 4:5 · Estilo Placas v2</small>
+      </article>
+
+      <!-- 5 PREGUNTAS (extra) -->
+      <article class="ctx-card">
+        <div class="ctx-card-head">
+          <h3>5 preguntas para seguir</h3>
+          <button class="ctx-copy" type="button" data-copy="preguntas">Copiar</button>
+        </div>
+        <p class="ctx-card-desc">Para salir a buscar al protagonista. No se publican, son para tu pauta.</p>
+        <div id="ctxPreguntas" class="ctx-copy-box">
+          1) ¿Qué subsidio nacional se recortó y cuánto representa?<br>
+          2) ¿Habrá tarifa diferenciada para estudiantes/jubilados?<br>
+          3) ¿Cómo impacta en San Rafael vs Gran Mendoza?<br>
+          4) ¿Qué dice la audiencia pública del 28/05?<br>
+          5) ¿Próxima revisión prevista?
+        </div>
+      </article>
+
+    </div>
+
+    <div class="ctx-foot-note">
+      Revisá el contenido antes de publicar. El bloque se genera a partir del link que pegaste.
+    </div>
+
+  </section>
+
+  <!-- EMPTY STATE -->
+  <section id="ctxEmpty" class="ctx-empty">
+    <div class="ctx-empty-icon">↗</div>
+    <strong>Pegá un link arriba para empezar</strong>
+    <span>El resultado aparece acá con bloques listos para copiar y una imagen para descargar.</span>
+  </section>
+
+</main>
+
+<div id="ctxToast" class="mm-toast" role="status"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
