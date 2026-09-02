@@ -725,8 +725,8 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   const lineas = infografia.lineas || [];
   const n = lineas.length;
   // Usar espacio desde debajo del título hasta antes del footer, no el área fija de impacts
-  const gridTop = ty + 32;
-  const gridBottom = H - 88;
+  const gridTop = ty + 24;
+  const gridBottom = H - 100;
   const availableH = gridBottom - gridTop;
   const areaX = margin;
   const areaW = W - margin*2;
