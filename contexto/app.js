@@ -39,6 +39,15 @@ if (!urlInput || !generateBtn || !mainCanvas) {
 }
 
 let lastData = null;
+const FAMILIES = {
+  general: { color:'#a6ce39', secondary:'#16201b', soft:'#eaf3de', label:'Actualidad' },
+  clima: { color:'#367d9c', secondary:'#16303b', soft:'#dcedf3', label:'Clima' },
+  policiales: { color:'#ba3f42', secondary:'#421c1e', soft:'#f8dddd', label:'Policiales' },
+  sociales: { color:'#b36b27', secondary:'#422715', soft:'#f8ead7', label:'Sociedad' },
+  politica: { color:'#5b4c91', secondary:'#251e42', soft:'#e9e4f7', label:'Política' },
+  economia: { color:'#507118', secondary:'#213009', soft:'#eaf3de', label:'Economía' },
+  deportes: { color:'#16806a', secondary:'#103c33', soft:'#d9f1eb', label:'Deportes' },
+};
   // Re-render cuando el logo termina de cargar (para que header sea visible)
   logoImage.onload = () => {
     logoReady = true;
@@ -816,7 +825,7 @@ function showResults(data, url) {
 
   results.classList.remove('is-hidden');
   empty.style.display = 'none';
-  results.scrollIntoView({ behavior:'smooth', block:'start' });
+  try { results.scrollIntoView({ behavior:'smooth', block:'start' }); } catch {}
 }
 
 function setLoading(on) {
