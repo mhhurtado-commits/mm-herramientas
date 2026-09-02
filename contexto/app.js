@@ -258,22 +258,24 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   ctx.fillRect(0,0,W,H);
   const margin = W * 0.055;
   const headerH = 86;
-  // Header — normalizado como Que cambia: fondo claro, sin barra oscura, logo visible
-  // Fondo ya es family.soft claro, logo con conversión para que blanco sea visible
-  if (logoReady) {
-    const logoW = W * 0.30;
-    const logoH = 44;
-    const rect = {x: W - margin - logoW, y: 22, w: logoW, h: logoH};
-    if (!drawLogo(ctx, rect, family.secondary)) {
+  // Header como Que cambia — logo sin modificar, fondo claro
+  if (logoReady && logoImage.complete && logoImage.naturalWidth) {
+    const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
+    const logoW = W * 0.26;
+    const logoH = H * 0.08;
+    const scale = Math.min(logoW/iw, logoH/ih);
+    const dw = iw*scale, dh = ih*scale;
+    ctx.drawImage(logoImage, W - margin - dw, H * 0.035, dw, dh);
+  } else if (false) {
       ctx.fillStyle = family.secondary;
-      ctx.font = `900 16px Inter, sans-serif`;
+      ctx.font = `900 20px Inter, sans-serif`;
       ctx.textAlign = 'right';
       ctx.fillText('mediamendoza.com', W - margin, 48);
       ctx.textAlign = 'left';
     }
   } else {
     ctx.fillStyle = family.secondary;
-    ctx.font = `900 16px Inter, sans-serif`;
+    ctx.font = `900 20px Inter, sans-serif`;
     ctx.textAlign = 'right';
     ctx.fillText('mediamendoza.com', W - margin, 48);
     ctx.textAlign = 'left';
@@ -281,10 +283,10 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   // Etiqueta estilo Que cambia: texto sin pill, solo color
   const labelText = 'GRÁFICO';
   ctx.fillStyle = family.color;
-  ctx.font = `900 16px Inter, sans-serif`;
+  ctx.font = `900 20px Inter, sans-serif`;
   ctx.fillText(labelText, margin, 52);
   ctx.fillStyle = '#6b7280';
-  ctx.font = `700 11px Inter, sans-serif`;
+  ctx.font = `700 13px Inter, sans-serif`;
   ctx.fillText(family.label.toUpperCase(), margin + ctx.measureText(labelText).width + 12, 52);
 
   // Título — grande como Que cambia
@@ -355,7 +357,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       const pct = Math.round((d.value/total)*100);
       if (slice > 0.22) {
         ctx.fillStyle = '#ffffff';
-        ctx.font = `900 34px Inter, sans-serif`;
+        ctx.font = `900 38px Inter, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(pct+'%', lx, ly);
@@ -389,7 +391,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       ctx.beginPath(); ctx.arc(lx+16, ly+pillH/2, 8,0,Math.PI*2); ctx.fill();
       ctx.fillStyle = i===1 ? '#ffffff' : '#16201b';
       if (i===0) ctx.fillStyle = '#ffffff';
-      ctx.font = `700 14px Inter, sans-serif`;
+      ctx.font = `700 16px Inter, sans-serif`;
       ctx.fillText(label, lx+28, ly+24);
       lx += w + gap;
     });
@@ -429,11 +431,11 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
       ctx.fillStyle = family.secondary;
-      ctx.font = `900 18px Inter, sans-serif`;
+      ctx.font = `900 26px Inter, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(d.value.toLocaleString('es-AR'), x + barW/2, y - 12);
       ctx.fillStyle = '#16201b';
-      ctx.font = `700 13px Inter, sans-serif`;
+      ctx.font = `700 15px Inter, sans-serif`;
       const labLines = wrapText(ctx, d.label, barW + gap + 8);
       let lyy = innerY + innerH + 22;
       labLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, x+barW/2, lyy); lyy+=15; });
@@ -462,11 +464,11 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(margin, footerY); ctx.lineTo(W-margin, footerY); ctx.stroke();
   ctx.fillStyle = '#6b7280';
-  ctx.font = `600 11px Inter, sans-serif`;
+  ctx.font = `700 13px Inter, sans-serif`;
   ctx.fillText('Fuente: mediamendoza', margin, footerY + 16);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#6b7280';
-  ctx.font = `600 11px Inter, sans-serif`;
+  ctx.font = `700 13px Inter, sans-serif`;
   ctx.fillText('www.mediamendoza.com', W - margin, footerY + 16);
   ctx.textAlign = 'left';
 }
@@ -481,17 +483,21 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
   ctx.fillRect(0,0,W,H);
   const margin = W*0.055;
   const headerH = 86;
-  if (logoReady) {
-    const logoW = W*0.30; const logoH=44;
-    const rect = {x: W - margin - logoW, y: 22, w: logoW, h: logoH};
-    drawLogo(ctx, rect, family.secondary);
+  // Header como Que cambia — logo sin modificar
+  if (logoReady && logoImage.complete && logoImage.naturalWidth) {
+    const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
+    const logoW = W * 0.26;
+    const logoH = H * 0.08;
+    const scale = Math.min(logoW/iw, logoH/ih);
+    const dw = iw*scale, dh = ih*scale;
+    ctx.drawImage(logoImage, W - margin - dw, H * 0.035, dw, dh);
   }
   const labelText='LÍNEA DE TIEMPO';
   ctx.fillStyle = family.color;
-  ctx.font = `900 16px Inter, sans-serif`;
+  ctx.font = `900 20px Inter, sans-serif`;
   ctx.fillText(labelText, margin, 52);
   ctx.fillStyle = '#6b7280';
-  ctx.font = `700 11px Inter, sans-serif`;
+  ctx.font = `700 13px Inter, sans-serif`;
   ctx.fillText(family.label.toUpperCase(), margin + ctx.measureText(labelText).width + 12, 52);
 
   let tSize=42; let tLines=[];
@@ -541,11 +547,11 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
     let label = String(it.label||'').toUpperCase();
     ctx.fillText(glyphs[i % glyphs.length] + '  ' + label, cardX+20, clampedY+28);
     ctx.fillStyle= hi ? family.secondary : '#16201b';
-    ctx.font=`900 22px Inter, sans-serif`;
+    ctx.font=`900 26px Inter, sans-serif`;
     const valLines = wrapText(ctx, String(it.value||''), cardW-40);
     ctx.fillText(valLines[0]||'', cardX+20, clampedY+62);
-    if (valLines[1]) { ctx.font=`900 18px Inter, sans-serif`; ctx.fillText(valLines[1], cardX+20, clampedY+86); }
-    ctx.fillStyle='#526058'; ctx.font=`600 13px Inter, sans-serif`;
+    if (valLines[1]) { ctx.font=`900 26px Inter, sans-serif`; ctx.fillText(valLines[1], cardX+20, clampedY+86); }
+    ctx.fillStyle='#526058'; ctx.font=`600 15px Inter, sans-serif`;
     const sub = String(it.sub||'').trim();
     if (sub) {
       const subLines=wrapText(ctx, sub, cardW-40);
@@ -564,8 +570,8 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
   });
   const footerY=H-36;
   ctx.strokeStyle='rgba(22,32,27,.10)'; ctx.beginPath(); ctx.moveTo(margin, footerY); ctx.lineTo(W-margin, footerY); ctx.stroke();
-  ctx.fillStyle='#6b7280'; ctx.font=`600 11px Inter, sans-serif`; ctx.fillText('Fuente: mediamendoza', margin, footerY+16);
-  ctx.textAlign='right'; ctx.fillStyle='#6b7280'; ctx.font=`600 11px Inter, sans-serif`; ctx.fillText('www.mediamendoza.com', W-margin, footerY+16); ctx.textAlign='left';
+  ctx.fillStyle='#6b7280'; ctx.font=`700 13px Inter, sans-serif`; ctx.fillText('Fuente: mediamendoza', margin, footerY+16);
+  ctx.textAlign='right'; ctx.fillStyle='#6b7280'; ctx.font=`700 13px Inter, sans-serif`; ctx.fillText('www.mediamendoza.com', W-margin, footerY+16); ctx.textAlign='left';
 }
 
 
@@ -577,17 +583,21 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   ctx.fillRect(0,0,W,H);
   const margin=W*0.055;
   const headerH = 86;
-  if (logoReady){
-    const lw=W*0.30, lh=44;
-    const rect={x: W-margin - lw, y: 22, w: lw, h: lh};
-    drawLogo(ctx, rect, family.secondary);
+  // Header como Que cambia — logo sin modificar
+  if (logoReady && logoImage.complete && logoImage.naturalWidth) {
+    const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
+    const logoW = W * 0.26;
+    const logoH = H * 0.08;
+    const scale = Math.min(logoW/iw, logoH/ih);
+    const dw = iw*scale, dh = ih*scale;
+    ctx.drawImage(logoImage, W - margin - dw, H * 0.035, dw, dh);
   }
   const labelText='INFOGRAFÍA';
   ctx.fillStyle = family.color;
-  ctx.font = `900 16px Inter, sans-serif`;
+  ctx.font = `900 20px Inter, sans-serif`;
   ctx.fillText(labelText, margin, 52);
   ctx.fillStyle = '#6b7280';
-  ctx.font = `700 11px Inter, sans-serif`;
+  ctx.font = `700 13px Inter, sans-serif`;
   ctx.fillText(family.label.toUpperCase(), margin + ctx.measureText(labelText).width + 12, 52);
   let tSize=42; let tLines=[]; const tW=W-margin*2; const rawTitle = infografia.titulo || titulo;
   while(tSize>=28){ ctx.font=`900 ${tSize}px Inter, sans-serif`; tLines=wrapText(ctx, rawTitle, tW); if(tLines.length<=2 && tLines.length*tSize*1.08<=100) break; tSize-=1; }
@@ -645,7 +655,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
         let lyy = y+ cardH/2 - (descLines.length*20)/2 + 10;
         descLines.slice(0,3).forEach(ll=>{ const w=ctx.measureText(ll).width; ctx.fillText(ll, x+cardW/2 - w/2, lyy); lyy+=22; });
       }
-      ctx.fillStyle='rgba(22,32,27,.06)'; ctx.font=`900 36px Inter, sans-serif`; ctx.textAlign='right';
+      ctx.fillStyle='rgba(22,32,27,.06)'; ctx.font=`900 42px Inter, sans-serif`; ctx.textAlign='right';
       ctx.fillText(String(i+1), x+cardW-18, y+cardH-18);
       ctx.textAlign='left';
     });
@@ -671,7 +681,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       if (fullNum) {
         ctx.fillStyle=family.secondary; ctx.font=`900 26px Inter, sans-serif`;
         ctx.fillText(fullNum, margin+96, y+ cardH/2 - 6);
-        ctx.fillStyle='#16201b'; ctx.font=`600 14px Inter, sans-serif`;
+        ctx.fillStyle='#16201b'; ctx.font=`700 16px Inter, sans-serif`;
         const descLines = wrapText(ctx, rest, W-margin*2 - 130);
         let lyy = y+ cardH/2 + 14;
         descLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, margin+96, lyy); lyy+=17; });
@@ -688,8 +698,8 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   }
   const footerY=H-36;
   ctx.strokeStyle='rgba(22,32,27,.10)'; ctx.beginPath(); ctx.moveTo(margin, footerY); ctx.lineTo(W-margin, footerY); ctx.stroke();
-  ctx.fillStyle='#6b7280'; ctx.font=`600 11px Inter, sans-serif`; ctx.fillText('Fuente: mediamendoza', margin, footerY+16);
-  ctx.textAlign='right'; ctx.fillStyle='#6b7280'; ctx.font=`600 11px Inter, sans-serif`; ctx.fillText('www.mediamendoza.com', W-margin, footerY+16); ctx.textAlign='left';
+  ctx.fillStyle='#6b7280'; ctx.font=`700 13px Inter, sans-serif`; ctx.fillText('Fuente: mediamendoza', margin, footerY+16);
+  ctx.textAlign='right'; ctx.fillStyle='#6b7280'; ctx.font=`700 13px Inter, sans-serif`; ctx.fillText('www.mediamendoza.com', W-margin, footerY+16); ctx.textAlign='left';
 }
 
 
