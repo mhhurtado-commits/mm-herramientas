@@ -6,7 +6,8 @@ const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const logoImage = new Image();
 logoImage.src = '../assets/logo.png';
 let logoReady = false;
-logoImage.onload = () => { logoReady = true; if (lastData) renderAll(lastData); };
+let lastData = null;
+logoImage.onload = () => { logoReady = true; };
 logoImage.onerror = () => { logoReady = false; };
 
 function initContexto() {
@@ -41,6 +42,19 @@ if (!urlInput || !generateBtn || !mainCanvas) {
 }
 
 let lastData = null;
+  // Re-render cuando el logo termina de cargar (para que header sea visible)
+  logoImage.onload = () => {
+    logoReady = true;
+    if (lastData) {
+      renderPlacaV2(lastData);
+      const fam = FAMILIES[(lastData.categoria||'general').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')] || FAMILIES.general;
+      const titulo = lastData.titulo_placa || lastData.titulo_corto || '';
+      if (lastData.chart) renderChartPlaca(chartCanvas, lastData.chart, fam, titulo);
+      if (lastData.timeline) renderTimelinePlaca(timelineCanvas, lastData.timeline, fam, titulo);
+      if (lastData.infografia) renderInfografiaPlaca(infografiaCanvas, lastData.infografia, fam, titulo);
+    }
+  };
+  logoImage.onerror = () => { logoReady = false; };
 
 // Mocks con todos los recursos para preview
 const MOCKS = {
@@ -198,6 +212,40 @@ function wrapText(ctx, text, maxWidth) {
   }
   if (cur) lines.push(cur);
   return lines;
+}
+function drawLogo(ctx, rect, darkColor) {
+  if (!logoReady || !logoImage.complete || !logoImage.naturalWidth) return false;
+  try {
+    const w = Math.max(1, Math.round(rect.w));
+    const h = Math.max(1, Math.round(rect.h));
+    const surface = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w,h) : Object.assign(document.createElement('canvas'), {width:w, height:h});
+    const sctx = surface.getContext('2d');
+    if (!sctx || !sctx.getImageData) {
+      const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
+      const scale = Math.min(w/iw, h/ih);
+      const dw = iw*scale, dh = ih*scale;
+      ctx.drawImage(logoImage, rect.x + (w-dw)/2, rect.y + (h-dh)/2, dw, dh);
+      return true;
+    }
+    const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
+    const scale = Math.min(w/iw, h/ih);
+    const dw = iw*scale, dh = ih*scale;
+    sctx.clearRect(0,0,w,h);
+    sctx.drawImage(logoImage, (w-dw)/2, (h-dh)/2, dw, dh);
+    const imgData = sctx.getImageData(0,0,w,h);
+    const d = imgData.data;
+    const rgb = darkColor.match(/[a-f\d]{2}/gi)?.map(v=>parseInt(v,16)) || [22,32,27];
+    for (let i=0;i<d.length;i+=4){
+      if (d[i+3]>10 && d[i]>200 && d[i+1]>200 && d[i+2]>200){
+        d[i]=rgb[0]; d[i+1]=rgb[1]; d[i+2]=rgb[2];
+      }
+    }
+    sctx.putImageData(imgData,0,0);
+    ctx.drawImage(surface, rect.x, rect.y, w, h);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Chart placa — ocupa todo el alto, pie grande, tipografía normalizada como Que cambia
