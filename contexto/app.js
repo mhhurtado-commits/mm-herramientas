@@ -1,6 +1,3 @@
-import { renderNewsPlate } from '../placas-v2/renderer.mjs';
-import { FAMILIES } from '../placas-v2/editorial-core.mjs';
-
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 
 const logoImage = new Image();
@@ -181,13 +178,89 @@ function buildPlacaContexto(data) {
 
 function renderPlacaV2(data) {
   lastData = data;
-  const plate = buildPlacaContexto(data);
-  try {
-    const ctx = mainCanvas.getContext('2d');
-    renderNewsPlate(ctx, plate, 'portrait', { image: null, focus:{x:0.5,y:0.5}, logo: logoReady ? logoImage : null, personImages:{}, supportImage:null, supportFocus:{x:0.5,y:0.5}, forceCover:true });
-  } catch (e) {
-    console.error('[contexto] render placa v2 falló', e);
+  const rawCat = String(data.categoria||'general').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const family = FAMILIES[rawCat] || FAMILIES.general;
+  const titulo = String(data.titulo_placa || data.titulo_corto || data.titulo || 'Para entender').trim();
+  const datos = Array.isArray(data.para_entender_datos) ? data.para_entender_datos.slice(0,3).map(s=>String(s).trim()).filter(Boolean) : [];
+  const ctx = mainCanvas.getContext('2d');
+  const W = 1350, H = 1688;
+  mainCanvas.width = W; mainCanvas.height = H;
+  // Fondo como Que cambia
+  ctx.fillStyle = family.soft;
+  ctx.fillRect(0,0,W,H);
+  const margin = W * 0.055;
+  const headerH = 86;
+  if (logoReady && logoImage.complete && logoImage.naturalWidth) {
+    const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
+    const logoW = W * 0.26;
+    const logoH = H * 0.08;
+    const scale = Math.min(logoW/iw, logoH/ih);
+    const dw = iw*scale, dh = ih*scale;
+    ctx.drawImage(logoImage, W - margin - dw, H * 0.035, dw, dh);
   }
+  // Etiqueta
+  const labelText = 'PARA ENTENDER';
+  ctx.fillStyle = family.color;
+  ctx.font = `900 ${Math.max(20, W * 0.024)}px Inter, sans-serif`;
+  const labelX = margin;
+  const labelY = H * 0.08;
+  const labelH = H * 0.045;
+  ctx.fillText(labelText, labelX, labelY + labelH * 0.74);
+  // Título
+  const titleW = W - margin*2;
+  let tSize = 44;
+  let tLines = [];
+  while (tSize >= 30) {
+    ctx.font = `900 ${tSize}px Inter, sans-serif`;
+    tLines = wrapText(ctx, titulo, titleW);
+    if (tLines.length <= 2 && tLines.length * tSize * 1.08 <= 110) break;
+    tSize -= 1;
+  }
+  ctx.fillStyle = family.secondary;
+  ctx.font = `900 ${tSize}px Inter, sans-serif`;
+  let ty = H * 0.14 + tSize;
+  tLines.slice(0,2).forEach(l=>{ ctx.fillText(l, margin, ty); ty+= tSize*1.08; });
+  // 3 impactos como Que cambia
+  const footerY = H * 0.92;
+  const impactsY = H * 0.35;
+  const impactsH = footerY - H * 0.39;
+  const gap = H * 0.018;
+  const cardH = (impactsH - gap*2)/3;
+  datos.slice(0,3).forEach((val, i)=>{
+    const cardY = impactsY + i*(cardH+gap);
+    const cardW = W - margin*2;
+    ctx.fillStyle = '#ffffff';
+    roundedRect(ctx, margin, cardY, cardW, cardH, 14);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(22,32,27,.06)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = family.color;
+    roundedRect(ctx, margin, cardY, Math.max(8, W*0.010), cardH, 8);
+    ctx.fill();
+    const vSize = Math.max(26, W*0.034);
+    ctx.fillStyle = family.secondary;
+    ctx.font = `900 ${vSize}px Inter, sans-serif`;
+    const lines = wrapText(ctx, val, cardW*0.86);
+    let ly = cardY + vSize*1.1;
+    // Centrar verticalmente si 1 línea
+    const totalH = Math.min(lines.length,2) * vSize*1.05;
+    const off = Math.max(0, (cardH - totalH)/2 - vSize*0.3);
+    ly += off;
+    lines.slice(0,2).forEach(l=>{ ctx.fillText(l, margin + cardW*0.07, ly); ly+= vSize*1.05; });
+  });
+  // Footer
+  ctx.strokeStyle = 'rgba(22,32,27,.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(margin, footerY); ctx.lineTo(W-margin, footerY); ctx.stroke();
+  ctx.fillStyle = '#526058';
+  ctx.font = `700 ${Math.max(11, W*0.011)}px Inter, sans-serif`;
+  ctx.fillText('Fuente: mediamendoza', margin, footerY + 18);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#526058';
+  ctx.font = `700 ${Math.max(11, W*0.011)}px Inter, sans-serif`;
+  ctx.fillText('www.mediamendoza.com', W-margin, footerY+18);
+  ctx.textAlign = 'left';
 }
 
 // Helpers comunes placas-v2
@@ -266,19 +339,6 @@ function renderChartPlaca(canvas, chart, family, titulo) {
     const scale = Math.min(logoW/iw, logoH/ih);
     const dw = iw*scale, dh = ih*scale;
     ctx.drawImage(logoImage, W - margin - dw, H * 0.035, dw, dh);
-  } else if (false) {
-      ctx.fillStyle = family.secondary;
-      ctx.font = `900 20px Inter, sans-serif`;
-      ctx.textAlign = 'right';
-      ctx.fillText('mediamendoza.com', W - margin, 48);
-      ctx.textAlign = 'left';
-    }
-  } else {
-    ctx.fillStyle = family.secondary;
-    ctx.font = `900 20px Inter, sans-serif`;
-    ctx.textAlign = 'right';
-    ctx.fillText('mediamendoza.com', W - margin, 48);
-    ctx.textAlign = 'left';
   }
   // Etiqueta estilo Que cambia: texto sin pill, solo color
   const labelText = 'GRÁFICO';
