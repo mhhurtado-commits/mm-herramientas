@@ -200,7 +200,7 @@ function wrapText(ctx, text, maxWidth) {
   return lines;
 }
 
-// Chart placa con estilo Placas v2
+// Chart placa — rediseñada para ocupar todo el espacio y tipografía Placas v2
 function renderChartPlaca(canvas, chart, family, titulo) {
   const ctx = canvas.getContext('2d');
   const W = 1350, H = 1688;
@@ -211,118 +211,168 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   ctx.fillStyle = grad;
   ctx.fillRect(0,0,W,H);
   const margin = W * 0.055;
-  // Logo
+  // Header: logo + etiqueta
   if (logoReady) {
-    const logoW = W * 0.28;
-    const logoH = H * 0.06;
+    const logoW = W * 0.30;
+    const logoH = H * 0.065;
     const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
     const scale = Math.min(logoW/iw, logoH/ih);
     const dw = iw*scale, dh = ih*scale;
-    ctx.drawImage(logoImage, W - margin - dw, 28, dw, dh);
+    ctx.drawImage(logoImage, W - margin - dw, 30, dw, dh);
   } else {
     ctx.fillStyle = family.secondary;
-    ctx.font = `900 16px Inter, sans-serif`;
+    ctx.font = `900 17px Inter, sans-serif`;
     ctx.textAlign = 'right';
-    ctx.fillText('mediamendoza.com', W - margin, 48);
+    ctx.fillText('mediamendoza.com', W - margin, 52);
     ctx.textAlign = 'left';
   }
-  // Etiqueta
   const labelText = 'GRÁFICO';
   ctx.font = `900 20px Inter, sans-serif`;
-  const labelPadX = 16;
+  const labelPadX = 18;
   const labelW = ctx.measureText(labelText).width + labelPadX*2;
-  const labelH = 36;
-  const labelY = 72;
+  const labelH = 38;
+  const labelY = 74;
   ctx.fillStyle = family.color;
-  roundedRect(ctx, margin, labelY, labelW, labelH, 7);
+  roundedRect(ctx, margin, labelY, labelW, labelH, 8);
   ctx.fill();
   ctx.fillStyle = '#ffffff';
   ctx.textBaseline = 'middle';
-  ctx.font = `900 14px Inter, sans-serif`;
+  ctx.font = `900 15px Inter, sans-serif`;
   ctx.fillText(labelText, margin + labelPadX, labelY + labelH/2 + 1);
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = family.secondary;
-  ctx.font = `700 11px Inter, sans-serif`;
-  ctx.fillText(family.label.toUpperCase(), margin + labelW + 12, labelY + labelH/2 + 4);
+  ctx.font = `800 12px Inter, sans-serif`;
+  ctx.fillText(family.label.toUpperCase(), margin + labelW + 14, labelY + labelH/2 + 4);
 
-  // Título
+  // Título principal — grande y legible
   const titleW = W - margin*2;
-  let tSize = 46;
+  let tSize = 54;
   let tLines = [];
-  while (tSize >= 28) {
+  while (tSize >= 30) {
     ctx.font = `900 ${tSize}px Inter, sans-serif`;
     tLines = wrapText(ctx, titulo, titleW);
-    if (tLines.length <= 2 && tLines.length * tSize * 1.1 <= 110) break;
+    if (tLines.length <= 2 && tLines.length * tSize * 1.08 <= 130) break;
     tSize -= 1;
   }
   ctx.fillStyle = family.secondary;
   ctx.font = `900 ${tSize}px Inter, sans-serif`;
-  let ty = 150 + tSize;
-  tLines.slice(0,2).forEach(l=>{ ctx.fillText(l, margin, ty); ty+= tSize*1.1; });
-  // Chart título
+  let ty = 158 + tSize;
+  tLines.slice(0,2).forEach(l=>{ ctx.fillText(l, margin, ty); ty+= tSize*1.08; });
+  // Subtítulo chart con acento
   if (chart.titulo) {
+    ctx.fillStyle = family.color;
+    ctx.fillRect(margin, ty + 10, 36, 4);
     ctx.fillStyle = '#526058';
-    ctx.font = `700 16px Inter, sans-serif`;
-    ctx.fillText(chart.titulo, margin, ty + 18);
-    ty += 36;
-  } else ty += 18;
-  // Área gráfico
+    ctx.font = `700 18px Inter, sans-serif`;
+    ctx.fillText(chart.titulo, margin, ty + 38);
+    ty += 52;
+  } else ty += 22;
+  // Área gráfico — ocupa casi todo el alto restante
   const chartX = margin;
   const chartY = ty + 10;
   const chartW = W - margin*2;
-  const chartH = 620;
-  // fondo chart
+  const chartH = H - chartY - 96; // deja solo footer
+  // fondo chart con sombra sutil
   ctx.fillStyle = '#ffffff';
-  roundedRect(ctx, chartX, chartY, chartW, chartH, 16);
+  roundedRect(ctx, chartX, chartY, chartW, chartH, 18);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(22,32,27,.08)';
+  ctx.strokeStyle = 'rgba(22,32,27,.07)';
+  ctx.lineWidth = 1;
   ctx.stroke();
+  // sombra interior
+  ctx.fillStyle = 'rgba(22,32,27,.02)';
+  roundedRect(ctx, chartX, chartY, chartW, 14, 18);
+  ctx.fill();
 
   const datos = chart.datos || [];
   const maxVal = Math.max(...datos.map(d=>d.value), 1);
+  const total = datos.reduce((a,b)=>a+b.value,0);
   const tipo = chart.tipo || 'bar';
 
   if (tipo === 'pie' || tipo === 'doughnut') {
-    // Pie chart simple
+    // Pie grande y centrado, con porcentajes grandes dentro
     const cx = chartX + chartW/2;
-    const cy = chartY + chartH/2 + 10;
-    const radius = Math.min(220, chartW*0.28);
+    const cy = chartY + chartH*0.46;
+    const radius = Math.min(320, Math.min(chartW, chartH)*0.34);
+    const hole = tipo === 'doughnut' ? radius*0.52 : 0;
     let start = -Math.PI/2;
-    const colors = [family.color, family.secondary, '#367d9c', '#b36b27', '#5b4c91', '#16806a'];
+    const colors = [family.color, family.secondary, '#7a9e1f', '#367d9c', '#b36b27', '#5b4c91'];
     datos.forEach((d,i)=>{
-      const slice = (d.value / datos.reduce((a,b)=>a+b.value,0)) * Math.PI*2;
+      const slice = (d.value / total) * Math.PI*2;
+      const end = start + slice;
       ctx.beginPath();
       ctx.moveTo(cx,cy);
-      ctx.arc(cx,cy,radius,start,start+slice);
+      ctx.arc(cx,cy,radius,start,end);
       ctx.closePath();
       ctx.fillStyle = colors[i % colors.length];
       ctx.fill();
-      start += slice;
+      // borde blanco entre porciones
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      // porcentaje grande dentro de la porción
+      const mid = (start+end)/2;
+      const rMid = hole ? (radius+hole)/2 : radius*0.62;
+      const lx = cx + Math.cos(mid)*rMid;
+      const ly = cy + Math.sin(mid)*rMid;
+      const pct = Math.round((d.value/total)*100);
+      if (slice > 0.22) { // solo si porción no muy chica
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `900 32px Inter, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(pct+'%', lx, ly);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+      }
+      start = end;
     });
-    // leyenda
-    let ly = chartY + chartH - 18;
-    ctx.font = `600 12px Inter, sans-serif`;
+    if (tipo === 'doughnut') {
+      ctx.beginPath(); ctx.arc(cx,cy,hole,0,Math.PI*2); ctx.fillStyle='#ffffff'; ctx.fill();
+      ctx.fillStyle=family.secondary; ctx.font=`900 22px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('TOTAL', cx, cy-10); ctx.font=`900 36px Inter, sans-serif`; ctx.fillText(String(total), cx, cy+18);
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    }
+    // Leyenda grande como pills
+    const legendY = chartY + chartH - 78;
+    const pillH = 36;
+    const gap = 14;
+    let lx = chartX + 18;
+    let ly = legendY;
+    ctx.font = `700 15px Inter, sans-serif`;
     datos.forEach((d,i)=>{
+      const label = `${d.label}: ${d.value.toLocaleString('es-AR')} (${Math.round(d.value/total*100)}%)`;
+      const w = ctx.measureText(label).width + 36;
+      if (lx + w > chartX + chartW - 18) { lx = chartX + 18; ly += pillH + 10; }
+      ctx.fillStyle = i===0 ? family.color : i===1 ? family.secondary : '#eef2ea';
+      if (i>=2) ctx.fillStyle = '#f2f4f0';
+      roundedRect(ctx, lx, ly, w, pillH, pillH/2);
+      ctx.fill();
+      if (i>=2) { ctx.strokeStyle='rgba(22,32,27,.1)'; ctx.stroke(); }
       ctx.fillStyle = colors[i % colors.length];
-      ctx.fillRect(chartX + 18 + (i%3)* (chartW/3), ly - 28 - Math.floor(i/3)*22, 10,10);
-      ctx.fillStyle = '#16201b';
-      ctx.fillText(`${d.label}: ${d.value}`, chartX + 32 + (i%3)*(chartW/3), ly - 20 - Math.floor(i/3)*22);
+      ctx.beginPath(); ctx.arc(lx+14, ly+pillH/2, 7,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = i>=2 ? '#16201b' : (i===0 ? '#16201b' : '#ffffff');
+      if (i===0) ctx.fillStyle = '#16201b';
+      else if (i===1) ctx.fillStyle = '#ffffff';
+      else ctx.fillStyle = '#16201b';
+      ctx.fillText(label, lx+26, ly+23);
+      lx += w + gap;
     });
   } else {
     // Bar / line
-    const padL = 70, padR = 24, padT = 24, padB = 60;
+    const padL = 80, padR = 28, padT = 28, padB = 72;
     const innerX = chartX + padL;
     const innerY = chartY + padT;
     const innerW = chartW - padL - padR;
     const innerH = chartH - padT - padB;
-    // grid
-    ctx.strokeStyle = 'rgba(22,32,27,.08)';
+    // grid sutil
+    ctx.strokeStyle = 'rgba(22,32,27,.07)';
     ctx.lineWidth = 1;
     for (let i=0;i<=4;i++){
       const y = innerY + (innerH/4)*i;
       ctx.beginPath(); ctx.moveTo(innerX, y); ctx.lineTo(innerX+innerW, y); ctx.stroke();
       ctx.fillStyle = '#6b7a6e';
-      ctx.font = `600 11px Inter, sans-serif`;
+      ctx.font = `700 13px Inter, sans-serif`;
       ctx.textAlign = 'right';
       ctx.fillText(String(Math.round(maxVal - (maxVal/4)*i)), innerX - 10, y + 4);
       ctx.textAlign = 'left';
@@ -333,24 +383,29 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       const h = (d.value / maxVal) * innerH;
       const x = innerX + (innerW/datos.length)*i + gap/2;
       const y = innerY + innerH - h;
-      // barra degradada familia
+      // barra degradada familia con sombra
+      ctx.shadowColor = 'rgba(22,32,27,.12)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 4;
       const grd = ctx.createLinearGradient(x, y, x, y+h);
       grd.addColorStop(0, family.color);
       grd.addColorStop(1, family.secondary);
       ctx.fillStyle = grd;
-      roundedRect(ctx, x, y, barW, h, 6);
+      roundedRect(ctx, x, y, barW, h, 8);
       ctx.fill();
-      // valor arriba
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      // valor grande arriba
       ctx.fillStyle = family.secondary;
-      ctx.font = `800 13px Inter, sans-serif`;
+      ctx.font = `900 20px Inter, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText(String(d.value), x + barW/2, y - 8);
-      // label abajo
+      ctx.fillText(d.value.toLocaleString('es-AR'), x + barW/2, y - 14);
+      // label abajo — más grande y legible
       ctx.fillStyle = '#16201b';
-      ctx.font = `600 11px Inter, sans-serif`;
-      const labLines = wrapText(ctx, d.label, barW + gap);
-      let lyy = innerY + innerH + 16;
-      labLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, x+barW/2, lyy); lyy+=12; });
+      ctx.font = `700 14px Inter, sans-serif`;
+      const labLines = wrapText(ctx, d.label, barW + gap + 12);
+      let lyy = innerY + innerH + 22;
+      labLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, x+barW/2, lyy); lyy+=16; });
       ctx.textAlign = 'left';
     });
     if (tipo === 'line') {
@@ -388,7 +443,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   ctx.fillRect(0, H - 4, W, 4);
 }
 
-// Timeline placa estilo Placas v2
+// Timeline placa — rediseñada, ocupa espacio, tipografía grande y glifos
 function renderTimelinePlaca(canvas, timeline, family, titulo) {
   const ctx = canvas.getContext('2d');
   const W = 1350, H = 1688;
@@ -400,70 +455,220 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
   ctx.fillRect(0,0,W,H);
   const margin = W*0.055;
   if (logoReady) {
-    const logoW = W*0.28; const logoH=H*0.06;
+    const logoW = W*0.32; const logoH=H*0.07;
     const scale = Math.min(logoW/logoImage.naturalWidth, logoH/logoImage.naturalHeight);
     ctx.drawImage(logoImage, W-margin - logoImage.naturalWidth*scale, 28, logoImage.naturalWidth*scale, logoImage.naturalHeight*scale);
   } else {
-    ctx.fillStyle = family.secondary; ctx.font=`900 16px Inter, sans-serif`; ctx.textAlign='right'; ctx.fillText('mediamendoza.com', W-margin,48); ctx.textAlign='left';
+    ctx.fillStyle = family.secondary; ctx.font=`900 17px Inter, sans-serif`; ctx.textAlign='right'; ctx.fillText('mediamendoza.com', W-margin,52); ctx.textAlign='left';
   }
   const labelText='LÍNEA DE TIEMPO';
-  ctx.font=`900 20px Inter, sans-serif`; const padX=16; const lw=ctx.measureText(labelText).width+padX*2; const lh=36, ly=72;
-  ctx.fillStyle=family.color; roundedRect(ctx,margin,ly,lw,lh,7); ctx.fill();
-  ctx.fillStyle='#fff'; ctx.textBaseline='middle'; ctx.font=`900 14px Inter, sans-serif`; ctx.fillText(labelText, margin+padX, ly+lh/2+1); ctx.textBaseline='alphabetic';
-  ctx.fillStyle=family.secondary; ctx.font=`700 11px Inter, sans-serif`; ctx.fillText(family.label.toUpperCase(), margin+lw+12, ly+lh/2+4);
-  let tSize=46; let tLines=[];
+  ctx.font=`900 20px Inter, sans-serif`; const padX=18; const lw=ctx.measureText(labelText).width+padX*2; const lh=38, ly=74;
+  ctx.fillStyle=family.color; roundedRect(ctx,margin,ly,lw,lh,8); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.textBaseline='middle'; ctx.font=`900 15px Inter, sans-serif`; ctx.fillText(labelText, margin+padX, ly+lh/2+1); ctx.textBaseline='alphabetic';
+  ctx.fillStyle=family.secondary; ctx.font=`800 12px Inter, sans-serif`; ctx.fillText(family.label.toUpperCase(), margin+lw+14, ly+lh/2+4);
+  let tSize=54; let tLines=[];
   const tW=W-margin*2;
-  while(tSize>=28){ ctx.font=`900 ${tSize}px Inter, sans-serif`; tLines=wrapText(ctx,titulo,tW); if(tLines.length<=2 && tLines.length*tSize*1.1<=110) break; tSize-=1; }
-  ctx.fillStyle=family.secondary; ctx.font=`900 ${tSize}px Inter, sans-serif`; let ty=150+tSize; tLines.slice(0,2).forEach(l=>{ctx.fillText(l,margin,ty); ty+=tSize*1.1;});
-  // Línea vertical timeline
-  const tlX = margin + 36;
-  const tlY = 300;
-  const tlH = H - 420;
-  ctx.strokeStyle='rgba(22,32,27,.12)'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(tlX, tlY); ctx.lineTo(tlX, tlY+tlH); ctx.stroke();
+  while(tSize>=30){ ctx.font=`900 ${tSize}px Inter, sans-serif`; tLines=wrapText(ctx,titulo,tW); if(tLines.length<=2 && tLines.length*tSize*1.08<=125) break; tSize-=1; }
+  ctx.fillStyle=family.secondary; ctx.font=`900 ${tSize}px Inter, sans-serif`; let ty=158+tSize; tLines.slice(0,2).forEach(l=>{ctx.fillText(l,margin,ty); ty+=tSize*1.08;});
+  // Subrayado acento
+  ctx.fillStyle=family.color; ctx.fillRect(margin, ty+8, 44, 4);
+  // Línea vertical — más gruesa y con sombra
+  const tlX = margin + 44;
+  const tlY = ty + 42;
+  const tlH = H - tlY - 96;
+  ctx.strokeStyle='rgba(22,32,27,.10)'; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(tlX, tlY); ctx.lineTo(tlX, tlY+tlH); ctx.stroke();
   const n = timeline.length;
   const step = tlH / Math.max(1, n-1);
+  // Glifos para timeline
+  const glyphs = ['◈','⬢','⬣','★','◆'];
   timeline.forEach((it,i)=>{
     const y = tlY + step*i;
     const hi = !!it.highlight;
-    ctx.beginPath(); ctx.arc(tlX, y, hi?14:9, 0, Math.PI*2); ctx.fillStyle= hi? family.color : '#ffffff'; ctx.fill(); ctx.strokeStyle= hi? family.color : 'rgba(22,32,27,.2)'; ctx.lineWidth= hi?3:2; ctx.stroke();
-    if (hi){ ctx.beginPath(); ctx.arc(tlX,y,5,0,Math.PI*2); ctx.fillStyle=family.secondary; ctx.fill(); }
-    // tarjeta
-    const cardX = tlX + 28;
+    // punto con anillo
+    ctx.shadowColor='rgba(22,32,27,.14)'; ctx.shadowBlur=8; ctx.shadowOffsetY=3;
+    ctx.beginPath(); ctx.arc(tlX, y, hi?18:13, 0, Math.PI*2); ctx.fillStyle= hi? family.color : '#ffffff'; ctx.fill();
+    ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+    ctx.strokeStyle= hi? family.color : family.secondary; ctx.lineWidth= hi?4:3; ctx.stroke();
+    if (hi){ ctx.beginPath(); ctx.arc(tlX,y,6,0,Math.PI*2); ctx.fillStyle='#ffffff'; ctx.fill(); }
+    else {
+      ctx.fillStyle=family.secondary; ctx.font=`900 10px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(glyphs[i % glyphs.length], tlX, y+1);
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    }
+    // tarjeta — más grande, con sombra y tipografía Placas v2
+    const cardX = tlX + 36;
     const cardW = W - cardX - margin;
-    const cardH = 148;
-    const cardY = y - 46;
-    ctx.fillStyle = hi ? '#ffffff' : 'rgba(255,255,255,.92)';
-    roundedRect(ctx, cardX, cardY, cardW, cardH, 12);
+    const cardH = 188;
+    const cardY = y - 58;
+    ctx.shadowColor='rgba(22,32,27,.08)'; ctx.shadowBlur=12; ctx.shadowOffsetY=6;
+    ctx.fillStyle = hi ? '#ffffff' : '#ffffff';
+    roundedRect(ctx, cardX, cardY, cardW, cardH, 14);
     ctx.fill();
-    ctx.strokeStyle='rgba(22,32,27,.08)'; ctx.stroke();
-    ctx.fillStyle=family.color; roundedRect(ctx,cardX,cardY,6,cardH,3); ctx.fill();
-    ctx.fillStyle=family.secondary; ctx.font=`800 13px Inter, sans-serif`; ctx.fillText(String(it.label||''), cardX+18, cardY+28);
-    ctx.fillStyle='#16201b'; ctx.font=`900 20px Inter, sans-serif`; ctx.fillText(String(it.value||''), cardX+18, cardY+58);
-    ctx.fillStyle='#526058'; ctx.font=`600 12px Inter, sans-serif`; const subLines=wrapText(ctx, String(it.sub||''), cardW-36); ctx.fillText(subLines[0]||'', cardX+18, cardY+82);
-    if (subLines[1]) ctx.fillText(subLines[1], cardX+18, cardY+98);
+    ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+    ctx.strokeStyle= hi ? family.color : 'rgba(22,32,27,.08)'; ctx.lineWidth= hi?2:1; ctx.stroke();
+    // accent lateral grueso
+    ctx.fillStyle= hi ? family.color : family.secondary;
+    roundedRect(ctx,cardX,cardY,8,cardH,4); ctx.fill();
+    // año/label — grande
+    ctx.fillStyle= hi ? family.color : '#6b7a6e';
+    ctx.font=`800 13px Inter, sans-serif`;
+    let label = String(it.label||'').toUpperCase();
+    // glifo + label
+    ctx.fillText(glyphs[i % glyphs.length] + '  ' + label, cardX+22, cardY+32);
+    // valor — muy grande
+    ctx.fillStyle= hi ? family.secondary : '#16201b';
+    ctx.font=`900 26px Inter, sans-serif`;
+    // envolver valor si es largo
+    const valLines = wrapText(ctx, String(it.value||''), cardW-44);
+    ctx.fillText(valLines[0]||'', cardX+22, cardY+66);
+    if (valLines[1]) { ctx.font=`900 20px Inter, sans-serif`; ctx.fillText(valLines[1], cardX+22, cardY+90); }
+    // sub — más grande y legible
+    ctx.fillStyle='#526058'; ctx.font=`600 14px Inter, sans-serif`;
+    const sub = String(it.sub||'').trim();
+    if (sub) {
+      const subLines=wrapText(ctx, sub, cardW-44);
+      ctx.fillText(subLines[0]||'', cardX+22, cardY+108);
+      if (subLines[1]) ctx.fillText(subLines[1], cardX+22, cardY+126);
+    }
+    // fecha pequeña en esquina si existe
+    if (hi) {
+      ctx.fillStyle='#ffffff'; ctx.font=`700 10px Inter, sans-serif`;
+      const badge = 'AHORA';
+      const bw = ctx.measureText(badge).width + 16;
+      ctx.fillStyle=family.color; roundedRect(ctx, cardX+cardW - bw - 12, cardY+14, bw, 20, 10); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.fillText(badge, cardX+cardW - bw -4, cardY+28);
+    }
   });
-  const footerY=H-56; ctx.fillStyle='rgba(22,32,27,.14)'; ctx.fillRect(margin,footerY-12,W-margin*2,1); ctx.fillStyle='#6b7a6e'; ctx.font=`700 12px Inter, sans-serif`; ctx.fillText('www.mediamendoza.com', margin, footerY+10); ctx.textAlign='right'; ctx.fillStyle=family.color; ctx.font=`900 12px Inter, sans-serif`; ctx.fillText('mediamendoza  •  LÍNEA DE TIEMPO', W-margin, footerY+10); ctx.textAlign='left'; ctx.fillStyle=family.color; ctx.fillRect(0,H-4,W,4);
+  const footerY=H-56; ctx.fillStyle='rgba(22,32,27,.12)'; ctx.fillRect(margin,footerY-12,W-margin*2,1); ctx.fillStyle='#6b7a6e'; ctx.font=`700 12px Inter, sans-serif`; ctx.fillText('www.mediamendoza.com', margin, footerY+10); ctx.textAlign='right'; ctx.fillStyle=family.color; ctx.font=`900 12px Inter, sans-serif`; ctx.fillText('mediamendoza  •  LÍNEA DE TIEMPO', W-margin, footerY+10); ctx.textAlign='left'; ctx.fillStyle=family.color; ctx.fillRect(0,H-4,W,4);
 }
 
-// Infografía placa
+// Infografía — rediseñada como infografía real con glifos, no tarjetas repetidas
 function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   const ctx = canvas.getContext('2d');
   const W=1350,H=1688; canvas.width=W; canvas.height=H;
   const grad=ctx.createLinearGradient(0,0,W,H); grad.addColorStop(0,'#ffffff'); grad.addColorStop(1,family.soft); ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
   const margin=W*0.055;
-  if (logoReady){ const lw=W*0.28, lh=H*0.06; const sc=Math.min(lw/logoImage.naturalWidth,lh/logoImage.naturalHeight); ctx.drawImage(logoImage, W-margin - logoImage.naturalWidth*sc,28, logoImage.naturalWidth*sc, logoImage.naturalHeight*sc);} else { ctx.fillStyle=family.secondary; ctx.font=`900 16px Inter, sans-serif`; ctx.textAlign='right'; ctx.fillText('mediamendoza.com',W-margin,48); ctx.textAlign='left';}
-  const labelText='INFOGRAFÍA'; ctx.font=`900 20px Inter, sans-serif`; const padX=16; const lw=ctx.measureText(labelText).width+padX*2; const lh=36, ly=72; ctx.fillStyle=family.color; roundedRect(ctx,margin,ly,lw,lh,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.textBaseline='middle'; ctx.font=`900 14px Inter, sans-serif`; ctx.fillText(labelText,margin+padX,ly+lh/2+1); ctx.textBaseline='alphabetic'; ctx.fillStyle=family.secondary; ctx.font=`700 11px Inter, sans-serif`; ctx.fillText(family.label.toUpperCase(),margin+lw+12,ly+lh/2+4);
-  let tSize=46; let tLines=[]; const tW=W-margin*2; while(tSize>=28){ ctx.font=`900 ${tSize}px Inter, sans-serif`; tLines=wrapText(ctx, infografia.titulo || titulo, tW); if(tLines.length<=2) break; tSize-=1; } ctx.fillStyle=family.secondary; ctx.font=`900 ${tSize}px Inter, sans-serif`; let ty=150+tSize; tLines.slice(0,2).forEach(l=>{ctx.fillText(l,margin,ty); ty+=tSize*1.1;});
-  const listY = ty + 36;
+  // Header
+  if (logoReady){ const lw=W*0.32, lh=H*0.07; const sc=Math.min(lw/logoImage.naturalWidth,lh/logoImage.naturalHeight); ctx.drawImage(logoImage, W-margin - logoImage.naturalWidth*sc,28, logoImage.naturalWidth*sc, logoImage.naturalHeight*sc);} else { ctx.fillStyle=family.secondary; ctx.font=`900 17px Inter, sans-serif`; ctx.textAlign='right'; ctx.fillText('mediamendoza.com',W-margin,52); ctx.textAlign='left';}
+  const labelText='INFOGRAFÍA'; ctx.font=`900 20px Inter, sans-serif`; const padX=18; const lw=ctx.measureText(labelText).width+padX*2; const lh=38, ly=74; ctx.fillStyle=family.color; roundedRect(ctx,margin,ly,lw,lh,8); ctx.fill(); ctx.fillStyle='#fff'; ctx.textBaseline='middle'; ctx.font=`900 15px Inter, sans-serif`; ctx.fillText(labelText,margin+padX,ly+lh/2+1); ctx.textBaseline='alphabetic'; ctx.fillStyle=family.secondary; ctx.font=`800 12px Inter, sans-serif`; ctx.fillText(family.label.toUpperCase(),margin+lw+14,ly+lh/2+4);
+  // Título — grande
+  let tSize=52; let tLines=[]; const tW=W-margin*2; const rawTitle = infografia.titulo || titulo;
+  while(tSize>=30){ ctx.font=`900 ${tSize}px Inter, sans-serif`; tLines=wrapText(ctx, rawTitle, tW); if(tLines.length<=2 && tLines.length*tSize*1.08<=125) break; tSize-=1; }
+  ctx.fillStyle=family.secondary; ctx.font=`900 ${tSize}px Inter, sans-serif`; let ty=158+tSize; tLines.slice(0,2).forEach(l=>{ctx.fillText(l,margin,ty); ty+=tSize*1.08;});
+  ctx.fillStyle=family.color; ctx.fillRect(margin, ty+10, 48, 4);
+  // Glifos por contenido — elige icono según palabras clave
+  function pickGlyph(text, idx){
+    const t = String(text).toLowerCase();
+    if (t.includes('crédito') || t.includes('credito') || t.includes('15.000')) return '◈';
+    if (t.includes('familia') || t.includes('mora') || t.includes('5.000')) return '⚑';
+    if (t.includes('solucion') || t.includes('2.600') || t.includes('ejecución')) return '⬢';
+    if (t.includes('2027') || t.includes('agosto') || t.includes('fecha')) return '⬣';
+    if (t.includes('invers') || t.includes('millon')) return '◆';
+    if (t.includes('avion') || t.includes('area')) return '✦';
+    return ['◈','⬢','⬣','◆'][idx % 4];
+  }
   const lineas = infografia.lineas || [];
-  const cardH = Math.min(150, (H - listY - 100)/Math.max(1,lineas.length) - 14);
-  lineas.forEach((linea,i)=>{
-    const y = listY + i*(cardH+14);
-    ctx.fillStyle='#ffffff'; roundedRect(ctx,margin,y,W-margin*2,cardH,14); ctx.fill(); ctx.strokeStyle='rgba(22,32,27,.08)'; ctx.stroke();
-    ctx.fillStyle=family.color; ctx.beginPath(); ctx.arc(margin+28, y+cardH/2, 18,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.font=`900 16px Inter, sans-serif`; ctx.textAlign='center'; ctx.fillText(String(i+1), margin+28, y+cardH/2+5); ctx.textAlign='left';
-    ctx.fillStyle='#16201b'; let s=20; let lines=[]; while(s>=14){ ctx.font=`700 ${s}px Inter, sans-serif`; lines=wrapText(ctx, linea, W-margin*2 - 72); if(lines.length<=2) break; s-=1; } ctx.font=`700 ${s}px Inter, sans-serif`; let lyy=y+ cardH/2 - (lines.length* s*1.2)/2 + s*0.8; lines.slice(0,2).forEach(ll=>{ctx.fillText(ll, margin+56, lyy); lyy+=s*1.2;});
-  });
-  const footerY=H-56; ctx.fillStyle='rgba(22,32,27,.14)'; ctx.fillRect(margin,footerY-12,W-margin*2,1); ctx.fillStyle='#6b7a6e'; ctx.font=`700 12px Inter, sans-serif`; ctx.fillText('www.mediamendoza.com', margin, footerY+10); ctx.textAlign='right'; ctx.fillStyle=family.color; ctx.font=`900 12px Inter, sans-serif`; ctx.fillText('mediamendoza  •  INFOGRAFÍA', W-margin, footerY+10); ctx.textAlign='left'; ctx.fillStyle=family.color; ctx.fillRect(0,H-4,W,4);
+  const n = lineas.length;
+  // Layout: si son 4, usamos 2x2 grid para aprovechar espacio; si son 3, vertical grande
+  if (n === 4) {
+    const gap = 18;
+    const cardW = (W - margin*2 - gap)/2;
+    const cardH = 360;
+    const startY = ty + 34;
+    lineas.forEach((linea,i)=>{
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = margin + col*(cardW+gap);
+      const y = startY + row*(cardH+gap);
+      // tarjeta con fondo blanco y borde sutil + sombra
+      ctx.shadowColor='rgba(22,32,27,.08)'; ctx.shadowBlur=12; ctx.shadowOffsetY=6;
+      ctx.fillStyle='#ffffff'; roundedRect(ctx,x,y,cardW,cardH,18); ctx.fill();
+      ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+      ctx.strokeStyle='rgba(22,32,27,.07)'; ctx.stroke();
+      // accent top
+      ctx.fillStyle=family.color; roundedRect(ctx,x,y,cardW,6,6); ctx.fill();
+      // glifo grande
+      const glyph = pickGlyph(linea,i);
+      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(x+32, y+42, 28,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=family.color; ctx.font=`900 22px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(glyph, x+32, y+42);
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+      // extraer número grande si existe
+      const numMatch = String(linea).match(/(\d[\d\.\,]*)/);
+      const num = numMatch ? numMatch[1] : String(i+1);
+      const rest = String(linea).replace(numMatch? numMatch[0] : '', '').replace(/^\s*[\-\—\:]?\s*/,'').trim() || linea;
+      // número gigante
+      ctx.fillStyle=family.secondary; ctx.font=`900 36px Inter, sans-serif`;
+      // si es número, mostrarlo grande
+      if (numMatch) {
+        ctx.fillText(num, x+72, y+62);
+        // unidad pequeña
+        const afterNum = String(linea).slice(String(linea).indexOf(num)+num.length).trim().split(' ')[0] || '';
+        if (afterNum && afterNum.length < 10) {
+          ctx.fillStyle='#6b7a6e'; ctx.font=`700 13px Inter, sans-serif`; ctx.fillText(afterNum, x+72+ctx.measureText(num).width+8, y+62);
+          ctx.fillStyle=family.secondary;
+        }
+        // descripción
+        ctx.fillStyle='#16201b'; ctx.font=`700 16px Inter, sans-serif`;
+        const descLines = wrapText(ctx, rest, cardW-36);
+        let lyy = y+92;
+        descLines.slice(0,3).forEach(ll=>{ ctx.fillText(ll, x+18, lyy); lyy+=20; });
+      } else {
+        ctx.fillStyle='#16201b'; ctx.font=`700 18px Inter, sans-serif`;
+        const descLines = wrapText(ctx, linea, cardW-36);
+        let lyy = y+92;
+        descLines.slice(0,4).forEach(ll=>{ ctx.fillText(ll, x+18, lyy); lyy+=22; });
+      }
+      // número pequeño esquina
+      ctx.fillStyle='rgba(22,32,27,.08)'; ctx.font=`900 42px Inter, sans-serif`; ctx.textAlign='right';
+      ctx.fillText(String(i+1), x+cardW-18, y+cardH-18);
+      ctx.textAlign='left';
+    });
+  } else {
+    // 2-3 líneas: vertical grande con iconos
+    const listY = ty + 34;
+    const cardH = Math.floor((H - listY - 96) / Math.max(1,n)) - 14;
+    lineas.forEach((linea,i)=>{
+      const y = listY + i*(cardH+14);
+      ctx.shadowColor='rgba(22,32,27,.07)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
+      ctx.fillStyle='#ffffff'; roundedRect(ctx,margin,y,W-margin*2,cardH,16); ctx.fill();
+      ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+      ctx.strokeStyle='rgba(22,32,27,.07)'; ctx.stroke();
+      // barra lateral
+      ctx.fillStyle=family.color; roundedRect(ctx,margin,y,8,cardH,4); ctx.fill();
+      // glifo círculo grande
+      const glyph = pickGlyph(linea,i);
+      const cx = margin + 52; const cy = y + cardH/2;
+      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(cx, cy, 36,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=family.color; ctx.beginPath(); ctx.arc(cx, cy, 34,0,Math.PI*2); ctx.strokeStyle=family.color; ctx.lineWidth=2; ctx.stroke();
+      ctx.fillStyle=family.color; ctx.font=`900 24px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(glyph, cx, cy);
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+      // extraer número
+      const numMatch = String(linea).match(/(\d[\d\.\,]*\s*[a-zA-Z]*)/);
+      const fullNum = numMatch ? numMatch[1].trim() : '';
+      const rest = fullNum ? String(linea).replace(fullNum,'').trim().replace(/^[\-\—\:]?\s*/,'') : linea;
+      // número y texto
+      if (fullNum) {
+        ctx.fillStyle=family.secondary; ctx.font=`900 28px Inter, sans-serif`;
+        ctx.fillText(fullNum, margin+98, y+52);
+        ctx.fillStyle='#16201b'; ctx.font=`600 15px Inter, sans-serif`;
+        const descLines = wrapText(ctx, rest, W-margin*2 - 130);
+        let lyy = y+78;
+        descLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, margin+98, lyy); lyy+=18; });
+      } else {
+        ctx.fillStyle='#16201b'; ctx.font=`700 20px Inter, sans-serif`;
+        const lines = wrapText(ctx, linea, W-margin*2 - 110);
+        let lyy = y+ cardH/2 - (lines.length*20)/2 + 7;
+        lines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, margin+98, lyy); lyy+=22; });
+      }
+      // índice sutil
+      ctx.fillStyle='rgba(22,32,27,.06)'; ctx.font=`900 56px Inter, sans-serif`; ctx.textAlign='right';
+      ctx.fillText(String(i+1), W-margin-18, y+cardH-18);
+      ctx.textAlign='left';
+    });
+  }
+  const footerY=H-56; ctx.fillStyle='rgba(22,32,27,.12)'; ctx.fillRect(margin,footerY-12,W-margin*2,1); ctx.fillStyle='#6b7a6e'; ctx.font=`700 12px Inter, sans-serif`; ctx.fillText('www.mediamendoza.com', margin, footerY+10); ctx.textAlign='right'; ctx.fillStyle=family.color; ctx.font=`900 12px Inter, sans-serif`; ctx.fillText('mediamendoza  •  INFOGRAFÍA', W-margin, footerY+10); ctx.textAlign='left'; ctx.fillStyle=family.color; ctx.fillRect(0,H-4,W,4);
 }
 
 function showResults(data, url) {
