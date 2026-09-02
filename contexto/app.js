@@ -18,7 +18,7 @@ function calculatePlateLayout(format, plate = {}) {
   const canvas = FORMATS[format] || FORMATS.portrait;
   const margin = canvas.w * 0.055;
   const isStory = format === 'story';
-  const footerY = canvas.h * 0.92;
+  const footerY = canvas.h * 0.90;
   const footerH = canvas.h - footerY - canvas.h * 0.025;
   // Simplified layout like Que cambia for portrait
   const headerH = canvas.h * 0.08;
@@ -258,7 +258,7 @@ function renderPlacaV2(data) {
   let ty = H * 0.14 + tSize;
   tLines.slice(0,2).forEach(l=>{ ctx.fillText(l, margin, ty); ty+= tSize*1.08; });
   // 3 impactos como Que cambia
-  const footerY = H * 0.92;
+  const footerY = H * 0.90;
   const impactsY = H * 0.35;
   const impactsH = footerY - H * 0.39;
   const gap = H * 0.018;
@@ -287,16 +287,16 @@ function renderPlacaV2(data) {
     lines.slice(0,2).forEach(l=>{ ctx.fillText(l, margin + cardW*0.07, ly); ly+= vSize*1.05; });
   });
   // Footer
-  ctx.strokeStyle = 'rgba(22,32,27,.12)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(22,32,27,.18)';
+  ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(margin, footerY); ctx.lineTo(W-margin, footerY); ctx.stroke();
   ctx.fillStyle = '#526058';
   ctx.font = `700 ${Math.max(11, W*0.011)}px Inter, sans-serif`;
-  ctx.fillText('Fuente: mediamendoza', margin, footerY + 18);
+  ctx.fillText('Fuente: mediamendoza', margin, footerY + 22);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#526058';
   ctx.font = `700 ${Math.max(11, W*0.011)}px Inter, sans-serif`;
-  ctx.fillText('www.mediamendoza.com', W-margin, footerY+18);
+  ctx.fillText('www.mediamendoza.com', W-margin, footerY+22);
   ctx.textAlign = 'left';
 }
 
@@ -540,16 +540,17 @@ function renderChartPlaca(canvas, chart, family, titulo) {
     });
   }
   // Footer como Que cambia
-  const footerY = layout.footer.y;
-  ctx.strokeStyle = 'rgba(22,32,27,.12)';
+  const footerY = layout.footer.y; // footer at 0.90*H from layout
+  ctx.strokeStyle = 'rgba(22,32,27,.18)';
+  ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(layout.footer.x, footerY); ctx.lineTo(W - layout.footer.x, footerY); ctx.stroke();
   ctx.fillStyle = '#526058';
-  ctx.font = `700 11px Inter, sans-serif`;
-  ctx.fillText('Fuente: mediamendoza', layout.footer.x, footerY + 16);
+  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.fillText('Fuente: mediamendoza', layout.footer.x, footerY + 22);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#526058';
-  ctx.font = `700 11px Inter, sans-serif`;
-  ctx.fillText('www.mediamendoza.com', W - layout.footer.x, footerY + 16);
+  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.fillText('www.mediamendoza.com', W - layout.footer.x, footerY + 22);
   ctx.textAlign = 'left';
 }
 
@@ -667,16 +668,17 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
     }
   });
   // Footer como Que cambia
-  const footerY = layout.footer.y;
-  ctx.strokeStyle = 'rgba(22,32,27,.12)';
+  const footerY = layout.footer.y; // footer at 0.90*H from layout
+  ctx.strokeStyle = 'rgba(22,32,27,.18)';
+  ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(layout.footer.x, footerY); ctx.lineTo(W - layout.footer.x, footerY); ctx.stroke();
   ctx.fillStyle = '#526058';
-  ctx.font = `700 11px Inter, sans-serif`;
-  ctx.fillText('Fuente: mediamendoza', layout.footer.x, footerY + 16);
+  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.fillText('Fuente: mediamendoza', layout.footer.x, footerY + 22);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#526058';
-  ctx.font = `700 11px Inter, sans-serif`;
-  ctx.fillText('www.mediamendoza.com', W - layout.footer.x, footerY + 16);
+  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.fillText('www.mediamendoza.com', W - layout.footer.x, footerY + 22);
   ctx.textAlign = 'left';
 }
 
@@ -822,16 +824,17 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
     });
   }
   // Footer como Que cambia
-  const footerY = layout.footer.y;
-  ctx.strokeStyle = 'rgba(22,32,27,.12)';
+  const footerY = layout.footer.y; // footer at 0.90*H from layout
+  ctx.strokeStyle = 'rgba(22,32,27,.18)';
+  ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(layout.footer.x, footerY); ctx.lineTo(W - layout.footer.x, footerY); ctx.stroke();
   ctx.fillStyle = '#526058';
-  ctx.font = `700 11px Inter, sans-serif`;
-  ctx.fillText('Fuente: mediamendoza', layout.footer.x, footerY + 16);
+  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.fillText('Fuente: mediamendoza', layout.footer.x, footerY + 22);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#526058';
-  ctx.font = `700 11px Inter, sans-serif`;
-  ctx.fillText('www.mediamendoza.com', W - layout.footer.x, footerY + 16);
+  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.fillText('www.mediamendoza.com', W - layout.footer.x, footerY + 22);
   ctx.textAlign = 'left';
 }
 
