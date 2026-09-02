@@ -229,8 +229,8 @@ function renderPlacaV2(data) {
   const headerH = 86;
   if (logoReady && logoImage.complete && logoImage.naturalWidth) {
     const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
-    const logoW = W * 0.26;
-    const logoH = H * 0.08;
+    const logoW = W * 0.22;
+    const logoH = H * 0.07;
     const scale = Math.min(logoW/iw, logoH/ih);
     const dw = iw*scale, dh = ih*scale;
     ctx.drawImage(logoImage, W - margin - dw, H * 0.035, dw, dh);
@@ -245,12 +245,12 @@ function renderPlacaV2(data) {
   ctx.fillText(labelText, labelX, labelY + labelH * 0.74);
   // Título
   const titleW = W - margin*2;
-  let tSize = 44;
+  let tSize = 48;
   let tLines = [];
-  while (tSize >= 30) {
+  while (tSize >= 32) {
     ctx.font = `900 ${tSize}px Inter, sans-serif`;
     tLines = wrapText(ctx, titulo, titleW);
-    if (tLines.length <= 2 && tLines.length * tSize * 1.08 <= 110) break;
+    if (tLines.length <= 2 && tLines.length * tSize * 1.08 <= 120) break;
     tSize -= 1;
   }
   ctx.fillStyle = family.secondary;
@@ -384,13 +384,13 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   ctx.fillStyle = family.soft;
   ctx.fillRect(0,0,W,H);
   // Header como Que cambia — logo sin modificar
-  const logoW = W * 0.26;
-  const logoH = H * 0.08;
+  const logoW = W * 0.22;
+  const logoH = H * 0.07;
   if (logoReady && logoImage.complete && logoImage.naturalWidth) {
     const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
     const scale = Math.min(logoW/iw, logoH/ih);
     const dw = iw*scale, dh = ih*scale;
-    ctx.drawImage(logoImage, W - W*0.05 - dw, H * 0.035, dw, dh);
+    ctx.drawImage(logoImage, W - margin - dw, 28, dw, dh);
   }
   // Etiqueta GRÁFICO como Que cambia (QUÉ CAMBIA)
   ctx.fillStyle = family.color;
@@ -398,7 +398,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   ctx.fillText('GRÁFICO', layout.label.x, layout.label.y + layout.label.h*0.74);
   // Título
   const titleW = layout.title.w;
-  let tSize = 42;
+  let tSize = 48;
   let tLines = [];
   while (tSize >= 28) {
     ctx.font = `900 ${tSize}px Inter, sans-serif`;
@@ -415,7 +415,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
     ctx.fillStyle = family.color;
     ctx.fillRect(layout.title.x, ty+10, 40, 4);
     ctx.fillStyle = '#16201b';
-    ctx.font = `700 15px Inter, sans-serif`;
+    ctx.font = `700 18px Inter, sans-serif`;
     const subLines = wrapText(ctx, chart.titulo, titleW);
     let syy = ty+28;
     subLines.slice(0,1).forEach(l=>{ ctx.fillText(l, layout.title.x, syy); syy+=18; });
@@ -437,7 +437,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   if (tipo === 'pie' || tipo === 'doughnut') {
     const cx = chartX + chartW/2;
     const cy = chartY + chartH*0.44;
-    const radius = Math.min(280, Math.min(chartW*0.36, chartH*0.38));
+    const radius = Math.min(340, Math.min(chartW*0.42, chartH*0.42));
     const hole = tipo === 'doughnut' ? radius*0.52 : 0;
     let start = -Math.PI/2;
     const colors = [family.color, family.secondary, '#7a9e1f', '#367d9c', '#b36b27', '#5b4c91'];
@@ -482,8 +482,8 @@ function renderChartPlaca(canvas, chart, family, titulo) {
     let ly = legendY;
     datos.forEach((d,i)=>{
       const label = `${d.label}: ${d.value.toLocaleString('es-AR')} (${Math.round(d.value/total*100)}%)`;
-      ctx.font = `700 13px Inter, sans-serif`;
-      const w = ctx.measureText(label).width + 36;
+      ctx.font = `700 15px Inter, sans-serif`;
+      const w = ctx.measureText(label).width + 40;
       if (lx + w > chartX + chartW - 16) { lx = chartX + 16; ly += pillH + 8; }
       ctx.fillStyle = i===0 ? family.color : i===1 ? family.secondary : '#f2f4f0';
       roundedRect(ctx, lx, ly, w, pillH, pillH/2);
@@ -579,19 +579,19 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
   ctx.fillRect(0,0,W,H);
   const margin = W * 0.055;
   // Header
-  const logoW = W * 0.26; const logoH = H * 0.08;
+  const logoW = W * 0.22; const logoH = H * 0.07;
   if (logoReady && logoImage.complete && logoImage.naturalWidth) {
     const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
     const scale = Math.min(logoW/iw, logoH/ih);
     const dw = iw*scale, dh = ih*scale;
-    ctx.drawImage(logoImage, W - W*0.05 - dw, H * 0.035, dw, dh);
+    ctx.drawImage(logoImage, W - margin - dw, 28, dw, dh);
   }
   ctx.fillStyle = family.color;
   ctx.font = `900 ${Math.max(20, W * 0.024)}px Inter, sans-serif`;
   ctx.fillText('LÍNEA DE TIEMPO', layout.label.x, layout.label.y + layout.label.h*0.74);
   // Título
   const titleW = layout.title.w;
-  let tSize = 42;
+  let tSize = 48;
   let tLines = [];
   while (tSize >= 28) {
     ctx.font = `900 ${tSize}px Inter, sans-serif`;
@@ -706,19 +706,19 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   ctx.fillRect(0,0,W,H);
   const margin = W*0.055;
   // Header
-  const logoW = W * 0.26; const logoH = H * 0.08;
+  const logoW = W * 0.22; const logoH = H * 0.07;
   if (logoReady && logoImage.complete && logoImage.naturalWidth) {
     const iw = logoImage.naturalWidth, ih = logoImage.naturalHeight;
     const scale = Math.min(logoW/iw, logoH/ih);
     const dw = iw*scale, dh = ih*scale;
-    ctx.drawImage(logoImage, W - W*0.05 - dw, H * 0.035, dw, dh);
+    ctx.drawImage(logoImage, W - margin - dw, 28, dw, dh);
   }
   ctx.fillStyle = family.color;
   ctx.font = `900 ${Math.max(20, W*0.024)}px Inter, sans-serif`;
   ctx.fillText('INFOGRAFÍA', layout.label.x, layout.label.y + layout.label.h*0.74);
   // Título
   const titleW = layout.title.w;
-  let tSize=42; let tLines=[];
+  let tSize = 48; let tLines=[];
   while(tSize>=28){ ctx.font=`900 ${tSize}px Inter, sans-serif`; tLines=wrapText(ctx, infografia.titulo || titulo, titleW); if(tLines.length<=2 && tLines.length*tSize*1.08<=layout.title.h) break; tSize-=1; }
   ctx.fillStyle=family.secondary; ctx.font=`900 ${tSize}px Inter, sans-serif`; let ty=layout.title.y + tSize; tLines.slice(0,2).forEach(l=>{ctx.fillText(l, layout.title.x, ty); ty+= tSize*1.08;});
   // Grid 2x2 como Que cambia pero con 4 tarjetas
