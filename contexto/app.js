@@ -257,6 +257,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   ctx.fillStyle = family.soft;
   ctx.fillRect(0,0,W,H);
   const margin = W * 0.055;
+  const headerH = 86;
   // Header — normalizado como Que cambia: fondo claro, sin barra oscura, logo visible
   // Fondo ya es family.soft claro, logo con conversión para que blanco sea visible
   if (logoReady) {
@@ -479,6 +480,7 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
   ctx.fillStyle = family.soft;
   ctx.fillRect(0,0,W,H);
   const margin = W*0.055;
+  const headerH = 86;
   if (logoReady) {
     const logoW = W*0.30; const logoH=44;
     const rect = {x: W - margin - logoW, y: 22, w: logoW, h: logoH};
@@ -574,6 +576,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   ctx.fillStyle = family.soft;
   ctx.fillRect(0,0,W,H);
   const margin=W*0.055;
+  const headerH = 86;
   if (logoReady){
     const lw=W*0.30, lh=44;
     const rect={x: W-margin - lw, y: 22, w: lw, h: lh};
