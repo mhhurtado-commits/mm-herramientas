@@ -6861,7 +6861,7 @@ async function handleContextoGenerar(body, env) {
   titulo = titulo.substring(0, 200);
   categoria = categoria.substring(0, 40);
 
-  const prompt = `Sos editor de Media Mendoza, diario del sur mendocino (San Rafael, Mendoza, Argentina). Analizá esta nota y generá CONTEXTO y ANTECEDENTES para que cualquier lector la entienda en 10 segundos.
+  const prompt = `Sos editor de Media Mendoza, diario del sur mendocino (San Rafael, Mendoza, Argentina). Analizá esta nota y generá CONTEXTO y RECURSOS VISUALES para enriquecerla.
 
 NOTA ORIGINAL:
 Título: ${titulo || "(sin título)"}
@@ -6872,18 +6872,22 @@ ${texto}
 
 INSTRUCCIONES ESTRICTAS:
 - Respondé SOLO con JSON válido sin markdown, sin backticks, sin comentarios.
-- "para_entender": string único con formato "Para entender: 1) ... 2) ... 3) ..." Cada dato debe ser verificable en el cuerpo, máximo 28 palabras por dato. No inventes cifras. Si la nota no tiene 3 datos numéricos, usá datos cualitativos pero concretos.
-- "para_entender_datos": array de 3 strings, cada uno un dato suelto (sin "1)"), para usar en placa.
-- "que_paso_antes": array de exactamente 3 objetos {"titulo": "...", "fuente": "Los Andes|MDZ|Infobae|Gobierno de Mendoza|SMN|etc", "fecha": "DD/MM/AA", "url": "https://..."} con antecedentes reales y relevantes. Si no conocés URLs exactas, usa títulos creíbles y URLs placeholder de esos medios (ej: https://www.losandes.com.ar/...).
-- "gancho_whatsapp": string 55-65 palabras, tono rioplatense directo, sin hashtags, invita a leer la nota completa.
-- "preguntas": array de 5 preguntas periodísticas concretas para seguir la cobertura (quién, cuánto, cuándo, dónde).
-- "timeline": array de 4 hitos ordenados cronológicamente [{"label": "2024", "value": "$480", "sub": "Tarifa"}, ...] El último hito debe tener "highlight": true y representar la nota actual. Si la nota no tiene evolución numérica, usa hitos temporales (ej: 2023 Proyecto, 2024 Debate, 2025 Media sanción, 2026 Tu nota).
-- "categoria": una de general, clima, policiales, sociales, politica, economia, deportes (elegí la más adecuada según el título/cuerpo).
-- "titulo_corto": título reescrito máximo 60 caracteres, informativo.
-- "titulo_placa": título para placa máximo 75 caracteres, impactante.
+- "para_entender": string único con formato "Para entender: 1) ... 2) ... 3) ..." Cada dato debe ser verificable en el cuerpo, máximo 28 palabras por dato. No inventes cifras.
+- "para_entender_datos": array de 3 strings, cada uno un dato suelto (sin "1)"), para usar en placa que-cambia.
+- "que_paso_antes": array de exactamente 3 objetos {"titulo": "...", "fuente": "Los Andes|MDZ|Infobae|Gobierno de Mendoza", "fecha": "DD/MM/AA", "url": "https://..."} con antecedentes relevantes.
+- "gancho_whatsapp": string 55-65 palabras, tono rioplatense directo, sin hashtags.
+- "preguntas": array de 5 preguntas periodísticas concretas.
+- "timeline": Si la nota tiene evolución temporal clara (fechas, hitos, proceso), devolvé array de 4 hitos [{"label": "2024", "value": "$480", "sub": "Tarifa"}, ...] el último con "highlight": true. Si NO hay evolución temporal, devolvé null.
+- "chart": Si la nota tiene datos comparables NUMÉRICOS (montos, porcentajes, cantidades por categoría/mes), devolvé {"titulo": "Título del gráfico", "tipo": "bar|line|pie", "datos": [{"label": "Et1", "value": 123}, ... 3-6 items]} con valores numéricos. Si NO hay datos graficables, devolvé null. Usa "bar" para comparaciones, "line" para evolución, "pie" para proporciones.
+- "infografia": Si la nota tiene 3-5 datos de alto impacto (cifras, fechas clave, récords) que ameriten una infografía, devolvé {"titulo": "Título infografía", "lineas": ["Dato 1 con cifra", "Dato 2", "Dato 3"]} . Si NO aplica, devolvé null.
+- "categoria": una de general, clima, policiales, sociales, politica, economia, deportes.
+- "titulo_corto": máximo 60 caracteres.
+- "titulo_placa": máximo 75 caracteres.
+
+REGLAS DE NULOS: Sé estricto. Si no hay datos para chart/timeline/infografia, devolvé null y esa placa NO se generará. No inventes.
 
 Formato JSON exacto:
-{"titulo_corto":"...","titulo_placa":"...","categoria":"...","para_entender":"Para entender: 1) ... 2) ... 3) ...","para_entender_datos":["dato1","dato2","dato3"],"que_paso_antes":[{"titulo":"...","fuente":"...","fecha":"...","url":"..."},{"titulo":"...","fuente":"...","fecha":"...","url":"..."},{"titulo":"...","fuente":"...","fecha":"...","url":"..."}],"gancho_whatsapp":"...","preguntas":["...","...","...","...","..."],"timeline":[{"label":"...","value":"...","sub":"..."},{"label":"...","value":"...","sub":"..."},{"label":"...","value":"...","sub":"..."},{"label":"...","value":"...","sub":"...","highlight":true}]}`;
+{"titulo_corto":"...","titulo_placa":"...","categoria":"...","para_entender":"Para entender: 1) ... 2) ... 3) ...","para_entender_datos":["dato1","dato2","dato3"],"que_paso_antes":[{"titulo":"...","fuente":"...","fecha":"...","url":"..."},{"titulo":"...","fuente":"...","fecha":"...","url":"..."},{"titulo":"...","fuente":"...","fecha":"...","url":"..."}],"gancho_whatsapp":"...","preguntas":["...","...","...","...","..."],"timeline":[{"label":"...","value":"...","sub":"..."},null],"chart":null,"infografia":null}`;
 
   const r = await callGemini(prompt, env, false, true);
   if (r.error) return jsonError(r.error, 500);
@@ -6900,12 +6904,37 @@ Formato JSON exacto:
   })).filter(it=>it.titulo) : [];
   const gancho = String(d.gancho_whatsapp||"").trim();
   const preguntas = Array.isArray(d.preguntas) ? d.preguntas.slice(0,5).map(s=>String(s).trim()).filter(Boolean) : [];
-  const timeline = Array.isArray(d.timeline) ? d.timeline.slice(0,4).map((it,i,arr)=>({
-    label: String(it.label||`Hito ${i+1}`).trim(),
-    value: String(it.value||"").trim(),
-    sub: String(it.sub||"").trim(),
-    highlight: i===arr.length-1 ? true : Boolean(it.highlight)
-  })) : [];
+  // Timeline: null si no aplica
+  let timeline = null;
+  if (Array.isArray(d.timeline) && d.timeline.length >= 2) {
+    timeline = d.timeline.slice(0,4).map((it,i,arr)=>({
+      label: String(it.label||`Hito ${i+1}`).trim(),
+      value: String(it.value||"").trim(),
+      sub: String(it.sub||"").trim(),
+      highlight: i===arr.length-1 ? true : Boolean(it.highlight)
+    })).filter(it=>it.label && it.value);
+    if (timeline.length < 2) timeline = null;
+  }
+  // Chart: null si no aplica
+  let chart = null;
+  if (d.chart && typeof d.chart === 'object' && Array.isArray(d.chart.datos) && d.chart.datos.length >= 2) {
+    const tipo = ['bar','line','pie','doughnut'].includes(String(d.chart.tipo||'').toLowerCase()) ? String(d.chart.tipo).toLowerCase() : 'bar';
+    const datos = d.chart.datos.slice(0,6).map(it=>({
+      label: String(it.label||'').trim(),
+      value: Number(it.value)
+    })).filter(it=>it.label && Number.isFinite(it.value));
+    if (datos.length >= 2) {
+      chart = { titulo: String(d.chart.titulo||'').trim() || 'Datos comparados', tipo, datos };
+    }
+  }
+  // Infografia: null si no aplica
+  let infografia = null;
+  if (d.infografia && typeof d.infografia === 'object' && Array.isArray(d.infografia.lineas) && d.infografia.lineas.length >= 2) {
+    const lineas = d.infografia.lineas.slice(0,5).map(s=>String(s).trim()).filter(Boolean);
+    if (lineas.length >= 2) {
+      infografia = { titulo: String(d.infografia.titulo||'').trim() || 'Datos clave', lineas };
+    }
+  }
   const categoriaOut = String(d.categoria||categoria||"general").toLowerCase().trim() || "general";
   const tituloCorto = String(d.titulo_corto||titulo||"").trim().substring(0,80);
   const tituloPlaca = String(d.titulo_placa||tituloCorto||titulo||"").trim().substring(0,90);
@@ -6923,12 +6952,9 @@ Formato JSON exacto:
     que_paso_antes: quePaso,
     gancho_whatsapp: gancho,
     preguntas,
-    timeline: timeline.length ? timeline : [
-      {label:"2024",value:"Dato",sub:"Previo"},
-      {label:"2025",value:"Dato",sub:"Previo"},
-      {label:"2026-01",value:"Dato",sub:"Actual"},
-      {label:"Hoy",value:"Tu nota",sub:"Actual",highlight:true}
-    ]
+    timeline: timeline,
+    chart: chart,
+    infografia: infografia
   });
 }
 

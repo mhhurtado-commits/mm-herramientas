@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -111,17 +112,56 @@
         </div>
       </article>
 
-      <!-- 4 TIMELINE VISUAL -->
+      <!-- 4 PLACA PRINCIPAL -->
       <article class="ctx-card ctx-card--wide">
         <div class="ctx-card-head">
-          <h3>Línea de tiempo visual</h3>
+          <h3>Placa — Para entender</h3>
           <button id="ctxDownloadPng" class="ctx-btn-dark" type="button">Descargar PNG ↓</button>
         </div>
-        <p class="ctx-card-desc">Imagen lista para descargar y subir como placa.</p>
+        <p class="ctx-card-desc">Placa vertical 4:5 lista para subir. Estilo Placas v2.</p>
         <div class="ctx-canvas-wrap">
-          <canvas id="ctxTimelineCanvas" width="1350" height="1688" aria-label="Placa contexto"></canvas>
+          <canvas id="ctxTimelineCanvas" width="1350" height="1688" aria-label="Placa para entender"></canvas>
         </div>
-        <small class="ctx-source">Formato vertical 4:5 · Estilo Placas v2</small>
+        <small class="ctx-source">Formato 1350×1688 · Se genera siempre</small>
+      </article>
+
+      <!-- 4b GRÁFICO (condicional) -->
+      <article id="ctxChartCard" class="ctx-card ctx-card--wide is-hidden">
+        <div class="ctx-card-head">
+          <h3>Gráfico</h3>
+          <button id="ctxDownloadChart" class="ctx-btn-dark" type="button">Descargar PNG ↓</button>
+        </div>
+        <p id="ctxChartDesc" class="ctx-card-desc">Gráfico generado a partir de los datos de la nota.</p>
+        <div class="ctx-canvas-wrap">
+          <canvas id="ctxChartCanvas" width="1350" height="1688" aria-label="Placa gráfico"></canvas>
+        </div>
+        <small class="ctx-source">Solo se genera si la nota tiene datos comparables</small>
+      </article>
+
+      <!-- 4c TIMELINE (condicional) -->
+      <article id="ctxTimelineCard" class="ctx-card ctx-card--wide is-hidden">
+        <div class="ctx-card-head">
+          <h3>Línea de tiempo</h3>
+          <button id="ctxDownloadTimeline" class="ctx-btn-dark" type="button">Descargar PNG ↓</button>
+        </div>
+        <p id="ctxTimelineDesc" class="ctx-card-desc">Evolución temporal de la nota.</p>
+        <div class="ctx-canvas-wrap">
+          <canvas id="ctxTimelineFullCanvas" width="1350" height="1688" aria-label="Placa timeline"></canvas>
+        </div>
+        <small class="ctx-source">Solo se genera si hay hitos temporales</small>
+      </article>
+
+      <!-- 4d INFOGRAFÍA (condicional) -->
+      <article id="ctxInfografiaCard" class="ctx-card ctx-card--wide is-hidden">
+        <div class="ctx-card-head">
+          <h3>Infografía</h3>
+          <button id="ctxDownloadInfografia" class="ctx-btn-dark" type="button">Descargar PNG ↓</button>
+        </div>
+        <p id="ctxInfografiaDesc" class="ctx-card-desc">Datos clave en formato infografía.</p>
+        <div class="ctx-canvas-wrap">
+          <canvas id="ctxInfografiaCanvas" width="1350" height="1688" aria-label="Placa infografía"></canvas>
+        </div>
+        <small class="ctx-source">Solo se genera si hay datos de alto impacto</small>
       </article>
 
       <!-- 5 PREGUNTAS (extra) -->
