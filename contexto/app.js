@@ -245,7 +245,7 @@ function renderPlacaV2(data) {
   ctx.fillText(labelText, labelX, labelY + labelH * 0.74);
   // Título
   const titleW = W - margin*2;
-  let tSize = 48;
+  let tSize = 56;
   let tLines = [];
   while (tSize >= 32) {
     ctx.font = `900 ${tSize}px Inter, sans-serif`;
@@ -398,9 +398,9 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   ctx.fillText('GRÁFICO', layout.label.x, layout.label.y + layout.label.h*0.74);
   // Título
   const titleW = layout.title.w;
-  let tSize = 48;
+  let tSize = 56;
   let tLines = [];
-  while (tSize >= 28) {
+  while (tSize >= 32) {
     ctx.font = `900 ${tSize}px Inter, sans-serif`;
     tLines = wrapText(ctx, titulo, titleW);
     if (tLines.length <= 2 && tLines.length * tSize*1.08 <= layout.title.h) break;
@@ -413,9 +413,9 @@ function renderChartPlaca(canvas, chart, family, titulo) {
   // Subtítulo chart.titulo con barra
   if (chart.titulo) {
     ctx.fillStyle = family.color;
-    ctx.fillRect(layout.title.x, ty+10, 40, 4);
+    ctx.fillRect(layout.title.x, ty+12, 56, 5);
     ctx.fillStyle = '#16201b';
-    ctx.font = `700 18px Inter, sans-serif`;
+    ctx.font = `700 20px Inter, sans-serif`;
     const subLines = wrapText(ctx, chart.titulo, titleW);
     let syy = ty+28;
     subLines.slice(0,1).forEach(l=>{ ctx.fillText(l, layout.title.x, syy); syy+=18; });
@@ -460,7 +460,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       const pct = Math.round((d.value/total)*100);
       if (slice > 0.25) {
         ctx.fillStyle = '#ffffff';
-        ctx.font = `900 32px Inter, sans-serif`;
+        ctx.font = `900 38px Inter, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(pct+'%', lx, ly);
@@ -477,7 +477,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
     }
     // Leyenda pills grandes
     const legendY = chartY + chartH - 76;
-    const pillH = 36;
+    const pillH = 42;
     let lx = chartX + 16;
     let ly = legendY;
     datos.forEach((d,i)=>{
@@ -493,7 +493,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       ctx.beginPath(); ctx.arc(lx+14, ly+pillH/2, 7,0,Math.PI*2); ctx.fill();
       ctx.fillStyle = i===1 ? '#ffffff' : '#16201b';
       if (i===0) ctx.fillStyle = '#ffffff';
-      ctx.font = `700 13px Inter, sans-serif`;
+      ctx.font = `700 15px Inter, sans-serif`;
       ctx.fillText(label, lx+26, ly+23);
       lx += w + 12;
     });
@@ -510,12 +510,12 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       const y = innerY + (innerH/4)*i;
       ctx.beginPath(); ctx.moveTo(innerX, y); ctx.lineTo(innerX+innerW, y); ctx.stroke();
       ctx.fillStyle = '#6b7a6e';
-      ctx.font = `700 12px Inter, sans-serif`;
+      ctx.font = `700 14px Inter, sans-serif`;
       ctx.textAlign = 'right';
       ctx.fillText(String(Math.round(maxVal - (maxVal/4)*i).toLocaleString('es-AR')), innerX - 10, y + 4);
       ctx.textAlign = 'left';
     }
-    const barW = (innerW / datos.length) * 0.56;
+    const barW = (innerW / datos.length) * 0.62;
     const gap = (innerW / datos.length) * 0.44;
     datos.forEach((d,i)=>{
       const h = (d.value / maxVal) * innerH;
@@ -528,11 +528,11 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       roundedRect(ctx, x, y, barW, h, 8);
       ctx.fill();
       ctx.fillStyle = family.secondary;
-      ctx.font = `900 16px Inter, sans-serif`;
+      ctx.font = `900 24px Inter, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(d.value.toLocaleString('es-AR'), x + barW/2, y - 10);
       ctx.fillStyle = '#16201b';
-      ctx.font = `700 12px Inter, sans-serif`;
+      ctx.font = `700 14px Inter, sans-serif`;
       const labLines = wrapText(ctx, d.label, barW + gap);
       let lyy = innerY + innerH + 18;
       labLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, x+barW/2, lyy); lyy+=13; });
@@ -591,9 +591,9 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
   ctx.fillText('LÍNEA DE TIEMPO', layout.label.x, layout.label.y + layout.label.h*0.74);
   // Título
   const titleW = layout.title.w;
-  let tSize = 48;
+  let tSize = 56;
   let tLines = [];
-  while (tSize >= 28) {
+  while (tSize >= 32) {
     ctx.font = `900 ${tSize}px Inter, sans-serif`;
     tLines = wrapText(ctx, titulo, titleW);
     if (tLines.length <= 2 && tLines.length * tSize*1.08 <= layout.title.h) break;
@@ -718,7 +718,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   ctx.fillText('INFOGRAFÍA', layout.label.x, layout.label.y + layout.label.h*0.74);
   // Título
   const titleW = layout.title.w;
-  let tSize = 48; let tLines=[];
+  let tSize = 56; let tLines=[];
   while(tSize>=28){ ctx.font=`900 ${tSize}px Inter, sans-serif`; tLines=wrapText(ctx, infografia.titulo || titulo, titleW); if(tLines.length<=2 && tLines.length*tSize*1.08<=layout.title.h) break; tSize-=1; }
   ctx.fillStyle=family.secondary; ctx.font=`900 ${tSize}px Inter, sans-serif`; let ty=layout.title.y + tSize; tLines.slice(0,2).forEach(l=>{ctx.fillText(l, layout.title.x, ty); ty+= tSize*1.08;});
   // Grid 2x2 como Que cambia pero con 4 tarjetas
