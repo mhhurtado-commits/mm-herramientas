@@ -760,33 +760,32 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       ctx.strokeStyle='rgba(22,32,27,.07)'; ctx.stroke();
       ctx.fillStyle=family.color; ctx.fillRect(x, y, cardW, 6);
       const glyph = pickGlyph(linea,i);
-      // Glifo grande arriba
-      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(x+32, y+44, 28,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=family.color; ctx.font=`900 22px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(glyph, x+32, y+44);
+      // Glifo grande y número gigante centrado verticalmente para ocupar espacio
+      const centerY = y + cardH/2;
+      // Glifo arriba del número
+      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(x+cardW/2, centerY - 62, 32,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=family.color; ctx.font=`900 26px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(glyph, x+cardW/2, centerY - 62);
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
       const numMatch = String(linea).match(/(\d[\d\.\,]*\s*%?)/);
       const num = numMatch ? numMatch[1].trim() : '';
       const rest = num ? String(linea).replace(num, '').trim().replace(/^[\-\—\:]?\s*/,'') : linea;
-      // Contenido centrado verticalmente en la tarjeta
-      const contentH = num ? 92 : 60;
-      const centerY = y + cardH/2;
       if (num) {
-        // Número gigante centrado
-        ctx.fillStyle=family.secondary; ctx.font=`900 48px Inter, sans-serif`;
+        // Número muy grande centrado
+        ctx.fillStyle=family.secondary; ctx.font=`900 56px Inter, sans-serif`;
         ctx.textAlign='center';
-        ctx.fillText(num, x+cardW/2, centerY - 8);
-        ctx.fillStyle='#16201b'; ctx.font=`700 15px Inter, sans-serif`;
-        const descLines = wrapText(ctx, rest, cardW-48);
-        let lyy = centerY + 28;
-        descLines.slice(0,2).forEach(ll=>{
+        ctx.fillText(num, x+cardW/2, centerY + 12);
+        ctx.fillStyle='#16201b'; ctx.font=`700 18px Inter, sans-serif`;
+        const descLines = wrapText(ctx, rest, cardW-40);
+        let lyy = centerY + 48;
+        descLines.slice(0,3).forEach(ll=>{
           const w = ctx.measureText(ll).width;
           ctx.fillText(ll, x+cardW/2 - w/2, lyy);
-          lyy+=18;
+          lyy+=20;
         });
         ctx.textAlign='left';
       } else {
-        ctx.fillStyle='#16201b'; ctx.font=`700 18px Inter, sans-serif`;
+        ctx.fillStyle='#16201b'; ctx.font=`700 20px Inter, sans-serif`;
         const descLines = wrapText(ctx, linea, cardW-40);
         let lyy = y+ 78;
         descLines.slice(0,3).forEach(ll=>{ ctx.fillText(ll, x+16, lyy); lyy+=18; });
@@ -812,7 +811,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       ctx.fillStyle=family.color; ctx.fillRect(areaX, y, 8, cardH);
       const glyph = pickGlyph(linea,i);
       const cx = areaX + 48; const cy = y + cardH/2;
-      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(cx, cy, 28,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(cx, cy, 32,0,Math.PI*2); ctx.fill();
       ctx.fillStyle=family.color; ctx.font=`900 18px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(glyph, cx, cy);
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
