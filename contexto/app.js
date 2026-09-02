@@ -742,12 +742,12 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   if (n === 4) {
     const gap = 16;
     const cardW = (areaW - gap)/2;
-    const cardH = (areaH - gap)/2;
+    const cardH = (availableH - gap)/2;
     lineas.forEach((linea,i)=>{
       const col = i % 2;
       const row = Math.floor(i / 2);
       const x = areaX + col*(cardW+gap);
-      const y = areaY + row*(cardH+gap);
+      const y = gridTop + row*(cardH+gap);
       ctx.fillStyle='#ffffff';
       ctx.beginPath();
       ctx.moveTo(x+12, y);
@@ -797,9 +797,9 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
     });
   } else {
     const gap = 14;
-    const cardH = (areaH - gap*(n-1))/n;
+    const cardH = (availableH - gap*(n-1))/n;
     lineas.forEach((linea,i)=>{
-      const y = areaY + i*(cardH+gap);
+      const y = gridTop + i*(cardH+gap);
       ctx.fillStyle='#ffffff';
       ctx.beginPath();
       ctx.moveTo(areaX+12, y);
