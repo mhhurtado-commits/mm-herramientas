@@ -1,4 +1,4 @@
-import { FAMILIES, calculatePlateLayout, fitTextToLines, normalizeFocus, resolveAlertSeverity, resolveServiceBanner } from './editorial-core.mjs';
+import { FAMILIES, calculatePlateLayout, fitTextToLines, normalizeFocus, resolveAlertSeverity, resolveServiceBanner, textoDetalleConZona } from './editorial-core.mjs';
 
 const fontFamily = 'Inter, Arial, sans-serif';
 
@@ -655,7 +655,7 @@ function renderServiceDetailsList(ctx, detalles, geometry, pagination = {}) {
   top.forEach((item) => {
     const slotY = y;
     const placeStart = Math.max(30, card.w * 0.040);
-    const placeFit = fittedText(ctx, item.detalle || item.zona || '', innerX, slotY + placeStart, innerW, placeStart, Math.max(24, card.w * 0.026), 2, 900, pagination.color || '#5b3b04', 1.04, slotH * 0.62);
+    const placeFit = fittedText(ctx, textoDetalleConZona(item), innerX, slotY + placeStart, innerW, placeStart, Math.max(24, card.w * 0.026), 2, 900, pagination.color || '#5b3b04', 1.04, slotH * 0.62);
     const timeSize = Math.max(22, card.w * 0.026);
     y = slotY + placeStart + (placeFit.lines.length - 1) * placeFit.lineHeight + timeSize * 1.6;
     ctx.font = `700 ${timeSize}px ${fontFamily}`;

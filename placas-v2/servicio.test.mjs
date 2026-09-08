@@ -8,6 +8,7 @@ import {
   buildServicioPlacas,
   parseServicioDetalles,
   validarDetallesContraFuente,
+  textoDetalleConZona,
   SERVICIO_TIPOS,
   calculatePlateLayout,
 } from './editorial-core.mjs';
@@ -288,6 +289,25 @@ test('paginación como número fantasma de fondo sin formato N/M', () => {  cons
   assert.ok(joined.includes('●'));
 });
 
+test('la tarjeta muestra la localidad del corte', () => {
+  const calls = [];
+  const plate = normalizeServicePlate({
+    tipo: 'luz',
+    mensaje: 'Cortes programados.',
+    fuente: 'Edemsa',
+    detalles: [{ zona: 'Colonia Elena', horario: '10:00 a 11:30', detalle: 'En calle Subayudante Barroso' }],
+  }, new Date('2026-09-08T10:00:00'));
+  renderNewsPlate(mockServiceCtx(calls), plate, 'portrait', {});
+  const joined = calls.map((item) => item.text).join('\n');
+  assert.ok(joined.includes('Colonia Elena'));
+});
+
+test('textoDetalleConZona agrega localidad solo si aporta', () => {
+  assert.ok(textoDetalleConZona({ detalle: 'En calle X', zona: 'Colonia Elena' }).includes('Colonia Elena'));
+  assert.ok(!textoDetalleConZona({ detalle: 'En calle X', zona: 'San Rafael' }).includes('San Rafael'));
+  assert.ok(!textoDetalleConZona({ detalle: 'En La Llave, calle X', zona: 'La Llave' }).match(/La Llave.*La Llave/));
+  assert.equal(textoDetalleConZona({ detalle: '', zona: 'La Llave' }), 'La Llave');
+});
 test('el horario no se encima con la zona aunque ocupe dos líneas', () => {
   const calls = [];
   const plate = normalizeServicePlate({

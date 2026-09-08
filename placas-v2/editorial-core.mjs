@@ -381,6 +381,17 @@ function normalizeForMatch(value) {
   return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+const ZONAS_GENERICAS = new Set(['san rafael', 'mendoza', '']);
+
+export function textoDetalleConZona(item = {}) {
+  const detalle = clean(item.detalle || item.zona || '');
+  const zona = clean(item.zona);
+  if (!detalle) return zona;
+  if (!zona || ZONAS_GENERICAS.has(zona.toLowerCase())) return detalle;
+  if (normalizeForMatch(detalle).includes(normalizeForMatch(zona))) return detalle;
+  return `${detalle} · ${zona}`;
+}
+
 export function parseServicioDetalles(texto = '') {
   const segments = String(texto ?? '').replace(/\r/g, '').split(/[–—]/).slice(1);
   const detalles = [];
