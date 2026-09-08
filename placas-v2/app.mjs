@@ -1,4 +1,4 @@
-import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate, normalizeServicePlate, resolveAlertSeverity, resolveServiceType, buildServicioCarouselPlan } from './editorial-core.mjs';
+import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate, normalizeServicePlate, resolveAlertSeverity, resolveServiceType, buildServicioPlacas } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
@@ -240,7 +240,11 @@ async function loadSupportImage(url) {
 }
 
 function renderVariants() {
-  $('#variantList').innerHTML = state.variants.map((variant, index) => `<button class="variant ${index === state.selectedVariant ? 'active' : ''}" data-index="${index}" type="button"><span class="variant-dot" style="background:${variant.color_principal}">${index === 0 ? '★' : index + 1}</span><span><strong>${index === 0 ? 'Propuesta recomendada' : `Alternativa ${index}`}</strong><small>${variant.etiqueta} · ${PLATE_TYPES[variant.tipo_placa]?.label || 'Noticia'}</small></span>${index === 0 ? '<span class="recommended">Sugerida</span>' : ''}</button>`).join('');
+  $('#variantList').innerHTML = state.variants.map((variant, index) => {
+    const page = variant?.servicio?.paginas > 1 ? ` · Placa ${variant.servicio.pagina}/${variant.servicio.paginas}` : '';
+    const title = variant?.servicio?.paginas > 1 ? `Placa ${variant.servicio.pagina} de ${variant.servicio.paginas}` : index === 0 ? 'Propuesta recomendada' : `Alternativa ${index}`;
+    return `<button class="variant ${index === state.selectedVariant ? 'active' : ''}" data-index="${index}" type="button"><span class="variant-dot" style="background:${variant.color_principal}">${index === 0 ? '★' : index + 1}</span><span><strong>${title}</strong><small>${variant.etiqueta} · ${PLATE_TYPES[variant.tipo_placa]?.label || 'Noticia'}${page}</small></span>${index === 0 ? '<span class="recommended">Sugerida</span>' : ''}</button>`;
+  }).join('');
   document.querySelectorAll('.variant').forEach(button => button.addEventListener('click', () => { state.selectedVariant = Number(button.dataset.index); syncEditor(); render(); }));
   renderTemplates();
 }
@@ -260,7 +264,6 @@ function renderOutputs() {
   } else if (state.mode === 'alerta') {
     outputs = [
       { id: 'placa', label: 'Placa' },
-      { id: 'carrusel', label: 'Carrusel' },
     ];
   } else {
     outputs = [
@@ -283,7 +286,7 @@ function renderOutputs() {
       await enrichEfemerideImages();
       button.disabled = false;
     }
-    const sourcePackage = state.mode === 'efemerides' ? buildEfemeridesCarouselPackage() : state.mode === 'alerta' ? buildServicioCarouselPackage() : state.package;
+    const sourcePackage = state.mode === 'efemerides' ? buildEfemeridesCarouselPackage() : state.package;
     if (!sourcePackage) return;
     const handoffPackage = {
       ...sourcePackage,
@@ -356,24 +359,11 @@ function buildEfemeridesCarouselPackage() {
   };
 }
 
-function buildServicioCarouselPackage() {
-  const variant = effectiveVariant() || state.plate;
-  const data = variant?.servicio || variant?.alerta || state.plate?.servicio || {};
+function buildServicioPlacasForState() {
+  const data = state.plate?.servicio || {};
   const detalles = Array.isArray(data.detalles) ? data.detalles : [];
-  if (!detalles.length) return null;
-  const plan = buildServicioCarouselPlan({ ...variant, servicio: data });
-  if (!plan) return null;
-  let coverImage = '';
-  try { coverImage = $('#plateCanvas').toDataURL('image/png'); } catch { coverImage = ''; }
-  const fullText = detalles.map((item) => `${item.horario ? `${item.horario}: ` : ''}${item.detalle || item.zona}`).join('\n');
-  return {
-    tipo: 'noticia_editorial',
-    version: 2,
-    fuente: { url: '', titulo_original: variant?.titulo || 'Servicio', categoria: 'Servicio', cuerpo: `${data.mensaje || ''}\n${fullText}`, imagen: coverImage, imagenes: coverImage ? [coverImage] : [] },
-    editorial: { seccion: 'Servicio', familia: 'servicio', tipo_noticia: 'servicio', complejidad: 'low', tono: 'informative', titulo: variant?.titulo || 'Servicio', bajada: data.mensaje || '', contexto: '', datos_clave: [], textual: [], personas: [], category_options: [{ id: 'servicio', label: 'Servicio', vertical: 'servicio', recommended: true }] },
-    salidas: { placas: [], carrusel: { ...plan, cover: { ...plan.cover, image: coverImage || plan.cover.image } }, reel: null },
-    redes: { instagram: fullText.slice(0, 900), facebook: fullText.slice(0, 1200) },
-  };
+  if (!detalles.length) return [state.plate];
+  return buildServicioPlacas(state.plate, 3);
 }
 
 function renderServiceDetailsEditor() {
@@ -543,7 +533,8 @@ async function generateAlert(event) {
   }
 
   state.plate = normalizeServicePlate(extraido, now);
-  state.variants = [state.plate];
+  state.variants = buildServicioPlacasForState();
+  state.plate = state.variants[0] || state.plate;
   state.selectedVariant = 0;
   state.selectedTemplate = 'servicio';
   state.format = 'portrait';

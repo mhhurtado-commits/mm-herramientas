@@ -636,15 +636,15 @@ function formatAlertDate(value) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function renderServiceDetailsList(ctx, detalles, geometry) {
+function renderServiceDetailsList(ctx, detalles, geometry, pagination = {}) {
   const { innerX, innerW, card, pad, innerH } = geometry;
   const top = detalles.slice(0, 3);
-  const rest = detalles.length - top.length;
+  const pagina = pagination.pagina || 1;
+  const paginas = pagination.paginas || 1;
   let y = card.y + pad + Math.max(34, card.w * 0.038);
   const titleSize = Math.max(34, card.w * 0.042);
   ctx.fillStyle = '#526058';
   ctx.font = `800 ${Math.max(24, card.w * 0.024)}px ${fontFamily}`;
-  const summary = wrapMeasuredText(ctx, 'Deslizá para ver tu barrio →', innerW);
   top.forEach((item) => {
     const timeSize = Math.max(34, card.w * 0.040);
     ctx.fillStyle = '#5b3b04';
@@ -660,8 +660,7 @@ function renderServiceDetailsList(ctx, detalles, geometry) {
   });
   ctx.fillStyle = '#5b3b04';
   ctx.font = `800 ${Math.max(26, card.w * 0.028)}px ${fontFamily}`;
-  if (rest > 0) ctx.fillText(`+${rest} más · Deslizá →`, innerX, Math.min(y, card.y + card.h - pad));
-  else ctx.fillText(summary[0] || 'Deslizá →', innerX, Math.min(y, card.y + card.h - pad));
+  if (paginas > 1) ctx.fillText(`PLACA ${pagina}/${paginas}`, innerX, Math.min(y, card.y + card.h - pad));
   void titleSize; void innerH;
 }
 
@@ -755,7 +754,10 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
     const zonaSize = Math.max(22, canvas.w * (isStory ? 0.028 : 0.024));
     ctx.fillStyle = nivel.secondary;
     ctx.font = `800 ${zonaSize}px ${fontFamily}`;
-    ctx.fillText(`${detalles.length} ZONAS AFECTADAS · DESLIZÁ PARA TU BARRIO →`, layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
+    const pagina = alert.pagina || 1;
+    const paginas = alert.paginas || 1;
+    const pageText = paginas > 1 ? ` · PLACA ${pagina}/${paginas}` : '';
+    ctx.fillText(`${detalles.length} ZONAS EN ESTA PLACA${pageText}`, layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
   }
 
   const pad = canvas.w * 0.038;
@@ -778,7 +780,7 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const innerX = card.x + pad + accentW;
   const innerH = card.h - pad * 2;
   if (detalles.length) {
-    renderServiceDetailsList(ctx, detalles, { innerX, innerW, card, pad, innerH });
+    renderServiceDetailsList(ctx, detalles, { innerX, innerW, card, pad, innerH }, { pagina: alert.pagina || 1, paginas: alert.paginas || 1 });
     ctx.strokeStyle = 'rgba(22,32,27,.16)';
   } else {
   const messageSize = Math.max(52, canvas.w * (isStory ? 0.062 : 0.058));

@@ -5,7 +5,7 @@ import {
   normalizeAlertPlate,
   resolveServiceType,
   resolveServiceBanner,
-  buildServicioCarouselPlan,
+  buildServicioPlacas,
   SERVICIO_TIPOS,
   calculatePlateLayout,
 } from './editorial-core.mjs';
@@ -70,7 +70,7 @@ test('render servicio muestra banner y banda con estado', () => {
   assert.ok(calls.some((value) => value.includes('CORTE TOTAL')));
 });
 
-test('app expone tipo y estado de servicio en formulario y generación', async () => {
+test('app pagina alertas sin salida carrusel auto', async () => {
   const { readFileSync } = await import('node:fs');
   const app = readFileSync(new URL('./app.mjs', import.meta.url), 'utf8');
   const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
@@ -78,10 +78,11 @@ test('app expone tipo y estado de servicio en formulario y generación', async (
   assert.match(html, /alertaTipo/);
   assert.match(html, /alertaEstado/);
   assert.match(app, /detalles/);
-  assert.match(app, /buildServicioCarouselPackage|buildServicioCarouselPlan/);
+  assert.match(app, /buildServicioPlacas/);
+  assert.doesNotMatch(app, /buildServicioCarouselPackage/);
 });
 
-test('construye plan carrusel con un slide por corte', () => {
+test('pagina detalles de a 3 con numeración', () => {
   const plate = normalizeServicePlate({
     tipo: 'luz',
     mensaje: '7 cortes programados en San Rafael.',
@@ -89,12 +90,32 @@ test('construye plan carrusel con un slide por corte', () => {
     detalles: [
       { zona: 'A', horario: '9:00 a 13:00', detalle: 'Sarmiento y Lugones' },
       { zona: 'B', horario: '15:00 a 19:00', detalle: 'Campos y Balcarce' },
+      { zona: 'C', horario: '8:30 a 12:30', detalle: 'Ruta 146, La Llave' },
+      { zona: 'D', horario: '10:00 a 13:45', detalle: 'Agua del Toro' },
     ],
   }, new Date('2026-09-08T10:00:00'));
-  const plan = buildServicioCarouselPlan(plate);
-  assert.ok(plan);
-  assert.ok(plan.slides.length >= 4);
-  assert.ok(plan.slides.some((slide) => String(slide.text).includes('Sarmiento')));
+  const pages = buildServicioPlacas(plate, 3);
+  assert.equal(pages.length, 2);
+  assert.equal(pages[0].servicio.detalles.length, 3);
+  assert.equal(pages[1].servicio.detalles.length, 1);
+  assert.equal(pages[0].servicio.pagina, 1);
+  assert.equal(pages[0].servicio.paginas, 2);
+  assert.equal(pages[1].servicio.pagina, 2);
+});
+
+test('no pagina cuando entran en una placa', () => {
+  const plate = normalizeServicePlate({
+    tipo: 'luz',
+    mensaje: '2 cortes programados.',
+    fuente: 'Edemsa',
+    detalles: [
+      { zona: 'A', horario: '9:00 a 13:00', detalle: 'Sarmiento y Lugones' },
+      { zona: 'B', horario: '15:00 a 19:00', detalle: 'Campos y Balcarce' },
+    ],
+  }, new Date('2026-09-08T10:00:00'));
+  const pages = buildServicioPlacas(plate, 3);
+  assert.equal(pages.length, 1);
+  assert.equal(pages[0].servicio.paginas, 1);
 });
 
 test('normaliza detalles de cortes programados hasta 7', () => {
@@ -116,7 +137,8 @@ test('normaliza detalles de cortes programados hasta 7', () => {
   assert.match(plate.servicio.detalles[0].zona, /Coronel Campos/);
 });
 
-test('render portada con detalles muestra top 3 y CTA deslizá', () => {  const calls = [];
+test('render portada con detalles muestra top 3 y numeración sin CTA carrusel', () => {
+  const calls = [];
   const ctx = {
     canvas: {}, clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
     moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, fill() {},
@@ -138,8 +160,10 @@ test('render portada con detalles muestra top 3 y CTA deslizá', () => {  const 
       { zona: 'Agua del Toro', horario: '10:00 a 13:45' },
     ],
   }, new Date('2026-09-08T10:00:00'));
-  renderNewsPlate(ctx, plate, 'portrait', {});
+  const [first] = buildServicioPlacas(plate, 3);
+  renderNewsPlate(ctx, first, 'portrait', {});
   const joined = calls.join('\n');
   assert.ok(calls.some((value) => value.includes('15:00 a 19:00')));
-  assert.ok(joined.includes('Desliz'));
+  assert.ok(joined.includes('1/2'));
+  assert.ok(!joined.includes('Desliz'));
 });

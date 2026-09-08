@@ -356,7 +356,7 @@ export function normalizeServicePlate(input = {}, now = new Date()) {
     imagenes_apoyo: [],
     color_principal: palette.color,
     color_secundario: palette.secondary,
-    servicio: { mensaje, fuente, hora, nivel, zona, tipo, estado, detalles },
+    servicio: { mensaje, fuente, hora, nivel, zona, tipo, estado, detalles, pagina: 1, paginas: 1 },
     alerta: { mensaje, fuente, hora, nivel, zona },
     bloques: [],
     redes: { instagram: '', facebook: '' },
@@ -377,25 +377,20 @@ function normalizeServiceDetalles(value) {
   }).filter(Boolean).slice(0, 7);
 }
 
-export function buildServicioCarouselPlan(plate = {}) {
+export function buildServicioPlacas(plate = {}, perPage = 3) {
   const detalles = Array.isArray(plate?.servicio?.detalles) ? plate.servicio.detalles : [];
-  if (!detalles.length) return null;
-  const banner = resolveServiceBanner(plate);
-  const fuente = plate?.servicio?.fuente || '';
-  return {
-    diagnosis: { carousel_type: 'servicio', vertical: 'servicio', template: 'mm_servicio', slide_count: Math.min(7, detalles.length + 2), reason: 'Cortes programados con detalle por zona.' },
-    cover: { title: banner, subtitle: plate?.servicio?.mensaje || '', image: '', imageOnly: false },
-    slides: [
-      { type: 'cover', title: banner, text: plate?.servicio?.mensaje || '', source: fuente },
-      ...detalles.slice(0, 6).map((item) => ({
-        type: 'detalle',
-        title: item.horario || 'Horario a confirmar',
-        text: item.detalle || item.zona,
-        source: fuente,
-      })),
-      { type: 'end', title: 'Fuente verificada', text: fuente || 'Consultá tu barrio antes de salir', source: fuente },
-    ],
-  };
+  const size = Math.max(1, Math.min(4, Number(perPage) || 3));
+  if (detalles.length <= size) {
+    return [{ ...plate, servicio: { ...(plate.servicio || {}), pagina: 1, paginas: 1 } }];
+  }
+  const pages = [];
+  for (let index = 0; index < detalles.length; index += size) {
+    const chunk = detalles.slice(index, index + size);
+    const pagina = pages.length + 1;
+    pages.push({ ...plate, servicio: { ...(plate.servicio || {}), detalles: chunk, pagina, paginas: 0 } });
+  }
+  const total = pages.length;
+  return pages.map((page) => ({ ...page, servicio: { ...page.servicio, paginas: total } }));
 }
 
 export function normalizeAlertPlate(input = {}, now = new Date()) {
