@@ -416,9 +416,9 @@ export function validarDetallesContraFuente(detalles = [], texto = '') {
   });
 }
 
-export function buildServicioPlacas(plate = {}, perPage = 3) {
+export function buildServicioPlacas(plate = {}, perPage = 4) {
   const detalles = Array.isArray(plate?.servicio?.detalles) ? plate.servicio.detalles : [];
-  const size = Math.max(1, Math.min(4, Number(perPage) || 3));
+  const size = Math.max(1, Math.min(4, Number(perPage) || 4));
   if (detalles.length <= size) {
     return [{ ...plate, servicio: { ...(plate.servicio || {}), pagina: 1, paginas: 1 } }];
   }

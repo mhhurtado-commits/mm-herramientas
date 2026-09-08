@@ -124,6 +124,56 @@ test('app pagina alertas sin salida carrusel auto', async () => {
   assert.doesNotMatch(app, /buildServicioCarouselPackage/);
 });
 
+test('pagina detalles de a 4 por defecto', () => {
+  const plate = normalizeServicePlate({
+    tipo: 'luz',
+    mensaje: '7 cortes programados en San Rafael.',
+    fuente: 'Edemsa',
+    detalles: [
+      { zona: 'A', horario: '9:00 a 13:00', detalle: 'Sarmiento y Lugones' },
+      { zona: 'B', horario: '15:00 a 19:00', detalle: 'Campos y Balcarce' },
+      { zona: 'C', horario: '8:30 a 12:30', detalle: 'Ruta 146, La Llave' },
+      { zona: 'D', horario: '10:00 a 13:45', detalle: 'Agua del Toro' },
+      { zona: 'E', horario: '12:30 a 14:20', detalle: 'Colonia Elena norte' },
+      { zona: 'F', horario: '14:40 a 16:40', detalle: 'Colonia Elena sur' },
+      { zona: 'G', horario: '16:00 a 18:00', detalle: 'Villa 25 de Mayo' },
+    ],
+  }, new Date('2026-09-08T10:00:00'));
+  const pages = buildServicioPlacas(plate);
+  assert.equal(pages.length, 2);
+  assert.equal(pages[0].servicio.detalles.length, 4);
+  assert.equal(pages[1].servicio.detalles.length, 3);
+});
+
+test('render 4 detalles sin encimado en una sola placa', () => {
+  const calls = [];
+  const plate = normalizeServicePlate({
+    tipo: 'luz',
+    mensaje: 'Cortes programados.',
+    fuente: 'Edemsa',
+    nivel: 'amarillo',
+    estado: 'corte programado',
+    zona: 'San Rafael',
+    detalles: [
+      { zona: 'La Llave Norte', horario: '9:00 a 13:00', detalle: 'En calle Josefa Rosco, entre Rufino Ortega y Escuela' },
+      { zona: 'La Llave Sur', horario: '9:00 a 13:00', detalle: 'En calle Josefa Rosco, entre Capitán Montoya y Diaz' },
+      { zona: 'Capitán Montoya', horario: '8:30 a 12:30', detalle: 'Entre calles Los Filtros, La Yesera, Hipólito Yrigoyen y Pedro Vega' },
+      { zona: 'Colonia Elena', horario: '10:00 a 11:30', detalle: 'En calle Subayudante Barroso, hacia el norte de Ruta Nacional N°146' },
+    ],
+  }, new Date('2026-09-08T10:00:00'));
+  renderNewsPlate(mockServiceCtx(calls), plate, 'portrait', {});
+  for (const horario of ['9:00 a 13:00', '8:30 a 12:30', '10:00 a 11:30']) {
+    assert.ok(calls.some((item) => item.text.includes(horario)));
+  }
+  const timeCalls = calls.filter((item) => /\d{1,2}:\d{2} a \d{1,2}:\d{2}/.test(item.text));
+  assert.equal(timeCalls.length, 4);
+  const content = calls.filter((item) => (Number.parseFloat(item.font.split(' ')[1]) || 0) <= 200 && !item.text.startsWith('Fuente:') && !item.text.startsWith('www.'));
+  const sorted = [...content].sort((a, b) => a.y - b.y);
+  for (let index = 1; index < sorted.length; index += 1) {
+    const prevSize = Number.parseFloat(sorted[index - 1].font.split(' ')[1]) || 0;
+    assert.ok(sorted[index].y - sorted[index - 1].y >= prevSize * 0.5, `encimado entre "${sorted[index - 1].text.slice(0, 30)}" y "${sorted[index].text.slice(0, 30)}"`);
+  }
+});
 test('pagina detalles de a 3 con numeración', () => {
   const plate = normalizeServicePlate({
     tipo: 'luz',

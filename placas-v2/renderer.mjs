@@ -638,7 +638,7 @@ function formatAlertDate(value) {
 
 function renderServiceDetailsList(ctx, detalles, geometry, pagination = {}) {
   const { innerX, innerW, card, pad, innerH } = geometry;
-  const top = detalles.slice(0, 3);
+  const top = detalles.slice(0, 4);
   const pagina = pagination.pagina || 1;
   const paginas = pagination.paginas || 1;
   ctx.save();

@@ -365,7 +365,7 @@ function buildServicioPlacasForState() {
   const data = state.plate?.servicio || {};
   const detalles = Array.isArray(data.detalles) ? data.detalles : [];
   if (!detalles.length) return [state.plate];
-  return buildServicioPlacas(state.plate, 3);
+  return buildServicioPlacas(state.plate, 4);
 }
 
 function renderServiceDetailsEditor() {
