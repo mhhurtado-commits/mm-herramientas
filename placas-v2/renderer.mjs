@@ -656,8 +656,8 @@ function renderServiceDetailsList(ctx, detalles, geometry, pagination = {}) {
     const slotY = y;
     const placeStart = Math.max(30, card.w * 0.040);
     const placeFit = fittedText(ctx, item.detalle || item.zona || '', innerX, slotY + placeStart, innerW, placeStart, Math.max(24, card.w * 0.026), 2, 900, pagination.color || '#5b3b04', 1.04, slotH * 0.62);
-    y = slotY + placeFit.lines.length * placeFit.lineHeight + placeStart * 0.18;
     const timeSize = Math.max(22, card.w * 0.026);
+    y = slotY + placeStart + (placeFit.lines.length - 1) * placeFit.lineHeight + timeSize * 1.6;
     ctx.font = `700 ${timeSize}px ${fontFamily}`;
     ctx.fillStyle = '#526058';
     const timeLines = wrapMeasuredText(ctx, item.horario || 'Horario a confirmar', innerW);
@@ -753,16 +753,12 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   ctx.fillText(chipText, layout.timestamp.x + chipPad, layout.timestamp.y + chipH * 0.68);
 
   const detalles = Array.isArray(alert.detalles) ? alert.detalles.slice(0, 7) : [];
+  /* Con detalles no hay línea de zona: la tarjeta con los lugares se entiende sola. */
   if (zona && !detalles.length) {
     const zonaSize = Math.max(22, canvas.w * (isStory ? 0.028 : 0.024));
     ctx.fillStyle = nivel.secondary;
     ctx.font = `800 ${zonaSize}px ${fontFamily}`;
     ctx.fillText(`ZONA AFECTADA: ${String(zona).toUpperCase()}`, layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
-  } else if (detalles.length) {
-    const zonaSize = Math.max(22, canvas.w * (isStory ? 0.028 : 0.024));
-    ctx.fillStyle = nivel.secondary;
-    ctx.font = `800 ${zonaSize}px ${fontFamily}`;
-    ctx.fillText(detalles.length === 1 ? '1 ZONA EN ESTA PLACA' : `${detalles.length} ZONAS EN ESTA PLACA`, layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
   }
 
   const pad = canvas.w * 0.038;

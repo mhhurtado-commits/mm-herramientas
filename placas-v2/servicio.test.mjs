@@ -185,13 +185,13 @@ function mockServiceCtx(calls) {
     moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, fill() {},
     createLinearGradient() { return { addColorStop() {} }; },
     measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
-    fillText(value) { calls.push({ font: this.font || '', text: String(value) }); },
+    fillText(value, x, y) { calls.push({ font: this.font || '', text: String(value), x, y }); },
   };
 }
 
 function fontSizeOf(calls, snippet) {
   const call = calls.find((item) => item.text.includes(snippet));
-  return Number.parseInt(call?.font, 10) || 0;
+  return Number.parseFloat(call?.font.split(' ')[1]) || 0;
 }
 
 test('render detalles con lugar primero y más grande que el horario', () => {
@@ -215,8 +215,7 @@ test('render detalles con lugar primero y más grande que el horario', () => {
   assert.ok(fontSizeOf(calls, 'Coronel Campos') > fontSizeOf(calls, '15:00 a 19:00'));
 });
 
-test('paginación como número fantasma de fondo sin formato N/M', () => {
-  const calls = [];
+test('paginación como número fantasma de fondo sin formato N/M', () => {  const calls = [];
   const plate = normalizeServicePlate({
     tipo: 'luz',
     mensaje: '7 cortes programados en San Rafael de 8:30 a 19:30.',
@@ -235,6 +234,54 @@ test('paginación como número fantasma de fondo sin formato N/M', () => {
   renderNewsPlate(mockServiceCtx(calls), first, 'portrait', {});
   const joined = calls.map((item) => item.text).join('\n');
   assert.ok(!/\d\/\d/.test(joined));
-  assert.ok(calls.some((item) => item.text === '1' && (Number.parseInt(item.font, 10) || 0) > 200));
+  assert.ok(calls.some((item) => item.text === '1' && (Number.parseFloat(item.font.split(' ')[1]) || 0) > 200));
   assert.ok(joined.includes('●'));
+});
+
+test('el horario no se encima con la zona aunque ocupe dos líneas', () => {
+  const calls = [];
+  const plate = normalizeServicePlate({
+    tipo: 'luz',
+    mensaje: 'Cortes programados.',
+    fuente: 'Edemsa',
+    nivel: 'amarillo',
+    estado: 'corte programado',
+    zona: 'San Rafael',
+    detalles: [
+      { zona: 'La Llave', horario: '9:00 a 13:00', detalle: 'En calle Josefa Rosco, entre Rufino Ortega y Escuela Nacional de la zona norte de La Llave, continuación hacia el este y áreas adyacentes' },
+    ],
+  }, new Date('2026-09-08T10:00:00'));
+  renderNewsPlate(mockServiceCtx(calls), plate, 'portrait', {});
+  const zoneCalls = calls.filter((item) => item.text.includes('Josefa Rosco') || item.text.includes('adyacentes') || item.text.includes('Escuela Nacional'));
+  const timeCall = calls.find((item) => item.text.includes('9:00 a 13:00'));
+  assert.ok(zoneCalls.length >= 2);
+  assert.ok(timeCall);
+  const lastZone = zoneCalls.at(-1);
+  const zoneSize = Number.parseFloat(lastZone.font.split(' ')[1]) || 0;
+  assert.ok(timeCall.y - lastZone.y >= zoneSize * 0.9);
+});
+
+test('sin línea de conteo de zonas en la placa', () => {
+  const calls = [];
+  const plate = normalizeServicePlate({
+    tipo: 'luz',
+    mensaje: 'Cortes programados.',
+    fuente: 'Edemsa',
+    detalles: [{ zona: 'La Llave', horario: '9:00 a 13:00', detalle: 'En calle Josefa Rosco' }],
+  }, new Date('2026-09-08T10:00:00'));
+  renderNewsPlate(mockServiceCtx(calls), plate, 'portrait', {});
+  const joined = calls.map((item) => item.text).join('\n');
+  assert.ok(!joined.includes('ZONAS EN ESTA PLACA'));
+  assert.ok(!joined.includes('ZONA EN ESTA PLACA'));
+});
+
+test('layout con detalles colapsa la fila de zona y sube la tarjeta', () => {
+  const base = { tipo: 'luz', mensaje: 'Cortes.', fuente: 'Edemsa', zona: 'San Rafael' };
+  const now = new Date('2026-09-08T10:00:00');
+  const simple = normalizeServicePlate(base, now);
+  const detailed = normalizeServicePlate({ ...base, detalles: [{ zona: 'La Llave', horario: '9:00 a 13:00', detalle: 'En calle Josefa Rosco' }] }, now);
+  const simpleLayout = calculatePlateLayout('portrait', simple);
+  const detailedLayout = calculatePlateLayout('portrait', detailed);
+  assert.equal(detailedLayout.zona.h, 0);
+  assert.ok(detailedLayout.message.y < simpleLayout.message.y);
 });

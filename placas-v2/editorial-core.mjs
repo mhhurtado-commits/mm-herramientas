@@ -651,8 +651,9 @@ export function calculatePlateLayout(format, plate = {}) {
     const severityY = bannerH + canvas.h * 0.020;
     const metaH = canvas.h * 0.060;
     const timestampY = severityY + severityH + canvas.h * 0.025;
+    const hasDetalles = Array.isArray(plate?.servicio?.detalles) && plate.servicio.detalles.length > 0;
     const zonaY = timestampY + metaH + canvas.h * 0.020;
-    const messageY = zonaY + metaH + canvas.h * 0.020;
+    const messageY = hasDetalles ? timestampY + metaH + canvas.h * 0.020 : zonaY + metaH + canvas.h * 0.020;
     const footerY = canvas.h * 0.92;
     const messageH = Math.max(0, footerY - messageY - canvas.h * 0.03);
     return {
@@ -662,7 +663,7 @@ export function calculatePlateLayout(format, plate = {}) {
       label: { x: margin, y: bannerH * 0.02, w: canvas.w - margin * 2, h: bannerH * 0.4 },
       severity: { x: margin, y: severityY, w: canvas.w - margin * 2, h: severityH },
       timestamp: { x: margin, y: timestampY, w: canvas.w - margin * 2, h: metaH },
-      zona: { x: margin, y: zonaY, w: canvas.w - margin * 2, h: metaH },
+      zona: { x: margin, y: zonaY, w: canvas.w - margin * 2, h: hasDetalles ? 0 : metaH },
       message: { x: margin, y: messageY, w: canvas.w - margin * 2, h: messageH },
       image: { x: 0, y: 0, w: 0, h: 0 },
       dek: { x: margin, y: messageY, w: canvas.w - margin * 2, h: 0 },
