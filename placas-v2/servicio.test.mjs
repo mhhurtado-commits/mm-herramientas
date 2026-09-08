@@ -6,10 +6,52 @@ import {
   resolveServiceType,
   resolveServiceBanner,
   buildServicioPlacas,
+  parseServicioDetalles,
+  validarDetallesContraFuente,
   SERVICIO_TIPOS,
   calculatePlateLayout,
 } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
+
+const EDEMSA_PARTE = `San Rafael
+– En calle Josefa Rosco, entre Rufino Ortega y Escuela; La Llave. De 9.00 a 13.00 h.
+– En calle Josefa Rosco, entre Capitán Montoya y Diaz; La Llave. De 9.00 a 13.00 h.
+– Entre calles Los Filtros, La Yesera, Hipólito Yrigoyen y Pedro Vega; Capitán Montoya. De 8.30 a 12.30 h.
+– Entre calles Moreno, Matienzo, Edison y Sardi. De 15.00 a 19.00 h.
+– En la intersección de calle Alto del Algarrobal y Ruta Nacional N°146; Colonia Elena. De 12.30 a 14.20 h.
+– En calle Subayudante Barroso, hacia el norte de Ruta Nacional N°146; Colonia Elena. De 10.00 a 11.30 h.
+– En calle Apiolazza, entre El Noruego y Orellana; Colonia Elena. De 14.40 a 16.40 h.`;
+
+test('parsea cada viñeta del parte Edemsa en orden sin resumir', () => {
+  const detalles = parseServicioDetalles(EDEMSA_PARTE);
+  assert.equal(detalles.length, 7);
+  assert.deepEqual(detalles[0], { zona: 'La Llave', horario: '9:00 a 13:00', detalle: 'En calle Josefa Rosco, entre Rufino Ortega y Escuela' });
+  assert.deepEqual(detalles[3], { zona: 'San Rafael', horario: '15:00 a 19:00', detalle: 'Entre calles Moreno, Matienzo, Edison y Sardi' });
+  assert.deepEqual(detalles[6], { zona: 'Colonia Elena', horario: '14:40 a 16:40', detalle: 'En calle Apiolazza, entre El Noruego y Orellana' });
+});
+
+test('el parser no trae calles de otros partes', () => {
+  const detalles = parseServicioDetalles(EDEMSA_PARTE);
+  const joined = detalles.map((item) => `${item.zona} ${item.detalle}`).join(' ');
+  assert.ok(!joined.includes('Barrera'));
+  assert.ok(!joined.includes('Diamante'));
+  assert.ok(!joined.includes('López'));
+});
+
+test('sin viñetas con horario el parser devuelve vacío', () => {
+  assert.deepEqual(parseServicioDetalles('Corte total en Ruta 143 por operativo vial.'), []);
+  assert.deepEqual(parseServicioDetalles(''), []);
+});
+
+test('la validación descarta detalles alucinados fuera de la fuente', () => {
+  const detalles = validarDetallesContraFuente([
+    { zona: 'La Llave', horario: '9:00 a 13:00', detalle: 'En calle Josefa Rosco, entre Rufino Ortega y Escuela' },
+    { zona: 'Ruta 143', horario: '15:00 a 19:00', detalle: 'Entre Ramón Barrera y Longi' },
+    { zona: 'San Rafael', horario: '', detalle: 'Corte programado' },
+  ], EDEMSA_PARTE);
+  assert.equal(detalles.length, 1);
+  assert.match(detalles[0].detalle, /Josefa Rosco/);
+});
 
 test('normaliza servicio de tránsito con tipo, estado y nivel', () => {
   const now = new Date('2026-09-08T10:00:00');

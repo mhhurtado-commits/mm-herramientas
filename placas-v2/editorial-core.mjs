@@ -377,6 +377,45 @@ function normalizeServiceDetalles(value) {
   }).filter(Boolean).slice(0, 7);
 }
 
+function normalizeForMatch(value) {
+  return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+export function parseServicioDetalles(texto = '') {
+  const segments = String(texto ?? '').replace(/\r/g, '').split(/[–—]/).slice(1);
+  const detalles = [];
+  for (const segment of segments) {
+    const match = segment.match(/De\s+(\d{1,2}[.:]\d{2}\s*a\s*\d{1,2}[.:]\d{2})\s*h\.?/i);
+    if (!match) continue;
+    const horario = match[1].replace(/(\d)\.(\d)/g, '$1:$2').trim();
+    const resto = (segment.slice(0, match.index) + ' ' + segment.slice(match.index + match[0].length)).replace(/\s+/g, ' ').trim();
+    const parts = resto.split(';');
+    const detalle = parts[0].trim().replace(/[.·]+$/, '');
+    const zona = (parts.length > 1 ? parts.slice(1).join(';') : '').trim().replace(/[.·]+$/, '') || 'San Rafael';
+    if (!detalle) continue;
+    detalles.push({ zona, horario, detalle });
+  }
+  return detalles.slice(0, 7);
+}
+
+export function validarDetallesContraFuente(detalles = [], texto = '') {
+  const fuente = normalizeForMatch(texto);
+  const fuenteDigitos = fuente.replace(/\D/g, '');
+  return (Array.isArray(detalles) ? detalles : []).filter((item) => {
+    const horario = clean(item?.horario);
+    const contenido = clean(item?.detalle || item?.zona);
+    if (!horario && !contenido) return false;
+    if (horario) {
+      const tokens = horario.match(/\d{1,2}[:.]\d{2}/g) || [];
+      if (!tokens.length) return false;
+      if (!tokens.every((token) => fuenteDigitos.includes(token.replace(/\D/g, '')))) return false;
+    }
+    const words = normalizeForMatch(contenido).split(/[^a-zñ]+/).filter((word) => word.length >= 6);
+    if (!words.length) return true;
+    return words.some((word) => fuente.includes(word));
+  });
+}
+
 export function buildServicioPlacas(plate = {}, perPage = 3) {
   const detalles = Array.isArray(plate?.servicio?.detalles) ? plate.servicio.detalles : [];
   const size = Math.max(1, Math.min(4, Number(perPage) || 3));

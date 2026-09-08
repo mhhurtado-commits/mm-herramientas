@@ -1,4 +1,4 @@
-import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate, normalizeServicePlate, resolveAlertSeverity, resolveServiceType, buildServicioPlacas } from './editorial-core.mjs';
+import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate, normalizeServicePlate, resolveAlertSeverity, resolveServiceType, buildServicioPlacas, parseServicioDetalles, validarDetallesContraFuente } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
@@ -187,18 +187,20 @@ Extraé y REESCRIBÍ SOLO estos campos en JSON válido sin backticks ni markdown
 - zona: localidades/zonas afectadas mencionadas, unidas por coma. Si no aparece, "Mendoza".
 - tipo: UNO solo de "tormenta", "transito", "agua", "luz", "gas", "operativo" o "generico" según el parte.
 - estado: estado operativo breve en minúsculas (ej "corte total", "desvío", "precaución", "servicio normalizado"). Si no surge, "".
-- detalles: lista con CADA corte/zona del parte, hasta 7, sin resumir. Cada item {"zona":"barrio o calles","horario":"8:30 a 12:30","detalle":"Entre calles X y Z"}. Si el parte trae horarios por zona, no los mezcles: un item por horario. Si no hay detalle separable, [].
+- detalles: UN item por cada viñeta del parte, hasta 7, en el MISMO orden, SIN resumir ni parafrasear. Copiá textual calles y distrito: {"zona":"distrito tras el ; (o la localidad del encabezado)","horario":"9.00 a 13.00","detalle":"texto completo de la viñeta sin el horario"}. PROHIBIDO inventar calles, mezclar horarios entre viñetas o reutilizar datos de otros partes. Si no hay viñetas separables, [].
 Responde SOLO JSON: {"mensaje":"...","fuente":"...","nivel":"...","zona":"...","tipo":"...","estado":"...","detalles":[{...}]}.`;
 
 async function extractAlertData(texto) {
   const result = await generateSocialJson(ALERT_EXTRACTION_PROMPT, texto);
   const nivel = ALERT_SEVERITY_LEVELS.includes(result?.nivel) ? result.nivel : 'naranja';
   const tipo = SERVICE_TYPES.includes(String(result?.tipo || '').toLowerCase()) ? String(result.tipo).toLowerCase() : 'generico';
-  const detalles = Array.isArray(result?.detalles) ? result.detalles.slice(0, 7).map((item) => ({
+  const deterministic = parseServicioDetalles(texto);
+  const iaDetalles = validarDetallesContraFuente(Array.isArray(result?.detalles) ? result.detalles.slice(0, 7).map((item) => ({
     zona: String(item?.zona || '').trim(),
     horario: String(item?.horario || item?.hora || '').trim(),
     detalle: String(item?.detalle || item?.calles || item?.texto || item?.zona || '').trim(),
-  })).filter((item) => item.zona || item.horario || item.detalle) : [];
+  })).filter((item) => item.zona || item.horario || item.detalle) : [], texto);
+  const detalles = deterministic.length ? deterministic : iaDetalles;
   return {
     mensaje: String(result?.mensaje || '').trim(),
     fuente: String(result?.fuente || '').trim(),
