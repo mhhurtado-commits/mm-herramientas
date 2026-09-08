@@ -678,7 +678,6 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const alert = plate.servicio || plate.alerta || {};
   const mensaje = alert.mensaje || plate.bajada || '';
   const fuente = alert.fuente || '';
-  const hora = alert.hora || '';
   const zona = alert.zona || '';
   const estado = alert.estado || '';
   const nivel = resolveAlertSeverity(alert.nivel);
@@ -743,7 +742,7 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
 
   const chipH = Math.min(layout.timestamp.h, canvas.h * 0.060);
   const chipPad = canvas.w * 0.022;
-  const chipText = `Vigente: ${[fechaLarga, hora].filter(Boolean).join(' \u00B7 ')}`;
+  const chipText = `Vigente: ${fechaLarga}`;
   ctx.font = `800 ${Math.max(22, canvas.w * 0.024)}px ${fontFamily}`;
   const chipW = Math.min(layout.timestamp.w, ctx.measureText(chipText).width + chipPad * 2);
   roundedRect(ctx, layout.timestamp.x, layout.timestamp.y, chipW, chipH, canvas.w * 0.010);

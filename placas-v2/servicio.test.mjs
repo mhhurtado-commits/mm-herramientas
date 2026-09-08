@@ -314,6 +314,19 @@ test('app expone fecha elegible para el servicio', async () => {
   assert.match(html, /alertaFecha/);
   assert.match(app, /alertaFecha/);
 });
+test('el chip muestra solo el día sin la hora de generación', () => {
+  const calls = [];
+  const plate = normalizeServicePlate(
+    { tipo: 'luz', mensaje: 'Cortes programados.', fuente: 'Edemsa', fecha: '2026-09-10' },
+    new Date('2026-09-08T19:58:00'),
+  );
+  renderNewsPlate(mockServiceCtx(calls), plate, 'portrait', {});
+  const chip = calls.find((item) => item.text.startsWith('Vigente:'));
+  assert.ok(chip);
+  assert.ok(chip.text.includes('10 de septiembre'));
+  assert.ok(!/\d{1,2}:\d{2}/.test(chip.text));
+});
+
 test('la tarjeta muestra la localidad del corte', () => {
   const calls = [];
   const plate = normalizeServicePlate({
