@@ -636,6 +636,35 @@ function formatAlertDate(value) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function renderServiceDetailsList(ctx, detalles, geometry) {
+  const { innerX, innerW, card, pad, innerH } = geometry;
+  const top = detalles.slice(0, 3);
+  const rest = detalles.length - top.length;
+  let y = card.y + pad + Math.max(34, card.w * 0.038);
+  const titleSize = Math.max(34, card.w * 0.042);
+  ctx.fillStyle = '#526058';
+  ctx.font = `800 ${Math.max(24, card.w * 0.024)}px ${fontFamily}`;
+  const summary = wrapMeasuredText(ctx, 'Deslizá para ver tu barrio →', innerW);
+  top.forEach((item) => {
+    const timeSize = Math.max(34, card.w * 0.040);
+    ctx.fillStyle = '#5b3b04';
+    ctx.font = `900 ${timeSize}px ${fontFamily}`;
+    const timeLines = wrapMeasuredText(ctx, item.horario || 'Horario a confirmar', innerW);
+    timeLines.slice(0, 1).forEach((line) => { ctx.fillText(line, innerX, y); y += timeSize * 1.15; });
+    ctx.fillStyle = '#526058';
+    ctx.font = `600 ${Math.max(26, card.w * 0.030)}px ${fontFamily}`;
+    const zoneLines = wrapMeasuredText(ctx, `• ${item.detalle || item.zona}`, innerW);
+    zoneLines.slice(0, 2).forEach((line) => { ctx.fillText(line, innerX, y); y += timeSize * 0.95; });
+    y += timeSize * 0.35;
+    if (y > card.y + card.h - pad * 2) return;
+  });
+  ctx.fillStyle = '#5b3b04';
+  ctx.font = `800 ${Math.max(26, card.w * 0.028)}px ${fontFamily}`;
+  if (rest > 0) ctx.fillText(`+${rest} más · Deslizá →`, innerX, Math.min(y, card.y + card.h - pad));
+  else ctx.fillText(summary[0] || 'Deslizá →', innerX, Math.min(y, card.y + card.h - pad));
+  void titleSize; void innerH;
+}
+
 function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const { canvas } = layout;
   const isStory = format === 'story';
@@ -716,11 +745,17 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   ctx.fillStyle = '#ffffff';
   ctx.fillText(chipText, layout.timestamp.x + chipPad, layout.timestamp.y + chipH * 0.68);
 
-  if (zona) {
+  const detalles = Array.isArray(alert.detalles) ? alert.detalles.slice(0, 7) : [];
+  if (zona && !detalles.length) {
     const zonaSize = Math.max(22, canvas.w * (isStory ? 0.028 : 0.024));
     ctx.fillStyle = nivel.secondary;
     ctx.font = `800 ${zonaSize}px ${fontFamily}`;
     ctx.fillText(`ZONA AFECTADA: ${String(zona).toUpperCase()}`, layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
+  } else if (detalles.length) {
+    const zonaSize = Math.max(22, canvas.w * (isStory ? 0.028 : 0.024));
+    ctx.fillStyle = nivel.secondary;
+    ctx.font = `800 ${zonaSize}px ${fontFamily}`;
+    ctx.fillText(`${detalles.length} ZONAS AFECTADAS · DESLIZÁ PARA TU BARRIO →`, layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
   }
 
   const pad = canvas.w * 0.038;
@@ -742,6 +777,10 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const innerW = card.w - pad * 2 - accentW * 0.6;
   const innerX = card.x + pad + accentW;
   const innerH = card.h - pad * 2;
+  if (detalles.length) {
+    renderServiceDetailsList(ctx, detalles, { innerX, innerW, card, pad, innerH });
+    ctx.strokeStyle = 'rgba(22,32,27,.16)';
+  } else {
   const messageSize = Math.max(52, canvas.w * (isStory ? 0.062 : 0.058));
   const minMessageSize = Math.max(36, canvas.w * 0.032);
   let fittedSize = messageSize;
@@ -766,6 +805,7 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const yOffset = Math.max(0, (innerH - usedH) * 0.42);
   const drawY = card.y + pad + fittedSize + yOffset;
   fittedLines.forEach((line, index) => ctx.fillText(line, innerX, drawY + index * fittedLineH));
+  }
 
   ctx.strokeStyle = 'rgba(22,32,27,.16)';
   ctx.lineWidth = Math.max(2, canvas.h * 0.001);

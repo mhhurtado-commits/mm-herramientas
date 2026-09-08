@@ -5,6 +5,7 @@ import {
   normalizeAlertPlate,
   resolveServiceType,
   resolveServiceBanner,
+  buildServicioCarouselPlan,
   SERVICIO_TIPOS,
   calculatePlateLayout,
 } from './editorial-core.mjs';
@@ -76,4 +77,69 @@ test('app expone tipo y estado de servicio en formulario y generación', async (
   assert.match(app, /normalizeServicePlate/);
   assert.match(html, /alertaTipo/);
   assert.match(html, /alertaEstado/);
+  assert.match(app, /detalles/);
+  assert.match(app, /buildServicioCarouselPackage|buildServicioCarouselPlan/);
+});
+
+test('construye plan carrusel con un slide por corte', () => {
+  const plate = normalizeServicePlate({
+    tipo: 'luz',
+    mensaje: '7 cortes programados en San Rafael.',
+    fuente: 'Edemsa',
+    detalles: [
+      { zona: 'A', horario: '9:00 a 13:00', detalle: 'Sarmiento y Lugones' },
+      { zona: 'B', horario: '15:00 a 19:00', detalle: 'Campos y Balcarce' },
+    ],
+  }, new Date('2026-09-08T10:00:00'));
+  const plan = buildServicioCarouselPlan(plate);
+  assert.ok(plan);
+  assert.ok(plan.slides.length >= 4);
+  assert.ok(plan.slides.some((slide) => String(slide.text).includes('Sarmiento')));
+});
+
+test('normaliza detalles de cortes programados hasta 7', () => {
+  const plate = normalizeServicePlate({
+    tipo: 'luz',
+    mensaje: '7 cortes programados en San Rafael de 8:30 a 19:30.',
+    fuente: 'Edemsa',
+    nivel: 'amarillo',
+    estado: 'corte programado',
+    zona: 'San Rafael',
+    detalles: [
+      { zona: 'Coronel Campos, Balcarce, Venezuela y Segovia', horario: '15:00 a 19:00' },
+      { zona: 'Sarmiento, Lugones, Benielli y Ballofet', horario: '9:00 a 13:00' },
+      { zona: 'Ruta Nacional N°146, La Llave', horario: '8:30 a 12:30' },
+    ],
+  }, new Date('2026-09-08T10:00:00'));
+  assert.equal(plate.servicio.detalles.length, 3);
+  assert.equal(plate.servicio.detalles[0].horario, '15:00 a 19:00');
+  assert.match(plate.servicio.detalles[0].zona, /Coronel Campos/);
+});
+
+test('render portada con detalles muestra top 3 y CTA deslizá', () => {  const calls = [];
+  const ctx = {
+    canvas: {}, clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
+    moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, fill() {},
+    createLinearGradient() { return { addColorStop() {} }; },
+    measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
+    fillText(value) { calls.push(String(value)); },
+  };
+  const plate = normalizeServicePlate({
+    tipo: 'luz',
+    mensaje: '7 cortes programados en San Rafael de 8:30 a 19:30.',
+    fuente: 'Edemsa',
+    nivel: 'amarillo',
+    estado: 'corte programado',
+    zona: 'San Rafael',
+    detalles: [
+      { zona: 'Coronel Campos y Balcarce', horario: '15:00 a 19:00' },
+      { zona: 'Sarmiento y Lugones', horario: '9:00 a 13:00' },
+      { zona: 'Ruta 146, La Llave', horario: '8:30 a 12:30' },
+      { zona: 'Agua del Toro', horario: '10:00 a 13:45' },
+    ],
+  }, new Date('2026-09-08T10:00:00'));
+  renderNewsPlate(ctx, plate, 'portrait', {});
+  const joined = calls.join('\n');
+  assert.ok(calls.some((value) => value.includes('15:00 a 19:00')));
+  assert.ok(joined.includes('Desliz'));
 });

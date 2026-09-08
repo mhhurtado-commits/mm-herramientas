@@ -329,6 +329,7 @@ export function normalizeServicePlate(input = {}, now = new Date()) {
   const nivel = resolveAlertSeverity(input.nivel || input.severidad).id;
   const tipo = resolveServiceType(input.tipo).id;
   const estado = clean(input.estado);
+  const detalles = normalizeServiceDetalles(input.detalles);
   const date = now instanceof Date ? now : new Date(now);
   const fecha = Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
   const hora = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -355,12 +356,46 @@ export function normalizeServicePlate(input = {}, now = new Date()) {
     imagenes_apoyo: [],
     color_principal: palette.color,
     color_secundario: palette.secondary,
-    servicio: { mensaje, fuente, hora, nivel, zona, tipo, estado },
+    servicio: { mensaje, fuente, hora, nivel, zona, tipo, estado, detalles },
     alerta: { mensaje, fuente, hora, nivel, zona },
     bloques: [],
     redes: { instagram: '', facebook: '' },
   };
   return plate;
+}
+
+function normalizeServiceDetalles(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    if (typeof item === 'string') return { zona: clean(item), horario: '', detalle: '' };
+    if (!item || typeof item !== 'object') return null;
+    const zona = clean(item.zona || item.zona_afectada || item.lugar || item.titulo);
+    const horario = clean(item.horario || item.hora || item.franja);
+    const detalle = clean(item.detalle || item.calles || item.texto);
+    if (!zona && !horario && !detalle) return null;
+    return { zona, horario, detalle: detalle || zona };
+  }).filter(Boolean).slice(0, 7);
+}
+
+export function buildServicioCarouselPlan(plate = {}) {
+  const detalles = Array.isArray(plate?.servicio?.detalles) ? plate.servicio.detalles : [];
+  if (!detalles.length) return null;
+  const banner = resolveServiceBanner(plate);
+  const fuente = plate?.servicio?.fuente || '';
+  return {
+    diagnosis: { carousel_type: 'servicio', vertical: 'servicio', template: 'mm_servicio', slide_count: Math.min(7, detalles.length + 2), reason: 'Cortes programados con detalle por zona.' },
+    cover: { title: banner, subtitle: plate?.servicio?.mensaje || '', image: '', imageOnly: false },
+    slides: [
+      { type: 'cover', title: banner, text: plate?.servicio?.mensaje || '', source: fuente },
+      ...detalles.slice(0, 6).map((item) => ({
+        type: 'detalle',
+        title: item.horario || 'Horario a confirmar',
+        text: item.detalle || item.zona,
+        source: fuente,
+      })),
+      { type: 'end', title: 'Fuente verificada', text: fuente || 'Consultá tu barrio antes de salir', source: fuente },
+    ],
+  };
 }
 
 export function normalizeAlertPlate(input = {}, now = new Date()) {

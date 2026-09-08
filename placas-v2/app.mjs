@@ -1,4 +1,4 @@
-import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate, normalizeServicePlate, resolveAlertSeverity, resolveServiceType } from './editorial-core.mjs';
+import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate, normalizeServicePlate, resolveAlertSeverity, resolveServiceType, buildServicioCarouselPlan } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
@@ -187,12 +187,18 @@ Extraé y REESCRIBÍ SOLO estos campos en JSON válido sin backticks ni markdown
 - zona: localidades/zonas afectadas mencionadas, unidas por coma. Si no aparece, "Mendoza".
 - tipo: UNO solo de "tormenta", "transito", "agua", "luz", "gas", "operativo" o "generico" según el parte.
 - estado: estado operativo breve en minúsculas (ej "corte total", "desvío", "precaución", "servicio normalizado"). Si no surge, "".
-Responde SOLO JSON: {"mensaje":"...","fuente":"...","nivel":"...","zona":"...","tipo":"...","estado":"..."}.`;
+- detalles: lista con CADA corte/zona del parte, hasta 7, sin resumir. Cada item {"zona":"barrio o calles","horario":"8:30 a 12:30","detalle":"Entre calles X y Z"}. Si el parte trae horarios por zona, no los mezcles: un item por horario. Si no hay detalle separable, [].
+Responde SOLO JSON: {"mensaje":"...","fuente":"...","nivel":"...","zona":"...","tipo":"...","estado":"...","detalles":[{...}]}.`;
 
 async function extractAlertData(texto) {
   const result = await generateSocialJson(ALERT_EXTRACTION_PROMPT, texto);
   const nivel = ALERT_SEVERITY_LEVELS.includes(result?.nivel) ? result.nivel : 'naranja';
   const tipo = SERVICE_TYPES.includes(String(result?.tipo || '').toLowerCase()) ? String(result.tipo).toLowerCase() : 'generico';
+  const detalles = Array.isArray(result?.detalles) ? result.detalles.slice(0, 7).map((item) => ({
+    zona: String(item?.zona || '').trim(),
+    horario: String(item?.horario || item?.hora || '').trim(),
+    detalle: String(item?.detalle || item?.calles || item?.texto || item?.zona || '').trim(),
+  })).filter((item) => item.zona || item.horario || item.detalle) : [];
   return {
     mensaje: String(result?.mensaje || '').trim(),
     fuente: String(result?.fuente || '').trim(),
@@ -200,6 +206,7 @@ async function extractAlertData(texto) {
     zona: String(result?.zona || '').trim(),
     tipo,
     estado: String(result?.estado || '').trim(),
+    detalles,
   };
 }
 
@@ -253,6 +260,7 @@ function renderOutputs() {
   } else if (state.mode === 'alerta') {
     outputs = [
       { id: 'placa', label: 'Placa' },
+      { id: 'carrusel', label: 'Carrusel' },
     ];
   } else {
     outputs = [
@@ -275,7 +283,7 @@ function renderOutputs() {
       await enrichEfemerideImages();
       button.disabled = false;
     }
-    const sourcePackage = state.mode === 'efemerides' ? buildEfemeridesCarouselPackage() : state.package;
+    const sourcePackage = state.mode === 'efemerides' ? buildEfemeridesCarouselPackage() : state.mode === 'alerta' ? buildServicioCarouselPackage() : state.package;
     if (!sourcePackage) return;
     const handoffPackage = {
       ...sourcePackage,
@@ -348,6 +356,45 @@ function buildEfemeridesCarouselPackage() {
   };
 }
 
+function buildServicioCarouselPackage() {
+  const variant = effectiveVariant() || state.plate;
+  const data = variant?.servicio || variant?.alerta || state.plate?.servicio || {};
+  const detalles = Array.isArray(data.detalles) ? data.detalles : [];
+  if (!detalles.length) return null;
+  const plan = buildServicioCarouselPlan({ ...variant, servicio: data });
+  if (!plan) return null;
+  let coverImage = '';
+  try { coverImage = $('#plateCanvas').toDataURL('image/png'); } catch { coverImage = ''; }
+  const fullText = detalles.map((item) => `${item.horario ? `${item.horario}: ` : ''}${item.detalle || item.zona}`).join('\n');
+  return {
+    tipo: 'noticia_editorial',
+    version: 2,
+    fuente: { url: '', titulo_original: variant?.titulo || 'Servicio', categoria: 'Servicio', cuerpo: `${data.mensaje || ''}\n${fullText}`, imagen: coverImage, imagenes: coverImage ? [coverImage] : [] },
+    editorial: { seccion: 'Servicio', familia: 'servicio', tipo_noticia: 'servicio', complejidad: 'low', tono: 'informative', titulo: variant?.titulo || 'Servicio', bajada: data.mensaje || '', contexto: '', datos_clave: [], textual: [], personas: [], category_options: [{ id: 'servicio', label: 'Servicio', vertical: 'servicio', recommended: true }] },
+    salidas: { placas: [], carrusel: { ...plan, cover: { ...plan.cover, image: coverImage || plan.cover.image } }, reel: null },
+    redes: { instagram: fullText.slice(0, 900), facebook: fullText.slice(0, 1200) },
+  };
+}
+
+function renderServiceDetailsEditor() {
+  const container = $('#alertaDetalles');
+  if (!container) return;
+  const variant = activeVariant();
+  const detalles = Array.isArray(variant?.servicio?.detalles) ? variant.servicio.detalles : [];
+  container.innerHTML = detalles.length ? detalles.map((item, index) => `<div class="field-row data-fact-row"><input type="text" data-detalle-index="${index}" data-detalle-key="horario" value="${escapeHtml(item.horario || '')}" placeholder="Horario" aria-label="Horario ${index + 1}"><input type="text" data-detalle-index="${index}" data-detalle-key="detalle" value="${escapeHtml(item.detalle || item.zona || '')}" placeholder="Zona / calles" aria-label="Detalle ${index + 1}"></div>`).join('') : '<small class="image-empty">Sin detalle por zona. El carrusel se habilita al detectar cortes.</small>';
+  container.querySelectorAll('[data-detalle-index]').forEach((input) => input.addEventListener('input', (event) => {
+    const v = activeVariant();
+    if (!v) return;
+    const idx = Number(event.target.dataset.detalleIndex);
+    const key = event.target.dataset.detalleKey;
+    const next = [...(v.servicio?.detalles || [])];
+    next[idx] = { ...(next[idx] || { zona: '', horario: '', detalle: '' }), [key]: event.target.value };
+    if (key === 'detalle' && !next[idx].zona) next[idx].zona = event.target.value;
+    updateServiceText({ detalles: next });
+    renderServiceDetailsEditor();
+  }));
+}
+
 function renderTemplates() {
   const source = activeVariant();
   let types;
@@ -408,6 +455,7 @@ function syncEditor() {
     $('#alertaZonaInput').value = data.zona || '';
     if ($('#alertaTipoInput')) $('#alertaTipoInput').value = data.tipo || 'generico';
     if ($('#alertaEstadoInput')) $('#alertaEstadoInput').value = data.estado || '';
+    renderServiceDetailsEditor();
     syncEditorAlert();
     return;
   }
@@ -474,18 +522,19 @@ async function generateAlert(event) {
   setLoading(true, 'Extrayendo datos y armando la placa…');
   const now = new Date();
 
-  const manual = { mensaje: texto, fuente: manualFuente, nivel: manualNivel, zona: manualZona, tipo: manualTipo, estado: manualEstado };
+  const manual = { mensaje: texto.slice(0, 220), fuente: manualFuente, nivel: manualNivel, zona: manualZona, tipo: manualTipo, estado: manualEstado, detalles: [] };
   let extraido = manual;
   let usoIA = false;
   try {
     const ia = await extractAlertData(texto);
     extraido = {
-      mensaje: ia.mensaje || texto,
+      mensaje: ia.mensaje || texto.slice(0, 220),
       fuente: ia.fuente || manualFuente,
       nivel: ia.nivel || manualNivel,
       zona: ia.zona || manualZona,
       tipo: ia.tipo && ia.tipo !== 'generico' ? ia.tipo : manualTipo,
       estado: ia.estado || manualEstado,
+      detalles: ia.detalles?.length ? ia.detalles : [],
     };
     usoIA = true;
   } catch (err) {
