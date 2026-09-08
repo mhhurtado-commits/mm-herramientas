@@ -179,15 +179,44 @@ test('normaliza detalles de cortes programados hasta 7', () => {
   assert.match(plate.servicio.detalles[0].zona, /Coronel Campos/);
 });
 
-test('render portada con detalles muestra top 3 y numeración sin CTA carrusel', () => {
-  const calls = [];
-  const ctx = {
+function mockServiceCtx(calls) {
+  return {
     canvas: {}, clearRect() {}, fillRect() {}, save() {}, restore() {}, beginPath() {}, closePath() {},
     moveTo() {}, lineTo() {}, stroke() {}, clip() {}, rect() {}, arcTo() {}, fill() {},
     createLinearGradient() { return { addColorStop() {} }; },
     measureText(value) { return { width: String(value).length * 10, actualBoundingBoxAscent: 10, actualBoundingBoxDescent: 3 }; },
-    fillText(value) { calls.push(String(value)); },
+    fillText(value) { calls.push({ font: this.font || '', text: String(value) }); },
   };
+}
+
+function fontSizeOf(calls, snippet) {
+  const call = calls.find((item) => item.text.includes(snippet));
+  return Number.parseInt(call?.font, 10) || 0;
+}
+
+test('render detalles con lugar primero y más grande que el horario', () => {
+  const calls = [];
+  const plate = normalizeServicePlate({
+    tipo: 'luz',
+    mensaje: '7 cortes programados en San Rafael de 8:30 a 19:30.',
+    fuente: 'Edemsa',
+    nivel: 'amarillo',
+    estado: 'corte programado',
+    zona: 'San Rafael',
+    detalles: [
+      { zona: 'Coronel Campos y Balcarce', horario: '15:00 a 19:00' },
+      { zona: 'Sarmiento y Lugones', horario: '9:00 a 13:00' },
+      { zona: 'Ruta 146, La Llave', horario: '8:30 a 12:30' },
+    ],
+  }, new Date('2026-09-08T10:00:00'));
+  renderNewsPlate(mockServiceCtx(calls), plate, 'portrait', {});
+  const texts = calls.map((item) => item.text);
+  assert.ok(texts.findIndex((text) => text.includes('Coronel Campos')) < texts.findIndex((text) => text.includes('15:00 a 19:00')));
+  assert.ok(fontSizeOf(calls, 'Coronel Campos') > fontSizeOf(calls, '15:00 a 19:00'));
+});
+
+test('paginación como número fantasma de fondo sin formato N/M', () => {
+  const calls = [];
   const plate = normalizeServicePlate({
     tipo: 'luz',
     mensaje: '7 cortes programados en San Rafael de 8:30 a 19:30.',
@@ -203,9 +232,9 @@ test('render portada con detalles muestra top 3 y numeración sin CTA carrusel',
     ],
   }, new Date('2026-09-08T10:00:00'));
   const [first] = buildServicioPlacas(plate, 3);
-  renderNewsPlate(ctx, first, 'portrait', {});
-  const joined = calls.join('\n');
-  assert.ok(calls.some((value) => value.includes('15:00 a 19:00')));
-  assert.ok(joined.includes('1/2'));
-  assert.ok(!joined.includes('Desliz'));
+  renderNewsPlate(mockServiceCtx(calls), first, 'portrait', {});
+  const joined = calls.map((item) => item.text).join('\n');
+  assert.ok(!/\d\/\d/.test(joined));
+  assert.ok(calls.some((item) => item.text === '1' && (Number.parseInt(item.font, 10) || 0) > 200));
+  assert.ok(joined.includes('●'));
 });

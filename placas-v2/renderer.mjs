@@ -641,27 +641,35 @@ function renderServiceDetailsList(ctx, detalles, geometry, pagination = {}) {
   const top = detalles.slice(0, 3);
   const pagina = pagination.pagina || 1;
   const paginas = pagination.paginas || 1;
-  let y = card.y + pad + Math.max(34, card.w * 0.038);
-  const titleSize = Math.max(34, card.w * 0.042);
-  ctx.fillStyle = '#526058';
-  ctx.font = `800 ${Math.max(24, card.w * 0.024)}px ${fontFamily}`;
+  ctx.save();
+  ctx.globalAlpha = 0.09;
+  ctx.fillStyle = pagination.color || '#5b3b04';
+  const ghostSize = Math.max(220, card.h * 0.52);
+  ctx.font = `900 ${ghostSize}px ${fontFamily}`;
+  ctx.textAlign = 'right';
+  ctx.fillText(String(pagina), card.x + card.w - pad, card.y + card.h - pad * 0.4);
+  ctx.restore();
+  ctx.textAlign = 'left';
+  const slotH = innerH / Math.max(1, top.length);
+  let y = card.y + pad;
   top.forEach((item) => {
-    const timeSize = Math.max(34, card.w * 0.040);
-    ctx.fillStyle = '#5b3b04';
-    ctx.font = `900 ${timeSize}px ${fontFamily}`;
-    const timeLines = wrapMeasuredText(ctx, item.horario || 'Horario a confirmar', innerW);
-    timeLines.slice(0, 1).forEach((line) => { ctx.fillText(line, innerX, y); y += timeSize * 1.15; });
+    const slotY = y;
+    const placeStart = Math.max(30, card.w * 0.040);
+    const placeFit = fittedText(ctx, item.detalle || item.zona || '', innerX, slotY + placeStart, innerW, placeStart, Math.max(24, card.w * 0.026), 2, 900, pagination.color || '#5b3b04', 1.04, slotH * 0.62);
+    y = slotY + placeFit.lines.length * placeFit.lineHeight + placeStart * 0.18;
+    const timeSize = Math.max(22, card.w * 0.026);
+    ctx.font = `700 ${timeSize}px ${fontFamily}`;
     ctx.fillStyle = '#526058';
-    ctx.font = `600 ${Math.max(26, card.w * 0.030)}px ${fontFamily}`;
-    const zoneLines = wrapMeasuredText(ctx, `• ${item.detalle || item.zona}`, innerW);
-    zoneLines.slice(0, 2).forEach((line) => { ctx.fillText(line, innerX, y); y += timeSize * 0.95; });
-    y += timeSize * 0.35;
-    if (y > card.y + card.h - pad * 2) return;
+    const timeLines = wrapMeasuredText(ctx, item.horario || 'Horario a confirmar', innerW);
+    timeLines.slice(0, 1).forEach((line) => { ctx.fillText(line, innerX, y); y += timeSize * 1.2; });
+    y += slotH * 0.10;
   });
-  ctx.fillStyle = '#5b3b04';
-  ctx.font = `800 ${Math.max(26, card.w * 0.028)}px ${fontFamily}`;
-  if (paginas > 1) ctx.fillText(`PLACA ${pagina}/${paginas}`, innerX, Math.min(y, card.y + card.h - pad));
-  void titleSize; void innerH;
+  if (paginas > 1) {
+    ctx.fillStyle = pagination.color || '#5b3b04';
+    ctx.font = `800 ${Math.max(26, card.w * 0.028)}px ${fontFamily}`;
+    ctx.fillText(Array.from({ length: paginas }, (_, index) => (index === pagina - 1 ? '●' : '○')).join(' '), innerX, Math.min(y, card.y + card.h - pad));
+  }
+  void innerH;
 }
 
 function renderAlertPlate(ctx, plate, format, options, family, layout) {
@@ -754,10 +762,7 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
     const zonaSize = Math.max(22, canvas.w * (isStory ? 0.028 : 0.024));
     ctx.fillStyle = nivel.secondary;
     ctx.font = `800 ${zonaSize}px ${fontFamily}`;
-    const pagina = alert.pagina || 1;
-    const paginas = alert.paginas || 1;
-    const pageText = paginas > 1 ? ` · PLACA ${pagina}/${paginas}` : '';
-    ctx.fillText(`${detalles.length} ZONAS EN ESTA PLACA${pageText}`, layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
+    ctx.fillText(detalles.length === 1 ? '1 ZONA EN ESTA PLACA' : `${detalles.length} ZONAS EN ESTA PLACA`, layout.zona.x, layout.zona.y + layout.zona.h * 0.72);
   }
 
   const pad = canvas.w * 0.038;
@@ -780,7 +785,7 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const innerX = card.x + pad + accentW;
   const innerH = card.h - pad * 2;
   if (detalles.length) {
-    renderServiceDetailsList(ctx, detalles, { innerX, innerW, card, pad, innerH }, { pagina: alert.pagina || 1, paginas: alert.paginas || 1 });
+    renderServiceDetailsList(ctx, detalles, { innerX, innerW, card, pad, innerH }, { pagina: alert.pagina || 1, paginas: alert.paginas || 1, color: nivel.secondary });
     ctx.strokeStyle = 'rgba(22,32,27,.16)';
   } else {
   const messageSize = Math.max(52, canvas.w * (isStory ? 0.062 : 0.058));
