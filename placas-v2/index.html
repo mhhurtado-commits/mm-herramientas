@@ -71,8 +71,11 @@
             <div class="alerta-field alerta-field--grow"><label for="alertaZona">Zona afectada</label><input id="alertaZona" type="text" placeholder="Ej: Ruta 143, Divisadero de las Águilas"></div>
             <div class="alerta-field alerta-field--grow"><label for="alertaEstado">Estado</label><input id="alertaEstado" type="text" placeholder="Ej: corte total, desvío, precaución"></div>
           </div>
+          <div class="alerta-row">
+            <div class="alerta-field"><label for="alertaFecha">Día de vigencia</label><input id="alertaFecha" type="date"></div>
+          </div>
           <div class="url-row"><button id="loadAlertaButton" class="icon-button" type="submit" aria-label="Generar placa">→</button></div>
-          <p class="hint">Se captura la fecha y hora actual al generar. No requiere link ni contrato.</p>
+          <p class="hint">La hora se captura al generar. Elegí el día si el cronograma es anticipado. No requiere link ni contrato.</p>
         </form>
         <div id="editorControls" class="controls is-hidden">
           <div class="step"><span>02</span><div><strong>Elegí una dirección</strong><small>La recomendada aparece primero</small></div></div>
@@ -111,8 +114,11 @@
               <div class="alerta-field alerta-field--grow"><label for="alertaZonaInput">Zona afectada</label><input id="alertaZonaInput" type="text" placeholder="Ej: Ruta 143, Divisadero de las Águilas"></div>
               <div class="alerta-field alerta-field--grow"><label for="alertaEstadoInput">Estado</label><input id="alertaEstadoInput" type="text" placeholder="Ej: corte total, desvío"></div>
             </div>
-            <div class="field"><label>Detalle por zona (para portada + carrusel)</label><div id="alertaDetalles"></div><small class="control-note">Horario + zona por corte. La portada muestra 3 y el carrusel el resto.</small></div>
-            <small class="control-note">La fecha y hora se fijaron al generar la placa.</small>
+            <div class="alerta-row">
+              <div class="alerta-field"><label for="alertaFechaInput">Día de vigencia</label><input id="alertaFechaInput" type="date"></div>
+            </div>
+            <div class="field"><label>Detalle por zona (se pagina de a 4)</label><div id="alertaDetalles"></div><small class="control-note">Horario + zona por corte. Si exceden una placa se generan varias.</small></div>
+            <small class="control-note">La hora se fijó al generar la placa. El día se puede cambiar.</small>
           </div>
           <div id="socialCopies" class="social-copies is-hidden">
             <div class="social-copy-head"><div><label>Texto para redes</label><small>Variantes listas para acompañar la placa</small></div></div>

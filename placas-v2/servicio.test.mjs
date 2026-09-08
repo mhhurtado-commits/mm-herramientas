@@ -289,6 +289,31 @@ test('paginación como número fantasma de fondo sin formato N/M', () => {  cons
   assert.ok(joined.includes('●'));
 });
 
+test('el servicio respeta el día elegido y conserva la hora de generación', () => {
+  const plate = normalizeServicePlate(
+    { tipo: 'luz', mensaje: 'Cortes programados.', fuente: 'Edemsa', fecha: '2026-09-10' },
+    new Date('2026-09-08T19:58:00'),
+  );
+  assert.equal(plate.fecha, '2026-09-10');
+  assert.equal(plate.servicio.hora, '19:58');
+});
+
+test('sin fecha explícita usa el día de generación', () => {
+  const plate = normalizeServicePlate(
+    { tipo: 'tormenta', mensaje: 'Tormenta fuerte.', fuente: 'Radar' },
+    new Date('2026-09-08T19:58:00'),
+  );
+  assert.equal(plate.fecha, '2026-09-08');
+  assert.equal(plate.servicio.hora, '19:58');
+});
+
+test('app expone fecha elegible para el servicio', async () => {
+  const { readFileSync } = await import('node:fs');
+  const app = readFileSync(new URL('./app.mjs', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  assert.match(html, /alertaFecha/);
+  assert.match(app, /alertaFecha/);
+});
 test('la tarjeta muestra la localidad del corte', () => {
   const calls = [];
   const plate = normalizeServicePlate({

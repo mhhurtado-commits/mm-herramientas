@@ -143,6 +143,7 @@ function setMode(mode) {
   $('#efemeridesModeButton').classList.toggle('active', efemerides);
   $('#alertaModeButton').classList.toggle('active', alerta);
   if (efemerides && !$('#efemeridesDate').value) $('#efemeridesDate').value = new Date().toISOString().slice(0, 10);
+  if (alerta && !$('#alertaFecha').value) $('#alertaFecha').value = new Date().toISOString().slice(0, 10);
 }
 function setFocus(axis, value) { const variant = activeVariant(); const imageBlock = variant?.bloques?.find(block => block.tipo === 'imagen'); if (!imageBlock) return; imageBlock.foco = { ...activeFocus(), [axis]: Number(value) / 100 }; renderFocus(); render(); }
 function setActiveText(key, value) { const current = activeVariant(); if (!current) return; current[key] = value; state.plate[key] = value; state.variants.forEach(variant => { if (variant[key] === current[key] || variant === current) variant[key] = value; }); render(); }
@@ -447,6 +448,7 @@ function syncEditor() {
     $('#alertaZonaInput').value = data.zona || '';
     if ($('#alertaTipoInput')) $('#alertaTipoInput').value = data.tipo || 'generico';
     if ($('#alertaEstadoInput')) $('#alertaEstadoInput').value = data.estado || '';
+    if ($('#alertaFechaInput')) $('#alertaFechaInput').value = variant.fecha || '';
     renderServiceDetailsEditor();
     syncEditorAlert();
     return;
@@ -508,13 +510,14 @@ async function generateAlert(event) {
   const manualZona = $('#alertaZona').value.trim();
   const manualTipo = $('#alertaTipo')?.value || 'generico';
   const manualEstado = $('#alertaEstado')?.value.trim() || '';
+  const manualFecha = $('#alertaFecha')?.value || '';
   if (!texto) { toast('Pegá el texto del servicio para continuar.'); return; }
   const button = $('#loadAlertaButton');
   if (button) button.disabled = true;
   setLoading(true, 'Extrayendo datos y armando la placa…');
   const now = new Date();
 
-  const manual = { mensaje: texto.slice(0, 220), fuente: manualFuente, nivel: manualNivel, zona: manualZona, tipo: manualTipo, estado: manualEstado, detalles: [] };
+  const manual = { mensaje: texto.slice(0, 220), fuente: manualFuente, nivel: manualNivel, zona: manualZona, tipo: manualTipo, estado: manualEstado, fecha: manualFecha, detalles: [] };
   let extraido = manual;
   let usoIA = false;
   try {
@@ -526,6 +529,7 @@ async function generateAlert(event) {
       zona: ia.zona || manualZona,
       tipo: ia.tipo && ia.tipo !== 'generico' ? ia.tipo : manualTipo,
       estado: ia.estado || manualEstado,
+      fecha: manualFecha,
       detalles: ia.detalles?.length ? ia.detalles : [],
     };
     usoIA = true;
@@ -573,6 +577,16 @@ if ($('#alertaTipo')) $('#alertaTipo').addEventListener('change', event => updat
 if ($('#alertaTipoInput')) $('#alertaTipoInput').addEventListener('change', event => updateServiceField({ tipo: event.target.value }));
 if ($('#alertaEstado')) $('#alertaEstado').addEventListener('input', event => updateServiceText({ estado: event.target.value }));
 if ($('#alertaEstadoInput')) $('#alertaEstadoInput').addEventListener('input', event => updateServiceText({ estado: event.target.value }));
+if ($('#alertaFechaInput')) $('#alertaFechaInput').addEventListener('change', event => {
+  const value = event.target.value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
+  const v = activeVariant();
+  if (!v) return;
+  v.fecha = value;
+  state.variants.forEach((variant) => { variant.fecha = value; });
+  if (state.plate) state.plate.fecha = value;
+  render();
+});
 $('#loadEfemeridesButton').addEventListener('click', loadEfemerides);
 $('#titleInput').addEventListener('input', event => setActiveText('titulo', event.target.value));
 $('#syntheticTitleInput').addEventListener('input', event => { syncSyntheticTitleMeta(event.target.value); setActiveText('titulo_sintetico', event.target.value); });

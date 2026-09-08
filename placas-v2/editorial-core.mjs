@@ -331,7 +331,8 @@ export function normalizeServicePlate(input = {}, now = new Date()) {
   const estado = clean(input.estado);
   const detalles = normalizeServiceDetalles(input.detalles);
   const date = now instanceof Date ? now : new Date(now);
-  const fecha = Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+  const explicitFecha = clean(input.fecha);
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(explicitFecha) ? explicitFecha : (Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10));
   const hora = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
   const palette = resolveAlertSeverity(nivel);
   const serviceType = resolveServiceType(tipo);
