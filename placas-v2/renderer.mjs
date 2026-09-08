@@ -1,4 +1,4 @@
-import { FAMILIES, calculatePlateLayout, fitTextToLines, normalizeFocus, resolveAlertSeverity } from './editorial-core.mjs';
+import { FAMILIES, calculatePlateLayout, fitTextToLines, normalizeFocus, resolveAlertSeverity, resolveServiceBanner } from './editorial-core.mjs';
 
 const fontFamily = 'Inter, Arial, sans-serif';
 
@@ -639,12 +639,14 @@ function formatAlertDate(value) {
 function renderAlertPlate(ctx, plate, format, options, family, layout) {
   const { canvas } = layout;
   const isStory = format === 'story';
-  const alert = plate.alerta || {};
+  const alert = plate.servicio || plate.alerta || {};
   const mensaje = alert.mensaje || plate.bajada || '';
   const fuente = alert.fuente || '';
   const hora = alert.hora || '';
   const zona = alert.zona || '';
+  const estado = alert.estado || '';
   const nivel = resolveAlertSeverity(alert.nivel);
+  const banner = resolveServiceBanner(plate);
   const fechaLarga = formatAlertDate(plate.fecha);
   const bannerH = canvas.h * (isStory ? 0.165 : 0.145);
 
@@ -666,11 +668,11 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   ctx.fillStyle = '#ffffff';
   while (labelSize > 28) {
     ctx.font = `900 ${labelSize}px ${fontFamily}`;
-    if (ctx.measureText('ALERTA DE TORMENTAS').width <= titleMaxW) break;
+    if (ctx.measureText(banner).width <= titleMaxW) break;
     labelSize -= 1;
   }
   ctx.font = `900 ${labelSize}px ${fontFamily}`;
-  ctx.fillText('ALERTA DE TORMENTAS', layout.label.x, bannerH * 0.50);
+  ctx.fillText(banner, layout.label.x, bannerH * 0.50);
   if (fuente) {
     const sourceSize = Math.max(18, canvas.w * (isStory ? 0.024 : 0.020));
     ctx.fillStyle = 'rgba(255,255,255,.94)';
@@ -692,7 +694,8 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   const bandDetail = { verde: 'LLUVIA LEVE · SIN RIESGO', amarillo: 'PRECAUCIÓN', naranja: 'RIESGO', rojo: 'PELIGRO' }[nivel.id] || '';
-  let bandText = `NIVEL ${nivel.label.toUpperCase()}${bandDetail ? ` \u00B7 ${bandDetail}` : ''}`;
+  const estadoText = estado ? ` · ${String(estado).toUpperCase()}` : '';
+  let bandText = `NIVEL ${nivel.label.toUpperCase()}${bandDetail ? ` \u00B7 ${bandDetail}` : ''}${estadoText}`;
   let bandSize = Math.max(22, canvas.w * 0.028);
   ctx.font = `900 ${bandSize}px ${fontFamily}`;
   while (bandSize > 18 && ctx.measureText(bandText).width > sev.w - canvas.w * 0.06) {
@@ -796,7 +799,7 @@ export function renderNewsPlate(ctx, plate, format, options = {}) {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.w, canvas.h);
 
-  if (plateType === 'alerta') return renderAlertPlate(ctx, plate, format, options, family, layout);
+  if (plateType === 'alerta' || plateType === 'servicio') return renderAlertPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'foto-completa') return renderFullBleedPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'dato-clave') return renderDataCardPlate(ctx, plate, format, options, family, layout);
   if (plateType === 'comparativa') return renderComparisonPlate(ctx, plate, format, options, family, layout);

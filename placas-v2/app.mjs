@@ -1,4 +1,4 @@
-import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate, resolveAlertSeverity } from './editorial-core.mjs';
+import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate, normalizeServicePlate, resolveAlertSeverity, resolveServiceType } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
 import { loadEditorialSession } from './editorial-session.mjs';
 import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
@@ -178,22 +178,28 @@ async function generateSocialJson(systemPrompt, userMsg) {
 }
 
 const ALERT_SEVERITY_LEVELS = ['verde', 'amarillo', 'naranja', 'rojo'];
-const ALERT_EXTRACTION_PROMPT = `Sos editor de servicio meteorológico de Media Mendoza. Recibís el parte original pegado por el redactor y debes REESCRIBIRLO para una placa de servicio a corto plazo que se lee en 2 segundos en el feed.
+const SERVICE_TYPES = ['tormenta', 'transito', 'agua', 'luz', 'gas', 'operativo', 'generico'];
+const ALERT_EXTRACTION_PROMPT = `Sos editor de servicio de Media Mendoza. Recibís el parte original pegado por el redactor y debes REESCRIBIRLO para una placa de servicio a corto plazo que se lee en 2 segundos en el feed.
 Extraé y REESCRIBÍ SOLO estos campos en JSON válido sin backticks ni markdown:
-- mensaje: REESCRIBÍ el parte en 1 o 2 frases cortas, voz activa, tono servicio, máximo 160 caracteres. Empezá por el hecho ("Sigue lloviendo...", "Tormenta con granizo en..."), mencioná la zona una sola vez y si aplica cerrá con instrucción breve ("Transitá con precaución.", "Evitá la zona."). No repitas la zona, no incluyas firma ni fuente. Dale más importancia: que suene útil e inmediato, no genérico.
-- fuente: persona/cuenta/organismo que emite la alerta (ej "Radar San Rafael - Marcelo Peña"). Si no aparece, "Medio Mendoza".
-- nivel: UNO solo de "verde" (lluvias leves sin complicaciones, servicio preventivo), "amarillo" (tormentas aisladas, precaución), "naranja" (tormentas fuertes, riesgo) o "rojo" (situación severa, peligro).
+- mensaje: REESCRIBÍ el parte en 1 o 2 frases cortas, voz activa, tono servicio, máximo 160 caracteres. Empezá por el hecho ("Corte total en...", "Sigue lloviendo..."), mencioná la zona una sola vez y si aplica cerrá con instrucción breve ("Transitá con precaución.", "Evitá la zona."). No repitas la zona, no incluyas firma ni fuente.
+- fuente: persona/cuenta/organismo que emite el parte (ej "Defensa Civil", "Radar San Rafael - Marcelo Peña"). Si no aparece, "Mediamendoza".
+- nivel: UNO solo de "verde", "amarillo", "naranja" o "rojo".
 - zona: localidades/zonas afectadas mencionadas, unidas por coma. Si no aparece, "Mendoza".
-Responde SOLO JSON: {"mensaje":"...","fuente":"...","nivel":"...","zona":"..."}.`;
+- tipo: UNO solo de "tormenta", "transito", "agua", "luz", "gas", "operativo" o "generico" según el parte.
+- estado: estado operativo breve en minúsculas (ej "corte total", "desvío", "precaución", "servicio normalizado"). Si no surge, "".
+Responde SOLO JSON: {"mensaje":"...","fuente":"...","nivel":"...","zona":"...","tipo":"...","estado":"..."}.`;
 
 async function extractAlertData(texto) {
   const result = await generateSocialJson(ALERT_EXTRACTION_PROMPT, texto);
   const nivel = ALERT_SEVERITY_LEVELS.includes(result?.nivel) ? result.nivel : 'naranja';
+  const tipo = SERVICE_TYPES.includes(String(result?.tipo || '').toLowerCase()) ? String(result.tipo).toLowerCase() : 'generico';
   return {
     mensaje: String(result?.mensaje || '').trim(),
     fuente: String(result?.fuente || '').trim(),
     nivel,
     zona: String(result?.zona || '').trim(),
+    tipo,
+    estado: String(result?.estado || '').trim(),
   };
 }
 
@@ -346,7 +352,7 @@ function renderTemplates() {
   const source = activeVariant();
   let types;
   if (state.mode === 'efemerides') types = [PLATE_TYPES['efemerides-social']];
-  else if (state.mode === 'alerta') types = [PLATE_TYPES['alerta']];
+  else if (state.mode === 'alerta') types = [PLATE_TYPES.servicio || PLATE_TYPES.alerta];
   else types = Object.values(PLATE_TYPES).filter(type => type.id === 'noticia' || type.id === 'titular-arriba' || type.id === 'titular-abajo' || type.id === 'foto-completa' || type.id === 'dato-clave' || type.id === 'comparativa' || type.id === 'conversacion' || type.id === 'actualizacion' || type.id === 'que-cambia' || (type.id === 'textual' && source?.textual?.verificada) || type.id === 'retrato-circular' || type.id === 'editorial-split');
   const current = state.selectedTemplate || source?.tipo_placa || 'noticia';
   $('#templateList').innerHTML = types.map(type => `<button type="button" class="template-option ${current === type.id ? 'active' : ''}" data-template="${type.id}">${type.label}</button>`).join('');
@@ -395,10 +401,13 @@ function syncEditor() {
   $('#titleInput').parentElement.classList.toggle('is-hidden', isAlerta);
   $('#dekInput').parentElement.classList.toggle('is-hidden', isAlerta);
   if (isAlerta) {
-    $('#alertaMessageInput').value = variant.alerta?.mensaje || '';
-    $('#alertaSourceInput').value = variant.alerta?.fuente || '';
-    $('#alertaNivelInput').value = variant.alerta?.nivel || 'naranja';
-    $('#alertaZonaInput').value = variant.alerta?.zona || '';
+    const data = variant.servicio || variant.alerta || {};
+    $('#alertaMessageInput').value = data.mensaje || '';
+    $('#alertaSourceInput').value = data.fuente || '';
+    $('#alertaNivelInput').value = data.nivel || 'naranja';
+    $('#alertaZonaInput').value = data.zona || '';
+    if ($('#alertaTipoInput')) $('#alertaTipoInput').value = data.tipo || 'generico';
+    if ($('#alertaEstadoInput')) $('#alertaEstadoInput').value = data.estado || '';
     syncEditorAlert();
     return;
   }
@@ -457,13 +466,15 @@ async function generateAlert(event) {
   const manualFuente = $('#alertaSource').value.trim();
   const manualNivel = $('#alertaNivel')?.value || 'naranja';
   const manualZona = $('#alertaZona').value.trim();
-  if (!texto) { toast('Pegá el texto de la alerta para continuar.'); return; }
+  const manualTipo = $('#alertaTipo')?.value || 'generico';
+  const manualEstado = $('#alertaEstado')?.value.trim() || '';
+  if (!texto) { toast('Pegá el texto del servicio para continuar.'); return; }
   const button = $('#loadAlertaButton');
   if (button) button.disabled = true;
   setLoading(true, 'Extrayendo datos y armando la placa…');
   const now = new Date();
 
-  const manual = { mensaje: texto, fuente: manualFuente, nivel: manualNivel, zona: manualZona };
+  const manual = { mensaje: texto, fuente: manualFuente, nivel: manualNivel, zona: manualZona, tipo: manualTipo, estado: manualEstado };
   let extraido = manual;
   let usoIA = false;
   try {
@@ -473,6 +484,8 @@ async function generateAlert(event) {
       fuente: ia.fuente || manualFuente,
       nivel: ia.nivel || manualNivel,
       zona: ia.zona || manualZona,
+      tipo: ia.tipo && ia.tipo !== 'generico' ? ia.tipo : manualTipo,
+      estado: ia.estado || manualEstado,
     };
     usoIA = true;
   } catch (err) {
@@ -480,19 +493,21 @@ async function generateAlert(event) {
     toast('El asistente no respondió: completá los datos manualmente.');
   }
 
-  state.plate = normalizeAlertPlate(extraido, now);
+  state.plate = normalizeServicePlate(extraido, now);
   state.variants = [state.plate];
   state.selectedVariant = 0;
-  state.selectedTemplate = 'alerta';
+  state.selectedTemplate = 'servicio';
   state.format = 'portrait';
   state.image = null; state.imageUrl = '';
   $('#editorControls').classList.remove('is-hidden');
 
-  const v = state.plate.alerta || {};
+  const v = state.plate.servicio || state.plate.alerta || {};
   $('#alertaMessageInput').value = v.mensaje || '';
   $('#alertaSourceInput').value = v.fuente || '';
   if ($('#alertaNivelInput')) $('#alertaNivelInput').value = v.nivel || 'naranja';
   $('#alertaZonaInput').value = v.zona || '';
+  if ($('#alertaTipoInput')) $('#alertaTipoInput').value = v.tipo || 'generico';
+  if ($('#alertaEstadoInput')) $('#alertaEstadoInput').value = v.estado || '';
   if (usoIA) toast('Datos extraídos por el asistente. Revisalos y ajustalos si hace falta.');
 
   renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor(); render();
@@ -505,11 +520,17 @@ $('#articleModeButton').addEventListener('click', () => setMode('nota'));
 $('#efemeridesModeButton').addEventListener('click', () => setMode('efemerides'));
 $('#alertaModeButton').addEventListener('click', () => setMode('alerta'));
 $('#alertaForm').addEventListener('submit', generateAlert);
-$('#alertaMessageInput').addEventListener('input', event => { const v = activeVariant(); if (!v) return; v.alerta = { ...(v.alerta || {}), mensaje: event.target.value }; state.plate.alerta = v.alerta; render(); });
-$('#alertaSourceInput').addEventListener('input', event => { const v = activeVariant(); if (!v) return; v.alerta = { ...(v.alerta || {}), fuente: event.target.value }; state.plate.alerta = v.alerta; render(); });
-$('#alertaNivel').addEventListener('change', event => { const v = activeVariant(); if (!v) return; const palette = resolveAlertSeverity(event.target.value); v.alerta = { ...(v.alerta || {}), nivel: palette.id }; v.color_principal = palette.color; v.color_secundario = palette.secondary; state.plate.alerta = v.alerta; state.plate.color_principal = palette.color; state.plate.color_secundario = palette.secondary; renderVariants(); render(); });
-$('#alertaNivelInput').addEventListener('change', event => { const v = activeVariant(); if (!v) return; const palette = resolveAlertSeverity(event.target.value); v.alerta = { ...(v.alerta || {}), nivel: palette.id }; v.color_principal = palette.color; v.color_secundario = palette.secondary; state.plate.alerta = v.alerta; state.plate.color_principal = palette.color; state.plate.color_secundario = palette.secondary; renderVariants(); render(); });
-$('#alertaZonaInput').addEventListener('input', event => { const v = activeVariant(); if (!v) return; v.alerta = { ...(v.alerta || {}), zona: event.target.value }; state.plate.alerta = v.alerta; render(); });
+function updateServiceField(patch) { const v = activeVariant(); if (!v) return; const next = { ...(v.servicio || v.alerta || {}), ...patch }; v.servicio = next; v.alerta = { mensaje: next.mensaje, fuente: next.fuente, hora: next.hora, nivel: next.nivel, zona: next.zona }; if (state.plate) { state.plate.servicio = next; state.plate.alerta = v.alerta; } if (patch.nivel) { const palette = resolveAlertSeverity(patch.nivel); v.color_principal = palette.color; v.color_secundario = palette.secondary; if (state.plate) { state.plate.color_principal = palette.color; state.plate.color_secundario = palette.secondary; } } if (patch.tipo) { const serviceType = resolveServiceType(patch.tipo); v.titulo = serviceType.titulo; if (state.plate) state.plate.titulo = serviceType.titulo; } renderVariants(); render(); }
+function updateServiceText(patch) { const v = activeVariant(); if (!v) return; const next = { ...(v.servicio || v.alerta || {}), ...patch }; v.servicio = next; v.alerta = { mensaje: next.mensaje, fuente: next.fuente, hora: next.hora, nivel: next.nivel, zona: next.zona }; if (state.plate) { state.plate.servicio = next; state.plate.alerta = v.alerta; } render(); }
+$('#alertaMessageInput').addEventListener('input', event => updateServiceText({ mensaje: event.target.value }));
+$('#alertaSourceInput').addEventListener('input', event => updateServiceText({ fuente: event.target.value }));
+$('#alertaNivel').addEventListener('change', event => updateServiceField({ nivel: event.target.value }));
+$('#alertaNivelInput').addEventListener('change', event => updateServiceField({ nivel: event.target.value }));
+$('#alertaZonaInput').addEventListener('input', event => updateServiceText({ zona: event.target.value }));
+if ($('#alertaTipo')) $('#alertaTipo').addEventListener('change', event => updateServiceField({ tipo: event.target.value }));
+if ($('#alertaTipoInput')) $('#alertaTipoInput').addEventListener('change', event => updateServiceField({ tipo: event.target.value }));
+if ($('#alertaEstado')) $('#alertaEstado').addEventListener('input', event => updateServiceText({ estado: event.target.value }));
+if ($('#alertaEstadoInput')) $('#alertaEstadoInput').addEventListener('input', event => updateServiceText({ estado: event.target.value }));
 $('#loadEfemeridesButton').addEventListener('click', loadEfemerides);
 $('#titleInput').addEventListener('input', event => setActiveText('titulo', event.target.value));
 $('#syntheticTitleInput').addEventListener('input', event => { syncSyntheticTitleMeta(event.target.value); setActiveText('titulo_sintetico', event.target.value); });

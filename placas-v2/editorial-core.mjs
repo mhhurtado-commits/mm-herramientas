@@ -14,6 +14,7 @@ export const FAMILIES = {
   economia: { id: 'economia', label: 'Economía', color: '#507118', secondary: '#213009', soft: '#eaf3de', symbol: '$' },
   deportes: { id: 'deportes', label: 'Deportes', color: '#16806a', secondary: '#103c33', soft: '#d9f1eb', symbol: '↗' },
   alerta: { id: 'alerta', label: 'Alerta meteorológica', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0', symbol: '⚠' },
+  servicio: { id: 'servicio', label: 'Servicio', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0', symbol: '⚠' },
 };
 
 export const ALERT_SEVERITIES = {
@@ -25,6 +26,26 @@ export const ALERT_SEVERITIES = {
 
 export function resolveAlertSeverity(nivel = '') {
   return ALERT_SEVERITIES[String(nivel || '').toLowerCase()] || ALERT_SEVERITIES.naranja;
+}
+
+export const SERVICIO_TIPOS = {
+  tormenta: { id: 'tormenta', banner: 'ALERTA DE TORMENTAS', titulo: 'Alerta tormentas' },
+  transito: { id: 'transito', banner: 'CORTE / TRÁNSITO', titulo: 'Corte / Tránsito' },
+  agua: { id: 'agua', banner: 'CORTE DE AGUA', titulo: 'Corte de agua' },
+  luz: { id: 'luz', banner: 'CORTE DE LUZ', titulo: 'Corte de luz' },
+  gas: { id: 'gas', banner: 'CORTE DE GAS', titulo: 'Corte de gas' },
+  operativo: { id: 'operativo', banner: 'OPERATIVO VIAL', titulo: 'Operativo vial' },
+  generico: { id: 'generico', banner: 'SERVICIO', titulo: 'Servicio' },
+};
+
+export function resolveServiceType(tipo = '') {
+  const key = String(tipo || '').toLowerCase();
+  return SERVICIO_TIPOS[key] || SERVICIO_TIPOS.generico;
+}
+
+export function resolveServiceBanner(plate = {}) {
+  const tipo = plate?.servicio?.tipo || (plate?.alerta ? 'tormenta' : 'generico');
+  return resolveServiceType(tipo).banner;
 }
 
 export const PLATE_TYPES = {
@@ -42,6 +63,7 @@ export const PLATE_TYPES = {
   actualizacion: { id: 'actualizacion', label: 'Actualización' },
   'que-cambia': { id: 'que-cambia', label: 'Qué cambia' },
   'alerta': { id: 'alerta', label: 'Alerta meteorológica' },
+  'servicio': { id: 'servicio', label: 'Servicio' },
 };
 
 const FAMILY_ALIASES = new Map([
@@ -300,41 +322,57 @@ export function normalizeNewsPlate(input = {}) {
   return normalized;
 }
 
-export function normalizeAlertPlate(input = {}, now = new Date()) {
+export function normalizeServicePlate(input = {}, now = new Date()) {
   const mensaje = clean(input.mensaje || input.texto || input.message || input.bajada || '');
   const fuente = clean(input.fuente || input.source || input.atribucion || '');
   const zona = clean(input.zona || input.zona_afectada || '');
   const nivel = resolveAlertSeverity(input.nivel || input.severidad).id;
+  const tipo = resolveServiceType(input.tipo).id;
+  const estado = clean(input.estado);
   const date = now instanceof Date ? now : new Date(now);
   const fecha = Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
   const hora = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
   const palette = resolveAlertSeverity(nivel);
+  const serviceType = resolveServiceType(tipo);
   const plate = {
     tipo: 'placa_noticia',
     version: 1,
-    fuente: { url: '', titulo_original: '', categoria: 'Alerta', descripcion: '', texto: '', imagen: '', imagenes: [] },
-    titulo: 'Alerta tormentas',
+    fuente: { url: '', titulo_original: '', categoria: 'Servicio', descripcion: '', texto: '', imagen: '', imagenes: [] },
+    titulo: serviceType.titulo,
     titulo_sintetico: '',
     fecha,
     bajada: mensaje,
-    etiqueta: 'Alerta meteorológica',
+    etiqueta: 'Servicio',
     contexto: '',
     pregunta_social: '',
     datos_clave: [],
     impactos: [],
     comparativa: null,
-    template_sugerido: 'alerta',
-    tipo_placa: 'alerta',
+    template_sugerido: 'servicio',
+    tipo_placa: 'servicio',
     textual: { cita: '', autor: '', cargo: '', verificada: false },
     personas: [],
     imagenes_apoyo: [],
     color_principal: palette.color,
     color_secundario: palette.secondary,
+    servicio: { mensaje, fuente, hora, nivel, zona, tipo, estado },
     alerta: { mensaje, fuente, hora, nivel, zona },
     bloques: [],
     redes: { instagram: '', facebook: '' },
   };
   return plate;
+}
+
+export function normalizeAlertPlate(input = {}, now = new Date()) {
+  const plate = normalizeServicePlate({ ...input, tipo: input.tipo || 'tormenta' }, now);
+  return {
+    ...plate,
+    titulo: 'Alerta tormentas',
+    etiqueta: 'Alerta meteorológica',
+    template_sugerido: 'alerta',
+    tipo_placa: 'alerta',
+    fuente: { ...plate.fuente, categoria: 'Alerta' },
+  };
 }
 
 function cloneWithTemplate(plate, id, template, recommended = false) {
@@ -538,7 +576,7 @@ export function calculatePlateLayout(format, plate = {}) {
       footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.035 },
     };
   }
-  if (plate.tipo_placa === 'alerta') {
+  if (plate.tipo_placa === 'alerta' || plate.tipo_placa === 'servicio') {
     const bannerH = canvas.h * (isStory ? 0.165 : 0.145);
     const severityH = canvas.h * (isStory ? 0.055 : 0.05);
     const severityY = bannerH + canvas.h * 0.020;

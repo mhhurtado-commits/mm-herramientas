@@ -59,13 +59,17 @@
           </div>
         </div>
         <form id="alertaForm" class="alerta-form is-hidden">
-          <label for="alertaText">Texto de la alerta</label>
-          <textarea id="alertaText" rows="6" placeholder="Pegá aquí el parte de la alerta meteorológica…"></textarea>
+          <label for="alertaText">Texto del servicio</label>
+          <textarea id="alertaText" rows="6" placeholder="Pegá aquí el parte de corte, tránsito u operativo…"></textarea>
           <label for="alertaSource">Fuente / atribución</label>
-          <input id="alertaSource" type="text" placeholder="Ej: Radar San Rafael · Sr. Marcelo Peña">
+          <input id="alertaSource" type="text" placeholder="Ej: Defensa Civil · Ruta 143">
           <div class="alerta-row">
+            <div class="alerta-field"><label for="alertaTipo">Tipo de servicio</label><select id="alertaTipo"><option value="tormenta">Tormenta</option><option value="transito">Tránsito / corte</option><option value="agua">Agua</option><option value="luz">Luz</option><option value="gas">Gas</option><option value="operativo">Operativo vial</option><option value="generico" selected>Servicio</option></select></div>
             <div class="alerta-field"><label for="alertaNivel">Nivel de severidad</label><select id="alertaNivel"><option value="verde">Verde</option><option value="amarillo">Amarillo</option><option value="naranja" selected>Naranja</option><option value="rojo">Rojo</option></select></div>
+          </div>
+          <div class="alerta-row">
             <div class="alerta-field alerta-field--grow"><label for="alertaZona">Zona afectada</label><input id="alertaZona" type="text" placeholder="Ej: Ruta 143, Divisadero de las Águilas"></div>
+            <div class="alerta-field alerta-field--grow"><label for="alertaEstado">Estado</label><input id="alertaEstado" type="text" placeholder="Ej: corte total, desvío, precaución"></div>
           </div>
           <div class="url-row"><button id="loadAlertaButton" class="icon-button" type="submit" aria-label="Generar placa">→</button></div>
           <p class="hint">Se captura la fecha y hora actual al generar. No requiere link ni contrato.</p>
@@ -95,13 +99,17 @@
             <div id="supportControls" class="support-editor"><div class="people-head"><label>Imagen de apoyo</label><small>Para editorial split</small></div><div id="supportImageList" class="support-image-list"></div><div class="people-actions"><label class="upload-people"><input id="supportUpload" type="file" accept="image/*">Agregar imagen</label></div></div>
           </div>
           <div id="alertControls" class="field is-hidden">
-            <label for="alertaMessageInput">Mensaje de la alerta</label>
+            <label for="alertaMessageInput">Mensaje del servicio</label>
             <textarea id="alertaMessageInput" rows="6"></textarea>
             <label for="alertaSourceInput">Fuente / atribución</label>
             <input id="alertaSourceInput" type="text">
             <div class="alerta-row">
+              <div class="alerta-field"><label for="alertaTipoInput">Tipo de servicio</label><select id="alertaTipoInput"><option value="tormenta">Tormenta</option><option value="transito">Tránsito / corte</option><option value="agua">Agua</option><option value="luz">Luz</option><option value="gas">Gas</option><option value="operativo">Operativo vial</option><option value="generico">Servicio</option></select></div>
               <div class="alerta-field"><label for="alertaNivelInput">Nivel de severidad</label><select id="alertaNivelInput"><option value="verde">Verde</option><option value="amarillo">Amarillo</option><option value="naranja" selected>Naranja</option><option value="rojo">Rojo</option></select></div>
+            </div>
+            <div class="alerta-row">
               <div class="alerta-field alerta-field--grow"><label for="alertaZonaInput">Zona afectada</label><input id="alertaZonaInput" type="text" placeholder="Ej: Ruta 143, Divisadero de las Águilas"></div>
+              <div class="alerta-field alerta-field--grow"><label for="alertaEstadoInput">Estado</label><input id="alertaEstadoInput" type="text" placeholder="Ej: corte total, desvío"></div>
             </div>
             <small class="control-note">La fecha y hora se fijaron al generar la placa.</small>
           </div>
