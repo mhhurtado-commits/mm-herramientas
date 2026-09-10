@@ -340,6 +340,18 @@ test('el chip de tormenta conserva día y hora de generación', () => {
   assert.ok(chip.text.includes('19:58'));
 });
 
+test('la banda no repite el estado si coincide con el detalle del nivel', () => {
+  const calls = [];
+  const plate = normalizeServicePlate(
+    { tipo: 'tormenta', mensaje: 'Tormenta eléctrica.', fuente: 'ClimaxArg', nivel: 'amarillo', estado: 'precaución', zona: 'Los Reyunos' },
+    new Date('2026-09-10T18:28:00'),
+  );
+  renderNewsPlate(mockServiceCtx(calls), plate, 'portrait', {});
+  const band = calls.find((item) => item.text.includes('NIVEL'));
+  assert.ok(band);
+  assert.equal(band.text, 'NIVEL AMARILLO · PRECAUCIÓN');
+});
+
 test('la tarjeta muestra la localidad del corte', () => {
   const calls = [];
   const plate = normalizeServicePlate({

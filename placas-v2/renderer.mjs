@@ -730,7 +730,8 @@ function renderAlertPlate(ctx, plate, format, options, family, layout) {
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   const bandDetail = { verde: 'LLUVIA LEVE · SIN RIESGO', amarillo: 'PRECAUCIÓN', naranja: 'RIESGO', rojo: 'PELIGRO' }[nivel.id] || '';
-  const estadoText = estado ? ` · ${String(estado).toUpperCase()}` : '';
+  const estadoUpper = String(estado || '').toUpperCase();
+  const estadoText = estadoUpper && estadoUpper !== bandDetail ? ` · ${estadoUpper}` : '';
   let bandText = `NIVEL ${nivel.label.toUpperCase()}${bandDetail ? ` \u00B7 ${bandDetail}` : ''}${estadoText}`;
   let bandSize = Math.max(22, canvas.w * 0.028);
   ctx.font = `900 ${bandSize}px ${fontFamily}`;
