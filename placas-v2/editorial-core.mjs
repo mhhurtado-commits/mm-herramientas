@@ -445,15 +445,40 @@ export function buildServicioPlacas(plate = {}, perPage = 4) {
 }
 
 export function normalizeAlertPlate(input = {}, now = new Date()) {
-  const plate = normalizeServicePlate({ ...input, tipo: input.tipo || 'tormenta' }, now);
-  return {
-    ...plate,
+  const mensaje = clean(input.mensaje || input.texto || input.message || input.bajada || '');
+  const fuente = clean(input.fuente || input.source || input.atribucion || '');
+  const zona = clean(input.zona || input.zona_afectada || '');
+  const nivel = resolveAlertSeverity(input.nivel || input.severidad).id;
+  const date = now instanceof Date ? now : new Date(now);
+  const fecha = Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+  const hora = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const palette = resolveAlertSeverity(nivel);
+  const plate = {
+    tipo: 'placa_noticia',
+    version: 1,
+    fuente: { url: '', titulo_original: '', categoria: 'Alerta', descripcion: '', texto: '', imagen: '', imagenes: [] },
     titulo: 'Alerta tormentas',
+    titulo_sintetico: '',
+    fecha,
+    bajada: mensaje,
     etiqueta: 'Alerta meteorológica',
+    contexto: '',
+    pregunta_social: '',
+    datos_clave: [],
+    impactos: [],
+    comparativa: null,
     template_sugerido: 'alerta',
     tipo_placa: 'alerta',
-    fuente: { ...plate.fuente, categoria: 'Alerta' },
+    textual: { cita: '', autor: '', cargo: '', verificada: false },
+    personas: [],
+    imagenes_apoyo: [],
+    color_principal: palette.color,
+    color_secundario: palette.secondary,
+    alerta: { mensaje, fuente, hora, nivel, zona },
+    bloques: [],
+    redes: { instagram: '', facebook: '' },
   };
+  return plate;
 }
 
 function cloneWithTemplate(plate, id, template, recommended = false) {

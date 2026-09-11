@@ -78,9 +78,21 @@ test('resolveServiceType desconocido cae en generico', () => {
   assert.ok(SERVICIO_TIPOS.agua);
 });
 
-test('normalizeAlertPlate sigue como wrapper de tormenta', () => {
-  const plate = normalizeAlertPlate({ mensaje: 'Tormenta' }, new Date('2026-09-08T10:00:00'));
-  assert.equal(plate.servicio.tipo, 'tormenta');
+test('normalizeAlertPlate legacy sin servicio ni detalles', () => {
+  const plate = normalizeAlertPlate({ mensaje: 'Tormenta', fuente: 'Radar' }, new Date('2026-09-08T10:00:00'));
+  assert.equal(plate.tipo_placa, 'alerta');
+  assert.equal(plate.template_sugerido, 'alerta');
+  assert.equal(plate.titulo, 'Alerta tormentas');
+  assert.equal(plate.servicio, undefined);
+  assert.equal(plate.alerta.mensaje, 'Tormenta');
+  assert.equal(plate.fecha, '2026-09-08');
+});
+
+test('app genera tormenta por camino legacy con template alerta', async () => {
+  const { readFileSync } = await import('node:fs');
+  const app = readFileSync(new URL('./app.mjs', import.meta.url), 'utf8');
+  assert.match(app, /selectedTemplate = 'alerta'/);
+  assert.match(app, /normalizeAlertPlate\(extraido/);
 });
 
 test('layout servicio reusa ramas de alerta', () => {

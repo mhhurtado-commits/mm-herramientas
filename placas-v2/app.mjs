@@ -502,6 +502,58 @@ function download() {
 }
 async function copy() { try { const blob = await new Promise(resolve => $('#plateCanvas').toBlob(resolve, 'image/png')); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast('PNG copiado al portapapeles.'); } catch { toast('Tu navegador no permite copiar la imagen; usá Descargar PNG.'); } }
 
+const ALERT_LEGACY_PROMPT = `Sos editor de servicio meteorológico de Media Mendoza. Recibís el parte original pegado por el redactor y debes REESCRIBIRLO para una placa de servicio a corto plazo que se lee en 2 segundos en el feed.
+Extraé y REESCRIBÍ SOLO estos campos en JSON válido sin backticks ni markdown:
+- mensaje: REESCRIBÍ el parte en 1 o 2 frases cortas, voz activa, tono servicio, máximo 160 caracteres. Empezá por el hecho ("Sigue lloviendo...", "Tormenta con granizo en..."), mencioná la zona una sola vez y si aplica cerrá con instrucción breve ("Transitá con precaución.", "Evitá la zona."). No repitas la zona, no incluyas firma ni fuente. Dale más importancia: que suene útil e inmediato, no genérico.
+- fuente: persona/cuenta/organismo que emite la alerta (ej "Radar San Rafael - Marcelo Peña"). Si no aparece, "Medio Mendoza".
+- nivel: UNO solo de "verde" (lluvias leves sin complicaciones, servicio preventivo), "amarillo" (tormentas aisladas, precaución), "naranja" (tormentas fuertes, riesgo) o "rojo" (situación severa, peligro).
+- zona: localidades/zonas afectadas mencionadas, unidas por coma. Si no aparece, "Mendoza".
+Responde SOLO JSON: {"mensaje":"...","fuente":"...","nivel":"...","zona":"..."}.`;
+
+async function extractTormentaData(texto) {
+  const result = await generateSocialJson(ALERT_LEGACY_PROMPT, texto);
+  const nivel = ALERT_SEVERITY_LEVELS.includes(result?.nivel) ? result.nivel : 'naranja';
+  return {
+    mensaje: String(result?.mensaje || '').trim(),
+    fuente: String(result?.fuente || '').trim(),
+    nivel,
+    zona: String(result?.zona || '').trim(),
+  };
+}
+
+async function generateTormenta({ texto, manualFuente, manualNivel, manualZona, button, now }) {
+  let extraido = { mensaje: texto, fuente: manualFuente, nivel: manualNivel, zona: manualZona };
+  try {
+    const ia = await extractTormentaData(texto);
+    extraido = {
+      mensaje: ia.mensaje || texto,
+      fuente: ia.fuente || manualFuente,
+      nivel: ia.nivel || manualNivel,
+      zona: ia.zona || manualZona,
+    };
+  } catch (err) {
+    toast('El asistente no respondió: completá los datos manualmente.');
+  }
+  state.plate = normalizeAlertPlate(extraido, now);
+  state.variants = [state.plate];
+  state.selectedVariant = 0;
+  state.selectedTemplate = 'alerta';
+  state.format = 'portrait';
+  state.image = null; state.imageUrl = '';
+  $('#editorControls').classList.remove('is-hidden');
+
+  const v = state.plate.alerta || {};
+  $('#alertaMessageInput').value = v.mensaje || '';
+  $('#alertaSourceInput').value = v.fuente || '';
+  if ($('#alertaNivelInput')) $('#alertaNivelInput').value = v.nivel || 'naranja';
+  $('#alertaZonaInput').value = v.zona || '';
+  if ($('#alertaTipoInput')) $('#alertaTipoInput').value = 'tormenta';
+
+  renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor(); render();
+  setLoading(false);
+  if (button) button.disabled = false;
+}
+
 async function generateAlert(event) {
   if (event) event.preventDefault();
   const texto = $('#alertaText').value.trim();
@@ -518,6 +570,10 @@ async function generateAlert(event) {
   const now = new Date();
 
   const manual = { mensaje: texto.slice(0, 220), fuente: manualFuente, nivel: manualNivel, zona: manualZona, tipo: manualTipo, estado: manualEstado, fecha: manualFecha, detalles: [] };
+  if (manualTipo === 'tormenta') {
+    await generateTormenta({ texto, manualFuente, manualNivel, manualZona, button, now });
+    return;
+  }
   let extraido = manual;
   let usoIA = false;
   try {
