@@ -1288,12 +1288,10 @@ async function handleVideoEditorSuggestCuts(body, env) {
 async function handleGenerateHeadline(request, env) {
   try {
     const { image } = await request.json();
-    if (!env.GEMINI_API_KEY) {
-      return new Response(JSON.stringify({ error: 'Falta configurar GEMINI_API_KEY' }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    if (!env.GEMINI_KEY_1) {
+      return new Response(JSON.stringify({ error: 'Falta configurar keys de Gemini' }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
-    const base64Data = image.split(',')[1];
-    const mimeType = image.split(';')[0].split(':')[1];
     const payload = {
       contents: [{
         parts: [
@@ -1302,8 +1300,7 @@ async function handleGenerateHeadline(request, env) {
         ]
       }]
     };
-    const aiResponse = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const aiData = await aiResponse.json();
+    const aiData = await fetchGemini(env, payload);
     const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
     return new Response(JSON.stringify({ headline: headline.trim() }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   } catch (error) {
@@ -5459,6 +5456,29 @@ async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOv
   return {error: detail || "Todas las keys y modelos fallaron", details: allErrors.flatMap(e => e.details || [])};
 }
 
+
+async function fetchGemini(env, payload) {
+  const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+  if (!keys.length) throw new Error("No hay API keys de Gemini configuradas");
+
+  for (let i = 0; i < keys.length; i++) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${keys[i]}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      console.warn(`Key ${i + 1} failed: ${res.status}`);
+    } catch (e) {
+      console.warn(`Key ${i + 1} error: ${e.message}`);
+    }
+  }
+  throw new Error("Todas las keys de Gemini fallaron");
+}
+
 // ============================================================
 // MÚSICA DE FONDO - FREESOUND API
 // ============================================================
@@ -6640,7 +6660,30 @@ export default {
 
     if(request.method!=="POST") return jsonError("Método no permitido",405);
 
-        // ============================================================
+}
+async function fetchGemini(env, payload) {
+  const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+  if (!keys.length) throw new Error("No hay API keys de Gemini configuradas");
+
+  for (let i = 0; i < keys.length; i++) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${keys[i]}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      console.warn(`Key ${i + 1} failed: ${res.status}`);
+    } catch (e) {
+      console.warn(`Key ${i + 1} error: ${e.message}`);
+    }
+  }
+  throw new Error("Todas las keys de Gemini fallaron");
+}
+
+// ============================================================
     // PRIMERO: rutas que NO usan JSON (FormData)
     // ============================================================
     if (path === "/studio/transcribir") {
