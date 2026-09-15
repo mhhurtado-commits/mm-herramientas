@@ -5339,13 +5339,8 @@ async function getEditorial(env){
 async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOverride=null){
   const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
   if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
-  // La API REST de Gemini requiere camelCase (googleSearch)
   const makeBody=s=>{const b={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}};if(s)b.tools=[{googleSearch:{}}];return b};
   
-  const errors = [];
-  let lastError = "Todas las API keys están agotadas u ocurrió un error desconocido.";
-  const modelToUse = modelOverride || GEMINI_MODEL;
-  const geminiUrl = GEMINI_URL.replace(GEMINI_MODEL, modelToUse);
   const getRetryDelay = (intento, res) => {
     const retryAfter = res?.headers?.get?.('Retry-After');
     if (retryAfter) {
@@ -5354,92 +5349,114 @@ async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOv
     }
     return Math.floor(700 * Math.pow(1.9, intento - 1) + Math.random() * 400);
   };
-  
-  for(let i=0;i<keys.length;i++){
-    for(let intento=1;intento<=2;intento++){
-      try{
-        const body=makeBody(searchEnabled);
-        const res=await fetch(`${geminiUrl}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-        
-        if(!res.ok){
-          const errBody=await res.text().catch(()=>'');
-          const snippet = errBody ? `: ${errBody.substring(0,300)}` : '';
-          if(res.status===429){
-            const msg = `Key ${i+1}/${keys.length} → 429 Rate Limit${snippet}`;
-            errors.push(msg); lastError = msg;
-            console.warn(`[callGemini] ${msg} (intento ${intento})`);
-            if(intento<2){ await sleep(getRetryDelay(intento, res)); continue; }
-            break; // probar siguiente key
-          }
-          if(res.status===400){
-            if(searchEnabled){
-              // Tool no soportado por este modelo, reintentar sin search
-              searchEnabled=false; intento=0; continue;
+
+  const get503Delay = (intento) => {
+    return Math.floor(2000 * Math.pow(2, intento - 1) + Math.random() * 1000);
+  };
+
+  async function tryWithModel(modelName) {
+    const geminiUrl = GEMINI_URL.replace(GEMINI_MODEL, modelName);
+    const modelErrors = [];
+    let lastModelErr = "";
+    const maxRetries = modelName === GEMINI_MODEL ? 2 : 1;
+
+    for(let i=0;i<keys.length;i++){
+      for(let intento=1;intento<=maxRetries;intento++){
+        try{
+          const body=makeBody(searchEnabled);
+          const res=await fetch(`${geminiUrl}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+          
+          if(!res.ok){
+            const errBody=await res.text().catch(()=>'');
+            const snippet = errBody ? `: ${errBody.substring(0,300)}` : '';
+            if(res.status===429){
+              const msg = `Key ${i+1}/${keys.length} → 429 Rate Limit${snippet}`;
+              modelErrors.push(msg); lastModelErr = msg;
+              console.warn(`[callGemini] ${msg} (intento ${intento})`);
+              if(intento<maxRetries){ await sleep(getRetryDelay(intento, res)); continue; }
+              break;
             }
-            lastError = `HTTP 400 (Bad Request) key ${i+1}${snippet}`;
-            errors.push(lastError);
-            return {error: lastError, details: errors};
+            if(res.status===400){
+              if(searchEnabled){
+                searchEnabled=false; intento=0; continue;
+              }
+              lastModelErr = `HTTP 400 (Bad Request) key ${i+1}${snippet}`;
+              modelErrors.push(lastModelErr);
+              return {error: lastModelErr, details: modelErrors};
+            }
+            if(res.status===401 || res.status===403){
+               const msg = `Key ${i+1}/${keys.length} → ${res.status} Forbidden/Auth${snippet}`;
+               modelErrors.push(msg); lastModelErr = msg;
+               console.warn(`[callGemini] ${msg}`);
+               break;
+            }
+            if(res.status>=500){
+               const msg = `Key ${i+1}/${keys.length} → ${res.status} Gemini Down (intento ${intento})${snippet}`;
+               modelErrors.push(msg); lastModelErr = msg;
+               console.warn(`[callGemini] ${msg}`);
+               const max503 = modelName === GEMINI_MODEL ? 3 : 2;
+               if(intento<max503){await sleep(get503Delay(intento));continue}else break;
+            }
+            const msg = `Key ${i+1}/${keys.length} → HTTP ${res.status}${snippet}`;
+            modelErrors.push(msg); lastModelErr = msg;
+            console.warn(`[callGemini] ${msg}`);
+            break;
           }
-          if(res.status===401 || res.status===403){
-             const msg = `Key ${i+1}/${keys.length} → ${res.status} Forbidden/Auth${snippet}`;
-             errors.push(msg); lastError = msg;
-             console.warn(`[callGemini] ${msg}`);
-             break; // Intenta otra key (key inválida o cuota por proyecto)
+          
+          const data=await res.json();
+          const candidate=data?.candidates?.[0];
+          if(!candidate){
+            lastModelErr = "No candidate: " + JSON.stringify(data);
+            return {error: lastModelErr};
           }
-          if(res.status>=500){
-             const msg = `Key ${i+1}/${keys.length} → ${res.status} Gemini Down (intento ${intento})${snippet}`;
-             errors.push(msg); lastError = msg;
-             console.warn(`[callGemini] ${msg}`);
-             if(intento<2){await sleep(getRetryDelay(intento, res));continue}else break;
+          
+          const raw=candidate?.content?.parts?.[0]?.text||"";
+          if(!raw){
+             lastModelErr = "No text: " + JSON.stringify(candidate);
+             return {error: lastModelErr};
           }
-          const msg = `Key ${i+1}/${keys.length} → HTTP ${res.status}${snippet}`;
-          errors.push(msg); lastError = msg;
+          
+          if(!expectJson) return {data: raw};
+          
+          let parsed;
+          try{parsed=JSON.parse(raw)}catch{
+            const match=raw.match(/\{[\s\S]*\}/);
+            if(!match){
+               lastModelErr = "Regex match failed. Raw: " + raw;
+               return {error: lastModelErr};
+            }
+            try{parsed=JSON.parse(match[0])}catch{
+               lastModelErr = "JSON parse failed on match. Raw: " + raw;
+               return {error: lastModelErr};
+            }
+          }
+          return {data:parsed};
+        }catch(err){
+          const msg = `Key ${i+1}/${keys.length} → Excepción JS (intento ${intento}): ${err.message}`;
+          modelErrors.push(msg); lastModelErr = msg;
           console.warn(`[callGemini] ${msg}`);
-          break;
+          if(intento<maxRetries) await sleep(getRetryDelay(intento));
+          else break;
         }
-        
-        const data=await res.json();
-        const candidate=data?.candidates?.[0];
-        if(!candidate){
-          lastError = "No candidate: " + JSON.stringify(data);
-          return {error: lastError};
-        }
-        
-        const raw=candidate?.content?.parts?.[0]?.text||"";
-        if(!raw){
-           lastError = "No text: " + JSON.stringify(candidate);
-           return {error: lastError};
-        }
-        
-        if(!expectJson) return {data: raw};
-        
-        let parsed;
-        try{parsed=JSON.parse(raw)}catch{
-          const match=raw.match(/\{[\s\S]*\}/);
-          if(!match){
-             lastError = "Regex match failed. Raw: " + raw;
-             return {error: lastError};
-          }
-          try{parsed=JSON.parse(match[0])}catch{
-             lastError = "JSON parse failed on match. Raw: " + raw;
-             return {error: lastError};
-          }
-        }
-        return {data:parsed};
-      }catch(err){
-        const msg = `Key ${i+1}/${keys.length} → Excepción JS (intento ${intento}): ${err.message}`;
-        errors.push(msg); lastError = msg;
-        console.warn(`[callGemini] ${msg}`);
-        if(intento<2) await sleep(Math.floor(700 * Math.pow(1.9, intento - 1) + Math.random() * 400));
-        else break;
       }
     }
+    return {error: lastModelErr, details: modelErrors};
   }
-  const detail = errors.length ? ` — ${errors.join(' | ')}` : '';
-  const finalMsg = errors.length === keys.length || errors.length > 1
-    ? `Todas las ${keys.length} keys fallaron${detail} — último: ${lastError}`
-    : lastError;
-  return {error: finalMsg, details: errors};
+
+  const primaryModel = modelOverride || GEMINI_MODEL;
+  const fallbackModels = primaryModel === GEMINI_MODEL ? ["gemini-3.5-flash-lite"] : [];
+  const modelsToTry = [primaryModel, ...fallbackModels];
+  
+  const allErrors = [];
+  for (const model of modelsToTry) {
+    console.warn(`[callGemini] Intentando modelo: ${model}`);
+    const result = await tryWithModel(model);
+    if (!result.error) return result;
+    allErrors.push({model, error: result.error, details: result.details});
+  }
+
+  const detail = allErrors.map(e => `[${e.model}] ${e.error}`).join(' | ');
+  return {error: detail || "Todas las keys y modelos fallaron", details: allErrors.flatMap(e => e.details || [])};
 }
 
 // ============================================================
