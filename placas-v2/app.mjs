@@ -7,7 +7,7 @@ import { getEfemeridesForDate } from './efemerides-data.mjs';
 import { buildEfemeridesSocialPrompt, normalizeEfemeridesSocialCopies } from './efemerides-social.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
-const state = { mode: 'nota', plate: null, package: null, note: null, outputs: ['placa'], variants: [], efemeridesItems: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'portrait', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, efemeridesCopies: null, efemeridesCopiesKey: null, drag: null };
+const state = { mode: 'nota', plate: null, package: null, note: null, outputs: ['placa'], variants: [], efemeridesItems: [], selectedVariant: 0, selectedTemplate: 'noticia', format: 'portrait', imageIndex: 0, image: null, imageUrl: '', logo: null, personImages: {}, supportImage: null, supportImageUrl: '', supportFocus: { x: 0.5, y: 0.5 }, imagePositioned: true, efemeridesCopies: null, efemeridesCopiesKey: null, drag: null, generating: false };
 const $ = selector => document.querySelector(selector);
 
 const logoImage = new Image();
@@ -474,6 +474,10 @@ function render() {
 async function generate(event) {
   event.preventDefault();
   const url = $('#newsUrl').value.trim(); if (!url) return;
+  if (state.generating) { toast('Ya se está generando una placa, esperá a que termine.'); return; }
+  state.generating = true;
+  const submitBtn = $('#newsForm button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
   setLoading(true, 'Extrayendo la noticia…');
   $('#editorControls').classList.add('is-hidden');
   try {
@@ -487,10 +491,13 @@ async function generate(event) {
     state.selectedVariant = 0; state.selectedTemplate = state.plate.tipo_placa || state.variants[0]?.tipo_placa || 'noticia'; state.format = 'portrait'; state.imageIndex = 0; state.personImages = {}; state.supportImage = null; state.supportImageUrl = ''; state.imagePositioned = true;
     $('#editorControls').classList.remove('is-hidden');
     renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor();
-    if (session.warnings?.length) { $('#warning').textContent = 'La propuesta se generó con fallback automático. Revisá la redacción antes de exportar.'; $('#warning').classList.remove('is-hidden'); } else $('#warning').classList.add('is-hidden');
+    if (session.ia_error) {
+      $('#warning').textContent = `⚠ IA no disponible (${session.ia_error}). Se usó el modo determinístico. Revisá la placa.`;
+      $('#warning').classList.remove('is-hidden');
+    } else if (session.warnings?.length) { $('#warning').textContent = 'La propuesta se generó con fallback automático. Revisá la redacción antes de exportar.'; $('#warning').classList.remove('is-hidden'); } else $('#warning').classList.add('is-hidden');
     await loadImage(state.plate.fuente?.imagenes?.[0]);
     render();
-  } catch (error) { toast(error.message || 'No se pudo generar la placa.'); } finally { setLoading(false); }
+  } catch (error) { toast(error.message || 'No se pudo generar la placa.'); } finally { state.generating = false; if (submitBtn) submitBtn.disabled = false; setLoading(false); }
 }
 
 function downloadBlob(blob, name) { const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); }
@@ -564,6 +571,8 @@ async function generateAlert(event) {
   const manualEstado = $('#alertaEstado')?.value.trim() || '';
   const manualFecha = $('#alertaFecha')?.value || '';
   if (!texto) { toast('Pegá el texto del servicio para continuar.'); return; }
+  if (state.generating) { toast('Ya se está procesando, esperá a que termine.'); return; }
+  state.generating = true;
   const button = $('#loadAlertaButton');
   if (button) button.disabled = true;
   setLoading(true, 'Extrayendo datos y armando la placa…');
@@ -614,6 +623,7 @@ async function generateAlert(event) {
 
   renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor(); render();
   setLoading(false);
+  state.generating = false;
   if (button) button.disabled = false;
 }
 

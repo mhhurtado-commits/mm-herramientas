@@ -30,6 +30,8 @@ export async function loadEditorialSession(url, outputs = ['placa'], dependencie
   session.plate = normalizeNewsPlate(packageToPlateInput(session.package));
   session.variants = buildEditorialVariants(session.plate);
   session.warnings = Array.isArray(response?.warnings) ? response.warnings : [];
+  session.ia_error = response?.ia_error || null;
+  session.ia_details = Array.isArray(response?.ia_details) ? response.ia_details : [];
   return session;
 }
 

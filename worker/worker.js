@@ -5342,9 +5342,18 @@ async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOv
   // La API REST de Gemini requiere camelCase (googleSearch)
   const makeBody=s=>{const b={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}};if(s)b.tools=[{googleSearch:{}}];return b};
   
+  const errors = [];
   let lastError = "Todas las API keys están agotadas u ocurrió un error desconocido.";
   const modelToUse = modelOverride || GEMINI_MODEL;
   const geminiUrl = GEMINI_URL.replace(GEMINI_MODEL, modelToUse);
+  const getRetryDelay = (intento, res) => {
+    const retryAfter = res?.headers?.get?.('Retry-After');
+    if (retryAfter) {
+      const secs = Number(retryAfter);
+      if (Number.isFinite(secs) && secs > 0 && secs < 60) return Math.ceil(secs * 1000);
+    }
+    return Math.floor(700 * Math.pow(1.9, intento - 1) + Math.random() * 400);
+  };
   
   for(let i=0;i<keys.length;i++){
     for(let intento=1;intento<=2;intento++){
@@ -5354,27 +5363,38 @@ async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOv
         
         if(!res.ok){
           const errBody=await res.text().catch(()=>'');
+          const snippet = errBody ? `: ${errBody.substring(0,300)}` : '';
           if(res.status===429){
-            lastError = `HTTP 429 (Rate Limit / Quota Exceeded) para la key ${i+1}.`;
-            return {error: lastError}; // Abortar: si una key da 429, todas van a dar 429 (misma IP/proyecto)
+            const msg = `Key ${i+1}/${keys.length} → 429 Rate Limit${snippet}`;
+            errors.push(msg); lastError = msg;
+            console.warn(`[callGemini] ${msg} (intento ${intento})`);
+            if(intento<2){ await sleep(getRetryDelay(intento, res)); continue; }
+            break; // probar siguiente key
           }
           if(res.status===400){
             if(searchEnabled){
               // Tool no soportado por este modelo, reintentar sin search
               searchEnabled=false; intento=0; continue;
             }
-            lastError = `HTTP 400 (Bad Request): ${errBody.substring(0,200)}`;
-            return {error: lastError};
+            lastError = `HTTP 400 (Bad Request) key ${i+1}${snippet}`;
+            errors.push(lastError);
+            return {error: lastError, details: errors};
           }
-          if(res.status===403){
-             lastError = `HTTP 403 (Forbidden/Quota): ${errBody.substring(0,200)}`;
-             break; // Intenta otra key
+          if(res.status===401 || res.status===403){
+             const msg = `Key ${i+1}/${keys.length} → ${res.status} Forbidden/Auth${snippet}`;
+             errors.push(msg); lastError = msg;
+             console.warn(`[callGemini] ${msg}`);
+             break; // Intenta otra key (key inválida o cuota por proyecto)
           }
           if(res.status>=500){
-             lastError = `HTTP ${res.status} (Gemini Down): ${errBody.substring(0,200)}`;
-             if(intento<2){await sleep(3000);continue}else break;
+             const msg = `Key ${i+1}/${keys.length} → ${res.status} Gemini Down (intento ${intento})${snippet}`;
+             errors.push(msg); lastError = msg;
+             console.warn(`[callGemini] ${msg}`);
+             if(intento<2){await sleep(getRetryDelay(intento, res));continue}else break;
           }
-          lastError = `HTTP Error ${res.status}: ${errBody.substring(0,200)}`;
+          const msg = `Key ${i+1}/${keys.length} → HTTP ${res.status}${snippet}`;
+          errors.push(msg); lastError = msg;
+          console.warn(`[callGemini] ${msg}`);
           break;
         }
         
@@ -5407,12 +5427,19 @@ async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOv
         }
         return {data:parsed};
       }catch(err){
-        lastError = `Excepción JS: ${err.message}`;
-        if(intento<2) await sleep(3000);
+        const msg = `Key ${i+1}/${keys.length} → Excepción JS (intento ${intento}): ${err.message}`;
+        errors.push(msg); lastError = msg;
+        console.warn(`[callGemini] ${msg}`);
+        if(intento<2) await sleep(Math.floor(700 * Math.pow(1.9, intento - 1) + Math.random() * 400));
+        else break;
       }
     }
   }
-  return {error: lastError};
+  const detail = errors.length ? ` — ${errors.join(' | ')}` : '';
+  const finalMsg = errors.length === keys.length || errors.length > 1
+    ? `Todas las ${keys.length} keys fallaron${detail} — último: ${lastError}`
+    : lastError;
+  return {error: finalMsg, details: errors};
 }
 
 // ============================================================
@@ -7130,12 +7157,14 @@ async function handlePlacasV2Generar(body, env) {
   try {
     const result = await callGemini(buildPlateEditorialPrompt(note), env);
     if (result.error || !result.data || typeof result.data !== 'object') {
-      return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'] });
+      console.warn('[handlePlacasV2Generar] IA no disponible:', result?.error);
+      return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'], ia_error: result?.error || 'respuesta vacía', ia_details: result?.details || [] });
     }
     const placa = normalizeEditorialResponse(result.data, note);
     return jsonOk({ placa, warnings: [] });
   } catch (error) {
-    return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'] });
+    console.warn('[handlePlacasV2Generar] excepción:', error?.message);
+    return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'], ia_error: error?.message || String(error) });
   }
 }
 
@@ -7153,17 +7182,24 @@ async function handlePlacasV2Paquete(body, env) {
 
   let placa;
   let warnings = [];
+  let ia_error = null;
+  let ia_details = [];
   try {
     const result = await callGemini(buildPlateEditorialPrompt(note), env);
     if (result.error || !result.data || typeof result.data !== 'object') {
+      console.warn('[handlePlacasV2Paquete] IA no disponible:', result?.error);
       placa = deterministicEditorialResponse(note);
       warnings = ['ia_no_disponible'];
+      ia_error = result?.error || 'respuesta vacía';
+      ia_details = result?.details || [];
     } else {
       placa = normalizeEditorialResponse(result.data, note);
     }
   } catch (error) {
+    console.warn('[handlePlacasV2Paquete] excepción:', error?.message);
     placa = deterministicEditorialResponse(note);
     warnings = ['ia_no_disponible'];
+    ia_error = error?.message || String(error);
   }
 
   // Las imágenes de la nota actual son la fuente de verdad. La placa puede
