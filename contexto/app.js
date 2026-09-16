@@ -908,12 +908,17 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       const fullNum = numMatch ? numMatch[1].trim() : '';
       const rest = fullNum ? String(linea).replace(fullNum,'').trim().replace(/^[\-\—\:]?\s*/,'') : linea;
       if (fullNum) {
-        ctx.fillStyle=family.secondary; ctx.font=`900 44px Inter, sans-serif`;
-        ctx.fillText(fullNum, areaX+88, y+ cardH/2 - 6);
-        ctx.fillStyle='#16201b'; ctx.font=`600 24px Inter, sans-serif`;
-        const descLines = wrapText(ctx, rest, areaW - 120);
-        let lyy = y+ cardH/2 + 14;
-        descLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, areaX+88, lyy); lyy+=24; });
+        // Numero + descripcion: bloque centrado a la derecha del icono, sin encimados
+        const tx = areaX + 140;
+        const tw = areaW - 180;
+        const descLines = wrapText(ctx, rest, tw).slice(0, 2);
+        const blockH = 58 + 10 + descLines.length * 34;
+        let ny = y + cardH/2 - blockH/2 + 48;
+        ctx.fillStyle = family.secondary; ctx.font = `900 48px Inter, sans-serif`;
+        ctx.fillText(fullNum, tx, ny);
+        ctx.fillStyle = '#16201b'; ctx.font = `600 28px Inter, sans-serif`;
+        let lyy = ny + 38;
+        descLines.forEach(ll => { ctx.fillText(ll, tx, lyy); lyy += 34; });
       } else {
         // Infografia: zona como titular + detalle, bloque centrado
         const parts = String(linea).split(':');
