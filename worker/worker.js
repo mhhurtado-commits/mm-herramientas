@@ -1291,7 +1291,6 @@ async function handleGenerateHeadline(request, env) {
     if (!env.GEMINI_KEY_1) {
       return new Response(JSON.stringify({ error: 'Falta configurar keys de Gemini' }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
     const payload = {
       contents: [{
         parts: [
@@ -1301,7 +1300,7 @@ async function handleGenerateHeadline(request, env) {
       }]
     };
     const aiData = await fetchGemini(env, payload);
-    const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
+    const headline = aiData.data?.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
     return new Response(JSON.stringify({ headline: headline.trim() }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error("Error Gemini:", error);
@@ -5101,7 +5100,7 @@ async function handleProcesarImagenes(request, env) {
       "gemini-2.0-flash",
       "gemini-1.5-flash"
     ];
-    const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5, env.GEMINI_API_KEY].filter(Boolean);
+    const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
     if (!keys.length) return jsonError("No hay API keys de Gemini configuradas", 500);
     const maxImages = Math.min(imageFiles.length, 5);
     const results = [];
@@ -5333,11 +5332,24 @@ async function getEditorial(env){
   return null;
 }
 
-async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOverride=null){
-  const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
-  if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
-  const makeBody=s=>{const b={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}};if(s)b.tools=[{googleSearch:{}}];return b};
-  
+async function callGemini(prompt, env, searchEnabled = false, expectJson = true, modelOverride = null) {
+  return await fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }] }, { searchEnabled, expectJson, modelOverride });
+}
+
+
+
+async function fetchGemini(env, payload, { searchEnabled = false, expectJson = true, modelOverride = null } = {}) {
+  const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+  if (!keys.length) return { error: "No hay API keys de Gemini configuradas" };
+  const model = modelOverride || GEMINI_MODEL;
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+  const makeBody = (s) => {
+    const b = { ...payload, generationConfig: { temperature: 0.4, maxOutputTokens: 8000, ...payload.generationConfig } };
+    if (s) b.tools = [{ googleSearch: {} }];
+    return b;
+  };
+
   const getRetryDelay = (intento, res) => {
     const retryAfter = res?.headers?.get?.('Retry-After');
     if (retryAfter) {
@@ -5351,137 +5363,68 @@ async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOv
     return Math.floor(2000 * Math.pow(2, intento - 1) + Math.random() * 1000);
   };
 
-  async function tryWithModel(modelName) {
-    const geminiUrl = GEMINI_URL.replace(GEMINI_MODEL, modelName);
-    const modelErrors = [];
-    let lastModelErr = "";
-    const maxRetries = modelName === GEMINI_MODEL ? 2 : 1;
-
-    for(let i=0;i<keys.length;i++){
-      for(let intento=1;intento<=maxRetries;intento++){
-        try{
-          const body=makeBody(searchEnabled);
-          const res=await fetch(`${geminiUrl}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-          
-          if(!res.ok){
-            const errBody=await res.text().catch(()=>'');
-            const snippet = errBody ? `: ${errBody.substring(0,300)}` : '';
-            if(res.status===429){
-              const msg = `Key ${i+1}/${keys.length} → 429 Rate Limit${snippet}`;
-              modelErrors.push(msg); lastModelErr = msg;
-              console.warn(`[callGemini] ${msg} (intento ${intento})`);
-              if(intento<maxRetries){ await sleep(getRetryDelay(intento, res)); continue; }
-              break;
-            }
-            if(res.status===400){
-              if(searchEnabled){
-                searchEnabled=false; intento=0; continue;
-              }
-              lastModelErr = `HTTP 400 (Bad Request) key ${i+1}${snippet}`;
-              modelErrors.push(lastModelErr);
-              return {error: lastModelErr, details: modelErrors};
-            }
-            if(res.status===401 || res.status===403){
-               const msg = `Key ${i+1}/${keys.length} → ${res.status} Forbidden/Auth${snippet}`;
-               modelErrors.push(msg); lastModelErr = msg;
-               console.warn(`[callGemini] ${msg}`);
-               break;
-            }
-            if(res.status>=500){
-               const msg = `Key ${i+1}/${keys.length} → ${res.status} Gemini Down (intento ${intento})${snippet}`;
-               modelErrors.push(msg); lastModelErr = msg;
-               console.warn(`[callGemini] ${msg}`);
-               const max503 = modelName === GEMINI_MODEL ? 3 : 2;
-               if(intento<max503){await sleep(get503Delay(intento));continue}else break;
-            }
-            const msg = `Key ${i+1}/${keys.length} → HTTP ${res.status}${snippet}`;
-            modelErrors.push(msg); lastModelErr = msg;
-            console.warn(`[callGemini] ${msg}`);
-            break;
-          }
-          
-          const data=await res.json();
-          const candidate=data?.candidates?.[0];
-          if(!candidate){
-            lastModelErr = "No candidate: " + JSON.stringify(data);
-            return {error: lastModelErr};
-          }
-          
-          const raw=candidate?.content?.parts?.[0]?.text||"";
-          if(!raw){
-             lastModelErr = "No text: " + JSON.stringify(candidate);
-             return {error: lastModelErr};
-          }
-          
-          if(!expectJson) return {data: raw};
-          
-          let parsed;
-          try{parsed=JSON.parse(raw)}catch{
-            const match=raw.match(/\{[\s\S]*\}/);
-            if(!match){
-               lastModelErr = "Regex match failed. Raw: " + raw;
-               return {error: lastModelErr};
-            }
-            try{parsed=JSON.parse(match[0])}catch{
-               lastModelErr = "JSON parse failed on match. Raw: " + raw;
-               return {error: lastModelErr};
-            }
-          }
-          return {data:parsed};
-        }catch(err){
-          const msg = `Key ${i+1}/${keys.length} → Excepción JS (intento ${intento}): ${err.message}`;
-          modelErrors.push(msg); lastModelErr = msg;
-          console.warn(`[callGemini] ${msg}`);
-          if(intento<maxRetries) await sleep(getRetryDelay(intento));
-          else break;
-        }
-      }
-    }
-    return {error: lastModelErr, details: modelErrors};
-  }
-
-  const primaryModel = modelOverride || GEMINI_MODEL;
-  const fallbackModels = primaryModel === GEMINI_MODEL ? ["gemini-3.5-flash-lite"] : [];
-  const modelsToTry = [primaryModel, ...fallbackModels];
-  
-  const allErrors = [];
-  for (const model of modelsToTry) {
-    console.warn(`[callGemini] Intentando modelo: ${model}`);
-    const result = await tryWithModel(model);
-    if (!result.error) return result;
-    allErrors.push({model, error: result.error, details: result.details});
-  }
-
-  const detail = allErrors.map(e => `[${e.model}] ${e.error}`).join(' | ');
-  return {error: detail || "Todas las keys y modelos fallaron", details: allErrors.flatMap(e => e.details || [])};
-}
-
-
-async function fetchGemini(env, payload) {
-  const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
-  if (!keys.length) throw new Error("No hay API keys de Gemini configuradas");
+  const modelErrors = [];
+  let search = searchEnabled;
+  const maxRetries = 2;
 
   for (let i = 0; i < keys.length; i++) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${keys[i]}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        return await res.json();
+    for (let intento = 1; intento <= maxRetries; intento++) {
+      try {
+        const body = makeBody(search);
+        const res = await fetch(`${geminiUrl}?key=${keys[i]}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '');
+          const snippet = errBody ? `: ${errBody.substring(0, 300)}` : '';
+          if (res.status === 429) {
+            const msg = `Key ${i + 1}/${keys.length} → 429 Rate Limit${snippet}`;
+            modelErrors.push(msg);
+            console.warn(`[fetchGemini] ${msg} (intento ${intento})`);
+            if (intento < maxRetries) { await sleep(getRetryDelay(intento, res)); continue; }
+            break;
+          }
+          if (res.status === 400) {
+            if (search) { search = false; intento = 0; continue; }
+            return { error: `HTTP 400 (Bad Request) key ${i + 1}${snippet}`, details: modelErrors };
+          }
+          if (res.status >= 500) {
+            const msg = `Key ${i + 1}/${keys.length} → ${res.status} Gemini Down (intento ${intento})${snippet}`;
+            modelErrors.push(msg);
+            console.warn(`[fetchGemini] ${msg}`);
+            if (intento < 3) { await sleep(get503Delay(intento)); continue; }
+            break;
+          }
+          modelErrors.push(`Key ${i + 1}/${keys.length} → HTTP ${res.status}${snippet}`);
+          break;
+        }
+
+        const data = await res.json();
+        const candidate = data?.candidates?.[0];
+        if (!candidate) return { error: "No candidate: " + JSON.stringify(data) };
+
+        const raw = candidate?.content?.parts?.[0]?.text || "";
+        if (!raw) return { error: "No text: " + JSON.stringify(candidate) };
+
+        if (!expectJson) return { data: raw };
+
+        try {
+          return { data: JSON.parse(raw) };
+        } catch {
+          const match = raw.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { return { data: JSON.parse(match[0]) }; } catch { }
+          }
+          return { error: "JSON parse failed. Raw: " + raw };
+        }
+      } catch (err) {
+        console.warn(`[fetchGemini] Key ${i + 1} error: ${err.message}`);
+        if (intento < maxRetries) await sleep(getRetryDelay(intento));
       }
-      console.warn(`Key ${i + 1} failed: ${res.status}`);
-    } catch (e) {
-      console.warn(`Key ${i + 1} error: ${e.message}`);
     }
   }
-  throw new Error("Todas las keys de Gemini fallaron");
+  return { error: "Todas las keys de Gemini fallaron", details: modelErrors };
 }
 
-// ============================================================
-// MÚSICA DE FONDO - FREESOUND API
-// ============================================================
 
 async function handleMusicSearch(url, env) {
   const query = url.searchParams.get('q') || '';
