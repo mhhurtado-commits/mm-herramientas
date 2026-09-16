@@ -762,33 +762,37 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       const glyph = pickGlyph(linea,i);
       // Glifo grande y número gigante centrado verticalmente para ocupar espacio
       const centerY = y + cardH/2;
-      // Glifo arriba del número
-      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(x+cardW/2, centerY - 62, 32,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=family.color; ctx.font=`900 32px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(glyph, x+cardW/2, centerY - 62);
-      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
       const numMatch = String(linea).match(/(\d[\d\.\,]*\s*%?)/);
       const num = numMatch ? numMatch[1].trim() : '';
       const rest = num ? String(linea).replace(num, '').trim().replace(/^[\-\—\:]?\s*/,'') : linea;
       if (num) {
-        // Número muy grande centrado
-        ctx.fillStyle=family.secondary; ctx.font=`900 56px Inter, sans-serif`;
+        // Jerarquia: glifo arriba, numero grande, descripcion centrada
+        ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(x+cardW/2, y+92, 44,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=family.color; ctx.font=`900 36px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(glyph, x+cardW/2, y+92);
+        ctx.textBaseline='alphabetic';
+        ctx.fillStyle=family.secondary; ctx.font=`900 64px Inter, sans-serif`;
         ctx.textAlign='center';
-        ctx.fillText(num, x+cardW/2, centerY + 12);
-        ctx.fillStyle='#16201b'; ctx.font=`700 22px Inter, sans-serif`;
-        const descLines = wrapText(ctx, rest, cardW-40);
-        let lyy = centerY + 48;
-        descLines.slice(0,3).forEach(ll=>{
-          const w = ctx.measureText(ll).width;
-          ctx.fillText(ll, x+cardW/2 - w/2, lyy);
-          lyy+=20;
-        });
+        ctx.fillText(num, x+cardW/2, y+200);
+        ctx.fillStyle='#16201b'; ctx.font=`700 24px Inter, sans-serif`;
+        const descLines = wrapText(ctx, rest, cardW-64);
+        let lyy = y+248;
+        descLines.slice(0,3).forEach(ll=>{ ctx.fillText(ll, x+cardW/2, lyy); lyy+=30; });
         ctx.textAlign='left';
       } else {
-        ctx.fillStyle='#16201b'; ctx.font=`700 20px Inter, sans-serif`;
-        const descLines = wrapText(ctx, linea, cardW-40);
-        let lyy = y+ 78;
-        descLines.slice(0,3).forEach(ll=>{ ctx.fillText(ll, x+16, lyy); lyy+=18; });
+        // Jerarquia: glifo protagonista arriba, texto grande centrado verticalmente
+        ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(x+cardW/2, y+92, 44,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=family.color; ctx.font=`900 36px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(glyph, x+cardW/2, y+92);
+        ctx.textBaseline='alphabetic'; ctx.textAlign='left';
+        ctx.fillStyle='#16201b'; ctx.font=`800 28px Inter, sans-serif`;
+        const descLines = wrapText(ctx, linea, cardW-64);
+        const shown = descLines.slice(0,4);
+        let lyy = y + 170 + Math.max(0, (cardH - 220 - shown.length*36)/2);
+        shown.forEach(ll=>{
+          const w = ctx.measureText(ll).width;
+          ctx.fillText(ll, x+cardW/2 - w/2, lyy); lyy+=36;
+        });
       }
       ctx.fillStyle='rgba(22,32,27,.06)'; ctx.font=`900 24px Inter, sans-serif`; ctx.textAlign='right';
       ctx.fillText(String(i+1), x+cardW-14, y+cardH-14);
