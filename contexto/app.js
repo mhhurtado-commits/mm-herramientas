@@ -18,7 +18,7 @@ function calculatePlateLayout(format, plate = {}) {
   const canvas = FORMATS[format] || FORMATS.portrait;
   const margin = canvas.w * 0.055;
   const isStory = format === 'story';
-  const footerY = canvas.h * 0.90;
+  const footerY = canvas.h * 0.92;
   const footerH = canvas.h - footerY - canvas.h * 0.025;
   // Simplified layout like Que cambia for portrait
   const headerH = canvas.h * 0.08;
@@ -415,10 +415,10 @@ function renderChartPlaca(canvas, chart, family, titulo) {
     ctx.fillStyle = family.color;
     ctx.fillRect(layout.title.x, ty+12, 56, 5);
     ctx.fillStyle = '#16201b';
-    ctx.font = `700 20px Inter, sans-serif`;
+    ctx.font = `700 26px Inter, sans-serif`;
     const subLines = wrapText(ctx, chart.titulo, titleW);
     let syy = ty+28;
-    subLines.slice(0,1).forEach(l=>{ ctx.fillText(l, layout.title.x, syy); syy+=18; });
+    subLines.slice(0,1).forEach(l=>{ ctx.fillText(l, layout.title.x, syy); syy+=30; });
   }
   // Área gráfico — usar layout.impacts como contenedor (como Que cambia)
   const chartX = layout.impacts.x;
@@ -460,7 +460,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       const pct = Math.round((d.value/total)*100);
       if (slice > 0.25) {
         ctx.fillStyle = '#ffffff';
-        ctx.font = `900 38px Inter, sans-serif`;
+        ctx.font = `900 44px Inter, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(pct+'%', lx, ly);
@@ -471,18 +471,18 @@ function renderChartPlaca(canvas, chart, family, titulo) {
     });
     if (tipo === 'doughnut') {
       ctx.beginPath(); ctx.arc(cx,cy,hole,0,Math.PI*2); ctx.fillStyle='#ffffff'; ctx.fill();
-      ctx.fillStyle=family.secondary; ctx.font=`800 14px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle=family.secondary; ctx.font=`800 20px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText('TOTAL', cx, cy-10); ctx.font=`900 28px Inter, sans-serif`; ctx.fillText(String(total.toLocaleString('es-AR')), cx, cy+16);
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
     }
     // Leyenda pills grandes
-    const legendY = chartY + chartH - 76;
-    const pillH = 42;
+    const legendY = chartY + chartH - 96;
+    const pillH = 56;
     let lx = chartX + 16;
     let ly = legendY;
     datos.forEach((d,i)=>{
       const label = `${d.label}: ${d.value.toLocaleString('es-AR')} (${Math.round(d.value/total*100)}%)`;
-      ctx.font = `700 15px Inter, sans-serif`;
+      ctx.font = `700 20px Inter, sans-serif`;
       const w = ctx.measureText(label).width + 40;
       if (lx + w > chartX + chartW - 16) { lx = chartX + 16; ly += pillH + 8; }
       ctx.fillStyle = i===0 ? family.color : i===1 ? family.secondary : '#f2f4f0';
@@ -493,8 +493,8 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       ctx.beginPath(); ctx.arc(lx+14, ly+pillH/2, 7,0,Math.PI*2); ctx.fill();
       ctx.fillStyle = i===1 ? '#ffffff' : '#16201b';
       if (i===0) ctx.fillStyle = '#ffffff';
-      ctx.font = `700 15px Inter, sans-serif`;
-      ctx.fillText(label, lx+26, ly+23);
+      ctx.font = `700 20px Inter, sans-serif`;
+      ctx.fillText(label, lx+26, ly+29);
       lx += w + 12;
     });
   } else {
@@ -510,7 +510,7 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       const y = innerY + (innerH/4)*i;
       ctx.beginPath(); ctx.moveTo(innerX, y); ctx.lineTo(innerX+innerW, y); ctx.stroke();
       ctx.fillStyle = '#6b7a6e';
-      ctx.font = `700 14px Inter, sans-serif`;
+      ctx.font = `700 20px Inter, sans-serif`;
       ctx.textAlign = 'right';
       ctx.fillText(String(Math.round(maxVal - (maxVal/4)*i).toLocaleString('es-AR')), innerX - 10, y + 4);
       ctx.textAlign = 'left';
@@ -528,28 +528,28 @@ function renderChartPlaca(canvas, chart, family, titulo) {
       roundedRect(ctx, x, y, barW, h, 8);
       ctx.fill();
       ctx.fillStyle = family.secondary;
-      ctx.font = `900 24px Inter, sans-serif`;
+      ctx.font = `900 36px Inter, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText(d.value.toLocaleString('es-AR'), x + barW/2, y - 10);
+      ctx.fillText(d.value.toLocaleString('es-AR'), x + barW/2, y - 14);
       ctx.fillStyle = '#16201b';
-      ctx.font = `700 14px Inter, sans-serif`;
+      ctx.font = `700 20px Inter, sans-serif`;
       const labLines = wrapText(ctx, d.label, barW + gap);
       let lyy = innerY + innerH + 18;
-      labLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, x+barW/2, lyy); lyy+=13; });
+      labLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, x+barW/2, lyy); lyy+=22; });
       ctx.textAlign = 'left';
     });
   }
   // Footer como Que cambia
-  const footerY = layout.footer.y; // footer at 0.90*H from layout
+  const footerY = layout.footer.y; // footer at 0.92*H from layout
   ctx.strokeStyle = 'rgba(22,32,27,.18)';
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(layout.footer.x, footerY); ctx.lineTo(W - layout.footer.x, footerY); ctx.stroke();
   ctx.fillStyle = '#526058';
-  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.font = `700 20px Inter, sans-serif`;
   ctx.fillText('Fuente: mediamendoza', layout.footer.x, footerY + 22);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#526058';
-  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.font = `700 20px Inter, sans-serif`;
   ctx.fillText('www.mediamendoza.com', W - layout.footer.x, footerY + 22);
   ctx.textAlign = 'left';
 }
@@ -622,7 +622,7 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
     if (hi){ ctx.beginPath(); ctx.arc(tlX,y,5,0,Math.PI*2); ctx.fillStyle='#ffffff'; ctx.fill(); }
     const cardX = tlX + 32;
     const cardW = layout.impacts.w - 32;
-    const cardH = n===2 ? 200 : n===3 ? 170 : 150;
+    const cardH = n===2 ? 230 : n===3 ? 195 : 175;
     const cardY = y - cardH/2;
     const clampedY = Math.max(tlY, Math.min(cardY, tlY+tlH - cardH));
     ctx.shadowColor='rgba(22,32,27,.08)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
@@ -641,20 +641,20 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
     ctx.fillStyle= hi ? family.color : family.secondary;
     ctx.fillRect(cardX, clampedY, 7, cardH);
     ctx.fillStyle= hi ? family.color : '#6b7a6e';
-    ctx.font=`800 12px Inter, sans-serif`;
-    ctx.fillText(glyphs[i % glyphs.length] + '  ' + String(it.label||'').toUpperCase(), cardX+20, clampedY+28);
+    ctx.font=`800 19px Inter, sans-serif`;
+    ctx.fillText(glyphs[i % glyphs.length] + '  ' + String(it.label||'').toUpperCase(), cardX+20, clampedY+34);
     ctx.fillStyle= hi ? family.secondary : '#16201b';
-    ctx.font=`900 20px Inter, sans-serif`;
-    ctx.fillText(String(it.value||''), cardX+20, clampedY+56);
-    ctx.fillStyle='#526058'; ctx.font=`600 13px Inter, sans-serif`;
+    ctx.font=`900 32px Inter, sans-serif`;
+    ctx.fillText(String(it.value||''), cardX+20, clampedY+70);
+    ctx.fillStyle='#526058'; ctx.font=`600 20px Inter, sans-serif`;
     const sub = String(it.sub||'').trim();
     if (sub) {
       const subLines=wrapText(ctx, sub, cardW-40);
-      ctx.fillText(subLines[0]||'', cardX+20, clampedY+80);
-      if (subLines[1]) ctx.fillText(subLines[1], cardX+20, clampedY+96);
+      ctx.fillText(subLines[0]||'', cardX+20, clampedY+98);
+      if (subLines[1]) ctx.fillText(subLines[1], cardX+20, clampedY+120);
     }
     if (hi) {
-      ctx.fillStyle=family.color; ctx.font=`700 10px Inter, sans-serif`;
+      ctx.fillStyle=family.color; ctx.font=`700 14px Inter, sans-serif`;
       const badge = 'AHORA';
       const bw = ctx.measureText(badge).width + 16;
       ctx.beginPath();
@@ -668,16 +668,16 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
     }
   });
   // Footer como Que cambia
-  const footerY = layout.footer.y; // footer at 0.90*H from layout
+  const footerY = layout.footer.y; // footer at 0.92*H from layout
   ctx.strokeStyle = 'rgba(22,32,27,.18)';
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(layout.footer.x, footerY); ctx.lineTo(W - layout.footer.x, footerY); ctx.stroke();
   ctx.fillStyle = '#526058';
-  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.font = `700 20px Inter, sans-serif`;
   ctx.fillText('Fuente: mediamendoza', layout.footer.x, footerY + 22);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#526058';
-  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.font = `700 20px Inter, sans-serif`;
   ctx.fillText('www.mediamendoza.com', W - layout.footer.x, footerY + 22);
   ctx.textAlign = 'left';
 }
@@ -725,8 +725,8 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   const lineas = infografia.lineas || [];
   const n = lineas.length;
   // Usar espacio desde debajo del título hasta antes del footer, no el área fija de impacts
-  const gridTop = ty + 24;
-  const gridBottom = H - 100;
+  const gridTop = ty + 16;
+  const gridBottom = H * 0.92 - 24;
   const availableH = gridBottom - gridTop;
   const areaX = margin;
   const areaW = W - margin*2;
@@ -775,7 +775,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
         ctx.fillStyle=family.secondary; ctx.font=`900 56px Inter, sans-serif`;
         ctx.textAlign='center';
         ctx.fillText(num, x+cardW/2, centerY + 12);
-        ctx.fillStyle='#16201b'; ctx.font=`700 18px Inter, sans-serif`;
+        ctx.fillStyle='#16201b'; ctx.font=`700 22px Inter, sans-serif`;
         const descLines = wrapText(ctx, rest, cardW-40);
         let lyy = centerY + 48;
         descLines.slice(0,3).forEach(ll=>{
@@ -812,38 +812,38 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       const glyph = pickGlyph(linea,i);
       const cx = areaX + 48; const cy = y + cardH/2;
       ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(cx, cy, 32,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=family.color; ctx.font=`900 18px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle=family.color; ctx.font=`900 26px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(glyph, cx, cy);
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
       const numMatch = String(linea).match(/(\d[\d\.\,]*\s*%?)/);
       const fullNum = numMatch ? numMatch[1].trim() : '';
       const rest = fullNum ? String(linea).replace(fullNum,'').trim().replace(/^[\-\—\:]?\s*/,'') : linea;
       if (fullNum) {
-        ctx.fillStyle=family.secondary; ctx.font=`900 24px Inter, sans-serif`;
+        ctx.fillStyle=family.secondary; ctx.font=`900 38px Inter, sans-serif`;
         ctx.fillText(fullNum, areaX+88, y+ cardH/2 - 6);
-        ctx.fillStyle='#16201b'; ctx.font=`600 13px Inter, sans-serif`;
+        ctx.fillStyle='#16201b'; ctx.font=`600 20px Inter, sans-serif`;
         const descLines = wrapText(ctx, rest, areaW - 120);
         let lyy = y+ cardH/2 + 14;
-        descLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, areaX+88, lyy); lyy+=15; });
+        descLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, areaX+88, lyy); lyy+=24; });
       } else {
-        ctx.fillStyle='#16201b'; ctx.font=`700 16px Inter, sans-serif`;
+        ctx.fillStyle='#16201b'; ctx.font=`700 24px Inter, sans-serif`;
         const lines = wrapText(ctx, linea, areaW - 110);
-        let lyy = y+ cardH/2 - (lines.length*16)/2 + 6;
-        lines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, areaX+88, lyy); lyy+=18; });
+        let lyy = y+ cardH/2 - (lines.length*24)/2 + 6;
+        lines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, areaX+88, lyy); lyy+=28; });
       }
     });
   }
   // Footer como Que cambia
-  const footerY = layout.footer.y; // footer at 0.90*H from layout
+  const footerY = layout.footer.y; // footer at 0.92*H from layout
   ctx.strokeStyle = 'rgba(22,32,27,.18)';
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(layout.footer.x, footerY); ctx.lineTo(W - layout.footer.x, footerY); ctx.stroke();
   ctx.fillStyle = '#526058';
-  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.font = `700 20px Inter, sans-serif`;
   ctx.fillText('Fuente: mediamendoza', layout.footer.x, footerY + 22);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#526058';
-  ctx.font = `700 14px Inter, sans-serif`;
+  ctx.font = `700 20px Inter, sans-serif`;
   ctx.fillText('www.mediamendoza.com', W - layout.footer.x, footerY + 22);
   ctx.textAlign = 'left';
 }
