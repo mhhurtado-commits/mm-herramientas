@@ -732,12 +732,55 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   const areaW = W - margin*2;
   function pickGlyph(text, idx){
     const t = String(text).toLowerCase();
-    if (t.includes('crédito') || t.includes('credito')) return '◈';
-    if (t.includes('familia') || t.includes('mora')) return '⬢';
-    if (t.includes('solucion') || t.includes('ejecución')) return '⬣';
-    if (t.includes('2027') || t.includes('agosto') || t.includes('fecha')) return '◆';
-    if (t.includes('descuento') || t.includes('%')) return '★';
-    return ['◈','⬢','⬣','◆'][idx % 4];
+    if (t.includes('lluvia') || t.includes('hidrico') || t.includes('hídrico') || t.includes('exceso') || t.includes('anegamiento')) return 'drop';
+    if (t.includes('rio') || t.includes('río') || t.includes('crecida') || t.includes('cuenca') || t.includes('litoral') || t.includes('paran')) return 'waves';
+    if (t.includes('alerta') || t.includes('riesgo') || t.includes('precaucion') || t.includes('precaución') || t.includes('maxima') || t.includes('máxima')) return 'alert';
+    if (t.includes('zona') || t.includes('region') || t.includes('región') || t.includes('noreste') || t.includes('provincia') || t.includes('córdoba') || t.includes('pampa')) return 'pin';
+    if (t.includes('impacto') || t.includes('moderado') || t.includes('menor') || t.includes('%')) return 'gauge';
+    return ['drop','waves','pin','alert'][idx % 4];
+  }
+  function drawInfoIcon(ctx, key, cx, cy, r, bg, fg){
+    ctx.save();
+    ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = fg; ctx.fillStyle = fg; ctx.lineWidth = Math.max(4, r*0.11);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const s = r*0.85;
+    if (key === 'drop') {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - s*0.7);
+      ctx.bezierCurveTo(cx + s*0.62, cy + s*0.05, cx + s*0.42, cy + s*0.62, cx, cy + s*0.62);
+      ctx.bezierCurveTo(cx - s*0.42, cy + s*0.62, cx - s*0.62, cy + s*0.05, cx, cy - s*0.7);
+      ctx.fill();
+    } else if (key === 'waves') {
+      [-0.32, 0.02, 0.36].forEach(dy => {
+        ctx.beginPath();
+        for (let k = -3; k <= 3; k++) {
+          const x = cx + k*s*0.22, y = cy + dy*s + ((k % 2) ? -s*0.09 : s*0.09);
+          if (k === -3) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+    } else if (key === 'pin') {
+      ctx.beginPath(); ctx.arc(cx, cy - s*0.12, s*0.42, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - s*0.36, cy + s*0.18); ctx.lineTo(cx, cy + s*0.66); ctx.lineTo(cx + s*0.36, cy + s*0.18); ctx.closePath(); ctx.fill();
+    } else if (key === 'alert') {
+      ctx.beginPath(); ctx.moveTo(cx, cy - s*0.62); ctx.lineTo(cx + s*0.58, cy + s*0.48); ctx.lineTo(cx - s*0.58, cy + s*0.48); ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy + s*0.28, s*0.07, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx, cy - s*0.28); ctx.lineTo(cx, cy + s*0.08); ctx.stroke();
+    } else if (key === 'gauge') {
+      ctx.beginPath(); ctx.arc(cx, cy + s*0.25, s*0.55, Math.PI, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy + s*0.25); ctx.lineTo(cx + s*0.32, cy - s*0.08); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy + s*0.25, s*0.09, 0, Math.PI*2); ctx.fill();
+    } else {
+      ctx.beginPath();
+      for (let k = 0; k < 5; k++) {
+        const a = -Math.PI/2 + k*2*Math.PI/5;
+        const x = cx + Math.cos(a)*s*0.55, y = cy + Math.sin(a)*s*0.55;
+        if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
   }
   if (n === 4) {
     const gap = 16;
@@ -767,10 +810,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       const rest = num ? String(linea).replace(num, '').trim().replace(/^[\-\—\:]?\s*/,'') : linea;
       if (num) {
         // Jerarquia: glifo arriba, numero grande, descripcion centrada
-        ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(x+cardW/2, y+92, 44,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle=family.color; ctx.font=`900 36px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText(glyph, x+cardW/2, y+92);
-        ctx.textBaseline='alphabetic';
+        drawInfoIcon(ctx, glyph, x+cardW/2, y+92, 46, family.color, '#ffffff');
         ctx.fillStyle=family.secondary; ctx.font=`900 64px Inter, sans-serif`;
         ctx.textAlign='center';
         ctx.fillText(num, x+cardW/2, y+200);
@@ -781,10 +821,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
         ctx.textAlign='left';
       } else {
         // Jerarquia: glifo protagonista arriba, texto grande centrado verticalmente
-        ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(x+cardW/2, y+92, 44,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle=family.color; ctx.font=`900 36px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText(glyph, x+cardW/2, y+92);
-        ctx.textBaseline='alphabetic'; ctx.textAlign='left';
+        drawInfoIcon(ctx, glyph, x+cardW/2, y+92, 46, family.color, '#ffffff'); ctx.textAlign='left';
         ctx.fillStyle='#16201b'; ctx.font=`800 28px Inter, sans-serif`;
         const descLines = wrapText(ctx, linea, cardW-64);
         const shown = descLines.slice(0,4);
@@ -812,13 +849,10 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle='rgba(22,32,27,.07)'; ctx.stroke();
-      ctx.fillStyle=family.color; ctx.fillRect(areaX, y, 8, cardH);
+      ctx.fillStyle=family.color; ctx.fillRect(areaX, y, 14, cardH);
       const glyph = pickGlyph(linea,i);
-      const cx = areaX + 56; const cy = y + cardH/2;
-      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(cx, cy, 48,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=family.color; ctx.font=`900 38px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(glyph, cx, cy);
-      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+      const cx = areaX + 62; const cy = y + cardH/2;
+      drawInfoIcon(ctx, glyph, cx, cy, 52, family.color, '#ffffff');
       const numMatch = String(linea).match(/(\d[\d\.\,]*\s*%?)/);
       const fullNum = numMatch ? numMatch[1].trim() : '';
       const rest = fullNum ? String(linea).replace(fullNum,'').trim().replace(/^[\-\—\:]?\s*/,'') : linea;
@@ -834,7 +868,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
         const parts = String(linea).split(':');
         const head = parts.length > 1 ? parts[0].trim() + ':' : String(linea).trim();
         const tail = parts.length > 1 ? parts.slice(1).join(':').trim() : '';
-        const tx = areaX + 124;
+        const tx = areaX + 140;
         const tw = areaW - 164;
         ctx.fillStyle = family.secondary; ctx.font = `800 38px Inter, sans-serif`;
         const headLines = wrapText(ctx, head, tw).slice(0, 2);
