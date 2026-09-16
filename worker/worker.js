@@ -6604,27 +6604,6 @@ export default {
     if(request.method!=="POST") return jsonError("Método no permitido",405);
 
 }
-async function fetchGemini(env, payload) {
-  const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
-  if (!keys.length) throw new Error("No hay API keys de Gemini configuradas");
-
-  for (let i = 0; i < keys.length; i++) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${keys[i]}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        return await res.json();
-      }
-      console.warn(`Key ${i + 1} failed: ${res.status}`);
-    } catch (e) {
-      console.warn(`Key ${i + 1} error: ${e.message}`);
-    }
-  }
-  throw new Error("Todas las keys de Gemini fallaron");
-}
 
 // ============================================================
     // PRIMERO: rutas que NO usan JSON (FormData)
