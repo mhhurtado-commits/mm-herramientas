@@ -6603,9 +6603,7 @@ export default {
 
     if(request.method!=="POST") return jsonError("Método no permitido",405);
 
-}
-
-// ============================================================
+    // ============================================================
     // PRIMERO: rutas que NO usan JSON (FormData)
     // ============================================================
     if (path === "/studio/transcribir") {
