@@ -646,7 +646,7 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
     ctx.fillStyle= hi ? family.secondary : '#16201b';
     ctx.font=`900 32px Inter, sans-serif`;
     ctx.fillText(String(it.value||''), cardX+20, clampedY+70);
-    ctx.fillStyle='#526058'; ctx.font=`600 20px Inter, sans-serif`;
+    ctx.fillStyle='#526058'; ctx.font=`600 24px Inter, sans-serif`;
     const sub = String(it.sub||'').trim();
     if (sub) {
       const subLines=wrapText(ctx, sub, cardW-40);
@@ -764,7 +764,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       const centerY = y + cardH/2;
       // Glifo arriba del número
       ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(x+cardW/2, centerY - 62, 32,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=family.color; ctx.font=`900 26px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle=family.color; ctx.font=`900 32px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(glyph, x+cardW/2, centerY - 62);
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
       const numMatch = String(linea).match(/(\d[\d\.\,]*\s*%?)/);
@@ -811,25 +811,25 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       ctx.fillStyle=family.color; ctx.fillRect(areaX, y, 8, cardH);
       const glyph = pickGlyph(linea,i);
       const cx = areaX + 48; const cy = y + cardH/2;
-      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(cx, cy, 32,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=family.color; ctx.font=`900 26px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(cx, cy, 40,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=family.color; ctx.font=`900 32px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(glyph, cx, cy);
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
       const numMatch = String(linea).match(/(\d[\d\.\,]*\s*%?)/);
       const fullNum = numMatch ? numMatch[1].trim() : '';
       const rest = fullNum ? String(linea).replace(fullNum,'').trim().replace(/^[\-\—\:]?\s*/,'') : linea;
       if (fullNum) {
-        ctx.fillStyle=family.secondary; ctx.font=`900 38px Inter, sans-serif`;
+        ctx.fillStyle=family.secondary; ctx.font=`900 44px Inter, sans-serif`;
         ctx.fillText(fullNum, areaX+88, y+ cardH/2 - 6);
-        ctx.fillStyle='#16201b'; ctx.font=`600 20px Inter, sans-serif`;
+        ctx.fillStyle='#16201b'; ctx.font=`600 24px Inter, sans-serif`;
         const descLines = wrapText(ctx, rest, areaW - 120);
         let lyy = y+ cardH/2 + 14;
         descLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, areaX+88, lyy); lyy+=24; });
       } else {
-        ctx.fillStyle='#16201b'; ctx.font=`700 24px Inter, sans-serif`;
-        const lines = wrapText(ctx, linea, areaW - 110);
-        let lyy = y+ cardH/2 - (lines.length*24)/2 + 6;
-        lines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, areaX+88, lyy); lyy+=28; });
+        ctx.fillStyle='#16201b'; ctx.font=`700 34px Inter, sans-serif`;
+        const lines = wrapText(ctx, linea, areaW - 140);
+        let lyy = y+ cardH/2 - (lines.slice(0,3).length*40)/2 + 6;
+        lines.slice(0,3).forEach(ll=>{ ctx.fillText(ll, areaX+88, lyy); lyy+=40; });
       }
     });
   }
