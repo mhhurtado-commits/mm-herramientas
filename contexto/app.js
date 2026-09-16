@@ -646,7 +646,7 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
     ctx.fillStyle= hi ? family.secondary : '#16201b';
     ctx.font=`900 32px Inter, sans-serif`;
     ctx.fillText(String(it.value||''), cardX+20, clampedY+70);
-    ctx.fillStyle='#526058'; ctx.font=`600 24px Inter, sans-serif`;
+    ctx.fillStyle='#526058'; ctx.font=`600 29px Inter, sans-serif`;
     const sub = String(it.sub||'').trim();
     if (sub) {
       const subLines=wrapText(ctx, sub, cardW-40);
@@ -814,9 +814,9 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       ctx.strokeStyle='rgba(22,32,27,.07)'; ctx.stroke();
       ctx.fillStyle=family.color; ctx.fillRect(areaX, y, 8, cardH);
       const glyph = pickGlyph(linea,i);
-      const cx = areaX + 48; const cy = y + cardH/2;
-      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(cx, cy, 40,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=family.color; ctx.font=`900 32px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const cx = areaX + 56; const cy = y + cardH/2;
+      ctx.fillStyle=family.soft; ctx.beginPath(); ctx.arc(cx, cy, 48,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=family.color; ctx.font=`900 38px Inter, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(glyph, cx, cy);
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
       const numMatch = String(linea).match(/(\d[\d\.\,]*\s*%?)/);
@@ -830,10 +830,25 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
         let lyy = y+ cardH/2 + 14;
         descLines.slice(0,2).forEach(ll=>{ ctx.fillText(ll, areaX+88, lyy); lyy+=24; });
       } else {
-        ctx.fillStyle='#16201b'; ctx.font=`700 34px Inter, sans-serif`;
-        const lines = wrapText(ctx, linea, areaW - 140);
-        let lyy = y+ cardH/2 - (lines.slice(0,3).length*40)/2 + 6;
-        lines.slice(0,3).forEach(ll=>{ ctx.fillText(ll, areaX+88, lyy); lyy+=40; });
+        // Infografia: zona como titular + detalle, bloque centrado
+        const parts = String(linea).split(':');
+        const head = parts.length > 1 ? parts[0].trim() + ':' : String(linea).trim();
+        const tail = parts.length > 1 ? parts.slice(1).join(':').trim() : '';
+        const tx = areaX + 124;
+        const tw = areaW - 164;
+        ctx.fillStyle = family.secondary; ctx.font = `800 38px Inter, sans-serif`;
+        const headLines = wrapText(ctx, head, tw).slice(0, 2);
+        ctx.fillStyle = '#16201b'; ctx.font = `600 29px Inter, sans-serif`;
+        const tailLines = tail ? wrapText(ctx, tail, tw).slice(0, 2) : [];
+        const blockH = headLines.length * 46 + (tailLines.length ? 10 + tailLines.length * 36 : 0);
+        let lyy = y + cardH / 2 - blockH / 2 + 38;
+        ctx.fillStyle = family.secondary; ctx.font = `800 38px Inter, sans-serif`;
+        headLines.forEach(ll => { ctx.fillText(ll, tx, lyy); lyy += 46; });
+        if (tailLines.length) {
+          lyy += 10;
+          ctx.fillStyle = '#16201b'; ctx.font = `600 29px Inter, sans-serif`;
+          tailLines.forEach(ll => { ctx.fillText(ll, tx, lyy); lyy += 36; });
+        }
       }
     });
   }
