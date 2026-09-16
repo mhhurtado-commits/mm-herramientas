@@ -730,14 +730,28 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
   const availableH = gridBottom - gridTop;
   const areaX = margin;
   const areaW = W - margin*2;
-  function pickGlyph(text, idx){
+  const cat = String((family && family.label) || '').toLowerCase();
+  function cleanIcon(v){ v = String(v||'').toLowerCase().trim(); return ['drop','waves','pin','alert','gauge','pills','people','search','money','shield','box','star'].includes(v) ? v : ''; }
+  const iconKeys = Array.isArray(infografia.iconos) ? infografia.iconos.map(cleanIcon) : [];
+  function pickGlyph(text, idx, cat){
     const t = String(text).toLowerCase();
-    if (t.includes('lluvia') || t.includes('hidrico') || t.includes('hídrico') || t.includes('exceso') || t.includes('anegamiento')) return 'drop';
-    if (t.includes('rio') || t.includes('río') || t.includes('crecida') || t.includes('cuenca') || t.includes('litoral') || t.includes('paran')) return 'waves';
-    if (t.includes('alerta') || t.includes('riesgo') || t.includes('precaucion') || t.includes('precaución') || t.includes('maxima') || t.includes('máxima')) return 'alert';
-    if (t.includes('zona') || t.includes('region') || t.includes('región') || t.includes('noreste') || t.includes('provincia') || t.includes('córdoba') || t.includes('pampa')) return 'pin';
-    if (t.includes('impacto') || t.includes('moderado') || t.includes('menor') || t.includes('%')) return 'gauge';
-    return ['drop','waves','pin','alert'][idx % 4];
+    if (t.includes('mdma') || t.includes('extasis') || t.includes('dosis') || t.includes('pastilla') || t.includes('cocaina') || t.includes('marihuana') || t.includes('droga') || t.includes('fentanilo')) return 'pills';
+    if (t.includes('detenido') || t.includes('arrestado') || t.includes('imputado') || t.includes('acusado') || t.includes('ctima') || t.includes('herido') || t.includes('fallecido') || t.includes('muerto')) return 'people';
+    if (t.includes('profugo') || t.includes('fugo') || t.includes('fuga') || t.includes('captura') || t.includes('busqueda') || t.includes('squeda') || t.includes('desaparec')) return 'search';
+    if (t.includes('incaut') || t.includes('secuestr') || t.includes('decomis') || t.includes('kilo') || t.includes('carga') || t.includes('paquete')) return 'box';
+    if (t.includes('operativo') || t.includes('allanamiento') || t.includes('policia') || t.includes('gendarm') || t.includes('patrull')) return 'shield';
+    if (t.includes('peso') || t.includes('dolar') || t.includes('millon') || t.includes('inversion') || t.includes('tarifa') || t.includes('aumento') || t.includes('$')) return 'money';
+    if (t.includes('lluvia') || t.includes('hidrico') || t.includes('drico') || t.includes('exceso') || t.includes('anegamiento') || t.includes('tormenta') || t.includes('granizo')) return 'drop';
+    if (t.includes('rio') || t.includes('crecida') || t.includes('cuenca') || t.includes('litoral') || t.includes('paran')) return 'waves';
+    if (t.includes('alerta') || t.includes('riesgo') || t.includes('precaucion') || t.includes('cuci') || t.includes('maxima') || t.includes('xima') || t.includes('peligro')) return 'alert';
+    if (t.includes('zona') || t.includes('region') || t.includes('gi') || t.includes('noreste') || t.includes('provincia') || t.includes('rdoba') || t.includes('pampa') || t.includes('barrio') || t.includes('departamento')) return 'pin';
+    if (t.includes('impacto') || t.includes('moderado') || t.includes('menor') || t.includes('%') || t.includes('porcentaje')) return 'gauge';
+    const c = String(cat||'');
+    if (c.includes('policial')) return 'shield';
+    if (c.includes('econom')) return 'money';
+    if (c.includes('clima')) return 'drop';
+    if (c.includes('polit')) return 'people';
+    return 'star';
   }
   function drawInfoIcon(ctx, key, cx, cy, r, bg, fg){
     ctx.save();
@@ -771,6 +785,43 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       ctx.beginPath(); ctx.arc(cx, cy + s*0.25, s*0.55, Math.PI, 0); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(cx, cy + s*0.25); ctx.lineTo(cx + s*0.32, cy - s*0.08); ctx.stroke();
       ctx.beginPath(); ctx.arc(cx, cy + s*0.25, s*0.09, 0, Math.PI*2); ctx.fill();
+    } else if (key === 'pills') {
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.5);
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(-s*0.55, -s*0.42, s*0.72, s*0.32, s*0.16); else ctx.rect(-s*0.55, -s*0.42, s*0.72, s*0.32);
+      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s*0.19, -s*0.42); ctx.lineTo(-s*0.19, -s*0.10); ctx.stroke();
+      ctx.restore();
+      ctx.save(); ctx.translate(cx + s*0.12, cy + s*0.38); ctx.rotate(0.5);
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(-s*0.36, -s*0.16, s*0.72, s*0.32, s*0.16); else ctx.rect(-s*0.36, -s*0.16, s*0.72, s*0.32);
+      ctx.stroke();
+      ctx.restore();
+    } else if (key === 'people') {
+      ctx.beginPath(); ctx.arc(cx - s*0.22, cy - s*0.18, s*0.20, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx - s*0.22, cy + s*0.42, s*0.34, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + s*0.28, cy - s*0.10, s*0.16, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + s*0.28, cy + s*0.44, s*0.27, Math.PI, 0); ctx.fill();
+    } else if (key === 'search') {
+      ctx.beginPath(); ctx.arc(cx - s*0.08, cy - s*0.10, s*0.38, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx + s*0.20, cy + s*0.18); ctx.lineTo(cx + s*0.55, cy + s*0.53); ctx.stroke();
+    } else if (key === 'money') {
+      ctx.beginPath(); ctx.arc(cx, cy, s*0.55, 0, Math.PI*2); ctx.stroke();
+      ctx.font = `900 ${Math.max(10, s*0.7)}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('$', cx, cy + s*0.04);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    } else if (key === 'shield') {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - s*0.6);
+      ctx.lineTo(cx + s*0.48, cy - s*0.38); ctx.lineTo(cx + s*0.48, cy + s*0.05);
+      ctx.quadraticCurveTo(cx + s*0.48, cy + s*0.45, cx, cy + s*0.62);
+      ctx.quadraticCurveTo(cx - s*0.48, cy + s*0.45, cx - s*0.48, cy + s*0.05);
+      ctx.lineTo(cx - s*0.48, cy - s*0.38); ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - s*0.18, cy + s*0.02); ctx.lineTo(cx - s*0.02, cy + s*0.18); ctx.lineTo(cx + s*0.24, cy - s*0.18); ctx.stroke();
+    } else if (key === 'box') {
+      ctx.beginPath(); ctx.moveTo(cx - s*0.5, cy - s*0.2); ctx.lineTo(cx, cy - s*0.42); ctx.lineTo(cx + s*0.5, cy - s*0.2); ctx.lineTo(cx, cy + s*0.02); ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - s*0.5, cy - s*0.2); ctx.lineTo(cx - s*0.5, cy + s*0.32); ctx.lineTo(cx, cy + s*0.54); ctx.lineTo(cx, cy + s*0.02); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx + s*0.5, cy - s*0.2); ctx.lineTo(cx + s*0.5, cy + s*0.32); ctx.lineTo(cx, cy + s*0.54); ctx.lineTo(cx, cy + s*0.02); ctx.stroke();
     } else {
       ctx.beginPath();
       for (let k = 0; k < 5; k++) {
@@ -802,7 +853,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       ctx.fill();
       ctx.strokeStyle='rgba(22,32,27,.07)'; ctx.stroke();
       ctx.fillStyle=family.color; ctx.fillRect(x, y, cardW, 6);
-      const glyph = pickGlyph(linea,i);
+      const glyph = iconKeys[i] || pickGlyph(linea,i,cat);
       // Glifo grande y número gigante centrado verticalmente para ocupar espacio
       const centerY = y + cardH/2;
       const numMatch = String(linea).match(/(\d[\d\.\,]*\s*%?)/);
@@ -850,7 +901,7 @@ function renderInfografiaPlaca(canvas, infografia, family, titulo) {
       ctx.fill();
       ctx.strokeStyle='rgba(22,32,27,.07)'; ctx.stroke();
       ctx.fillStyle=family.color; ctx.fillRect(areaX, y, 14, cardH);
-      const glyph = pickGlyph(linea,i);
+      const glyph = iconKeys[i] || pickGlyph(linea,i,cat);
       const cx = areaX + 62; const cy = y + cardH/2;
       drawInfoIcon(ctx, glyph, cx, cy, 52, family.color, '#ffffff');
       const numMatch = String(linea).match(/(\d[\d\.\,]*\s*%?)/);
@@ -1008,7 +1059,7 @@ INSTRUCCIONES:
 - "preguntas": 5 preguntas
 - "timeline": array 4 hitos o null si no hay evolución temporal
 - "chart": {"titulo":"...","tipo":"bar|line|pie","datos":[{"label":"...","value":123},...]} o null si no hay datos numéricos comparables
-- "infografia": {"titulo":"...","lineas":["...","...","..."]} o null si no hay datos de alto impacto
+- "infografia": {"titulo":"...","lineas":["...","...","..."],"iconos":["...","...","..."]} o null si no hay datos de alto impacto. iconos: UN icono por linea, en el mismo orden, vocabulario EXACTO obligatorio: drop(agua/lluvia) | waves(rios) | pin(lugar) | alert(alerta/riesgo) | gauge(medicion/porcentaje) | pills(drogas/medicamentos) | people(personas/detenidos/victimas) | search(busqueda/profugo) | money(dinero/precios) | shield(policial/operativo) | box(incautacion/carga/kilos) | star(otro). Ej: linea "52 kilos de MDMA" -> box; "dosis de extasis" -> pills; "detenidos" -> people; "profugo" -> search
 - "categoria": general|clima|policiales|sociales|politica|economia|deportes
 - "titulo_corto": 60ch
 - "titulo_placa": 75ch
