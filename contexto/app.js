@@ -610,10 +610,12 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
   ctx.strokeStyle='rgba(22,32,27,.10)'; ctx.lineWidth=12; ctx.beginPath(); ctx.moveTo(tlX, tlY); ctx.lineTo(tlX, tlY+tlH); ctx.stroke();
   ctx.strokeStyle=family.color; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(tlX, tlY); ctx.lineTo(tlX, tlY+tlH); ctx.stroke();
   const n = timeline.length;
-  const usableH = tlH - 40;
-  const step = n>1 ? usableH / (n-1) : 0;
+  const cardH0 = n===2 ? 260 : n===3 ? 220 : 205;
+  const tGap = Math.max(12, (tlH - cardH0*n) / (n+1));
+  const cardH = Math.min(cardH0, (tlH - tGap*(n+1)) / n);
   timeline.forEach((it,i)=>{
-    const y = tlY + 20 + step*i;
+    const clampedY = tlY + tGap + i*(cardH+tGap);
+    const y = clampedY + cardH/2;
     const hi = !!it.highlight;
     ctx.strokeStyle= hi ? family.color : 'rgba(22,32,27,.20)'; ctx.lineWidth= hi?5:3;
     ctx.beginPath(); ctx.moveTo(tlX, y); ctx.lineTo(tlX+44, y); ctx.stroke();
@@ -625,9 +627,6 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
     else { ctx.beginPath(); ctx.arc(tlX,y,5,0,Math.PI*2); ctx.fillStyle=family.secondary; ctx.fill(); }
     const cardX = tlX + 40;
     const cardW = layout.impacts.w - 40;
-    const cardH = n===2 ? 250 : n===3 ? 210 : 195;
-    const cardY = y - cardH/2;
-    const clampedY = Math.max(tlY, Math.min(cardY, tlY+tlH - cardH));
     ctx.shadowColor='rgba(22,32,27,.08)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
     ctx.fillStyle = '#ffffff';
     // Usar roundedRect del layout
@@ -652,10 +651,10 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
     ctx.fillStyle='#ffffff';
     ctx.fillText(dateTxt, pillX+23, pillY+30);
     ctx.fillStyle= hi ? family.secondary : '#16201b';
-    ctx.font=`900 40px Inter, sans-serif`;
+    ctx.font=`900 42px Inter, sans-serif`;
     const valLines = wrapText(ctx, String(it.value||''), cardW-52).slice(0,2);
     let vy = pillY + pillH + 46;
-    valLines.forEach(l=>{ ctx.fillText(l, cardX+24, vy); vy+=46; });
+    valLines.forEach(l=>{ ctx.fillText(l, cardX+24, vy); vy+=48; });
     ctx.fillStyle='#526058'; ctx.font=`600 26px Inter, sans-serif`;
     const sub = String(it.sub||'').trim();
     if (sub) {
