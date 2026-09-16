@@ -604,25 +604,28 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
   let ty = layout.title.y + tSize;
   tLines.slice(0,2).forEach(l=>{ ctx.fillText(l, layout.title.x, ty); ty+= tSize*1.08; });
   // Timeline vertical — usa layout.impacts como área
-  const tlX = layout.impacts.x + 28;
+  const tlX = layout.impacts.x + 34;
   const tlY = layout.impacts.y;
   const tlH = layout.impacts.h;
-  ctx.strokeStyle='rgba(22,32,27,.12)'; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(tlX, tlY); ctx.lineTo(tlX, tlY+tlH); ctx.stroke();
+  ctx.strokeStyle='rgba(22,32,27,.10)'; ctx.lineWidth=12; ctx.beginPath(); ctx.moveTo(tlX, tlY); ctx.lineTo(tlX, tlY+tlH); ctx.stroke();
+  ctx.strokeStyle=family.color; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(tlX, tlY); ctx.lineTo(tlX, tlY+tlH); ctx.stroke();
   const n = timeline.length;
   const usableH = tlH - 40;
   const step = n>1 ? usableH / (n-1) : 0;
-  const glyphs = ['◈','⬢','⬣','★','◆'];
   timeline.forEach((it,i)=>{
     const y = tlY + 20 + step*i;
     const hi = !!it.highlight;
-    ctx.shadowColor='rgba(22,32,27,.14)'; ctx.shadowBlur=8; ctx.shadowOffsetY=3;
-    ctx.beginPath(); ctx.arc(tlX, y, hi?16:12, 0, Math.PI*2); ctx.fillStyle= hi? family.color : '#ffffff'; ctx.fill();
+    ctx.strokeStyle= hi ? family.color : 'rgba(22,32,27,.20)'; ctx.lineWidth= hi?5:3;
+    ctx.beginPath(); ctx.moveTo(tlX, y); ctx.lineTo(tlX+44, y); ctx.stroke();
+    ctx.shadowColor='rgba(22,32,27,.20)'; ctx.shadowBlur=hi?14:8; ctx.shadowOffsetY=3;
+    ctx.beginPath(); ctx.arc(tlX, y, hi?22:15, 0, Math.PI*2); ctx.fillStyle= hi? family.color : '#ffffff'; ctx.fill();
     ctx.shadowBlur=0; ctx.shadowOffsetY=0;
-    ctx.strokeStyle= hi? family.color : family.secondary; ctx.lineWidth= hi?4:3; ctx.stroke();
-    if (hi){ ctx.beginPath(); ctx.arc(tlX,y,5,0,Math.PI*2); ctx.fillStyle='#ffffff'; ctx.fill(); }
-    const cardX = tlX + 32;
-    const cardW = layout.impacts.w - 32;
-    const cardH = n===2 ? 230 : n===3 ? 195 : 175;
+    ctx.strokeStyle= hi? family.color : family.secondary; ctx.lineWidth= hi?5:4; ctx.stroke();
+    if (hi){ ctx.beginPath(); ctx.arc(tlX,y,7,0,Math.PI*2); ctx.fillStyle='#ffffff'; ctx.fill(); }
+    else { ctx.beginPath(); ctx.arc(tlX,y,5,0,Math.PI*2); ctx.fillStyle=family.secondary; ctx.fill(); }
+    const cardX = tlX + 40;
+    const cardW = layout.impacts.w - 40;
+    const cardH = n===2 ? 250 : n===3 ? 210 : 195;
     const cardY = y - cardH/2;
     const clampedY = Math.max(tlY, Math.min(cardY, tlY+tlH - cardH));
     ctx.shadowColor='rgba(22,32,27,.08)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
@@ -637,34 +640,37 @@ function renderTimelinePlaca(canvas, timeline, family, titulo) {
     ctx.closePath();
     ctx.fill();
     ctx.shadowBlur=0; ctx.shadowOffsetY=0;
-    ctx.strokeStyle= hi ? family.color : 'rgba(22,32,27,.08)'; ctx.lineWidth= hi?2:1; ctx.stroke();
+    ctx.strokeStyle= hi ? family.color : 'rgba(22,32,27,.08)'; ctx.lineWidth= hi?3:1; ctx.stroke();
     ctx.fillStyle= hi ? family.color : family.secondary;
-    ctx.fillRect(cardX, clampedY, 7, cardH);
-    ctx.fillStyle= hi ? family.color : '#6b7a6e';
-    ctx.font=`800 19px Inter, sans-serif`;
-    ctx.fillText(glyphs[i % glyphs.length] + '  ' + String(it.label||'').toUpperCase(), cardX+20, clampedY+34);
+    ctx.fillRect(cardX, clampedY, 9, cardH);
+    const dateTxt = String(it.label||'').toUpperCase();
+    ctx.font=`800 22px Inter, sans-serif`;
+    const pillW = ctx.measureText(dateTxt).width + 46;
+    const pillH = 46; const pillX = cardX+22; const pillY = clampedY+20;
+    ctx.fillStyle= hi ? family.color : family.secondary;
+    roundedRect(ctx, pillX, pillY, pillW, pillH, pillH/2); ctx.fill();
+    ctx.fillStyle='#ffffff';
+    ctx.fillText(dateTxt, pillX+23, pillY+30);
     ctx.fillStyle= hi ? family.secondary : '#16201b';
-    ctx.font=`900 32px Inter, sans-serif`;
-    ctx.fillText(String(it.value||''), cardX+20, clampedY+70);
-    ctx.fillStyle='#526058'; ctx.font=`600 29px Inter, sans-serif`;
+    ctx.font=`900 40px Inter, sans-serif`;
+    const valLines = wrapText(ctx, String(it.value||''), cardW-52).slice(0,2);
+    let vy = pillY + pillH + 46;
+    valLines.forEach(l=>{ ctx.fillText(l, cardX+24, vy); vy+=46; });
+    ctx.fillStyle='#526058'; ctx.font=`600 26px Inter, sans-serif`;
     const sub = String(it.sub||'').trim();
     if (sub) {
-      const subLines=wrapText(ctx, sub, cardW-40);
-      ctx.fillText(subLines[0]||'', cardX+20, clampedY+98);
-      if (subLines[1]) ctx.fillText(subLines[1], cardX+20, clampedY+120);
+      const subLines=wrapText(ctx, sub, cardW-52).slice(0,2);
+      subLines.forEach(l=>{ ctx.fillText(l, cardX+24, vy); vy+=32; });
     }
     if (hi) {
-      ctx.fillStyle=family.color; ctx.font=`700 14px Inter, sans-serif`;
-      const badge = 'AHORA';
-      const bw = ctx.measureText(badge).width + 16;
-      ctx.beginPath();
-      ctx.moveTo(cardX+cardW - bw - 14 + 10, clampedY+14);
-      ctx.arcTo(cardX+cardW - 14, clampedY+14, cardX+cardW -14, clampedY+14+20, 10);
-      ctx.arcTo(cardX+cardW -14, clampedY+14+20, cardX+cardW - bw -14, clampedY+14+20, 10);
-      ctx.arcTo(cardX+cardW - bw -14, clampedY+14+20, cardX+cardW - bw -14, clampedY+14, 10);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle='#fff'; ctx.fillText(badge, cardX+cardW - bw -6, clampedY+28);
+      ctx.font=`800 17px Inter, sans-serif`;
+      const badge='AHORA';
+      const bw = ctx.measureText(badge).width + 30;
+      const bh = 34; const bx = cardX+cardW-bw-18; const by = clampedY+22;
+      ctx.fillStyle=family.color;
+      roundedRect(ctx, bx, by, bw, bh, bh/2); ctx.fill();
+      ctx.fillStyle='#ffffff';
+      ctx.fillText(badge, bx+15, by+23);
     }
   });
   // Footer como Que cambia
