@@ -5347,7 +5347,7 @@ async function fetchGemini(env, payload, { searchEnabled = false, expectJson = t
   const modelsToTry = requestedModel === GEMINI_FALLBACK ? [requestedModel] : [...new Set([requestedModel, GEMINI_FALLBACK])];
 
   const makeBody = (s) => {
-    const b = { ...payload, generationConfig: { temperature: 0.4, maxOutputTokens: 8000, ...payload.generationConfig } };
+    const b = { ...payload, generationConfig: { temperature: 0.4, maxOutputTokens: 2048, ...payload.generationConfig } };
     if (s) b.tools = [{ googleSearch: {} }];
     return b;
   };
@@ -5377,7 +5377,7 @@ async function fetchGemini(env, payload, { searchEnabled = false, expectJson = t
       for (let intento = 1; intento <= maxRetries; intento++) {
         try {
           const body = makeBody(search);
-          const res = await fetch(`${geminiUrl}?key=${keys[i]}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          const res = await fetch(`${geminiUrl}?key=${keys[i]}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
 
           if (!res.ok) {
             const errBody = await res.text().catch(() => '');
@@ -7172,13 +7172,19 @@ async function handlePlacasV2Generar(body, env) {
   if (!hasContent) return jsonError('Falta la nota extraída', 400);
 
   const fallback = deterministicEditorialResponse(note);
+  const cacheKey = `placas-v2:gen:${String(note.url || note.title || note.titulo || '').slice(0,120)}:${String(note.body || note.texto || '').slice(0,80)}`;
+  if (env.KV && !body?.noCache) {
+    try { const cached = await env.KV.get(cacheKey, 'json'); if (cached?.placa) return jsonOk({ placa: cached.placa, warnings: [], cached: true }); } catch {}
+  }
   try {
-    const result = await callGemini(buildPlateEditorialPrompt(note), env);
+    const prompt = buildPlateEditorialPrompt(note);
+    const result = await fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 1400 } }, { expectJson: true });
     if (result.error || !result.data || typeof result.data !== 'object') {
       console.warn('[handlePlacasV2Generar] IA no disponible:', result?.error);
       return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'], ia_error: result?.error || 'respuesta vacía', ia_details: result?.details || [] });
     }
     const placa = normalizeEditorialResponse(result.data, note);
+    if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify({ placa }), { expirationTtl: 1800 }); } catch {} }
     return jsonOk({ placa, warnings: [] });
   } catch (error) {
     console.warn('[handlePlacasV2Generar] excepción:', error?.message);
@@ -7203,7 +7209,7 @@ async function handlePlacasV2Paquete(body, env) {
   let ia_error = null;
   let ia_details = [];
   try {
-    const result = await callGemini(buildPlateEditorialPrompt(note), env);
+    const result = await fetchGemini(env, { contents: [{ parts: [{ text: buildPlateEditorialPrompt(note) }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 1400 } }, { expectJson: true });
     if (result.error || !result.data || typeof result.data !== 'object') {
       console.warn('[handlePlacasV2Paquete] IA no disponible:', result?.error);
       placa = deterministicEditorialResponse(note);
