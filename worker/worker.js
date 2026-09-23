@@ -504,7 +504,13 @@ const CORS_HEADERS = {
 };
 
 const GEMINI_MODEL     = "gemini-3.1-flash-lite";
+const GEMINI_FALLBACK  = "gemini-3.5-flash-lite";
 const GEMINI_URL       = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+// Helper DRY para rotación de keys
+function getGeminiKeys(env) {
+  return [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+}
 const EDITORIAL_KV_KEY = "config:editorial";
 const WA_PROMPT_KV_KEY = "config:wa_prompt";
 const WA_LINKS_KV_KEY  = "config:wa_links";
@@ -1246,23 +1252,12 @@ async function handleVideoEditorSuggestCuts(body, env) {
   ${segments.map((s, i) => `${i}: ${s.text}`).join('\n')}`;
 
   try {
-    const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
-    if (!keys.length) throw new Error("No hay API keys de Gemini configuradas");
+    if (!getGeminiKeys(env).length) throw new Error("No hay API keys de Gemini configuradas");
 
-    let response;
-    for (let i = 0; i < keys.length; i++) {
-      try {
-        const res = await fetch(`${GEMINI_URL}?key=${keys[i]}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 200 } })
-        });
-        if (res.ok) { response = await res.json(); break; }
-      } catch (e) { continue; }
-    }
-    if (!response) throw new Error("No se pudo obtener respuesta de Gemini");
+    const gemRes = await fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 200 } }, { expectJson: false });
+    if (gemRes.error) throw new Error(gemRes.error + (gemRes.details ? ` (${gemRes.details.slice(0,2).join(' | ')})` : ''));
 
-    const raw = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const raw = typeof gemRes.data === 'string' ? gemRes.data : (gemRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || "");
     const match = raw.match(/\[[\d,\s]*\]/);
     let indices = [];
     if (match) {
@@ -1288,9 +1283,19 @@ async function handleVideoEditorSuggestCuts(body, env) {
 async function handleGenerateHeadline(request, env) {
   try {
     const { image } = await request.json();
-    if (!env.GEMINI_KEY_1) {
+    if (!getGeminiKeys(env).length) {
       return new Response(JSON.stringify({ error: 'Falta configurar keys de Gemini' }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
+    if (!image) return new Response(JSON.stringify({ error: 'Falta imagen' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    let mimeType = 'image/jpeg';
+    let base64Data = '';
+    if (typeof image === 'string' && image.startsWith('data:')) {
+      const m = image.match(/^data:([^;]+);base64,(.*)$/);
+      if (m) { mimeType = m[1]; base64Data = m[2]; } else { base64Data = image; }
+    } else if (typeof image === 'string') {
+      base64Data = image.replace(/^data:[^,]+,/, '');
+    }
+    if (!base64Data) return new Response(JSON.stringify({ error: 'Imagen inválida' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     const payload = {
       contents: [{
         parts: [
@@ -1299,8 +1304,11 @@ async function handleGenerateHeadline(request, env) {
         ]
       }]
     };
-    const aiData = await fetchGemini(env, payload);
-    const headline = aiData.data?.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
+    const aiData = await fetchGemini(env, payload, { expectJson: false });
+    if (aiData.error) {
+      return new Response(JSON.stringify({ error: aiData.error, details: aiData.details || [] }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    const headline = (typeof aiData.data === 'string' ? aiData.data : aiData.data?.candidates?.[0]?.content?.parts?.[0]?.text) || "Titular no disponible";
     return new Response(JSON.stringify({ headline: headline.trim() }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error("Error Gemini:", error);
@@ -5097,11 +5105,10 @@ async function handleProcesarImagenes(request, env) {
     }
     const VISION_MODELS = [
       GEMINI_MODEL,
-      "gemini-2.0-flash",
-      "gemini-1.5-flash"
+      GEMINI_FALLBACK,
+      "gemini-2.5-flash"
     ];
-    const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
-    if (!keys.length) return jsonError("No hay API keys de Gemini configuradas", 500);
+    if (!getGeminiKeys(env).length) return jsonError("No hay API keys de Gemini configuradas", 500);
     const maxImages = Math.min(imageFiles.length, 5);
     const results = [];
     const errores = [];
@@ -5118,27 +5125,24 @@ Respondé SOLO con JSON sin backticks:
 {"texto_extraido": "todo el texto que se ve en la imagen", "descripcion": "qué tipo de imagen es y qué información contiene"}`;
       let procesado = false;
       for (const model of VISION_MODELS) {
-        for (const key of keys) {
-          try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-            const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 1024 } }) });
-            if (res.ok) {
-              const data = await res.json();
-              const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-              const match = raw.match(/\{[\s\S]*\}/);
-              if (match) { try { const p = JSON.parse(match[0]); results.push(p); } catch(e) { results.push({ texto_extraido: raw.substring(0, 2000), descripcion: '' }); } }
-              else { results.push({ texto_extraido: raw.substring(0, 2000), descripcion: '' }); }
-              procesado = true;
-              break;
-            } else if (res.status === 429) { await sleep(2000); continue; }
-            else {
-              const errText = await res.text().catch(() => '');
-              errores.push(`${model}: HTTP ${res.status} ${errText.substring(0, 200)}`);
-              continue;
-            }
-          } catch(e) { errores.push(`${model}: ${e.message}`); continue; }
+        const visionPayload = { contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 1024 } };
+        const visionRes = await fetchGemini(env, visionPayload, { expectJson: true, modelOverride: model });
+        if (!visionRes.error && visionRes.data) {
+          const p = visionRes.data;
+          if (p.texto_extraido || p.descripcion) results.push(p);
+          else if (typeof p === 'object') results.push({ texto_extraido: JSON.stringify(p).substring(0, 2000), descripcion: '' });
+          else results.push({ texto_extraido: String(p).substring(0, 2000), descripcion: '' });
+          procesado = true;
+          break;
+        } else if (!visionRes.error && typeof visionRes.data === 'string') {
+          results.push({ texto_extraido: visionRes.data.substring(0, 2000), descripcion: '' });
+          procesado = true;
+          break;
+        } else {
+          const errMsg = visionRes.error || 'sin respuesta';
+          errores.push(`${model}: ${errMsg}${visionRes.details ? ' | ' + visionRes.details.slice(0,1).join(' ') : ''}`);
+          if (visionRes.details && visionRes.details.join(' ').includes('429')) await sleep(500);
         }
-        if (procesado) break;
       }
       if (!procesado) {
         errores.push(`No se pudo procesar imagen ${i+1} con ningún modelo`);
@@ -5150,11 +5154,9 @@ Respondé SOLO con JSON sin backticks:
     let tituloSugerido = '';
     if (textoCombinado.length > 30) {
       const tPrompt = `Basado en este texto extraído de una imagen, generá un título corto para nota periodística (máx 10 palabras):\n"""\n${textoCombinado.substring(0, 600)}\n"""\nRespondé SOLO con el título, sin comillas ni JSON.`;
-      for (const key of keys) {
-        try {
-          const res = await fetch(`${GEMINI_URL}?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: tPrompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 50 } }) });
-          if (res.ok) { const d = await res.json(); tituloSugerido = (d?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().replace(/^["']|["']$/g, ''); break; }
-        } catch(e) { continue; }
+      const tRes = await fetchGemini(env, { contents: [{ parts: [{ text: tPrompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 50 } }, { expectJson: false });
+      if (!tRes.error && tRes.data) {
+        tituloSugerido = String(tRes.data).trim().replace(/^["']|["']$/g, '').substring(0, 120);
       }
     }
     const response = { imagenes_procesadas: results.length, total_imagenes: imageFiles.length, titulo: tituloSugerido, texto: textoCombinado, descripcion: descripciones.join('; ') };
@@ -5339,10 +5341,10 @@ async function callGemini(prompt, env, searchEnabled = false, expectJson = true,
 
 
 async function fetchGemini(env, payload, { searchEnabled = false, expectJson = true, modelOverride = null } = {}) {
-  const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+  const keys = getGeminiKeys(env);
   if (!keys.length) return { error: "No hay API keys de Gemini configuradas" };
-  const model = modelOverride || GEMINI_MODEL;
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const requestedModel = modelOverride || GEMINI_MODEL;
+  const modelsToTry = requestedModel === GEMINI_FALLBACK ? [requestedModel] : [...new Set([requestedModel, GEMINI_FALLBACK])];
 
   const makeBody = (s) => {
     const b = { ...payload, generationConfig: { temperature: 0.4, maxOutputTokens: 8000, ...payload.generationConfig } };
@@ -5364,62 +5366,93 @@ async function fetchGemini(env, payload, { searchEnabled = false, expectJson = t
   };
 
   const modelErrors = [];
-  let search = searchEnabled;
   const maxRetries = 2;
 
-  for (let i = 0; i < keys.length; i++) {
-    for (let intento = 1; intento <= maxRetries; intento++) {
-      try {
-        const body = makeBody(search);
-        const res = await fetch(`${geminiUrl}?key=${keys[i]}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  for (const model of modelsToTry) {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    let search = searchEnabled;
+    let hadModelNotFound = false;
 
-        if (!res.ok) {
-          const errBody = await res.text().catch(() => '');
-          const snippet = errBody ? `: ${errBody.substring(0, 300)}` : '';
-          if (res.status === 429) {
-            const msg = `Key ${i + 1}/${keys.length} → 429 Rate Limit${snippet}`;
-            modelErrors.push(msg);
-            console.warn(`[fetchGemini] ${msg} (intento ${intento})`);
-            if (intento < maxRetries) { await sleep(getRetryDelay(intento, res)); continue; }
-            break;
-          }
-          if (res.status === 400) {
-            if (search) { search = false; intento = 0; continue; }
-            return { error: `HTTP 400 (Bad Request) key ${i + 1}${snippet}`, details: modelErrors };
-          }
-          if (res.status >= 500) {
-            const msg = `Key ${i + 1}/${keys.length} → ${res.status} Gemini Down (intento ${intento})${snippet}`;
-            modelErrors.push(msg);
-            console.warn(`[fetchGemini] ${msg}`);
-            if (intento < 3) { await sleep(get503Delay(intento)); continue; }
-            break;
-          }
-          modelErrors.push(`Key ${i + 1}/${keys.length} → HTTP ${res.status}${snippet}`);
-          break;
-        }
-
-        const data = await res.json();
-        const candidate = data?.candidates?.[0];
-        if (!candidate) return { error: "No candidate: " + JSON.stringify(data) };
-
-        const raw = candidate?.content?.parts?.[0]?.text || "";
-        if (!raw) return { error: "No text: " + JSON.stringify(candidate) };
-
-        if (!expectJson) return { data: raw };
-
+    for (let i = 0; i < keys.length; i++) {
+      for (let intento = 1; intento <= maxRetries; intento++) {
         try {
-          return { data: JSON.parse(raw) };
-        } catch {
-          const match = raw.match(/\{[\s\S]*\}/);
-          if (match) {
-            try { return { data: JSON.parse(match[0]) }; } catch { }
+          const body = makeBody(search);
+          const res = await fetch(`${geminiUrl}?key=${keys[i]}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+          if (!res.ok) {
+            const errBody = await res.text().catch(() => '');
+            const snippet = errBody ? `: ${errBody.substring(0, 300)}` : '';
+            if (res.status === 429) {
+              const msg = `[${model}] Key ${i + 1}/${keys.length} → 429 Rate Limit${snippet}`;
+              modelErrors.push(msg);
+              console.warn(`[fetchGemini] ${msg} (intento ${intento})`);
+              if (intento < maxRetries) { await sleep(getRetryDelay(intento, res)); continue; }
+              break;
+            }
+            if (res.status === 400) {
+              if (search) { search = false; continue; }
+              const msg = `[${model}] Key ${i + 1}/${keys.length} → 400 Bad Request${snippet}`;
+              modelErrors.push(msg);
+              console.warn(`[fetchGemini] ${msg}`);
+              break;
+            }
+            if (res.status === 404) {
+              const msg = `[${model}] Key ${i + 1}/${keys.length} → 404 Model Not Found${snippet}`;
+              modelErrors.push(msg);
+              console.warn(`[fetchGemini] ${msg}`);
+              if (model === requestedModel && modelsToTry.length > 1) hadModelNotFound = true;
+              break;
+            }
+            if (res.status >= 500) {
+              const msg = `[${model}] Key ${i + 1}/${keys.length} → ${res.status} Gemini Down (intento ${intento})${snippet}`;
+              modelErrors.push(msg);
+              console.warn(`[fetchGemini] ${msg}`);
+              if (intento < maxRetries) { await sleep(get503Delay(intento)); continue; }
+              break;
+            }
+            if (res.status === 401 || res.status === 403) {
+              const msg = `[${model}] Key ${i + 1}/${keys.length} → HTTP ${res.status} Auth${snippet}`;
+              modelErrors.push(msg);
+              console.warn(`[fetchGemini] ${msg}`);
+              break;
+            }
+            modelErrors.push(`[${model}] Key ${i + 1}/${keys.length} → HTTP ${res.status}${snippet}`);
+            break;
           }
-          return { error: "JSON parse failed. Raw: " + raw };
+
+          const data = await res.json();
+          const candidate = data?.candidates?.[0];
+          if (!candidate) return { error: "No candidate: " + JSON.stringify(data), details: modelErrors };
+
+          const raw = candidate?.content?.parts?.[0]?.text || "";
+          if (!raw) return { error: "No text: " + JSON.stringify(candidate), details: modelErrors };
+
+          if (!expectJson) return { data: raw };
+
+          try {
+            return { data: JSON.parse(raw) };
+          } catch {
+            const match = raw.match(/\{[\s\S]*\}/);
+            if (match) {
+              try { return { data: JSON.parse(match[0]) }; } catch { }
+            }
+            return { error: "JSON parse failed. Raw: " + raw, details: modelErrors };
+          }
+        } catch (err) {
+          console.warn(`[fetchGemini] [${model}] Key ${i + 1} error: ${err.message}`);
+          modelErrors.push(`[${model}] Key ${i + 1} exception: ${err.message}`);
+          if (intento < maxRetries) await sleep(getRetryDelay(intento));
+          else break;
         }
-      } catch (err) {
-        console.warn(`[fetchGemini] Key ${i + 1} error: ${err.message}`);
-        if (intento < maxRetries) await sleep(getRetryDelay(intento));
       }
+    }
+    if (hadModelNotFound) {
+      console.warn(`[fetchGemini] Modelo ${model} no encontrado, probando fallback ${modelsToTry[modelsToTry.indexOf(model)+1] || ''}`);
+      continue;
+    }
+    if (model !== modelsToTry[modelsToTry.length - 1]) {
+      const hasOnlyAuthErrors = modelErrors.filter(m => m.includes(`[${model}]`)).every(m => m.includes('401') || m.includes('403') || m.includes('404'));
+      if (hasOnlyAuthErrors) continue;
     }
   }
   return { error: "Todas las keys de Gemini fallaron", details: modelErrors };
@@ -6710,7 +6743,7 @@ async function handleVisualIlustrar(body, env) {
   const prompt = String(body.prompt || "").trim();
   if (!prompt) return jsonError("Falta prompt", 400);
 
-  const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+  const keys = getGeminiKeys(env);
   if (!keys.length) return jsonError("No hay API keys de Gemini configuradas", 500);
 
   const bodyReq = {
@@ -6718,6 +6751,7 @@ async function handleVisualIlustrar(body, env) {
     generationConfig: { responseModalities: ["IMAGE", "TEXT"] }
   };
 
+  const ilustrarErrors = [];
   for (let i = 0; i < keys.length; i++) {
     try {
       const res = await fetch(`${GEMINI_IMAGEN_URL}?key=${keys[i]}`, {
@@ -6727,8 +6761,11 @@ async function handleVisualIlustrar(body, env) {
       });
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
-        console.error(`Ilustrar ${res.status} key#${i + 1}:`, errBody);
-        if (res.status >= 400 && res.status < 500) return jsonError(`Error ${res.status}: ${errBody.substring(0, 200)}`, res.status);
+        const msg = `Ilustrar ${res.status} key#${i + 1}: ${errBody.substring(0, 200)}`;
+        console.error(msg);
+        ilustrarErrors.push(msg);
+        if (res.status === 429) { await sleep(1500); }
+        else if (res.status >= 500) { await sleep(1000); }
         continue;
       }
       const data = await res.json();
@@ -6742,9 +6779,10 @@ async function handleVisualIlustrar(body, env) {
       return jsonError("El modelo no devolvió una imagen", 500);
     } catch (err) {
       console.error("Ilustrar error:", err);
+      ilustrarErrors.push(`key#${i + 1} exception: ${err.message}`);
     }
   }
-  return jsonError("No se pudo generar la ilustración (modelo de imagen agotado o no disponible)", 500);
+  return jsonError("No se pudo generar la ilustración (modelo de imagen agotado o no disponible): " + ilustrarErrors.slice(0,2).join(' | '), 500);
 }
 
 async function handleVisualExtraer(body, env) {
