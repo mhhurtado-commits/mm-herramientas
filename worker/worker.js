@@ -5337,6 +5337,34 @@ async function getEditorial(env){
 }
 
 async function callGemini(prompt, env, searchEnabled = false, expectJson = true, modelOverride = null) {
+  // Primario: Cloudflare AI (zero-cost, sin 503) -> luego Gemini 3.1 -> 3.5
+  if (env.AI && !searchEnabled && !modelOverride) {
+    try {
+      const cfModel = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+      const maxTok = prompt.length > 8000 ? 1400 : 2048;
+      const cfPromise = env.AI.run(cfModel, { prompt });
+      const cfResult = await Promise.race([
+        cfPromise,
+        sleep(9000).then(() => Promise.reject(new Error("CF AI timeout 9s")))
+      ]);
+      let raw = "";
+      if (typeof cfResult === "string") raw = cfResult;
+      else if (cfResult?.response) raw = cfResult.response;
+      else if (cfResult?.text) raw = cfResult.text;
+      else if (Array.isArray(cfResult) && cfResult[0]?.response) raw = cfResult[0].response;
+      else raw = JSON.stringify(cfResult);
+      raw = String(raw || "").trim();
+      if (!raw) throw new Error("CF AI vacío");
+      if (!expectJson) return { data: raw };
+      try { return { data: JSON.parse(raw) }; } catch {
+        const m = raw.match(/\{[\s\S]*\}/);
+        if (m) { try { return { data: JSON.parse(m[0]) }; } catch {} }
+        throw new Error("CF JSON parse failed, raw: " + raw.slice(0,300));
+      }
+    } catch (e) {
+      console.warn("[callGemini] CF primary fail, fallback Gemini:", e.message);
+    }
+  }
   return await fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }] }, { searchEnabled, expectJson, modelOverride });
 }
 
@@ -7180,9 +7208,9 @@ async function handlePlacasV2Generar(body, env) {
   }
   try {
     const prompt = buildPlateEditorialPrompt(note);
-    const geminiPromise = fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 1400 } }, { expectJson: true });
-    const timeoutPromise = sleep(12000).then(() => ({ error: 'deadline 12s - Gemini lento/caído, usando fallback determinístico', details: ['timeout global 12s'] }));
-    const result = await Promise.race([geminiPromise, timeoutPromise]);
+    const aiPromise = callGemini(prompt, env, false, true, null);
+    const timeoutPromise = sleep(12000).then(() => ({ error: 'deadline 12s - IA lenta/caída, usando fallback determinístico', details: ['timeout global 12s'] }));
+    const result = await Promise.race([aiPromise, timeoutPromise]);
     if (result.error || !result.data || typeof result.data !== 'object') {
       console.warn('[handlePlacasV2Generar] IA no disponible:', result?.error);
       return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'], ia_error: result?.error || 'respuesta vacía', ia_details: result?.details || [] });
@@ -7213,9 +7241,9 @@ async function handlePlacasV2Paquete(body, env) {
   let ia_error = null;
   let ia_details = [];
   try {
-    const gemP = fetchGemini(env, { contents: [{ parts: [{ text: buildPlateEditorialPrompt(note) }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 1400 } }, { expectJson: true });
-    const toP = sleep(12000).then(() => ({ error: 'deadline 12s - Gemini lento/caído, usando fallback', details: ['timeout global 12s'] }));
-    const result = await Promise.race([gemP, toP]);
+    const aiPromise = callGemini(buildPlateEditorialPrompt(note), env, false, true, null);
+    const toP = sleep(12000).then(() => ({ error: 'deadline 12s - IA lenta/caída, usando fallback', details: ['timeout global 12s'] }));
+    const result = await Promise.race([aiPromise, toP]);
     if (result.error || !result.data || typeof result.data !== 'object') {
       console.warn('[handlePlacasV2Paquete] IA no disponible:', result?.error);
       placa = deterministicEditorialResponse(note);
