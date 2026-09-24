@@ -5264,7 +5264,7 @@ async function handleWhatsappGenerar(body,env){
   const nd=pt.includes("{CONTENIDO}")?"" :`\n\nNOTICIA:\nTítulo: ${nota.titulo}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
   const prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
   const geminiPromise = callGemini(prompt,env);
-  const timeoutPromise = sleep(15000).then(() => ({ error: 'deadline 15s - Gemini lento/caído', details: ['timeout global whatsapp 15s'] }));
+  const timeoutPromise = sleep(25000).then(() => ({ error: 'deadline 25s - IA lenta/caída', details: ['timeout global whatsapp 25s'] }));
   const r=await Promise.race([geminiPromise, timeoutPromise]);
   if(r.error) return jsonError(r.error + (r.details ? ' | ' + r.details.slice(0,2).join(' | ') : ''), r.error.includes('deadline') ? 504 : 500);
   const grupo=(r.data?.grupo||"").trim();const canal=(r.data?.canal||"").trim();
@@ -5340,12 +5340,11 @@ async function callGemini(prompt, env, searchEnabled = false, expectJson = true,
   // Primario: Cloudflare AI (zero-cost, sin 503) -> luego Gemini 3.1 -> 3.5
   if (env.AI && !searchEnabled && !modelOverride) {
     try {
-      const cfModel = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-      const maxTok = prompt.length > 8000 ? 1400 : 2048;
+      const cfModel = "@cf/meta/llama-3.1-8b-instruct";
       const cfPromise = env.AI.run(cfModel, { prompt });
       const cfResult = await Promise.race([
         cfPromise,
-        sleep(9000).then(() => Promise.reject(new Error("CF AI timeout 9s")))
+        sleep(6000).then(() => Promise.reject(new Error("CF AI timeout 6s")))
       ]);
       let raw = "";
       if (typeof cfResult === "string") raw = cfResult;
@@ -7209,7 +7208,7 @@ async function handlePlacasV2Generar(body, env) {
   try {
     const prompt = buildPlateEditorialPrompt(note);
     const aiPromise = callGemini(prompt, env, false, true, null);
-    const timeoutPromise = sleep(12000).then(() => ({ error: 'deadline 12s - IA lenta/caída, usando fallback determinístico', details: ['timeout global 12s'] }));
+    const timeoutPromise = sleep(20000).then(() => ({ error: 'deadline 20s - IA lenta/caída, usando fallback determinístico', details: ['timeout global 20s'] }));
     const result = await Promise.race([aiPromise, timeoutPromise]);
     if (result.error || !result.data || typeof result.data !== 'object') {
       console.warn('[handlePlacasV2Generar] IA no disponible:', result?.error);
@@ -7242,7 +7241,7 @@ async function handlePlacasV2Paquete(body, env) {
   let ia_details = [];
   try {
     const aiPromise = callGemini(buildPlateEditorialPrompt(note), env, false, true, null);
-    const toP = sleep(12000).then(() => ({ error: 'deadline 12s - IA lenta/caída, usando fallback', details: ['timeout global 12s'] }));
+    const toP = sleep(20000).then(() => ({ error: 'deadline 20s - IA lenta/caída, usando fallback', details: ['timeout global 20s'] }));
     const result = await Promise.race([aiPromise, toP]);
     if (result.error || !result.data || typeof result.data !== 'object') {
       console.warn('[handlePlacasV2Paquete] IA no disponible:', result?.error);
