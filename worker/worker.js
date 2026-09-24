@@ -5263,8 +5263,10 @@ async function handleWhatsappGenerar(body,env){
   const pf=pt.replace(/\{URL\}/g,urlFinal).replace(/\{LINK_GRUPO\}/g,links.grupo).replace(/\{LINK_CANAL\}/g,links.canal).replace(/\{TITULO\}/g,nota.titulo||"Sin titulo").replace(/\{CATEGORIA\}/g,nota.categoria||"General").replace(/\{LOCALIDAD\}/g,localidad).replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
   const nd=pt.includes("{CONTENIDO}")?"" :`\n\nNOTICIA:\nTítulo: ${nota.titulo}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
   const prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
-  const r=await callGemini(prompt,env);
-  if(r.error) return jsonError(r.error,500);
+  const geminiPromise = callGemini(prompt,env);
+  const timeoutPromise = sleep(15000).then(() => ({ error: 'deadline 15s - Gemini lento/caído', details: ['timeout global whatsapp 15s'] }));
+  const r=await Promise.race([geminiPromise, timeoutPromise]);
+  if(r.error) return jsonError(r.error + (r.details ? ' | ' + r.details.slice(0,2).join(' | ') : ''), r.error.includes('deadline') ? 504 : 500);
   const grupo=(r.data?.grupo||"").trim();const canal=(r.data?.canal||"").trim();
   if(!grupo||!canal) return jsonError("IA no devolvió ambos mensajes",502);
   return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal});
@@ -7178,7 +7180,9 @@ async function handlePlacasV2Generar(body, env) {
   }
   try {
     const prompt = buildPlateEditorialPrompt(note);
-    const result = await fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 1400 } }, { expectJson: true });
+    const geminiPromise = fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 1400 } }, { expectJson: true });
+    const timeoutPromise = sleep(12000).then(() => ({ error: 'deadline 12s - Gemini lento/caído, usando fallback determinístico', details: ['timeout global 12s'] }));
+    const result = await Promise.race([geminiPromise, timeoutPromise]);
     if (result.error || !result.data || typeof result.data !== 'object') {
       console.warn('[handlePlacasV2Generar] IA no disponible:', result?.error);
       return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'], ia_error: result?.error || 'respuesta vacía', ia_details: result?.details || [] });
@@ -7209,7 +7213,9 @@ async function handlePlacasV2Paquete(body, env) {
   let ia_error = null;
   let ia_details = [];
   try {
-    const result = await fetchGemini(env, { contents: [{ parts: [{ text: buildPlateEditorialPrompt(note) }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 1400 } }, { expectJson: true });
+    const gemP = fetchGemini(env, { contents: [{ parts: [{ text: buildPlateEditorialPrompt(note) }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 1400 } }, { expectJson: true });
+    const toP = sleep(12000).then(() => ({ error: 'deadline 12s - Gemini lento/caído, usando fallback', details: ['timeout global 12s'] }));
+    const result = await Promise.race([gemP, toP]);
     if (result.error || !result.data || typeof result.data !== 'object') {
       console.warn('[handlePlacasV2Paquete] IA no disponible:', result?.error);
       placa = deterministicEditorialResponse(note);
