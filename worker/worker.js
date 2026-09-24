@@ -5264,11 +5264,25 @@ async function handleWhatsappGenerar(body,env){
   const nd=pt.includes("{CONTENIDO}")?"" :`\n\nNOTICIA:\nTítulo: ${nota.titulo}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
   const prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
   const geminiPromise = callGemini(prompt,env);
-  const timeoutPromise = sleep(25000).then(() => ({ error: 'deadline 25s - IA lenta/caída', details: ['timeout global whatsapp 25s'] }));
+  const timeoutPromise = sleep(22000).then(() => ({ error: 'deadline 22s - IA lenta/caída', details: ['timeout global whatsapp 22s'] }));
   const r=await Promise.race([geminiPromise, timeoutPromise]);
-  if(r.error) return jsonError(r.error + (r.details ? ' | ' + r.details.slice(0,2).join(' | ') : ''), r.error.includes('deadline') ? 504 : 500);
+  if(r.error) {
+    console.warn("[whatsapp] IA no disponible, fallback determinístico:", r.error);
+    const snippet = (nota.body || nota.descripcion || "").slice(0, 140).trim();
+    const titulo = nota.titulo || "Sin título";
+    const cat = (nota.categoria || "General").toUpperCase();
+    const grupoFb = `*${cat}:* ${titulo}\n\n${snippet}${snippet.length>=140?"...":""}\n\n🔗 ${urlFinal}\n\n📱 Grupo: ${links.grupo}\n📣 Canal: ${links.canal}`;
+    const canalFb = `*${titulo}*\n\n• ${snippet}${snippet.length>=140?"...":""} 📍 ${localidad}\n\n🔗 ${urlFinal}`;
+    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:['ia_no_disponible'], ia_error: r.error, ia_details: r.details || [] });
+  }
   const grupo=(r.data?.grupo||"").trim();const canal=(r.data?.canal||"").trim();
-  if(!grupo||!canal) return jsonError("IA no devolvió ambos mensajes",502);
+  if(!grupo||!canal) {
+    console.warn("[whatsapp] IA devolvió incompleto, fallback");
+    const snippet = (nota.body || "").slice(0, 140).trim();
+    const grupoFb = `*${(nota.categoria||"General").toUpperCase()}:* ${nota.titulo}\n\n${snippet}...\n\n🔗 ${urlFinal}\n📱 ${links.grupo}`;
+    const canalFb = `*${nota.titulo}*\n\n${snippet}...\n\n🔗 ${urlFinal}\n📣 ${links.canal}`;
+    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:['ia_no_disponible'], ia_error: "IA no devolvió ambos mensajes" });
+  }
   return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal});
 }
 async function handlePostWhatsappProgramar(body,env){
@@ -5344,7 +5358,7 @@ async function callGemini(prompt, env, searchEnabled = false, expectJson = true,
       const cfPromise = env.AI.run(cfModel, { prompt });
       const cfResult = await Promise.race([
         cfPromise,
-        sleep(6000).then(() => Promise.reject(new Error("CF AI timeout 6s")))
+        sleep(7000).then(() => Promise.reject(new Error("CF AI timeout 7s")))
       ]);
       let raw = "";
       if (typeof cfResult === "string") raw = cfResult;
