@@ -173,8 +173,25 @@ function cleanArticleUrl(value) {
   }
 }
 
+function buildStoryCta(data, category) {
+  const text = `${data.titulo} ${data.bajada} ${category}`.toLowerCase();
+  const ctas = [
+    /clima|lluvia|tormenta|temperatura|calor|frío/.test(text) && '🔗 Encontrá el link del pronóstico en nuestra historia',
+    /futbol|gol|partido|equipo|copa|liga/.test(text) && '🔗 Encontrá el link del partido en nuestra historia',
+    /politica|gobierno|elecciones|voto|congreso/.test(text) && '🔗 Encontrá el link de la nota política en nuestra historia',
+    /economia|dolar|inflacion|precios|dólar/.test(text) && '🔗 Encontrá el link de la nota económica en nuestra historia',
+    /salud|medico|hospital|vacuna|enfermedad/.test(text) && '🔗 Encontrá el link de la nota de salud en nuestra historia',
+    /educacion|escuela|universidad|estudiantes/.test(text) && '🔗 Encontrá el link de la nota de educación en nuestra historia',
+    |seguridad|policia|robo|delito|justicia/.test(text) && '🔗 Encontrá el link de la nota policial en nuestra historia',
+    |cultura|musica|teatro|cine|arte|show/.test(text) && '🔗 Encontrá el link de la nota cultural en nuestra historia',
+    |trabajo|empleo|desempleo|empresa/.test(text) && '🔗 Encontrá el link de la nota laboral en nuestra historia',
+    |transito|accidente|calles|transporte/.test(text) && '🔗 Encontrá el link de la nota de tránsito en nuestra historia',
+  ].filter(Boolean);
+  return ctas.length > 0 ? ctas[0] : '🔗 Encontrá el link de la nota en nuestra historia';
+}
+
 function normalizeInstagramCopy(value, data, category) {
-  let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}\n\n📲 Leé la nota completa en mediamendoza.com\n\n#MediaMendoza #${category}`;
+  let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}\n\n#MediaMendoza #${category}`;
   copy = copy.replace(/\[(?:enlace|link|url)\]/gi, cleanArticleUrl(data.fuente.url));
   if (!/[¿?]|coment/i.test(copy)) copy += '\n\n💬 ¿Qué opinás?';
   const tags = [...copy.matchAll(/#[\p{L}\d_]+/gu)].map(match => match[0]);
@@ -182,6 +199,7 @@ function normalizeInstagramCopy(value, data, category) {
   const normalizedTags = [...new Set([...tags, '#MediaMendoza', `#${category}`, '#Noticias'])].slice(0, 5);
   copy += `\n\n${normalizedTags.join(' ')}`;
   if (!/\p{Extended_Pictographic}/u.test(copy)) copy = `📰 ${copy}`;
+  if (!/historia|link de la nota/i.test(copy)) copy += `\n\n${buildStoryCta(data, category)}`;
   return copy;
 }
 
