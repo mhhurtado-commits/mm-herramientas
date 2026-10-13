@@ -804,6 +804,8 @@ REGLAS:
 - Emojis de alerta según categoría: policiales=🚨, tiempo=🌬️, deportes=⚽, política=🏛️, accidente=🚗, salud=🏥, general=📢`;
 
 let S = { mensajes: null, notaData: null, progActual: null, recordatorioId: null, editProgId: null, vistaActual: 'agenda', msgTabActual: 'grupo', editProgTabActual: 'grupo' };
+let programadosCache = null;
+let programadosRequest = null;
 
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2800); }
@@ -816,7 +818,7 @@ function switchTab(tab, el) {
   document.querySelectorAll('.wa-tab').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + tab).style.display = 'block';
   el.classList.add('active');
-  if (tab === 'programados') cargarProgramados();
+  if (tab === 'programados') cargarProgramados({ refresh: true });
   if (tab === 'config') cargarConfig();
 }
 
@@ -1034,17 +1036,29 @@ async function confirmarProgramar() {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     cerrarModal(); toast('✓ Mensaje programado');
+    cargarProgramados({ refresh: true });
     if (Notification.permission === 'default') pedirNotificaciones();
   } catch (e) { toast('✗ ' + e.message); }
   setLoading('btnProgText', 'spinProg', 'btnProgText', false, 'Programar');
 }
 
-async function cargarProgramados() {
+function obtenerProgramados({ refresh = false } = {}) {
+  if (!refresh && programadosCache) return Promise.resolve(programadosCache);
+  if (programadosRequest) return programadosRequest;
+  programadosRequest = fetch(WORKER + '/whatsapp/programados')
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok) throw new Error(data.error);
+      programadosCache = data.programados || [];
+      return programadosCache;
+    })
+    .finally(() => { programadosRequest = null; });
+  return programadosRequest;
+}
+
+async function cargarProgramados({ refresh = false } = {}) {
   try {
-    const res = await fetch(WORKER + '/whatsapp/programados');
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-    const lista = data.programados || [];
+    const lista = await obtenerProgramados({ refresh });
     const pend = lista.filter(p => !p.enviado).length;
     document.getElementById('prog-stats').textContent = `${lista.length} programado${lista.length !== 1 ? 's' : ''} · ${pend} pendiente${pend !== 1 ? 's' : ''}`;
     document.getElementById('notifBanner').style.display = Notification.permission === 'default' ? 'flex' : 'none';
@@ -1172,12 +1186,12 @@ async function verMensaje(id, tipo) {
 }
 function cerrarRecordatorio() { document.getElementById('modalRecordatorio').classList.remove('open'); }
 async function marcarEnviado() { if (!S.recordatorioId) return; await marcarEnviadoById(S.recordatorioId); cerrarRecordatorio(); }
-async function marcarEnviadoById(id) { try { await fetch(WORKER + '/whatsapp/marcar-enviado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); toast('✓ Marcado como enviado'); cargarProgramados(); } catch (e) { toast('✗ ' + e.message); } }
-async function eliminarProg(id) { if (!confirm('¿Eliminar este mensaje programado?')) return; try { await fetch(WORKER + '/whatsapp/programado?id=' + encodeURIComponent(id), { method: 'DELETE' }); toast('Eliminado'); cargarProgramados(); } catch (e) { toast('✗ ' + e.message); } }
+async function marcarEnviadoById(id) { try { await fetch(WORKER + '/whatsapp/marcar-enviado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); toast('✓ Marcado como enviado'); cargarProgramados({ refresh: true }); } catch (e) { toast('✗ ' + e.message); } }
+async function eliminarProg(id) { if (!confirm('¿Eliminar este mensaje programado?')) return; try { await fetch(WORKER + '/whatsapp/programado?id=' + encodeURIComponent(id), { method: 'DELETE' }); toast('Eliminado'); cargarProgramados({ refresh: true }); } catch (e) { toast('✗ ' + e.message); } }
 async function pedirNotificaciones() { try { const p = await Notification.requestPermission(); document.getElementById('notifBanner').style.display = 'none'; if (p === 'granted') toast('🔔 Notificaciones activadas'); else toast('⚠ Notificaciones no habilitadas en este navegador'); } catch (e) { toast('⚠ No se pudieron activar notificaciones'); } }
 function enviarNotifPush(titulo, texto) { if (Notification.permission !== 'granted') return; try { new Notification('⏰ Hora de enviar — Media Mendoza', { body: titulo + '\n' + texto.substring(0, 80) + '...', icon: '../assets/logo.png', tag: 'wa-recordatorio' }); } catch (e) { } }
-function checkRecordatorios() { fetch(WORKER + '/whatsapp/programados').then(r => r.json()).then(data => { const ahora = Date.now(); (data.programados || []).filter(p => !p.enviado && p.fecha <= ahora && p.fecha >= ahora - 600000).forEach(p => { S.recordatorioId = p.id; const texto = p.canales?.includes('grupo') ? p.textoGrupo : p.textoCanal; enviarNotifPush(p.tituloNota || '', texto || ''); document.getElementById('recordatorioContenido').innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--v);margin-bottom:10px">⏰ Hora de enviar: ${esc(p.tituloNota || '')}</div><div style="background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius);padding:12px;font-size:13px;line-height:1.75;white-space:pre-wrap;font-family:var(--font-body);max-height:260px;overflow-y:auto">${esc(texto)}</div><div style="display:flex;gap:6px;margin-top:10px"><button class="mm-btn mm-btn-sm" onclick="abrirWA(${JSON.stringify(texto)})" style="border-color:var(--v);color:var(--v)">📱 Abrir WA</button><button class="mm-btn mm-btn-sm" onclick="copiar(${JSON.stringify(texto)})">Copiar</button></div>`; document.getElementById('modalRecordatorio').classList.add('open'); }); }).catch(() => { }); }
-setInterval(checkRecordatorios, 60000); checkRecordatorios();
+function checkRecordatorios() { obtenerProgramados().then(lista => { const ahora = Date.now(); (lista || []).filter(p => !p.enviado && p.fecha <= ahora && p.fecha >= ahora - 600000).forEach(p => { S.recordatorioId = p.id; const texto = p.canales?.includes('grupo') ? p.textoGrupo : p.textoCanal; enviarNotifPush(p.tituloNota || '', texto || ''); document.getElementById('recordatorioContenido').innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--v);margin-bottom:10px">⏰ Hora de enviar: ${esc(p.tituloNota || '')}</div><div style="background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius);padding:12px;font-size:13px;line-height:1.75;white-space:pre-wrap;font-family:var(--font-body);max-height:260px;overflow-y:auto">${esc(texto)}</div><div style="display:flex;gap:6px;margin-top:10px"><button class="mm-btn mm-btn-sm" onclick="abrirWA(${JSON.stringify(texto)})" style="border-color:var(--v);color:var(--v)">📱 Abrir WA</button><button class="mm-btn mm-btn-sm" onclick="copiar(${JSON.stringify(texto)})">Copiar</button></div>`; document.getElementById('modalRecordatorio').classList.add('open'); }); }).catch(() => { }); }
+checkRecordatorios();
 
 async function cargarConfig() {
   try {

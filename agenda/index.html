@@ -921,23 +921,19 @@ async function cargarEfemerides(){
 async function cargarEfemeridesKV(){
   try{const r=await fetch(WORKER+'/agenda/efemerides');const d=await r.json();if(d.ok)EF_KV=d.efemerides||[]}catch(e){EF_KV=[];}
 }
-async function cargarEventosKV(){
-  try{
-    const mes=`${MES_ACTUAL.getFullYear()}-${String(MES_ACTUAL.getMonth()+1).padStart(2,'0')}`;
-    const r=await fetch(WORKER+'/agenda/eventos?mes='+mes);const d=await r.json();
-    if(d.ok){EVENTOS_KV=d.eventos||[]; return;}
-  }catch(e){}
-  EVENTOS_KV=[];
-}
 async function cargarEventosAll(){
   try{
     const year=hoyActual().getFullYear();
     const r=await fetch(WORKER+'/agenda/eventos?year='+year);const d=await r.json();
-    if(d.ok){EVENTOS_ALL=d.eventos||[]; EVENTOS_ALL_CARGADOS=true; return;}
+    if(d.ok){EVENTOS_ALL=d.eventos||[]; EVENTOS_KV=eventosDelMesActual(); EVENTOS_ALL_CARGADOS=true; return;}
     // fallback: sin filtro
     const r2=await fetch(WORKER+'/agenda/eventos');const d2=await r2.json();
-    if(d2.ok){EVENTOS_ALL=d2.eventos||[]; EVENTOS_ALL_CARGADOS=true;}
-  }catch(e){EVENTOS_ALL=[];}
+    if(d2.ok){EVENTOS_ALL=d2.eventos||[]; EVENTOS_KV=eventosDelMesActual(); EVENTOS_ALL_CARGADOS=true;}
+  }catch(e){EVENTOS_ALL=[]; EVENTOS_KV=[]; EVENTOS_ALL_CARGADOS=false;}
+}
+function eventosDelMesActual(){
+  const mes=`${MES_ACTUAL.getFullYear()}-${String(MES_ACTUAL.getMonth()+1).padStart(2,'0')}`;
+  return EVENTOS_ALL.filter(e=>String(e.fecha||'').startsWith(mes));
 }
 
 function efDelDia(mes,dia){
@@ -1257,7 +1253,7 @@ function irADia(isoStr){
   if(fecha.getFullYear()!==MES_ACTUAL.getFullYear()||fecha.getMonth()!==MES_ACTUAL.getMonth()){
     MES_ACTUAL=new Date(fecha.getFullYear(),fecha.getMonth(),1);
     DIA_SEL=fecha;
-    cargarEventosKV().then(()=>{renderVista();renderPanelDia(fecha);});
+    renderVista();renderPanelDia(fecha);
   } else {
     seleccionarDia(fecha);
     if(VISTA==='semana') renderSemana();
@@ -1393,7 +1389,7 @@ async function guardarEvento(){
     const res=await fetch(WORKER+'/agenda/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json(); if(!data.ok) throw new Error(data.error);
     cerrarModalEvento(); toast(id?'✓ Evento actualizado':'✓ Evento guardado');
-    EVENTOS_ALL_CARGADOS=false; await Promise.all([cargarEventosKV(), cargarEventosAll()]); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL); refreshPeriodistasDatalist();
+    EVENTOS_ALL_CARGADOS=false; await cargarEventosAll(); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL); refreshPeriodistasDatalist();
   }catch(e){toast('✗ '+e.message);}
   document.getElementById('spinEvento').style.display='none';
   document.getElementById('btnEventoText').textContent='Guardar evento';
@@ -1402,7 +1398,7 @@ async function eliminarEvento(id){
   if(!confirm('¿Eliminar este evento?')) return;
   try{
     await fetch(WORKER+'/agenda/evento?id='+encodeURIComponent(id),{method:'DELETE'});
-    toast('Evento eliminado'); EVENTOS_ALL_CARGADOS=false; await Promise.all([cargarEventosKV(), cargarEventosAll()]); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
+    toast('Evento eliminado'); EVENTOS_ALL_CARGADOS=false; await cargarEventosAll(); renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);
   }catch(e){toast('✗ '+e.message);}
 }
 
@@ -1469,16 +1465,17 @@ async function eliminarEfemeride(id){
   }catch(e){toast('✗ '+e.message);}
 }
 
-function cambiarMes(delta){MES_ACTUAL=new Date(MES_ACTUAL.getFullYear(),MES_ACTUAL.getMonth()+delta,1);cargarEventosKV().then(()=>{ renderVista(); refreshPeriodistasDatalist(); });}
+function cambiarMes(delta){MES_ACTUAL=new Date(MES_ACTUAL.getFullYear(),MES_ACTUAL.getMonth()+delta,1);EVENTOS_KV=eventosDelMesActual();renderVista();refreshPeriodistasDatalist();}
 function irAHoy(){
   const h=hoyActual(); MES_ACTUAL=new Date(h.getFullYear(),h.getMonth(),1); DIA_SEL=h; HOY=h; SEMANA_ACTUAL=startOfWeek(h);
-  cargarEventosKV().then(()=>{ cargarEventosAll().then(()=>{ renderVista(); renderPanelDia(h); refreshPeriodistasDatalist(); }); });
+  if(!EVENTOS_ALL_CARGADOS){ cargarEventosAll().then(()=>{ renderVista(); renderPanelDia(h); refreshPeriodistasDatalist(); }); }
+  else { EVENTOS_KV=eventosDelMesActual(); renderVista(); renderPanelDia(h); refreshPeriodistasDatalist(); }
 }
 function toggleFiltro(tipo,el){FILTROS[tipo]=!FILTROS[tipo];el.classList.toggle('on',FILTROS[tipo]);renderVista(); if(DIA_SEL) renderPanelDia(DIA_SEL);}
 
 async function init(){
   await cargarEfemerides();
-  await Promise.all([cargarEfemeridesKV(), cargarEventosKV(), cargarEventosAll()]);
+  await Promise.all([cargarEfemeridesKV(), cargarEventosAll()]);
   DIA_SEL=hoyActual(); HOY=DIA_SEL; SEMANA_ACTUAL=startOfWeek(HOY);
   // restaurar vista guardada
   const vSaved=localStorage.getItem('mm-agenda-vista');

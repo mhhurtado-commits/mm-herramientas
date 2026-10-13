@@ -5180,42 +5180,86 @@ async function handlePostEditorial(body,env){
   try{await env.KV.put(EDITORIAL_KV_KEY,JSON.stringify({prompt:body.prompt.trim(),activo:!!body.activo}));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
+async function _getFuentesIndex(env) {
+  let f = await env.KV.get("fuentes_index","json");
+  if(!f) {
+    f = [];
+    const list = await env.KV.list({prefix:"fuente:"});
+    for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)f.push(v);}
+    await env.KV.put("fuentes_index",JSON.stringify(f));
+  }
+  return f;
+}
+async function _getNotasIndex(env) {
+  let n = await env.KV.get("notas_index","json");
+  if(!n) {
+    n = [];
+    const list = await env.KV.list({prefix:"nota:"});
+    for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)n.push(v);}
+    await env.KV.put("notas_index",JSON.stringify(n));
+  }
+  return n;
+}
+async function _getCubiertasIndex(env) {
+  let c = await env.KV.get("cubiertas_index","json");
+  if(!c) {
+    const list = await env.KV.list({prefix:"cubierta:"});
+    c = list.keys.map(k=>k.name.replace("cubierta:",""));
+    await env.KV.put("cubiertas_index",JSON.stringify(c));
+  }
+  return c;
+}
+
 async function handleGetFuentes(env){
-  try{const list=await env.KV.list({prefix:"fuente:"});const fuentes=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)fuentes.push(v)}fuentes.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));return jsonOk({fuentes})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{
+    const fuentes = await _getFuentesIndex(env);
+    fuentes.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+    return jsonOk({fuentes});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostFuente(body,env){
   const{id,nombre,url,clase}=body;if(!id||!nombre||!url) return jsonError("Faltan campos",400);
-  try{await env.KV.put(`fuente:${id}`,JSON.stringify({id,nombre,url,clase:clase||"custom"}));return jsonOk({guardado:true})}
+  try{let fuentes = await _getFuentesIndex(env);fuentes=fuentes.filter(f=>f.id!==id);fuentes.push({id,nombre,url,clase:clase||"custom"});await env.KV.put("fuentes_index",JSON.stringify(fuentes));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleDeleteFuente(url,env){
   const id=url.searchParams.get("id");if(!id) return jsonError("id requerido",400);
-  try{await env.KV.delete(`fuente:${id}`);return jsonOk({eliminado:true})}
+  try{let fuentes = await _getFuentesIndex(env);fuentes=fuentes.filter(f=>f.id!==id);await env.KV.put("fuentes_index",JSON.stringify(fuentes));return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleGetNotas(env){
-  try{const list=await env.KV.list({prefix:"nota:"});const notas=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)notas.push(v)}notas.sort((a,b)=>(b.fecha||0)-(a.fecha||0));return jsonOk({notas})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{
+    const notas = await _getNotasIndex(env);
+    notas.sort((a,b)=>(b.fecha||0)-(a.fecha||0));
+    return jsonOk({notas});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostNota(body,env){
   const{id,titular,cuerpo,categoria,hashtags,imagen,fecha}=body;if(!id||!titular) return jsonError("Faltan campos",400);
-  try{await env.KV.put(`nota:${id}`,JSON.stringify({id,titular,cuerpo,categoria,hashtags,imagen:imagen||'',fecha:fecha||Date.now()}));return jsonOk({guardado:true})}
+  try{let notas = await _getNotasIndex(env);notas=notas.filter(n=>n.id!==id);notas.push({id,titular,cuerpo,categoria,hashtags,imagen:imagen||'',fecha:fecha||Date.now()});await env.KV.put("notas_index",JSON.stringify(notas));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleDeleteNota(url,env){
   const id=url.searchParams.get("id");if(!id) return jsonError("id requerido",400);
-  try{await env.KV.delete(`nota:${id}`);return jsonOk({eliminado:true})}
+  try{let notas = await _getNotasIndex(env);notas=notas.filter(n=>n.id!==id);await env.KV.put("notas_index",JSON.stringify(notas));return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleGetCubiertas(env){
-  try{const list=await env.KV.list({prefix:"cubierta:"});return jsonOk({links:list.keys.map(k=>k.name.replace("cubierta:",""))})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{
+    const links = await _getCubiertasIndex(env);
+    return jsonOk({links});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostCubierta(body,env){
   const{link,cubierta}=body;if(!link) return jsonError("Falta link",400);
-  try{const key="cubierta:"+link.substring(0,400);if(cubierta)await env.KV.put(key,"1",{expirationTtl:60*60*24*30});else await env.KV.delete(key);return jsonOk({guardado:true})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{
+    let links = await _getCubiertasIndex(env);
+    const key=link.substring(0,400);
+    if(cubierta){if(!links.includes(key))links.push(key);}
+    else{links=links.filter(l=>l!==key);}
+    await env.KV.put("cubiertas_index",JSON.stringify(links));
+    return jsonOk({guardado:true});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
 // ============================================================
@@ -5357,8 +5401,10 @@ async function callGemini(prompt, env, searchEnabled = false, expectJson = true,
 
 
 async function fetchGemini(env, payload, { searchEnabled = false, expectJson = true, modelOverride = null } = {}) {
-  const keys = getGeminiKeys(env);
-  if (!keys.length) return { error: "No hay API keys de Gemini configuradas" };
+  const availableKeys = getGeminiKeys(env);
+  if (!availableKeys.length) return { error: "No hay API keys de Gemini configuradas" };
+  const startIndex = Math.floor(Math.random() * availableKeys.length);
+  const keys = [...availableKeys.slice(startIndex), ...availableKeys.slice(0, startIndex)];
   const requestedModel = modelOverride || GEMINI_MODEL;
   const modelsToTry = requestedModel === GEMINI_FALLBACK ? [requestedModel] : [...new Set([requestedModel, GEMINI_FALLBACK])];
 
@@ -5401,8 +5447,8 @@ async function fetchGemini(env, payload, { searchEnabled = false, expectJson = t
             if (res.status === 429) {
               const msg = `[${model}] Key ${i + 1}/${keys.length} → 429 Rate Limit${snippet}`;
               modelErrors.push(msg);
-              console.warn(`[fetchGemini] ${msg} (intento ${intento})`);
-              if (intento < maxRetries) { await sleep(getRetryDelay(intento, res)); continue; }
+              console.warn(`[fetchGemini] ${msg}`);
+              // No reintentamos con la misma key si hay 429, pasamos rápido a la siguiente
               break;
             }
             if (res.status === 400) {
@@ -5417,6 +5463,7 @@ async function fetchGemini(env, payload, { searchEnabled = false, expectJson = t
               modelErrors.push(msg);
               console.warn(`[fetchGemini] ${msg}`);
               if (model === requestedModel && modelsToTry.length > 1) hadModelNotFound = true;
+              i = keys.length; // Break el outer loop (keys) ya que un 404 es problema del modelo, no de la key
               break;
             }
             if (res.status >= 500) {
