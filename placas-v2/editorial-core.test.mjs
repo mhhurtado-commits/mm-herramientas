@@ -12,6 +12,7 @@ import {
   PLATE_TYPES,
   buildPlateExportMetadata,
   normalizeSyntheticTitle,
+  buildSocialCopies,
 } from './editorial-core.mjs';
 
 test('normaliza un titular sintético separado del titular editorial', () => {
@@ -824,4 +825,38 @@ test('renderiza Qué cambia con impactos, logo y footer institucional', () => {
   assert.ok(calls.includes('Fuente: mediamendoza'));
   assert.ok(calls.includes('www.mediamendoza.com'));
   assert.equal(imageCalls, 1);
+});
+
+test('buildStoryCta usa contexto del contrato y no confunde temas', () => {
+  const drowningData = {
+    titulo: 'Mendoza pone el foco en la prevención de ahogamientos',
+    bajada: 'La mayoría de los casos registrados en el hogar involucró a niños',
+    contexto: 'Los accidentes en el hogar son una problemática de salud pública que requiere nuestra atención. En Mendoza, los datos muestran que los niños pequeños son quienes corren mayor riesgo, especialmente en casos de ahogamiento.',
+    fuente: { url: 'https://mediamendoza.com/mendoza/253490' },
+  };
+  const copies = buildSocialCopies(drowningData, {});
+  assert.match(copies.instagram, /salud/);
+  assert.doesNotMatch(copies.instagram, /tránsito/);
+});
+
+test('buildStoryCta usa CTA genérico cuando no hay contexto', () => {
+  const data = {
+    titulo: 'Título genérico',
+    bajada: 'Bajada genérica',
+    contexto: '',
+    fuente: { url: 'https://mediamendoza.com' },
+  };
+  const copies = buildSocialCopies(data, {});
+  assert.match(copies.instagram, /Encontrá el link de la nota en nuestra historia/);
+});
+
+test('buildStoryCta detecta tránsito con palabra completa', () => {
+  const trafficData = {
+    titulo: 'Cortes de tránsito',
+    bajada: 'Desvíos por obras',
+    contexto: 'Se cortarán calles del centro por obras de reparación.',
+    fuente: { url: 'https://mediamendoza.com' },
+  };
+  const copies = buildSocialCopies(trafficData, {});
+  assert.match(copies.instagram, /tránsito/);
 });
