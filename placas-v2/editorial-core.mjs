@@ -1,5 +1,3 @@
-export { buildSocialCopies };
-
 export const FORMATS = {
   landscape: { w: 2400, h: 1350, label: 'Horizontal 16:9' },
   square: { w: 1600, h: 1600, label: 'Cuadrado 1:1' },
@@ -175,33 +173,16 @@ function cleanArticleUrl(value) {
   }
 }
 
-function buildStoryCta(data, category) {
-  const text = `${data.contexto || data.bajada || data.titulo} ${category}`.toLowerCase();
-  const ctas = [
-    /\b(clima|lluvia|tormenta|temperatura|calor|frío)\b/.test(text) && '🔗 Encontrá el link del pronóstico en nuestra historia',
-    /\b(futbol|gol|partido|equipo|copa|liga)\b/.test(text) && '🔗 Encontrá el link del partido en nuestra historia',
-    /\b(politica|gobierno|elecciones|voto|congreso)\b/.test(text) && '🔗 Encontrá el link de la nota política en nuestra historia',
-    /\b(economia|dolar|inflacion|precios|dólar)\b/.test(text) && '🔗 Encontrá el link de la nota económica en nuestra historia',
-    /\b(salud|medico|hospital|vacuna|enfermedad)\b/.test(text) && '🔗 Encontrá el link de la nota de salud en nuestra historia',
-    /\b(educacion|escuela|universidad|estudiantes)\b/.test(text) && '🔗 Encontrá el link de la nota de educación en nuestra historia',
-    /\b(seguridad|policia|robo|delito|justicia)\b/.test(text) && '🔗 Encontrá el link de la nota policial en nuestra historia',
-    /\b(cultura|musica|teatro|cine|arte|show)\b/.test(text) && '🔗 Encontrá el link de la nota cultural en nuestra historia',
-    /\b(trabajo|empleo|desempleo|empresa)\b/.test(text) && '🔗 Encontrá el link de la nota laboral en nuestra historia',
-    /\b(transito|accidente|calles|transporte)\b/.test(text) && '🔗 Encontrá el link de la nota de tránsito en nuestra historia',
-  ].filter(Boolean);
-  return ctas.length > 0 ? ctas[0] : '🔗 Encontrá el link de la nota en nuestra historia';
-}
-
 function normalizeInstagramCopy(value, data, category) {
   let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}\n\n#MediaMendoza #${category}`;
   copy = copy.replace(/\[(?:enlace|link|url)\]/gi, cleanArticleUrl(data.fuente.url));
   if (!/[¿?]|coment/i.test(copy)) copy += '\n\n💬 ¿Qué opinás?';
   const tags = [...copy.matchAll(/#[\p{L}\d_]+/gu)].map(match => match[0]);
   copy = copy.replace(/#[\p{L}\d_]+/gu, '').replace(/[ \t]+\n/g, '\n').trim();
+  if (!/historia/i.test(copy)) copy += '\n\n🔗 Encontrá el link a la noticia en nuestras historias';
   const normalizedTags = [...new Set([...tags, '#MediaMendoza', `#${category}`, '#Noticias'])].slice(0, 5);
   copy += `\n\n${normalizedTags.join(' ')}`;
   if (!/\p{Extended_Pictographic}/u.test(copy)) copy = `📰 ${copy}`;
-  if (!/historia|link de la nota/i.test(copy)) copy += `\n\n${buildStoryCta(data, category)}`;
   return copy;
 }
 
