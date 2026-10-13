@@ -182,10 +182,10 @@ function buildStoryCta(data, category) {
     /economia|dolar|inflacion|precios|dólar/.test(text) && '🔗 Encontrá el link de la nota económica en nuestra historia',
     /salud|medico|hospital|vacuna|enfermedad/.test(text) && '🔗 Encontrá el link de la nota de salud en nuestra historia',
     /educacion|escuela|universidad|estudiantes/.test(text) && '🔗 Encontrá el link de la nota de educación en nuestra historia',
-    |seguridad|policia|robo|delito|justicia/.test(text) && '🔗 Encontrá el link de la nota policial en nuestra historia',
-    |cultura|musica|teatro|cine|arte|show/.test(text) && '🔗 Encontrá el link de la nota cultural en nuestra historia',
-    |trabajo|empleo|desempleo|empresa/.test(text) && '🔗 Encontrá el link de la nota laboral en nuestra historia',
-    |transito|accidente|calles|transporte/.test(text) && '🔗 Encontrá el link de la nota de tránsito en nuestra historia',
+    /seguridad|policia|robo|delito|justicia/.test(text) && '🔗 Encontrá el link de la nota policial en nuestra historia',
+    /cultura|musica|teatro|cine|arte|show/.test(text) && '🔗 Encontrá el link de la nota cultural en nuestra historia',
+    /trabajo|empleo|desempleo|empresa/.test(text) && '🔗 Encontrá el link de la nota laboral en nuestra historia',
+    /transito|accidente|calles|transporte/.test(text) && '🔗 Encontrá el link de la nota de tránsito en nuestra historia',
   ].filter(Boolean);
   return ctas.length > 0 ? ctas[0] : '🔗 Encontrá el link de la nota en nuestra historia';
 }
