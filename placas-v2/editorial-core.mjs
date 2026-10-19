@@ -13,6 +13,7 @@ export const FAMILIES = {
   politica: { id: 'politica', label: 'Política', color: '#5b4c91', secondary: '#251e42', soft: '#e9e4f7', symbol: '◈' },
   economia: { id: 'economia', label: 'Economía', color: '#507118', secondary: '#213009', soft: '#eaf3de', symbol: '$' },
   deportes: { id: 'deportes', label: 'Deportes', color: '#16806a', secondary: '#103c33', soft: '#d9f1eb', symbol: '↗' },
+  vendimia: { id: 'vendimia', label: 'Vendimia', color: '#7b1e3b', secondary: '#3a0f1d', soft: '#f6e3ea', symbol: '🍇' },
   alerta: { id: 'alerta', label: 'Alerta meteorológica', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0', symbol: '⚠' },
   servicio: { id: 'servicio', label: 'Servicio', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0', symbol: '⚠' },
 };
@@ -73,6 +74,10 @@ const FAMILY_ALIASES = new Map([
   ['politica', 'politica'], ['política', 'politica'], ['gobierno', 'politica'],
   ['economia', 'economia'], ['economía', 'economia'], ['negocios', 'economia'],
   ['deportes', 'deportes'], ['deporte', 'deportes'],
+  ['vendimia', 'vendimia'], ['vendimias', 'vendimia'], ['reina', 'vendimia'], ['reinas', 'vendimia'],
+  ['reina vendimial', 'vendimia'], ['reinas vendimiales', 'vendimia'], ['cosecha', 'vendimia'],
+  ['uva', 'vendimia'], ['uvas', 'vendimia'], ['vino', 'vendimia'], ['bodega', 'vendimia'],
+  ['bodegas', 'vendimia'], ['fiesta nacional', 'vendimia'],
 ]);
 
 const clean = value => String(value || '').replace(/\s+/g, ' ').trim();

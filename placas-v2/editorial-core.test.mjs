@@ -10,6 +10,7 @@ import {
   fitTextToLines,
   normalizeFocus,
   PLATE_TYPES,
+  FAMILIES,
   buildPlateExportMetadata,
   normalizeSyntheticTitle,
 } from './editorial-core.mjs';
@@ -429,6 +430,24 @@ test('clasifica familias por reglas de sección sin depender de IA', () => {
   assert.equal(classifyNewsFamily('clima').id, 'clima');
   assert.equal(classifyNewsFamily('economia').id, 'economia');
   assert.equal(classifyNewsFamily('desconocida').id, 'general');
+});
+
+test('clasifica la familia Vendimia y sus alias', () => {
+  assert.equal(classifyNewsFamily('vendimia').id, 'vendimia');
+  assert.equal(classifyNewsFamily('Vendimia').label, 'Vendimia');
+  assert.equal(classifyNewsFamily('reinas vendimiales').id, 'vendimia');
+  assert.equal(classifyNewsFamily('reina vendimial').id, 'vendimia');
+  assert.equal(classifyNewsFamily('fiesta nacional').id, 'vendimia');
+  assert.equal(FAMILIES.vendimia.color, '#7b1e3b');
+  assert.equal(FAMILIES.vendimia.secondary, '#3a0f1d');
+  assert.equal(FAMILIES.vendimia.soft, '#f6e3ea');
+});
+
+test('normaliza una nota de Vendimia con su etiqueta y color', () => {
+  const plate = normalizeNewsPlate({ ...extracted, category: 'vendimia' });
+  assert.equal(plate.template_sugerido, 'vendimia');
+  assert.equal(plate.etiqueta, 'Vendimia');
+  assert.equal(plate.color_principal, '#7b1e3b');
 });
 
 test('genera una propuesta recomendada y dos alternativas determinísticas', () => {

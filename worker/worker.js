@@ -82,6 +82,7 @@ const FAMILIES = {
   politica: { id: 'politica', label: 'Política', color: '#5b4c91', secondary: '#251e42', soft: '#e9e4f7', symbol: '◈' },
   economia: { id: 'economia', label: 'Economía', color: '#507118', secondary: '#213009', soft: '#eaf3de', symbol: '$' },
   deportes: { id: 'deportes', label: 'Deportes', color: '#16806a', secondary: '#103c33', soft: '#d9f1eb', symbol: '↗' },
+  vendimia: { id: 'vendimia', label: 'Vendimia', color: '#7b1e3b', secondary: '#3a0f1d', soft: '#f6e3ea', symbol: '🍇' },
 };
 
 const FAMILY_ALIASES = new Map([
@@ -91,6 +92,10 @@ const FAMILY_ALIASES = new Map([
   ['politica', 'politica'], ['política', 'politica'], ['gobierno', 'politica'],
   ['economia', 'economia'], ['economía', 'economia'], ['negocios', 'economia'],
   ['deportes', 'deportes'], ['deporte', 'deportes'],
+  ['vendimia', 'vendimia'], ['vendimias', 'vendimia'], ['reina', 'vendimia'], ['reinas', 'vendimia'],
+  ['reina vendimial', 'vendimia'], ['reinas vendimiales', 'vendimia'], ['cosecha', 'vendimia'],
+  ['uva', 'vendimia'], ['uvas', 'vendimia'], ['vino', 'vendimia'], ['bodega', 'vendimia'],
+  ['bodegas', 'vendimia'], ['fiesta nacional', 'vendimia'],
 ]);
 
 const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
@@ -433,7 +438,7 @@ REGLAS:
 - Generá una bajada de una o dos frases y un contexto clave breve sólo si aporta información verificable.
 - Generá dos copys para acompañar la placa con foco en engagement: Instagram debe tener 1 o 2 párrafos breves, 2 o 3 emojis pertinentes, una pregunta o invitación a participar y 3 a 5 hashtags relevantes; Facebook debe tener 2 o 3 párrafos breves, 1 o 2 emojis, una pregunta concreta para incentivar comentarios y el enlace editorial al final.
 - No inventes datos, citas ni preguntas que atribuyan hechos no presentes en la noticia. No uses [enlace], links completos ni llamados a la acción repetidos: el sistema normaliza el enlace y el CTA.
-- Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
+- Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes, vendimia.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
 - Genera tambien un titular sintetico idealmente de 6 a 10 palabras para el modelo titular-arriba. Debe conservar sujeto, hecho principal y precision; no agregues contexto secundario ni inventes informacion.
@@ -463,7 +468,7 @@ Respondé SOLO con este JSON:
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
   "personas": [{ "nombre": "persona", "rol": "cargo", "imagen": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
   "imagenes_apoyo": [{ "src": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
-  "template_sugerido": "general|clima|policiales|sociales|politica|economia|deportes",
+  "template_sugerido": "general|clima|policiales|sociales|politica|economia|deportes|vendimia",
   "bloques": []
 }`;
 }
