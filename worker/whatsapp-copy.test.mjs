@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildWhatsappPrompt, WA_FIRMA } from './whatsapp-copy.mjs';
+import { buildWhatsappPrompt, normalizeWhatsappCopy, buildCtaComunidad, WA_FIRMA } from './whatsapp-copy.mjs';
 
 const LINKS = { grupo: 'https://chat.whatsapp.com/DgxM0LvX2sYGStslNDBKjL', canal: 'https://whatsapp.com/channel/0029VaJX0cRB4hdIkQu2xg1f' };
 const NOTA = { titulo: 'Corte de ruta en Ruta 40', categoria: 'Policial', url: 'https://mm.in/abc',
@@ -20,4 +20,40 @@ test('el prompt no delega links de comunidad ni firma al modelo (template con pl
   assert.ok(!prompt.includes('chat.whatsapp.com'));
   assert.ok(prompt.includes('el sistema agrega')); // instrucción determinista presente
   assert.ok(prompt.includes(NOTA.titulo));
+});
+
+test('elimina links de comunidad inventados y anexa el CTA canónico en grupo', () => {
+  const salida = normalizeWhatsappCopy(
+    `*SAN RAFAEL:* Corte de ruta\n\n🗓️ Hoy desde las 8 👇\n\n🔗 *MÁS DETALLES:*\n👉 https://mm.in/abc\n\n*¡Sumate a nuestra comunidad!*\n📱 Grupo: https://chat.whatsapp.com/FALSO123\n📻 Canal de difusión: bit.ly/mediamendoza-x\n\n*📰 Media Mendoza*`,
+    { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(!salida.includes('chat.whatsapp.com/FALSO123'));
+  assert.ok(!salida.includes('bit.ly/mediamendoza-x'));
+  assert.ok(salida.includes(`📱 *Grupo de Noticias:* ${LINKS.grupo}`));
+  assert.ok(salida.includes(`📣 *Canal de Difusión:* ${LINKS.canal}`));
+  assert.equal(salida.split(WA_FIRMA).length - 1, 1);
+  assert.ok(salida.trimEnd().endsWith(WA_FIRMA));
+});
+
+test('mensaje de canal termina solo con firma (sin CTA comunidad)', () => {
+  const salida = normalizeWhatsappCopy(`*POLICIAL:* Titular\n\n• punto 1\n\n🔗 👉 https://mm.in/abc`,
+    { tipo: 'canal', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(!salida.includes('¡Sumate a nuestra comunidad!'));
+  assert.ok(salida.trimEnd().endsWith(WA_FIRMA));
+});
+
+test('buildCtaComunidad omite la línea del link faltante y nunca inventa URL', () => {
+  assert.equal(buildCtaComunidad({}), '');
+  assert.ok(!buildCtaComunidad({ grupo: LINKS.grupo }).includes('Canal de Difusión'));
+  assert.ok(buildCtaComunidad({ grupo: LINKS.grupo }).startsWith('*¡Sumate a nuestra comunidad!*'));
+});
+
+test('corrige URL incorrecta de la nota presente en el texto', () => {
+  const salida = normalizeWhatsappCopy(`*TITULAR*\n\n🔗 👉 https://sitio-inventado.com/nota`, { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(salida.includes('https://mm.in/abc'));
+  assert.ok(!salida.includes('sitio-inventado.com'));
+});
+
+test('sin URL en la salida, anexa el enlace canónico tras el marcador (o al final)', () => {
+  const salida = normalizeWhatsappCopy(`*TITULAR*\n\nkey datos 👇\n\n🔗 *MÁS DETALLES:*`, { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(salida.includes('🔗 *MÁS DETALLES:*\n👉 https://mm.in/abc') || salida.includes('https://mm.in/abc'));
 });
