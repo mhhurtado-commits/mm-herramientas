@@ -679,7 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="wa-panel accent">
         <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">Nota a difundir</div>
         <div class="mm-field"><label class="mm-label">URL de la nota</label><div style="display:flex;gap:8px"><input type="url" id="notaUrl" class="mm-input" placeholder="https://mediamendoza.com/..."><button class="mm-btn mm-btn-sm" id="btnScrape" onclick="scrapeNota()" style="white-space:nowrap"><span class="mm-spinner" id="spinScrape"></span><span id="btnScrapeText">Obtener</span></button></div></div>
-        <div class="nota-preview" id="notaPreview"><img class="nota-preview-img" id="notaImg" alt=""><div class="nota-preview-titulo" id="notaTitulo"></div><div class="nota-preview-url" id="notaUrlCorta"></div></div>
+        <div class="nota-preview" id="notaPreview"><div id="handoffBadge" style="display:none;margin-bottom:8px;font-size:10px;font-weight:700;color:var(--bg);background:var(--v);border-radius:var(--radius);padding:4px 8px">Nota preparada desde /publicar — sin re-extracción</div><img class="nota-preview-img" id="notaImg" alt=""><div class="nota-preview-titulo" id="notaTitulo"></div><div class="nota-preview-url" id="notaUrlCorta"></div></div>
         <div class="contexto-box"><label class="mm-label">📝 Contexto adicional</label><textarea id="contextoExtra" rows="3" class="mm-textarea" placeholder="Ej: ocurrió esta mañana · el detenido es vecino del barrio · hay un video viral..."></textarea><div class="contexto-hint">💡 Datos extra que no estén en la nota: hora, lugar exacto, contexto local, reacciones, etc.</div></div>
         <div style="display:flex;gap:8px"><button class="mm-btn mm-btn-primary" id="btnGenerar" onclick="generarMensajes()" style="flex:1"><span class="mm-spinner" id="spinGenerar"></span><span id="btnGenerarText">Generar mensajes</span></button><button class="mm-btn mm-btn-danger" onclick="limpiarFormulario()" title="Limpiar todo y empezar de nuevo" style="padding:0 14px">🗑 Limpiar</button></div>
       </div>
@@ -851,19 +851,43 @@ async function scrapeNota() {
   setLoading('btnScrape', 'spinScrape', 'btnScrapeText', false, 'Obtener');
 }
 
+function aplicarHandoffUI(datos) {
+  try {
+    if (!datos || !datos.url || S.notaData) return;
+    document.getElementById('notaUrl').value = datos.url;
+    document.getElementById('notaTitulo').textContent = datos.titulo || 'Sin título';
+    document.getElementById('notaUrlCorta').textContent = datos.url;
+    document.getElementById('notaPreview').classList.add('show');
+    document.getElementById('handoffBadge').style.display = 'inline-block';
+  } catch (e) { }
+}
+
 async function generarMensajes() {
   const notaUrl = document.getElementById('notaUrl').value.trim();
   if (!notaUrl) { toast('⚠ Ingresá la URL'); return; }
   setLoading('btnGenerar', 'spinGenerar', 'btnGenerarText', true, 'Generar mensajes');
   document.getElementById('resultadoGenerar').innerHTML = '<div class="placeholder-wa"><div class="mm-spinner" style="display:inline-block;width:24px;height:24px;border-color:var(--v)"></div><p>Generando mensajes...</p></div>';
+  let paqueteHandoff = null;
   try {
+    const pk = window.__mmPaqueteHandoff;
+    if (pk && pk.fuente?.url === notaUrl && window.__mmEditorialHandoffKey && sessionStorage.getItem(window.__mmEditorialHandoffKey)) paqueteHandoff = pk;
+  } catch (hf) { }
+  try {
+    const body = paqueteHandoff ? { notaUrl, contextoExtra: document.getElementById('contextoExtra').value.trim(), paquete: paqueteHandoff } : { notaUrl, contextoExtra: document.getElementById('contextoExtra').value.trim() };
     const res = await fetch(WORKER + '/whatsapp/generar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notaUrl, contextoExtra: document.getElementById('contextoExtra').value.trim() })
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
+    try {
+      if (paqueteHandoff) {
+        paqueteHandoff.salidas = Object.assign({}, paqueteHandoff.salidas || {}, { whatsapp: { grupo: data.grupo || '', canal: data.canal || '' } });
+        window.__mmPaqueteHandoff = paqueteHandoff;
+        sessionStorage.removeItem(window.__mmEditorialHandoffKey);
+      }
+    } catch (hf) { }
     S.mensajes = data;
     S.notaData = data.nota;
     renderMensajes(data);
@@ -1258,6 +1282,18 @@ function toggleTheme() {
 const savedTheme = localStorage.getItem('mm-theme');
 if (savedTheme === 'dark') { setTheme('dark'); } else { setTheme('light'); }
 document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+</script>
+
+<script type="module">
+import { HANDOFF_KEY, parseHandoff, esHandoffWhatsappActivo, extraerDatosNota } from './handoff.mjs';
+try {
+  const parsed = parseHandoff(sessionStorage.getItem(HANDOFF_KEY));
+  if (parsed && esHandoffWhatsappActivo(parsed)) {
+    window.__mmPaqueteHandoff = parsed.package;
+    window.__mmEditorialHandoffKey = HANDOFF_KEY;
+    aplicarHandoffUI(extraerDatosNota(parsed));
+  }
+} catch (e) { }
 </script>
 </body>
 </html>
