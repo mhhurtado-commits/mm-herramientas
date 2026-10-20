@@ -1,3 +1,4 @@
+import { buildWhatsappPrompt, normalizeWhatsappCopy } from './whatsapp-copy.mjs';
 // Media Mendoza Worker ? archivo ?nico para pegar en el dashboard de Cloudflare.
 // Incluye solo los helpers de f?tbol usados por el Worker y el n?cleo editorial de Placas V2.
 // @ts-nocheck
@@ -518,6 +519,7 @@ function getGeminiKeys(env) {
 }
 const EDITORIAL_KV_KEY = "config:editorial";
 const WA_PROMPT_KV_KEY = "config:wa_prompt";
+const WA_GUARDRAIL_KV_KEY = "config:wa_guardrail";
 const WA_LINKS_KV_KEY  = "config:wa_links";
 const REEL_PROMPT_KEY  = "config:reel:prompt";
 const REEL_VOCES_KEY   = "config:reel:voces";
@@ -5309,9 +5311,19 @@ async function handleWhatsappGenerar(body,env){
   const localidades=["San Rafael","General Alvear","Malargüe","Alvear"];
   const localidad=localidades.find(l=>(nota.titulo+nota.body).includes(l))||"San Rafael";
   const urlFinal=nota.urlCorta||nota.url||"";
+  let guardrailOn=false;
+  try{guardrailOn=(await env.KV.get(WA_GUARDRAIL_KV_KEY,"text"))==="on"}catch(e){}
+  let guardrailError=false;
+  let prompt="";
+  if(guardrailOn){
+    try{prompt=buildWhatsappPrompt({promptBase:pt,nota:{...nota,url:urlFinal},links,localidad,contextoExtra})}
+    catch(e){console.warn("[whatsapp] guardrail: error en build del prompt, fallback al prompt actual:",e.message);guardrailError=true}
+  }
+  if(!prompt){
   const pf=pt.replace(/\{URL\}/g,urlFinal).replace(/\{LINK_GRUPO\}/g,links.grupo).replace(/\{LINK_CANAL\}/g,links.canal).replace(/\{TITULO\}/g,nota.titulo||"Sin titulo").replace(/\{CATEGORIA\}/g,nota.categoria||"General").replace(/\{LOCALIDAD\}/g,localidad).replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
   const nd=pt.includes("{CONTENIDO}")?"" :`\n\nNOTICIA:\nTítulo: ${nota.titulo}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
-  const prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
+  prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
+  }
   const geminiPromise = callGemini(prompt,env);
   const timeoutPromise = sleep(22000).then(() => ({ error: 'deadline 22s - IA lenta/caída', details: ['timeout global whatsapp 22s'] }));
   const r=await Promise.race([geminiPromise, timeoutPromise]);
@@ -5320,19 +5332,37 @@ async function handleWhatsappGenerar(body,env){
     const snippet = (nota.body || nota.descripcion || "").slice(0, 140).trim();
     const titulo = nota.titulo || "Sin título";
     const cat = (nota.categoria || "General").toUpperCase();
-    const grupoFb = `*${cat}:* ${titulo}\n\n${snippet}${snippet.length>=140?"...":""}\n\n🔗 ${urlFinal}\n\n📱 Grupo: ${links.grupo}\n📣 Canal: ${links.canal}`;
-    const canalFb = `*${titulo}*\n\n• ${snippet}${snippet.length>=140?"...":""} 📍 ${localidad}\n\n🔗 ${urlFinal}`;
-    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:['ia_no_disponible'], ia_error: r.error, ia_details: r.details || [] });
+    let grupoFb = `*${cat}:* ${titulo}\n\n${snippet}${snippet.length>=140?"...":""}\n\n🔗 ${urlFinal}\n\n📱 Grupo: ${links.grupo}\n📣 Canal: ${links.canal}`;
+    let canalFb = `*${titulo}*\n\n• ${snippet}${snippet.length>=140?"...":""} 📍 ${localidad}\n\n🔗 ${urlFinal}`;
+    if(guardrailOn){
+      try{
+        grupoFb = normalizeWhatsappCopy(grupoFb,{tipo:'grupo',url:urlFinal,links});
+        canalFb = normalizeWhatsappCopy(canalFb,{tipo:'canal',url:urlFinal,links});
+      }catch(e){console.warn("[whatsapp] guardrail: error al normalizar fallback, texto sin tocar:",e.message);guardrailError=true}
+    }
+    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:guardrailError?['ia_no_disponible','guardrail_error']:['ia_no_disponible'], ia_error: r.error, ia_details: r.details || [] });
   }
-  const grupo=(r.data?.grupo||"").trim();const canal=(r.data?.canal||"").trim();
+  let grupo=(r.data?.grupo||"").trim();let canal=(r.data?.canal||"").trim();
   if(!grupo||!canal) {
     console.warn("[whatsapp] IA devolvió incompleto, fallback");
     const snippet = (nota.body || "").slice(0, 140).trim();
-    const grupoFb = `*${(nota.categoria||"General").toUpperCase()}:* ${nota.titulo}\n\n${snippet}...\n\n🔗 ${urlFinal}\n📱 ${links.grupo}`;
-    const canalFb = `*${nota.titulo}*\n\n${snippet}...\n\n🔗 ${urlFinal}\n📣 ${links.canal}`;
-    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:['ia_no_disponible'], ia_error: "IA no devolvió ambos mensajes" });
+    let grupoFb = `*${(nota.categoria||"General").toUpperCase()}:* ${nota.titulo}\n\n${snippet}...\n\n🔗 ${urlFinal}\n📱 ${links.grupo}`;
+    let canalFb = `*${nota.titulo}*\n\n${snippet}...\n\n🔗 ${urlFinal}\n📣 ${links.canal}`;
+    if(guardrailOn){
+      try{
+        grupoFb = normalizeWhatsappCopy(grupoFb,{tipo:'grupo',url:urlFinal,links});
+        canalFb = normalizeWhatsappCopy(canalFb,{tipo:'canal',url:urlFinal,links});
+      }catch(e){console.warn("[whatsapp] guardrail: error al normalizar fallback, texto sin tocar:",e.message);guardrailError=true}
+    }
+    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:guardrailError?['ia_no_disponible','guardrail_error']:['ia_no_disponible'], ia_error: "IA no devolvió ambos mensajes" });
   }
-  return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal});
+  if(guardrailOn){
+    try{
+      grupo=(normalizeWhatsappCopy(grupo,{tipo:'grupo',url:urlFinal,links}));
+      canal=(normalizeWhatsappCopy(canal,{tipo:'canal',url:urlFinal,links}));
+    }catch(e){console.warn("[whatsapp] guardrail: error al normalizar, salida sin tocar:",e.message);guardrailError=true}
+  }
+  return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal, ...(guardrailError?{warnings:['guardrail_error']}:{})});
 }
 async function handlePostWhatsappProgramar(body,env){
   if(!body?.fecha) return jsonError("Falta fecha",400);

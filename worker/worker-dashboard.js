@@ -79,7 +79,41 @@ const FAMILIES = {
   politica: { id: 'politica', label: 'Política', color: '#5b4c91', secondary: '#251e42', soft: '#e9e4f7', symbol: '◈' },
   economia: { id: 'economia', label: 'Economía', color: '#507118', secondary: '#213009', soft: '#eaf3de', symbol: '$' },
   deportes: { id: 'deportes', label: 'Deportes', color: '#16806a', secondary: '#103c33', soft: '#d9f1eb', symbol: '↗' },
+  vendimia: { id: 'vendimia', label: 'Vendimia', color: '#7b1e3b', secondary: '#3a0f1d', soft: '#f6e3ea', symbol: '🍇' },
+  alerta: { id: 'alerta', label: 'Alerta meteorológica', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0', symbol: '⚠' },
+  servicio: { id: 'servicio', label: 'Servicio', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0', symbol: '⚠' },
 };
+
+const ALERT_SEVERITIES = {
+  verde: { id: 'verde', label: 'Verde', color: '#3a9d3a', secondary: '#1e4d1e', soft: '#e6f3e6' },
+  amarillo: { id: 'amarillo', label: 'Amarillo', color: '#e3b505', secondary: '#5b4a00', soft: '#fbf6df' },
+  naranja: { id: 'naranja', label: 'Naranja', color: '#e08e0b', secondary: '#5b3b04', soft: '#fbf2e0' },
+  rojo: { id: 'rojo', label: 'Rojo', color: '#c0392b', secondary: '#5b1409', soft: '#fbe6e2' },
+};
+
+function resolveAlertSeverity(nivel = '') {
+  return ALERT_SEVERITIES[String(nivel || '').toLowerCase()] || ALERT_SEVERITIES.naranja;
+}
+
+const SERVICIO_TIPOS = {
+  tormenta: { id: 'tormenta', banner: 'ALERTA DE TORMENTAS', titulo: 'Alerta tormentas' },
+  transito: { id: 'transito', banner: 'CORTE / TRÁNSITO', titulo: 'Corte / Tránsito' },
+  agua: { id: 'agua', banner: 'CORTE DE AGUA', titulo: 'Corte de agua' },
+  luz: { id: 'luz', banner: 'CORTE DE LUZ', titulo: 'Corte de luz' },
+  gas: { id: 'gas', banner: 'CORTE DE GAS', titulo: 'Corte de gas' },
+  operativo: { id: 'operativo', banner: 'OPERATIVO VIAL', titulo: 'Operativo vial' },
+  generico: { id: 'generico', banner: 'SERVICIO', titulo: 'Servicio' },
+};
+
+function resolveServiceType(tipo = '') {
+  const key = String(tipo || '').toLowerCase();
+  return SERVICIO_TIPOS[key] || SERVICIO_TIPOS.generico;
+}
+
+function resolveServiceBanner(plate = {}) {
+  const tipo = plate?.servicio?.tipo || (plate?.alerta ? 'tormenta' : 'generico');
+  return resolveServiceType(tipo).banner;
+}
 
 const PLATE_TYPES = {
   noticia: { id: 'noticia', label: 'Noticia' },
@@ -95,6 +129,8 @@ const PLATE_TYPES = {
   conversacion: { id: 'conversacion', label: 'Conversación' },
   actualizacion: { id: 'actualizacion', label: 'Actualización' },
   'que-cambia': { id: 'que-cambia', label: 'Qué cambia' },
+  'alerta': { id: 'alerta', label: 'Alerta meteorológica' },
+  'servicio': { id: 'servicio', label: 'Servicio' },
 };
 
 const FAMILY_ALIASES = new Map([
@@ -104,6 +140,10 @@ const FAMILY_ALIASES = new Map([
   ['politica', 'politica'], ['política', 'politica'], ['gobierno', 'politica'],
   ['economia', 'economia'], ['economía', 'economia'], ['negocios', 'economia'],
   ['deportes', 'deportes'], ['deporte', 'deportes'],
+  ['vendimia', 'vendimia'], ['vendimias', 'vendimia'], ['reina', 'vendimia'], ['reinas', 'vendimia'],
+  ['reina vendimial', 'vendimia'], ['reinas vendimiales', 'vendimia'], ['cosecha', 'vendimia'],
+  ['uva', 'vendimia'], ['uvas', 'vendimia'], ['vino', 'vendimia'], ['bodega', 'vendimia'],
+  ['bodegas', 'vendimia'], ['fiesta nacional', 'vendimia'],
 ]);
 
 const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
@@ -205,11 +245,12 @@ function cleanArticleUrl(value) {
 }
 
 function normalizeInstagramCopy(value, data, category) {
-  let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}\n\n📲 Leé la nota completa en mediamendoza.com\n\n#MediaMendoza #${category}`;
+  let copy = socialText(value) || `📰 ${data.titulo}\n\n${data.bajada}\n\n#MediaMendoza #${category}`;
   copy = copy.replace(/\[(?:enlace|link|url)\]/gi, cleanArticleUrl(data.fuente.url));
   if (!/[¿?]|coment/i.test(copy)) copy += '\n\n💬 ¿Qué opinás?';
   const tags = [...copy.matchAll(/#[\p{L}\d_]+/gu)].map(match => match[0]);
   copy = copy.replace(/#[\p{L}\d_]+/gu, '').replace(/[ \t]+\n/g, '\n').trim();
+  if (!/historia/i.test(copy)) copy += '\n\n🔗 Encontrá el link a la noticia en nuestras historias';
   const normalizedTags = [...new Set([...tags, '#MediaMendoza', `#${category}`, '#Noticias'])].slice(0, 5);
   copy += `\n\n${normalizedTags.join(' ')}`;
   if (!/\p{Extended_Pictographic}/u.test(copy)) copy = `📰 ${copy}`;
@@ -351,6 +392,165 @@ function normalizeNewsPlate(input = {}) {
   normalized.redes = buildSocialCopies(normalized, input);
   normalized.bloques = buildBlocks(normalized, family, images[0]);
   return normalized;
+}
+
+function normalizeServicePlate(input = {}, now = new Date()) {
+  const mensaje = clean(input.mensaje || input.texto || input.message || input.bajada || '');
+  const fuente = clean(input.fuente || input.source || input.atribucion || '');
+  const zona = clean(input.zona || input.zona_afectada || '');
+  const nivel = resolveAlertSeverity(input.nivel || input.severidad).id;
+  const tipo = resolveServiceType(input.tipo).id;
+  const estado = clean(input.estado);
+  const detalles = normalizeServiceDetalles(input.detalles);
+  const date = now instanceof Date ? now : new Date(now);
+  const explicitFecha = clean(input.fecha);
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(explicitFecha) ? explicitFecha : (Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10));
+  const hora = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const palette = resolveAlertSeverity(nivel);
+  const serviceType = resolveServiceType(tipo);
+  const plate = {
+    tipo: 'placa_noticia',
+    version: 1,
+    fuente: { url: '', titulo_original: '', categoria: 'Servicio', descripcion: '', texto: '', imagen: '', imagenes: [] },
+    titulo: serviceType.titulo,
+    titulo_sintetico: '',
+    fecha,
+    bajada: mensaje,
+    etiqueta: 'Servicio',
+    contexto: '',
+    pregunta_social: '',
+    datos_clave: [],
+    impactos: [],
+    comparativa: null,
+    template_sugerido: 'servicio',
+    tipo_placa: 'servicio',
+    textual: { cita: '', autor: '', cargo: '', verificada: false },
+    personas: [],
+    imagenes_apoyo: [],
+    color_principal: palette.color,
+    color_secundario: palette.secondary,
+    servicio: { mensaje, fuente, hora, nivel, zona, tipo, estado, detalles, pagina: 1, paginas: 1 },
+    alerta: { mensaje, fuente, hora, nivel, zona },
+    bloques: [],
+    redes: { instagram: '', facebook: '' },
+  };
+  return plate;
+}
+
+function normalizeServiceDetalles(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    if (typeof item === 'string') return { zona: clean(item), horario: '', detalle: '' };
+    if (!item || typeof item !== 'object') return null;
+    const zona = clean(item.zona || item.zona_afectada || item.lugar || item.titulo);
+    const horario = clean(item.horario || item.hora || item.franja);
+    const detalle = clean(item.detalle || item.calles || item.texto);
+    if (!zona && !horario && !detalle) return null;
+    return { zona, horario, detalle: detalle || zona };
+  }).filter(Boolean).slice(0, 7);
+}
+
+function normalizeForMatch(value) {
+  return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+const ZONAS_GENERICAS = new Set(['san rafael', 'mendoza', '']);
+
+function textoDetalleConZona(item = {}) {
+  const detalle = clean(item.detalle || item.zona || '');
+  const zona = clean(item.zona);
+  if (!detalle) return zona;
+  if (!zona || ZONAS_GENERICAS.has(zona.toLowerCase())) return detalle;
+  if (normalizeForMatch(detalle).includes(normalizeForMatch(zona))) return detalle;
+  return `${detalle} · ${zona}`;
+}
+
+function parseServicioDetalles(texto = '') {
+  const segments = String(texto ?? '').replace(/\r/g, '').split(/[–—]/).slice(1);
+  const detalles = [];
+  for (const segment of segments) {
+    const match = segment.match(/De\s+(\d{1,2}[.:]\d{2}\s*a\s*\d{1,2}[.:]\d{2})\s*h\.?/i);
+    if (!match) continue;
+    const horario = match[1].replace(/(\d)\.(\d)/g, '$1:$2').trim();
+    const resto = (segment.slice(0, match.index) + ' ' + segment.slice(match.index + match[0].length)).replace(/\s+/g, ' ').trim();
+    const parts = resto.split(';');
+    const detalle = parts[0].trim().replace(/[.·]+$/, '');
+    const zona = (parts.length > 1 ? parts.slice(1).join(';') : '').trim().replace(/[.·]+$/, '') || 'San Rafael';
+    if (!detalle) continue;
+    detalles.push({ zona, horario, detalle });
+  }
+  return detalles.slice(0, 7);
+}
+
+function validarDetallesContraFuente(detalles = [], texto = '') {
+  const fuente = normalizeForMatch(texto);
+  const fuenteDigitos = fuente.replace(/\D/g, '');
+  return (Array.isArray(detalles) ? detalles : []).filter((item) => {
+    const horario = clean(item?.horario);
+    const contenido = clean(item?.detalle || item?.zona);
+    if (!horario && !contenido) return false;
+    if (horario) {
+      const tokens = horario.match(/\d{1,2}[:.]\d{2}/g) || [];
+      if (!tokens.length) return false;
+      if (!tokens.every((token) => fuenteDigitos.includes(token.replace(/\D/g, '')))) return false;
+    }
+    const words = normalizeForMatch(contenido).split(/[^a-zñ]+/).filter((word) => word.length >= 6);
+    if (!words.length) return true;
+    return words.some((word) => fuente.includes(word));
+  });
+}
+
+function buildServicioPlacas(plate = {}, perPage = 4) {
+  const detalles = Array.isArray(plate?.servicio?.detalles) ? plate.servicio.detalles : [];
+  const size = Math.max(1, Math.min(4, Number(perPage) || 4));
+  if (detalles.length <= size) {
+    return [{ ...plate, servicio: { ...(plate.servicio || {}), pagina: 1, paginas: 1 } }];
+  }
+  const pages = [];
+  for (let index = 0; index < detalles.length; index += size) {
+    const chunk = detalles.slice(index, index + size);
+    const pagina = pages.length + 1;
+    pages.push({ ...plate, servicio: { ...(plate.servicio || {}), detalles: chunk, pagina, paginas: 0 } });
+  }
+  const total = pages.length;
+  return pages.map((page) => ({ ...page, servicio: { ...page.servicio, paginas: total } }));
+}
+
+function normalizeAlertPlate(input = {}, now = new Date()) {
+  const mensaje = clean(input.mensaje || input.texto || input.message || input.bajada || '');
+  const fuente = clean(input.fuente || input.source || input.atribucion || '');
+  const zona = clean(input.zona || input.zona_afectada || '');
+  const nivel = resolveAlertSeverity(input.nivel || input.severidad).id;
+  const date = now instanceof Date ? now : new Date(now);
+  const fecha = Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+  const hora = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const palette = resolveAlertSeverity(nivel);
+  const plate = {
+    tipo: 'placa_noticia',
+    version: 1,
+    fuente: { url: '', titulo_original: '', categoria: 'Alerta', descripcion: '', texto: '', imagen: '', imagenes: [] },
+    titulo: 'Alerta tormentas',
+    titulo_sintetico: '',
+    fecha,
+    bajada: mensaje,
+    etiqueta: 'Alerta meteorológica',
+    contexto: '',
+    pregunta_social: '',
+    datos_clave: [],
+    impactos: [],
+    comparativa: null,
+    template_sugerido: 'alerta',
+    tipo_placa: 'alerta',
+    textual: { cita: '', autor: '', cargo: '', verificada: false },
+    personas: [],
+    imagenes_apoyo: [],
+    color_principal: palette.color,
+    color_secundario: palette.secondary,
+    alerta: { mensaje, fuente, hora, nivel, zona },
+    bloques: [],
+    redes: { instagram: '', facebook: '' },
+  };
+  return plate;
 }
 
 function cloneWithTemplate(plate, id, template, recommended = false) {
@@ -552,6 +752,32 @@ function calculatePlateLayout(format, plate = {}) {
       dek: { x: margin, y: cardsY, w: canvas.w - margin * 2, h: 0 },
       context: { x: margin, y: cardsY, w: canvas.w - margin * 2, h: 0 },
       footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.035 },
+    };
+  }
+  if (plate.tipo_placa === 'alerta' || plate.tipo_placa === 'servicio') {
+    const bannerH = canvas.h * (isStory ? 0.165 : 0.145);
+    const severityH = canvas.h * (isStory ? 0.055 : 0.05);
+    const severityY = bannerH + canvas.h * 0.020;
+    const metaH = canvas.h * 0.060;
+    const timestampY = severityY + severityH + canvas.h * 0.025;
+    const hasDetalles = Array.isArray(plate?.servicio?.detalles) && plate.servicio.detalles.length > 0;
+    const zonaY = timestampY + metaH + canvas.h * 0.020;
+    const messageY = hasDetalles ? timestampY + metaH + canvas.h * 0.020 : zonaY + metaH + canvas.h * 0.020;
+    const footerY = canvas.h * 0.92;
+    const messageH = Math.max(0, footerY - messageY - canvas.h * 0.03);
+    return {
+      canvas,
+      alerta: true,
+      header: { x: 0, y: 0, w: canvas.w, h: 0 },
+      label: { x: margin, y: bannerH * 0.02, w: canvas.w - margin * 2, h: bannerH * 0.4 },
+      severity: { x: margin, y: severityY, w: canvas.w - margin * 2, h: severityH },
+      timestamp: { x: margin, y: timestampY, w: canvas.w - margin * 2, h: metaH },
+      zona: { x: margin, y: zonaY, w: canvas.w - margin * 2, h: hasDetalles ? 0 : metaH },
+      message: { x: margin, y: messageY, w: canvas.w - margin * 2, h: messageH },
+      image: { x: 0, y: 0, w: 0, h: 0 },
+      dek: { x: margin, y: messageY, w: canvas.w - margin * 2, h: 0 },
+      context: { x: margin, y: messageY, w: canvas.w - margin * 2, h: 0 },
+      footer: { x: margin, y: footerY, w: canvas.w - margin * 2, h: canvas.h - footerY - canvas.h * 0.025 },
     };
   }
   if (isComparison) {
@@ -777,6 +1003,77 @@ function getLocalImageFallbacks() {
 }
 
 
+const WA_FIRMA = '*📰 Media Mendoza - Noticias confiables del sur mendocino*';
+
+const WA_PROMPT_SISTEMA = `
+
+REGLAS DE ENLACES:
+- NO incluyas ninguna URL ni dirección web: el sistema agrega el enlace de la nota, los links de comunidad y la firma.
+- En el mensaje de grupo, la línea que empieza con 🔗 queda sola y el sistema agrega el enlace debajo.
+- No escribas la firma de marca: la agrega el sistema.`;
+
+function buildWhatsappPrompt({ promptBase, nota, links, localidad, contextoExtra }) {
+  const sinCta = String(promptBase || '')
+    .split('\n').filter(l => !/\{(LINK_GRUPO|LINK_CANAL)\}/.test(l) && !l.includes('¡Sumate a nuestra comunidad!')).join('\n');
+  const sustituido = sinCta
+    .replace(/\{URL\}/g, '{ENLACE}')
+    .replace(/\{TITULO\}/g, nota.titulo || 'Sin titulo')
+    .replace(/\{CATEGORIA\}/g, nota.categoria || 'General')
+    .replace(/\{LOCALIDAD\}/g, localidad)
+    .replace(/\{CONTENIDO\}/g, (nota.body || '').substring(0, 1500));
+  return `${sustituido}${WA_PROMPT_SISTEMA}
+
+NOTICIA:
+Título: ${nota.titulo}
+Categoría: ${nota.categoria || 'General'}
+Localidad: ${localidad}
+Contenido: ${(nota.body || '').substring(0, 1500)}
+${contextoExtra ? `Contexto extra: ${contextoExtra}\n` : ''}
+Respondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
+}
+
+const PATRON_URL_COMUNIDAD = /(https?:\/\/|www\.)?[a-z0-9.\-]*(chat\.whatsapp\.com|whatsapp\.com\/channel|bit\.ly\/mediamendoza|wa\.me)([\/\?#\w\-=&%.\+]*)/gi;
+
+function buildCtaComunidad(links = {}) {
+  const partes = [];
+  if (links.grupo) partes.push(`📱 *Grupo de Noticias:* ${links.grupo}`);
+  if (links.canal) partes.push(`📣 *Canal de Difusión:* ${links.canal}`);
+  return partes.length ? `*¡Sumate a nuestra comunidad!*\n${partes.join('\n')}` : '';
+}
+
+function normalizeWhatsappCopy(mensaje, { tipo = 'grupo', url = '', links = {} } = {}) {
+  let texto = String(mensaje || '').trim()
+    .split('\n')
+    .map(l => l.replace(PATRON_URL_COMUNIDAD, '').replace(/[ \t]+$/, '').trim())
+    .filter(Boolean).join('\n');
+  texto = texto.replace(/^\s*\*?¡Sumate a nuestra comunidad!?\*?\s*$/gm, '')
+    .replace(/^\s*\*?📰 Media Mendoza[^\n]*$/gm, '')
+    .replace(/^\s*[📱📣📻]\s*\*?(?:Grupo|Canal)(?:\s+de\s+(?:Noticias|[Dd]ifusión))?\*?\s*:?[^\n]*$/gmu, '');
+  texto = texto.replace(/\n{3,}/g, '\n\n').trim();
+  texto = desduplicarUrlNota(texto, url);
+  if (tipo === 'canal') {
+    return `${texto}\n${WA_FIRMA}`.trim();
+  }
+  const cta = buildCtaComunidad(links);
+  return `${texto}\n\n${cta}${cta ? '\n' : ''}${WA_FIRMA}`.trim();
+}
+
+function desduplicarUrlNota(texto, url) {
+  if (!url) return texto;
+  const urlEscapada = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  texto = texto.replace(/https?:\/\/[^\s<>"']+/g, (m) => (new RegExp(`^${urlEscapada}$`, 'i').test(m.trim()) ? m : url));
+  if (!texto.includes(url)) {
+    if (/🔗/.test(texto)) {
+      texto = texto.replace(/^(.*🔗[^\n]*)$/m, (linea) => linea.replace(/[ \t]*$/, '') + `\n👉 ${url}`);
+    } else {
+      texto += `\n\n🔗 👉 ${url}`;
+    }
+  }
+  return texto;
+}
+
+
+
 // Media Mendoza Worker ? archivo ?nico para pegar en el dashboard de Cloudflare.
 // Incluye solo los helpers de f?tbol usados por el Worker y el n?cleo editorial de Placas V2.
 // @ts-nocheck
@@ -787,10 +1084,10 @@ const CLOUDINARY_SIGNATURE_EXCLUSIONS = new Set(['api_key', 'cloud_name', 'file'
 function canonicalizeCloudinaryParams(params = {}) { return Object.entries(params).filter(([key, value]) => !CLOUDINARY_SIGNATURE_EXCLUSIONS.has(key) && value !== undefined && value !== null && value !== '').map(([key, value]) => [key, Array.isArray(value) ? value.join('|') : String(value)]).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join('&'); }
 async function sha1(value) { const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(String(value))); return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join(''); }
 async function signCloudinaryParams(params, apiSecret, { raw = false } = {}) { return sha1(`${raw ? `${params.body ?? ''}${params.timestamp ?? ''}` : canonicalizeCloudinaryParams(params)}${apiSecret}`); }
-function buildCloudinaryEagerTransform({ inputPublicId, layers, width, height, framingMode }) { const layerTransforms = (Array.isArray(layers) ? layers : []).map(layer => { const publicId = String(layer?.publicId || '').replaceAll('/', ':'); if (!publicId) throw new Error('Transformación Cloudinary inválida.'); const timing = layer?.kind !== 'fixed' && Number.isFinite(Number(layer?.start)) && Number.isFinite(Number(layer?.duration)) ? `,so_${Number(layer.start)},du_${Number(layer.duration)}` : ''; return `l_${publicId}/c_scale,h_${height},w_${width}/fl_layer_apply,g_center${timing}`; }); const input = String(inputPublicId || '').replaceAll('/', ':'); if (!layerTransforms.length || !Number.isInteger(width) || !Number.isInteger(height) || (framingMode !== 'cover' && !input)) throw new Error('Transformación Cloudinary inválida.'); const frame = framingMode === 'cover' ? `c_fill,g_center,h_${height},w_${width}` : `c_fill,g_center,h_${height},w_${width}/e_blur:1000/e_brightness:-42/l_video:${input}/c_fit,h_${height},w_${width}/fl_layer_apply,g_center`; return `${frame}/${layerTransforms.join('/')}/ac_aac,f_mp4,q_auto:good,vc_h264/fl_attachment`; }
+function buildCloudinaryEagerTransform({ inputPublicId, layers, width, height, framingMode, trim }) { const trimSeg = (trim && Number.isFinite(Number(trim.start)) && Number.isFinite(Number(trim.end)) && Number(trim.end) > Number(trim.start) ? { start: Number(trim.start), duration: Number(trim.end) - Number(trim.start) } : null); const baseTrim = trimSeg ? `so_${trimSeg.start},du_${trimSeg.duration}/` : ''; const layerTransforms = (Array.isArray(layers) ? layers : []).map(layer => { const publicId = String(layer?.publicId || '').replaceAll('/', ':'); if (!publicId) throw new Error('Transformación Cloudinary inválida.'); let timing = ''; if (layer?.kind !== 'fixed' && Number.isFinite(Number(layer?.start)) && Number.isFinite(Number(layer?.duration))) { const so = trimSeg ? Math.max(0, Number(layer.start) - trimSeg.start) : Number(layer.start); timing = `,so_${so},du_${Number(layer.duration)}`; } return `l_${publicId}/c_scale,h_${height},w_${width}/fl_layer_apply,g_center${timing}`; }); const input = String(inputPublicId || '').replaceAll('/', ':'); if (!layerTransforms.length || !Number.isInteger(width) || !Number.isInteger(height) || (framingMode !== 'cover' && !input)) throw new Error('Transformación Cloudinary inválida.'); const frame = framingMode === 'cover' ? `${baseTrim}c_fill,g_center,h_${height},w_${width}` : `${baseTrim}c_fill,g_center,h_${height},w_${width}/e_blur:1000/e_brightness:-42/l_video:${input}/${trimSeg ? `so_${trimSeg.start},du_${trimSeg.duration}/` : ''}c_fit,h_${height},w_${width}/fl_layer_apply,g_center`; return `${frame}/${layerTransforms.join('/')}/ac_aac,f_mp4,q_auto:good,vc_h264/fl_attachment`; }
 function parseCloudinaryVideoJobId(publicId) { return String(publicId || '').match(new RegExp(`^${CLOUDINARY_JOB_PREFIX}/input-([A-Za-z0-9_-]+)$`))?.[1] || null; }
 async function verifyCloudinaryWebhook({ body, timestamp, signature, apiSecret, now = Date.now(), maxAgeSeconds = 7200 } = {}) { const issuedAt = Number(timestamp); if (!body || !signature || !apiSecret || !Number.isFinite(issuedAt) || Math.abs(now / 1000 - issuedAt) > maxAgeSeconds) return false; const expected = await signCloudinaryParams({ body, timestamp: issuedAt }, apiSecret, { raw: true }); if (expected.length !== String(signature).length) return false; let different = 0; for (let index = 0; index < expected.length; index += 1) different |= expected.charCodeAt(index) ^ String(signature).charCodeAt(index); return different === 0; }
-function createCloudinaryVideoJob({ id, format, framingMode, layers, origin }) { if (!/^[A-Za-z0-9_-]+$/.test(String(id || ''))) throw new Error('Id de exportación inválido.'); const dimensions = format === '4:5' ? { width: 720, height: 900 } : { width: 720, height: 1280 }; const inputPublicId = `${CLOUDINARY_JOB_PREFIX}/input-${id}`; const normalizedLayers = normalizeCloudinaryVideoLayers(layers).map((layer, index) => ({ ...layer, publicId: `${CLOUDINARY_JOB_PREFIX}/overlay-${id}-${index}-${layer.id}` })); return { id, status: 'esperando_subidas', format: format === '4:5' ? '4:5' : '9:16', framingMode: framingMode === 'cover' ? 'cover' : 'contain', ...dimensions, inputPublicId, layers: normalizedLayers, webhookUrl: `${origin}/video-vertical/cloudinary/webhook`, createdAt: Date.now() }; }
+function createCloudinaryVideoJob({ id, format, framingMode, layers, origin, trim }) { if (!/^[A-Za-z0-9_-]+$/.test(String(id || ''))) throw new Error('Id de exportación inválido.'); const dimensions = format === '4:5' ? { width: 720, height: 900 } : { width: 720, height: 1280 }; const inputPublicId = `${CLOUDINARY_JOB_PREFIX}/input-${id}`; const normalizedLayers = normalizeCloudinaryVideoLayers(layers).map((layer, index) => ({ ...layer, publicId: `${CLOUDINARY_JOB_PREFIX}/overlay-${id}-${index}-${layer.id}` })); const normalizedTrim = (trim && Number.isFinite(Number(trim.start)) && Number.isFinite(Number(trim.end)) && Number(trim.end) > Number(trim.start) ? { start: Number(trim.start), end: Number(trim.end) } : null); return { id, status: 'esperando_subidas', format: format === '4:5' ? '4:5' : '9:16', framingMode: framingMode === 'cover' ? 'cover' : 'contain', ...dimensions, inputPublicId, layers: normalizedLayers, trim: normalizedTrim, webhookUrl: `${origin}/video-vertical/cloudinary/webhook`, createdAt: Date.now() }; }
 function normalizeCloudinaryVideoLayers(layers) { if (!Array.isArray(layers) || !layers.length || layers.length > 32) throw new Error('Capas editoriales inválidas.'); const normalized = layers.map((layer, index) => { const id = String(layer?.id || '').trim(); const kind = String(layer?.kind || '').trim(); const isFixed = kind === 'fixed'; const start = Number(layer?.start); const duration = layer?.duration === null ? null : Number(layer?.duration); if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || !['fixed', 'title', 'speaker'].includes(kind)) throw new Error('Capas editoriales inválidas.'); if (isFixed && (start !== 0 || duration !== null)) throw new Error('La capa fija es inválida.'); if (!isFixed && (!Number.isFinite(start) || start < 0 || !Number.isFinite(duration) || duration <= 0)) throw new Error('El intervalo de una capa es inválido.'); return { id, kind, start: isFixed ? 0 : start, duration: isFixed ? null : duration, index }; }); if (normalized.filter(layer => layer.kind === 'fixed').length !== 1) throw new Error('Falta la capa editorial fija.'); return normalized; }
 export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createCloudinaryVideoJob, parseCloudinaryVideoJobId, signCloudinaryParams, verifyCloudinaryWebhook };
 
@@ -861,6 +1158,7 @@ const FAMILIES = {
   politica: { id: 'politica', label: 'Política', color: '#5b4c91', secondary: '#251e42', soft: '#e9e4f7', symbol: '◈' },
   economia: { id: 'economia', label: 'Economía', color: '#507118', secondary: '#213009', soft: '#eaf3de', symbol: '$' },
   deportes: { id: 'deportes', label: 'Deportes', color: '#16806a', secondary: '#103c33', soft: '#d9f1eb', symbol: '↗' },
+  vendimia: { id: 'vendimia', label: 'Vendimia', color: '#7b1e3b', secondary: '#3a0f1d', soft: '#f6e3ea', symbol: '🍇' },
 };
 
 const FAMILY_ALIASES = new Map([
@@ -870,6 +1168,10 @@ const FAMILY_ALIASES = new Map([
   ['politica', 'politica'], ['política', 'politica'], ['gobierno', 'politica'],
   ['economia', 'economia'], ['economía', 'economia'], ['negocios', 'economia'],
   ['deportes', 'deportes'], ['deporte', 'deportes'],
+  ['vendimia', 'vendimia'], ['vendimias', 'vendimia'], ['reina', 'vendimia'], ['reinas', 'vendimia'],
+  ['reina vendimial', 'vendimia'], ['reinas vendimiales', 'vendimia'], ['cosecha', 'vendimia'],
+  ['uva', 'vendimia'], ['uvas', 'vendimia'], ['vino', 'vendimia'], ['bodega', 'vendimia'],
+  ['bodegas', 'vendimia'], ['fiesta nacional', 'vendimia'],
 ]);
 
 const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
@@ -1212,7 +1514,7 @@ REGLAS:
 - Generá una bajada de una o dos frases y un contexto clave breve sólo si aporta información verificable.
 - Generá dos copys para acompañar la placa con foco en engagement: Instagram debe tener 1 o 2 párrafos breves, 2 o 3 emojis pertinentes, una pregunta o invitación a participar y 3 a 5 hashtags relevantes; Facebook debe tener 2 o 3 párrafos breves, 1 o 2 emojis, una pregunta concreta para incentivar comentarios y el enlace editorial al final.
 - No inventes datos, citas ni preguntas que atribuyan hechos no presentes en la noticia. No uses [enlace], links completos ni llamados a la acción repetidos: el sistema normaliza el enlace y el CTA.
-- Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes.
+- Elegí una familia entre: general, clima, policiales, sociales, politica, economia, deportes, vendimia.
 - Usá español rioplatense informativo, sin clickbait ni exageraciones.
 - No devuelvas markdown ni texto fuera del JSON.
 - Genera tambien un titular sintetico idealmente de 6 a 10 palabras para el modelo titular-arriba. Debe conservar sujeto, hecho principal y precision; no agregues contexto secundario ni inventes informacion.
@@ -1242,7 +1544,7 @@ Respondé SOLO con este JSON:
   "textual": { "cita": "cita literal o cadena vacía", "autor": "persona", "cargo": "cargo", "verificada": false },
   "personas": [{ "nombre": "persona", "rol": "cargo", "imagen": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
   "imagenes_apoyo": [{ "src": "URL de imagen o cadena vacía", "origen": "nota", "foco": { "x": 0.5, "y": 0.5 } }],
-  "template_sugerido": "general|clima|policiales|sociales|politica|economia|deportes",
+  "template_sugerido": "general|clima|policiales|sociales|politica|economia|deportes|vendimia",
   "bloques": []
 }`;
 }
@@ -1283,9 +1585,16 @@ const CORS_HEADERS = {
 };
 
 const GEMINI_MODEL     = "gemini-3.1-flash-lite";
+const GEMINI_FALLBACK  = "gemini-3.5-flash-lite";
 const GEMINI_URL       = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+// Helper DRY para rotación de keys
+function getGeminiKeys(env) {
+  return [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+}
 const EDITORIAL_KV_KEY = "config:editorial";
 const WA_PROMPT_KV_KEY = "config:wa_prompt";
+const WA_GUARDRAIL_KV_KEY = "config:wa_guardrail";
 const WA_LINKS_KV_KEY  = "config:wa_links";
 const REEL_PROMPT_KEY  = "config:reel:prompt";
 const REEL_VOCES_KEY   = "config:reel:voces";
@@ -1356,7 +1665,16 @@ function normalizarTituloSitio(t=""){return t.replace(/\s+[|\-–—]\s+(Media M
 function inferirCategoriaDesdeUrl(url){try{const u=new URL(url);const f=u.pathname.split("/").filter(Boolean)[0]||"";return limpiarEspacios(f.replace(/[-_]+/g," "))}catch{return""}}
 function generarId(p){return `${p}${Date.now()}_${Math.random().toString(36).slice(2,8)}`}
 function acortarUrlNota(url){try{const u=new URL(url);const p=u.pathname.split("/").filter(Boolean);if(p.length>=2){const n=p[1].match(/^(\d+)/);if(n)return `${u.origin}/${p[0]}/${n[1]}`}return `${u.origin}${u.pathname}`}catch{return url}}
-async function listarObjetosKV(env,prefix){const list=await env.KV.list({prefix});const items=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)items.push(v)}return items}
+async function listarObjetosKV(env,prefix){
+  const items=[]; let cursor;
+  do{
+    const list=await env.KV.list({prefix, cursor});
+    for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)items.push(v)}
+    cursor=list.list_complete ? undefined : list.cursor;
+    if(items.length>5000) break;
+  }while(cursor);
+  return items;
+}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
 function jsonError(msg,status=400){return new Response(JSON.stringify({ok:false,error:msg}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
@@ -2016,23 +2334,12 @@ async function handleVideoEditorSuggestCuts(body, env) {
   ${segments.map((s, i) => `${i}: ${s.text}`).join('\n')}`;
 
   try {
-    const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
-    if (!keys.length) throw new Error("No hay API keys de Gemini configuradas");
+    if (!getGeminiKeys(env).length) throw new Error("No hay API keys de Gemini configuradas");
 
-    let response;
-    for (let i = 0; i < keys.length; i++) {
-      try {
-        const res = await fetch(`${GEMINI_URL}?key=${keys[i]}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 200 } })
-        });
-        if (res.ok) { response = await res.json(); break; }
-      } catch (e) { continue; }
-    }
-    if (!response) throw new Error("No se pudo obtener respuesta de Gemini");
+    const gemRes = await fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 200 } }, { expectJson: false });
+    if (gemRes.error) throw new Error(gemRes.error + (gemRes.details ? ` (${gemRes.details.slice(0,2).join(' | ')})` : ''));
 
-    const raw = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const raw = typeof gemRes.data === 'string' ? gemRes.data : (gemRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || "");
     const match = raw.match(/\[[\d,\s]*\]/);
     let indices = [];
     if (match) {
@@ -2058,12 +2365,19 @@ async function handleVideoEditorSuggestCuts(body, env) {
 async function handleGenerateHeadline(request, env) {
   try {
     const { image } = await request.json();
-    if (!env.GEMINI_API_KEY) {
-      return new Response(JSON.stringify({ error: 'Falta configurar GEMINI_API_KEY' }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    if (!getGeminiKeys(env).length) {
+      return new Response(JSON.stringify({ error: 'Falta configurar keys de Gemini' }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
-    const base64Data = image.split(',')[1];
-    const mimeType = image.split(';')[0].split(':')[1];
+    if (!image) return new Response(JSON.stringify({ error: 'Falta imagen' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    let mimeType = 'image/jpeg';
+    let base64Data = '';
+    if (typeof image === 'string' && image.startsWith('data:')) {
+      const m = image.match(/^data:([^;]+);base64,(.*)$/);
+      if (m) { mimeType = m[1]; base64Data = m[2]; } else { base64Data = image; }
+    } else if (typeof image === 'string') {
+      base64Data = image.replace(/^data:[^,]+,/, '');
+    }
+    if (!base64Data) return new Response(JSON.stringify({ error: 'Imagen inválida' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     const payload = {
       contents: [{
         parts: [
@@ -2072,9 +2386,11 @@ async function handleGenerateHeadline(request, env) {
         ]
       }]
     };
-    const aiResponse = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const aiData = await aiResponse.json();
-    const headline = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Titular no disponible";
+    const aiData = await fetchGemini(env, payload, { expectJson: false });
+    if (aiData.error) {
+      return new Response(JSON.stringify({ error: aiData.error, details: aiData.details || [] }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+    }
+    const headline = (typeof aiData.data === 'string' ? aiData.data : aiData.data?.candidates?.[0]?.content?.parts?.[0]?.text) || "Titular no disponible";
     return new Response(JSON.stringify({ headline: headline.trim() }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error("Error Gemini:", error);
@@ -5747,24 +6063,58 @@ async function handleGetAngulosCache(url,env){
   try{const v=await env.KV.get(ANGULOS_PREFIX+key,"json");return jsonOk({data:v||null})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
+async function handleSugerirEfemerideDesc(body,env){
+  const titulo=String(body.titulo||"").trim(); if(!titulo) return jsonError("Falta titulo",400);
+  const mes=parseInt(body.mes)||0; const dia=parseInt(body.dia)||0;
+  const alcance=String(body.alcance||"local").trim();
+  const prompt=`Sos editor de Media Mendoza. Escribí una descripción breve (2-3 líneas, máx 40 palabras) para esta efeméride del calendario del sur mendocino.\nTítulo: ${titulo}\nFecha: ${dia}/${mes}\nAlcance: ${alcance}\n\nResponde SOLO con JSON: {"descripcion":"..."}`;
+  const r=await callGemini(prompt,env); if(r.error) return jsonError(r.error,500);
+  return jsonOk({descripcion:String(r.data?.descripcion||"").trim()});
+}
 async function handleAgendaAngulos(body,env){
   const titulo=String(body.titulo||"").trim();if(!titulo) return jsonError("Falta titulo",400);
-  const kvKey=String(body.kvKey||"").trim();
-  if(kvKey){try{const c=await env.KV.get(ANGULOS_PREFIX+kvKey,"json");if(c) return jsonOk({...c,fromCache:true})}catch(e){}}
-  const prompt=`Sos editor de agenda de Media Mendoza.\nEVENTO:\nTitulo: ${titulo}\nDescripcion: ${String(body.descripcion||"").trim()}\nFecha: ${String(body.fecha||"").trim()}\nTipo: ${String(body.tipo||"").trim()}\n\nResponde SOLO con JSON sin backticks:\n{"angulos":["a1"],"preguntas":["p1"],"fuentes_sugeridas":["f1"],"consejo":""}`;
+  const prompt=`Sos editor jefe de Media Mendoza (diario del sur mendocino, Argentina). Generá pauta de cobertura para este evento. Español rioplatense, tono periodístico directo.
+
+EVENTO:
+Título: ${titulo}
+Descripción: ${String(body.descripcion||"").trim() || "(sin descripción)"}
+Fecha: ${String(body.fecha||"").trim() || "sin fecha"}
+Tipo: ${String(body.tipo||"").trim() || "evento"}
+Alcance: ${String(body.alcance||"local").trim()}
+
+INSTRUCCIONES:
+- 3 ángulos periodísticos distintos (titulares posibles, 1 línea cada uno)
+- 3 preguntas clave para la cobertura
+- 3 fuentes sugeridas concretas (ej: "Secretaría de Prensa Municipal", "Vecinos de barrio X")
+- 1 consejo breve (≤20 palabras)
+- 1 gancho para reel/placa (frase de ≤12 palabras, impactante)
+
+Responde SOLO con JSON sin backticks:
+{"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"","gancho":""}`;
   const r=await callGemini(prompt,env);if(r.error) return jsonError(r.error,500);
-  const data={angulos:Array.isArray(r.data?.angulos)?r.data.angulos:[],preguntas:Array.isArray(r.data?.preguntas)?r.data.preguntas:[],fuentes_sugeridas:Array.isArray(r.data?.fuentes_sugeridas)?r.data.fuentes_sugeridas:[],consejo:String(r.data?.consejo||"").trim()};
-  if(kvKey){try{await env.KV.put(ANGULOS_PREFIX+kvKey,JSON.stringify(data),{expirationTtl:ANGULOS_TTL})}catch(e){}}
+  const data={angulos:Array.isArray(r.data?.angulos)?r.data.angulos:[],preguntas:Array.isArray(r.data?.preguntas)?r.data.preguntas:[],fuentes_sugeridas:Array.isArray(r.data?.fuentes_sugeridas)?r.data.fuentes_sugeridas:[],consejo:String(r.data?.consejo||"").trim(),gancho:String(r.data?.gancho||"").trim()};
   return jsonOk(data);
 }
 async function handleGetAgendaEventos(url,env){
-  try{const mes=String(url.searchParams.get("mes")||"").trim();let ev=await listarObjetosKV(env,AGENDA_EV_PREFIX);if(mes)ev=ev.filter(e=>String(e.fecha||"").startsWith(mes));ev.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));return jsonOk({eventos:ev})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{
+    const mes=String(url.searchParams.get("mes")||"").trim();
+    const desde=String(url.searchParams.get("desde")||"").trim();
+    const hasta=String(url.searchParams.get("hasta")||"").trim();
+    const year=String(url.searchParams.get("year")||"").trim();
+    let ev=await listarObjetosKV(env,AGENDA_EV_PREFIX);
+    if(mes) ev=ev.filter(e=>String(e.fecha||"").startsWith(mes));
+    else if(desde||hasta) ev=ev.filter(e=>{const f=String(e.fecha||"");return (!desde||f>=desde)&&(!hasta||f<=hasta);});
+    else if(year) ev=ev.filter(e=>String(e.fecha||"").startsWith(year+"-"));
+    ev.sort((a,b)=>String(a.fecha||"").localeCompare(String(b.fecha||""))||String(a.hora||"").localeCompare(String(b.hora||"")));
+    return jsonOk({eventos:ev});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostAgendaEvento(body,env){
   const titulo=String(body.titulo||"").trim();const fecha=String(body.fecha||"").trim();
   if(!titulo||!fecha) return jsonError("Faltan campos",400);
-  const ev={id:body.id||generarId("ag_"),titulo,fecha,hora:String(body.hora||"").trim(),tipo:String(body.tipo||"evento").trim(),alcance:String(body.alcance||"local").trim(),descripcion:String(body.descripcion||"").trim(),periodista:String(body.periodista||"").trim(),creado:body.creado||Date.now()};
+  const estadoRaw=String(body.estado||"pendiente").trim().toLowerCase();
+  const estado=["pendiente","en_curso","publicado"].includes(estadoRaw)?estadoRaw:"pendiente";
+  const ev={id:body.id||generarId("ag_"),titulo,fecha,hora:String(body.hora||"").trim(),tipo:String(body.tipo||"evento").trim(),alcance:String(body.alcance||"local").trim(),estado,descripcion:String(body.descripcion||"").trim(),periodista:String(body.periodista||"").trim(),creado:body.creado||Date.now()};
   try{await env.KV.put(`${AGENDA_EV_PREFIX}${ev.id}`,JSON.stringify(ev));return jsonOk({guardado:true,id:ev.id,evento:ev})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
@@ -5837,11 +6187,10 @@ async function handleProcesarImagenes(request, env) {
     }
     const VISION_MODELS = [
       GEMINI_MODEL,
-      "gemini-2.0-flash",
-      "gemini-1.5-flash"
+      GEMINI_FALLBACK,
+      "gemini-2.5-flash"
     ];
-    const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5, env.GEMINI_API_KEY].filter(Boolean);
-    if (!keys.length) return jsonError("No hay API keys de Gemini configuradas", 500);
+    if (!getGeminiKeys(env).length) return jsonError("No hay API keys de Gemini configuradas", 500);
     const maxImages = Math.min(imageFiles.length, 5);
     const results = [];
     const errores = [];
@@ -5858,27 +6207,24 @@ Respondé SOLO con JSON sin backticks:
 {"texto_extraido": "todo el texto que se ve en la imagen", "descripcion": "qué tipo de imagen es y qué información contiene"}`;
       let procesado = false;
       for (const model of VISION_MODELS) {
-        for (const key of keys) {
-          try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-            const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 1024 } }) });
-            if (res.ok) {
-              const data = await res.json();
-              const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-              const match = raw.match(/\{[\s\S]*\}/);
-              if (match) { try { const p = JSON.parse(match[0]); results.push(p); } catch(e) { results.push({ texto_extraido: raw.substring(0, 2000), descripcion: '' }); } }
-              else { results.push({ texto_extraido: raw.substring(0, 2000), descripcion: '' }); }
-              procesado = true;
-              break;
-            } else if (res.status === 429) { await sleep(2000); continue; }
-            else {
-              const errText = await res.text().catch(() => '');
-              errores.push(`${model}: HTTP ${res.status} ${errText.substring(0, 200)}`);
-              continue;
-            }
-          } catch(e) { errores.push(`${model}: ${e.message}`); continue; }
+        const visionPayload = { contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 1024 } };
+        const visionRes = await fetchGemini(env, visionPayload, { expectJson: true, modelOverride: model });
+        if (!visionRes.error && visionRes.data) {
+          const p = visionRes.data;
+          if (p.texto_extraido || p.descripcion) results.push(p);
+          else if (typeof p === 'object') results.push({ texto_extraido: JSON.stringify(p).substring(0, 2000), descripcion: '' });
+          else results.push({ texto_extraido: String(p).substring(0, 2000), descripcion: '' });
+          procesado = true;
+          break;
+        } else if (!visionRes.error && typeof visionRes.data === 'string') {
+          results.push({ texto_extraido: visionRes.data.substring(0, 2000), descripcion: '' });
+          procesado = true;
+          break;
+        } else {
+          const errMsg = visionRes.error || 'sin respuesta';
+          errores.push(`${model}: ${errMsg}${visionRes.details ? ' | ' + visionRes.details.slice(0,1).join(' ') : ''}`);
+          if (visionRes.details && visionRes.details.join(' ').includes('429')) await sleep(500);
         }
-        if (procesado) break;
       }
       if (!procesado) {
         errores.push(`No se pudo procesar imagen ${i+1} con ningún modelo`);
@@ -5890,11 +6236,9 @@ Respondé SOLO con JSON sin backticks:
     let tituloSugerido = '';
     if (textoCombinado.length > 30) {
       const tPrompt = `Basado en este texto extraído de una imagen, generá un título corto para nota periodística (máx 10 palabras):\n"""\n${textoCombinado.substring(0, 600)}\n"""\nRespondé SOLO con el título, sin comillas ni JSON.`;
-      for (const key of keys) {
-        try {
-          const res = await fetch(`${GEMINI_URL}?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: tPrompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 50 } }) });
-          if (res.ok) { const d = await res.json(); tituloSugerido = (d?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().replace(/^["']|["']$/g, ''); break; }
-        } catch(e) { continue; }
+      const tRes = await fetchGemini(env, { contents: [{ parts: [{ text: tPrompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 50 } }, { expectJson: false });
+      if (!tRes.error && tRes.data) {
+        tituloSugerido = String(tRes.data).trim().replace(/^["']|["']$/g, '').substring(0, 120);
       }
     }
     const response = { imagenes_procesadas: results.length, total_imagenes: imageFiles.length, titulo: tituloSugerido, texto: textoCombinado, descripcion: descripciones.join('; ') };
@@ -5918,42 +6262,86 @@ async function handlePostEditorial(body,env){
   try{await env.KV.put(EDITORIAL_KV_KEY,JSON.stringify({prompt:body.prompt.trim(),activo:!!body.activo}));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
+async function _getFuentesIndex(env) {
+  let f = await env.KV.get("fuentes_index","json");
+  if(!f) {
+    f = [];
+    const list = await env.KV.list({prefix:"fuente:"});
+    for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)f.push(v);}
+    await env.KV.put("fuentes_index",JSON.stringify(f));
+  }
+  return f;
+}
+async function _getNotasIndex(env) {
+  let n = await env.KV.get("notas_index","json");
+  if(!n) {
+    n = [];
+    const list = await env.KV.list({prefix:"nota:"});
+    for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)n.push(v);}
+    await env.KV.put("notas_index",JSON.stringify(n));
+  }
+  return n;
+}
+async function _getCubiertasIndex(env) {
+  let c = await env.KV.get("cubiertas_index","json");
+  if(!c) {
+    const list = await env.KV.list({prefix:"cubierta:"});
+    c = list.keys.map(k=>k.name.replace("cubierta:",""));
+    await env.KV.put("cubiertas_index",JSON.stringify(c));
+  }
+  return c;
+}
+
 async function handleGetFuentes(env){
-  try{const list=await env.KV.list({prefix:"fuente:"});const fuentes=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)fuentes.push(v)}fuentes.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));return jsonOk({fuentes})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{
+    const fuentes = await _getFuentesIndex(env);
+    fuentes.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+    return jsonOk({fuentes});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostFuente(body,env){
   const{id,nombre,url,clase}=body;if(!id||!nombre||!url) return jsonError("Faltan campos",400);
-  try{await env.KV.put(`fuente:${id}`,JSON.stringify({id,nombre,url,clase:clase||"custom"}));return jsonOk({guardado:true})}
+  try{let fuentes = await _getFuentesIndex(env);fuentes=fuentes.filter(f=>f.id!==id);fuentes.push({id,nombre,url,clase:clase||"custom"});await env.KV.put("fuentes_index",JSON.stringify(fuentes));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleDeleteFuente(url,env){
   const id=url.searchParams.get("id");if(!id) return jsonError("id requerido",400);
-  try{await env.KV.delete(`fuente:${id}`);return jsonOk({eliminado:true})}
+  try{let fuentes = await _getFuentesIndex(env);fuentes=fuentes.filter(f=>f.id!==id);await env.KV.put("fuentes_index",JSON.stringify(fuentes));return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleGetNotas(env){
-  try{const list=await env.KV.list({prefix:"nota:"});const notas=[];for(const k of list.keys){const v=await env.KV.get(k.name,"json");if(v)notas.push(v)}notas.sort((a,b)=>(b.fecha||0)-(a.fecha||0));return jsonOk({notas})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{
+    const notas = await _getNotasIndex(env);
+    notas.sort((a,b)=>(b.fecha||0)-(a.fecha||0));
+    return jsonOk({notas});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostNota(body,env){
   const{id,titular,cuerpo,categoria,hashtags,imagen,fecha}=body;if(!id||!titular) return jsonError("Faltan campos",400);
-  try{await env.KV.put(`nota:${id}`,JSON.stringify({id,titular,cuerpo,categoria,hashtags,imagen:imagen||'',fecha:fecha||Date.now()}));return jsonOk({guardado:true})}
+  try{let notas = await _getNotasIndex(env);notas=notas.filter(n=>n.id!==id);notas.push({id,titular,cuerpo,categoria,hashtags,imagen:imagen||'',fecha:fecha||Date.now()});await env.KV.put("notas_index",JSON.stringify(notas));return jsonOk({guardado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleDeleteNota(url,env){
   const id=url.searchParams.get("id");if(!id) return jsonError("id requerido",400);
-  try{await env.KV.delete(`nota:${id}`);return jsonOk({eliminado:true})}
+  try{let notas = await _getNotasIndex(env);notas=notas.filter(n=>n.id!==id);await env.KV.put("notas_index",JSON.stringify(notas));return jsonOk({eliminado:true})}
   catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handleGetCubiertas(env){
-  try{const list=await env.KV.list({prefix:"cubierta:"});return jsonOk({links:list.keys.map(k=>k.name.replace("cubierta:",""))})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{
+    const links = await _getCubiertasIndex(env);
+    return jsonOk({links});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 async function handlePostCubierta(body,env){
   const{link,cubierta}=body;if(!link) return jsonError("Falta link",400);
-  try{const key="cubierta:"+link.substring(0,400);if(cubierta)await env.KV.put(key,"1",{expirationTtl:60*60*24*30});else await env.KV.delete(key);return jsonOk({guardado:true})}
-  catch(err){return jsonError("Error KV: "+err.message,500)}
+  try{
+    let links = await _getCubiertasIndex(env);
+    const key=link.substring(0,400);
+    if(cubierta){if(!links.includes(key))links.push(key);}
+    else{links=links.filter(l=>l!==key);}
+    await env.KV.put("cubiertas_index",JSON.stringify(links));
+    return jsonOk({guardado:true});
+  }catch(err){return jsonError("Error KV: "+err.message,500)}
 }
 
 // ============================================================
@@ -5998,14 +6386,58 @@ async function handleWhatsappGenerar(body,env){
   const localidades=["San Rafael","General Alvear","Malargüe","Alvear"];
   const localidad=localidades.find(l=>(nota.titulo+nota.body).includes(l))||"San Rafael";
   const urlFinal=nota.urlCorta||nota.url||"";
+  let guardrailOn=false;
+  try{guardrailOn=(await env.KV.get(WA_GUARDRAIL_KV_KEY,"text"))==="on"}catch(e){}
+  let guardrailError=false;
+  let prompt="";
+  if(guardrailOn){
+    try{prompt=buildWhatsappPrompt({promptBase:pt,nota:{...nota,url:urlFinal},links,localidad,contextoExtra})}
+    catch(e){console.warn("[whatsapp] guardrail: error en build del prompt, fallback al prompt actual:",e.message);guardrailError=true}
+  }
+  if(!prompt){
   const pf=pt.replace(/\{URL\}/g,urlFinal).replace(/\{LINK_GRUPO\}/g,links.grupo).replace(/\{LINK_CANAL\}/g,links.canal).replace(/\{TITULO\}/g,nota.titulo||"Sin titulo").replace(/\{CATEGORIA\}/g,nota.categoria||"General").replace(/\{LOCALIDAD\}/g,localidad).replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
   const nd=pt.includes("{CONTENIDO}")?"" :`\n\nNOTICIA:\nTítulo: ${nota.titulo}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
-  const prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
-  const r=await callGemini(prompt,env);
-  if(r.error) return jsonError(r.error,500);
-  const grupo=(r.data?.grupo||"").trim();const canal=(r.data?.canal||"").trim();
-  if(!grupo||!canal) return jsonError("IA no devolvió ambos mensajes",502);
-  return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal});
+  prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
+  }
+  const geminiPromise = callGemini(prompt,env);
+  const timeoutPromise = sleep(22000).then(() => ({ error: 'deadline 22s - IA lenta/caída', details: ['timeout global whatsapp 22s'] }));
+  const r=await Promise.race([geminiPromise, timeoutPromise]);
+  if(r.error) {
+    console.warn("[whatsapp] IA no disponible, fallback determinístico:", r.error);
+    const snippet = (nota.body || nota.descripcion || "").slice(0, 140).trim();
+    const titulo = nota.titulo || "Sin título";
+    const cat = (nota.categoria || "General").toUpperCase();
+    let grupoFb = `*${cat}:* ${titulo}\n\n${snippet}${snippet.length>=140?"...":""}\n\n🔗 ${urlFinal}\n\n📱 Grupo: ${links.grupo}\n📣 Canal: ${links.canal}`;
+    let canalFb = `*${titulo}*\n\n• ${snippet}${snippet.length>=140?"...":""} 📍 ${localidad}\n\n🔗 ${urlFinal}`;
+    if(guardrailOn){
+      try{
+        grupoFb = normalizeWhatsappCopy(grupoFb,{tipo:'grupo',url:urlFinal,links});
+        canalFb = normalizeWhatsappCopy(canalFb,{tipo:'canal',url:urlFinal,links});
+      }catch(e){console.warn("[whatsapp] guardrail: error al normalizar fallback, texto sin tocar:",e.message);guardrailError=true}
+    }
+    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:guardrailError?['ia_no_disponible','guardrail_error']:['ia_no_disponible'], ia_error: r.error, ia_details: r.details || [] });
+  }
+  let grupo=(r.data?.grupo||"").trim();let canal=(r.data?.canal||"").trim();
+  if(!grupo||!canal) {
+    console.warn("[whatsapp] IA devolvió incompleto, fallback");
+    const snippet = (nota.body || "").slice(0, 140).trim();
+    let grupoFb = `*${(nota.categoria||"General").toUpperCase()}:* ${nota.titulo}\n\n${snippet}...\n\n🔗 ${urlFinal}\n📱 ${links.grupo}`;
+    let canalFb = `*${nota.titulo}*\n\n${snippet}...\n\n🔗 ${urlFinal}\n📣 ${links.canal}`;
+    if(guardrailOn){
+      try{
+        grupoFb = normalizeWhatsappCopy(grupoFb,{tipo:'grupo',url:urlFinal,links});
+        canalFb = normalizeWhatsappCopy(canalFb,{tipo:'canal',url:urlFinal,links});
+      }catch(e){console.warn("[whatsapp] guardrail: error al normalizar fallback, texto sin tocar:",e.message);guardrailError=true}
+    }
+    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:guardrailError?['ia_no_disponible','guardrail_error']:['ia_no_disponible'], ia_error: "IA no devolvió ambos mensajes" });
+  }
+  if(guardrailOn){
+    try{
+      grupo=(normalizeWhatsappCopy(grupo,{tipo:'grupo',url:urlFinal,links}));
+      canal=(normalizeWhatsappCopy(canal,{tipo:'canal',url:urlFinal,links}));
+    }catch(e){console.warn("[whatsapp] guardrail: error al normalizar, salida sin tocar:",e.message);guardrailError=true}
+  }
+  return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal, ...(guardrailError?{warnings:['guardrail_error']}:{})});
 }
 async function handlePostWhatsappProgramar(body,env){
   if(!body?.fecha) return jsonError("Falta fecha",400);
@@ -6072,88 +6504,133 @@ async function getEditorial(env){
   return null;
 }
 
-async function callGemini(prompt,env,searchEnabled=false,expectJson=true,modelOverride=null){
-  const keys=[env.GEMINI_KEY_1,env.GEMINI_KEY_2,env.GEMINI_KEY_3,env.GEMINI_KEY_4,env.GEMINI_KEY_5].filter(Boolean);
-  if(!keys.length) return {error:"No hay API keys de Gemini configuradas"};
-  // La API REST de Gemini requiere camelCase (googleSearch)
-  const makeBody=s=>{const b={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:8000}};if(s)b.tools=[{googleSearch:{}}];return b};
-  
-  let lastError = "Todas las API keys están agotadas u ocurrió un error desconocido.";
-  const modelToUse = modelOverride || GEMINI_MODEL;
-  const geminiUrl = GEMINI_URL.replace(GEMINI_MODEL, modelToUse);
-  
-  for(let i=0;i<keys.length;i++){
-    for(let intento=1;intento<=2;intento++){
-      try{
-        const body=makeBody(searchEnabled);
-        const res=await fetch(`${geminiUrl}?key=${keys[i]}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-        
-        if(!res.ok){
-          const errBody=await res.text().catch(()=>'');
-          if(res.status===429){
-            lastError = `HTTP 429 (Rate Limit / Quota Exceeded) para la key ${i+1}.`;
-            return {error: lastError}; // Abortar: si una key da 429, todas van a dar 429 (misma IP/proyecto)
-          }
-          if(res.status===400){
-            if(searchEnabled){
-              // Tool no soportado por este modelo, reintentar sin search
-              searchEnabled=false; intento=0; continue;
-            }
-            lastError = `HTTP 400 (Bad Request): ${errBody.substring(0,200)}`;
-            return {error: lastError};
-          }
-          if(res.status===403){
-             lastError = `HTTP 403 (Forbidden/Quota): ${errBody.substring(0,200)}`;
-             break; // Intenta otra key
-          }
-          if(res.status>=500){
-             lastError = `HTTP ${res.status} (Gemini Down): ${errBody.substring(0,200)}`;
-             if(intento<2){await sleep(3000);continue}else break;
-          }
-          lastError = `HTTP Error ${res.status}: ${errBody.substring(0,200)}`;
-          break;
-        }
-        
-        const data=await res.json();
-        const candidate=data?.candidates?.[0];
-        if(!candidate){
-          lastError = "No candidate: " + JSON.stringify(data);
-          return {error: lastError};
-        }
-        
-        const raw=candidate?.content?.parts?.[0]?.text||"";
-        if(!raw){
-           lastError = "No text: " + JSON.stringify(candidate);
-           return {error: lastError};
-        }
-        
-        if(!expectJson) return {data: raw};
-        
-        let parsed;
-        try{parsed=JSON.parse(raw)}catch{
-          const match=raw.match(/\{[\s\S]*\}/);
-          if(!match){
-             lastError = "Regex match failed. Raw: " + raw;
-             return {error: lastError};
-          }
-          try{parsed=JSON.parse(match[0])}catch{
-             lastError = "JSON parse failed on match. Raw: " + raw;
-             return {error: lastError};
-          }
-        }
-        return {data:parsed};
-      }catch(err){
-        lastError = `Excepción JS: ${err.message}`;
-        if(intento<2) await sleep(3000);
-      }
-    }
-  }
-  return {error: lastError};
+async function callGemini(prompt, env, searchEnabled = false, expectJson = true, modelOverride = null) {
+  return await fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }] }, { searchEnabled, expectJson, modelOverride });
 }
 
-// ============================================================
-// MÚSICA DE FONDO - FREESOUND API
-// ============================================================
+
+
+async function fetchGemini(env, payload, { searchEnabled = false, expectJson = true, modelOverride = null } = {}) {
+  const availableKeys = getGeminiKeys(env);
+  if (!availableKeys.length) return { error: "No hay API keys de Gemini configuradas" };
+  const startIndex = Math.floor(Math.random() * availableKeys.length);
+  const keys = [...availableKeys.slice(startIndex), ...availableKeys.slice(0, startIndex)];
+  const requestedModel = modelOverride || GEMINI_MODEL;
+  const modelsToTry = requestedModel === GEMINI_FALLBACK ? [requestedModel] : [...new Set([requestedModel, GEMINI_FALLBACK])];
+
+  const makeBody = (s) => {
+    const b = { ...payload, generationConfig: { temperature: 0.4, maxOutputTokens: 2048, ...payload.generationConfig } };
+    if (s) b.tools = [{ googleSearch: {} }];
+    return b;
+  };
+
+  const getRetryDelay = (intento, res) => {
+    const retryAfter = res?.headers?.get?.('Retry-After');
+    if (retryAfter) {
+      const secs = Number(retryAfter);
+      if (Number.isFinite(secs) && secs > 0 && secs < 60) return Math.ceil(secs * 1000);
+    }
+    return Math.floor(700 * Math.pow(1.9, intento - 1) + Math.random() * 400);
+  };
+
+  const get503Delay = (intento) => {
+    return Math.floor(2000 * Math.pow(2, intento - 1) + Math.random() * 1000);
+  };
+
+  const modelErrors = [];
+  const maxRetries = 2;
+
+  for (const model of modelsToTry) {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    let search = searchEnabled;
+    let hadModelNotFound = false;
+
+    for (let i = 0; i < keys.length; i++) {
+      for (let intento = 1; intento <= maxRetries; intento++) {
+        try {
+          const body = makeBody(search);
+          const res = await fetch(`${geminiUrl}?key=${keys[i]}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+
+          if (!res.ok) {
+            const errBody = await res.text().catch(() => '');
+            const snippet = errBody ? `: ${errBody.substring(0, 300)}` : '';
+            if (res.status === 429) {
+              const msg = `[${model}] Key ${i + 1}/${keys.length} → 429 Rate Limit${snippet}`;
+              modelErrors.push(msg);
+              console.warn(`[fetchGemini] ${msg}`);
+              // No reintentamos con la misma key si hay 429, pasamos rápido a la siguiente
+              break;
+            }
+            if (res.status === 400) {
+              if (search) { search = false; continue; }
+              const msg = `[${model}] Key ${i + 1}/${keys.length} → 400 Bad Request${snippet}`;
+              modelErrors.push(msg);
+              console.warn(`[fetchGemini] ${msg}`);
+              break;
+            }
+            if (res.status === 404) {
+              const msg = `[${model}] Key ${i + 1}/${keys.length} → 404 Model Not Found${snippet}`;
+              modelErrors.push(msg);
+              console.warn(`[fetchGemini] ${msg}`);
+              if (model === requestedModel && modelsToTry.length > 1) hadModelNotFound = true;
+              i = keys.length; // Break el outer loop (keys) ya que un 404 es problema del modelo, no de la key
+              break;
+            }
+            if (res.status >= 500) {
+              const msg = `[${model}] Key ${i + 1}/${keys.length} → ${res.status} Gemini Down (intento ${intento})${snippet}`;
+              modelErrors.push(msg);
+              console.warn(`[fetchGemini] ${msg}`);
+              if (intento < maxRetries) { await sleep(get503Delay(intento)); continue; }
+              break;
+            }
+            if (res.status === 401 || res.status === 403) {
+              const msg = `[${model}] Key ${i + 1}/${keys.length} → HTTP ${res.status} Auth${snippet}`;
+              modelErrors.push(msg);
+              console.warn(`[fetchGemini] ${msg}`);
+              break;
+            }
+            modelErrors.push(`[${model}] Key ${i + 1}/${keys.length} → HTTP ${res.status}${snippet}`);
+            break;
+          }
+
+          const data = await res.json();
+          const candidate = data?.candidates?.[0];
+          if (!candidate) return { error: "No candidate: " + JSON.stringify(data), details: modelErrors };
+
+          const raw = candidate?.content?.parts?.[0]?.text || "";
+          if (!raw) return { error: "No text: " + JSON.stringify(candidate), details: modelErrors };
+
+          if (!expectJson) return { data: raw };
+
+          try {
+            return { data: JSON.parse(raw) };
+          } catch {
+            const match = raw.match(/\{[\s\S]*\}/);
+            if (match) {
+              try { return { data: JSON.parse(match[0]) }; } catch { }
+            }
+            return { error: "JSON parse failed. Raw: " + raw, details: modelErrors };
+          }
+        } catch (err) {
+          console.warn(`[fetchGemini] [${model}] Key ${i + 1} error: ${err.message}`);
+          modelErrors.push(`[${model}] Key ${i + 1} exception: ${err.message}`);
+          if (intento < maxRetries) await sleep(getRetryDelay(intento));
+          else break;
+        }
+      }
+    }
+    if (hadModelNotFound) {
+      console.warn(`[fetchGemini] Modelo ${model} no encontrado, probando fallback ${modelsToTry[modelsToTry.indexOf(model)+1] || ''}`);
+      continue;
+    }
+    if (model !== modelsToTry[modelsToTry.length - 1]) {
+      const hasOnlyAuthErrors = modelErrors.filter(m => m.includes(`[${model}]`)).every(m => m.includes('401') || m.includes('403') || m.includes('404'));
+      if (hasOnlyAuthErrors) continue;
+    }
+  }
+  return { error: "Todas las keys de Gemini fallaron", details: modelErrors };
+}
+
 
 async function handleMusicSearch(url, env) {
   const query = url.searchParams.get('q') || '';
@@ -6501,7 +6978,7 @@ async function handleCloudinaryVideoCreate(body, url, env) {
   if (Number(body?.source?.size) > 100 * 1024 * 1024) return jsonError('La exportación rápida admite videos de hasta 100 MB.', 400);
   const id = crypto.randomUUID().replaceAll('-', '');
   let job;
-  try { job = createCloudinaryVideoJob({ id, format: body?.format, framingMode: body?.framingMode, layers: body?.layers, origin: url.origin }); } catch (error) { return jsonError(error.message || 'Capas editoriales inválidas.', 400); }
+  try { job = createCloudinaryVideoJob({ id, format: body?.format, framingMode: body?.framingMode, layers: body?.layers, origin: url.origin, trim: body?.trim }); } catch (error) { return jsonError(error.message || 'Capas editoriales inválidas.', 400); }
   await saveCloudinaryVideoJob(env, job);
   const timestamp = Math.floor(Date.now() / 1000);
   const upload = async (resourceType, publicId) => {
@@ -7332,7 +7809,7 @@ export default {
 
     if(request.method!=="POST") return jsonError("Método no permitido",405);
 
-        // ============================================================
+    // ============================================================
     // PRIMERO: rutas que NO usan JSON (FormData)
     // ============================================================
     if (path === "/studio/transcribir") {
@@ -7386,6 +7863,7 @@ export default {
     if(path==="/agenda/evento")                      return handlePostAgendaEvento(body,env);
     if(path==="/agenda/efemeride")                   return handlePostAgendaEfemeride(body,env);
     if(path==="/agenda/angulos")                     return handleAgendaAngulos(body,env);
+    if(path==="/agenda/efemeride/descripcion")       return handleSugerirEfemerideDesc(body,env);
     if(path==="/resumen/generar")                    return handleResumenGenerar(body, env);
     if(path==="/resumen/agregar")                    return handleResumenAgregar(body, env);
     if(path==="/resumen/eliminar")                   return handleResumenEliminar(body, env);
@@ -7399,6 +7877,7 @@ export default {
     if(path==="/visual/generar")                     return handleVisualGenerar(body, env);
     if(path==="/visual/extraer")                     return handleVisualExtraer(body, env);
     if(path==="/visual/ilustrar")                    return handleVisualIlustrar(body, env);
+    if(path==="/contexto/generar")                   return handleContextoGenerar(body, env);
     if(path==="/placas/v2/generar")                  return handlePlacasV2Generar(body, env);
     if(path==="/placas/v2/paquete")                  return handlePlacasV2Paquete(body, env);
     if(path==="/video-vertical/cloudinary/crear")    return handleCloudinaryVideoCreate(body, url, env);
@@ -7437,7 +7916,7 @@ async function handleVisualIlustrar(body, env) {
   const prompt = String(body.prompt || "").trim();
   if (!prompt) return jsonError("Falta prompt", 400);
 
-  const keys = [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5].filter(Boolean);
+  const keys = getGeminiKeys(env);
   if (!keys.length) return jsonError("No hay API keys de Gemini configuradas", 500);
 
   const bodyReq = {
@@ -7445,6 +7924,7 @@ async function handleVisualIlustrar(body, env) {
     generationConfig: { responseModalities: ["IMAGE", "TEXT"] }
   };
 
+  const ilustrarErrors = [];
   for (let i = 0; i < keys.length; i++) {
     try {
       const res = await fetch(`${GEMINI_IMAGEN_URL}?key=${keys[i]}`, {
@@ -7454,8 +7934,11 @@ async function handleVisualIlustrar(body, env) {
       });
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
-        console.error(`Ilustrar ${res.status} key#${i + 1}:`, errBody);
-        if (res.status >= 400 && res.status < 500) return jsonError(`Error ${res.status}: ${errBody.substring(0, 200)}`, res.status);
+        const msg = `Ilustrar ${res.status} key#${i + 1}: ${errBody.substring(0, 200)}`;
+        console.error(msg);
+        ilustrarErrors.push(msg);
+        if (res.status === 429) { await sleep(1500); }
+        else if (res.status >= 500) { await sleep(1000); }
         continue;
       }
       const data = await res.json();
@@ -7469,9 +7952,10 @@ async function handleVisualIlustrar(body, env) {
       return jsonError("El modelo no devolvió una imagen", 500);
     } catch (err) {
       console.error("Ilustrar error:", err);
+      ilustrarErrors.push(`key#${i + 1} exception: ${err.message}`);
     }
   }
-  return jsonError("No se pudo generar la ilustración (modelo de imagen agotado o no disponible)", 500);
+  return jsonError("No se pudo generar la ilustración (modelo de imagen agotado o no disponible): " + ilustrarErrors.slice(0,2).join(' | '), 500);
 }
 
 async function handleVisualExtraer(body, env) {
@@ -7556,6 +8040,139 @@ Respondé SOLO con el JSON.`;
     infografia: raw.infografia || null,
     modo,
     url
+  });
+}
+
+// ============================================================
+// CONTEXTO Y ANTECEDENTES - Para entender en 3 datos
+// POST /contexto/generar { url, titulo?, texto?, categoria? }
+// ============================================================
+async function handleContextoGenerar(body, env) {
+  const url = String(body.url || "").trim();
+  const tituloInput = String(body.titulo || "").trim();
+  const textoInput = String(body.texto || "").trim();
+  const categoriaInput = String(body.categoria || "").trim();
+  if (!url) return jsonError("Falta URL", 400);
+  try { new URL(url); } catch { return jsonError("URL inválida", 400); }
+
+  let titulo = tituloInput;
+  let texto = textoInput;
+  let categoria = categoriaInput;
+  let imagen = String(body.imagen || "").trim();
+
+  // Si falta texto, scrapeamos
+  if (!texto || texto.length < 120) {
+    try {
+      const { html } = await fetchHtml(url, 300);
+      const data = extraerDatosNota(html, url);
+      titulo = titulo || data.title || "";
+      texto = data.body || texto;
+      categoria = categoria || data.category || "";
+      imagen = imagen || data.image || "";
+      if (!texto || texto.length < 120) return jsonError("No se pudo extraer contenido útil de la nota. Probá con otra URL.", 422);
+    } catch (err) {
+      return jsonError("No se pudo leer la nota: " + err.message, 502);
+    }
+  }
+
+  texto = texto.substring(0, 8000);
+  titulo = titulo.substring(0, 200);
+  categoria = categoria.substring(0, 40);
+
+  const prompt = `Sos editor de Media Mendoza, diario del sur mendocino (San Rafael, Mendoza, Argentina). Analizá esta nota y generá CONTEXTO y RECURSOS VISUALES para enriquecerla.
+
+NOTA ORIGINAL:
+Título: ${titulo || "(sin título)"}
+Categoría: ${categoria || "general"}
+URL: ${url}
+Cuerpo (primeros 8000 chars):
+${texto}
+
+INSTRUCCIONES ESTRICTAS:
+- Respondé SOLO con JSON válido sin markdown, sin backticks, sin comentarios.
+- "para_entender": string único con formato "Para entender: 1) ... 2) ... 3) ..." Cada dato debe ser verificable en el cuerpo, máximo 28 palabras por dato. No inventes cifras.
+- "para_entender_datos": array de 3 strings, cada uno un dato suelto (sin "1)"), para usar en placa que-cambia.
+- "que_paso_antes": array de exactamente 3 objetos {"titulo": "...", "fuente": "Los Andes|MDZ|Infobae|Gobierno de Mendoza", "fecha": "DD/MM/AA", "url": "https://..."} con antecedentes relevantes.
+- "gancho_whatsapp": string 55-65 palabras, tono rioplatense directo, sin hashtags.
+- "preguntas": array de 5 preguntas periodísticas concretas.
+- "timeline": Si la nota tiene evolución temporal clara (fechas, hitos, proceso), devolvé array de 4 hitos [{"label": "2024", "value": "$480", "sub": "Tarifa"}, ...] el último con "highlight": true. Si NO hay evolución temporal, devolvé null.
+- "chart": Si la nota tiene datos comparables NUMÉRICOS (montos, porcentajes, cantidades por categoría/mes), devolvé {"titulo": "Título del gráfico", "tipo": "bar|line|pie", "datos": [{"label": "Et1", "value": 123}, ... 3-6 items]} con valores numéricos. Si NO hay datos graficables, devolvé null. Usa "bar" para comparaciones, "line" para evolución, "pie" para proporciones.
+- "infografia": Si la nota tiene 3-5 datos de alto impacto (cifras, fechas clave, récords) que ameriten una infografía, devolvé {"titulo": "Título infografía", "lineas": ["Dato 1 con cifra", "Dato 2", "Dato 3"]} . Si NO aplica, devolvé null.
+- "categoria": una de general, clima, policiales, sociales, politica, economia, deportes.
+- "titulo_corto": máximo 60 caracteres.
+- "titulo_placa": máximo 75 caracteres.
+
+REGLAS DE NULOS: Sé estricto. Si no hay datos para chart/timeline/infografia, devolvé null y esa placa NO se generará. No inventes.
+
+Formato JSON exacto:
+{"titulo_corto":"...","titulo_placa":"...","categoria":"...","para_entender":"Para entender: 1) ... 2) ... 3) ...","para_entender_datos":["dato1","dato2","dato3"],"que_paso_antes":[{"titulo":"...","fuente":"...","fecha":"...","url":"..."},{"titulo":"...","fuente":"...","fecha":"...","url":"..."},{"titulo":"...","fuente":"...","fecha":"...","url":"..."}],"gancho_whatsapp":"...","preguntas":["...","...","...","...","..."],"timeline":[{"label":"...","value":"...","sub":"..."},null],"chart":null,"infografia":null}`;
+
+  const r = await callGemini(prompt, env, false, true);
+  if (r.error) return jsonError(r.error, 500);
+  const d = r.data || {};
+
+  // Normalización defensiva
+  const paraEntender = String(d.para_entender || "").trim() || `Para entender: ${String(d.para_entender_datos?.[0]||"").trim()} · ${String(d.para_entender_datos?.[1]||"").trim()} · ${String(d.para_entender_datos?.[2]||"").trim()}`;
+  const paraDatos = Array.isArray(d.para_entender_datos) ? d.para_entender_datos.slice(0,3).map(s=>String(s).trim()).filter(Boolean) : [];
+  const quePaso = Array.isArray(d.que_paso_antes) ? d.que_paso_antes.slice(0,3).map(it=>({
+    titulo: String(it.titulo||"").trim(),
+    fuente: String(it.fuente||"").trim() || "Medio nacional",
+    fecha: String(it.fecha||"").trim(),
+    url: String(it.url||"").trim()
+  })).filter(it=>it.titulo) : [];
+  const gancho = String(d.gancho_whatsapp||"").trim();
+  const preguntas = Array.isArray(d.preguntas) ? d.preguntas.slice(0,5).map(s=>String(s).trim()).filter(Boolean) : [];
+  // Timeline: null si no aplica
+  let timeline = null;
+  if (Array.isArray(d.timeline) && d.timeline.length >= 2) {
+    timeline = d.timeline.slice(0,4).map((it,i,arr)=>({
+      label: String(it.label||`Hito ${i+1}`).trim(),
+      value: String(it.value||"").trim(),
+      sub: String(it.sub||"").trim(),
+      highlight: i===arr.length-1 ? true : Boolean(it.highlight)
+    })).filter(it=>it.label && it.value);
+    if (timeline.length < 2) timeline = null;
+  }
+  // Chart: null si no aplica
+  let chart = null;
+  if (d.chart && typeof d.chart === 'object' && Array.isArray(d.chart.datos) && d.chart.datos.length >= 2) {
+    const tipo = ['bar','line','pie','doughnut'].includes(String(d.chart.tipo||'').toLowerCase()) ? String(d.chart.tipo).toLowerCase() : 'bar';
+    const datos = d.chart.datos.slice(0,6).map(it=>({
+      label: String(it.label||'').trim(),
+      value: Number(it.value)
+    })).filter(it=>it.label && Number.isFinite(it.value));
+    if (datos.length >= 2) {
+      chart = { titulo: String(d.chart.titulo||'').trim() || 'Datos comparados', tipo, datos };
+    }
+  }
+  // Infografia: null si no aplica
+  let infografia = null;
+  if (d.infografia && typeof d.infografia === 'object' && Array.isArray(d.infografia.lineas) && d.infografia.lineas.length >= 2) {
+    const lineas = d.infografia.lineas.slice(0,5).map(s=>String(s).trim()).filter(Boolean);
+    if (lineas.length >= 2) {
+      infografia = { titulo: String(d.infografia.titulo||'').trim() || 'Datos clave', lineas };
+    }
+  }
+  const categoriaOut = String(d.categoria||categoria||"general").toLowerCase().trim() || "general";
+  const tituloCorto = String(d.titulo_corto||titulo||"").trim().substring(0,80);
+  const tituloPlaca = String(d.titulo_placa||tituloCorto||titulo||"").trim().substring(0,90);
+
+  if (!paraDatos.length && !paraEntender) return jsonError("La IA no generó contexto. Probá de nuevo.", 502);
+
+  return jsonOk({
+    url,
+    titulo: tituloCorto,
+    titulo_placa: tituloPlaca,
+    categoria: categoriaOut,
+    imagen,
+    para_entender: paraEntender,
+    para_entender_datos: paraDatos.length ? paraDatos : [paraEntender],
+    que_paso_antes: quePaso,
+    gancho_whatsapp: gancho,
+    preguntas,
+    timeline: timeline,
+    chart: chart,
+    infografia: infografia
   });
 }
 
@@ -7728,15 +8345,25 @@ async function handlePlacasV2Generar(body, env) {
   if (!hasContent) return jsonError('Falta la nota extraída', 400);
 
   const fallback = deterministicEditorialResponse(note);
+  const cacheKey = `placas-v2:gen:${String(note.url || note.title || note.titulo || '').slice(0,120)}:${String(note.body || note.texto || '').slice(0,80)}`;
+  if (env.KV && !body?.noCache) {
+    try { const cached = await env.KV.get(cacheKey, 'json'); if (cached?.placa) return jsonOk({ placa: cached.placa, warnings: [], cached: true }); } catch {}
+  }
   try {
-    const result = await callGemini(buildPlateEditorialPrompt(note), env);
+    const prompt = buildPlateEditorialPrompt(note);
+    const aiPromise = callGemini(prompt, env, false, true, null);
+    const timeoutPromise = sleep(20000).then(() => ({ error: 'deadline 20s - IA lenta/caída, usando fallback determinístico', details: ['timeout global 20s'] }));
+    const result = await Promise.race([aiPromise, timeoutPromise]);
     if (result.error || !result.data || typeof result.data !== 'object') {
-      return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'] });
+      console.warn('[handlePlacasV2Generar] IA no disponible:', result?.error);
+      return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'], ia_error: result?.error || 'respuesta vacía', ia_details: result?.details || [] });
     }
     const placa = normalizeEditorialResponse(result.data, note);
+    if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify({ placa }), { expirationTtl: 1800 }); } catch {} }
     return jsonOk({ placa, warnings: [] });
   } catch (error) {
-    return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'] });
+    console.warn('[handlePlacasV2Generar] excepción:', error?.message);
+    return jsonOk({ placa: fallback, warnings: ['ia_no_disponible'], ia_error: error?.message || String(error) });
   }
 }
 
@@ -7754,17 +8381,26 @@ async function handlePlacasV2Paquete(body, env) {
 
   let placa;
   let warnings = [];
+  let ia_error = null;
+  let ia_details = [];
   try {
-    const result = await callGemini(buildPlateEditorialPrompt(note), env);
+    const aiPromise = callGemini(buildPlateEditorialPrompt(note), env, false, true, null);
+    const toP = sleep(20000).then(() => ({ error: 'deadline 20s - IA lenta/caída, usando fallback', details: ['timeout global 20s'] }));
+    const result = await Promise.race([aiPromise, toP]);
     if (result.error || !result.data || typeof result.data !== 'object') {
+      console.warn('[handlePlacasV2Paquete] IA no disponible:', result?.error);
       placa = deterministicEditorialResponse(note);
       warnings = ['ia_no_disponible'];
+      ia_error = result?.error || 'respuesta vacía';
+      ia_details = result?.details || [];
     } else {
       placa = normalizeEditorialResponse(result.data, note);
     }
   } catch (error) {
+    console.warn('[handlePlacasV2Paquete] excepción:', error?.message);
     placa = deterministicEditorialResponse(note);
     warnings = ['ia_no_disponible'];
+    ia_error = error?.message || String(error);
   }
 
   // Las imágenes de la nota actual son la fuente de verdad. La placa puede
