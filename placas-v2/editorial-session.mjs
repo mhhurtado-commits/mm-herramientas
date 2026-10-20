@@ -43,3 +43,14 @@ export function getOutputAvailability(editorialPackage = {}) {
     reel: requested.includes('reel'),
   };
 }
+
+export async function loadEditorialSessionFromPackage(pkg, outputs = ['placa'], dependencies = {}) {
+  const normalized = normalizeEditorialPackage(pkg);
+  if (!normalized.ok) throw new Error(normalized.errors.join('. '));
+  const session = createEditorialSession({ url: normalized.package.fuente?.url || '', outputs });
+  session.package = normalized.package;
+  session.note = { ...normalized.package.fuente };
+  session.plate = normalizeNewsPlate(packageToPlateInput(session.package));
+  session.variants = buildEditorialVariants(session.plate);
+  return session;
+}

@@ -1,7 +1,7 @@
 import { normalizeFocus, calculatePlateLayout, buildPlateExportMetadata, FORMATS, PLATE_TYPES, normalizeAlertPlate, normalizeServicePlate, resolveAlertSeverity, resolveServiceType, buildServicioPlacas, parseServicioDetalles, validarDetallesContraFuente } from './editorial-core.mjs';
 import { renderNewsPlate } from './renderer.mjs';
-import { loadEditorialSession } from './editorial-session.mjs';
-import { createEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
+import { loadEditorialSession, loadEditorialSessionFromPackage } from './editorial-session.mjs';
+import { createEditorialHandoff, parseEditorialHandoff, EDITORIAL_HANDOFF_KEY } from './output-handoff.mjs';
 import { generateEditorialOutputs } from './editorial-output-generation.mjs';
 import { getEfemeridesForDate } from './efemerides-data.mjs';
 import { buildEfemeridesSocialPrompt, normalizeEfemeridesSocialCopies } from './efemerides-social.mjs';
@@ -772,3 +772,29 @@ plateCanvas.addEventListener('pointermove', event => {
 const stopDragging = () => { state.drag = null; plateCanvas.classList.remove('is-dragging'); };
 plateCanvas.addEventListener('pointerup', stopDragging);
 plateCanvas.addEventListener('pointercancel', stopDragging);
+
+async function consumePublishHandoff() {
+  try {
+    const handoff = parseEditorialHandoff(sessionStorage.getItem(EDITORIAL_HANDOFF_KEY));
+    if (!handoff || handoff.origen !== 'publicar' || !['placas', 'carrusel', 'reel', 'video'].includes(handoff.output)) return;
+    const session = await loadEditorialSessionFromPackage(handoff.package, ['placa']);
+    state.note = session.note;
+    state.package = session.package;
+    state.outputs = session.outputs;
+    state.plate = session.plate;
+    state.variants = session.variants;
+    state.selectedVariant = 0;
+    state.selectedTemplate = state.plate.tipo_placa || state.variants[0]?.tipo_placa || 'noticia';
+    state.format = 'portrait';
+    state.imageIndex = 0; state.personImages = {}; state.supportImage = null; state.supportImageUrl = ''; state.imagePositioned = true;
+    $('#editorControls').classList.remove('is-hidden');
+    renderOutputs(); renderVariants(); renderFormats(); renderImages(); syncEditor();
+    await loadImage(state.plate.fuente?.imagenes?.[0]);
+    render();
+    toast('Nota preparada desde /publicar — sin re-extracción');
+    sessionStorage.removeItem(EDITORIAL_HANDOFF_KEY);
+  } catch {
+    sessionStorage.removeItem(EDITORIAL_HANDOFF_KEY);
+  }
+}
+consumePublishHandoff();

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadEditorialSession, getOutputAvailability } from './editorial-session.mjs';
+import { loadEditorialSession, loadEditorialSessionFromPackage, getOutputAvailability } from './editorial-session.mjs';
 
 const note = {
   url: 'https://mediamendoza.com/politica/123',
@@ -70,4 +70,30 @@ test('la disponibilidad se obtiene del paquete sin volver a extraer', () => {
     reel: false,
   });
   assert.deepEqual(getOutputAvailability({}), { placas: false, carrusel: false, reel: false });
+});
+
+test('loadEditorialSessionFromPackage construye sesión sin llamar extract ni generate', async () => {
+  let llamadas = 0;
+  const session = await loadEditorialSessionFromPackage(packageResponse.paquete, ['placa'], {
+    extract: async () => { llamadas += 1; return {}; },
+    generate: async () => { llamadas += 1; return {}; },
+  });
+
+  assert.equal(llamadas, 0);
+  assert.equal(session.package.tipo, 'noticia_editorial');
+  assert.equal(session.package.version, 2);
+  assert.equal(session.url, note.url);
+  assert.deepEqual(session.note, packageResponse.paquete.fuente);
+  assert.ok(session.plate);
+  assert.equal(session.plate.titulo, note.title);
+  assert.ok(Array.isArray(session.variants));
+  assert.equal(session.variants.length, 3);
+  assert.deepEqual(session.warnings, []);
+});
+
+test('rechaza paquete inválido con errores legibles', async () => {
+  await assert.rejects(() => loadEditorialSessionFromPackage({ tipo: 'otro' }), err => {
+    assert.ok(err.message.includes('tipo inválido'));
+    return true;
+  });
 });
