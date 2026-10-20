@@ -141,6 +141,24 @@ Víctor Benítez regresó a su casa tras el alta.
   assert.ok(salida.trimEnd().endsWith(WA_FIRMA));
 });
 
+test('URL de la nota queda en el MISMO renglon del CTA (🔗 CTA 👉 url)', () => {
+  const salida = normalizeWhatsappCopy(
+    `*SALUD:* Titular\nCuerpo de la nota.\n\n🔗 *Leé todos los detalles:*`,
+    { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(salida.includes('🔗 *Leé todos los detalles:* 👉 https://mm.in/abc'), JSON.stringify(salida));
+  const salidaCanal = normalizeWhatsappCopy(
+    `*SALUD:* Titular\n\n• punto\n\n🔗 *Leé todo:*`,
+    { tipo: 'canal', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(salidaCanal.includes('🔗 *Leé todo:* 👉 https://mm.in/abc'));
+});
+
+test('linea en blanco antes de la firma (grupo tras el CTA y canal tras el link)', () => {
+  const grupo = normalizeWhatsappCopy(`*SALUD:* Titular\nCuerpo.\n\n🔗 *Leé:*`, { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(grupo.includes(`📣 *Canal de Difusión:* ${LINKS.canal}\n\n${WA_FIRMA}`), JSON.stringify(grupo));
+  const canal = normalizeWhatsappCopy(`*SALUD:* Titular\n\n🔗 *Leé:*`, { tipo: 'canal', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(canal.includes(`👉 https://mm.in/abc\n\n${WA_FIRMA}`), JSON.stringify(canal));
+});
+
 test('los sustitutos dinamicos del prompt usan replacer seguro ($& del titulo no se expande)', () => {
   const nota = { ...NOTA, titulo: 'Corte en Ruta $& por protesta' };
   const prompt = buildWhatsappPrompt({ promptBase: 'TITULO: {TITULO}', nota, links: LINKS, localidad: 'San Rafael' });

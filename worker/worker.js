@@ -5367,10 +5367,10 @@ function normalizeWhatsappCopy(mensaje, { tipo = 'grupo', url = '', links = {} }
   texto = texto.replace(/\n{3,}/g, '\n\n').trim();
   texto = desduplicarUrlNota(texto, url);
   if (tipo === 'canal') {
-    return `${texto}\n${WA_FIRMA}`.trim();
+    return `${texto}\n\n${WA_FIRMA}`.trim();
   }
   const cta = buildCtaComunidad(links);
-  return `${texto}\n\n${cta}${cta ? '\n' : ''}${WA_FIRMA}`.trim();
+  return `${texto}\n\n${cta}${cta ? '\n\n' : ''}${WA_FIRMA}`.trim();
 }
 
 function desduplicarUrlNota(texto, url) {
@@ -5379,7 +5379,10 @@ function desduplicarUrlNota(texto, url) {
   texto = texto.replace(/https?:\/\/[^\s<>"']+/g, (m) => (new RegExp(`^${urlEscapada}$`, 'i').test(m.trim()) ? m : url));
   if (!texto.includes(url)) {
     if (/🔗/.test(texto)) {
-      texto = texto.replace(/^(.*🔗[^\n]*)$/m, (linea) => linea.replace(/[ \t]*$/, '') + `\n👉 ${url}`);
+      texto = texto.replace(/^(.*🔗[^\n]*)$/m, (linea) => {
+        const base = linea.replace(/[ \t]+$/, '');
+        return base.endsWith('👉') ? `${base} ${url}` : `${base} 👉 ${url}`;
+      });
     } else {
       texto += `\n\n🔗 👉 ${url}`;
     }
