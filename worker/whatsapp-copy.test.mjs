@@ -68,6 +68,38 @@ test('filtro de líneas CTA cubre radio emoji y variantes de texto', () => {
   assert.ok(!salida.includes('chat.whatsapp.com/FALSO0'));
 });
 
+test('elimina el token {ENLACE} literal copiado del ejemplar y conserva la url canonica', () => {
+  const salida = normalizeWhatsappCopy(
+    `*SAN RAFAEL:* Corte de ruta\n\n🔗 *MÁS DETALLES:* 👉 {ENLACE}`,
+    { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(!salida.includes('{ENLACE}'));
+  assert.ok(salida.includes('https://mm.in/abc'));
+  assert.ok(salida.includes('🔗 *MÁS DETALLES:*'));
+});
+
+test('el prompt no mete el token {ENLACE} copiable en el ejemplar (texto natural en su lugar)', () => {
+  const base = `FORMATO grupo:\n🔗 *DETALLES:* 👉 {URL}`;
+  const prompt = buildWhatsappPrompt({ promptBase: base, nota: NOTA, links: LINKS, localidad: 'San Rafael' });
+  assert.ok(!prompt.includes('{ENLACE}'));
+  assert.ok(prompt.includes('el sistema agrega el enlace'));
+});
+
+test('elimina la firma embebida a mitad de linea (sin doble firma)', () => {
+  const salida = normalizeWhatsappCopy(
+    `*SAN RAFAEL:* Corte de ruta de ${WA_FIRMA} ayer\n\n🔗 👉 https://mm.in/abc`,
+    { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
+  assert.equal(salida.split(WA_FIRMA).length - 1, 1);
+  assert.ok(salida.includes('Corte de ruta de'));
+  assert.ok(salida.includes('ayer'));
+});
+
+test('los sustitutos dinamicos del prompt usan replacer seguro ($& del titulo no se expande)', () => {
+  const nota = { ...NOTA, titulo: 'Corte en Ruta $& por protesta' };
+  const prompt = buildWhatsappPrompt({ promptBase: 'TITULO: {TITULO}', nota, links: LINKS, localidad: 'San Rafael' });
+  assert.ok(prompt.includes(nota.titulo));
+  assert.ok(!prompt.includes('{TITULO}'));
+});
+
 test('notaDesdePaquete mapea el paquete canónico a nota (sin scrape)', () => {
   const paquete = {
     tipo: 'noticia_editorial',

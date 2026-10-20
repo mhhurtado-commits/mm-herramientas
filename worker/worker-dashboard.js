@@ -1053,11 +1053,11 @@ function buildWhatsappPrompt({ promptBase, nota, links, localidad, contextoExtra
   const sinCta = String(promptBase || '')
     .split('\n').filter(l => !/\{(LINK_GRUPO|LINK_CANAL)\}/.test(l) && !l.includes('¡Sumate a nuestra comunidad!')).join('\n');
   const sustituido = sinCta
-    .replace(/\{URL\}/g, '{ENLACE}')
-    .replace(/\{TITULO\}/g, nota.titulo || 'Sin titulo')
-    .replace(/\{CATEGORIA\}/g, nota.categoria || 'General')
-    .replace(/\{LOCALIDAD\}/g, localidad)
-    .replace(/\{CONTENIDO\}/g, (nota.body || '').substring(0, 1500));
+    .replace(/\{URL\}/g, () => 'el sistema agrega el enlace de la nota')
+    .replace(/\{TITULO\}/g, () => nota.titulo || 'Sin titulo')
+    .replace(/\{CATEGORIA\}/g, () => nota.categoria || 'General')
+    .replace(/\{LOCALIDAD\}/g, () => localidad)
+    .replace(/\{CONTENIDO\}/g, () => (nota.body || '').substring(0, 1500));
   return `${sustituido}${WA_PROMPT_SISTEMA}
 
 NOTICIA:
@@ -1085,7 +1085,9 @@ function normalizeWhatsappCopy(mensaje, { tipo = 'grupo', url = '', links = {} }
     .filter(Boolean).join('\n');
   texto = texto.replace(/^\s*\*?¡Sumate a nuestra comunidad!?\*?\s*$/gm, '')
     .replace(/^\s*\*?📰 Media Mendoza[^\n]*$/gm, '')
-    .replace(/^\s*[📱📣📻]\s*\*?(?:Grupo|Canal)(?:\s+de\s+(?:Noticias|[Dd]ifusión))?\*?\s*:?[^\n]*$/gmu, '');
+    .replace(/^\s*[📱📣📻]\s*\*?(?:Grupo|Canal)(?:\s+de\s+(?:Noticias|[Dd]ifusión))?\*?\s*:?[^\n]*$/gmu, '')
+    .replace(/\*?📰?\s*Media Mendoza[^*\n]*\*?/gi, '');
+  texto = texto.replace(/\{ENLACE\}/gi, '').replace(/[ \t]*(?:🔗|👉)\s*$/gm, '');
   texto = texto.replace(/\n{3,}/g, '\n\n').trim();
   texto = desduplicarUrlNota(texto, url);
   if (tipo === 'canal') {

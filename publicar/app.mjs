@@ -7,6 +7,7 @@ import {
   serializarEstado,
   deserializarEstado,
   construirResumen,
+  leerJson,
 } from './logic.mjs';
 
 const WORKER = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
@@ -18,8 +19,8 @@ function setLoading(on, message = 'Extrayendo la nota…') { $('#loading').class
 
 async function extractNote(url) {
   const response = await fetch(`${WORKER}?url=${encodeURIComponent(url)}`);
-  const data = await response.json();
-  if (!response.ok || data.error) throw new Error(data.error || 'No se pudo extraer la noticia.');
+  const data = await leerJson(response);
+  if (!response.ok || !data || data.error) throw new Error((data && data.error) || 'No se pudo extraer la noticia.');
   return data;
 }
 
@@ -35,8 +36,8 @@ async function prepararNota(event) {
     setLoading(true, 'Armando el paquete editorial…');
     const nota = await extractNote(url);
     const response = await fetch(`${WORKER}/placas/v2/paquete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(construirPayloadPaquete(nota)) });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || 'No se pudo generar el paquete editorial.');
+    const data = await leerJson(response);
+    if (!response.ok || !data || !data.ok) throw new Error((data && data.error) || 'No se pudo generar el paquete editorial.');
     aceptarEstado(prepararEstado(data));
     toast('Nota preparada. Elegí la salida.');
   } catch (error) {

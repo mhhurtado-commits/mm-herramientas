@@ -8,6 +8,7 @@ import {
   serializarEstado,
   deserializarEstado,
   construirResumen,
+  leerJson,
 } from './logic.mjs';
 
 const NOTA = {
@@ -42,6 +43,11 @@ const PAQUETE = {
 
 test('expone la clave propia para sobrevivir al Back', () => {
   assert.equal(ESTADO_KEY, 'mm-publicar-paquete');
+});
+
+test('leerJson devuelve null ante respuesta no JSON y el objeto ante JSON valido', async () => {
+  assert.equal(await leerJson({ json: async () => { throw new SyntaxError('Unexpected token < in JSON'); } }), null);
+  assert.deepEqual(await leerJson({ json: async () => ({ ok: true, paquete: PAQUETE }) }), { ok: true, paquete: PAQUETE });
 });
 
 test('arma el payload con el shape exacto que espera el endpoint', () => {

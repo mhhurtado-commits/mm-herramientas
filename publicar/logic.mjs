@@ -40,6 +40,14 @@ export function deserializarEstado(texto) {
   }
 }
 
+export async function leerJson(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 export function construirResumen(estado) {
   const paquete = esObjeto(estado?.package) ? estado.package : {};
   const fuente = esObjeto(paquete.fuente) ? paquete.fuente : {};
