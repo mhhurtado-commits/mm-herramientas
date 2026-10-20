@@ -57,3 +57,13 @@ test('sin URL en la salida, anexa el enlace canónico tras el marcador (o al fin
   const salida = normalizeWhatsappCopy(`*TITULAR*\n\nkey datos 👇\n\n🔗 *MÁS DETALLES:*`, { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
   assert.ok(salida.includes('🔗 *MÁS DETALLES:*\n👉 https://mm.in/abc') || salida.includes('https://mm.in/abc'));
 });
+
+test('filtro de líneas CTA cubre radio emoji y variantes de texto', () => {
+  const salida = normalizeWhatsappCopy(
+    `*SAN RAFAEL:* Corte de ruta\n\n🔗 👉 https://mm.in/abc\n\n*¡Sumate a nuestra comunidad!*\n📻 Canal de difusión: bit.ly/mediamendoza-x\n📱 *Grupo de Noticias:* https://chat.whatsapp.com/FALSO0`,
+    { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(!salida.includes('📻'));
+  assert.ok(!salida.includes('Canal de difusión'));
+  assert.ok(salida.includes(`📱 *Grupo de Noticias:* ${LINKS.grupo}`));
+  assert.ok(!salida.includes('chat.whatsapp.com/FALSO0'));
+});

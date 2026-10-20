@@ -43,7 +43,7 @@ export function normalizeWhatsappCopy(mensaje, { tipo = 'grupo', url = '', links
     .filter(Boolean).join('\n');
   texto = texto.replace(/^\s*\*?¡Sumate a nuestra comunidad!?\*?\s*$/gm, '')
     .replace(/^\s*\*?📰 Media Mendoza[^\n]*$/gm, '')
-    .replace(/^\s*(📱\s*\*?Grupo de Noticias|📣\s*\*?Canal de Difusión|📱\s*Grupo|📣\s*Canal)[^\n]*$/gm, '');
+    .replace(/^\s*[📱📣📻]\s*\*?(?:Grupo|Canal)(?:\s+de\s+(?:Noticias|[Dd]ifusión))?\*?\s*:?[^\n]*$/gmu, '');
   texto = texto.replace(/\n{3,}/g, '\n\n').trim();
   texto = desduplicarUrlNota(texto, url);
   if (tipo === 'canal') {
