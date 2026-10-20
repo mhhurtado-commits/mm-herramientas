@@ -1,0 +1,43 @@
+body { background: var(--bg); }
+
+.publicar-shell { max-width: 640px; margin: 0 auto; padding: calc(var(--header-h) + 40px) 20px 60px; }
+
+.publicar-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: var(--shadow); padding: 28px 24px; }
+
+.publicar-eyebrow { margin-bottom: 8px; color: var(--v-dark); font-size: 10px; font-weight: 900; letter-spacing: .16em; }
+
+.publicar-card h1 { font-family: var(--font-display); font-size: clamp(26px, 5vw, 38px); line-height: 1; letter-spacing: .02em; }
+.publicar-card h1 em { font-family: var(--font-serif); font-weight: 400; color: var(--dim); }
+
+.publicar-lead { margin: 10px 0 22px; color: var(--muted); font-size: 14px; }
+
+.publicar-url-row { display: flex; flex-direction: column; gap: 10px; }
+.publicar-hint { margin-top: 10px; color: var(--dim); font-size: 11px; }
+
+.publicar-loading { display: flex; align-items: center; gap: 10px; margin-top: 18px; color: var(--muted); font-size: 12px; }
+.publicar-loading.is-hidden { display: none; }
+
+.publicar-error { margin-top: 18px; padding: 12px 14px; border: 1px solid var(--red); border-radius: var(--radius); background: var(--red-bg); color: var(--red); font-size: 12px; }
+.publicar-error.is-hidden { display: none; }
+
+.publicar-resumen { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.publicar-resumen.is-hidden { display: none; }
+
+.publicar-resumen-titulo { font-size: 17px; line-height: 1.3; }
+
+.publicar-resumen-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.publicar-badge { border: 1px solid var(--line2); border-radius: 20px; padding: 4px 10px; font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--muted); }
+
+.publicar-warnings { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--vo); border-radius: var(--radius); background: var(--v-dim); color: var(--v-dark); font-size: 12px; }
+.publicar-warnings.is-hidden { display: none; }
+
+.publicar-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+.publicar-actions.is-hidden { display: none; }
+.publicar-actions .mm-btn:disabled { cursor: not-allowed; opacity: .46; }
+
+@media (min-width: 480px) {
+  .publicar-url-row { flex-direction: row; }
+  .publicar-actions { flex-direction: row; flex-wrap: wrap; }
+  .publicar-actions .mm-btn { flex: 1 1 auto; }
+  #resetButton { flex: 0 0 auto; }
+}

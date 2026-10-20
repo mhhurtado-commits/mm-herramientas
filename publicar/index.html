@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Publicar — puerta editorial</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="mm-header">
+    <a class="mm-header-brand" href="../index.html"><img class="mm-header-logo" src="../assets/logo.png" alt="mediamendoza"><span class="mm-header-name">mediamendoza</span></a>
+    <div class="mm-header-section"><span class="mm-header-label">Puerta editorial</span></div>
+    <div class="mm-header-status"><span class="mm-status-dot"></span><span class="mm-status-txt">Publicar</span></div>
+  </header>
+
+  <main class="publicar-shell">
+    <section class="publicar-card">
+      <p class="publicar-eyebrow">GENERADOR EDITORIAL</p>
+      <h1>Publicar <em>— puerta editorial</em></h1>
+      <p class="publicar-lead">Pegá el link de la nota una vez y elegí la salida: placa o WhatsApp.</p>
+
+      <form id="notaForm" class="publicar-form">
+        <label class="mm-label" for="notaUrl">Link de la nota</label>
+        <div class="publicar-url-row">
+          <input id="notaUrl" class="mm-input" type="url" required placeholder="https://mediamendoza.com/..." autocomplete="off">
+          <button id="prepararButton" class="mm-btn mm-btn-primary" type="submit">Preparar nota</button>
+        </div>
+        <p class="publicar-hint">La nota se extrae una sola vez y se traspasa a la salida que elijas.</p>
+      </form>
+
+      <div id="loading" class="publicar-loading is-hidden"><span class="spinner"></span><span id="loadingText">Extrayendo la nota…</span></div>
+
+      <div id="errorBox" class="publicar-error is-hidden"></div>
+
+      <section id="resumen" class="publicar-resumen is-hidden">
+        <h2 id="resumenTitulo" class="publicar-resumen-titulo">—</h2>
+        <div class="publicar-resumen-meta">
+          <span id="resumenSeccion" class="publicar-badge">—</span>
+          <span id="resumenDatos" class="publicar-badge">—</span>
+        </div>
+        <div id="resumenWarnings" class="publicar-warnings is-hidden"></div>
+      </section>
+
+      <div id="actions" class="publicar-actions is-hidden">
+        <button id="abrirPlacasButton" class="mm-btn mm-btn-primary" type="button" disabled>Abrir Placas V2</button>
+        <button id="abrirWhatsappButton" class="mm-btn" type="button" disabled>Abrir WhatsApp</button>
+        <button id="resetButton" class="mm-btn mm-btn-sm" type="button">Empezar de nuevo</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="mm-toast" role="status"></div>
+  <script>
+    document.querySelector('#loading .spinner')?.classList.replace('spinner', 'mm-spinner');
+    document.querySelector('#loading .mm-spinner')?.classList.add('is-active');
+  </script>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>
