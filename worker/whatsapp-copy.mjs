@@ -102,6 +102,66 @@ export function normalizeWhatsappCopy(mensaje, { tipo = 'grupo', url = '', links
   return `${texto}\n\n${cta}${cta ? '\n\n' : ''}${WA_FIRMA}`.trim();
 }
 
+const MAPA_CATEGORIA = [
+  ['polic', 'POLICIALES', '🚨'],
+  ['seguridad', 'POLICIALES', '🚨'],
+  ['delito', 'POLICIALES', '🚨'],
+  ['deport', 'DEPORTES', '⚽'],
+  ['polit', 'POLITICA', '🏛️'],
+  ['accident', 'ACCIDENTE', '🚗'],
+  ['transito', 'ACCIDENTE', '🚗'],
+  ['tránsito', 'ACCIDENTE', '🚗'],
+  ['salud', 'SALUD', '🏥'],
+  ['hospital', 'SALUD', '🏥'],
+  ['tiempo', 'TIEMPO', '🌬️'],
+  ['clima', 'TIEMPO', '🌬️'],
+  ['agenda', 'CIUDAD', '📢'],
+];
+
+export function palabraCategoria(categoria) {
+  const c = String(categoria || '').toLowerCase();
+  const hallada = MAPA_CATEGORIA.find(([clave]) => c.includes(clave));
+  return hallada ? hallada[1] : 'General';
+}
+
+export function emojiCategoria(categoria) {
+  const c = String(categoria || '').toLowerCase();
+  const hallada = MAPA_CATEGORIA.find(([clave]) => c.includes(clave));
+  return hallada ? hallada[2] : '📢';
+}
+
+export function buildWhatsappFallback(nota = {}, { links = {}, localidad = 'San Rafael', tipo = 'grupo' } = {}) {
+  const medio = { ...nota, url: nota.urlCorta || nota.url || '' };
+  const titulo = String(medio.titulo || 'Sin título').trim();
+  const snippet = String(medio.body || medio.descripcion || '').replace(/\s+/g, ' ').trim();
+  const contenido = snippet.slice(0, 140).trim();
+  const url = medio.url;
+  const categoria = palabraCategoria(medio.categoria || 'General');
+  const emoji = emojiCategoria(medio.categoria || 'General');
+  const cuerpo = contenido
+    ? `${contenido}${snippet.length > 140 ? '…' : ''}`
+    : 'Leé la nota completa para los detalles.';
+  if (tipo === 'canal') {
+    const canal = [
+      `${emoji} *${titulo}*`,
+      '',
+      `• ${cuerpo} 📍 ${localidad}`,
+      '',
+      url ? `🔗 👉 ${url}` : '',
+    ].filter(l => l !== null).join('\n');
+    return `${canal}\n\n${WA_FIRMA}`.trim();
+  }
+  const base = [
+    `${emoji} *${categoria}:* ${titulo}`,
+    '',
+    cuerpo,
+    '',
+    url ? `🔗 👉 ${url}` : '',
+  ].filter(l => l !== null).join('\n');
+  const cta = buildCtaComunidad(links);
+  return `${base}${cta ? `\n\n${cta}\n\n` : '\n\n'}${WA_FIRMA}`.trim();
+}
+
 function desduplicarUrlNota(texto, url) {
   if (!url) return texto;
   const urlEscapada = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

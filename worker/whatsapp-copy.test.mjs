@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildWhatsappPrompt, normalizeWhatsappCopy, buildCtaComunidad, WA_FIRMA, notaDesdePaquete, buildEditorialPromptBlock } from './whatsapp-copy.mjs';
+import { buildWhatsappPrompt, normalizeWhatsappCopy, buildCtaComunidad, WA_FIRMA, notaDesdePaquete, buildEditorialPromptBlock, buildWhatsappFallback, emojiCategoria, palabraCategoria } from './whatsapp-copy.mjs';
 
 const LINKS = { grupo: 'https://chat.whatsapp.com/DgxM0LvX2sYGStslNDBKjL', canal: 'https://whatsapp.com/channel/0029VaJX0cRB4hdIkQu2xg1f' };
 const NOTA = { titulo: 'Corte de ruta en Ruta 40', categoria: 'Policial', url: 'https://mm.in/abc',
@@ -8,6 +8,35 @@ const NOTA = { titulo: 'Corte de ruta en Ruta 40', categoria: 'Policial', url: '
 
 test('la firma de marca es Mediamendoza (sin espacio)', () => {
   assert.equal(WA_FIRMA, '*📰 Mediamendoza - Noticias confiables del sur mendocino*');
+});
+
+test('palabraCategoria normaliza slugs literales y emojiCategoria los mapea', () => {
+  assert.equal(palabraCategoria('otros deportes'), 'DEPORTES');
+  assert.equal(palabraCategoria('policiales'), 'POLICIALES');
+  assert.equal(palabraCategoria('salud'), 'SALUD');
+  assert.equal(palabraCategoria(''), 'General');
+  assert.equal(emojiCategoria('otros deportes'), '⚽');
+  assert.equal(emojiCategoria('policiales'), '🚨');
+  assert.equal(emojiCategoria('salud'), '🏥');
+  assert.equal(emojiCategoria('politica'), '🏛️');
+  assert.equal(emojiCategoria('accidente'), '🚗');
+  assert.equal(emojiCategoria(''), '📢');
+});
+
+test('buildWhatsappFallback reemplaza el modo determinístico con formato completo', () => {
+  const nota = { titulo: 'Santiago Lorenczo finalista del Panamericano', categoria: 'otros deportes', body: 'Trama ' + 'la mesa mañana. ', urlCorta: 'https://mm.in/x' };
+  const grupo = buildWhatsappFallback(nota, { links: LINKS });
+  assert.ok(grupo.startsWith('⚽ *DEPORTES:* Santiago Lorenczo finalista del Panamericano'), grupo);
+  assert.ok(grupo.includes('🔗 👉 https://mm.in/x'));
+  assert.ok(grupo.includes(`📱 *Grupo de Noticias:* ${LINKS.grupo}`));
+  assert.ok(grupo.includes(`📣 *Canal de Difusión:* ${LINKS.canal}`));
+  assert.ok(grupo.trimEnd().endsWith(WA_FIRMA));
+  assert.equal(grupo.split(WA_FIRMA).length - 1, 1);
+  const canal = buildWhatsappFallback({ titulo: 'Titular de moda', categoria: 'salud', body: 'El hospital Schestakow atiende de mañana. La fila avanza con los turnos.' }, { links: LINKS, localidad: 'San Rafael', tipo: 'canal' });
+  assert.ok(canal.startsWith('🏥 *Titular de moda*\n\n• El hospital'), canal);
+  assert.ok(canal.includes('📍 San Rafael'));
+  assert.ok(canal.trimEnd().endsWith(WA_FIRMA));
+  assert.ok(!canal.includes('¡Sumate a nuestra comunidad!'));
 });
 
 test('el prompt no delega links de comunidad ni firma al modelo (template con placeholders)', () => {

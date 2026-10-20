@@ -5373,6 +5373,66 @@ function normalizeWhatsappCopy(mensaje, { tipo = 'grupo', url = '', links = {} }
   return `${texto}\n\n${cta}${cta ? '\n\n' : ''}${WA_FIRMA}`.trim();
 }
 
+const MAPA_CATEGORIA = [
+  ['polic', 'POLICIALES', '🚨'],
+  ['seguridad', 'POLICIALES', '🚨'],
+  ['delito', 'POLICIALES', '🚨'],
+  ['deport', 'DEPORTES', '⚽'],
+  ['polit', 'POLITICA', '🏛️'],
+  ['accident', 'ACCIDENTE', '🚗'],
+  ['transito', 'ACCIDENTE', '🚗'],
+  ['tránsito', 'ACCIDENTE', '🚗'],
+  ['salud', 'SALUD', '🏥'],
+  ['hospital', 'SALUD', '🏥'],
+  ['tiempo', 'TIEMPO', '🌬️'],
+  ['clima', 'TIEMPO', '🌬️'],
+  ['agenda', 'CIUDAD', '📢'],
+];
+
+function palabraCategoria(categoria) {
+  const c = String(categoria || '').toLowerCase();
+  const hallada = MAPA_CATEGORIA.find(([clave]) => c.includes(clave));
+  return hallada ? hallada[1] : 'General';
+}
+
+function emojiCategoria(categoria) {
+  const c = String(categoria || '').toLowerCase();
+  const hallada = MAPA_CATEGORIA.find(([clave]) => c.includes(clave));
+  return hallada ? hallada[2] : '📢';
+}
+
+function buildWhatsappFallback(nota = {}, { links = {}, localidad = 'San Rafael', tipo = 'grupo' } = {}) {
+  const medio = { ...nota, url: nota.urlCorta || nota.url || '' };
+  const titulo = String(medio.titulo || 'Sin título').trim();
+  const snippet = String(medio.body || medio.descripcion || '').replace(/\s+/g, ' ').trim();
+  const contenido = snippet.slice(0, 140).trim();
+  const url = medio.url;
+  const categoria = palabraCategoria(medio.categoria || 'General');
+  const emoji = emojiCategoria(medio.categoria || 'General');
+  const cuerpo = contenido
+    ? `${contenido}${snippet.length > 140 ? '…' : ''}`
+    : 'Leé la nota completa para los detalles.';
+  if (tipo === 'canal') {
+    const canal = [
+      `${emoji} *${titulo}*`,
+      '',
+      `• ${cuerpo} 📍 ${localidad}`,
+      '',
+      url ? `🔗 👉 ${url}` : '',
+    ].filter(l => l !== null).join('\n');
+    return `${canal}\n\n${WA_FIRMA}`.trim();
+  }
+  const base = [
+    `${emoji} *${categoria}:* ${titulo}`,
+    '',
+    cuerpo,
+    '',
+    url ? `🔗 👉 ${url}` : '',
+  ].filter(l => l !== null).join('\n');
+  const cta = buildCtaComunidad(links);
+  return `${base}${cta ? `\n\n${cta}\n\n` : '\n\n'}${WA_FIRMA}`.trim();
+}
+
 function desduplicarUrlNota(texto, url) {
   if (!url) return texto;
   const urlEscapada = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -5702,15 +5762,12 @@ async function handleWhatsappGenerar(body,env){
   prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}${bloqueEd?`\n${bloqueEd}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
   }
   const geminiPromise = callGemini(prompt,env);
-  const timeoutPromise = sleep(22000).then(() => ({ error: 'deadline 22s - IA lenta/caída', details: ['timeout global whatsapp 22s'] }));
+  const timeoutPromise = sleep(45000).then(() => ({ error: 'deadline 45s - IA lenta/caída', details: ['timeout global whatsapp 45s'] }));
   const r=await Promise.race([geminiPromise, timeoutPromise]);
   if(r.error) {
     console.warn("[whatsapp] IA no disponible, fallback determinístico:", r.error);
-    const snippet = (nota.body || nota.descripcion || "").slice(0, 140).trim();
-    const titulo = nota.titulo || "Sin título";
-    const cat = (nota.categoria || "General").toUpperCase();
-    let grupoFb = `*${cat}:* ${titulo}\n\n${snippet}${snippet.length>=140?"...":""}\n\n🔗 ${urlFinal}\n\n📱 Grupo: ${links.grupo}\n📣 Canal: ${links.canal}`;
-    let canalFb = `*${titulo}*\n\n• ${snippet}${snippet.length>=140?"...":""} 📍 ${localidad}\n\n🔗 ${urlFinal}`;
+    let grupoFb = buildWhatsappFallback({...nota, urlCorta: urlFinal},{links,localidad,tipo:'grupo'});
+    let canalFb = buildWhatsappFallback({...nota, urlCorta: urlFinal},{links,localidad,tipo:'canal'});
     if(guardrailOn){
       try{
         grupoFb = normalizeWhatsappCopy(grupoFb,{tipo:'grupo',url:urlFinal,links});
@@ -5722,9 +5779,8 @@ async function handleWhatsappGenerar(body,env){
   let grupo=(r.data?.grupo||"").trim();let canal=(r.data?.canal||"").trim();
   if(!grupo||!canal) {
     console.warn("[whatsapp] IA devolvió incompleto, fallback");
-    const snippet = (nota.body || "").slice(0, 140).trim();
-    let grupoFb = `*${(nota.categoria||"General").toUpperCase()}:* ${nota.titulo}\n\n${snippet}...\n\n🔗 ${urlFinal}\n📱 ${links.grupo}`;
-    let canalFb = `*${nota.titulo}*\n\n${snippet}...\n\n🔗 ${urlFinal}\n📣 ${links.canal}`;
+    let grupoFb = buildWhatsappFallback({...nota, urlCorta: urlFinal},{links,localidad,tipo:'grupo'});
+    let canalFb = buildWhatsappFallback({...nota, urlCorta: urlFinal},{links,localidad,tipo:'canal'});
     if(guardrailOn){
       try{
         grupoFb = normalizeWhatsappCopy(grupoFb,{tipo:'grupo',url:urlFinal,links});
