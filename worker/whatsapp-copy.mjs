@@ -1,4 +1,4 @@
-export const WA_FIRMA = '*📰 Media Mendoza - Noticias confiables del sur mendocino*';
+export const WA_FIRMA = '*📰 Mediamendoza - Noticias confiables del sur mendocino*';
 
 export function notaDesdePaquete(paquete, acortar) {
   const f = paquete?.fuente || {};

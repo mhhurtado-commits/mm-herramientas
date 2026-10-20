@@ -6,6 +6,10 @@ const LINKS = { grupo: 'https://chat.whatsapp.com/DgxM0LvX2sYGStslNDBKjL', canal
 const NOTA = { titulo: 'Corte de ruta en Ruta 40', categoria: 'Policial', url: 'https://mm.in/abc',
   body: 'Vecinos cortan la ruta en San Rafael desde las 8. Piden respuestas.', descripcion: '', image: '' };
 
+test('la firma de marca es Mediamendoza (sin espacio)', () => {
+  assert.equal(WA_FIRMA, '*📰 Mediamendoza - Noticias confiables del sur mendocino*');
+});
+
 test('el prompt no delega links de comunidad ni firma al modelo (template con placeholders)', () => {
   const base = `FORMATO "grupo": [emoji] *[CATEGORIA]:* [titular]
 [2-3 líneas clave con *negritas*] 👇
@@ -97,13 +101,11 @@ test('elimina variantes de firma sin espacio (Mediamendoza) y deja una sola firm
   const salidaGrupo = normalizeWhatsappCopy(
     `*SALUD:* Pipi Benítez recibió el alta\n Su hija agradeció al equipo del Hospital Schestakow.\n\n🔗 *Leé la carta completa:*\n👉 https://mm.in/abc\n*📰 Mediamendoza - Noticias confiables del sur mendocino*\n\n*¡Sumate a nuestra comunidad!*`,
     { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
-  assert.ok(!salidaGrupo.includes('Mediamendoza'));
-  assert.equal(salidaGrupo.split(WA_FIRMA).length - 1, 1);
   assert.ok(salidaGrupo.includes(`📱 *Grupo de Noticias:* ${LINKS.grupo}`));
+  assert.equal(salidaGrupo.split(WA_FIRMA).length - 1, 1);
   const salidaCanal = normalizeWhatsappCopy(
     `*SALUD:* Titular\n\n• punto\n\n🔗 👉 https://mm.in/abc\n*📰 Mediamendoza - Noticias confiables del sur mendocino*\n*📰 Media Mendoza - Noticias confiables del sur mendocino*`,
     { tipo: 'canal', url: 'https://mm.in/abc', links: LINKS });
-  assert.ok(!salidaCanal.includes('Mediamendoza'));
   assert.equal(salidaCanal.split(WA_FIRMA).length - 1, 1);
 });
 
@@ -120,7 +122,6 @@ Víctor "Pipi" Benítez regresó a su casa tras dos meses y medio internado.
   const salida = normalizeWhatsappCopy(ia, { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
   assert.ok(salida.includes('internado.\n\n🔗 *Leé la carta completa:*'), 'debe conservar la linea en blanco entre parrafos');
   assert.ok(!salida.includes('\n\n\n'), 'no debe quedar mas de un interlineado');
-  assert.ok(!salida.includes('Mediamendoza'));
   assert.equal(salida.split(WA_FIRMA).length - 1, 1);
   assert.ok(salida.includes(`📱 *Grupo de Noticias:* ${LINKS.grupo}`));
 });
@@ -136,7 +137,6 @@ Víctor Benítez regresó a su casa tras el alta.
   const salida = normalizeWhatsappCopy(ia, { tipo: 'canal', url: 'https://mm.in/abc', links: LINKS });
   assert.ok(salida.includes('tras el alta.\n\n🔗 *Leé todo:*'), 'debe conservar la linea en blanco entre parrafos');
   assert.ok(!salida.includes('\n\n\n'));
-  assert.ok(!salida.includes('Mediamendoza'));
   assert.equal(salida.split(WA_FIRMA).length - 1, 1);
   assert.ok(salida.trimEnd().endsWith(WA_FIRMA));
 });

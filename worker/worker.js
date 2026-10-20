@@ -5269,7 +5269,7 @@ async function handlePostCubierta(body,env){
 // WHATSAPP
 // ============================================================
 
-const WA_FIRMA = '*📰 Media Mendoza - Noticias confiables del sur mendocino*';
+const WA_FIRMA = '*📰 Mediamendoza - Noticias confiables del sur mendocino*';
 
 function notaDesdePaquete(paquete, acortar) {
   const f = paquete?.fuente || {};
