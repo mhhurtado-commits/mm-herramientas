@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildWhatsappPrompt, normalizeWhatsappCopy, buildCtaComunidad, WA_FIRMA } from './whatsapp-copy.mjs';
+import { buildWhatsappPrompt, normalizeWhatsappCopy, buildCtaComunidad, WA_FIRMA, notaDesdePaquete, buildEditorialPromptBlock } from './whatsapp-copy.mjs';
 
 const LINKS = { grupo: 'https://chat.whatsapp.com/DgxM0LvX2sYGStslNDBKjL', canal: 'https://whatsapp.com/channel/0029VaJX0cRB4hdIkQu2xg1f' };
 const NOTA = { titulo: 'Corte de ruta en Ruta 40', categoria: 'Policial', url: 'https://mm.in/abc',
@@ -66,4 +66,63 @@ test('filtro de líneas CTA cubre radio emoji y variantes de texto', () => {
   assert.ok(!salida.includes('Canal de difusión'));
   assert.ok(salida.includes(`📱 *Grupo de Noticias:* ${LINKS.grupo}`));
   assert.ok(!salida.includes('chat.whatsapp.com/FALSO0'));
+});
+
+test('notaDesdePaquete mapea el paquete canónico a nota (sin scrape)', () => {
+  const paquete = {
+    tipo: 'noticia_editorial',
+    version: 2,
+    fuente: {
+      url: 'https://mm.in/abc',
+      titulo_original: 'Corte de ruta en Ruta 40',
+      categoria: 'Policial',
+      cuerpo: 'Vecinos cortan la ruta en San Rafael desde las 8.',
+      imagen: 'https://img.mm.in/foto.jpg',
+      imagenes: ['https://img.mm.in/foto.jpg'],
+    },
+    editorial: { titulo: 'Corte de ruta', contexto: 'Protesta vecinal', datos_clave: [{ label: 'Horario', value: '8' }], pregunta_social: '¿Afecta tu viaje?' },
+  };
+  const nota = notaDesdePaquete(paquete, u => `short:${u}`);
+  assert.equal(nota.titulo, 'Corte de ruta en Ruta 40');
+  assert.equal(nota.categoria, 'Policial');
+  assert.equal(nota.body, 'Vecinos cortan la ruta en San Rafael desde las 8.');
+  assert.equal(nota.url, 'https://mm.in/abc');
+  assert.equal(nota.urlCorta, 'short:https://mm.in/abc');
+  assert.equal(nota.descripcion, '');
+  assert.equal(nota.image, 'https://img.mm.in/foto.jpg');
+  assert.deepEqual(nota.editorial, paquete.editorial);
+});
+
+test('notaDesdePaquete: defaults y acortar opcional', () => {
+  const nota = notaDesdePaquete({ fuente: {}, editorial: null });
+  assert.equal(nota.titulo, '');
+  assert.equal(nota.categoria, 'General');
+  assert.equal(nota.body, '');
+  assert.equal(nota.url, '');
+  assert.equal(nota.urlCorta, '');
+  assert.equal(nota.image, '');
+  assert.deepEqual(nota.editorial, {});
+  const sinAcortar = notaDesdePaquete({ fuente: { url: 'https://mm.in/abc', titulo_original: 'T', cuerpo: 'C' } });
+  assert.equal(sinAcortar.url, 'https://mm.in/abc');
+  assert.equal(sinAcortar.urlCorta, '');
+  assert.equal(notaDesdePaquete(null).titulo, '');
+});
+
+test('buildEditorialPromptBlock agrega sólo los campos presentes del editorial', () => {
+  const bloque = buildEditorialPromptBlock({
+    titulo: 'Corte de ruta',
+    bajada: '',
+    contexto: 'Protesta vecinal en el sur provincial',
+    datos_clave: [{ label: 'Horario', value: 'desde las 8' }, { label: '', value: 'Ruta 40' }],
+    pregunta_social: '¿Afecta tu viaje?',
+  });
+  assert.ok(bloque.includes('EDITORIAL:\n'));
+  assert.ok(bloque.includes('Título paquete: Corte de ruta'));
+  assert.ok(bloque.includes('Contexto: Protesta vecinal en el sur provincial'));
+  assert.ok(bloque.includes('Datos clave: Horario: desde las 8 ; Ruta 40'));
+  assert.ok(bloque.includes('Pregunta social: ¿Afecta tu viaje?'));
+  assert.ok(!bloque.includes('Bajada'));
+  assert.equal(buildEditorialPromptBlock({ bajada: '', datos_clave: [] }), '');
+  assert.equal(buildEditorialPromptBlock(null), '');
+  assert.equal(buildEditorialPromptBlock(undefined), '');
 });

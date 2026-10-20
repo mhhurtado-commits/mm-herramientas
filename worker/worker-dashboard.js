@@ -1005,6 +1005,41 @@ function getLocalImageFallbacks() {
 
 const WA_FIRMA = '*📰 Media Mendoza - Noticias confiables del sur mendocino*';
 
+function notaDesdePaquete(paquete, acortar) {
+  const f = paquete?.fuente || {};
+  const url = f.url || '';
+  return {
+    titulo: f.titulo_original || f.tituloOriginal || f.titulo || '',
+    categoria: f.categoria || 'General',
+    descripcion: '',
+    body: f.cuerpo || '',
+    url,
+    urlCorta: url && typeof acortar === 'function' ? acortar(url) : '',
+    image: f.imagen || '',
+    editorial: paquete?.editorial || {},
+  };
+}
+
+function buildEditorialPromptBlock(editorial) {
+  if (!editorial || typeof editorial !== 'object') return '';
+  const lineas = [];
+  const titulo = String(editorial.titulo || '').trim();
+  if (titulo) lineas.push(`Título paquete: ${titulo}`);
+  const contexto = String(editorial.contexto || '').trim();
+  if (contexto) lineas.push(`Contexto: ${contexto}`);
+  const datos = Array.isArray(editorial.datos_clave)
+    ? editorial.datos_clave.map(d => {
+        const value = String(d?.value || '').trim();
+        const label = String(d?.label || '').trim();
+        return value && label ? `${label}: ${value}` : value || label;
+      }).filter(Boolean)
+    : [];
+  if (datos.length) lineas.push(`Datos clave: ${datos.join(' ; ')}`);
+  const pregunta = String(editorial.pregunta_social || '').trim();
+  if (pregunta) lineas.push(`Pregunta social: ${pregunta}`);
+  return lineas.length ? `EDITORIAL:\n${lineas.join('\n')}` : '';
+}
+
 const WA_PROMPT_SISTEMA = `
 
 REGLAS DE ENLACES:
@@ -1013,6 +1048,8 @@ REGLAS DE ENLACES:
 - No escribas la firma de marca: la agrega el sistema.`;
 
 function buildWhatsappPrompt({ promptBase, nota, links, localidad, contextoExtra }) {
+  let bloqueEditorial = '';
+  try { bloqueEditorial = buildEditorialPromptBlock(nota && nota.editorial); } catch (e) {}
   const sinCta = String(promptBase || '')
     .split('\n').filter(l => !/\{(LINK_GRUPO|LINK_CANAL)\}/.test(l) && !l.includes('¡Sumate a nuestra comunidad!')).join('\n');
   const sustituido = sinCta
@@ -1028,7 +1065,7 @@ Título: ${nota.titulo}
 Categoría: ${nota.categoria || 'General'}
 Localidad: ${localidad}
 Contenido: ${(nota.body || '').substring(0, 1500)}
-${contextoExtra ? `Contexto extra: ${contextoExtra}\n` : ''}
+${contextoExtra ? `Contexto extra: ${contextoExtra}\n` : ''}${bloqueEditorial}
 Respondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
 }
 
@@ -1071,6 +1108,259 @@ function desduplicarUrlNota(texto, url) {
   }
   return texto;
 }
+
+
+const { normalizeEditorialPackage } = (() => {
+const EDITORIAL_PACKAGE_VERSION = 2;
+
+function normalizeEditorialPackage(input = {}) {
+  const source = isObject(input) ? input : {};
+  const errors = [];
+  const fuenteSource = isObject(source.fuente) ? source.fuente : {};
+  const editorialSource = isObject(source.editorial) ? source.editorial : null;
+
+  if (source.tipo !== 'noticia_editorial') errors.push('tipo inválido');
+  if (Number(source.version) !== EDITORIAL_PACKAGE_VERSION) errors.push('version inválida');
+
+  const fuente = {
+    url: clean(fuenteSource.url),
+    titulo_original: clean(fuenteSource.titulo_original || fuenteSource.title),
+    categoria: clean(fuenteSource.categoria || fuenteSource.category),
+    cuerpo: clean(fuenteSource.cuerpo || fuenteSource.texto || fuenteSource.content || fuenteSource.body),
+    imagen: clean(fuenteSource.imagen || fuenteSource.image),
+    imagenes: uniqueStrings([fuenteSource.imagenes, fuenteSource.images]).slice(0, 12),
+  };
+
+  if (!fuente.url) errors.push('fuente.url faltante');
+  if (!fuente.titulo_original) errors.push('fuente.titulo_original faltante');
+  if (!editorialSource) errors.push('editorial faltante');
+
+  const editorial = normalizeEditorial(editorialSource || {}, fuente);
+  const normalized = {
+    tipo: 'noticia_editorial',
+    version: EDITORIAL_PACKAGE_VERSION,
+    ...(clean(source.fecha || source.date) ? { fecha: clean(source.fecha || source.date) } : {}),
+    fuente,
+    editorial,
+    salidas: normalizeOutputs(source.salidas),
+    redes: normalizeSocial(source.redes),
+  };
+
+  return { ok: errors.length === 0, package: normalized, errors };
+}
+
+function packageFromPlate(plate = {}) {
+  const source = isObject(plate) ? plate : {};
+  const fuenteSource = isObject(source.fuente) ? source.fuente : {};
+  const images = uniqueStrings([fuenteSource.imagenes, fuenteSource.images]);
+  const primaryImage = clean(fuenteSource.imagen || fuenteSource.image || images[0]);
+  const normalizedImages = primaryImage && !images.includes(primaryImage) ? [primaryImage, ...images] : images;
+
+  return {
+    tipo: 'noticia_editorial',
+    version: EDITORIAL_PACKAGE_VERSION,
+    ...(clean(source.fecha || source.date) ? { fecha: clean(source.fecha || source.date) } : {}),
+    fuente: {
+      url: clean(fuenteSource.url || source.url),
+      titulo_original: clean(fuenteSource.titulo_original || fuenteSource.title || source.titulo),
+      categoria: clean(fuenteSource.categoria || fuenteSource.category || source.etiqueta),
+      cuerpo: clean(fuenteSource.cuerpo || fuenteSource.texto || fuenteSource.content || fuenteSource.body || source.cuerpo),
+      imagen: primaryImage,
+      imagenes: normalizedImages.slice(0, 12),
+    },
+    editorial: {
+      seccion: clean(fuenteSource.categoria || fuenteSource.category || source.etiqueta),
+      familia: clean(source.template_sugerido) || 'general',
+      tipo_noticia: clean(source.tipo_noticia) || 'noticia',
+      complejidad: clean(source.complejidad) || 'medium',
+      tono: clean(source.tono) || 'informative',
+      titulo: clean(source.titulo || source.title),
+      titulo_sintetico: clean(source.titulo_sintetico),
+      bajada: clean(source.bajada || source.description),
+      contexto: clean(source.contexto || source.context),
+      pregunta_social: clean(source.pregunta_social),
+      datos_clave: normalizeKeyFacts(source.datos_clave),
+      textual: normalizeStringsOrObjects(source.textual),
+      personas: normalizeObjects(source.personas),
+    },
+    salidas: { placas: [source], carrusel: null, reel: null },
+    redes: normalizeSocial(source.redes),
+  };
+}
+
+function packageFromCarouselArticle(article = {}, diagnosis = {}, plan = null) {
+  const source = isObject(article) ? article : {};
+  const normalizedPlan = isObject(plan) ? plan : {};
+  const normalizedDiagnosis = isObject(diagnosis) ? diagnosis : {};
+  const images = uniqueStrings([source.images]);
+  const primaryImage = clean(source.image || images[0]);
+
+  return {
+    tipo: 'noticia_editorial',
+    version: EDITORIAL_PACKAGE_VERSION,
+    fuente: {
+      url: clean(source.url),
+      titulo_original: clean(source.title),
+      categoria: clean(source.category),
+      cuerpo: clean(source.content),
+      imagen: primaryImage,
+      imagenes: primaryImage && !images.includes(primaryImage) ? [primaryImage, ...images].slice(0, 12) : images.slice(0, 12),
+    },
+    editorial: {
+      seccion: clean(normalizedDiagnosis.vertical || source.category),
+      familia: clean(normalizedDiagnosis.template) || 'general',
+      tipo_noticia: clean(normalizedDiagnosis.news_type) || 'evergreen',
+      complejidad: clean(normalizedDiagnosis.complexity) || 'medium',
+      tono: clean(normalizedDiagnosis.tone) || 'informative',
+      titulo: clean(normalizedPlan.cover?.title || source.title),
+      bajada: clean(normalizedPlan.cover?.subtitle || source.summary),
+      contexto: clean(normalizedPlan.slides?.find(slide => slide?.type === 'context')?.text),
+      pregunta_social: '',
+      datos_clave: normalizeKeyFacts(normalizedPlan.slides?.filter(slide => slide?.type === 'facts').flatMap(slide => slide.items || [])),
+      textual: [],
+      personas: [],
+    },
+    salidas: { placas: [], carrusel: normalizedPlan, reel: null },
+    redes: normalizeSocial({}),
+  };
+}
+
+function packageToCarouselArticle(editorialPackage = {}) {
+  const source = isObject(editorialPackage.fuente) ? editorialPackage.fuente : {};
+  const editorial = isObject(editorialPackage.editorial) ? editorialPackage.editorial : {};
+  const images = uniqueStrings([source.imagenes]);
+  const image = clean(source.imagen || images[0]);
+  return {
+    url: clean(source.url),
+    title: clean(source.titulo_original || editorial.titulo),
+    category: clean(source.categoria || editorial.seccion),
+    summary: clean(editorial.bajada),
+    image,
+    images: image && !images.includes(image) ? [image, ...images].slice(0, 12) : images.slice(0, 12),
+    content: clean(source.cuerpo),
+    ...(clean(editorialPackage.fecha || editorialPackage.date) ? { date: clean(editorialPackage.fecha || editorialPackage.date) } : {}),
+    editorialVertical: clean(editorial.seccion),
+    editorialContext: clean(editorial.contexto),
+    editorialFacts: normalizeKeyFacts(editorial.datos_clave),
+    editorialTextual: normalizeStringsOrObjects(editorial.textual),
+  };
+}
+
+function packageToPlateInput(editorialPackage = {}) {
+  const source = isObject(editorialPackage.fuente) ? editorialPackage.fuente : {};
+  const editorial = isObject(editorialPackage.editorial) ? editorialPackage.editorial : {};
+  const plate = Array.isArray(editorialPackage.salidas?.placas) ? editorialPackage.salidas.placas[0] : {};
+  return {
+    ...plate,
+    url: clean(source.url),
+    titulo: clean(editorial.titulo || source.titulo_original),
+    titulo_sintetico: clean(editorial.titulo_sintetico),
+    bajada: clean(editorial.bajada),
+    contexto: clean(editorial.contexto),
+    pregunta_social: clean(editorial.pregunta_social),
+    cuerpo: clean(source.cuerpo),
+    category: clean(editorial.seccion || source.categoria),
+    template_sugerido: clean(editorial.familia) || 'general',
+    image: clean(source.imagen),
+    images: uniqueStrings([source.imagenes]),
+    textual: editorial.textual,
+    personas: editorial.personas,
+  };
+}
+
+function normalizeEditorial(source, fuente) {
+  return {
+    seccion: clean(source.seccion || fuente.categoria),
+    category_options: normalizeCategoryOptions(source.category_options),
+    familia: clean(source.familia) || 'general',
+    tipo_noticia: clean(source.tipo_noticia) || 'noticia',
+    complejidad: clean(source.complejidad) || 'medium',
+    tono: clean(source.tono) || 'informative',
+    titulo: clean(source.titulo || fuente.titulo_original),
+    titulo_sintetico: clean(source.titulo_sintetico),
+    bajada: clean(source.bajada),
+    contexto: clean(source.contexto),
+    pregunta_social: clean(source.pregunta_social),
+    datos_clave: normalizeKeyFacts(source.datos_clave),
+    textual: normalizeStringsOrObjects(source.textual),
+    personas: normalizeObjects(source.personas),
+  };
+}
+
+function normalizeCategoryOptions(values) {
+  if (!Array.isArray(values)) return [];
+  return values.map((value, index) => ({
+    id: clean(value?.id) || `categoria-${index + 1}`,
+    label: clean(value?.label || value?.nombre || value?.seccion),
+    vertical: clean(value?.vertical),
+    recommended: Boolean(value?.recommended || value?.sugerida),
+    color: clean(value?.color),
+  })).filter(value => value.label).slice(0, 6);
+}
+
+function normalizeOutputs(outputs) {
+  const source = isObject(outputs) ? outputs : {};
+  return {
+    placas: Array.isArray(source.placas) ? source.placas : [],
+    carrusel: source.carrusel || null,
+    reel: source.reel || null,
+  };
+}
+
+function normalizeSocial(social) {
+  const source = isObject(social) ? social : {};
+  return { instagram: clean(source.instagram || source.caption), facebook: clean(source.facebook) };
+}
+
+function normalizeStrings(values) {
+  return Array.isArray(values) ? values.map(clean).filter(Boolean).slice(0, 12) : [];
+}
+
+function normalizeStringsOrObjects(values) {
+  if (Array.isArray(values)) return values.map(value => (isObject(value) ? { ...value } : clean(value))).filter(value => (isObject(value) ? Object.keys(value).length : Boolean(value))).slice(0, 12);
+  if (isObject(values)) return [{ ...values }];
+  return [];
+}
+
+function normalizeKeyFacts(values) {
+  if (!Array.isArray(values)) return [];
+  return values.map(value => {
+    if (isObject(value)) {
+      return {
+        label: cleanFactValue(value.label || value.titulo || value.nombre),
+        value: cleanFactValue(value.value || value.valor || value.text || value.texto),
+        detail: cleanFactValue(value.detail || value.detalle || value.description || value.descripcion),
+      };
+    }
+    return { label: '', value: cleanFactValue(value), detail: '' };
+  }).filter(value => value.value || value.label || value.detail).slice(0, 12);
+}
+
+function cleanFactValue(value) {
+  if (isObject(value)) {
+    return cleanFactValue(value.value || value.valor || value.text || value.texto || value.detail || value.detalle || value.label || value.nombre || value.titulo);
+  }
+  return clean(value);
+}
+
+function normalizeObjects(values) {
+  return Array.isArray(values) ? values.filter(isObject).map(value => ({ ...value })).slice(0, 12) : [];
+}
+
+function uniqueStrings(groups) {
+  return [...new Set(groups.flatMap(group => Array.isArray(group) ? group : [group]).map(clean).filter(Boolean))];
+}
+
+function clean(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+return { normalizeEditorialPackage };
+})();
 
 
 
@@ -6370,7 +6660,13 @@ async function handleWhatsappGenerar(body,env){
   const notaUrl=String(body.notaUrl||"").trim();
   const contextoExtra=String(body.contextoExtra||"").trim();
   let nota={titulo:String(body.titulo||"").trim(),categoria:String(body.categoria||"").trim(),descripcion:"",body:String(body.contenido||"").trim(),url:notaUrl,urlCorta:notaUrl?acortarUrlNota(notaUrl):"",image:""};
-  if(notaUrl){
+  let paqueteOk=null,paqueteInvalido=false;
+  if(body.paquete){
+    try{const np=normalizeEditorialPackage(body.paquete);if(np.ok)paqueteOk=np.package;else paqueteInvalido=true}catch(e){paqueteInvalido=true}
+    if(paqueteOk){nota=notaDesdePaquete(paqueteOk,acortarUrlNota)}
+  }
+  const warningsExtra=paqueteOk?["origen_handoff"]:paqueteInvalido?["paquete_invalido"]:[];
+  if(!paqueteOk&&notaUrl){
     try{new URL(notaUrl)}catch{return jsonError("URL inválida",400)}
     try{
       const{html}=await fetchHtml(notaUrl,300);
@@ -6397,7 +6693,9 @@ async function handleWhatsappGenerar(body,env){
   if(!prompt){
   const pf=pt.replace(/\{URL\}/g,urlFinal).replace(/\{LINK_GRUPO\}/g,links.grupo).replace(/\{LINK_CANAL\}/g,links.canal).replace(/\{TITULO\}/g,nota.titulo||"Sin titulo").replace(/\{CATEGORIA\}/g,nota.categoria||"General").replace(/\{LOCALIDAD\}/g,localidad).replace(/\{CONTENIDO\}/g,(nota.body||"").substring(0,1500));
   const nd=pt.includes("{CONTENIDO}")?"" :`\n\nNOTICIA:\nTítulo: ${nota.titulo}\nCategoría: ${nota.categoria||"General"}\nLocalidad: ${localidad}\nContenido: ${(nota.body||"").substring(0,1500)}\nURL: ${urlFinal}`;
-  prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
+  let bloqueEd="";
+  if(paqueteOk){try{bloqueEd=buildEditorialPromptBlock(nota.editorial)}catch(e){}}
+  prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}${bloqueEd?`\n${bloqueEd}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
   }
   const geminiPromise = callGemini(prompt,env);
   const timeoutPromise = sleep(22000).then(() => ({ error: 'deadline 22s - IA lenta/caída', details: ['timeout global whatsapp 22s'] }));
@@ -6415,7 +6713,7 @@ async function handleWhatsappGenerar(body,env){
         canalFb = normalizeWhatsappCopy(canalFb,{tipo:'canal',url:urlFinal,links});
       }catch(e){console.warn("[whatsapp] guardrail: error al normalizar fallback, texto sin tocar:",e.message);guardrailError=true}
     }
-    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:guardrailError?['ia_no_disponible','guardrail_error']:['ia_no_disponible'], ia_error: r.error, ia_details: r.details || [] });
+    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:[...warningsExtra,'ia_no_disponible',...(guardrailError?['guardrail_error']:[])], ia_error: r.error, ia_details: r.details || [] });
   }
   let grupo=(r.data?.grupo||"").trim();let canal=(r.data?.canal||"").trim();
   if(!grupo||!canal) {
@@ -6429,7 +6727,7 @@ async function handleWhatsappGenerar(body,env){
         canalFb = normalizeWhatsappCopy(canalFb,{tipo:'canal',url:urlFinal,links});
       }catch(e){console.warn("[whatsapp] guardrail: error al normalizar fallback, texto sin tocar:",e.message);guardrailError=true}
     }
-    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:guardrailError?['ia_no_disponible','guardrail_error']:['ia_no_disponible'], ia_error: "IA no devolvió ambos mensajes" });
+    return jsonOk({ nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""}, categoria:nota.categoria||"General", grupo:grupoFb, canal:canalFb, warnings:[...warningsExtra,'ia_no_disponible',...(guardrailError?['guardrail_error']:[])], ia_error: "IA no devolvió ambos mensajes" });
   }
   if(guardrailOn){
     try{
@@ -6437,7 +6735,7 @@ async function handleWhatsappGenerar(body,env){
       canal=(normalizeWhatsappCopy(canal,{tipo:'canal',url:urlFinal,links}));
     }catch(e){console.warn("[whatsapp] guardrail: error al normalizar, salida sin tocar:",e.message);guardrailError=true}
   }
-  return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal, ...(guardrailError?{warnings:['guardrail_error']}:{})});
+  return jsonOk({nota:{titulo:nota.titulo||"Sin titulo",url:nota.url||"",urlCorta:urlFinal,imagen:nota.image||""},categoria:nota.categoria||"General",grupo,canal,...((warningsExtra.length||guardrailError)?{warnings:[...warningsExtra,...(guardrailError?['guardrail_error']:[])]}:{})});
 }
 async function handlePostWhatsappProgramar(body,env){
   if(!body?.fecha) return jsonError("Falta fecha",400);

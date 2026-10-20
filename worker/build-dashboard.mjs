@@ -9,14 +9,25 @@ function inlineModule(source) {
     .replace(/\bexport\s+(?=(?:async\s+)?function\b|const\b|let\b|var\b|class\b)/g, '');
 }
 
-const [football, editorialCore, plates, imageGenerationConfig, whatsappCopy, worker] = await Promise.all([
+const [football, editorialCore, plates, imageGenerationConfig, sharedEditorialPackage, whatsappCopy, worker] = await Promise.all([
   read('worker/football-daily.mjs'),
   read('placas-v2/editorial-core.mjs'),
   read('worker/placas-v2.mjs'),
   read('worker/image-generation-config.mjs'),
+  read('shared/editorial-package.mjs'),
   read('worker/whatsapp-copy.mjs'),
   read('worker/worker.js'),
 ]);
+
+// shared/editorial-package.mjs se inlina dentro de un IIFE con namespace: sus helpers
+// internos (clean, normalizeKeyFacts, etc.) colisionan con los de worker.js/editorial-core,
+// y sólo exponemos normalizeEditorialPackage para el branch paquete de /whatsapp/generar.
+function inlineModuleNamespaced(source, names) {
+  const body = source
+    .replace(/^import[\s\S]*?;\s*$/m, '')
+    .replace(/\bexport\s+(?=(?:async\s+)?function\b|const\b|let\b|var\b|class\b)/g, '');
+  return `const { ${names.join(', ')} } = (() => {\n${body}\nreturn { ${names.join(', ')} };\n})();`;
+}
 
 const workerWithoutImports = worker.replace(/^import[\s\S]*?;\s*$/gm, '');
 const bundle = [
@@ -27,6 +38,7 @@ const bundle = [
   inlineModule(plates),
   inlineModule(imageGenerationConfig),
   inlineModule(whatsappCopy),
+  inlineModuleNamespaced(sharedEditorialPackage, ['normalizeEditorialPackage']),
   workerWithoutImports,
 ].join('\n\n');
 

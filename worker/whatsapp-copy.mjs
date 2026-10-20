@@ -1,5 +1,40 @@
 export const WA_FIRMA = '*📰 Media Mendoza - Noticias confiables del sur mendocino*';
 
+export function notaDesdePaquete(paquete, acortar) {
+  const f = paquete?.fuente || {};
+  const url = f.url || '';
+  return {
+    titulo: f.titulo_original || f.tituloOriginal || f.titulo || '',
+    categoria: f.categoria || 'General',
+    descripcion: '',
+    body: f.cuerpo || '',
+    url,
+    urlCorta: url && typeof acortar === 'function' ? acortar(url) : '',
+    image: f.imagen || '',
+    editorial: paquete?.editorial || {},
+  };
+}
+
+export function buildEditorialPromptBlock(editorial) {
+  if (!editorial || typeof editorial !== 'object') return '';
+  const lineas = [];
+  const titulo = String(editorial.titulo || '').trim();
+  if (titulo) lineas.push(`Título paquete: ${titulo}`);
+  const contexto = String(editorial.contexto || '').trim();
+  if (contexto) lineas.push(`Contexto: ${contexto}`);
+  const datos = Array.isArray(editorial.datos_clave)
+    ? editorial.datos_clave.map(d => {
+        const value = String(d?.value || '').trim();
+        const label = String(d?.label || '').trim();
+        return value && label ? `${label}: ${value}` : value || label;
+      }).filter(Boolean)
+    : [];
+  if (datos.length) lineas.push(`Datos clave: ${datos.join(' ; ')}`);
+  const pregunta = String(editorial.pregunta_social || '').trim();
+  if (pregunta) lineas.push(`Pregunta social: ${pregunta}`);
+  return lineas.length ? `EDITORIAL:\n${lineas.join('\n')}` : '';
+}
+
 export const WA_PROMPT_SISTEMA = `
 
 REGLAS DE ENLACES:
@@ -8,6 +43,8 @@ REGLAS DE ENLACES:
 - No escribas la firma de marca: la agrega el sistema.`;
 
 export function buildWhatsappPrompt({ promptBase, nota, links, localidad, contextoExtra }) {
+  let bloqueEditorial = '';
+  try { bloqueEditorial = buildEditorialPromptBlock(nota && nota.editorial); } catch (e) {}
   const sinCta = String(promptBase || '')
     .split('\n').filter(l => !/\{(LINK_GRUPO|LINK_CANAL)\}/.test(l) && !l.includes('¡Sumate a nuestra comunidad!')).join('\n');
   const sustituido = sinCta
@@ -23,7 +60,7 @@ Título: ${nota.titulo}
 Categoría: ${nota.categoria || 'General'}
 Localidad: ${localidad}
 Contenido: ${(nota.body || '').substring(0, 1500)}
-${contextoExtra ? `Contexto extra: ${contextoExtra}\n` : ''}
+${contextoExtra ? `Contexto extra: ${contextoExtra}\n` : ''}${bloqueEditorial}
 Respondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
 }
 
