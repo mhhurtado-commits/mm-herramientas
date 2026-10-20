@@ -79,9 +79,9 @@ export function normalizeWhatsappCopy(mensaje, { tipo = 'grupo', url = '', links
     .map(l => l.replace(PATRON_URL_COMUNIDAD, '').replace(/[ \t]+$/, '').trim())
     .filter(Boolean).join('\n');
   texto = texto.replace(/^\s*\*?¡Sumate a nuestra comunidad!?\*?\s*$/gm, '')
-    .replace(/^\s*\*?📰 Media Mendoza[^\n]*$/gm, '')
+    .replace(/^\s*\*?📰?\s*Media\s?Mendoza[^\n]*$/gim, '')
     .replace(/^\s*[📱📣📻]\s*\*?(?:Grupo|Canal)(?:\s+de\s+(?:Noticias|[Dd]ifusión))?\*?\s*:?[^\n]*$/gmu, '')
-    .replace(/\*?📰?\s*Media Mendoza[^*\n]*\*?/gi, '');
+    .replace(/\*?📰?\s*Media\s?Mendoza[^*\n]*\*?/gi, '');
   texto = texto.replace(/\{ENLACE\}/gi, '').replace(/[ \t]*(?:🔗|👉)\s*$/gm, '');
   texto = texto.replace(/\n{3,}/g, '\n\n').trim();
   texto = desduplicarUrlNota(texto, url);

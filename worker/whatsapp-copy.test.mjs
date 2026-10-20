@@ -93,6 +93,20 @@ test('elimina la firma embebida a mitad de linea (sin doble firma)', () => {
   assert.ok(salida.includes('ayer'));
 });
 
+test('elimina variantes de firma sin espacio (Mediamendoza) y deja una sola firma', () => {
+  const salidaGrupo = normalizeWhatsappCopy(
+    `*SALUD:* Pipi Benítez recibió el alta\n Su hija agradeció al equipo del Hospital Schestakow.\n\n🔗 *Leé la carta completa:*\n👉 https://mm.in/abc\n*📰 Mediamendoza - Noticias confiables del sur mendocino*\n\n*¡Sumate a nuestra comunidad!*`,
+    { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(!salidaGrupo.includes('Mediamendoza'));
+  assert.equal(salidaGrupo.split(WA_FIRMA).length - 1, 1);
+  assert.ok(salidaGrupo.includes(`📱 *Grupo de Noticias:* ${LINKS.grupo}`));
+  const salidaCanal = normalizeWhatsappCopy(
+    `*SALUD:* Titular\n\n• punto\n\n🔗 👉 https://mm.in/abc\n*📰 Mediamendoza - Noticias confiables del sur mendocino*\n*📰 Media Mendoza - Noticias confiables del sur mendocino*`,
+    { tipo: 'canal', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(!salidaCanal.includes('Mediamendoza'));
+  assert.equal(salidaCanal.split(WA_FIRMA).length - 1, 1);
+});
+
 test('los sustitutos dinamicos del prompt usan replacer seguro ($& del titulo no se expande)', () => {
   const nota = { ...NOTA, titulo: 'Corte en Ruta $& por protesta' };
   const prompt = buildWhatsappPrompt({ promptBase: 'TITULO: {TITULO}', nota, links: LINKS, localidad: 'San Rafael' });
