@@ -74,15 +74,25 @@ export function buildCtaComunidad(links = {}) {
 }
 
 export function normalizeWhatsappCopy(mensaje, { tipo = 'grupo', url = '', links = {} } = {}) {
+  const MARCA_BORRAR = '\u0000BORRA';
+  const LINEA_NULA = [
+    /^\u0000BORRA$/,
+    /^\s*\*?¡Sumate a nuestra comunidad!?[\s\*]*$/,
+    /^\s*\*?📰?\s*Media\s?Mendoza.*$/,
+    /^\s*[📱📣📻]\s*\*?(?:Grupo|Canal)(?:\s+de\s+(?:Noticias|[Dd]ifusión))?\*?\s*:?.*/u,
+    /^\s*(?:🔗|👉)\s*$/,
+  ];
   let texto = String(mensaje || '').trim()
     .split('\n')
-    .map(l => l.replace(PATRON_URL_COMUNIDAD, '').replace(/[ \t]+$/, '').trim())
-    .filter(Boolean).join('\n');
-  texto = texto.replace(/^\s*\*?¡Sumate a nuestra comunidad!?\*?\s*$/gm, '')
-    .replace(/^\s*\*?📰?\s*Media\s?Mendoza[^\n]*$/gim, '')
-    .replace(/^\s*[📱📣📻]\s*\*?(?:Grupo|Canal)(?:\s+de\s+(?:Noticias|[Dd]ifusión))?\*?\s*:?[^\n]*$/gmu, '')
-    .replace(/\*?📰?\s*Media\s?Mendoza[^*\n]*\*?/gi, '');
+    .map(l => {
+      const sin = l.replace(PATRON_URL_COMUNIDAD, '').replace(/[ \t]+$/, '').trim();
+      if (sin) return sin;
+      return /^\s*$/.test(l) ? '' : MARCA_BORRAR;
+    })
+    .filter(l => !LINEA_NULA.some(re => re.test(l)))
+    .join('\n');
   texto = texto.replace(/\{ENLACE\}/gi, '').replace(/[ \t]*(?:🔗|👉)\s*$/gm, '');
+  texto = texto.replace(/\*?📰?\s*Media\s?Mendoza[^*\n]*\*?/gi, '');
   texto = texto.replace(/\n{3,}/g, '\n\n').trim();
   texto = desduplicarUrlNota(texto, url);
   if (tipo === 'canal') {

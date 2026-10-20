@@ -107,6 +107,40 @@ test('elimina variantes de firma sin espacio (Mediamendoza) y deja una sola firm
   assert.equal(salidaCanal.split(WA_FIRMA).length - 1, 1);
 });
 
+test('conserva el interlineado (lineas en blanco) del mensaje de la IA en grupo', () => {
+  const ia = `🏥 *SALUD:* La hija del 'Pipi' Benítez agradeció la atención médica tras el alta de su padre
+Víctor "Pipi" Benítez regresó a su casa tras dos meses y medio internado.
+
+🔗 *Leé la carta completa:*
+👉 https://mm.in/abc
+*📰 Mediamendoza - Noticias confiables del sur mendocino*
+
+*¡Sumate a nuestra comunidad!*
+📱 Grupo: https://chat.whatsapp.com/FALSO1`;
+  const salida = normalizeWhatsappCopy(ia, { tipo: 'grupo', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(salida.includes('internado.\n\n🔗 *Leé la carta completa:*'), 'debe conservar la linea en blanco entre parrafos');
+  assert.ok(!salida.includes('\n\n\n'), 'no debe quedar mas de un interlineado');
+  assert.ok(!salida.includes('Mediamendoza'));
+  assert.equal(salida.split(WA_FIRMA).length - 1, 1);
+  assert.ok(salida.includes(`📱 *Grupo de Noticias:* ${LINKS.grupo}`));
+});
+
+test('conserva el interlineado en canal y deja una sola firma al final', () => {
+  const ia = `🏥 *SALUD:* Titular
+Víctor Benítez regresó a su casa tras el alta.
+
+🔗 *Leé todo:*
+👉 https://mm.in/abc
+*📰 Mediamendoza - Noticias confiables del sur mendocino*
+*📰 Media Mendoza - Noticias confiables del sur mendocino*`;
+  const salida = normalizeWhatsappCopy(ia, { tipo: 'canal', url: 'https://mm.in/abc', links: LINKS });
+  assert.ok(salida.includes('tras el alta.\n\n🔗 *Leé todo:*'), 'debe conservar la linea en blanco entre parrafos');
+  assert.ok(!salida.includes('\n\n\n'));
+  assert.ok(!salida.includes('Mediamendoza'));
+  assert.equal(salida.split(WA_FIRMA).length - 1, 1);
+  assert.ok(salida.trimEnd().endsWith(WA_FIRMA));
+});
+
 test('los sustitutos dinamicos del prompt usan replacer seguro ($& del titulo no se expande)', () => {
   const nota = { ...NOTA, titulo: 'Corte en Ruta $& por protesta' };
   const prompt = buildWhatsappPrompt({ promptBase: 'TITULO: {TITULO}', nota, links: LINKS, localidad: 'San Rafael' });
