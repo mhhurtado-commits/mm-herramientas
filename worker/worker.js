@@ -1,5 +1,5 @@
-import { buildWhatsappPrompt, normalizeWhatsappCopy, buildEditorialPromptBlock } from './whatsapp-copy.mjs';
-import { normalizeEditorialPackage } from '../shared/editorial-package.mjs';
+
+
 // Media Mendoza Worker ? archivo ?nico para pegar en el dashboard de Cloudflare.
 // Incluye solo los helpers de f?tbol usados por el Worker y el n?cleo editorial de Placas V2.
 // @ts-nocheck
@@ -398,8 +398,6 @@ function calculatePlateLayout(format, plate = {}) {
   };
 }
 
-
-
 const text = value => String(value || '').replace(/\s+/g, ' ').trim();
 
 function normalizeSyntheticTitle(value) {
@@ -496,13 +494,10 @@ function deterministicEditorialResponse(note = {}) {
   return { ...result, warnings: ['ia_no_disponible'] };
 }
 
-
 // ============================================================
 // Media Mendoza — Worker v18 (FINAL CON TODAS LAS FUNCIONALIDADES)
 // ============================================================
 // @ts-nocheck
-
-
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -5274,6 +5269,366 @@ async function handlePostCubierta(body,env){
 // WHATSAPP
 // ============================================================
 
+const WA_FIRMA = '*📰 Media Mendoza - Noticias confiables del sur mendocino*';
+
+function notaDesdePaquete(paquete, acortar) {
+  const f = paquete?.fuente || {};
+  const url = f.url || '';
+  return {
+    titulo: f.titulo_original || f.tituloOriginal || f.titulo || '',
+    categoria: f.categoria || 'General',
+    descripcion: '',
+    body: f.cuerpo || '',
+    url,
+    urlCorta: url && typeof acortar === 'function' ? acortar(url) : '',
+    image: f.imagen || '',
+    editorial: paquete?.editorial || {},
+  };
+}
+
+function buildEditorialPromptBlock(editorial) {
+  if (!editorial || typeof editorial !== 'object') return '';
+  const lineas = [];
+  const titulo = String(editorial.titulo || '').trim();
+  if (titulo) lineas.push(`Título paquete: ${titulo}`);
+  const contexto = String(editorial.contexto || '').trim();
+  if (contexto) lineas.push(`Contexto: ${contexto}`);
+  const datos = Array.isArray(editorial.datos_clave)
+    ? editorial.datos_clave.map(d => {
+        const value = String(d?.value || '').trim();
+        const label = String(d?.label || '').trim();
+        return value && label ? `${label}: ${value}` : value || label;
+      }).filter(Boolean)
+    : [];
+  if (datos.length) lineas.push(`Datos clave: ${datos.join(' ; ')}`);
+  const pregunta = String(editorial.pregunta_social || '').trim();
+  if (pregunta) lineas.push(`Pregunta social: ${pregunta}`);
+  return lineas.length ? `EDITORIAL:\n${lineas.join('\n')}` : '';
+}
+
+const WA_PROMPT_SISTEMA = `
+
+REGLAS DE ENLACES:
+- NO incluyas ninguna URL ni dirección web: el sistema agrega el enlace de la nota, los links de comunidad y la firma.
+- En el mensaje de grupo, la línea que empieza con 🔗 queda sola y el sistema agrega el enlace debajo.
+- No escribas la firma de marca: la agrega el sistema.`;
+
+function buildWhatsappPrompt({ promptBase, nota, links, localidad, contextoExtra }) {
+  let bloqueEditorial = '';
+  try { bloqueEditorial = buildEditorialPromptBlock(nota && nota.editorial); } catch (e) {}
+  const sinCta = String(promptBase || '')
+    .split('\n').filter(l => !/\{(LINK_GRUPO|LINK_CANAL)\}/.test(l) && !l.includes('¡Sumate a nuestra comunidad!')).join('\n');
+  const sustituido = sinCta
+    .replace(/\{URL\}/g, () => 'el sistema agrega el enlace de la nota')
+    .replace(/\{TITULO\}/g, () => nota.titulo || 'Sin titulo')
+    .replace(/\{CATEGORIA\}/g, () => nota.categoria || 'General')
+    .replace(/\{LOCALIDAD\}/g, () => localidad)
+    .replace(/\{CONTENIDO\}/g, () => (nota.body || '').substring(0, 1500));
+  return `${sustituido}${WA_PROMPT_SISTEMA}
+
+NOTICIA:
+Título: ${nota.titulo}
+Categoría: ${nota.categoria || 'General'}
+Localidad: ${localidad}
+Contenido: ${(nota.body || '').substring(0, 1500)}
+${contextoExtra ? `Contexto extra: ${contextoExtra}\n` : ''}${bloqueEditorial}
+Respondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
+}
+
+const PATRON_URL_COMUNIDAD = /(https?:\/\/|www\.)?[a-z0-9.\-]*(chat\.whatsapp\.com|whatsapp\.com\/channel|bit\.ly\/mediamendoza|wa\.me)([\/\?#\w\-=&%.\+]*)/gi;
+
+function buildCtaComunidad(links = {}) {
+  const partes = [];
+  if (links.grupo) partes.push(`📱 *Grupo de Noticias:* ${links.grupo}`);
+  if (links.canal) partes.push(`📣 *Canal de Difusión:* ${links.canal}`);
+  return partes.length ? `*¡Sumate a nuestra comunidad!*\n${partes.join('\n')}` : '';
+}
+
+function normalizeWhatsappCopy(mensaje, { tipo = 'grupo', url = '', links = {} } = {}) {
+  let texto = String(mensaje || '').trim()
+    .split('\n')
+    .map(l => l.replace(PATRON_URL_COMUNIDAD, '').replace(/[ \t]+$/, '').trim())
+    .filter(Boolean).join('\n');
+  texto = texto.replace(/^\s*\*?¡Sumate a nuestra comunidad!?\*?\s*$/gm, '')
+    .replace(/^\s*\*?📰 Media Mendoza[^\n]*$/gm, '')
+    .replace(/^\s*[📱📣📻]\s*\*?(?:Grupo|Canal)(?:\s+de\s+(?:Noticias|[Dd]ifusión))?\*?\s*:?[^\n]*$/gmu, '')
+    .replace(/\*?📰?\s*Media Mendoza[^*\n]*\*?/gi, '');
+  texto = texto.replace(/\{ENLACE\}/gi, '').replace(/[ \t]*(?:🔗|👉)\s*$/gm, '');
+  texto = texto.replace(/\n{3,}/g, '\n\n').trim();
+  texto = desduplicarUrlNota(texto, url);
+  if (tipo === 'canal') {
+    return `${texto}\n${WA_FIRMA}`.trim();
+  }
+  const cta = buildCtaComunidad(links);
+  return `${texto}\n\n${cta}${cta ? '\n' : ''}${WA_FIRMA}`.trim();
+}
+
+function desduplicarUrlNota(texto, url) {
+  if (!url) return texto;
+  const urlEscapada = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  texto = texto.replace(/https?:\/\/[^\s<>"']+/g, (m) => (new RegExp(`^${urlEscapada}$`, 'i').test(m.trim()) ? m : url));
+  if (!texto.includes(url)) {
+    if (/🔗/.test(texto)) {
+      texto = texto.replace(/^(.*🔗[^\n]*)$/m, (linea) => linea.replace(/[ \t]*$/, '') + `\n👉 ${url}`);
+    } else {
+      texto += `\n\n🔗 👉 ${url}`;
+    }
+  }
+  return texto;
+}
+
+const { normalizeEditorialPackage } = (() => {
+const EDITORIAL_PACKAGE_VERSION = 2;
+
+function normalizeEditorialPackage(input = {}) {
+  const source = isObject(input) ? input : {};
+  const errors = [];
+  const fuenteSource = isObject(source.fuente) ? source.fuente : {};
+  const editorialSource = isObject(source.editorial) ? source.editorial : null;
+
+  if (source.tipo !== 'noticia_editorial') errors.push('tipo inválido');
+  if (Number(source.version) !== EDITORIAL_PACKAGE_VERSION) errors.push('version inválida');
+
+  const fuente = {
+    url: clean(fuenteSource.url),
+    titulo_original: clean(fuenteSource.titulo_original || fuenteSource.title),
+    categoria: clean(fuenteSource.categoria || fuenteSource.category),
+    cuerpo: clean(fuenteSource.cuerpo || fuenteSource.texto || fuenteSource.content || fuenteSource.body),
+    imagen: clean(fuenteSource.imagen || fuenteSource.image),
+    imagenes: uniqueStrings([fuenteSource.imagenes, fuenteSource.images]).slice(0, 12),
+  };
+
+  if (!fuente.url) errors.push('fuente.url faltante');
+  if (!fuente.titulo_original) errors.push('fuente.titulo_original faltante');
+  if (!editorialSource) errors.push('editorial faltante');
+
+  const editorial = normalizeEditorial(editorialSource || {}, fuente);
+  const normalized = {
+    tipo: 'noticia_editorial',
+    version: EDITORIAL_PACKAGE_VERSION,
+    ...(clean(source.fecha || source.date) ? { fecha: clean(source.fecha || source.date) } : {}),
+    fuente,
+    editorial,
+    salidas: normalizeOutputs(source.salidas),
+    redes: normalizeSocial(source.redes),
+  };
+
+  return { ok: errors.length === 0, package: normalized, errors };
+}
+
+function packageFromPlate(plate = {}) {
+  const source = isObject(plate) ? plate : {};
+  const fuenteSource = isObject(source.fuente) ? source.fuente : {};
+  const images = uniqueStrings([fuenteSource.imagenes, fuenteSource.images]);
+  const primaryImage = clean(fuenteSource.imagen || fuenteSource.image || images[0]);
+  const normalizedImages = primaryImage && !images.includes(primaryImage) ? [primaryImage, ...images] : images;
+
+  return {
+    tipo: 'noticia_editorial',
+    version: EDITORIAL_PACKAGE_VERSION,
+    ...(clean(source.fecha || source.date) ? { fecha: clean(source.fecha || source.date) } : {}),
+    fuente: {
+      url: clean(fuenteSource.url || source.url),
+      titulo_original: clean(fuenteSource.titulo_original || fuenteSource.title || source.titulo),
+      categoria: clean(fuenteSource.categoria || fuenteSource.category || source.etiqueta),
+      cuerpo: clean(fuenteSource.cuerpo || fuenteSource.texto || fuenteSource.content || fuenteSource.body || source.cuerpo),
+      imagen: primaryImage,
+      imagenes: normalizedImages.slice(0, 12),
+    },
+    editorial: {
+      seccion: clean(fuenteSource.categoria || fuenteSource.category || source.etiqueta),
+      familia: clean(source.template_sugerido) || 'general',
+      tipo_noticia: clean(source.tipo_noticia) || 'noticia',
+      complejidad: clean(source.complejidad) || 'medium',
+      tono: clean(source.tono) || 'informative',
+      titulo: clean(source.titulo || source.title),
+      titulo_sintetico: clean(source.titulo_sintetico),
+      bajada: clean(source.bajada || source.description),
+      contexto: clean(source.contexto || source.context),
+      pregunta_social: clean(source.pregunta_social),
+      datos_clave: normalizeKeyFacts(source.datos_clave),
+      textual: normalizeStringsOrObjects(source.textual),
+      personas: normalizeObjects(source.personas),
+    },
+    salidas: { placas: [source], carrusel: null, reel: null },
+    redes: normalizeSocial(source.redes),
+  };
+}
+
+function packageFromCarouselArticle(article = {}, diagnosis = {}, plan = null) {
+  const source = isObject(article) ? article : {};
+  const normalizedPlan = isObject(plan) ? plan : {};
+  const normalizedDiagnosis = isObject(diagnosis) ? diagnosis : {};
+  const images = uniqueStrings([source.images]);
+  const primaryImage = clean(source.image || images[0]);
+
+  return {
+    tipo: 'noticia_editorial',
+    version: EDITORIAL_PACKAGE_VERSION,
+    fuente: {
+      url: clean(source.url),
+      titulo_original: clean(source.title),
+      categoria: clean(source.category),
+      cuerpo: clean(source.content),
+      imagen: primaryImage,
+      imagenes: primaryImage && !images.includes(primaryImage) ? [primaryImage, ...images].slice(0, 12) : images.slice(0, 12),
+    },
+    editorial: {
+      seccion: clean(normalizedDiagnosis.vertical || source.category),
+      familia: clean(normalizedDiagnosis.template) || 'general',
+      tipo_noticia: clean(normalizedDiagnosis.news_type) || 'evergreen',
+      complejidad: clean(normalizedDiagnosis.complexity) || 'medium',
+      tono: clean(normalizedDiagnosis.tone) || 'informative',
+      titulo: clean(normalizedPlan.cover?.title || source.title),
+      bajada: clean(normalizedPlan.cover?.subtitle || source.summary),
+      contexto: clean(normalizedPlan.slides?.find(slide => slide?.type === 'context')?.text),
+      pregunta_social: '',
+      datos_clave: normalizeKeyFacts(normalizedPlan.slides?.filter(slide => slide?.type === 'facts').flatMap(slide => slide.items || [])),
+      textual: [],
+      personas: [],
+    },
+    salidas: { placas: [], carrusel: normalizedPlan, reel: null },
+    redes: normalizeSocial({}),
+  };
+}
+
+function packageToCarouselArticle(editorialPackage = {}) {
+  const source = isObject(editorialPackage.fuente) ? editorialPackage.fuente : {};
+  const editorial = isObject(editorialPackage.editorial) ? editorialPackage.editorial : {};
+  const images = uniqueStrings([source.imagenes]);
+  const image = clean(source.imagen || images[0]);
+  return {
+    url: clean(source.url),
+    title: clean(source.titulo_original || editorial.titulo),
+    category: clean(source.categoria || editorial.seccion),
+    summary: clean(editorial.bajada),
+    image,
+    images: image && !images.includes(image) ? [image, ...images].slice(0, 12) : images.slice(0, 12),
+    content: clean(source.cuerpo),
+    ...(clean(editorialPackage.fecha || editorialPackage.date) ? { date: clean(editorialPackage.fecha || editorialPackage.date) } : {}),
+    editorialVertical: clean(editorial.seccion),
+    editorialContext: clean(editorial.contexto),
+    editorialFacts: normalizeKeyFacts(editorial.datos_clave),
+    editorialTextual: normalizeStringsOrObjects(editorial.textual),
+  };
+}
+
+function packageToPlateInput(editorialPackage = {}) {
+  const source = isObject(editorialPackage.fuente) ? editorialPackage.fuente : {};
+  const editorial = isObject(editorialPackage.editorial) ? editorialPackage.editorial : {};
+  const plate = Array.isArray(editorialPackage.salidas?.placas) ? editorialPackage.salidas.placas[0] : {};
+  return {
+    ...plate,
+    url: clean(source.url),
+    titulo: clean(editorial.titulo || source.titulo_original),
+    titulo_sintetico: clean(editorial.titulo_sintetico),
+    bajada: clean(editorial.bajada),
+    contexto: clean(editorial.contexto),
+    pregunta_social: clean(editorial.pregunta_social),
+    cuerpo: clean(source.cuerpo),
+    category: clean(editorial.seccion || source.categoria),
+    template_sugerido: clean(editorial.familia) || 'general',
+    image: clean(source.imagen),
+    images: uniqueStrings([source.imagenes]),
+    textual: editorial.textual,
+    personas: editorial.personas,
+  };
+}
+
+function normalizeEditorial(source, fuente) {
+  return {
+    seccion: clean(source.seccion || fuente.categoria),
+    category_options: normalizeCategoryOptions(source.category_options),
+    familia: clean(source.familia) || 'general',
+    tipo_noticia: clean(source.tipo_noticia) || 'noticia',
+    complejidad: clean(source.complejidad) || 'medium',
+    tono: clean(source.tono) || 'informative',
+    titulo: clean(source.titulo || fuente.titulo_original),
+    titulo_sintetico: clean(source.titulo_sintetico),
+    bajada: clean(source.bajada),
+    contexto: clean(source.contexto),
+    pregunta_social: clean(source.pregunta_social),
+    datos_clave: normalizeKeyFacts(source.datos_clave),
+    textual: normalizeStringsOrObjects(source.textual),
+    personas: normalizeObjects(source.personas),
+  };
+}
+
+function normalizeCategoryOptions(values) {
+  if (!Array.isArray(values)) return [];
+  return values.map((value, index) => ({
+    id: clean(value?.id) || `categoria-${index + 1}`,
+    label: clean(value?.label || value?.nombre || value?.seccion),
+    vertical: clean(value?.vertical),
+    recommended: Boolean(value?.recommended || value?.sugerida),
+    color: clean(value?.color),
+  })).filter(value => value.label).slice(0, 6);
+}
+
+function normalizeOutputs(outputs) {
+  const source = isObject(outputs) ? outputs : {};
+  return {
+    placas: Array.isArray(source.placas) ? source.placas : [],
+    carrusel: source.carrusel || null,
+    reel: source.reel || null,
+  };
+}
+
+function normalizeSocial(social) {
+  const source = isObject(social) ? social : {};
+  return { instagram: clean(source.instagram || source.caption), facebook: clean(source.facebook) };
+}
+
+function normalizeStrings(values) {
+  return Array.isArray(values) ? values.map(clean).filter(Boolean).slice(0, 12) : [];
+}
+
+function normalizeStringsOrObjects(values) {
+  if (Array.isArray(values)) return values.map(value => (isObject(value) ? { ...value } : clean(value))).filter(value => (isObject(value) ? Object.keys(value).length : Boolean(value))).slice(0, 12);
+  if (isObject(values)) return [{ ...values }];
+  return [];
+}
+
+function normalizeKeyFacts(values) {
+  if (!Array.isArray(values)) return [];
+  return values.map(value => {
+    if (isObject(value)) {
+      return {
+        label: cleanFactValue(value.label || value.titulo || value.nombre),
+        value: cleanFactValue(value.value || value.valor || value.text || value.texto),
+        detail: cleanFactValue(value.detail || value.detalle || value.description || value.descripcion),
+      };
+    }
+    return { label: '', value: cleanFactValue(value), detail: '' };
+  }).filter(value => value.value || value.label || value.detail).slice(0, 12);
+}
+
+function cleanFactValue(value) {
+  if (isObject(value)) {
+    return cleanFactValue(value.value || value.valor || value.text || value.texto || value.detail || value.detalle || value.label || value.nombre || value.titulo);
+  }
+  return clean(value);
+}
+
+function normalizeObjects(values) {
+  return Array.isArray(values) ? values.filter(isObject).map(value => ({ ...value })).slice(0, 12) : [];
+}
+
+function uniqueStrings(groups) {
+  return [...new Set(groups.flatMap(group => Array.isArray(group) ? group : [group]).map(clean).filter(Boolean))];
+}
+
+function clean(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+return { normalizeEditorialPackage };
+})();
+
 const WA_PROMPT_DEFECTO=`Sos editor de redes sociales de Media Mendoza, diario digital del sur de Mendoza, Argentina.
 Transformá esta noticia en dos mensajes de WhatsApp. Español rioplatense. Emojis estratégicos.
 
@@ -5442,8 +5797,6 @@ async function callGemini(prompt, env, searchEnabled = false, expectJson = true,
   return await fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }] }, { searchEnabled, expectJson, modelOverride });
 }
 
-
-
 async function fetchGemini(env, payload, { searchEnabled = false, expectJson = true, modelOverride = null } = {}) {
   const availableKeys = getGeminiKeys(env);
   if (!availableKeys.length) return { error: "No hay API keys de Gemini configuradas" };
@@ -5564,7 +5917,6 @@ async function fetchGemini(env, payload, { searchEnabled = false, expectJson = t
   }
   return { error: "Todas las keys de Gemini fallaron", details: modelErrors };
 }
-
 
 async function handleMusicSearch(url, env) {
   const query = url.searchParams.get('q') || '';
@@ -5892,7 +6244,6 @@ async function handleMundialIDs(env) {
   }
 }
 
-
 // ============================================================
 // VIDEO VERTICAL - Cloudinary (la API secret nunca sale del Worker)
 // ============================================================
@@ -6210,7 +6561,6 @@ export default {
         return new Response(JSON.stringify(results, null, 2),
           {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
       }
-
 
       if(path==="/mundo/detalle-partido") {
         const fixtureId = url.searchParams.get("fixtureId");

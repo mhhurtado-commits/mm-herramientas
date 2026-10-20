@@ -40,7 +40,7 @@ El contrato vive en `shared/editorial-package.mjs` y conserva la fuente original
 
 ## Worker manual
 
-Como el worker se despliega desde el dashboard de Cloudflare, copiar el contenido actualizado de `worker/worker.js` y desplegarlo en el servicio `mm-herramientas-worker`. También debe mantenerse sincronizado `worker/worker-dashboard.js` si se usa la variante del dashboard.
+Como el worker se despliega desde el dashboard de Cloudflare, copiar el contenido actualizado de `worker/worker.js` y desplegarlo en el servicio `mm-herramientas-worker`. El archivo es autocontenido (todo inlineado, sin imports): si se agrega lógica nueva, debe vivir dentro de ese mismo archivo; los módulos `worker/whatsapp-copy.mjs` y `shared/editorial-package.mjs` son la fuente que se copia y `worker/whatsapp-copy-sync.test.mjs` falla si `worker.js` se desincroniza.
 
 La ruta nueva es independiente de `/placas` y no cambia su flujo de producción.
 
