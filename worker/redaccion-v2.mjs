@@ -334,3 +334,47 @@ export function permitirSolicitud(buckets, ip = 'local', ahora = Date.now(), lim
   }
   return bucket.cuenta <= limite;
 }
+
+export function normalizarNotaV2(nota = {}) {
+  const titular = String(nota?.titular || '').trim();
+  const cuerpo = String(nota?.cuerpo || '').trim();
+  const errors = [];
+  if (titular.length < 8) errors.push('titular_corto');
+  if (cuerpo.length < 80) errors.push('cuerpo_corto');
+  const fuentes = Array.isArray(nota?.fuentes)
+    ? nota.fuentes
+      .filter(f => f && /^https?:\/\//i.test(String(f.url || '')))
+      .slice(0, 3)
+      .map(f => ({
+        titulo: String(f.titulo || '').trim(),
+        url: String(f.url).trim(),
+        medio: String(f.medio || '').trim(),
+      }))
+    : [];
+  const origen = nota?.origen && /^https?:\/\//i.test(String(nota.origen.url || ''))
+    ? {
+      url: String(nota.origen.url).trim(),
+      medio: String(nota.origen.medio || '').trim(),
+      titulo: String(nota.origen.titulo || '').trim(),
+    }
+    : null;
+  const data = {
+    id: String(nota?.id || '').trim() || `r2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    titular,
+    bajada: String(nota?.bajada || '').trim(),
+    cuerpo,
+    categoria: String(nota?.categoria || '').trim(),
+    hashtags: Array.isArray(nota?.hashtags)
+      ? nota.hashtags.map(h => String(h || '').trim()).filter(Boolean)
+      : [],
+    imagen: String(nota?.imagen || '').trim(),
+    fuentes,
+    origen,
+    modelo: String(nota?.modelo || '').trim(),
+    estado: String(nota?.estado || 'borrador').trim(),
+    fecha: Number(nota?.fecha) || Date.now(),
+    actualizado: Date.now(),
+    version: 2,
+  };
+  return { ok: errors.length === 0, data, errors };
+}

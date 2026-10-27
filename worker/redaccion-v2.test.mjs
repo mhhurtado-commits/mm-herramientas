@@ -7,6 +7,7 @@ import {
   pedirGemini, ejecutarTareaIA,
   construirPromptImagenV2, NEGATIVE_IMAGEN_V2,
   permitirSolicitud,
+  normalizarNotaV2,
 } from './redaccion-v2.mjs';
 
 test('reformular usa el modelo nuevo, sin temperature y con tokens altos', () => {
@@ -253,4 +254,35 @@ test('el límite de ráfaga corta al superar el máximo y se reinicia', () => {
   assert.equal(permitirSolicitud(buckets, 'ip', t0 + 10, 3, 60000), false);
   assert.equal(permitirSolicitud(buckets, 'ip', t0 + 60001, 3, 60000), true);
   assert.equal(permitirSolicitud(buckets, 'otra', t0 + 10, 3, 60000), true);
+});
+
+test('normaliza una nota v2 y descarta fuentes inválidas', () => {
+  const r = normalizarNotaV2({
+    titular: '  Un titular válido  ',
+    cuerpo: 'x'.repeat(120),
+    categoria: ' Policiales ',
+    hashtags: ['#SanRafael', ''],
+    fuentes: [
+      { titulo: 'Uno', url: 'https://uno.com/1', medio: 'UNO' },
+      { titulo: 'Mala', url: 'javascript:alert(1)', medio: 'X' },
+    ],
+    origen: { url: 'https://losandes.com.ar/nota', medio: 'Los Andes' },
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.data.titular, 'Un titular válido');
+  assert.equal(r.data.categoria, 'Policiales');
+  assert.equal(r.data.fuentes.length, 1);
+  assert.equal(r.data.origen.medio, 'Los Andes');
+  assert.deepEqual(r.data.hashtags, ['#SanRafael']);
+});
+
+test('rechaza una nota sin titular o con cuerpo corto', () => {
+  assert.equal(normalizarNotaV2({ titular: '', cuerpo: 'x'.repeat(120) }).ok, false);
+  assert.equal(normalizarNotaV2({ titular: 'Título válido', cuerpo: 'corto' }).ok, false);
+});
+
+test('conserva el id y la fecha si ya existen', () => {
+  const r = normalizarNotaV2({ id: 'r2_1', fecha: 123, titular: 'Título válido', cuerpo: 'x'.repeat(120) });
+  assert.equal(r.data.id, 'r2_1');
+  assert.equal(r.data.fecha, 123);
 });

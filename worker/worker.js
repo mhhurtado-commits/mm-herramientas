@@ -846,6 +846,50 @@ function permitirSolicitud(buckets, ip = 'local', ahora = Date.now(), limite = 4
   }
   return bucket.cuenta <= limite;
 }
+
+function normalizarNotaV2(nota = {}) {
+  const titular = String(nota?.titular || '').trim();
+  const cuerpo = String(nota?.cuerpo || '').trim();
+  const errors = [];
+  if (titular.length < 8) errors.push('titular_corto');
+  if (cuerpo.length < 80) errors.push('cuerpo_corto');
+  const fuentes = Array.isArray(nota?.fuentes)
+    ? nota.fuentes
+      .filter(f => f && /^https?:\/\//i.test(String(f.url || '')))
+      .slice(0, 3)
+      .map(f => ({
+        titulo: String(f.titulo || '').trim(),
+        url: String(f.url).trim(),
+        medio: String(f.medio || '').trim(),
+      }))
+    : [];
+  const origen = nota?.origen && /^https?:\/\//i.test(String(nota.origen.url || ''))
+    ? {
+      url: String(nota.origen.url).trim(),
+      medio: String(nota.origen.medio || '').trim(),
+      titulo: String(nota.origen.titulo || '').trim(),
+    }
+    : null;
+  const data = {
+    id: String(nota?.id || '').trim() || `r2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    titular,
+    bajada: String(nota?.bajada || '').trim(),
+    cuerpo,
+    categoria: String(nota?.categoria || '').trim(),
+    hashtags: Array.isArray(nota?.hashtags)
+      ? nota.hashtags.map(h => String(h || '').trim()).filter(Boolean)
+      : [],
+    imagen: String(nota?.imagen || '').trim(),
+    fuentes,
+    origen,
+    modelo: String(nota?.modelo || '').trim(),
+    estado: String(nota?.estado || 'borrador').trim(),
+    fecha: Number(nota?.fecha) || Date.now(),
+    actualizado: Date.now(),
+    version: 2,
+  };
+  return { ok: errors.length === 0, data, errors };
+}
 // <<< REDACCION-V2 INLINE
 
 // >>> REDACCION-FUENTES INLINE
@@ -7260,6 +7304,63 @@ async function handleRedaccionV2Health(env) {
   return jsonOk(salida);
 }
 
+const REDACCION_V2_NOTA_PREFIX = 'redaccion-v2:nota:';
+const REDACCION_V2_NOTAS_INDEX = 'redaccion-v2:notas-index';
+
+async function _getNotasV2Index(env) {
+  let notas = await env.KV.get(REDACCION_V2_NOTAS_INDEX, 'json');
+  if (!Array.isArray(notas)) {
+    notas = [];
+    const list = await env.KV.list({ prefix: REDACCION_V2_NOTA_PREFIX });
+    for (const key of list.keys) {
+      const value = await env.KV.get(key.name, 'json');
+      if (value) notas.push(value);
+    }
+    await env.KV.put(REDACCION_V2_NOTAS_INDEX, JSON.stringify(notas));
+  }
+  return notas;
+}
+
+async function handleRedaccionV2GetNotas(env) {
+  try {
+    const notas = await _getNotasV2Index(env);
+    notas.sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
+    return jsonOk({ notas: notas.slice(0, 200) });
+  } catch (err) {
+    return jsonError('Error KV: ' + err.message, 500);
+  }
+}
+
+async function handleRedaccionV2PostNota(body, env) {
+  const normalizada = normalizarNotaV2(body);
+  if (!normalizada.ok) return jsonError('Nota inválida: ' + normalizada.errors.join(', '), 400);
+  const nota = normalizada.data;
+  try {
+    await env.KV.put(REDACCION_V2_NOTA_PREFIX + nota.id, JSON.stringify(nota));
+    let notas = await _getNotasV2Index(env);
+    notas = notas.filter(n => n.id !== nota.id);
+    notas.push(nota);
+    await env.KV.put(REDACCION_V2_NOTAS_INDEX, JSON.stringify(notas.slice(-500)));
+    return jsonOk({ guardado: true, nota });
+  } catch (err) {
+    return jsonError('Error KV: ' + err.message, 500);
+  }
+}
+
+async function handleRedaccionV2DeleteNota(url, env) {
+  const id = url.searchParams.get('id');
+  if (!id) return jsonError('id requerido', 400);
+  try {
+    await env.KV.delete(REDACCION_V2_NOTA_PREFIX + id);
+    let notas = await _getNotasV2Index(env);
+    notas = notas.filter(n => n.id !== id);
+    await env.KV.put(REDACCION_V2_NOTAS_INDEX, JSON.stringify(notas));
+    return jsonOk({ eliminado: true });
+  } catch (err) {
+    return jsonError('Error KV: ' + err.message, 500);
+  }
+}
+
 async function handleRedaccionV2Post(path, body, request, env) {
   if (!permitirRedaccionV2(request)) return jsonError('Demasiadas solicitudes. Esperá un minuto.', 429);
   switch (path) {
@@ -8015,6 +8116,7 @@ export default {
       if(path==="/agenda/evento")                    return handleDeleteAgendaEvento(url,env);
       if(path==="/agenda/efemeride")                 return handleDeleteAgendaEfemeride(url,env);
       if(path==="/studio/proyecto")                  return handleStudioEliminarProyecto(url, env);
+      if (path === '/v2/redaccion/notas') return handleRedaccionV2DeleteNota(url, env);
       return jsonError("Ruta no encontrada",404);
     }
 
