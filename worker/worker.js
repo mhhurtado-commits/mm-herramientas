@@ -830,6 +830,22 @@ function construirPromptImagenV2({ titulo = '', contenido = '', contexto = '', e
   const lugar = String(contexto || 'Mendoza, Argentina').trim();
   return plantilla.replace('{escena}', escena).replace('{contexto}', lugar);
 }
+
+function permitirSolicitud(buckets, ip = 'local', ahora = Date.now(), limite = 40, ventanaMs = 60000) {
+  const clave = String(ip || 'local');
+  let bucket = buckets.get(clave);
+  if (!bucket || ahora - bucket.inicio > ventanaMs) {
+    bucket = { inicio: ahora, cuenta: 0 };
+    buckets.set(clave, bucket);
+  }
+  bucket.cuenta += 1;
+  if (buckets.size > 500) {
+    for (const [k, v] of buckets) {
+      if (ahora - v.inicio > ventanaMs) buckets.delete(k);
+    }
+  }
+  return bucket.cuenta <= limite;
+}
 // <<< REDACCION-V2 INLINE
 
 // >>> REDACCION-FUENTES INLINE
@@ -6932,20 +6948,7 @@ const REDACCION_V2_BUCKETS = new Map();
 
 function permitirRedaccionV2(request, limite = 40, ventanaMs = 60000) {
   const ip = request.headers.get('cf-connecting-ip') || 'local';
-  const ahora = Date.now();
-  const bucket = REDACCION_V2_BUCKETS.get(ip) || { inicio: ahora, cuenta: 0 };
-  if (ahora - bucket.inicio > ventanaMs) {
-    bucket.inicio = ahora;
-    bucket.cuenta = 0;
-  }
-  bucket.cuenta += 1;
-  REDACCION_V2_BUCKETS.set(ip, bucket);
-  if (REDACCION_V2_BUCKETS.size > 500) {
-    for (const [clave, valor] of REDACCION_V2_BUCKETS) {
-      if (ahora - valor.inicio > ventanaMs) REDACCION_V2_BUCKETS.delete(clave);
-    }
-  }
-  return bucket.cuenta <= limite;
+  return permitirSolicitud(REDACCION_V2_BUCKETS, ip, Date.now(), limite, ventanaMs);
 }
 
 async function handleRedaccionV2Titulares(body, env) {
@@ -7233,6 +7236,28 @@ async function handleRedaccionV2Ilustrar(body, env) {
   const imgTempId = guardarImagenTemp(env, imagen);
   logRedaccionV2({ tarea: 'ilustrar', evento: 'ok', modelo: r.modelo, motor: r.motor, bytes: r.bytes.length });
   return jsonOk({ imagen, formato: 'image/jpeg', prompt, modelo: r.modelo, motor: r.motor, imgTempId, seed: r.seed });
+}
+
+async function handleRedaccionV2Health(env) {
+  let kv = false;
+  let editorial = false;
+  try {
+    await env.KV.get('config:editorial');
+    kv = true;
+    editorial = Boolean(await getEditorial(env));
+  } catch (e) {}
+  const keys = getGeminiKeys(env);
+  const salida = {
+    version: REDACCION_V2_VERSION,
+    modelos: { primario: TAREAS.reformular.modelo, respaldo: TAREAS.reformular.respaldo },
+    kv,
+    ai: Boolean(env.AI),
+    keys: keys.length,
+    editorial,
+    timestamp: new Date().toISOString(),
+  };
+  logRedaccionV2({ tarea: 'health', ...salida });
+  return jsonOk(salida);
 }
 
 async function handleRedaccionV2Post(path, body, request, env) {

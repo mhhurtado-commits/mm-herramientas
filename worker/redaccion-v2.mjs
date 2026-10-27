@@ -318,3 +318,19 @@ export function construirPromptImagenV2({ titulo = '', contenido = '', contexto 
   const lugar = String(contexto || 'Mendoza, Argentina').trim();
   return plantilla.replace('{escena}', escena).replace('{contexto}', lugar);
 }
+
+export function permitirSolicitud(buckets, ip = 'local', ahora = Date.now(), limite = 40, ventanaMs = 60000) {
+  const clave = String(ip || 'local');
+  let bucket = buckets.get(clave);
+  if (!bucket || ahora - bucket.inicio > ventanaMs) {
+    bucket = { inicio: ahora, cuenta: 0 };
+    buckets.set(clave, bucket);
+  }
+  bucket.cuenta += 1;
+  if (buckets.size > 500) {
+    for (const [k, v] of buckets) {
+      if (ahora - v.inicio > ventanaMs) buckets.delete(k);
+    }
+  }
+  return bucket.cuenta <= limite;
+}

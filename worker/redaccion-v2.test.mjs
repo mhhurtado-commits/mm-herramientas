@@ -6,6 +6,7 @@ import {
   interpretarRespuestaGemini, validarTitulares, validarReformulacion, validarRedaccion,
   pedirGemini, ejecutarTareaIA,
   construirPromptImagenV2, NEGATIVE_IMAGEN_V2,
+  permitirSolicitud,
 } from './redaccion-v2.mjs';
 
 test('reformular usa el modelo nuevo, sin temperature y con tokens altos', () => {
@@ -243,4 +244,13 @@ test('el prompt de imagen nunca pide texto dentro de la imagen', () => {
 test('un estilo desconocido cae a realista', () => {
   const prompt = construirPromptImagenV2({ titulo: 'T', contenido: 'C', estilo: 'inexistente' });
   assert.match(prompt, /photograph|photo/i);
+});
+
+test('el límite de ráfaga corta al superar el máximo y se reinicia', () => {
+  const buckets = new Map();
+  const t0 = 1_000_000;
+  for (let i = 0; i < 3; i++) assert.equal(permitirSolicitud(buckets, 'ip', t0 + i, 3, 60000), true);
+  assert.equal(permitirSolicitud(buckets, 'ip', t0 + 10, 3, 60000), false);
+  assert.equal(permitirSolicitud(buckets, 'ip', t0 + 60001, 3, 60000), true);
+  assert.equal(permitirSolicitud(buckets, 'otra', t0 + 10, 3, 60000), true);
 });
