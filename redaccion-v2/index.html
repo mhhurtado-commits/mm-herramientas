@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redacción — Media Mendoza</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>
+/* ============================================================
+   Estilos específicos de Redacción (solo lo que no está en style.css)
+   ============================================================ */
+.red-main{padding-top:var(--header-h);padding-bottom:var(--footer-h);max-width:1280px;margin:0 auto;padding-left:20px;padding-right:20px}
+.red-tabs{display:flex;border-bottom:1px solid var(--line);gap:2px;margin:20px 0 24px}
+.red-tab{font-size:11px;font-weight:700;padding:10px 20px;color:var(--dim);border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;font-family:var(--font-body);transition:all .15s;text-transform:uppercase;letter-spacing:1.5px}
+.red-tab:hover{color:var(--white)}
+.red-tab.active{color:var(--v);border-bottom-color:var(--v)}
+.red-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media(max-width:900px){.red-grid{grid-template-columns:1fr}}
+.red-panel{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-xl);padding:20px;display:flex;flex-direction:column;gap:14px}
+.red-panel.accent{border-top:3px solid var(--v)}
+.red-panel.accent-red{border-top:3px solid var(--red)}
+.red-subtabs{display:flex;gap:4px}
+.red-subtab{font-size:10px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid var(--line2);background:transparent;color:var(--dim);cursor:pointer;font-family:var(--font-body);transition:all .15s}
+.red-subtab:hover{border-color:var(--v);color:var(--v)}
+.red-subtab.active{background:rgba(166,206,57,0.12);border-color:var(--v);color:var(--v)}
+.web-search-track{width:32px;height:18px;background:var(--line2);border-radius:20px;position:relative;cursor:pointer;flex-shrink:0;transition:background .2s}
+.web-search-track.on{background:var(--v)}
+.web-search-thumb{position:absolute;top:2px;left:2px;width:14px;height:14px;background:var(--white);border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.web-search-track.on .web-search-thumb{transform:translateX(14px)}
+.result-card{background:var(--surface2);border:1px solid var(--line);border-left:3px solid var(--v);border-radius:var(--radius);padding:12px;margin-bottom:8px;animation:fadeIn .2s ease}
+.result-num{font-size:10px;font-weight:700;color:var(--v);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em}
+.result-text{font-size:13px;color:var(--white);line-height:1.5;margin-bottom:9px;font-weight:500}
+.result-actions{display:flex;gap:5px;flex-wrap:wrap}
+.pill{font-size:10px;font-weight:600;padding:4px 12px;border-radius:20px;border:1px solid var(--line2);color:var(--dim);background:var(--surface);cursor:pointer;font-family:var(--font-body);transition:all .15s;text-transform:uppercase;letter-spacing:.03em;display:inline-flex;align-items:center}
+.pill:hover{border-color:var(--v);color:var(--v);background:rgba(166,206,57,0.06)}
+.pill.accent{border-color:var(--v);color:var(--v);background:rgba(166,206,57,0.08)}
+.divider{height:1px;background:var(--line);margin:12px 0}
+.section-label{font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.angulo-item{border-left:3px solid var(--v);padding:8px 12px;background:rgba(166,206,57,0.06);border-radius:0 var(--radius) var(--radius) 0;margin-bottom:6px}
+.angulo-nombre{font-size:11px;font-weight:700;color:var(--v)}
+.angulo-desc{font-size:11px;color:var(--muted);margin-top:2px}
+.ref-box{background:var(--surface2);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:12px}
+.ref-ia-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;background:rgba(166,206,57,0.12);color:var(--v);border:1px solid rgba(166,206,57,0.3);padding:3px 12px;border-radius:20px;width:fit-content}
+.ref-section-label{font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.ref-titulo{font-family:var(--font-serif);font-size:18px;color:var(--white);line-height:1.3}
+.ref-categoria{display:inline-block;font-size:10px;font-weight:700;background:var(--surface);color:var(--muted);border:1px solid var(--line2);padding:3px 10px;border-radius:4px}
+.ref-cuerpo{font-size:13px;color:var(--muted);line-height:1.75;white-space:pre-wrap}
+.hashtags-row{display:flex;gap:5px;flex-wrap:wrap}
+.hashtag{font-size:11px;font-weight:600;color:var(--v);background:rgba(166,206,57,0.12);border:1px solid rgba(166,206,57,0.3);padding:3px 10px;border-radius:20px;cursor:pointer;transition:all .15s}
+.hashtag:hover{background:var(--v);color:var(--bg)}
+.ref-actions{display:flex;gap:6px;flex-wrap:wrap}
+.monitor-bar{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-xl);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.btn-buscar{font-size:11px;font-weight:700;padding:9px 18px;background:var(--v);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:var(--font-body);white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.04em}
+.btn-buscar:hover{background:var(--vo)}
+.btn-buscar:disabled{opacity:.5;cursor:not-allowed}
+.auto-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.auto-track{width:32px;height:18px;background:var(--line2);border-radius:20px;position:relative;transition:background .2s;flex-shrink:0}
+.auto-track.on{background:var(--v)}
+.auto-thumb{position:absolute;top:2px;left:2px;width:14px;height:14px;background:var(--white);border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.auto-track.on .auto-thumb{transform:translateX(14px)}
+.auto-label{font-size:10px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+.monitor-filters{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-xl);padding:14px 16px;margin-bottom:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:5px;min-width:130px}
+.filter-group.wide{flex:1;min-width:180px}
+.filter-label{font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em}
+.filter-select{font-size:12px;padding:7px 10px;background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius);color:var(--white);font-family:var(--font-body)}
+.btn-limpiar-filtros{font-size:10px;font-weight:600;padding:7px 12px;border-radius:var(--radius);border:1px solid var(--line2);background:transparent;color:var(--dim);cursor:pointer;font-family:var(--font-body);white-space:nowrap;transition:all .15s}
+.btn-limpiar-filtros:hover{border-color:var(--red);color:var(--red)}
+.noticias-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;width:100%}
+.noticia-card{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-lg);padding:14px;display:flex;flex-direction:column;gap:8px;transition:all .15s;min-width:0;word-break:break-word}
+.noticia-card:hover{border-color:var(--v);box-shadow:var(--shadow-sm)}
+.noticia-card.cubierta{opacity:.4}
+.noticia-fuente-row{display:flex;align-items:center;justify-content:space-between}
+.fuente-tag{font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.06em;background:rgba(166,206,57,0.12);color:var(--v);border:1px solid rgba(166,206,57,0.3)}
+.noticia-fecha{font-size:10px;color:var(--dim)}
+.noticia-titulo{font-size:13px;font-weight:600;color:var(--white);line-height:1.4;cursor:pointer}
+.noticia-titulo:hover{color:var(--v)}
+.noticia-desc{font-size:11px;color:var(--muted);line-height:1.55;display:-webkit-box;line-clamp:3;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.noticia-acciones{display:flex;gap:5px;margin-top:2px;flex-wrap:wrap}
+.monitor-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:60px 20px;color:var(--dim);text-align:center;background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-xl)}
+.monitor-error{background:rgba(230,57,70,0.12);border:1px solid rgba(230,57,70,0.3);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--red);margin-bottom:10px;display:none}
+.monitor-stats{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.stat-chip{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;background:var(--surface2);border:1px solid var(--line);color:var(--muted)}
+.update-info{font-size:10px;color:var(--dim);text-align:right;margin-bottom:12px}
+.fuente-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface2);margin-bottom:6px}
+.fuente-row-name{font-size:12px;font-weight:600;color:var(--white)}
+.fuente-row-url{font-size:10px;color:var(--dim);margin-top:1px;word-break:break-all}
+.fuente-row-actions{display:flex;gap:5px;flex-shrink:0;margin-left:10px}
+.add-fuente-form{background:var(--surface2);border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px;display:none;flex-direction:column;gap:10px;margin-top:10px}
+.add-fuente-form.open{display:flex}
+.btn-add-fuente{font-size:11px;font-weight:600;padding:8px 14px;border-radius:20px;border:1px dashed var(--line2);background:transparent;color:var(--dim);cursor:pointer;font-family:var(--font-body);transition:all .15s;width:100%}
+.btn-add-fuente:hover{border-color:var(--v);color:var(--v)}
+.verify-status{font-size:11px;padding:6px 10px;border-radius:var(--radius);display:none}
+.verify-status.ok{background:rgba(166,206,57,0.12);color:var(--v);border:1px solid rgba(166,206,57,0.3);display:block}
+.verify-status.err{background:rgba(230,57,70,0.12);color:var(--red);border:1px solid rgba(230,57,70,0.3);display:block}
+.notas-panel{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-xl);padding:20px;margin-top:16px}
+.notas-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.notas-lista{display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto}
+.nota-guardada{background:var(--surface2);border:1px solid var(--line);border-left:3px solid var(--v);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:6px}
+.nota-guardada-titulo{font-size:13px;font-weight:600;color:var(--white);line-height:1.4}
+.nota-guardada-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.nota-guardada-cat{font-size:10px;font-weight:700;color:var(--dim);background:var(--surface);border:1px solid var(--line2);padding:2px 8px;border-radius:4px}
+.nota-guardada-fecha{font-size:10px;color:var(--dim)}
+.nota-guardada-actions{display:flex;gap:5px;margin-top:2px}
+.modal-confirm{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:600;display:none;align-items:center;justify-content:center}
+.modal-confirm.open{display:flex}
+.modal-confirm-box{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-xl);padding:24px;max-width:380px;width:90%;box-shadow:var(--shadow);text-align:center}
+.modal-confirm-title{font-size:14px;font-weight:700;color:var(--white);margin-bottom:8px}
+.modal-confirm-desc{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6}
+.modal-confirm-actions{display:flex;gap:8px;justify-content:center}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.imagen-drop-zone{border:2px dashed var(--line2);border-radius:var(--radius-xl);padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);display:flex;flex-direction:column;align-items:center;gap:8px}
+.imagen-drop-zone:hover{border-color:var(--v);background:rgba(166,206,57,0.04)}
+.imagen-drop-zone.dragover{border-color:var(--v);background:rgba(166,206,57,0.1);transform:scale(1.01)}
+.imagen-drop-zone-icon{font-size:2rem}
+.imagen-drop-zone-text{font-size:12px;color:var(--muted);line-height:1.5}
+.imagen-drop-zone-text strong{color:var(--v);cursor:pointer}
+.imagen-previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.imagen-preview{position:relative;width:100px;height:100px;border-radius:var(--radius);overflow:hidden;border:2px solid var(--line2);background:var(--surface2);flex-shrink:0;animation:fadeIn .2s ease}
+.imagen-preview img{width:100%;height:100%;object-fit:cover}
+.imagen-preview-remove{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);color:var(--white);border:none;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:2}
+.imagen-preview-name{position:absolute;bottom:0;left:0;right:0;font-size:8px;background:rgba(0,0,0,.7);color:var(--white);padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.imagen-progress{width:100%;height:4px;background:var(--line2);border-radius:4px;overflow:hidden;margin-top:8px;display:none}
+.imagen-progress-bar{height:100%;background:var(--v);border-radius:4px;width:0%;transition:width .3s}
+
+/* Fix: mantener tabs visibles al hacer scroll */
+.red-main {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--header-h) - var(--footer-h));
+}
+.red-tabs {
+  flex-shrink: 0;
+  position: sticky;
+  top: var(--header-h);
+  background: var(--bg);
+  z-index: 10;
+  margin-top: 0;
+}
+.red-tab-content {
+  flex: 1;
+}
+</style>
+</head>
+<body>
+  <!-- ============================================================ -->
+<!-- PROTECCIÓN CON CONTRASEÑA (copiar este bloque completo) -->
+<!-- ============================================================ -->
+<style>
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+.login-modal {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.3s ease;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.login-logo { margin-bottom: 24px; }
+.login-logo img { height: 48px; width: auto; }
+body.dark-theme .login-logo img { filter: brightness(0) invert(1); opacity: 0.9; }
+.login-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.login-sub {
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 24px;
+}
+.login-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  color: var(--white);
+  font-size: 14px;
+  margin-bottom: 20px;
+  outline: none;
+}
+.login-input:focus { border-color: var(--v); }
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--v);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.login-btn:hover { opacity: 0.85; }
+.login-error {
+  font-size: 11px;
+  color: var(--red);
+  margin-top: 12px;
+  display: none;
+}
+.login-error.show { display: block; }
+.content-protected { display: none; }
+.content-protected.show { display: block; }
+</style>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-modal">
+    <div class="login-logo">
+      <img src="../assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'">
+    </div>
+    <div class="login-title">Acceso restringido</div>
+    <div class="login-sub">Ingresá la contraseña para continuar</div>
+    <input type="password" id="passwordInput" class="login-input" placeholder="Contraseña" autofocus>
+    <button class="login-btn" onclick="verificarPassword()">Ingresar</button>
+    <div class="login-error" id="loginError">Contraseña incorrecta</div>
+  </div>
+</div>
+
+<div class="content-protected" id="protectedContent">
+
+<script>
+const PROTECT_PASSWORD = "tomyjerry2008";
+
+function verificarPassword() {
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('loginError');
+  const password = input.value.trim();
+  
+  if (password === PROTECT_PASSWORD) {
+    const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
+    localStorage.setItem('mm_auth_redaccion_v2', JSON.stringify({ autenticado: true, expires: expiry }));
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('protectedContent').classList.add('show');
+    input.value = '';
+    error.classList.remove('show');
+  } else {
+    error.classList.add('show');
+    input.value = '';
+    input.focus();
+  }
+}
+
+function verificarSesion() {
+  const authData = localStorage.getItem('mm_auth_redaccion_v2');
+  if (authData) {
+    try {
+      const { autenticado, expires } = JSON.parse(authData);
+      if (autenticado && expires && Date.now() < expires) {
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('protectedContent').classList.add('show');
+        return true;
+      } else {
+        localStorage.removeItem('mm_auth_redaccion_v2');
+      }
+    } catch(e) { localStorage.removeItem('mm_auth_redaccion_v2'); }
+  }
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('protectedContent').classList.remove('show');
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  verificarSesion();
+  document.getElementById('passwordInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') verificarPassword();
+  });
+});
+</script>
+<!-- FIN DEL BLOQUE DE PROTECCIÓN -->
+
+<header class="mm-header">
+  <a href="/" class="mm-header-brand">
+    <img src="../assets/logo.png" alt="Media Mendoza" class="mm-header-logo" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section">
+    <span class="mm-header-label">Redacción</span>
+  </div>
+  <div class="mm-header-status" id="salud-badge" title="Estado del worker">
+    <div class="mm-status-dot" id="salud-dot"></div>
+    <span class="mm-status-txt" id="salud-txt">Verificando…</span>
+  </div>
+</header>
+
+<div class="red-main">
+
+  <div class="red-tabs">
+    <button class="red-tab active" onclick="switchTab('monitor',this)">◉ Monitor</button>
+    <button class="red-tab" onclick="switchTab('reformular',this)">⟳ Reformular</button>
+    <button class="red-tab" onclick="switchTab('titulares',this)">✍ Redactar</button>
+    <button class="red-tab" onclick="switchTab('config',this)">⚙ Config</button>
+  </div>
+
+  <!-- TAB MONITOR -->
+  <div id="tab-monitor" class="red-tab-content">
+    <div class="monitor-bar">
+      <button class="btn-buscar" id="btn-buscar" onclick="buscarNoticias()">
+        <span class="mm-spinner" id="spin-monitor"></span>
+        <span id="btn-buscar-text">Buscar ahora</span>
+      </button>
+      <label class="auto-toggle" onclick="toggleAuto()">
+        <div class="auto-track" id="auto-track"><div class="auto-thumb"></div></div>
+        <span class="auto-label" id="auto-label">Auto 5min</span>
+      </label>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <span id="fuentes-count" class="text-dim" style="font-size:11px"></span>
+        <button class="mm-btn mm-btn-sm" onclick="abrirModalFuentes()">⚙ Gestionar fuentes</button>
+      </div>
+    </div>
+
+    <div class="mm-modal-overlay" id="modal-fuentes" onclick="if(event.target===this)cerrarModalFuentes()">
+      <div class="mm-modal">
+        <div class="mm-modal-header"><span class="mm-modal-title">Fuentes del monitor</span><button class="mm-modal-close" onclick="cerrarModalFuentes()">✕</button></div>
+        <div class="mm-modal-body">
+          <div id="fuentes-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;max-height:280px;overflow-y:auto"><span class="text-muted" style="font-size:12px">Cargando fuentes...</span></div>
+          <div style="border-top:1px solid var(--line);padding-top:12px"><button class="btn-add-fuente" onclick="toggleAddForm()">+ Agregar nueva fuente</button></div>
+          <div class="add-fuente-form" id="add-fuente-form">
+            <div class="mm-row2">
+              <div class="mm-field"><label class="mm-label">Nombre</label><input type="text" id="nueva-fuente-nombre" class="mm-input" placeholder="Ej: El Sol de San Rafael"></div>
+              <div class="mm-field"><label class="mm-label">URL del feed RSS</label><div style="display:flex;gap:6px"><input type="text" id="nueva-fuente-url" class="mm-input" placeholder="https://ejemplo.com/rss/" oninput="resetVerify()"><button class="mm-btn mm-btn-sm" id="btn-verificar" onclick="verificarFeed()"><span class="mm-spinner" id="spin-verify"></span><span id="btn-verify-text">Verificar</span></button></div></div>
+            </div>
+            <div class="verify-status" id="verify-status"></div>
+            <div style="display:flex;gap:8px"><button class="mm-btn mm-btn-primary" id="btn-agregar-ok" onclick="agregarFuente()" disabled>Agregar al monitor</button><button class="mm-btn mm-btn-sm" onclick="toggleAddForm()">Cancelar</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="monitor-filters">
+      <div class="filter-group wide"><label class="filter-label">Buscar palabra clave</label><input type="text" id="filter-keyword" class="mm-input" placeholder="Filtrar en título y descripción..." oninput="aplicarFiltros()"></div>
+      <div class="filter-group"><label class="filter-label">Fuente</label><select class="filter-select" id="filter-fuente" onchange="aplicarFiltros()"><option value="">Todas las fuentes</option></select></div>
+      <div class="filter-group"><label class="filter-label">Estado</label><select class="filter-select" id="filter-estado" onchange="aplicarFiltros()"><option value="">Todas</option><option value="pendiente">Sin cubrir</option><option value="cubierta">Cubiertas</option></select></div>
+      <div class="filter-group"><label class="filter-label">Ordenar por</label><select class="filter-select" id="filter-orden" onchange="aplicarFiltros()"><option value="fecha">Más recientes</option><option value="fuente">Fuente</option><option value="titulo">Título A-Z</option></select></div>
+      <button class="btn-limpiar-filtros" onclick="limpiarFiltros()">✕ Limpiar filtros</button>
+    </div>
+
+    <div class="monitor-error" id="monitor-error"></div>
+    <div id="monitor-stats" class="monitor-stats"></div>
+    <div class="update-info" id="monitor-update-info"></div>
+    <div id="monitor-results"><div class="monitor-empty"><span style="font-size:2rem">📡</span><p>Hacé clic en <strong>Buscar ahora</strong> para ver<br>las últimas noticias de tus fuentes.</p></div></div>
+  </div>
+
+  <!-- TAB REFORMULAR -->
+  <div id="tab-reformular" class="red-tab-content" style="display:none">
+    <div class="red-grid">
+      <div class="red-panel accent-red">
+        <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">Nota original</div>
+        <div class="mm-field"><label class="mm-label">Título del otro medio</label><input type="text" id="ref-titulo-input" class="mm-input" placeholder="Pegá el título original de la nota..."></div>
+        <div class="divider" style="margin:6px 0"></div>
+        <div class="ref-section-label">Fuente de la nota</div>
+        <div class="red-subtabs" style="margin-bottom:12px">
+          <button class="red-subtab active" id="ref-fuente-url" onclick="switchRefFuente('url')">🔗 URL</button>
+        </div>
+        <div id="ref-fuente-url-section">
+          <div class="mm-field" style="margin-bottom:0"><label class="mm-label">URL de la nota original</label><div style="display:flex;gap:8px"><input type="url" id="ref-url-input" class="mm-input" placeholder="https://www.otromedio.com/nota/..."><button class="mm-btn mm-btn-sm" id="btn-scrape" onclick="scrapearNota()"><span class="mm-spinner" id="spin-scrape"></span><span id="btn-scrape-text">Obtener nota</span></button></div><div class="verify-status" id="scrape-status"></div></div>
+        </div>
+        <div class="divider" style="margin:10px 0"></div>
+        <div class="mm-field"><label class="mm-label">Cuerpo de la nota original</label><textarea id="ref-cuerpo-input" class="mm-textarea" rows="8" placeholder="Pegá el cuerpo completo de la nota u obtenelo con la URL..."></textarea><div class="text-muted" style="font-size:10px;text-align:right;margin-top:2px" id="char-ref">0 caracteres</div></div>
+        <div class="mm-field"><label class="mm-label">Contexto adicional (opcional)</label><textarea id="txt-contexto-r" class="mm-textarea" rows="3" placeholder="Datos extra, antecedentes, nombres, cifras para completar la nota con más información..."></textarea></div>
+        <div class="mm-field"><label class="mm-label">Estilo</label><select id="ref-estilo" class="mm-select"><option value="formal">Periodístico formal</option><option value="directo">Directo y conciso</option><option value="ampliado">Con contexto ampliado</option><option value="breaking">Urgente / breaking news</option><option value="cronica">Crónica narrativa</option><option value="deportes">🏅 Deportes</option><option value="espectaculos">🎬 Espectáculos / Cultura</option><option value="redes">Optimizado para redes sociales</option><option value="institucional">Comunicado institucional</option></select></div>
+        <button class="mm-btn mm-btn-danger" id="btn-reformular" onclick="reformularNota()" style="background:var(--red);color:var(--white);box-shadow:none"><span class="mm-spinner" id="spin-reformular"></span><span id="btn-reformular-text">Reformular para Media Mendoza</span></button>
+      </div>
+      <div class="red-panel">
+        <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none"><span>Nota reformulada</span><div style="display:flex;align-items:center;gap:8px"><span class="mm-badge" id="badge-reformulada" style="display:none;background:rgba(230,57,70,0.12);color:var(--red)">Lista</span><button class="mm-btn mm-btn-sm" onclick="toggleNotasGuardadas()">★ Guardadas</button><button class="mm-btn mm-btn-sm mm-btn-danger" id="btn-limpiar-r" onclick="pedirLimpiarReformular()" style="display:none">✕ Limpiar</button></div></div>
+        <div id="results-reformular"><div class="monitor-empty"><span style="font-size:2rem">📄</span><p>La nota reformulada<br>aparecerá aquí.</p></div></div>
+        <div id="origen-badge" class="ref-section-label" style="display:none"></div>
+        <div id="fuentes-verificadas" style="display:none;margin-top:10px"></div>
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          <button class="pill accent" id="btn-guardar-nota-v2">★ Guardar nota</button>
+          <span class="mm-badge mm-badge-green" id="badge-modelo-v2" style="display:none"></span>
+        </div>
+      </div>
+    </div>
+    <div id="ref-imagen-section" class="ref-imagen-section" style="display:none;margin-top:16px;padding:0 4px">
+      <div class="divider" style="margin:0 0 10px 0"></div>
+      <div class="ref-section-label" style="font-size:13px;margin-bottom:8px;padding:0 8px">🖼 Imagen de portada</div>
+      <div class="red-panel" style="padding:12px">
+        <div class="red-subtabs" style="margin-bottom:10px">
+          <button class="red-subtab active" id="img-tab-ia" onclick="switchImgTab('ia')">✨ Generar con IA</button>
+        </div>
+        <div id="img-content-ia">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <select id="img-estilo" class="mm-select" style="flex:1;font-size:11px;padding:7px 10px">
+              <option value="realista">📸 Realista</option>
+              <option value="dibujo">🎨 Dibujo</option>
+              <option value="infografia">📊 Infografía</option>
+              <option value="blanco-y-negro">⚫ Blanco y negro</option>
+              <option value="acuarela">🖌 Acuarela</option>
+              <option value="vintage">📜 Vintage</option>
+              <option value="collage-digital">✂️ Collage digital</option>
+              <option value="minimalista">◆ Minimalista</option>
+            </select>
+            <button class="mm-btn mm-btn-primary" id="btn-gen-img" onclick="generarImagenIA()" style="font-size:11px;padding:7px 14px;white-space:nowrap"><span class="mm-spinner" id="spin-gen-img" style="display:none"></span><span id="btn-gen-img-text">Generar</span></button>
+          </div>
+          <div style="margin-bottom:8px">
+            <div class="ref-section-label">Contexto visual <span style="opacity:.6;font-weight:400">(opcional)</span></div>
+            <textarea id="img-contexto-extra" class="mm-textarea" rows="2" style="font-size:11px;padding:7px 10px;min-height:44px;resize:vertical" placeholder="Ej: mostrar de noche con luces de la ciudad, tonos cálidos de atardecer, ángulo cenital..."></textarea>
+          </div>
+          <div id="ref-img-preview" style="border-radius:6px;overflow:hidden;border:1px solid var(--line2);min-height:80px;display:flex;align-items:center;justify-content:center;background:var(--surface2)"><span style="font-size:11px;color:var(--muted)">Generá una imagen con IA</span></div>
+        </div>
+      </div>
+    </div>
+    <div id="notas-guardadas-section" style="display:none"><div class="notas-panel"><div class="notas-panel-header"><span class="mm-panel-header" style="margin-bottom:0;padding-bottom:0">Notas guardadas</span><button class="mm-btn mm-btn-sm" onclick="toggleNotasGuardadas()">✕ Cerrar</button></div><div class="notas-lista" id="notas-lista"><span class="text-muted" style="font-size:12px">Cargando...</span></div></div></div>
+  </div>
+
+  <!-- TAB TITULARES -->
+  <div id="tab-titulares" class="red-tab-content" style="display:none">
+    <div class="red-grid">
+      <div class="red-panel accent">
+        <div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none"><span>Entrada</span><div class="red-subtabs"><button class="red-subtab active" id="subtab-redactar" onclick="switchSubtab('redactar')">✍ Redactar</button><button class="red-subtab" id="subtab-nota" onclick="switchSubtab('nota')">Titulares</button><button class="red-subtab" id="subtab-tema" onclick="switchSubtab('tema')">Por tema</button></div></div>
+        <div id="input-nota" style="display:none"><div class="mm-field"><label class="mm-label">Cuerpo de la nota</label><textarea id="txt-nota" class="mm-textarea" rows="8" placeholder="Pegá el texto completo de la nota aquí..."></textarea><div class="text-muted" style="font-size:10px;text-align:right;margin-top:2px" id="char-nota">0 caracteres</div></div></div>
+        <div id="input-tema" style="display:none"><div class="mm-field"><label class="mm-label">Descripción del tema</label><textarea id="txt-tema" class="mm-textarea" rows="8" placeholder="Describí el tema. Ej: Corte de luz en el Gran Mendoza..."></textarea><div class="text-muted" style="font-size:10px;text-align:right;margin-top:2px" id="char-tema">0 caracteres</div></div></div>
+        <div id="input-redactar"><div class="mm-field"><label class="mm-label">Ideas, borrador o fragmento</label><textarea id="txt-redactar" class="mm-textarea" rows="9" placeholder="Escribí tus ideas, un borrador parcial, datos clave, citas, o cualquier información para armar la nota..."></textarea><div class="text-muted" style="font-size:10px;text-align:right;margin-top:2px" id="char-redactar">0 caracteres</div></div><div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--surface2);border:1px solid var(--line);border-radius:var(--radius);margin-top:6px"><div id="web-search-track" class="web-search-track" onclick="toggleWebSearch()"><div id="web-search-thumb" class="web-search-thumb"></div></div><div><div style="font-size:12px;font-weight:600;color:var(--white)">Buscar contexto en la web</div><div style="font-size:11px;color:var(--muted)">Gemini busca información adicional y cita las fuentes</div></div></div></div>
+        <div class="mm-field"><label class="mm-label">Contexto adicional (opcional)</label><textarea id="txt-contexto-t" class="mm-textarea" rows="3" placeholder="Datos extra, antecedentes, nombres, cifras que ayuden a generar mejores titulares..."></textarea></div>
+        <div class="mm-row2"><div class="mm-field"><label class="mm-label">Tono</label><select id="sel-tono" class="mm-select"><option value="informativo">Informativo</option><option value="impactante">Impactante</option><option value="neutro">Neutro</option><option value="urgente">Urgente</option></select></div><div class="mm-field"><label class="mm-label">Cantidad</label><select id="sel-cantidad" class="mm-select"><option value="5">5 titulares</option><option value="3">3 titulares</option><option value="8">8 titulares</option></select></div></div>
+        <button class="mm-btn mm-btn-primary" id="btn-generar" onclick="accionTitulares()"><span class="mm-spinner" id="spin-titulares"></span><span id="btn-titulares-text">Redactar</span></button>
+      </div>
+      <div class="red-panel"><div class="mm-panel-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none"><span>Resultados</span><div style="display:flex;align-items:center;gap:8px"><span class="mm-badge mm-badge-green" id="badge-titulares" style="display:none"></span><span class="mm-badge" id="badge-modelo-titulares" style="display:none"></span><button class="mm-btn mm-btn-sm" id="btn-limpiar-t" onclick="limpiarTitulares()" style="display:none">✕ Limpiar</button></div></div><div id="results-titulares"><div class="monitor-empty"><span style="font-size:2rem">📝</span><p>Los titulares generados<br>aparecerán aquí.</p></div></div></div>
+    </div>
+  </div>
+
+  <!-- TAB CONFIG -->
+  <div id="tab-config" class="red-tab-content" style="display:none">
+    <div class="mm-panel" style="max-width:720px;margin:0 auto"><div class="mm-panel-header">Línea editorial</div>
+      <div class="text-muted" style="font-size:12px;margin-bottom:20px;line-height:1.7">Definí el estilo y la voz de Media Mendoza. Este texto se inyecta en cada generación de titulares y reformulación, guiando a la IA para que adopte el tono del diario.<br><br>Podés incluir: estilo de escritura preferido, palabras o expresiones a evitar, ejemplos de titulares, tono (cercano, formal, urgente), enfoque local, etc.</div>
+      <div class="togrow" style="margin-bottom:16px"><span style="font-size:11px;color:var(--white)">Aplicar línea editorial en todas las generaciones</span><label class="toggle"><input type="checkbox" id="editorial-activo" onchange="toggleEditorial()"><span class="togslide"></span></label></div>
+      <div class="mm-field"><label class="mm-label">Guía editorial para la IA</label><textarea id="editorial-prompt" class="mm-textarea" rows="12" placeholder="Ejemplo:&#10;- Escribir en español rioplatense, usando vos en lugar de tú&#10;- Titulares directos, sin rodeos, que vayan al dato central&#10;- Evitar expresiones como 'en el marco de', 'llevó a cabo', 'manifestó'&#10;- Preferir verbos activos y presentes: 'el gobernador anuncia' en lugar de 'fue anunciado'"></textarea></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:8px"><button class="mm-btn mm-btn-primary" onclick="guardarEditorial()"><span class="mm-spinner" id="spin-editorial"></span><span id="btn-editorial-text">Guardar configuración</span></button><span class="mm-badge mm-badge-green" id="config-saved" style="opacity:0;transition:opacity 0.3s">✓ Guardado</span></div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="mm-footer">
+  <div class="mm-footer-dot"></div>
+  <span class="mm-footer-txt">Gemini 3.8 Flash · Activo</span>
+  <div class="mm-footer-sep"></div>
+  <div class="mm-footer-meta"><span class="mm-footer-item">Cloudflare Pages</span><span class="mm-footer-item">mediamendoza.pages.dev/redaccion-v2</span></div>
+</footer>
+
+<div class="mm-toast" id="toast"></div>
+
+<div class="modal-confirm" id="modal-limpiar"><div class="modal-confirm-box"><div class="modal-confirm-title">¿Guardar antes de limpiar?</div><div class="modal-confirm-desc">Tenés una nota generada. ¿Querés guardarla antes de limpiar el formulario?</div><div class="modal-confirm-actions"><button class="mm-btn mm-btn-primary" onclick="guardarYLimpiar()" style="padding:8px 18px;font-size:11px">Guardar y limpiar</button><button class="mm-btn mm-btn-sm" onclick="soloLimpiar()">Descartar y limpiar</button><button class="mm-btn mm-btn-sm" onclick="document.getElementById('modal-limpiar').classList.remove('open')">Cancelar</button></div></div></div>
+
+<script type="module" src="./app.mjs"></script>
+</body>
+</html>
