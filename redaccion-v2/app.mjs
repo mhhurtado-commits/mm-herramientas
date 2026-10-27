@@ -8,7 +8,10 @@ import {
   htmlNotaGuardada, htmlNoticiaMonitor,
 } from './render.mjs';
 
-const API = resolverApiBase(window.location);
+const API_OVERRIDE = new URLSearchParams(window.location.search).get('api');
+const API = /^https?:\/\//i.test(API_OVERRIDE || '')
+  ? API_OVERRIDE.replace(/\/+$/, '')
+  : resolverApiBase(window.location);
 const estado = crearEstadoInicial();
 
 const $ = id => document.getElementById(id);
