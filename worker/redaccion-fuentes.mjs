@@ -114,3 +114,42 @@ export async function seleccionarFuentes(candidatos = [], { fetchImpl = fetch, o
   const checks = await Promise.all(unicos.map(async item => ({ item, ok: await verificarFuente(item.url, fetchImpl) })));
   return checks.filter(check => check.ok).map(check => check.item).slice(0, max);
 }
+
+export function extraerMedioDeHtml(html = '', url = '') {
+  const patrones = [
+    /<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:site_name["']/i,
+    /<meta[^>]+name=["']application-name["'][^>]+content=["']([^"']+)["']/i,
+  ];
+  for (const patron of patrones) {
+    const m = String(html).match(patron);
+    if (m) return limpiarXml(m[1]).trim();
+  }
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
+}
+
+export function extraerFechaDeHtml(html = '') {
+  const patrones = [
+    /<meta[^>]+property=["']article:published_time["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+name=["']date["'][^>]+content=["']([^"']+)["']/i,
+    /<time[^>]+datetime=["']([^"']+)["']/i,
+  ];
+  for (const patron of patrones) {
+    const m = String(html).match(patron);
+    if (m) return m[1].trim();
+  }
+  return '';
+}
+
+export function coincideTema(titulo = '', consulta = '') {
+  const palabras = String(consulta).toLowerCase().split(/[^\p{L}\d]+/u).filter(p => p.length > 3);
+  if (!palabras.length) return true;
+  const texto = String(titulo).toLowerCase();
+  return palabras.some(p => texto.includes(p));
+}
+
+export function hashClave(texto = '') {
+  let h = 5381;
+  for (let i = 0; i < texto.length; i++) h = ((h << 5) + h + texto.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}

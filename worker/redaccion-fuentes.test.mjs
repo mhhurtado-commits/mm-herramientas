@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   parsearRss, resolverLinkBing, deduplicarFuentes, construirConsultas,
   verificarFuente, seleccionarFuentes,
+  extraerMedioDeHtml, extraerFechaDeHtml, coincideTema, hashClave,
 } from './redaccion-fuentes.mjs';
 
 const RSS = `<?xml version="1.0"?><rss><channel>
@@ -75,4 +76,30 @@ test('selecciona hasta 3 fuentes verificadas y excluye el origen', async () => {
   ];
   const fuentes = await seleccionarFuentes(candidatos, { fetchImpl: fetchFalso, origenUrl: 'https://origen.com/nota' });
   assert.deepEqual(fuentes.map(f => f.titulo), ['Uno', 'Dos', 'Tres']);
+});
+
+test('extrae medio y fecha del HTML de una nota ajena', () => {
+  const html = `
+    <meta property="og:site_name" content="Los Andes">
+    <meta property="article:published_time" content="2026-10-27T10:00:00-03:00">
+  `;
+  assert.equal(extraerMedioDeHtml(html, 'https://www.losandes.com.ar/nota'), 'Los Andes');
+  assert.equal(extraerFechaDeHtml(html), '2026-10-27T10:00:00-03:00');
+});
+
+test('cae al hostname si la nota no declara el medio', () => {
+  assert.equal(extraerMedioDeHtml('<html></html>', 'https://www.uno.com.ar/nota'), 'uno.com.ar');
+  assert.equal(extraerMedioDeHtml('', 'no es url'), '');
+});
+
+test('coincideTema ignora palabras cortas y exige alguna coincidencia', () => {
+  assert.equal(coincideTema('Robo en una escuela de San Rafael', 'robo escuela San Rafael'), true);
+  assert.equal(coincideTema('El clima de mañana', 'robo escuela San Rafael'), false);
+  assert.equal(coincideTema('Cualquier cosa', 'de la'), true);
+});
+
+test('hashClave es estable y corto', () => {
+  assert.equal(hashClave('misma consulta'), hashClave('misma consulta'));
+  assert.notEqual(hashClave('una'), hashClave('otra'));
+  assert.ok(hashClave('una consulta larga').length < 12);
 });

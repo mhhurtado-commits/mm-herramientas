@@ -934,6 +934,45 @@ async function seleccionarFuentes(candidatos = [], { fetchImpl = fetch, origenUr
   const checks = await Promise.all(unicos.map(async item => ({ item, ok: await verificarFuente(item.url, fetchImpl) })));
   return checks.filter(check => check.ok).map(check => check.item).slice(0, max);
 }
+
+function extraerMedioDeHtml(html = '', url = '') {
+  const patrones = [
+    /<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:site_name["']/i,
+    /<meta[^>]+name=["']application-name["'][^>]+content=["']([^"']+)["']/i,
+  ];
+  for (const patron of patrones) {
+    const m = String(html).match(patron);
+    if (m) return limpiarXml(m[1]).trim();
+  }
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
+}
+
+function extraerFechaDeHtml(html = '') {
+  const patrones = [
+    /<meta[^>]+property=["']article:published_time["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+name=["']date["'][^>]+content=["']([^"']+)["']/i,
+    /<time[^>]+datetime=["']([^"']+)["']/i,
+  ];
+  for (const patron of patrones) {
+    const m = String(html).match(patron);
+    if (m) return m[1].trim();
+  }
+  return '';
+}
+
+function coincideTema(titulo = '', consulta = '') {
+  const palabras = String(consulta).toLowerCase().split(/[^\p{L}\d]+/u).filter(p => p.length > 3);
+  if (!palabras.length) return true;
+  const texto = String(titulo).toLowerCase();
+  return palabras.some(p => texto.includes(p));
+}
+
+function hashClave(texto = '') {
+  let h = 5381;
+  for (let i = 0; i < texto.length; i++) h = ((h << 5) + h + texto.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
 // <<< REDACCION-FUENTES INLINE
 
 // Helper DRY para rotación de keys
@@ -6991,6 +7030,101 @@ async function handleRedaccionV2Redactar(body, env) {
     latenciaMs: r.latenciaMs,
     warnings: fuentes.length ? [] : ['sin_fuentes_verificadas'],
   });
+}
+
+const REDACCION_V2_FUENTES_CACHE = 'redaccion-v2:fuentes:';
+
+async function fetchTextoRedaccion(url, timeoutMs = 6000) {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; MediaMendoza/1.0)',
+      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+    },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.text();
+}
+
+async function handleRedaccionV2Scrape(url, env) {
+  const target = String(url.searchParams.get('url') || '').trim();
+  if (!target) return jsonError('url requerida', 400);
+  try { new URL(target); } catch { return jsonError('URL inválida', 400); }
+  try {
+    const { html } = await fetchHtml(target, 300);
+    const data = extraerDatosNota(html, target);
+    const texto = String(data.body || '').trim();
+    if (texto.length < 100) return jsonError('No se pudo extraer contenido', 422);
+    return jsonOk({
+      url: target,
+      medio: extraerMedioDeHtml(html, target),
+      titulo: data.title || '',
+      texto,
+      descripcion: data.description || '',
+      categoria: data.category || '',
+      imagen: data.image || '',
+      imagenes: Array.isArray(data.images) ? data.images.slice(0, 8) : [],
+      fecha: extraerFechaDeHtml(html),
+    });
+  } catch (err) {
+    return jsonError(`Error scrapeando: ${err.message}`, 502);
+  }
+}
+
+async function handleRedaccionV2Fuentes(url, env) {
+  const titulo = String(url.searchParams.get('titulo') || '').trim();
+  const origenUrl = String(url.searchParams.get('origenUrl') || '').trim();
+  const localidad = String(url.searchParams.get('localidad') || 'San Rafael').trim();
+  if (!titulo) return jsonError('Falta titulo', 400);
+
+  const consultas = construirConsultas({ titulo, localidad });
+  const cacheKey = `${REDACCION_V2_FUENTES_CACHE}${hashClave(`${consultas.join('|')}|${origenUrl}`)}`;
+  try {
+    const cacheado = await env.KV.get(cacheKey, 'json');
+    if (cacheado && Array.isArray(cacheado.fuentes)) return jsonOk({ ...cacheado, cache: true });
+  } catch (e) {}
+
+  const candidatos = [];
+  const tareas = [];
+
+  try {
+    const fuentes = await _getFuentesIndex(env);
+    for (const fuente of fuentes.slice(0, 6)) {
+      tareas.push((async () => {
+        try {
+          const xml = await fetchTextoRedaccion(fuente.url, 5000);
+          const items = parsearRss(xml, fuente.nombre);
+          for (const item of items) {
+            if (consultas.some(q => coincideTema(item.titulo, q))) candidatos.push(item);
+          }
+        } catch (e) {}
+      })());
+    }
+  } catch (e) {}
+
+  for (const consulta of consultas.slice(0, 2)) {
+    tareas.push((async () => {
+      try {
+        const xml = await fetchTextoRedaccion(
+          `https://www.bing.com/news/search?q=${encodeURIComponent(consulta)}&format=RSS&setlang=es-ar`,
+          6000,
+        );
+        candidatos.push(...parsearRss(xml));
+      } catch (e) {}
+    })());
+  }
+
+  await Promise.allSettled(tareas);
+
+  const fuentes = await seleccionarFuentes(candidatos, { origenUrl });
+  const resultado = {
+    fuentes,
+    warnings: fuentes.length ? [] : ['sin_resultados'],
+    consultas,
+  };
+  try { await env.KV.put(cacheKey, JSON.stringify(resultado), { expirationTtl: 21600 }); } catch (e) {}
+  return jsonOk({ ...resultado, cache: false });
 }
 
 async function handleRedaccionV2Post(path, body, request, env) {
