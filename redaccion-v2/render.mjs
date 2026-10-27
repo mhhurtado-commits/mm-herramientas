@@ -42,11 +42,13 @@ export function htmlNota(nota = {}) {
     .map(h => `<span class="hashtag" data-copiar="${escaparHtml(h)}">${escaparHtml(h)}</span>`)
     .join('');
   return `<div class="ref-box">
-    <div class="ref-ia-badge">✦ Reformulada por IA</div>
+    <div class="ref-ia-badge">✦ Generada por IA</div>
+    ${nota.bajada ? `<div><div class="ref-section-label">Bajada</div><div style="font-size:12px;color:var(--muted);font-style:italic">${escaparHtml(nota.bajada)}</div></div>` : ''}
     <div><div class="ref-section-label">Categoría sugerida</div><span class="ref-categoria">${escaparHtml(nota.categoria || '—')}</span></div>
     <div><div class="ref-section-label">Titular</div><div class="ref-titulo">${escaparHtml(nota.titular)}</div></div>
     <div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo" style="white-space:pre-wrap">${escaparHtml(nota.cuerpo)}</div></div>
     ${hashtags ? `<div><div class="ref-section-label">Hashtags</div><div class="hashtags-row">${hashtags}</div></div>` : ''}
+    <div class="ref-actions"><button class="pill accent" data-guardar-nota="1">★ Guardar nota</button></div>
   </div>`;
 }
 

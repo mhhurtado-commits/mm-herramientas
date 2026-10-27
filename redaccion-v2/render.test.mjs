@@ -36,3 +36,9 @@ test('la tarjeta del monitor no rompe el HTML con titulos ajenos', () => {
   assert.equal(html.includes('<script>'), false);
   assert.match(html, /&lt;script&gt;/);
 });
+
+test('la nota con bajada y el boton de guardar se renderizan', () => {
+  const html = htmlNota({ titular: 'T', cuerpo: 'C', bajada: 'Resumen', categoria: 'X' });
+  assert.match(html, /Resumen/);
+  assert.match(html, /data-guardar-nota/);
+});
