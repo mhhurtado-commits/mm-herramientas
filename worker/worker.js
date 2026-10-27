@@ -6872,6 +6872,111 @@ async function handleCloudinaryVideoWebhook(request, env) {
 }
 
 // ============================================================
+// REDACCIÓN V2 — HANDLERS (rutas aditivas, no tocan las viejas)
+// ============================================================
+const REDACCION_V2_BUCKETS = new Map();
+
+function permitirRedaccionV2(request, limite = 40, ventanaMs = 60000) {
+  const ip = request.headers.get('cf-connecting-ip') || 'local';
+  const ahora = Date.now();
+  const bucket = REDACCION_V2_BUCKETS.get(ip) || { inicio: ahora, cuenta: 0 };
+  if (ahora - bucket.inicio > ventanaMs) {
+    bucket.inicio = ahora;
+    bucket.cuenta = 0;
+  }
+  bucket.cuenta += 1;
+  REDACCION_V2_BUCKETS.set(ip, bucket);
+  if (REDACCION_V2_BUCKETS.size > 500) {
+    for (const [clave, valor] of REDACCION_V2_BUCKETS) {
+      if (ahora - valor.inicio > ventanaMs) REDACCION_V2_BUCKETS.delete(clave);
+    }
+  }
+  return bucket.cuenta <= limite;
+}
+
+async function handleRedaccionV2Titulares(body, env) {
+  const modo = String(body?.modo || '').trim();
+  const contenido = String(body?.contenido || '').trim();
+  if (!['nota', 'tema'].includes(modo)) return jsonError('Modo inválido', 400);
+  if (!contenido) return jsonError('Falta contenido', 400);
+  const cantidad = Math.min(Math.max(Number(body?.cantidad) || 5, 3), 10);
+  const guia = await getEditorial(env);
+  const payload = {
+    systemInstruction: { parts: [{ text: construirSystemInstruction(guia) }] },
+    contents: [{
+      role: 'user',
+      parts: [{ text: construirPromptTitulares({ modo, contenido, contexto: body?.contexto, tono: body?.tono, cantidad }) }],
+    }],
+  };
+  const r = await ejecutarTareaIAV2(env, {
+    tarea: 'titulares',
+    payload,
+    schema: ESQUEMAS.titulares,
+    validar: data => validarTitulares(data, cantidad),
+  });
+  if (!r.ok) return jsonOk({ ok: false, error: r.error, details: r.details || [], modelo: r.modelo || null, latenciaMs: r.latenciaMs || 0 });
+  return jsonOk({ ...r.data, modelo: r.modelo, latenciaMs: r.latenciaMs });
+}
+
+async function handleRedaccionV2Reformular(body, env) {
+  const titulo = String(body?.titulo || '').trim();
+  const contenido = String(body?.contenido || '').trim();
+  if (!titulo || !contenido) return jsonError('Faltan título y cuerpo', 400);
+  const estilo = String(body?.estilo || 'formal').trim();
+  const fuenteUrl = String(body?.fuenteUrl || '').trim();
+  const fuenteMedio = String(body?.fuenteMedio || '').trim();
+  const fuenteTitulo = String(body?.fuenteTitulo || '').trim();
+  const fuentes = Array.isArray(body?.fuentes)
+    ? body.fuentes.filter(f => f && /^https?:\/\//i.test(String(f.url || ''))).slice(0, 5)
+    : [];
+  const guia = await getEditorial(env);
+  const payload = {
+    systemInstruction: { parts: [{ text: construirSystemInstruction(guia) }] },
+    contents: [{
+      role: 'user',
+      parts: [{ text: construirPromptReformular({ titulo, contenido, contexto: body?.contexto, estilo, medioOrigen: fuenteMedio, fuentes }) }],
+    }],
+  };
+  const r = await ejecutarTareaIAV2(env, {
+    tarea: 'reformular',
+    payload,
+    schema: ESQUEMAS.reformular,
+    validar: validarReformulacion,
+  });
+  if (!r.ok) return jsonOk({ ok: false, error: r.error, details: r.details || [], modelo: r.modelo || null, latenciaMs: r.latenciaMs || 0 });
+  return jsonOk({
+    ...r.data,
+    fuentes,
+    origen: fuenteUrl ? { url: fuenteUrl, medio: fuenteMedio, titulo: fuenteTitulo || titulo } : null,
+    modelo: r.modelo,
+    latenciaMs: r.latenciaMs,
+    warnings: fuentes.length ? [] : ['sin_fuentes_verificadas'],
+  });
+}
+
+async function handleRedaccionV2Post(path, body, request, env) {
+  if (!permitirRedaccionV2(request)) return jsonError('Demasiadas solicitudes. Esperá un minuto.', 429);
+  switch (path) {
+    case '/v2/redaccion/titulares': return handleRedaccionV2Titulares(body, env);
+    case '/v2/redaccion/reformular': return handleRedaccionV2Reformular(body, env);
+    case '/v2/redaccion/redactar': return handleRedaccionV2Redactar(body, env);
+    case '/v2/redaccion/ilustrar': return handleRedaccionV2Ilustrar(body, env);
+    case '/v2/redaccion/notas': return handleRedaccionV2PostNota(body, env);
+    default: return jsonError('Ruta no encontrada', 404);
+  }
+}
+
+async function handleRedaccionV2Get(path, url, env) {
+  switch (path) {
+    case '/v2/redaccion/health': return handleRedaccionV2Health(env);
+    case '/v2/redaccion/scrape': return handleRedaccionV2Scrape(url, env);
+    case '/v2/redaccion/fuentes': return handleRedaccionV2Fuentes(url, env);
+    case '/v2/redaccion/notas': return handleRedaccionV2GetNotas(env);
+    default: return jsonError('Ruta no encontrada', 404);
+  }
+}
+
+// ============================================================
 // ROUTER PRINCIPAL
 // ============================================================
 
@@ -7591,6 +7696,8 @@ export default {
           {headers:{...CORS_HEADERS,"Content-Type":"application/json"}});
       }
 
+      if (path.startsWith('/v2/redaccion/')) return handleRedaccionV2Get(path, url, env);
+
       return jsonError("Ruta no encontrada",404);
     }
 
@@ -7680,6 +7787,8 @@ export default {
     if(path==="/placas/v2/paquete")                  return handlePlacasV2Paquete(body, env);
     if(path==="/video-vertical/cloudinary/crear")    return handleCloudinaryVideoCreate(body, url, env);
     if(path.startsWith('/video-vertical/cloudinary/render/')) return handleCloudinaryVideoRender(body, path.split('/').pop(), env);
+
+    if (path.startsWith('/v2/redaccion/')) return handleRedaccionV2Post(path, body, request, env);
 
     return jsonError("Ruta no encontrada",404);
   },

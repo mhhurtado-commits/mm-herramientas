@@ -29,3 +29,17 @@ for (const modulo of MODULOS) {
 test('worker.js sigue sin imports', () => {
   assert.equal(/^import /m.test(worker), false);
 });
+
+test('las rutas v2 de redaccion estan registradas', () => {
+  const rutas = [
+    '/v2/redaccion/titulares',
+    '/v2/redaccion/reformular',
+    '/v2/redaccion/redactar',
+    '/v2/redaccion/scrape',
+    '/v2/redaccion/fuentes',
+    '/v2/redaccion/ilustrar',
+    '/v2/redaccion/health',
+    '/v2/redaccion/notas',
+  ];
+  for (const ruta of rutas) assert.ok(worker.includes(`'${ruta}'`) || worker.includes(`"${ruta}"`), `Falta la ruta ${ruta}`);
+});
