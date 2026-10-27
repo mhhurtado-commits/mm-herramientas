@@ -6954,6 +6954,45 @@ async function handleRedaccionV2Reformular(body, env) {
   });
 }
 
+async function handleRedaccionV2Redactar(body, env) {
+  const ideas = String(body?.ideas || '').trim();
+  if (!ideas) return jsonError('Falta el contenido de partida', 400);
+  const fuentes = Array.isArray(body?.fuentes)
+    ? body.fuentes.filter(f => f && /^https?:\/\//i.test(String(f.url || ''))).slice(0, 5)
+    : [];
+  const fecha = new Date().toLocaleString('es-AR', {
+    timeZone: 'America/Argentina/Mendoza',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const guia = await getEditorial(env);
+  const payload = {
+    systemInstruction: { parts: [{ text: construirSystemInstruction(guia) }] },
+    contents: [{
+      role: 'user',
+      parts: [{ text: construirPromptRedactar({ ideas, fuentes, fecha }) }],
+    }],
+  };
+  const r = await ejecutarTareaIAV2(env, {
+    tarea: 'redactar',
+    payload,
+    schema: ESQUEMAS.redactar,
+    validar: validarRedaccion,
+  });
+  if (!r.ok) return jsonOk({ ok: false, error: r.error, details: r.details || [], modelo: r.modelo || null, latenciaMs: r.latenciaMs || 0 });
+  return jsonOk({
+    ...r.data,
+    fuentes,
+    fecha,
+    modelo: r.modelo,
+    latenciaMs: r.latenciaMs,
+    warnings: fuentes.length ? [] : ['sin_fuentes_verificadas'],
+  });
+}
+
 async function handleRedaccionV2Post(path, body, request, env) {
   if (!permitirRedaccionV2(request)) return jsonError('Demasiadas solicitudes. Esperá un minuto.', 429);
   switch (path) {
