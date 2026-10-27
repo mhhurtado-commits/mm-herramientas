@@ -5,6 +5,7 @@ import {
   construirPromptTitulares, construirPromptReformular, construirPromptRedactar,
   interpretarRespuestaGemini, validarTitulares, validarReformulacion, validarRedaccion,
   pedirGemini, ejecutarTareaIA,
+  construirPromptImagenV2, NEGATIVE_IMAGEN_V2,
 } from './redaccion-v2.mjs';
 
 test('reformular usa el modelo nuevo, sin temperature y con tokens altos', () => {
@@ -218,4 +219,28 @@ test('ejecutarTareaIA informa validación sin reintentar', async () => {
   assert.equal(r.ok, false);
   assert.equal(r.error, 'validacion');
   assert.equal(llamadas, 1);
+});
+
+test('el prompt de imagen incluye título, contexto y estilo', () => {
+  const prompt = construirPromptImagenV2({
+    titulo: 'Repavimentan el microcentro',
+    contenido: 'La obra empieza el lunes y durará 45 días.',
+    contexto: 'San Rafael, Mendoza',
+    estilo: 'realista',
+  });
+  assert.match(prompt, /Repavimentan el microcentro/);
+  assert.match(prompt, /San Rafael, Mendoza/);
+  assert.match(prompt, /photograph|photo/i);
+});
+
+test('el prompt de imagen nunca pide texto dentro de la imagen', () => {
+  const prompt = construirPromptImagenV2({ titulo: 'T', contenido: 'C', estilo: 'ilustracion' });
+  assert.match(prompt, /no text|without text|sin texto/i);
+  assert.match(NEGATIVE_IMAGEN_V2, /text/);
+  assert.match(NEGATIVE_IMAGEN_V2, /watermark/);
+});
+
+test('un estilo desconocido cae a realista', () => {
+  const prompt = construirPromptImagenV2({ titulo: 'T', contenido: 'C', estilo: 'inexistente' });
+  assert.match(prompt, /photograph|photo/i);
 });

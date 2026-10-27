@@ -815,6 +815,21 @@ async function ejecutarTareaIA({ payload = {}, keys = [], tarea = 'reformular', 
 
   return primero;
 }
+
+const NEGATIVE_IMAGEN_V2 = 'text, words, letters, watermarks, logos, signatures, blurry, low quality, distorted, deformed hands, extra fingers, cartoonish';
+
+const PLANTILLAS_IMAGEN = {
+  realista: 'Editorial news photograph, realistic, natural light, 35mm lens, shallow depth of field, no text, no letters, no logos. Scene: {escena}. Setting: {contexto}.',
+  ilustracion: 'Editorial illustration, flat vector style, limited palette, clean shapes, no text, no letters, no logos. Scene: {escena}. Setting: {contexto}.',
+  documental: 'Documentary photograph, candid, available light, grainy 400 ISO, no text, no letters, no logos. Scene: {escena}. Setting: {contexto}.',
+};
+
+function construirPromptImagenV2({ titulo = '', contenido = '', contexto = '', estilo = 'realista' } = {}) {
+  const plantilla = PLANTILLAS_IMAGEN[estilo] || PLANTILLAS_IMAGEN.realista;
+  const escena = `${String(titulo).trim()}. ${String(contenido).trim().slice(0, 280)}`.trim();
+  const lugar = String(contexto || 'Mendoza, Argentina').trim();
+  return plantilla.replace('{escena}', escena).replace('{contexto}', lugar);
+}
 // <<< REDACCION-V2 INLINE
 
 // >>> REDACCION-FUENTES INLINE
@@ -7125,6 +7140,99 @@ async function handleRedaccionV2Fuentes(url, env) {
   };
   try { await env.KV.put(cacheKey, JSON.stringify(resultado), { expirationTtl: 21600 }); } catch (e) {}
   return jsonOk({ ...resultado, cache: false });
+}
+
+function bytesABase64(bytes) {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function generarImagenLibre(env, { prompt, negativePrompt = NEGATIVE_IMAGEN_V2, seed = Math.floor(Math.random() * 1000000) } = {}) {
+  const details = [];
+  const extraerBytes = async (result) => {
+    if (result instanceof ArrayBuffer) return new Uint8Array(result);
+    if (result instanceof ReadableStream) return new Uint8Array(await new Response(result).arrayBuffer());
+    if (result && result.body) return new Uint8Array(await new Response(result.body).arrayBuffer());
+    if (result && typeof result.image === 'string' && result.image.length > 100) {
+      const bin = atob(result.image);
+      const u = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      return u;
+    }
+    return null;
+  };
+
+  let bytes = null;
+  let modelo = '';
+  let motor = '';
+
+  if (env.AI) {
+    try {
+      const klein = buildFluxKlein4bInput(prompt, seed);
+      bytes = await extraerBytes(await env.AI.run(klein.model, { multipart: klein.multipart }));
+      if (bytes) { modelo = 'flux-2-klein-4b'; motor = 'Cloudflare AI'; }
+    } catch (err) { details.push(`klein:${String(err?.message || err).slice(0, 120)}`); }
+  }
+
+  if (!bytes && env.AI) {
+    try {
+      bytes = await extraerBytes(await env.AI.run('@cf/black-forest-labs/flux-1-schnell', { prompt, steps: 8, seed }));
+      if (bytes) { modelo = 'flux-1-schnell'; motor = 'Cloudflare AI'; }
+    } catch (err) { details.push(`schnell:${String(err?.message || err).slice(0, 120)}`); }
+  }
+
+  if (!bytes) {
+    for (const m of ['flux', 'zimage']) {
+      try {
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1200&height=630&model=${m}&nologo=true&seed=${seed}&negative_prompt=${encodeURIComponent(negativePrompt)}`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(45000) });
+        if (res.ok) { bytes = new Uint8Array(await res.arrayBuffer()); modelo = m; motor = 'Pollinations'; break; }
+      } catch (err) { details.push(`pollinations-${m}:${String(err?.message || err).slice(0, 120)}`); }
+    }
+  }
+
+  if (!bytes && env.AI) {
+    try {
+      bytes = await extraerBytes(await env.AI.run('@cf/lykon/dreamshaper-8', { prompt, negative_prompt: negativePrompt, steps: 30, guidance: 7 }));
+      if (bytes) { modelo = 'dreamshaper-8'; motor = 'Cloudflare AI'; }
+    } catch (err) { details.push(`dreamshaper:${String(err?.message || err).slice(0, 120)}`); }
+  }
+
+  if (!bytes && env.AI) {
+    try {
+      bytes = await extraerBytes(await env.AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0', { prompt, negative_prompt: negativePrompt, steps: 20 }));
+      if (bytes) { modelo = 'sdxl-cf'; motor = 'Cloudflare AI'; }
+    } catch (err) { details.push(`sdxl:${String(err?.message || err).slice(0, 120)}`); }
+  }
+
+  if (!bytes) return { error: 'sin_motor', details };
+  return { bytes, modelo, motor, seed };
+}
+
+async function handleRedaccionV2Ilustrar(body, env) {
+  const titulo = String(body?.titulo || '').trim();
+  const contenido = String(body?.contenido || '').trim();
+  if (!titulo || !contenido) return jsonError('Faltan título y contenido', 400);
+  const prompt = String(body?.prompt || '').trim()
+    || construirPromptImagenV2({
+      titulo,
+      contenido,
+      contexto: body?.contexto,
+      estilo: String(body?.estilo || 'realista'),
+    });
+  const r = await generarImagenLibre(env, { prompt, negativePrompt: NEGATIVE_IMAGEN_V2 });
+  if (r.error) {
+    logRedaccionV2({ tarea: 'ilustrar', evento: 'sin_motor', details: (r.details || []).slice(0, 4) });
+    return jsonError('No se pudo generar la imagen', 502);
+  }
+  const imagen = bytesABase64(r.bytes);
+  const imgTempId = guardarImagenTemp(env, imagen);
+  logRedaccionV2({ tarea: 'ilustrar', evento: 'ok', modelo: r.modelo, motor: r.motor, bytes: r.bytes.length });
+  return jsonOk({ imagen, formato: 'image/jpeg', prompt, modelo: r.modelo, motor: r.motor, imgTempId, seed: r.seed });
 }
 
 async function handleRedaccionV2Post(path, body, request, env) {

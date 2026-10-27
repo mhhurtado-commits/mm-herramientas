@@ -303,3 +303,18 @@ export async function ejecutarTareaIA({ payload = {}, keys = [], tarea = 'reform
 
   return primero;
 }
+
+export const NEGATIVE_IMAGEN_V2 = 'text, words, letters, watermarks, logos, signatures, blurry, low quality, distorted, deformed hands, extra fingers, cartoonish';
+
+const PLANTILLAS_IMAGEN = {
+  realista: 'Editorial news photograph, realistic, natural light, 35mm lens, shallow depth of field, no text, no letters, no logos. Scene: {escena}. Setting: {contexto}.',
+  ilustracion: 'Editorial illustration, flat vector style, limited palette, clean shapes, no text, no letters, no logos. Scene: {escena}. Setting: {contexto}.',
+  documental: 'Documentary photograph, candid, available light, grainy 400 ISO, no text, no letters, no logos. Scene: {escena}. Setting: {contexto}.',
+};
+
+export function construirPromptImagenV2({ titulo = '', contenido = '', contexto = '', estilo = 'realista' } = {}) {
+  const plantilla = PLANTILLAS_IMAGEN[estilo] || PLANTILLAS_IMAGEN.realista;
+  const escena = `${String(titulo).trim()}. ${String(contenido).trim().slice(0, 280)}`.trim();
+  const lugar = String(contexto || 'Mendoza, Argentina').trim();
+  return plantilla.replace('{escena}', escena).replace('{contexto}', lugar);
+}
