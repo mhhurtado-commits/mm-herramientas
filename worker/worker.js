@@ -696,6 +696,125 @@ function validarRedaccion(data = {}) {
   if (bajada.length < 10) errors.push('bajada_corta');
   return { ok: errors.length === 0, data: { ...base.data, bajada }, errors };
 }
+
+async function pedirGemini({ payload = {}, keys = [], tarea = 'reformular', schema = null, fetchImpl = fetch, onLog = () => {} } = {}) {
+  const config = TAREAS[tarea] || TAREAS.reformular;
+  const modelos = [config.modelo, config.respaldo].filter(Boolean);
+  if (!keys.length) return { ok: false, error: 'sin_api_keys', details: [] };
+  const inicio = Date.now();
+  const errores = [];
+  let errorFormato = null;
+
+  for (const modelo of modelos) {
+    for (const key of keys) {
+      try {
+        const body = {
+          ...payload,
+          generationConfig: {
+            responseMimeType: 'application/json',
+            ...(schema ? { responseSchema: schema } : {}),
+            ...(config.thinkingLevel ? { thinkingConfig: { thinkingLevel: config.thinkingLevel } } : {}),
+            maxOutputTokens: config.maxOutputTokens,
+          },
+        };
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(key)}`;
+        const res = await fetchImpl(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(config.timeoutMs),
+        });
+
+        if (res.status === 429) {
+          errores.push(`${modelo}:429`);
+          onLog({ tarea, modelo, evento: 'rate_limit' });
+          continue;
+        }
+        if (!res.ok) {
+          const texto = await res.text().catch(() => '');
+          errores.push(`${modelo}:${res.status}:${texto.slice(0, 180)}`);
+          onLog({ tarea, modelo, evento: 'http_error', status: res.status });
+          break;
+        }
+
+        const data = await res.json();
+        const interpretado = interpretarRespuestaGemini(data);
+        const latenciaMs = Date.now() - inicio;
+        if (!interpretado.ok) {
+          errores.push(`${modelo}:${interpretado.error}`);
+          onLog({ tarea, modelo, evento: interpretado.error, finishReason: interpretado.finishReason, latenciaMs });
+          if (interpretado.error === 'respuesta_incompleta') {
+            return { ok: false, error: 'respuesta_incompleta', modelo, latenciaMs, raw: interpretado.raw || '', details: errores };
+          }
+          if (interpretado.error === 'json_invalido' || interpretado.error === 'respuesta_vacia') {
+            errorFormato = { error: interpretado.error, raw: interpretado.raw || '', modelo, latenciaMs };
+          }
+          break;
+        }
+
+        onLog({ tarea, modelo, evento: 'ok', finishReason: interpretado.finishReason, latenciaMs, usage: data?.usageMetadata || null });
+        return {
+          ok: true,
+          data: interpretado.data,
+          raw: interpretado.raw,
+          modelo,
+          finishReason: interpretado.finishReason,
+          usage: data?.usageMetadata || null,
+          latenciaMs,
+        };
+      } catch (err) {
+        errores.push(`${modelo}:${err?.name || 'error'}:${err?.message || ''}`);
+        onLog({ tarea, modelo, evento: 'exception', detalle: String(err?.message || err).slice(0, 180) });
+      }
+    }
+  }
+
+  onLog({ tarea, evento: 'modelo_no_disponible', details: errores.slice(0, 6) });
+  if (errorFormato) {
+    return {
+      ok: false,
+      error: errorFormato.error,
+      raw: errorFormato.raw,
+      modelo: errorFormato.modelo,
+      latenciaMs: Date.now() - inicio,
+      details: errores,
+    };
+  }
+  return { ok: false, error: 'modelo_no_disponible', details: errores, latenciaMs: Date.now() - inicio };
+}
+
+async function ejecutarTareaIA({ payload = {}, keys = [], tarea = 'reformular', schema = null, validar = () => ({ ok: true, data: null }), fetchImpl = fetch, onLog = () => {} } = {}) {
+  const primero = await pedirGemini({ payload, keys, tarea, schema, fetchImpl, onLog });
+  if (primero.ok) {
+    const validado = validar(primero.data);
+    if (validado.ok) return { ...primero, data: validado.data };
+    return { ...primero, ok: false, error: 'validacion', details: validado.errors };
+  }
+
+  if (primero.error === 'json_invalido' || primero.error === 'respuesta_vacia') {
+    const reintento = await pedirGemini({
+      payload: {
+        ...payload,
+        contents: [
+          ...(payload.contents || []),
+          { role: 'model', parts: [{ text: primero.raw || '(vacío)' }] },
+          { role: 'user', parts: [{ text: 'La respuesta anterior no fue JSON válido. Devolvé solo el JSON del esquema, sin markdown.' }] },
+        ],
+      },
+      keys,
+      tarea,
+      schema,
+      fetchImpl,
+      onLog,
+    });
+    if (reintento.ok) {
+      const validado = validar(reintento.data);
+      if (validado.ok) return { ...reintento, data: validado.data };
+    }
+  }
+
+  return primero;
+}
 // <<< REDACCION-V2 INLINE
 
 // >>> REDACCION-FUENTES INLINE
@@ -6293,6 +6412,24 @@ async function fetchGemini(env, payload, { searchEnabled = false, expectJson = t
     }
   }
   return { error: "Todas las keys de Gemini fallaron", details: modelErrors };
+}
+
+function logRedaccionV2(evento = {}) {
+  try {
+    console.log(JSON.stringify({ tag: 'redaccion-v2', ts: new Date().toISOString(), ...evento }));
+  } catch (e) {}
+}
+
+async function ejecutarTareaIAV2(env, { tarea, payload, schema, validar }) {
+  return ejecutarTareaIA({
+    payload,
+    keys: getGeminiKeys(env),
+    tarea,
+    schema,
+    validar,
+    fetchImpl: fetch,
+    onLog: logRedaccionV2,
+  });
 }
 
 async function handleMusicSearch(url, env) {

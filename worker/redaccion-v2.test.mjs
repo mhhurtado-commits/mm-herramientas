@@ -4,6 +4,7 @@ import {
   TAREAS, ESQUEMAS, ESTILOS_DESC_V2, construirSystemInstruction,
   construirPromptTitulares, construirPromptReformular, construirPromptRedactar,
   interpretarRespuestaGemini, validarTitulares, validarReformulacion, validarRedaccion,
+  pedirGemini, ejecutarTareaIA,
 } from './redaccion-v2.mjs';
 
 test('reformular usa el modelo nuevo, sin temperature y con tokens altos', () => {
@@ -105,4 +106,116 @@ test('los estilos mantienen las claves que usa la UI', () => {
   assert.ok(ESTILOS_DESC_V2.formal);
   assert.ok(ESTILOS_DESC_V2.breaking);
   assert.ok(ESTILOS_DESC_V2.cronica);
+});
+
+const CUERPO_VALIDO = 'Texto suficiente para pasar la validación de la reformulación, con más de ochenta caracteres para no fallar por cuerpo corto.';
+
+function respuestaOk(texto = JSON.stringify({ titular: 'Titular válido', cuerpo: CUERPO_VALIDO })) {
+  return new Response(JSON.stringify({
+    candidates: [{ finishReason: 'STOP', content: { parts: [{ text: texto }] } }],
+    usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20, totalTokenCount: 30 },
+  }), { status: 200, headers: { 'content-type': 'application/json' } });
+}
+
+test('pedirGemini rota de key ante 429 y devuelve datos', async () => {
+  let llamadas = 0;
+  const fetchFalso = async () => {
+    llamadas += 1;
+    return llamadas === 1 ? new Response('rate', { status: 429 }) : respuestaOk();
+  };
+  const r = await pedirGemini({
+    payload: { contents: [{ role: 'user', parts: [{ text: 'x' }] }] },
+    keys: ['k1', 'k2'],
+    fetchImpl: fetchFalso,
+  });
+  assert.equal(r.ok, true);
+  assert.equal(llamadas, 2);
+  assert.equal(r.data.titular, 'Titular válido');
+  assert.equal(r.usage.totalTokenCount, 30);
+});
+
+test('pedirGemini pide pensamiento bajo y no envía temperature', async () => {
+  let body = null;
+  const fetchFalso = async (url, opciones) => {
+    body = JSON.parse(opciones.body);
+    return respuestaOk();
+  };
+  await pedirGemini({
+    payload: { contents: [{ role: 'user', parts: [{ text: 'x' }] }] },
+    keys: ['k1'],
+    fetchImpl: fetchFalso,
+  });
+  assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, 'low');
+  assert.equal('temperature' in body.generationConfig, false);
+});
+
+test('pedirGemini cae al respaldo si el primario no existe', async () => {
+  const urls = [];
+  const fetchFalso = async (url) => {
+    urls.push(url);
+    if (url.includes('gemini-3.8-flash')) return new Response('not found', { status: 404 });
+    return respuestaOk('{"ok":true}');
+  };
+  const r = await pedirGemini({
+    payload: { contents: [{ role: 'user', parts: [{ text: 'x' }] }] },
+    keys: ['k1'],
+    fetchImpl: fetchFalso,
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.modelo, 'gemini-3.5-flash-lite');
+  assert.ok(urls.some(u => u.includes('gemini-3.5-flash-lite')));
+});
+
+test('pedirGemini no reintenta si la respuesta se cortó por tokens', async () => {
+  let llamadas = 0;
+  const fetchFalso = async () => {
+    llamadas += 1;
+    return new Response(JSON.stringify({
+      candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: '{"titular":"Cortado"' }] } }],
+    }), { status: 200 });
+  };
+  const r = await pedirGemini({
+    payload: { contents: [{ role: 'user', parts: [{ text: 'x' }] }] },
+    keys: ['k1'],
+    fetchImpl: fetchFalso,
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'respuesta_incompleta');
+  assert.equal(llamadas, 1);
+});
+
+test('ejecutarTareaIA reintenta una vez si el JSON fue inválido', async () => {
+  let llamadas = 0;
+  const fetchFalso = async () => {
+    llamadas += 1;
+    // Los dos modelos (primario y respaldo) devuelven texto inválido; el tercer
+    // llamado ya es el reintento correctivo de ejecutarTareaIA.
+    return llamadas <= 2 ? respuestaOk('no es json') : respuestaOk();
+  };
+  const r = await ejecutarTareaIA({
+    payload: { contents: [{ role: 'user', parts: [{ text: 'x' }] }] },
+    keys: ['k1'],
+    fetchImpl: fetchFalso,
+    validar: validarReformulacion,
+  });
+  assert.equal(r.ok, true);
+  assert.equal(llamadas, 3);
+  assert.equal(r.data.titular, 'Titular válido');
+});
+
+test('ejecutarTareaIA informa validación sin reintentar', async () => {
+  let llamadas = 0;
+  const fetchFalso = async () => {
+    llamadas += 1;
+    return respuestaOk('{"titular":"","cuerpo":""}');
+  };
+  const r = await ejecutarTareaIA({
+    payload: { contents: [{ role: 'user', parts: [{ text: 'x' }] }] },
+    keys: ['k1'],
+    fetchImpl: fetchFalso,
+    validar: validarReformulacion,
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'validacion');
+  assert.equal(llamadas, 1);
 });
