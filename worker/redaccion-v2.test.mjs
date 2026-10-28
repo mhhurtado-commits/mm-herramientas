@@ -10,9 +10,9 @@ import {
   normalizarNotaV2,
 } from './redaccion-v2.mjs';
 
-test('reformular usa el modelo nuevo, sin temperature y con tokens altos', () => {
-  assert.equal(TAREAS.reformular.modelo, 'gemini-3.8-flash');
-  assert.equal(TAREAS.reformular.respaldo, 'gemini-3.5-flash-lite');
+test('reformular usa el lite como primario y el 3.8 de respaldo, sin temperature', () => {
+  assert.equal(TAREAS.reformular.modelo, 'gemini-3.5-flash-lite');
+  assert.equal(TAREAS.reformular.respaldo, 'gemini-3.8-flash');
   assert.equal(TAREAS.reformular.maxOutputTokens, 8192);
   assert.equal(TAREAS.titulares.maxOutputTokens, 2048);
   assert.equal(TAREAS.reformular.thinkingLevel, 'low');
@@ -156,7 +156,7 @@ test('pedirGemini cae al respaldo si el primario no existe', async () => {
   const urls = [];
   const fetchFalso = async (url) => {
     urls.push(url);
-    if (url.includes('gemini-3.8-flash')) return new Response('not found', { status: 404 });
+    if (url.includes('gemini-3.5-flash-lite')) return new Response('not found', { status: 404 });
     return respuestaOk('{"ok":true}');
   };
   const r = await pedirGemini({
@@ -165,8 +165,8 @@ test('pedirGemini cae al respaldo si el primario no existe', async () => {
     fetchImpl: fetchFalso,
   });
   assert.equal(r.ok, true);
-  assert.equal(r.modelo, 'gemini-3.5-flash-lite');
-  assert.ok(urls.some(u => u.includes('gemini-3.5-flash-lite')));
+  assert.equal(r.modelo, 'gemini-3.8-flash');
+  assert.ok(urls.some(u => u.includes('gemini-3.8-flash')));
 });
 
 test('pedirGemini no reintenta si la respuesta se cortó por tokens', async () => {

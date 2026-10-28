@@ -511,8 +511,11 @@ const GEMINI_URL       = `https://generativelanguage.googleapis.com/v1beta/model
 
 // >>> REDACCION-V2 INLINE
 const REDACCION_V2_VERSION = 1;
-const MODELO_PRIMARIO_V2 = 'gemini-3.8-flash';
-const MODELO_RESPALDO_V2 = 'gemini-3.5-flash-lite';
+// El primario es el lite porque el 3.8-flash tardó 101 s en reformular contra un
+// timeout de 120 s; el lite resuelve la misma nota en ~6 s. El 3.8 queda de
+// respaldo para cuando el lite falle o devuelva un formato inválido.
+const MODELO_PRIMARIO_V2 = 'gemini-3.5-flash-lite';
+const MODELO_RESPALDO_V2 = 'gemini-3.8-flash';
 
 const TAREAS = {
   titulares: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 2048, thinkingLevel: 'low', timeoutMs: 60000 },
