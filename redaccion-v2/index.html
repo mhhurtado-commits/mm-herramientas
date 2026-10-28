@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <button class="red-subtab active" id="ref-fuente-url" onclick="switchRefFuente('url')">🔗 URL</button>
         </div>
         <div id="ref-fuente-url-section">
-          <div class="mm-field" style="margin-bottom:0"><label class="mm-label">URL de la nota original</label><div style="display:flex;gap:8px"><input type="url" id="ref-url-input" class="mm-input" placeholder="https://www.otromedio.com/nota/..."><button class="mm-btn mm-btn-sm" id="btn-scrape" onclick="scrapearNota()"><span class="mm-spinner" id="spin-scrape"></span><span id="btn-scrape-text">Obtener nota</span></button></div><div class="verify-status" id="scrape-status"></div></div>
+          <div class="mm-field" style="margin-bottom:0"><label class="mm-label">URL de la nota original</label><div style="display:flex;gap:8px"><input type="url" id="ref-url-input" class="mm-input" placeholder="https://www.otromedio.com/nota/..."><button class="mm-btn mm-btn-sm" id="btn-scrape" onclick="scrapearNota()" style="white-space:nowrap"><span class="mm-spinner" id="spin-scrape"></span><span id="btn-scrape-text">Obtener nota</span></button></div><div class="verify-status" id="scrape-status"></div></div>
         </div>
         <div class="divider" style="margin:10px 0"></div>
         <div class="mm-field"><label class="mm-label">Cuerpo de la nota original</label><textarea id="ref-cuerpo-input" class="mm-textarea" rows="8" placeholder="Pegá el cuerpo completo de la nota u obtenelo con la URL..."></textarea><div class="text-muted" style="font-size:10px;text-align:right;margin-top:2px" id="char-ref">0 caracteres</div></div>
@@ -392,7 +392,6 @@ document.addEventListener('DOMContentLoaded', () => {
         <div id="origen-badge" class="ref-section-label" style="display:none"></div>
         <div id="fuentes-verificadas" style="display:none;margin-top:10px"></div>
         <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          <button class="pill accent" id="btn-guardar-nota-v2">★ Guardar nota</button>
           <span class="mm-badge mm-badge-green" id="badge-modelo-v2" style="display:none"></span>
         </div>
       </div>
@@ -406,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div id="img-content-ia">
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-            <select id="img-estilo" class="mm-select" style="flex:1;font-size:11px;padding:7px 10px">
+            <select id="img-estilo" class="mm-select" style="flex:1;min-width:0;font-size:11px;padding:7px 10px">
               <option value="realista">📸 Realista</option>
               <option value="dibujo">🎨 Dibujo</option>
               <option value="infografia">📊 Infografía</option>

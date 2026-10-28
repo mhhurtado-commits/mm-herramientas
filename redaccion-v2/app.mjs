@@ -289,7 +289,6 @@ async function reformularNota() {
       badge.textContent = etiquetaModelo(data);
       badge.style.display = 'inline-block';
     }
-    $('btn-guardar-nota-v2').style.display = 'inline-flex';
     $('badge-reformulada').style.display = 'inline-block';
     $('btn-limpiar-r').style.display = 'inline-block';
     const seccionImagen = $('ref-imagen-section');
@@ -699,7 +698,7 @@ function limpiarReformular() {
   ['ref-titulo-input', 'ref-cuerpo-input', 'txt-contexto-r', 'ref-url-input'].forEach(id => { if ($(id)) $(id).value = ''; });
   if ($('char-ref')) $('char-ref').textContent = '0 caracteres';
   if ($('results-reformular')) $('results-reformular').innerHTML = '<div class="monitor-empty"><span style="font-size:2rem">📄</span><p>La nota reformulada<br>aparecerá aquí.</p></div>';
-  ['badge-reformulada', 'btn-limpiar-r', 'origen-badge', 'fuentes-verificadas', 'badge-modelo-v2', 'btn-guardar-nota-v2'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+  ['badge-reformulada', 'btn-limpiar-r', 'origen-badge', 'fuentes-verificadas', 'badge-modelo-v2'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
   if ($('ref-imagen-section')) $('ref-imagen-section').style.display = 'none';
   if ($('ref-img-preview')) $('ref-img-preview').innerHTML = '<span style="font-size:11px;color:var(--muted)">Generá una imagen con IA</span>';
   estado.nota = null;
@@ -782,7 +781,6 @@ function cargarBorrador() {
       contenedor.innerHTML = htmlFuentes(estado.fuentes);
       contenedor.style.display = estado.fuentes.length ? 'block' : 'none';
     }
-    $('btn-guardar-nota-v2').style.display = 'inline-flex';
     if ($('badge-reformulada')) $('badge-reformulada').style.display = 'inline-block';
     if ($('btn-limpiar-r')) $('btn-limpiar-r').style.display = 'inline-block';
     if ($('ref-imagen-section')) $('ref-imagen-section').style.display = 'block';
@@ -794,7 +792,6 @@ function init() {
   cargarSalud();
   cargarFuentes();
   cargarEditorial();
-  $('btn-guardar-nota-v2')?.addEventListener('click', guardarNota);
   ['txt-nota', 'txt-tema', 'ref-cuerpo-input', 'txt-redactar'].forEach(id => {
     $(id)?.addEventListener('input', function () {
       const mapa = { 'txt-nota': 'char-nota', 'txt-tema': 'char-tema', 'ref-cuerpo-input': 'char-ref', 'txt-redactar': 'char-redactar' };
