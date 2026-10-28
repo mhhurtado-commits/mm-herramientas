@@ -1,7 +1,7 @@
 import {
   resolverApiBase, crearEstadoInicial, validarEntradaReformular,
   construirPayloadReformular, fuentesSeguras, mensajeError, etiquetaModelo,
-  normalizarSalud, serializarBorrador, deserializarBorrador, CLAVE_BORRADOR,
+  normalizarSalud, normalizarHashtags, serializarBorrador, deserializarBorrador, CLAVE_BORRADOR,
 } from './logic.mjs';
 import {
   escaparHtml, htmlTitulares, htmlFuentes, htmlNota,
@@ -160,7 +160,7 @@ async function redactarNota() {
       bajada: data.bajada,
       cuerpo: data.cuerpo,
       categoria: data.categoria_sugerida,
-      hashtags: data.hashtags || [],
+      hashtags: normalizarHashtags(data.hashtags),
       fuentes: data.fuentes || [],
       origen: null,
       modelo: data.modelo,
@@ -265,7 +265,7 @@ async function reformularNota() {
       titular: data.titular,
       cuerpo: data.cuerpo,
       categoria: data.categoria_sugerida,
-      hashtags: data.hashtags || [],
+      hashtags: normalizarHashtags(data.hashtags),
       fuentes: data.fuentes || estado.fuentes,
       origen: data.origen || estado.origen,
       modelo: data.modelo,

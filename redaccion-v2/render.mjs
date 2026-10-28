@@ -1,3 +1,5 @@
+import { normalizarHashtags } from './logic.mjs';
+
 export function escaparHtml(valor = '') {
   return String(valor)
     .replace(/&/g, '&amp;')
@@ -38,7 +40,7 @@ export function htmlFuentes(fuentes = []) {
 }
 
 export function htmlNota(nota = {}) {
-  const hashtags = (Array.isArray(nota.hashtags) ? nota.hashtags : [])
+  const hashtags = normalizarHashtags(nota.hashtags)
     .map(h => `<span class="hashtag" data-copiar="${escaparHtml(h)}">${escaparHtml(h)}</span>`)
     .join('');
   return `<div class="ref-box">

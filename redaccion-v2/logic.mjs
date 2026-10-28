@@ -113,6 +113,22 @@ export function normalizarSalud(salud) {
   return { estado: 'degradado', texto: 'Degradado', detalle: faltantes.join(', ') };
 }
 
+export function normalizarHashtags(valor) {
+  const vistos = new Set();
+  const salida = [];
+  for (const item of Array.isArray(valor) ? valor : []) {
+    const limpio = String(item || '').trim().replace(/^#+/, '').replace(/\s+/g, '');
+    if (!limpio) continue;
+    const etiqueta = '#' + limpio;
+    const clave = etiqueta.toLowerCase();
+    if (vistos.has(clave)) continue;
+    vistos.add(clave);
+    salida.push(etiqueta);
+    if (salida.length === 8) break;
+  }
+  return salida;
+}
+
 export function serializarBorrador(estado = {}) {
   return JSON.stringify({
     titulo: estado.titulo || '',

@@ -4,7 +4,7 @@ import {
   WORKER_PRODUCCION, resolverApiBase, crearEstadoInicial,
   validarEntradaReformular, construirPayloadReformular, fuentesSeguras,
   mensajeError, etiquetaModelo, resumenNota, normalizarSalud,
-  serializarBorrador, deserializarBorrador,
+  normalizarHashtags, serializarBorrador, deserializarBorrador,
 } from './logic.mjs';
 
 test('usa el worker local en localhost y el de produccion en el resto', () => {
@@ -75,6 +75,12 @@ test('normalizarSalud marca degradado si falta KV o AI', () => {
   assert.equal(normalizarSalud({ ok: true, kv: true, ai: true, keys: 1 }).estado, 'ok');
   assert.equal(normalizarSalud({ ok: true, kv: false, ai: true, keys: 1 }).estado, 'degradado');
   assert.equal(normalizarSalud(null).estado, 'sin_datos');
+});
+
+test('los hashtags salen con numeral, sin duplicados y sin espacios', () => {
+  assert.deepEqual(normalizarHashtags(['Policiales', '#Policiales', ' #Justicia ', 'Derechos Humanos']), ['#Policiales', '#Justicia', '#DerechosHumanos']);
+  assert.deepEqual(normalizarHashtags([]), []);
+  assert.deepEqual(normalizarHashtags(null), []);
 });
 
 test('el borrador sobrevive a serializar y deserializar', () => {
