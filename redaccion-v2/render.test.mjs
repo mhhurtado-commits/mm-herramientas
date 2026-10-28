@@ -43,6 +43,14 @@ test('la nota con bajada y el boton de guardar se renderizan', () => {
   assert.match(html, /data-guardar-nota/);
 });
 
+test('la nota permite copiar titular, cuerpo y todo junto', () => {
+  const html = htmlNota({ titular: 'Mi titular', cuerpo: 'P1\n\nP2' });
+  const copias = [...html.matchAll(/data-copiar="([^"]*)"/g)].map(m => m[1]);
+  assert.ok(copias.includes('Mi titular'), 'falta el titular');
+  assert.ok(copias.includes('P1\n\nP2'), 'falta el cuerpo');
+  assert.ok(copias.includes('Mi titular\n\nP1\n\nP2'), 'falta el todo');
+});
+
 test('la portada ajena se muestra por el proxy y con su credito', () => {
   const html = htmlPortada(
     { url: 'https://otro.com/foto.jpg', origen: 'original' },

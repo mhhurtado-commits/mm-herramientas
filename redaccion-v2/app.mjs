@@ -9,6 +9,7 @@ import {
   htmlNotaGuardada, htmlNoticiaMonitor, htmlPortada, htmlMiniaturas,
 } from './render.mjs';
 import { aplicarAjustesVisuales } from './layout.mjs';
+import { montarFuenteImagen, textoParaCuerpo, tituloSiFalta } from './fuente-imagen.mjs';
 
 const API_OVERRIDE = new URLSearchParams(window.location.search).get('api');
 const API = /^https?:\/\//i.test(API_OVERRIDE || '')
@@ -716,9 +717,38 @@ async function generarImagenIA() {
 }
 
 function switchRefFuente(modo) {
+  const esImagen = modo === 'img';
   const url = $('ref-fuente-url-section');
-  if (url) url.style.display = 'block';
-  $('ref-fuente-url')?.classList.add('active');
+  const imagen = $('ref-fuente-img-section');
+  if (url) url.style.display = esImagen ? 'none' : 'block';
+  if (imagen) imagen.style.display = esImagen ? 'block' : 'none';
+  $('ref-fuente-url')?.classList.toggle('active', !esImagen);
+  $('ref-fuente-img')?.classList.toggle('active', esImagen);
+}
+
+async function extraerTextoDeImagenes(archivos = []) {
+  const datos = new FormData();
+  for (const archivo of archivos) datos.append('imagenes', archivo);
+  const res = await fetch(API + '/procesar-imagenes', { method: 'POST', body: datos });
+  const data = await res.json().catch(() => null);
+  if (!data) throw new Error('respuesta_no_json');
+  if (!data.ok) throw new Error(data.error || 'error');
+  return data;
+}
+
+function aplicarTextoExtraido(data = {}) {
+  const cuerpo = $('ref-cuerpo-input');
+  const titulo = $('ref-titulo-input');
+  if (cuerpo) {
+    cuerpo.value = textoParaCuerpo(cuerpo.value, data.texto || '');
+    estado.contenido = cuerpo.value;
+    if ($('char-ref')) $('char-ref').textContent = `${cuerpo.value.length} caracteres`;
+  }
+  if (titulo) {
+    titulo.value = tituloSiFalta(titulo.value, data.titulo || '');
+    estado.titulo = titulo.value;
+  }
+  guardarBorrador();
 }
 
 // ============================================================
@@ -871,8 +901,30 @@ document.addEventListener('error', (event) => {
 async function reformularDesdeMonitor(url) {
   if (!url) return;
   switchTab('reformular', document.querySelectorAll('.red-tab')[1]);
+  limpiarResultado();
   $('ref-url-input').value = url;
   await scrapearNota();
+}
+
+// Al entrar desde el monitor se borra el resultado anterior: nada precargado
+// hasta que lleguen la nota nueva y la portada scrapeada.
+function limpiarResultado() {
+  estado.nota = null;
+  estado.imagen = '';
+  estado.portadaEleccion = '';
+  estado.origen = null;
+  estado.fuentes = [];
+  if ($('results-reformular')) {
+    $('results-reformular').innerHTML = '<div class="monitor-empty"><span style="font-size:2rem">📄</span><p>La nota reformulada<br>aparecerá aquí.</p></div>';
+  }
+  ['badge-reformulada', 'btn-limpiar-r', 'origen-badge', 'fuentes-verificadas', 'badge-modelo-v2'].forEach(id => {
+    const el = $(id);
+    if (el) el.style.display = 'none';
+  });
+  if ($('ref-imagen-section')) $('ref-imagen-section').style.display = 'none';
+  if ($('ref-img-original')) $('ref-img-original').innerHTML = '<span style="font-size:11px;color:var(--muted)">Sin imagen original</span>';
+  if ($('ref-img-alternativas')) $('ref-img-alternativas').innerHTML = '';
+  switchImgTab('original');
 }
 
 function sincronizarEstadoDesdeDom() {
@@ -922,6 +974,7 @@ function cargarBorrador() {
 function init() {
   aplicarAjustesVisuales();
   montarPanelImagen();
+  montarFuenteImagen({ extraer: extraerTextoDeImagenes, aplicar: aplicarTextoExtraido, alCambiar: switchRefFuente });
   cargarBorrador();
   cargarSalud();
   cargarFuentes();

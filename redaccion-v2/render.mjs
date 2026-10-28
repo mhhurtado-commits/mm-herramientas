@@ -67,6 +67,7 @@ export function htmlNota(nota = {}, opciones = {}) {
   const hashtags = normalizarHashtags(nota.hashtags)
     .map(h => `<span class="hashtag" data-copiar="${escaparHtml(h)}">${escaparHtml(h)}</span>`)
     .join('');
+  const todo = `${nota.titular || ''}\n\n${nota.cuerpo || ''}`;
   return `<div class="ref-box">
     <div class="ref-ia-badge">✦ Generada por IA</div>
     ${htmlPortada(nota.portada || {}, { medio: nota.origen?.medio, base: opciones.base })}
@@ -75,7 +76,12 @@ export function htmlNota(nota = {}, opciones = {}) {
     <div><div class="ref-section-label">Titular</div><div class="ref-titulo">${escaparHtml(nota.titular)}</div></div>
     <div><div class="ref-section-label">Cuerpo</div><div class="ref-cuerpo" style="white-space:pre-wrap">${escaparHtml(nota.cuerpo)}</div></div>
     ${hashtags ? `<div><div class="ref-section-label">Hashtags</div><div class="hashtags-row">${hashtags}</div></div>` : ''}
-    <div class="ref-actions"><button class="pill accent" data-guardar-nota="1">★ Guardar nota</button></div>
+    <div class="ref-actions">
+      <button class="pill accent" data-copiar="${escaparHtml(nota.titular || '')}">Copiar titular</button>
+      <button class="pill accent" data-copiar="${escaparHtml(nota.cuerpo || '')}">Copiar cuerpo</button>
+      <button class="pill" data-copiar="${escaparHtml(todo)}">Copiar todo</button>
+      <button class="pill accent" data-guardar-nota="1">★ Guardar nota</button>
+    </div>
   </div>`;
 }
 
