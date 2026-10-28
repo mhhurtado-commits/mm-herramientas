@@ -12,7 +12,8 @@ Suite editorial de Media Mendoza: apps estáticas en HTML/CSS/JS vanilla sobre C
 - `worker/editorial-package.mjs` no es desplegable (importa de `shared/`): del contrato solo está inlinada la guardia de versión.
 - La URL del worker (`https://mm-herramientas-worker.mhhurtado.workers.dev`) está hardcodeada en cada app, no en un config central.
 - `_headers` y `_redirects` son config de Pages: COOP/COEP solo para `/social/`, `/video-editor/` y `/video-vertical/` (FFmpeg.wasm). Sumar una app con FFmpeg exige agregar sus headers.
-- Apps modulares con `.mjs` al lado del HTML: `placas-v2`, `carousel`, `reels`, `publicar`, `video-vertical` (y `whatsapp/handoff.mjs`). Las viejas son un único `index.html` con todo inline; no las partas sin motivo.
+- Apps modulares con `.mjs` al lado del HTML: `placas-v2`, `carousel`, `reels`, `publicar`, `video-vertical`, `redaccion-v2` (y `whatsapp/handoff.mjs`). Las viejas son un único `index.html` con todo inline; no las partas sin motivo.
+- `/redaccion-v2/` es **beta por URL directa**: se entra escribiendo la dirección, a propósito. No agregarle tarjeta en `index.html` ni retirar `/redaccion/` sin pedido explícito.
 
 ## Verificación
 
@@ -20,7 +21,7 @@ Sin dependencias: Node 24 + `node --test`. Los globs los expande Node, no PowerS
 
 ```powershell
 # suite completa, verde (excluye la falla preexistente de integración)
-node --test --test-isolation=none shared/editorial-package.test.mjs shared/editorial-taxonomy.test.mjs shared/spinner-contract.test.mjs worker/*.test.mjs placas-v2/*.test.mjs carousel/*.test.mjs reels/*.test.mjs whatsapp/*.test.mjs publicar/*.test.mjs redaccion/*.test.mjs visual-suite/*.test.js video-vertical/*.test.mjs
+node --test --test-isolation=none shared/editorial-package.test.mjs shared/editorial-taxonomy.test.mjs shared/spinner-contract.test.mjs worker/*.test.mjs placas-v2/*.test.mjs carousel/*.test.mjs reels/*.test.mjs whatsapp/*.test.mjs publicar/*.test.mjs redaccion/*.test.mjs redaccion-v2/*.test.mjs visual-suite/*.test.js video-vertical/*.test.mjs
 
 # un archivo
 node --test worker/placas-v2.test.mjs
