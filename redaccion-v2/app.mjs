@@ -8,6 +8,7 @@ import {
   escaparHtml, htmlTitulares, htmlFuentes, htmlNota,
   htmlNotaGuardada, htmlNoticiaMonitor, htmlPortada, htmlMiniaturas,
 } from './render.mjs';
+import { aplicarAjustesVisuales } from './layout.mjs';
 
 const API_OVERRIDE = new URLSearchParams(window.location.search).get('api');
 const API = /^https?:\/\//i.test(API_OVERRIDE || '')
@@ -919,6 +920,7 @@ function cargarBorrador() {
 }
 
 function init() {
+  aplicarAjustesVisuales();
   montarPanelImagen();
   cargarBorrador();
   cargarSalud();
