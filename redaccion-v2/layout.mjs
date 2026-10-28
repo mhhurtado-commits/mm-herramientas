@@ -17,14 +17,8 @@ export const AJUSTES_VISUALES = `
 .ref-miniatura img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* El bloque de imagen no compite con los paneles. */
-#ref-imagen-section { max-width: 760px; }
 #ref-imagen-section .red-panel { padding: 12px; gap: 10px; }
 #ref-img-original { min-height: 0 !important; }
-
-/* El panel de entrada manda: la nota reformulada acompaña. */
-@media (min-width: 901px) {
-  .red-grid { grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr); }
-}
 `;
 
 export function aplicarAjustesVisuales(documento = document) {

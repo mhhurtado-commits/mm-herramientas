@@ -21,12 +21,8 @@ test('los ajustes visuales se aplican una sola vez', () => {
   assert.equal(documento.creados.length, 1);
 });
 
-test('el panel de entrada queda más ancho que el de la nota', () => {
-  assert.match(AJUSTES_VISUALES, /\.red-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1\.3fr\)\s*minmax\(0,\s*0\.7fr\)/);
-});
-
-test('el ancho nuevo sólo aplica en escritorio, para no romper el celular', () => {
-  assert.match(AJUSTES_VISUALES, /@media\s*\(min-width:\s*901px\)/);
+test('la grilla queda 50/50 como en /redaccion, sin proporciones propias', () => {
+  assert.equal(/grid-template-columns/.test(AJUSTES_VISUALES), false);
 });
 
 test('las imágenes se achican sin tocar la tipografía del contenido', () => {
