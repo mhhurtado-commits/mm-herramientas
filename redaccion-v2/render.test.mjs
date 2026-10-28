@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { escaparHtml, htmlTitulares, htmlFuentes, htmlNota, htmlNoticiaMonitor } from './render.mjs';
+import { escaparHtml, htmlTitulares, htmlFuentes, htmlNota, htmlNoticiaMonitor, htmlPortada, htmlMiniaturas } from './render.mjs';
 
 test('escapa HTML peligroso', () => {
   assert.equal(escaparHtml('<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;');
@@ -41,4 +41,47 @@ test('la nota con bajada y el boton de guardar se renderizan', () => {
   const html = htmlNota({ titular: 'T', cuerpo: 'C', bajada: 'Resumen', categoria: 'X' });
   assert.match(html, /Resumen/);
   assert.match(html, /data-guardar-nota/);
+});
+
+test('la portada ajena se muestra por el proxy y con su credito', () => {
+  const html = htmlPortada(
+    { url: 'https://otro.com/foto.jpg', origen: 'original' },
+    { medio: 'Los Andes', base: 'https://worker.dev' },
+  );
+  assert.match(html, /src="https:\/\/worker\.dev\/\?image=https%3A%2F%2Fotro\.com%2Ffoto\.jpg"/);
+  assert.match(html, /data-directa="https:\/\/otro\.com\/foto\.jpg"/);
+  assert.match(html, /Original de Los Andes/);
+});
+
+test('la portada generada no pasa por el proxy y avisa que es de IA', () => {
+  const html = htmlPortada({ url: 'data:image/jpeg;base64,AAA', origen: 'ia' }, { base: 'https://worker.dev' });
+  assert.match(html, /src="data:image\/jpeg;base64,AAA"/);
+  assert.match(html, /Generada con IA/);
+  assert.equal(html.includes('image='), false);
+});
+
+test('la portada vacia no renderiza nada', () => {
+  assert.equal(htmlPortada({}), '');
+  assert.equal(htmlPortada({ url: 'javascript:alert(1)' }), '');
+});
+
+test('las miniaturas solo aparecen cuando hay mas de una imagen', () => {
+  assert.equal(htmlMiniaturas(['https://otro.com/a.jpg'], 'https://otro.com/a.jpg'), '');
+  const html = htmlMiniaturas(
+    ['https://otro.com/a.jpg', 'https://otro.com/b.jpg'],
+    'https://otro.com/a.jpg',
+    { base: 'https://worker.dev' },
+  );
+  assert.match(html, /data-portada="https:\/\/otro\.com\/a\.jpg"/);
+  assert.match(html, /data-portada="https:\/\/otro\.com\/b\.jpg"/);
+  assert.match(html, /class="ref-miniatura activa"/);
+});
+
+test('la nota muestra la portada cuando existe', () => {
+  const html = htmlNota(
+    { titular: 'T', cuerpo: 'C', portada: { url: 'https://otro.com/foto.jpg', origen: 'original' }, origen: { medio: 'UNO' } },
+    { base: 'https://worker.dev' },
+  );
+  assert.match(html, /ref-portada/);
+  assert.match(html, /Original de UNO/);
 });

@@ -5,6 +5,7 @@ import {
   validarEntradaReformular, construirPayloadReformular, fuentesSeguras,
   mensajeError, etiquetaModelo, resumenNota, normalizarSalud,
   normalizarHashtags, serializarBorrador, deserializarBorrador,
+  imagenesSeguras, elegirPortada, urlProxyImagen,
 } from './logic.mjs';
 
 test('usa el worker local en localhost y el de produccion en el resto', () => {
@@ -91,4 +92,57 @@ test('el borrador sobrevive a serializar y deserializar', () => {
   assert.equal(vuelta.titulo, 'Título');
   assert.equal(vuelta.contenido, 'Cuerpo');
   assert.equal(deserializarBorrador('no es json'), null);
+});
+
+test('las imagenes descartan lo que no es http, deduplican y respetan el tope', () => {
+  const lista = [
+    'https://uno.com/a.jpg',
+    'https://uno.com/a.jpg',
+    'https://uno.com/a.jpg/',
+    'javascript:alert(1)',
+    '',
+    'https://uno.com/b.jpg',
+    'https://uno.com/c.jpg',
+  ];
+  assert.deepEqual(imagenesSeguras(lista), [
+    'https://uno.com/a.jpg',
+    'https://uno.com/b.jpg',
+    'https://uno.com/c.jpg',
+  ]);
+  assert.deepEqual(imagenesSeguras(lista, 2), ['https://uno.com/a.jpg', 'https://uno.com/b.jpg']);
+  assert.deepEqual(imagenesSeguras(null), []);
+});
+
+test('la portada prioriza la elegida, despues la original y despues la IA', () => {
+  const origen = { imagen: 'https://otro.com/portada.jpg' };
+  assert.deepEqual(elegirPortada({ origen }), { url: 'https://otro.com/portada.jpg', origen: 'original' });
+  assert.deepEqual(
+    elegirPortada({ origen, eleccion: 'https://otro.com/alternativa.jpg' }),
+    { url: 'https://otro.com/alternativa.jpg', origen: 'original' },
+  );
+  assert.deepEqual(
+    elegirPortada({ origen: {}, generada: 'data:image/jpeg;base64,AAA' }),
+    { url: 'data:image/jpeg;base64,AAA', origen: 'ia' },
+  );
+  assert.deepEqual(elegirPortada({ generada: 'data:image/png;base64,BBB', eleccion: 'data:image/png;base64,BBB' }), { url: 'data:image/png;base64,BBB', origen: 'ia' });
+});
+
+test('la portada ignora valores invalidos y no inventa una', () => {
+  assert.deepEqual(elegirPortada({}), { url: '', origen: '' });
+  assert.deepEqual(elegirPortada({ origen: { imagen: 'javascript:alert(1)' }, eleccion: 'nada' }), { url: '', origen: '' });
+});
+
+test('el borrador guarda la portada elegida y el origen con su imagen', () => {
+  const estado = crearEstadoInicial();
+  estado.portadaEleccion = 'https://otro.com/portada.jpg';
+  estado.origen = { url: 'https://otro.com/nota', medio: 'Otro', imagen: 'https://otro.com/portada.jpg' };
+  const vuelta = deserializarBorrador(serializarBorrador(estado));
+  assert.equal(vuelta.portadaEleccion, 'https://otro.com/portada.jpg');
+  assert.equal(vuelta.origen.imagen, 'https://otro.com/portada.jpg');
+});
+
+test('la imagen ajena se muestra por el proxy del worker', () => {
+  const proxeada = urlProxyImagen('https://otro.com/foto.jpg', 'https://worker.dev');
+  assert.equal(proxeada, 'https://worker.dev/?image=' + encodeURIComponent('https://otro.com/foto.jpg'));
+  assert.equal(urlProxyImagen('data:image/png;base64,AAA', 'https://worker.dev'), 'data:image/png;base64,AAA');
 });

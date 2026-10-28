@@ -19,6 +19,7 @@ export function crearEstadoInicial() {
     titulares: [],
     angulos: [],
     imagen: '',
+    portadaEleccion: '',
     salud: null,
     cargando: false,
     error: '',
@@ -52,6 +53,44 @@ export function fuentesSeguras(fuentes = []) {
     if (salida.length === 3) break;
   }
   return salida;
+}
+
+// Imágenes de la nota original: sólo http(s), sin repetir y con tope.
+export function imagenesSeguras(lista = [], maximo = 8) {
+  const vistas = new Set();
+  const salida = [];
+  for (const item of Array.isArray(lista) ? lista : []) {
+    const url = String(item || '').trim();
+    if (!/^https?:\/\//i.test(url)) continue;
+    const clave = url.replace(/\/+$/, '');
+    if (vistas.has(clave)) continue;
+    vistas.add(clave);
+    salida.push(url);
+    if (salida.length >= maximo) break;
+  }
+  return salida;
+}
+
+// Decide qué imagen va de portada: la que eligió el usuario, si no la original
+// de la nota, y si no la generada con IA.
+export function elegirPortada({ origen = {}, generada = '', eleccion = '' } = {}) {
+  const elegida = String(eleccion || '').trim();
+  const original = String(origen?.imagen || '').trim();
+  const ia = String(generada || '').trim();
+  if (/^https?:\/\//i.test(elegida)) {
+    return { url: elegida, origen: /^data:/.test(ia) && elegida === ia ? 'ia' : 'original' };
+  }
+  if (/^https?:\/\//i.test(original)) return { url: original, origen: 'original' };
+  if (elegida && /^data:image\//i.test(elegida)) return { url: elegida, origen: 'ia' };
+  if (/^data:image\//i.test(ia)) return { url: ia, origen: 'ia' };
+  return { url: '', origen: '' };
+}
+
+// Las imágenes de otros medios suelen bloquear el hotlink: se muestran por el proxy.
+export function urlProxyImagen(url = '', base = WORKER_PRODUCCION) {
+  const limpia = String(url || '').trim();
+  if (!/^https?:\/\//i.test(limpia)) return limpia;
+  return `${base}/?image=${encodeURIComponent(limpia)}`;
 }
 
 export function construirPayloadReformular(estado = {}) {
@@ -135,6 +174,7 @@ export function serializarBorrador(estado = {}) {
     contenido: estado.contenido || '',
     contexto: estado.contexto || '',
     estilo: estado.estilo || 'formal',
+    portadaEleccion: estado.portadaEleccion || '',
     origen: estado.origen || null,
     fuentes: fuentesSeguras(estado.fuentes),
     // No persistir la imagen en localStorage: puede superar la cuota de 5 MB.

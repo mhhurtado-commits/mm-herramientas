@@ -2,10 +2,11 @@ import {
   resolverApiBase, crearEstadoInicial, validarEntradaReformular,
   construirPayloadReformular, fuentesSeguras, mensajeError, etiquetaModelo,
   normalizarSalud, normalizarHashtags, serializarBorrador, deserializarBorrador, CLAVE_BORRADOR,
+  imagenesSeguras, elegirPortada,
 } from './logic.mjs';
 import {
   escaparHtml, htmlTitulares, htmlFuentes, htmlNota,
-  htmlNotaGuardada, htmlNoticiaMonitor,
+  htmlNotaGuardada, htmlNoticiaMonitor, htmlPortada, htmlMiniaturas,
 } from './render.mjs';
 
 const API_OVERRIDE = new URLSearchParams(window.location.search).get('api');
@@ -168,7 +169,7 @@ async function redactarNota() {
     estado.fuentes = fuentesSeguras(data.fuentes || []);
     estado.modelo = data.modelo || '';
     estado.latenciaMs = data.latenciaMs || 0;
-    $('results-titulares').innerHTML = htmlNota(estado.nota)
+    $('results-titulares').innerHTML = htmlNota(estado.nota, { base: API })
       + `<div style="margin-top:10px">${htmlFuentes(estado.fuentes)}</div>`;
     const badge = $('badge-titulares');
     badge.textContent = 'Nota lista';
@@ -199,7 +200,15 @@ async function scrapearNota() {
     if (!data.ok) throw new Error(data.error || 'error');
     estado.titulo = data.titulo || '';
     estado.contenido = data.texto || '';
-    estado.origen = { url: data.url, medio: data.medio, titulo: data.titulo, fecha: data.fecha, imagen: data.imagen };
+    estado.origen = {
+      url: data.url,
+      medio: data.medio,
+      titulo: data.titulo,
+      fecha: data.fecha,
+      imagen: data.imagen || '',
+      imagenes: imagenesSeguras([data.imagen, ...(data.imagenes || [])]),
+    };
+    estado.portadaEleccion = '';
     $('ref-titulo-input').value = estado.titulo;
     $('ref-cuerpo-input').value = estado.contenido;
     $('char-ref').textContent = `${estado.contenido.length} caracteres`;
@@ -209,6 +218,10 @@ async function scrapearNota() {
       badge.style.display = 'block';
     }
     await buscarFuentes(data.titulo, data.url);
+    const seccionImagen = $('ref-imagen-section');
+    if (seccionImagen) seccionImagen.style.display = 'block';
+    switchImgTab('original');
+    renderPortada();
     if (status) {
       status.className = 'verify-status ok';
       status.textContent = `✓ ${data.medio || 'Medio'} · ${estado.contenido.length} caracteres`;
@@ -251,6 +264,7 @@ async function reformularNota() {
   if (!estado.origen?.url) {
     estado.origen = { url: $('ref-url-input')?.value.trim() || '', medio: '', titulo: entrada.titulo };
   }
+  await asegurarImagenOriginal();
   const boton = $('btn-reformular');
   boton.disabled = true;
   setLoading('btn-reformular', 'spin-reformular', 'btn-reformular-text', true, 'Reformular para Media Mendoza');
@@ -270,10 +284,12 @@ async function reformularNota() {
       origen: data.origen || estado.origen,
       modelo: data.modelo,
     };
+    estado.nota.portada = portadaActual();
+    estado.nota.imagen = estado.nota.portada.url || '';
     estado.fuentes = fuentesSeguras(data.fuentes || []);
     estado.modelo = data.modelo || '';
     estado.latenciaMs = data.latenciaMs || 0;
-    $('results-reformular').innerHTML = htmlNota(estado.nota);
+    renderPortada();
     const contenedorFuentes = $('fuentes-verificadas');
     if (contenedorFuentes) {
       contenedorFuentes.innerHTML = htmlFuentes(estado.fuentes);
@@ -303,6 +319,11 @@ async function reformularNota() {
 
 async function guardarNota() {
   if (!estado.nota) return showToast('⚠ No hay nota para guardar');
+  const portada = portadaActual();
+  estado.nota.portada = portada;
+  // El índice de notas guarda la nota completa: una portada generada (base64)
+  // engordaría el índice y puede pasar el límite de KV. Se guarda sólo si es una URL.
+  estado.nota.imagen = /^data:/i.test(portada.url) ? '' : (portada.url || '');
   try {
     const data = await api('/v2/redaccion/notas', {
       method: 'POST',
@@ -568,10 +589,96 @@ function toggleWebSearch() {
   if (thumb) thumb.style.transform = webSearchActivo ? 'translateX(14px)' : 'translateX(0)';
 }
 
+function portadaActual() {
+  return elegirPortada({
+    origen: estado.origen || {},
+    generada: estado.imagen || '',
+    eleccion: estado.portadaEleccion || '',
+  });
+}
+
+// Pinta la portada en el panel de imagen y, si hay nota, también arriba del texto.
+function renderPortada() {
+  const portada = portadaActual();
+  const caja = $('ref-img-original');
+  const alternativas = $('ref-img-alternativas');
+  if (caja) {
+    caja.innerHTML = portada.url && portada.origen === 'original'
+      ? htmlPortada(portada, { medio: estado.origen?.medio, base: API })
+      : '<span style="font-size:11px;color:var(--muted)">Sin imagen original</span>';
+  }
+  if (alternativas) {
+    alternativas.innerHTML = portada.origen === 'original'
+      ? htmlMiniaturas(estado.origen?.imagenes || [], portada.url, { base: API })
+      : '';
+  }
+  if (estado.nota) {
+    estado.nota.portada = portada;
+    estado.nota.imagen = portada.url || '';
+    if ($('results-reformular')) $('results-reformular').innerHTML = htmlNota(estado.nota, { base: API });
+  }
+}
+
+// Si hay URL de origen pero todavía no hay imagen, la pide antes de mostrar la nota.
+// Usa el scrapeo que ya existe y aprovecha sólo las imágenes: el texto editado no se toca.
+async function asegurarImagenOriginal() {
+  const url = String(estado.origen?.url || '').trim();
+  if (!/^https?:\/\//i.test(url)) return;
+  const yaHay = imagenesSeguras([estado.origen?.imagen, ...(estado.origen?.imagenes || [])]);
+  if (yaHay.length) return;
+  try {
+    const data = await api('/v2/redaccion/scrape?url=' + encodeURIComponent(url));
+    if (!data || !data.ok) return;
+    estado.origen = {
+      ...(estado.origen || {}),
+      url,
+      medio: estado.origen?.medio || data.medio || '',
+      imagen: String(data.imagen || '').trim(),
+      imagenes: imagenesSeguras([data.imagen, ...(data.imagenes || [])]),
+    };
+    renderPortada();
+  } catch { /* la imagen es opcional: si falla, se sigue sin portada */ }
+}
+
+// La pestaña "Original" se arma acá mientras el HTML no la tenga.
+// Si mañana se agrega al HTML, esta función no hace nada.
+function montarPanelImagen() {
+  if ($('img-content-original')) return;
+  const pestanas = document.querySelector('#ref-imagen-section .red-subtabs');
+  const panelIa = $('img-content-ia');
+  if (!pestanas || !panelIa || !panelIa.parentNode) return;
+
+  const boton = document.createElement('button');
+  boton.type = 'button';
+  boton.className = 'red-subtab active';
+  boton.id = 'img-tab-original';
+  boton.textContent = '🖼 Original';
+  boton.addEventListener('click', () => switchImgTab('original'));
+  pestanas.insertBefore(boton, pestanas.firstChild);
+
+  const panel = document.createElement('div');
+  panel.id = 'img-content-original';
+  const caja = document.createElement('div');
+  caja.id = 'ref-img-original';
+  caja.style.cssText = 'border-radius:6px;overflow:hidden;border:1px solid var(--line2);min-height:80px;display:flex;align-items:center;justify-content:center;background:var(--surface2)';
+  caja.innerHTML = '<span style="font-size:11px;color:var(--muted)">Sin imagen original</span>';
+  const alternativas = document.createElement('div');
+  alternativas.id = 'ref-img-alternativas';
+  panel.append(caja, alternativas);
+  panelIa.parentNode.insertBefore(panel, panelIa);
+
+  panelIa.style.display = 'none';
+  $('img-tab-ia')?.classList.remove('active');
+}
+
 function switchImgTab(tab) {
+  const esIa = tab === 'ia';
+  const original = $('img-content-original');
   const ia = $('img-content-ia');
-  if (ia) ia.style.display = 'block';
-  $('img-tab-ia')?.classList.add('active');
+  if (original) original.style.display = esIa ? 'none' : 'block';
+  if (ia) ia.style.display = esIa ? 'block' : 'none';
+  $('img-tab-original')?.classList.toggle('active', !esIa);
+  $('img-tab-ia')?.classList.toggle('active', esIa);
 }
 
 async function generarImagenIA() {
@@ -595,8 +702,9 @@ async function generarImagenIA() {
     if (!data.ok) throw new Error(data.error || 'error');
     const url = `data:image/jpeg;base64,${data.imagen}`;
     estado.imagen = url;
-    if (estado.nota) estado.nota.imagen = url;
+    estado.portadaEleccion = url;
     $('ref-img-preview').innerHTML = `<img src="${url}" alt="Imagen generada" style="width:100%;display:block;border-radius:6px">`;
+    renderPortada();
     showToast(`✓ Imagen generada (${data.modelo || data.motor || 'IA'})`);
   } catch (err) {
     showToast('✗ ' + (err.message || 'No se pudo generar la imagen'));
@@ -705,6 +813,10 @@ function limpiarReformular() {
   estado.origen = null;
   estado.fuentes = [];
   estado.imagen = '';
+  estado.portadaEleccion = '';
+  if ($('ref-img-original')) $('ref-img-original').innerHTML = '<span style="font-size:11px;color:var(--muted)">Sin imagen original</span>';
+  if ($('ref-img-alternativas')) $('ref-img-alternativas').innerHTML = '';
+  switchImgTab('original');
   localStorage.removeItem(CLAVE_BORRADOR);
 }
 
@@ -736,7 +848,24 @@ document.addEventListener('click', (event) => {
   if (toggleFuenteBtn) return toggleFuente(toggleFuenteBtn.getAttribute('data-toggle-fuente'));
   const borrarFuente = event.target.closest('[data-borrar-fuente]');
   if (borrarFuente) return eliminarFuente(borrarFuente.getAttribute('data-borrar-fuente'));
+  const portada = event.target.closest('[data-portada]');
+  if (portada) {
+    estado.portadaEleccion = portada.getAttribute('data-portada') || '';
+    renderPortada();
+    return;
+  }
 });
+
+// Si el proxy no puede traer la imagen, se intenta la dirección directa una vez.
+document.addEventListener('error', (event) => {
+  const img = event.target;
+  if (!(img instanceof HTMLImageElement)) return;
+  const directa = img.getAttribute('data-directa');
+  if (directa && img.src !== directa) {
+    img.removeAttribute('data-directa');
+    img.src = directa;
+  }
+}, true);
 
 async function reformularDesdeMonitor(url) {
   if (!url) return;
@@ -767,6 +896,7 @@ function cargarBorrador() {
   estado.contexto = borrador.contexto || '';
   estado.estilo = borrador.estilo || 'formal';
   estado.origen = borrador.origen || null;
+  estado.portadaEleccion = borrador.portadaEleccion || '';
   estado.fuentes = fuentesSeguras(borrador.fuentes || []);
   estado.nota = borrador.nota || null;
   if ($('ref-titulo-input')) $('ref-titulo-input').value = estado.titulo;
@@ -784,10 +914,12 @@ function cargarBorrador() {
     if ($('badge-reformulada')) $('badge-reformulada').style.display = 'inline-block';
     if ($('btn-limpiar-r')) $('btn-limpiar-r').style.display = 'inline-block';
     if ($('ref-imagen-section')) $('ref-imagen-section').style.display = 'block';
+    renderPortada();
   }
 }
 
 function init() {
+  montarPanelImagen();
   cargarBorrador();
   cargarSalud();
   cargarFuentes();

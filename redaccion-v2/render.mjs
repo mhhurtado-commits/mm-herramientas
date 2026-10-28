@@ -1,4 +1,4 @@
-import { normalizarHashtags } from './logic.mjs';
+import { normalizarHashtags, imagenesSeguras, urlProxyImagen } from './logic.mjs';
 
 export function escaparHtml(valor = '') {
   return String(valor)
@@ -39,12 +39,37 @@ export function htmlFuentes(fuentes = []) {
     </div>`;
 }
 
-export function htmlNota(nota = {}) {
+export function htmlPortada(portada = {}, { medio = '', base = '' } = {}) {
+  const url = String(portada?.url || '').trim();
+  if (!url) return '';
+  const esData = /^data:image\//i.test(url);
+  if (!esData && !/^https?:\/\//i.test(url)) return '';
+  const src = esData ? url : urlProxyImagen(url, base || undefined);
+  const etiqueta = portada?.origen === 'ia'
+    ? 'Generada con IA'
+    : (String(medio || '').trim() ? `Original de ${medio}` : 'Imagen original');
+  return `<figure class="ref-portada">
+    <img src="${escaparHtml(src)}"${esData ? '' : ` data-directa="${escaparHtml(url)}"`} alt="${escaparHtml(etiqueta)}" loading="lazy">
+    <figcaption class="ref-portada-chip">${escaparHtml(etiqueta)}</figcaption>
+  </figure>`;
+}
+
+export function htmlMiniaturas(imagenes = [], actual = '', { base = '' } = {}) {
+  const validas = imagenesSeguras(imagenes);
+  if (validas.length <= 1) return '';
+  return `<div class="ref-miniaturas">${validas.map((url, i) => `
+    <button type="button" class="ref-miniatura${url === actual ? ' activa' : ''}" data-portada="${escaparHtml(url)}" title="Usar como portada">
+      <img src="${escaparHtml(urlProxyImagen(url, base || undefined))}" data-directa="${escaparHtml(url)}" alt="Alternativa ${i + 1}" loading="lazy">
+    </button>`).join('')}</div>`;
+}
+
+export function htmlNota(nota = {}, opciones = {}) {
   const hashtags = normalizarHashtags(nota.hashtags)
     .map(h => `<span class="hashtag" data-copiar="${escaparHtml(h)}">${escaparHtml(h)}</span>`)
     .join('');
   return `<div class="ref-box">
     <div class="ref-ia-badge">✦ Generada por IA</div>
+    ${htmlPortada(nota.portada || {}, { medio: nota.origen?.medio, base: opciones.base })}
     ${nota.bajada ? `<div><div class="ref-section-label">Bajada</div><div style="font-size:12px;color:var(--muted);font-style:italic">${escaparHtml(nota.bajada)}</div></div>` : ''}
     <div><div class="ref-section-label">Categoría sugerida</div><span class="ref-categoria">${escaparHtml(nota.categoria || '—')}</span></div>
     <div><div class="ref-section-label">Titular</div><div class="ref-titulo">${escaparHtml(nota.titular)}</div></div>
