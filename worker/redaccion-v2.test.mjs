@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   TAREAS, ESQUEMAS, ESTILOS_DESC_V2, construirSystemInstruction,
   FAMILIAS_V2, CONTRATO_SALIDA,
+  limpiarTextoPlano, normalizarTitular, normalizarCategoria, normalizarHashtags, normalizarSalida,
   construirPromptTitulares, construirPromptReformular, construirPromptRedactar,
   interpretarRespuestaGemini, validarTitulares, validarReformulacion, validarRedaccion,
   pedirGemini, ejecutarTareaIA,
@@ -320,4 +321,52 @@ test('crónica y redes no piden pirámide invertida', () => {
   assert.equal(/pirámide/i.test(ESTILOS_DESC_V2.cronica), false);
   assert.equal(/pirámide/i.test(ESTILOS_DESC_V2.redes), false);
   assert.match(ESTILOS_DESC_V2.formal, /pirámide/i);
+});
+
+test('limpiarTextoPlano saca negritas, títulos y tablas', () => {
+  const entrada = 'P1 con **dato clave** y __otro__.\n\n## Subtítulo\n\n| a | b |\n| --- | --- |\n\n- item';
+  const salida = limpiarTextoPlano(entrada);
+  assert.equal(salida.includes('**'), false);
+  assert.equal(salida.includes('__'), false);
+  assert.equal(salida.includes('##'), false);
+  assert.equal(salida.includes('|'), false);
+  assert.match(salida, /dato clave/);
+  assert.match(salida, /- item/);
+});
+
+test('normalizarTitular pone mayúscula inicial y respeta siglas', () => {
+  assert.equal(normalizarTitular('el mendocino jugará'), 'El mendocino jugará');
+  assert.equal(normalizarTitular('UNO confirmó la noticia'), 'UNO confirmó la noticia');
+  assert.equal(normalizarTitular('**Detienen** a un sospechoso'), 'Detienen a un sospechoso');
+});
+
+test('normalizarCategoria acepta las diez y cae en Actualidad', () => {
+  assert.equal(normalizarCategoria('policiales'), 'Policiales');
+  assert.equal(normalizarCategoria('Política'), 'Política');
+  assert.equal(normalizarCategoria('Alerta meteorologica'), 'Alerta meteorológica');
+  assert.equal(normalizarCategoria('Deportes y algo más'), 'Actualidad');
+  assert.equal(normalizarCategoria(''), 'Actualidad');
+});
+
+test('normalizarHashtags deja hasta cinco, con numeral y sin repetir', () => {
+  assert.deepEqual(
+    normalizarHashtags(['Policiales', '#policiales', 'Justicia', 'Mendoza', 'San Rafael', 'Extra', 'Sexto']),
+    ['#Policiales', '#Justicia', '#Mendoza', '#SanRafael', '#Extra'],
+  );
+  assert.deepEqual(normalizarHashtags([]), []);
+});
+
+test('los validadores devuelven el texto ya normalizado', () => {
+  const cuerpo = '**Uno** dice que el hecho ocurrió esta mañana en Guaymallén y que dos personas resultaron heridas leves. '.repeat(2);
+  const r = validarReformulacion({
+    titular: 'el caso del **juez**',
+    cuerpo,
+    categoria_sugerida: 'policiales',
+    hashtags: ['policiales', 'justicia'],
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.data.titular, 'El caso del juez');
+  assert.equal(r.data.cuerpo.includes('**'), false);
+  assert.equal(r.data.categoria_sugerida, 'Policiales');
+  assert.deepEqual(r.data.hashtags, ['#policiales', '#justicia']);
 });

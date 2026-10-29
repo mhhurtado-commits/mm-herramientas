@@ -196,19 +196,85 @@ export function validarTitulares(data = {}, cantidad = 5) {
 }
 
 export function validarReformulacion(data = {}) {
-  const titular = String(data?.titular || '').trim();
-  const cuerpo = String(data?.cuerpo || '').trim();
-  const categoria_sugerida = String(data?.categoria_sugerida || '').trim();
-  const hashtags = Array.isArray(data?.hashtags) ? data.hashtags.map(h => String(h || '').trim()).filter(Boolean) : [];
+  const normalizada = normalizarSalida(data);
   const errors = [];
-  if (titular.length < 8) errors.push('titular_corto');
-  if (cuerpo.length < 80) errors.push('cuerpo_corto');
-  return { ok: errors.length === 0, data: { titular, cuerpo, categoria_sugerida, hashtags }, errors };
+  if (normalizada.titular.length < 8) errors.push('titular_corto');
+  if (normalizada.cuerpo.length < 80) errors.push('cuerpo_corto');
+  return {
+    ok: errors.length === 0,
+    data: {
+      titular: normalizada.titular,
+      cuerpo: normalizada.cuerpo,
+      categoria_sugerida: normalizada.categoria_sugerida,
+      hashtags: normalizada.hashtags,
+    },
+    errors,
+  };
+}
+
+function sinTildes(texto = '') {
+  return String(texto).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+export function limpiarTextoPlano(texto = '') {
+  return String(texto || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/_([^_\n]+)_/g, '$1')
+    .replace(/^\s*#{1,6}\s*/gm, '')
+    .replace(/^\s*\|.*\|\s*$/gm, '')
+    .replace(/^\s*[-:|\s]+$/gm, '')
+    .replace(/[ \t]+$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export function normalizarTitular(texto = '') {
+  const limpio = limpiarTextoPlano(texto).replace(/\s+/g, ' ').trim();
+  if (!limpio) return '';
+  const primera = limpio[0];
+  if (primera !== primera.toLowerCase()) return limpio;
+  return primera.toUpperCase() + limpio.slice(1);
+}
+
+export function normalizarCategoria(valor = '') {
+  const buscada = sinTildes(valor);
+  return FAMILIAS_V2.find(familia => sinTildes(familia) === buscada) || 'Actualidad';
+}
+
+export function normalizarHashtags(valor = []) {
+  const vistos = new Set();
+  const salida = [];
+  for (const item of Array.isArray(valor) ? valor : []) {
+    const limpio = String(item || '').trim().replace(/^#+/, '').replace(/\s+/g, '');
+    if (!limpio) continue;
+    const etiqueta = '#' + limpio;
+    const clave = etiqueta.toLowerCase();
+    if (vistos.has(clave)) continue;
+    vistos.add(clave);
+    salida.push(etiqueta);
+    if (salida.length === 5) break;
+  }
+  return salida;
+}
+
+export function normalizarSalida(data = {}) {
+  const salida = {
+    ...data,
+    titular: normalizarTitular(data?.titular),
+    cuerpo: limpiarTextoPlano(data?.cuerpo),
+    categoria_sugerida: normalizarCategoria(data?.categoria_sugerida),
+    hashtags: normalizarHashtags(data?.hashtags),
+  };
+  if (data?.bajada !== undefined) salida.bajada = limpiarTextoPlano(data.bajada).replace(/\s+/g, ' ').trim();
+  return salida;
 }
 
 export function validarRedaccion(data = {}) {
   const base = validarReformulacion(data);
-  const bajada = String(data?.bajada || '').trim();
+  const bajada = limpiarTextoPlano(data?.bajada).replace(/\s+/g, ' ').trim();
   const errors = [...base.errors];
   if (bajada.length < 10) errors.push('bajada_corta');
   return { ok: errors.length === 0, data: { ...base.data, bajada }, errors };
