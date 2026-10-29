@@ -33,6 +33,12 @@ test('la pestaña Config muestra las reglas fijas de salida', () => {
   assert.match(fuente, /diez familias/);
 });
 
+test('el recuadro muestra cobertura y viñetas', () => {
+  assert.match(fuente, /id="contrato-salida"/);
+  assert.match(fuente, /cobertura completa/i);
+  assert.match(fuente, /3\+ datos paralelos|viñetas/i);
+});
+
 test('la ayuda de la guía separa voz de estructura y menciona la nota modelo', () => {
   assert.match(fuente, /id="guia-ayuda"/);
   assert.match(fuente, /voz y valores/i);

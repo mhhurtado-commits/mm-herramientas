@@ -2,7 +2,8 @@
 
 Para pegar en Config → Guía editorial. Mantiene las secciones y el tono actuales;
 saca las tres reglas que ahora pertenecen al sistema (pirámide invertida, subtítulos
-y negrita) y agrega un lugar para la nota modelo.
+y negrita) y refuerza la cobertura completa sobre la lectura rápida. Agrega un lugar
+para la nota modelo.
 
 ```text
 Redactar una nota periodística original en español rioplatense.
@@ -20,7 +21,7 @@ ESTILO Y TONO
 
 ORIGINALIDAD Y REESCRITURA
 * Utilizar la nota fuente únicamente como referencia factual
-* Extraer los hechos centrales y reconstruir la noticia desde cero
+* Usar todos los hechos relevantes del material, no sólo los centrales, y reconstruir la noticia desde cero
 * No copiar frases, estructuras ni secuencias narrativas del texto original
 * No reutilizar títulos, bajadas ni subtítulos del medio fuente
 * No seguir el mismo orden de párrafos de la nota original
@@ -31,7 +32,7 @@ ORIGINALIDAD Y REESCRITURA
 SEO Y LEGIBILIDAD
 * Redactar pensando en SEO sin forzar palabras clave
 * Incluir palabras clave relevantes de forma natural
-* Priorizar claridad, escaneabilidad y lectura rápida en celular
+* Priorizar claridad y escaneabilidad en celular sin sacrificar datos relevantes
 
 MANEJO DE INFORMACIÓN
 * No inventar datos bajo ningún concepto
