@@ -125,10 +125,12 @@ export function construirPromptTitulares({ modo, contenido, contexto = '', tono 
   ].filter(Boolean).join('\n\n');
 }
 
-export function construirPromptReformular({ titulo, contenido, contexto = '', estilo = 'formal', medioOrigen = '', fuentes = [] } = {}) {
+export function construirPromptReformular({ titulo, contenido, contexto = '', estilo = 'formal', medioOrigen = '', fuentes = [], fecha = '' } = {}) {
   const formato = ESTILOS_DESC_V2[estilo] || ESTILOS_DESC_V2.formal;
   return [
     'Reformulá por completo esta nota de otro medio para publicarla en Media Mendoza.',
+    fecha ? `FECHA Y HORA ACTUAL (Mendoza, Argentina): ${fecha}` : '',
+    fecha ? 'No repitas referencias temporales relativas del original ("este martes", "ayer"). Si el hecho ocurrió antes, indicalo con la fecha del original.' : '',
     medioOrigen ? `MEDIO DE ORIGEN: ${medioOrigen}` : '',
     `TÍTULO ORIGINAL:\n"""\n${titulo}\n"""`,
     `CUERPO ORIGINAL:\n"""\n${contenido}\n"""`,
@@ -136,7 +138,6 @@ export function construirPromptReformular({ titulo, contenido, contexto = '', es
     formato,
     bloqueFuentes(fuentes),
     'Conservá los hechos, las cifras y las citas del original. No agregues información que no esté en el texto.',
-    'No menciones el medio de origen dentro del cuerpo: la atribución va aparte.',
     'Devolvé titular, cuerpo en párrafos separados por una línea en blanco, categoría sugerida y hashtags.',
   ].filter(Boolean).join('\n\n');
 }

@@ -97,6 +97,20 @@ test('el prompt de reformular numera las fuentes y nombra el medio de origen', (
   assert.match(prompt, /No inventes links/);
 });
 
+test('el prompt de reformular incluye la fecha y no habla de atribución aparte', () => {
+  const prompt = construirPromptReformular({ titulo: 'Título', contenido: 'Cuerpo', fecha: '28/10/2026, 21:30' });
+  assert.match(prompt, /FECHA Y HORA ACTUAL/);
+  assert.match(prompt, /28\/10\/2026/);
+  assert.match(prompt, /referencias temporales relativas/i);
+  assert.equal(/atribución va aparte/i.test(prompt), false);
+});
+
+test('sin fecha el prompt sigue siendo válido', () => {
+  const prompt = construirPromptReformular({ titulo: 'Título', contenido: 'Cuerpo' });
+  assert.equal(prompt.includes('FECHA Y HORA ACTUAL'), false);
+  assert.match(prompt, /FORMATO/);
+});
+
 test('el prompt de redactar incluye la fecha y las fuentes verificadas', () => {
   const prompt = construirPromptRedactar({
     ideas: 'Una idea',
