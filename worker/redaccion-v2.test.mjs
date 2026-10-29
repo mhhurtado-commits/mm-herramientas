@@ -111,6 +111,14 @@ test('sin fecha el prompt sigue siendo válido', () => {
   assert.match(prompt, /FORMATO/);
 });
 
+test('el prompt de reformular incluye bloque COBERTURA con instrucciones de ruido y redacción propia', () => {
+  const prompt = construirPromptReformular({ titulo: 'T', contenido: 'C', fecha: '28/10/2026, 21:30' });
+  assert.match(prompt, /COBERTURA/);
+  assert.match(prompt, /no resumas/i);
+  assert.match(prompt, /ignorá menús|ignora menús/i);
+  assert.match(prompt, /redacción propia|no copies/i);
+});
+
 test('el prompt de redactar incluye la fecha y las fuentes verificadas', () => {
   const prompt = construirPromptRedactar({
     ideas: 'Una idea',

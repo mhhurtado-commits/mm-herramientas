@@ -144,7 +144,12 @@ export function construirPromptReformular({ titulo, contenido, contexto = '', es
     contexto ? `INFO EXTRA:\n${contexto}` : '',
     formato,
     bloqueFuentes(fuentes),
-    'Conservá los hechos, las cifras y las citas del original. No agregues información que no esté en el texto.',
+    'COBERTURA',
+    '- No resumas. Recorré todo el material y cubrí todos los hechos relevantes: qué pasó, quién, cuándo, dónde, cómo, cifras, declaraciones, antecedentes y qué sigue.',
+    '- Si el original trae una lista de datos (fechas, requisitos, resultados), incluí la lista completa.',
+    '- Ignorá menús, avisos, links a otras notas y texto que no sea parte del artículo.',
+    '- No agregues relleno: la extensión la determina el material.',
+    '- Cubrí todo con redacción propia; no copies secuencias del original.',
     'Devolvé titular, cuerpo en párrafos separados por una línea en blanco, categoría sugerida y hashtags.',
   ].filter(Boolean).join('\n\n');
 }
