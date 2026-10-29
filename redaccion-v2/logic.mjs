@@ -9,6 +9,8 @@ export function resolverApiBase({ hostname = '', protocol = '' } = {}) {
 export function crearEstadoInicial() {
   return {
     tab: 'monitor',
+    subtab: 'redactar',
+    ideas: '',
     titulo: '',
     contenido: '',
     contexto: '',
@@ -170,6 +172,8 @@ export function normalizarHashtags(valor) {
 
 export function serializarBorrador(estado = {}) {
   return JSON.stringify({
+    ideas: estado.ideas || '',
+    subtab: estado.subtab || 'redactar',
     titulo: estado.titulo || '',
     contenido: estado.contenido || '',
     contexto: estado.contexto || '',
@@ -189,5 +193,24 @@ export function deserializarBorrador(texto) {
     return data && typeof data === 'object' ? data : null;
   } catch {
     return null;
+  }
+}
+
+export function formatearFechaMonitor(fechaRaw = '') {
+  const limpia = String(fechaRaw || '').trim();
+  if (!limpia) return '';
+  const d = new Date(limpia);
+  if (Number.isNaN(d.getTime())) return limpia;
+  try {
+    return d.toLocaleString('es-AR', {
+      timeZone: 'America/Argentina/Mendoza',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return d.toLocaleDateString('es-AR');
   }
 }

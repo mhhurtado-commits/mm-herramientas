@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { escaparHtml, htmlTitulares, htmlFuentes, htmlNota, htmlNoticiaMonitor, htmlPortada, htmlMiniaturas } from './render.mjs';
+import { escaparHtml, htmlTitulares, htmlFuentes, htmlNota, htmlNotaGuardada, htmlNoticiaMonitor, htmlPortada, htmlMiniaturas } from './render.mjs';
 
 test('escapa HTML peligroso', () => {
   assert.equal(escaparHtml('<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;');
@@ -92,4 +92,32 @@ test('la nota muestra la portada cuando existe', () => {
   );
   assert.match(html, /ref-portada/);
   assert.match(html, /Original de UNO/);
+});
+test('la nota incluye la bajada en el boton de copiar todo cuando existe', () => {
+  const html = htmlNota({ titular: 'Mi titular', bajada: 'Mi bajada', cuerpo: 'P1\n\nP2' });
+  const copias = [...html.matchAll(/data-copiar="([^"]*)"/g)].map(m => m[1]);
+  assert.ok(copias.includes('Mi titular\n\nMi bajada\n\nP1\n\nP2'), 'falta el todo con bajada');
+});
+
+test('la nota guardada incluye el boton de cargar', () => {
+  const html = htmlNotaGuardada({ id: 'nota_123', titular: 'Nota guardada', cuerpo: 'Cuerpo' });
+  assert.match(html, /data-cargar-nota="nota_123"/);
+  assert.match(html, /Cargar/);
+});
+
+test('la tarjeta del monitor incluye descripcion, boton titulares y toggle cubierta', () => {
+  const html = htmlNoticiaMonitor({
+    nombre: 'UNO',
+    titulo: 'Título',
+    desc: 'Descripción importante',
+    link: 'https://uno.com/nota',
+    pubDate: '2026-10-28T18:00:00Z',
+    cubierta: true,
+  });
+  assert.match(html, /class="noticia-card cubierta"/);
+  assert.match(html, /noticia-desc/);
+  assert.match(html, /Descripción importante/);
+  assert.match(html, /data-titulares-monitor="https:\/\/uno\.com\/nota"/);
+  assert.match(html, /data-toggle-cubierta="https:\/\/uno\.com\/nota"/);
+  assert.match(html, /↺ Descubrir/);
 });

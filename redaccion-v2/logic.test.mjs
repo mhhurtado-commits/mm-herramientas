@@ -5,7 +5,7 @@ import {
   validarEntradaReformular, construirPayloadReformular, fuentesSeguras,
   mensajeError, etiquetaModelo, resumenNota, normalizarSalud,
   normalizarHashtags, serializarBorrador, deserializarBorrador,
-  imagenesSeguras, elegirPortada, urlProxyImagen,
+  imagenesSeguras, elegirPortada, urlProxyImagen, formatearFechaMonitor,
 } from './logic.mjs';
 
 test('usa el worker local en localhost y el de produccion en el resto', () => {
@@ -145,4 +145,20 @@ test('la imagen ajena se muestra por el proxy del worker', () => {
   const proxeada = urlProxyImagen('https://otro.com/foto.jpg', 'https://worker.dev');
   assert.equal(proxeada, 'https://worker.dev/?image=' + encodeURIComponent('https://otro.com/foto.jpg'));
   assert.equal(urlProxyImagen('data:image/png;base64,AAA', 'https://worker.dev'), 'data:image/png;base64,AAA');
+});
+test('el borrador preserva ideas y subtab de redactar', () => {
+  const estado = crearEstadoInicial();
+  estado.ideas = 'Mis ideas para la nota';
+  estado.subtab = 'tema';
+  const vuelta = deserializarBorrador(serializarBorrador(estado));
+  assert.equal(vuelta.ideas, 'Mis ideas para la nota');
+  assert.equal(vuelta.subtab, 'tema');
+});
+
+test('formatearFechaMonitor formatea fecha correctamente', () => {
+  const fecha = formatearFechaMonitor('2026-10-28T18:30:00Z');
+  assert.match(fecha, /28\/10/);
+  assert.match(fecha, /15:30/);
+  assert.equal(formatearFechaMonitor(''), '');
+  assert.equal(formatearFechaMonitor('fecha invalida'), 'fecha invalida');
 });

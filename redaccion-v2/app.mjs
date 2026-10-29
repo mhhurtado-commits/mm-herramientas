@@ -28,6 +28,7 @@ let webSearchActivo = false;
 let editorialActivo = false;
 let notasGuardadasVisible = false;
 let fuentesInicializadas = false;
+let notasGuardadasCache = [];
 
 function showToast(mensaje) {
   const toast = $('toast');
@@ -85,6 +86,7 @@ function switchSubtab(modo) {
   ['redactar', 'nota', 'tema'].forEach(m => $('subtab-' + m)?.classList.toggle('active', m === modo));
   const boton = $('btn-titulares-text');
   if (boton) boton.textContent = modo === 'redactar' ? 'Redactar nota' : 'Generar titulares';
+  guardarBorrador();
 }
 
 function accionTitulares() {
@@ -769,12 +771,59 @@ async function cargarNotasGuardadas() {
   try {
     const data = await api('/v2/redaccion/notas');
     if (!data.ok) throw new Error(data.error || 'error');
+    notasGuardadasCache = data.notas || [];
     lista.innerHTML = data.notas.length
       ? data.notas.map(htmlNotaGuardada).join('')
       : '<span class="text-muted" style="font-size:12px">No hay notas guardadas.</span>';
   } catch {
     lista.innerHTML = '<span class="text-muted" style="font-size:12px;color:var(--red)">Error cargando notas</span>';
   }
+}
+
+function cargarNotaGuardada(id) {
+  const nota = notasGuardadasCache.find(n => n.id === id);
+  if (!nota) return showToast('⚠ No se encontró la nota');
+  switchTab('reformular', document.querySelectorAll('.red-tab')[1]);
+  estado.nota = {
+    id: nota.id,
+    titular: nota.titular || '',
+    bajada: nota.bajada || '',
+    cuerpo: nota.cuerpo || '',
+    categoria: nota.categoria || '',
+    hashtags: normalizarHashtags(nota.hashtags),
+    fuentes: fuentesSeguras(nota.fuentes),
+    origen: nota.origen || null,
+    modelo: nota.modelo || '',
+  };
+  estado.titulo = nota.titular || '';
+  estado.contenido = nota.cuerpo || '';
+  estado.fuentes = estado.nota.fuentes;
+  estado.origen = estado.nota.origen;
+  estado.portadaEleccion = nota.imagen || '';
+  estado.imagen = nota.imagen || '';
+  estado.nota.portada = portadaActual();
+  if ($('ref-titulo-input')) $('ref-titulo-input').value = estado.titulo;
+  if ($('ref-cuerpo-input')) $('ref-cuerpo-input').value = estado.contenido;
+  if ($('char-ref')) $('char-ref').textContent = `${estado.contenido.length} caracteres`;
+  if ($('ref-url-input')) $('ref-url-input').value = estado.origen?.url || '';
+  if ($('results-reformular')) $('results-reformular').innerHTML = htmlNota(estado.nota, { base: API });
+  const contenedorFuentes = $('fuentes-verificadas');
+  if (contenedorFuentes) {
+    contenedorFuentes.innerHTML = htmlFuentes(estado.fuentes);
+    contenedorFuentes.style.display = estado.fuentes.length ? 'block' : 'none';
+  }
+  const origenBadge = $('origen-badge');
+  if (origenBadge) {
+    origenBadge.textContent = estado.origen?.medio ? `Origen: ${estado.origen.medio}` : '';
+    origenBadge.style.display = estado.origen?.medio ? 'block' : 'none';
+  }
+  if ($('badge-reformulada')) $('badge-reformulada').style.display = 'inline-block';
+  if ($('btn-limpiar-r')) $('btn-limpiar-r').style.display = 'inline-block';
+  if ($('ref-imagen-section')) $('ref-imagen-section').style.display = 'block';
+  renderPortada();
+  if (notasGuardadasVisible) toggleNotasGuardadas();
+  guardarBorrador();
+  showToast('✓ Nota cargada');
 }
 
 async function eliminarNotaGuardada(id) {
@@ -871,6 +920,12 @@ document.addEventListener('click', (event) => {
   if (copiar) return copiarTexto(copiar.getAttribute('data-copiar'));
   const guardar = event.target.closest('[data-guardar-nota]');
   if (guardar) return guardarNota();
+  const cargar = event.target.closest('[data-cargar-nota]');
+  if (cargar) return cargarNotaGuardada(cargar.getAttribute('data-cargar-nota'));
+  const toggleCubierta = event.target.closest('[data-toggle-cubierta]');
+  if (toggleCubierta) return marcarCubierta(toggleCubierta.getAttribute('data-toggle-cubierta'));
+  const titularesMon = event.target.closest('[data-titulares-monitor]');
+  if (titularesMon) return usarTitularMonitor(titularesMon.getAttribute('data-titulares-monitor'));
   const reformular = event.target.closest('[data-reformular-url]');
   if (reformular) return reformularDesdeMonitor(reformular.getAttribute('data-reformular-url'));
   const borrarNota = event.target.closest('[data-borrar-nota]');
@@ -897,6 +952,37 @@ document.addEventListener('error', (event) => {
     img.src = directa;
   }
 }, true);
+
+async function marcarCubierta(link) {
+  if (!link) return;
+  const noticia = noticiasCache.find(n => n.link === link);
+  if (!noticia) return;
+  noticia.cubierta = !noticia.cubierta;
+  aplicarFiltros();
+  try {
+    await api('/cubiertas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ link: noticia.link, cubierta: noticia.cubierta }),
+    });
+  } catch { /* actualización optimista */ }
+}
+
+function usarTitularMonitor(link) {
+  if (!link) return;
+  const noticia = noticiasCache.find(n => n.link === link);
+  if (!noticia) return;
+  switchTab('titulares', document.querySelectorAll('.red-tab')[2]);
+  switchSubtab('nota');
+  const texto = noticia.titulo + (noticia.desc ? '\n\n' + noticia.desc : '');
+  const campo = $('txt-nota');
+  if (campo) {
+    campo.value = texto;
+    if ($('char-nota')) $('char-nota').textContent = `${texto.length} caracteres`;
+  }
+  guardarBorrador();
+  showToast('✓ Cargado en Titulares');
+}
 
 async function reformularDesdeMonitor(url) {
   if (!url) return;
@@ -932,6 +1018,8 @@ function sincronizarEstadoDesdeDom() {
   if ($('ref-cuerpo-input')) estado.contenido = $('ref-cuerpo-input').value;
   if ($('txt-contexto-r')) estado.contexto = $('txt-contexto-r').value;
   if ($('ref-estilo')) estado.estilo = $('ref-estilo').value;
+  if ($('txt-redactar')) estado.ideas = $('txt-redactar').value;
+  estado.subtab = modoActual || 'redactar';
 }
 
 function guardarBorrador() {
@@ -944,6 +1032,8 @@ function guardarBorrador() {
 function cargarBorrador() {
   const borrador = deserializarBorrador(localStorage.getItem(CLAVE_BORRADOR));
   if (!borrador) return;
+  estado.ideas = borrador.ideas || '';
+  estado.subtab = borrador.subtab || 'redactar';
   estado.titulo = borrador.titulo || '';
   estado.contenido = borrador.contenido || '';
   estado.contexto = borrador.contexto || '';
@@ -952,13 +1042,20 @@ function cargarBorrador() {
   estado.portadaEleccion = borrador.portadaEleccion || '';
   estado.fuentes = fuentesSeguras(borrador.fuentes || []);
   estado.nota = borrador.nota || null;
+  if (estado.subtab && ['redactar', 'nota', 'tema'].includes(estado.subtab)) {
+    switchSubtab(estado.subtab);
+  }
+  if ($('txt-redactar') && estado.ideas) {
+    $('txt-redactar').value = estado.ideas;
+    if ($('char-redactar')) $('char-redactar').textContent = `${estado.ideas.length} caracteres`;
+  }
   if ($('ref-titulo-input')) $('ref-titulo-input').value = estado.titulo;
   if ($('ref-cuerpo-input')) $('ref-cuerpo-input').value = estado.contenido;
   if ($('char-ref')) $('char-ref').textContent = `${estado.contenido.length} caracteres`;
   if ($('txt-contexto-r')) $('txt-contexto-r').value = estado.contexto;
   if ($('ref-estilo')) $('ref-estilo').value = estado.estilo;
   if (estado.nota) {
-    $('results-reformular').innerHTML = htmlNota(estado.nota);
+    $('results-reformular').innerHTML = htmlNota(estado.nota, { base: API });
     const contenedor = $('fuentes-verificadas');
     if (contenedor) {
       contenedor.innerHTML = htmlFuentes(estado.fuentes);
@@ -1003,6 +1100,6 @@ Object.assign(window, {
   abrirModalFuentes, cerrarModalFuentes, toggleAddForm, resetVerify, verificarFeed, agregarFuente,
   scrapearNota, buscarFuentes, reformularNota, guardarNota, switchRefFuente,
   generarImagenIA, switchImgTab, toggleWebSearch,
-  toggleNotasGuardadas, pedirLimpiarReformular, guardarYLimpiar, soloLimpiar, limpiarReformular,
+  cargarNotaGuardada, marcarCubierta, usarTitularMonitor, toggleNotasGuardadas, pedirLimpiarReformular, guardarYLimpiar, soloLimpiar, limpiarReformular,
   limpiarTitulares, cargarEditorial, guardarEditorial, toggleEditorial, copiarTexto,
 });

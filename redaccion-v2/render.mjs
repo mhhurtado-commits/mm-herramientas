@@ -1,4 +1,4 @@
-import { normalizarHashtags, imagenesSeguras, urlProxyImagen } from './logic.mjs';
+import { normalizarHashtags, imagenesSeguras, urlProxyImagen, formatearFechaMonitor } from './logic.mjs';
 
 export function escaparHtml(valor = '') {
   return String(valor)
@@ -67,7 +67,8 @@ export function htmlNota(nota = {}, opciones = {}) {
   const hashtags = normalizarHashtags(nota.hashtags)
     .map(h => `<span class="hashtag" data-copiar="${escaparHtml(h)}">${escaparHtml(h)}</span>`)
     .join('');
-  const todo = `${nota.titular || ''}\n\n${nota.cuerpo || ''}`;
+  const partes = [nota.titular, nota.bajada, nota.cuerpo].map(t => String(t || '').trim()).filter(Boolean);
+  const todo = partes.join('\n\n');
   return `<div class="ref-box">
     <div class="ref-ia-badge">✦ Generada por IA</div>
     ${htmlPortada(nota.portada || {}, { medio: nota.origen?.medio, base: opciones.base })}
@@ -93,6 +94,7 @@ export function htmlNotaGuardada(nota = {}) {
       <span class="nota-guardada-fecha">${nota.fecha ? new Date(nota.fecha).toLocaleString('es-AR') : ''}</span>
     </div>
     <div class="nota-guardada-actions">
+      <button class="pill accent" data-cargar-nota="${escaparHtml(nota.id)}">Cargar</button>
       <button class="pill" data-copiar="${escaparHtml(nota.cuerpo)}">Copiar cuerpo</button>
       <button class="pill" data-borrar-nota="${escaparHtml(nota.id)}">Eliminar</button>
     </div>
@@ -100,15 +102,22 @@ export function htmlNotaGuardada(nota = {}) {
 }
 
 export function htmlNoticiaMonitor(noticia = {}) {
-  return `<div class="noticia-card">
+  const cubiertaClase = noticia.cubierta ? ' cubierta' : '';
+  const fecha = formatearFechaMonitor(noticia.pubDate);
+  const descHtml = noticia.desc ? `<div class="noticia-desc">${escaparHtml(noticia.desc)}</div>` : '';
+  const linkSeguro = escaparHtml(noticia.link || '#');
+  return `<div class="noticia-card${cubiertaClase}">
     <div class="noticia-fuente-row">
       <span class="fuente-tag">${escaparHtml(noticia.nombre || 'Fuente')}</span>
-      <span class="noticia-fecha">${escaparHtml(noticia.pubDate || '')}</span>
+      <span class="noticia-fecha">${escaparHtml(fecha)}</span>
     </div>
     <div class="noticia-titulo" data-reformular-url="${escaparHtml(noticia.link || '')}">${escaparHtml(noticia.titulo || '')}</div>
+    ${descHtml}
     <div class="noticia-acciones">
-      <a class="pill" href="${escaparHtml(noticia.link || '#')}" target="_blank" rel="noopener noreferrer">Abrir ↗</a>
+      <a class="pill" href="${linkSeguro}" target="_blank" rel="noopener noreferrer">Abrir ↗</a>
+      <button class="pill accent" data-titulares-monitor="${escaparHtml(noticia.link || '')}">Titulares ↗</button>
       <button class="pill accent" data-reformular-url="${escaparHtml(noticia.link || '')}">Reformular</button>
+      <button class="pill" data-toggle-cubierta="${escaparHtml(noticia.link || '')}">${noticia.cubierta ? '↺ Descubrir' : '✓ Cubierta'}</button>
     </div>
   </div>`;
 }
