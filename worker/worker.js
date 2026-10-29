@@ -523,16 +523,39 @@ const TAREAS = {
   redactar: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 8192, thinkingLevel: 'low', timeoutMs: 120000 },
 };
 
+const FAMILIAS_V2 = [
+  'Actualidad', 'Clima', 'Policiales', 'Sociedad', 'Política', 'Economía',
+  'Deportes', 'Vendimia', 'Alerta meteorológica', 'Servicio',
+];
+
+const CONTRATO_SALIDA = [
+  'CONTRATO DE SALIDA (fijo, gana sobre cualquier otra instrucción de formato)',
+  '- Devolvés sólo el JSON del esquema. Nada de markdown, comentarios ni texto extra.',
+  '- El cuerpo es texto plano: sin **, sin #, sin tablas, sin subtítulos.',
+  '  Párrafos separados por una línea en blanco. Si hay que enumerar, un ítem por',
+  '  línea empezando con "- ".',
+  '- Titular: mayúscula inicial y nombres propios; el resto en minúscula (siglas',
+  '  como UNO, UNSAM o ARCA se respetan).',
+  '- No inventes datos, cifras, citas, nombres, medios ni links. Si falta un dato,',
+  '  se omite.',
+  `- La categoría tiene que ser una de estas diez: ${FAMILIAS_V2.join(', ')}.`,
+  '- Hashtags: entre 3 y 5, con #, sin espacios, en español.',
+  '- Ninguna coincidencia de más de 8 palabras seguidas con el texto original.',
+  '- No menciones el medio de origen en el cuerpo.',
+].join('\n');
+
+const ALCANCE_ESTILO = 'Esta estructura manda sobre la guía; la guía define la voz.';
+
 const ESTILOS_DESC_V2 = {
-  formal: 'FORMATO — Periodístico formal:\n- Titular: sujeto+verbo+dato, máx 10 palabras.\n- P1: qué/quién/cuándo/dónde/cómo.\n- P2-4: orden de importancia.\n- Cierre: dato proyectivo.',
-  directo: 'FORMATO — Directo:\n- Titular: máx 7 palabras.\n- 3 párrafos de 2 oraciones.',
-  ampliado: 'FORMATO — Profundidad:\n- P1 hecho, P2 antecedentes, P3 datos, P4 perspectivas, P5 cierre.',
-  breaking: 'FORMATO — Urgente:\n- Titular en presente, máx 8 palabras.\n- P1 hecho, P2 lo que se sabe, P3 lo que falta.',
-  cronica: 'FORMATO — Crónica:\n- Titular evocador, apertura escena, protagonista, hecho, contexto, cierre.',
-  deportes: 'FORMATO — Deportes:\n- Titular activo. Resultado, momentos clave, datos, próximo paso.',
-  espectaculos: 'FORMATO — Espectáculos:\n- Titular llamativo. Hecho, contexto, dato curioso, qué sigue.',
-  redes: 'FORMATO — Redes:\n- Titular gancho. 3 párrafos breves. Cierre que invite a compartir.',
-  institucional: 'FORMATO — Comunicado:\n- Titular informativo, sin adjetivos. Hecho, alcance, declaraciones, contacto.',
+  formal: `FORMATO — Periodístico formal:\n${ALCANCE_ESTILO}\n- Pirámide invertida: P1 con qué/quién/cuándo/dónde.\n- Después, por orden de importancia.\n- Cierre proyectivo.\n- Titular: máx. 10 palabras.`,
+  directo: `FORMATO — Directo:\n${ALCANCE_ESTILO}\n- 3 párrafos de 2 oraciones.\n- Titular: máx. 7 palabras.`,
+  ampliado: `FORMATO — Profundidad:\n${ALCANCE_ESTILO}\n- Hecho, antecedentes, datos, perspectivas y cierre.\n- Titular: máx. 10 palabras.`,
+  breaking: `FORMATO — Urgente:\n${ALCANCE_ESTILO}\n- Titular en presente, máx. 8 palabras.\n- Hecho, lo que se sabe y lo que falta.`,
+  cronica: `FORMATO — Crónica:\n${ALCANCE_ESTILO}\n- Apertura de escena, protagonista, hecho, contexto y cierre.\n- Titular evocador, máx. 12 palabras.`,
+  deportes: `FORMATO — Deportes:\n${ALCANCE_ESTILO}\n- Resultado, momentos clave, datos y próximo paso.\n- Titular activo, máx. 10 palabras.`,
+  espectaculos: `FORMATO — Espectáculos:\n${ALCANCE_ESTILO}\n- Hecho, contexto, dato curioso y qué sigue.\n- Titular con gancho, máx. 10 palabras.`,
+  redes: `FORMATO — Redes:\n${ALCANCE_ESTILO}\n- 3 párrafos breves.\n- Cierre que invite a compartir.\n- Titular gancho, máx. 8 palabras.`,
+  institucional: `FORMATO — Comunicado:\n${ALCANCE_ESTILO}\n- Hecho, alcance, declaraciones y contacto.\n- Titular informativo, sin adjetivos.`,
 };
 
 const ESQUEMAS = {
@@ -575,14 +598,17 @@ const ESQUEMAS = {
 };
 
 function construirSystemInstruction(guiaEditorial = '') {
-  const base = [
-    'Sos redactor de Media Mendoza, diario digital del sur de Mendoza, Argentina.',
-    'Escribís en español rioplatense, tono informativo, sin clickbait ni exageraciones.',
-    'No inventes datos, cifras, citas, nombres, medios ni links.',
-    'Devolvés únicamente el JSON pedido, sin markdown ni texto adicional.',
+  const rol = 'Sos redactor de Media Mendoza, diario digital del sur de Mendoza, Argentina. Escribís en español rioplatense.';
+  const alcance = [
+    'GUÍA EDITORIAL (voz y valores del diario)',
+    'Esta guía define cómo escribe Media Mendoza: tono, valores, qué evitar y una',
+    'nota de referencia. No define la estructura de la nota ni el formato de salida:',
+    'la estructura la fija el estilo elegido y el formato lo fija el contrato.',
+    'Si algo de acá choca con el contrato, gana el contrato.',
   ].join('\n');
   const guia = String(guiaEditorial || '').trim();
-  return guia ? `${base}\n\nLÍNEA EDITORIAL (obligatoria):\n${guia}` : base;
+  const base = `${rol}\n\n${CONTRATO_SALIDA}`;
+  return guia ? `${base}\n\n${alcance}\n\n${guia}` : base;
 }
 
 function bloqueFuentes(fuentes = []) {
@@ -611,10 +637,12 @@ function construirPromptTitulares({ modo, contenido, contexto = '', tono = 'info
   ].filter(Boolean).join('\n\n');
 }
 
-function construirPromptReformular({ titulo, contenido, contexto = '', estilo = 'formal', medioOrigen = '', fuentes = [] } = {}) {
+function construirPromptReformular({ titulo, contenido, contexto = '', estilo = 'formal', medioOrigen = '', fuentes = [], fecha = '' } = {}) {
   const formato = ESTILOS_DESC_V2[estilo] || ESTILOS_DESC_V2.formal;
   return [
     'Reformulá por completo esta nota de otro medio para publicarla en Media Mendoza.',
+    fecha ? `FECHA Y HORA ACTUAL (Mendoza, Argentina): ${fecha}` : '',
+    fecha ? 'No repitas referencias temporales relativas del original ("este martes", "ayer"). Si el hecho ocurrió antes, indicalo con la fecha del original.' : '',
     medioOrigen ? `MEDIO DE ORIGEN: ${medioOrigen}` : '',
     `TÍTULO ORIGINAL:\n"""\n${titulo}\n"""`,
     `CUERPO ORIGINAL:\n"""\n${contenido}\n"""`,
@@ -622,7 +650,6 @@ function construirPromptReformular({ titulo, contenido, contexto = '', estilo = 
     formato,
     bloqueFuentes(fuentes),
     'Conservá los hechos, las cifras y las citas del original. No agregues información que no esté en el texto.',
-    'No menciones el medio de origen dentro del cuerpo: la atribución va aparte.',
     'Devolvé titular, cuerpo en párrafos separados por una línea en blanco, categoría sugerida y hashtags.',
   ].filter(Boolean).join('\n\n');
 }
@@ -682,19 +709,85 @@ function validarTitulares(data = {}, cantidad = 5) {
 }
 
 function validarReformulacion(data = {}) {
-  const titular = String(data?.titular || '').trim();
-  const cuerpo = String(data?.cuerpo || '').trim();
-  const categoria_sugerida = String(data?.categoria_sugerida || '').trim();
-  const hashtags = Array.isArray(data?.hashtags) ? data.hashtags.map(h => String(h || '').trim()).filter(Boolean) : [];
+  const normalizada = normalizarSalida(data);
   const errors = [];
-  if (titular.length < 8) errors.push('titular_corto');
-  if (cuerpo.length < 80) errors.push('cuerpo_corto');
-  return { ok: errors.length === 0, data: { titular, cuerpo, categoria_sugerida, hashtags }, errors };
+  if (normalizada.titular.length < 8) errors.push('titular_corto');
+  if (normalizada.cuerpo.length < 80) errors.push('cuerpo_corto');
+  return {
+    ok: errors.length === 0,
+    data: {
+      titular: normalizada.titular,
+      cuerpo: normalizada.cuerpo,
+      categoria_sugerida: normalizada.categoria_sugerida,
+      hashtags: normalizada.hashtags,
+    },
+    errors,
+  };
+}
+
+function sinTildes(texto = '') {
+  return String(texto).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function limpiarTextoPlano(texto = '') {
+  return String(texto || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/_([^_\n]+)_/g, '$1')
+    .replace(/^\s*#{1,6}\s*/gm, '')
+    .replace(/^\s*\|.*\|\s*$/gm, '')
+    .replace(/^\s*[-:|\s]+$/gm, '')
+    .replace(/[ \t]+$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function normalizarTitular(texto = '') {
+  const limpio = limpiarTextoPlano(texto).replace(/\s+/g, ' ').trim();
+  if (!limpio) return '';
+  const primera = limpio[0];
+  if (primera !== primera.toLowerCase()) return limpio;
+  return primera.toUpperCase() + limpio.slice(1);
+}
+
+function normalizarCategoria(valor = '') {
+  const buscada = sinTildes(valor);
+  return FAMILIAS_V2.find(familia => sinTildes(familia) === buscada) || 'Actualidad';
+}
+
+function normalizarHashtags(valor = []) {
+  const vistos = new Set();
+  const salida = [];
+  for (const item of Array.isArray(valor) ? valor : []) {
+    const limpio = String(item || '').trim().replace(/^#+/, '').replace(/\s+/g, '');
+    if (!limpio) continue;
+    const etiqueta = '#' + limpio;
+    const clave = etiqueta.toLowerCase();
+    if (vistos.has(clave)) continue;
+    vistos.add(clave);
+    salida.push(etiqueta);
+    if (salida.length === 5) break;
+  }
+  return salida;
+}
+
+function normalizarSalida(data = {}) {
+  const salida = {
+    ...data,
+    titular: normalizarTitular(data?.titular),
+    cuerpo: limpiarTextoPlano(data?.cuerpo),
+    categoria_sugerida: normalizarCategoria(data?.categoria_sugerida),
+    hashtags: normalizarHashtags(data?.hashtags),
+  };
+  if (data?.bajada !== undefined) salida.bajada = limpiarTextoPlano(data.bajada).replace(/\s+/g, ' ').trim();
+  return salida;
 }
 
 function validarRedaccion(data = {}) {
   const base = validarReformulacion(data);
-  const bajada = String(data?.bajada || '').trim();
+  const bajada = limpiarTextoPlano(data?.bajada).replace(/\s+/g, ' ').trim();
   const errors = [...base.errors];
   if (bajada.length < 10) errors.push('bajada_corta');
   return { ok: errors.length === 0, data: { ...base.data, bajada }, errors };
@@ -7033,12 +7126,20 @@ async function handleRedaccionV2Reformular(body, env) {
   const fuentes = Array.isArray(body?.fuentes)
     ? body.fuentes.filter(f => f && /^https?:\/\//i.test(String(f.url || ''))).slice(0, 5)
     : [];
+  const fecha = new Date().toLocaleString('es-AR', {
+    timeZone: 'America/Argentina/Mendoza',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
   const guia = await getEditorial(env);
   const payload = {
     systemInstruction: { parts: [{ text: construirSystemInstruction(guia) }] },
     contents: [{
       role: 'user',
-      parts: [{ text: construirPromptReformular({ titulo, contenido, contexto: body?.contexto, estilo, medioOrigen: fuenteMedio, fuentes }) }],
+      parts: [{ text: construirPromptReformular({ titulo, contenido, contexto: body?.contexto, estilo, medioOrigen: fuenteMedio, fuentes, fecha }) }],
     }],
   };
   const r = await ejecutarTareaIAV2(env, {
