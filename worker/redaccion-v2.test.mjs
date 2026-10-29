@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   TAREAS, ESQUEMAS, ESTILOS_DESC_V2, construirSystemInstruction,
-  FAMILIAS_V2, CONTRATO_SALIDA,
+  FAMILIAS_V2, CONTRATO_SALIDA, ALCANCE_ESTILO,
   limpiarTextoPlano, normalizarTitular, normalizarCategoria, normalizarHashtags, normalizarSalida,
   construirPromptTitulares, construirPromptReformular, construirPromptRedactar,
   interpretarRespuestaGemini, validarTitulares, validarReformulacion, validarRedaccion,
@@ -335,6 +335,17 @@ test('crónica y redes no piden pirámide invertida', () => {
   assert.equal(/pirámide/i.test(ESTILOS_DESC_V2.cronica), false);
   assert.equal(/pirámide/i.test(ESTILOS_DESC_V2.redes), false);
   assert.match(ESTILOS_DESC_V2.formal, /pirámide/i);
+});
+
+test('el contrato pide cobertura completa y viñetas', () => {
+  assert.match(CONTRATO_SALIDA, /Cobertura/);
+  assert.match(CONTRATO_SALIDA, /no resumas/i);
+  assert.match(CONTRATO_SALIDA, /3 o más datos paralelos/);
+  assert.match(CONTRATO_SALIDA, /texto plano/i);
+});
+
+test('el alcance de estilo dice que no limita cuánto material usás', () => {
+  assert.match(ALCANCE_ESTILO, /no limita cuánto material/);
 });
 
 test('limpiarTextoPlano saca negritas, títulos y tablas', () => {

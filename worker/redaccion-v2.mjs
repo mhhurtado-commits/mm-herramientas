@@ -30,19 +30,26 @@ export const CONTRATO_SALIDA = [
   '- Hashtags: entre 3 y 5, con #, sin espacios, en español.',
   '- Ninguna coincidencia de más de 8 palabras seguidas con el texto original.',
   '- No menciones el medio de origen en el cuerpo.',
+  '- Cobertura: no resumas. Usá todos los hechos, cifras, declaraciones y',
+  '  antecedentes relevantes del material. Si un dato relevante está en el',
+  '  original, va en la nota. En los estilos breves (directo, breaking y',
+  '  redes) cubrí los hechos esenciales.',
+  '- Viñetas: si hay 3 o más datos paralelos (fechas, requisitos, pasos,',
+  '  resultados), un ítem por línea empezando con "- ". Si no, párrafos.',
+  '  Las viñetas son texto plano, no markdown.',
 ].join('\n');
 
-const ALCANCE_ESTILO = 'Esta estructura manda sobre la guía; la guía define la voz.';
+export const ALCANCE_ESTILO = 'Esta estructura manda sobre la guía; la guía define la voz. La estructura ordena la nota; no limita cuánto material usás.';
 
 export const ESTILOS_DESC_V2 = {
   formal: `FORMATO — Periodístico formal:\n${ALCANCE_ESTILO}\n- Pirámide invertida: P1 con qué/quién/cuándo/dónde.\n- Después, por orden de importancia.\n- Cierre proyectivo.\n- Titular: máx. 10 palabras.`,
-  directo: `FORMATO — Directo:\n${ALCANCE_ESTILO}\n- 3 párrafos de 2 oraciones.\n- Titular: máx. 7 palabras.`,
+  directo: `FORMATO — Directo:\n${ALCANCE_ESTILO}\n- 3 párrafos de 2 oraciones con los hechos esenciales.\n- Titular: máx. 7 palabras.`,
   ampliado: `FORMATO — Profundidad:\n${ALCANCE_ESTILO}\n- Hecho, antecedentes, datos, perspectivas y cierre.\n- Titular: máx. 10 palabras.`,
-  breaking: `FORMATO — Urgente:\n${ALCANCE_ESTILO}\n- Titular en presente, máx. 8 palabras.\n- Hecho, lo que se sabe y lo que falta.`,
+  breaking: `FORMATO — Urgente:\n${ALCANCE_ESTILO}\n- Titular en presente, máx. 8 palabras.\n- Hecho, lo que se sabe y lo que falta, con los hechos esenciales.`,
   cronica: `FORMATO — Crónica:\n${ALCANCE_ESTILO}\n- Apertura de escena, protagonista, hecho, contexto y cierre.\n- Titular evocador, máx. 12 palabras.`,
-  deportes: `FORMATO — Deportes:\n${ALCANCE_ESTILO}\n- Resultado, momentos clave, datos y próximo paso.\n- Titular activo, máx. 10 palabras.`,
+  deportes: `FORMATO — Deportes:\n${ALCANCE_ESTILO}\n- Partido: resultado, momentos clave, datos y próximo paso.\n- Decisión, fichaje o institucional: hecho, alcance, detalles, voces y qué sigue.\n- Titular activo, máx. 10 palabras.`,
   espectaculos: `FORMATO — Espectáculos:\n${ALCANCE_ESTILO}\n- Hecho, contexto, dato curioso y qué sigue.\n- Titular con gancho, máx. 10 palabras.`,
-  redes: `FORMATO — Redes:\n${ALCANCE_ESTILO}\n- 3 párrafos breves.\n- Cierre que invite a compartir.\n- Titular gancho, máx. 8 palabras.`,
+  redes: `FORMATO — Redes:\n${ALCANCE_ESTILO}\n- 3 párrafos breves con los hechos esenciales.\n- Cierre que invite a compartir.\n- Titular gancho, máx. 8 palabras.`,
   institucional: `FORMATO — Comunicado:\n${ALCANCE_ESTILO}\n- Hecho, alcance, declaraciones y contacto.\n- Titular informativo, sin adjetivos.`,
 };
 
