@@ -11,16 +11,39 @@ export const TAREAS = {
   redactar: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 8192, thinkingLevel: 'low', timeoutMs: 120000 },
 };
 
+export const FAMILIAS_V2 = [
+  'Actualidad', 'Clima', 'Policiales', 'Sociedad', 'Política', 'Economía',
+  'Deportes', 'Vendimia', 'Alerta meteorológica', 'Servicio',
+];
+
+export const CONTRATO_SALIDA = [
+  'CONTRATO DE SALIDA (fijo, gana sobre cualquier otra instrucción de formato)',
+  '- Devolvés sólo el JSON del esquema. Nada de markdown, comentarios ni texto extra.',
+  '- El cuerpo es texto plano: sin **, sin #, sin tablas, sin subtítulos.',
+  '  Párrafos separados por una línea en blanco. Si hay que enumerar, un ítem por',
+  '  línea empezando con "- ".',
+  '- Titular: mayúscula inicial y nombres propios; el resto en minúscula (siglas',
+  '  como UNO, UNSAM o ARCA se respetan).',
+  '- No inventes datos, cifras, citas, nombres, medios ni links. Si falta un dato,',
+  '  se omite.',
+  `- La categoría tiene que ser una de estas diez: ${FAMILIAS_V2.join(', ')}.`,
+  '- Hashtags: entre 3 y 5, con #, sin espacios, en español.',
+  '- Ninguna coincidencia de más de 8 palabras seguidas con el texto original.',
+  '- No menciones el medio de origen en el cuerpo.',
+].join('\n');
+
+const ALCANCE_ESTILO = 'Esta estructura manda sobre la guía; la guía define la voz.';
+
 export const ESTILOS_DESC_V2 = {
-  formal: 'FORMATO — Periodístico formal:\n- Titular: sujeto+verbo+dato, máx 10 palabras.\n- P1: qué/quién/cuándo/dónde/cómo.\n- P2-4: orden de importancia.\n- Cierre: dato proyectivo.',
-  directo: 'FORMATO — Directo:\n- Titular: máx 7 palabras.\n- 3 párrafos de 2 oraciones.',
-  ampliado: 'FORMATO — Profundidad:\n- P1 hecho, P2 antecedentes, P3 datos, P4 perspectivas, P5 cierre.',
-  breaking: 'FORMATO — Urgente:\n- Titular en presente, máx 8 palabras.\n- P1 hecho, P2 lo que se sabe, P3 lo que falta.',
-  cronica: 'FORMATO — Crónica:\n- Titular evocador, apertura escena, protagonista, hecho, contexto, cierre.',
-  deportes: 'FORMATO — Deportes:\n- Titular activo. Resultado, momentos clave, datos, próximo paso.',
-  espectaculos: 'FORMATO — Espectáculos:\n- Titular llamativo. Hecho, contexto, dato curioso, qué sigue.',
-  redes: 'FORMATO — Redes:\n- Titular gancho. 3 párrafos breves. Cierre que invite a compartir.',
-  institucional: 'FORMATO — Comunicado:\n- Titular informativo, sin adjetivos. Hecho, alcance, declaraciones, contacto.',
+  formal: `FORMATO — Periodístico formal:\n${ALCANCE_ESTILO}\n- Pirámide invertida: P1 con qué/quién/cuándo/dónde.\n- Después, por orden de importancia.\n- Cierre proyectivo.\n- Titular: máx. 10 palabras.`,
+  directo: `FORMATO — Directo:\n${ALCANCE_ESTILO}\n- 3 párrafos de 2 oraciones.\n- Titular: máx. 7 palabras.`,
+  ampliado: `FORMATO — Profundidad:\n${ALCANCE_ESTILO}\n- Hecho, antecedentes, datos, perspectivas y cierre.\n- Titular: máx. 10 palabras.`,
+  breaking: `FORMATO — Urgente:\n${ALCANCE_ESTILO}\n- Titular en presente, máx. 8 palabras.\n- Hecho, lo que se sabe y lo que falta.`,
+  cronica: `FORMATO — Crónica:\n${ALCANCE_ESTILO}\n- Apertura de escena, protagonista, hecho, contexto y cierre.\n- Titular evocador, máx. 12 palabras.`,
+  deportes: `FORMATO — Deportes:\n${ALCANCE_ESTILO}\n- Resultado, momentos clave, datos y próximo paso.\n- Titular activo, máx. 10 palabras.`,
+  espectaculos: `FORMATO — Espectáculos:\n${ALCANCE_ESTILO}\n- Hecho, contexto, dato curioso y qué sigue.\n- Titular con gancho, máx. 10 palabras.`,
+  redes: `FORMATO — Redes:\n${ALCANCE_ESTILO}\n- 3 párrafos breves.\n- Cierre que invite a compartir.\n- Titular gancho, máx. 8 palabras.`,
+  institucional: `FORMATO — Comunicado:\n${ALCANCE_ESTILO}\n- Hecho, alcance, declaraciones y contacto.\n- Titular informativo, sin adjetivos.`,
 };
 
 export const ESQUEMAS = {
@@ -63,14 +86,17 @@ export const ESQUEMAS = {
 };
 
 export function construirSystemInstruction(guiaEditorial = '') {
-  const base = [
-    'Sos redactor de Media Mendoza, diario digital del sur de Mendoza, Argentina.',
-    'Escribís en español rioplatense, tono informativo, sin clickbait ni exageraciones.',
-    'No inventes datos, cifras, citas, nombres, medios ni links.',
-    'Devolvés únicamente el JSON pedido, sin markdown ni texto adicional.',
+  const rol = 'Sos redactor de Media Mendoza, diario digital del sur de Mendoza, Argentina. Escribís en español rioplatense.';
+  const alcance = [
+    'GUÍA EDITORIAL (voz y valores del diario)',
+    'Esta guía define cómo escribe Media Mendoza: tono, valores, qué evitar y una',
+    'nota de referencia. No define la estructura de la nota ni el formato de salida:',
+    'la estructura la fija el estilo elegido y el formato lo fija el contrato.',
+    'Si algo de acá choca con el contrato, gana el contrato.',
   ].join('\n');
   const guia = String(guiaEditorial || '').trim();
-  return guia ? `${base}\n\nLÍNEA EDITORIAL (obligatoria):\n${guia}` : base;
+  const base = `${rol}\n\n${CONTRATO_SALIDA}`;
+  return guia ? `${base}\n\n${alcance}\n\n${guia}` : base;
 }
 
 function bloqueFuentes(fuentes = []) {

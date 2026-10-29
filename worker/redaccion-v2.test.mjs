@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   TAREAS, ESQUEMAS, ESTILOS_DESC_V2, construirSystemInstruction,
+  FAMILIAS_V2, CONTRATO_SALIDA,
   construirPromptTitulares, construirPromptReformular, construirPromptRedactar,
   interpretarRespuestaGemini, validarTitulares, validarReformulacion, validarRedaccion,
   pedirGemini, ejecutarTareaIA,
@@ -285,4 +286,38 @@ test('conserva el id y la fecha si ya existen', () => {
   const r = normalizarNotaV2({ id: 'r2_1', fecha: 123, titular: 'Título válido', cuerpo: 'x'.repeat(120) });
   assert.equal(r.data.id, 'r2_1');
   assert.equal(r.data.fecha, 123);
+});
+
+test('el system arranca con el contrato de salida y después la guía', () => {
+  const system = construirSystemInstruction('Voz cercana. Evitar "en el marco de".');
+  assert.match(system, /CONTRATO DE SALIDA/);
+  assert.match(system, /texto plano/i);
+  assert.match(system, /mayúscula inicial/i);
+  assert.match(system, /GUÍA EDITORIAL \(voz y valores del diario\)/);
+  assert.ok(system.indexOf('CONTRATO DE SALIDA') < system.indexOf('GUÍA EDITORIAL'));
+  assert.ok(system.indexOf('GUÍA EDITORIAL') < system.indexOf('Voz cercana'));
+});
+
+test('sin guía queda sólo el contrato', () => {
+  const system = construirSystemInstruction('');
+  assert.match(system, /CONTRATO DE SALIDA/);
+  assert.equal(system.includes('GUÍA EDITORIAL'), false);
+});
+
+test('el contrato fija las diez familias y el límite de hashtags', () => {
+  assert.equal(FAMILIAS_V2.length, 10);
+  for (const familia of FAMILIAS_V2) assert.ok(CONTRATO_SALIDA.includes(familia), `Falta ${familia}`);
+  assert.match(CONTRATO_SALIDA, /entre 3 y 5/);
+});
+
+test('cada estilo declara que manda sobre la guía en estructura', () => {
+  for (const [nombre, bloque] of Object.entries(ESTILOS_DESC_V2)) {
+    assert.match(bloque, /manda sobre la guía/, `El estilo ${nombre} no declara alcance`);
+  }
+});
+
+test('crónica y redes no piden pirámide invertida', () => {
+  assert.equal(/pirámide/i.test(ESTILOS_DESC_V2.cronica), false);
+  assert.equal(/pirámide/i.test(ESTILOS_DESC_V2.redes), false);
+  assert.match(ESTILOS_DESC_V2.formal, /pirámide/i);
 });
