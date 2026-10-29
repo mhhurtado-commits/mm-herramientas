@@ -26,3 +26,15 @@ test('app.mjs importa urlProxyImagen de logic.mjs para la carga del compositor y
   const appSrc = await readFile(new URL('./app.mjs', import.meta.url), 'utf8');
   assert.match(appSrc, /import\s*\{[^}]*urlProxyImagen[^}]*\}\s*from\s*['"]\.\/logic\.mjs['"]/);
 });
+
+test('la pestaña Config muestra las reglas fijas de salida', () => {
+  assert.match(fuente, /id="contrato-salida"/);
+  assert.match(fuente, /Texto plano/);
+  assert.match(fuente, /diez familias/);
+});
+
+test('la ayuda de la guía separa voz de estructura y menciona la nota modelo', () => {
+  assert.match(fuente, /id="guia-ayuda"/);
+  assert.match(fuente, /voz y valores/i);
+  assert.match(fuente, /NOTA MODELO/);
+});
