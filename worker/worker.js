@@ -542,19 +542,26 @@ const CONTRATO_SALIDA = [
   '- Hashtags: entre 3 y 5, con #, sin espacios, en español.',
   '- Ninguna coincidencia de más de 8 palabras seguidas con el texto original.',
   '- No menciones el medio de origen en el cuerpo.',
+  '- Cobertura: no resumas. Usá todos los hechos, cifras, declaraciones y',
+  '  antecedentes relevantes del material. Si un dato relevante está en el',
+  '  original, va en la nota. En los estilos breves (directo, breaking y',
+  '  redes) cubrí los hechos esenciales.',
+  '- Viñetas: si hay 3 o más datos paralelos (fechas, requisitos, pasos,',
+  '  resultados), un ítem por línea empezando con "- ". Si no, párrafos.',
+  '  Las viñetas son texto plano, no markdown.',
 ].join('\n');
 
-const ALCANCE_ESTILO = 'Esta estructura manda sobre la guía; la guía define la voz.';
+const ALCANCE_ESTILO = 'Esta estructura manda sobre la guía; la guía define la voz. La estructura ordena la nota; no limita cuánto material usás.';
 
 const ESTILOS_DESC_V2 = {
   formal: `FORMATO — Periodístico formal:\n${ALCANCE_ESTILO}\n- Pirámide invertida: P1 con qué/quién/cuándo/dónde.\n- Después, por orden de importancia.\n- Cierre proyectivo.\n- Titular: máx. 10 palabras.`,
-  directo: `FORMATO — Directo:\n${ALCANCE_ESTILO}\n- 3 párrafos de 2 oraciones.\n- Titular: máx. 7 palabras.`,
+  directo: `FORMATO — Directo:\n${ALCANCE_ESTILO}\n- 3 párrafos de 2 oraciones con los hechos esenciales.\n- Titular: máx. 7 palabras.`,
   ampliado: `FORMATO — Profundidad:\n${ALCANCE_ESTILO}\n- Hecho, antecedentes, datos, perspectivas y cierre.\n- Titular: máx. 10 palabras.`,
-  breaking: `FORMATO — Urgente:\n${ALCANCE_ESTILO}\n- Titular en presente, máx. 8 palabras.\n- Hecho, lo que se sabe y lo que falta.`,
+  breaking: `FORMATO — Urgente:\n${ALCANCE_ESTILO}\n- Titular en presente, máx. 8 palabras.\n- Hecho, lo que se sabe y lo que falta, con los hechos esenciales.`,
   cronica: `FORMATO — Crónica:\n${ALCANCE_ESTILO}\n- Apertura de escena, protagonista, hecho, contexto y cierre.\n- Titular evocador, máx. 12 palabras.`,
-  deportes: `FORMATO — Deportes:\n${ALCANCE_ESTILO}\n- Resultado, momentos clave, datos y próximo paso.\n- Titular activo, máx. 10 palabras.`,
+  deportes: `FORMATO — Deportes:\n${ALCANCE_ESTILO}\n- Partido: resultado, momentos clave, datos y próximo paso.\n- Decisión, fichaje o institucional: hecho, alcance, detalles, voces y qué sigue.\n- Titular activo, máx. 10 palabras.`,
   espectaculos: `FORMATO — Espectáculos:\n${ALCANCE_ESTILO}\n- Hecho, contexto, dato curioso y qué sigue.\n- Titular con gancho, máx. 10 palabras.`,
-  redes: `FORMATO — Redes:\n${ALCANCE_ESTILO}\n- 3 párrafos breves.\n- Cierre que invite a compartir.\n- Titular gancho, máx. 8 palabras.`,
+  redes: `FORMATO — Redes:\n${ALCANCE_ESTILO}\n- 3 párrafos breves con los hechos esenciales.\n- Cierre que invite a compartir.\n- Titular gancho, máx. 8 palabras.`,
   institucional: `FORMATO — Comunicado:\n${ALCANCE_ESTILO}\n- Hecho, alcance, declaraciones y contacto.\n- Titular informativo, sin adjetivos.`,
 };
 
@@ -649,7 +656,12 @@ function construirPromptReformular({ titulo, contenido, contexto = '', estilo = 
     contexto ? `INFO EXTRA:\n${contexto}` : '',
     formato,
     bloqueFuentes(fuentes),
-    'Conservá los hechos, las cifras y las citas del original. No agregues información que no esté en el texto.',
+    'COBERTURA',
+    '- No resumas. Recorré todo el material y cubrí todos los hechos relevantes: qué pasó, quién, cuándo, dónde, cómo, cifras, declaraciones, antecedentes y qué sigue.',
+    '- Si el original trae una lista de datos (fechas, requisitos, resultados), incluí la lista completa.',
+    '- Ignorá menús, avisos, links a otras notas y texto que no sea parte del artículo.',
+    '- No agregues relleno: la extensión la determina el material.',
+    '- Cubrí todo con redacción propia; no copies secuencias del original.',
     'Devolvé titular, cuerpo en párrafos separados por una línea en blanco, categoría sugerida y hashtags.',
   ].filter(Boolean).join('\n\n');
 }
@@ -660,6 +672,10 @@ function construirPromptRedactar({ ideas, fuentes = [], fecha = '' } = {}) {
     fecha ? `FECHA Y HORA ACTUAL (Mendoza, Argentina): ${fecha}` : '',
     `CONTENIDO DE PARTIDA:\n"""\n${ideas}\n"""`,
     bloqueFuentes(fuentes),
+    'COBERTURA',
+    '- No resumas. Cubrí todas las ideas y datos que se te pasan.',
+    '- Si hay 3 o más datos paralelos, usá viñetas con "- ".',
+    '- No agregues relleno: la extensión la determina el material.',
     'Si no hay fuentes verificadas, no cites ninguna y no inventes links.',
     'Devolvé titular, bajada, cuerpo en párrafos separados por una línea en blanco, categoría sugerida y hashtags.',
   ].filter(Boolean).join('\n\n');
