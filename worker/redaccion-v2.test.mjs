@@ -129,6 +129,13 @@ test('el prompt de redactar incluye la fecha y las fuentes verificadas', () => {
   assert.match(prompt, /\[1\] Fuente/);
 });
 
+test('el prompt de redactar incluye cobertura y viñetas', () => {
+  const prompt = construirPromptRedactar({ ideas: 'I', fecha: '28/10/2026, 21:30' });
+  assert.match(prompt, /COBERTURA/);
+  assert.match(prompt, /no resumas/i);
+  assert.match(prompt, /3 o más datos paralelos|viñetas/i);
+});
+
 test('los estilos mantienen las claves que usa la UI', () => {
   assert.ok(ESTILOS_DESC_V2.formal);
   assert.ok(ESTILOS_DESC_V2.breaking);

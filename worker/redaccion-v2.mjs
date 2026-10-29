@@ -160,6 +160,10 @@ export function construirPromptRedactar({ ideas, fuentes = [], fecha = '' } = {}
     fecha ? `FECHA Y HORA ACTUAL (Mendoza, Argentina): ${fecha}` : '',
     `CONTENIDO DE PARTIDA:\n"""\n${ideas}\n"""`,
     bloqueFuentes(fuentes),
+    'COBERTURA',
+    '- No resumas. Cubrí todas las ideas y datos que se te pasan.',
+    '- Si hay 3 o más datos paralelos, usá viñetas con "- ".',
+    '- No agregues relleno: la extensión la determina el material.',
     'Si no hay fuentes verificadas, no cites ninguna y no inventes links.',
     'Devolvé titular, bajada, cuerpo en párrafos separados por una línea en blanco, categoría sugerida y hashtags.',
   ].filter(Boolean).join('\n\n');
