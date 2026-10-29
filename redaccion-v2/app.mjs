@@ -10,6 +10,7 @@ import {
 } from './render.mjs';
 import { aplicarAjustesVisuales } from './layout.mjs';
 import { montarFuenteImagen, textoParaCuerpo, tituloSiFalta } from './fuente-imagen.mjs';
+import { crearCompositorCanvas } from './canvas-compositor.mjs';
 
 const API_OVERRIDE = new URLSearchParams(window.location.search).get('api');
 const API = /^https?:\/\//i.test(API_OVERRIDE || '')
@@ -29,6 +30,25 @@ let editorialActivo = false;
 let notasGuardadasVisible = false;
 let fuentesInicializadas = false;
 let notasGuardadasCache = [];
+let compositor = null;
+
+function ubicarSeccionImagen(tab) {
+  const seccion = $('ref-imagen-section');
+  if (!seccion) return;
+  if (tab === 'titulares') {
+    const panelTitulares = $('tab-titulares');
+    if (panelTitulares && seccion.parentElement !== panelTitulares) {
+      panelTitulares.appendChild(seccion);
+    }
+  } else if (tab === 'reformular') {
+    const panelReformular = $('tab-reformular');
+    const panelNotas = $('notas-guardadas-section');
+    if (panelReformular && seccion.parentElement !== panelReformular) {
+      if (panelNotas) panelReformular.insertBefore(seccion, panelNotas);
+      else panelReformular.appendChild(seccion);
+    }
+  }
+}
 
 function showToast(mensaje) {
   const toast = $('toast');
@@ -73,6 +93,7 @@ function switchTab(tab, el) {
   const panel = $('tab-' + tab);
   if (panel) panel.style.display = 'block';
   if (el) el.classList.add('active');
+  if (tab === 'titulares' || tab === 'reformular') ubicarSeccionImagen(tab);
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (tab === 'monitor') cargarFuentes();
   if (tab === 'config') cargarEditorial();
@@ -184,8 +205,10 @@ async function redactarNota() {
       badgeModelo.style.display = 'inline-block';
     }
     $('btn-limpiar-t').style.display = 'inline-block';
+    ubicarSeccionImagen('titulares');
     const seccionImagen = $('ref-imagen-section');
     if (seccionImagen) seccionImagen.style.display = 'block';
+    switchImgTab('ia');
   } catch (err) {
     showToast('✗ ' + mensajeError(err.message));
   } finally {
@@ -222,6 +245,7 @@ async function scrapearNota() {
       badge.style.display = 'block';
     }
     await buscarFuentes(data.titulo, data.url);
+    ubicarSeccionImagen('reformular');
     const seccionImagen = $('ref-imagen-section');
     if (seccionImagen) seccionImagen.style.display = 'block';
     switchImgTab('original');
@@ -311,6 +335,7 @@ async function reformularNota() {
     }
     $('badge-reformulada').style.display = 'inline-block';
     $('btn-limpiar-r').style.display = 'inline-block';
+    ubicarSeccionImagen('reformular');
     const seccionImagen = $('ref-imagen-section');
     if (seccionImagen) seccionImagen.style.display = 'block';
   } catch (err) {
@@ -621,6 +646,14 @@ function renderPortada() {
     estado.nota.imagen = portada.url || '';
     if ($('results-reformular')) $('results-reformular').innerHTML = htmlNota(estado.nota, { base: API });
   }
+  if (portada.url) {
+    const src = /^data:/i.test(portada.url) ? portada.url : urlProxyImagen(portada.url, API);
+    if (compositor) {
+      compositor.cargarFondo(src);
+      const sec = $('ref-canvas-seccion');
+      if (sec) sec.style.display = 'block';
+    }
+  }
 }
 
 // Si hay URL de origen pero todavía no hay imagen, la pide antes de mostrar la nota.
@@ -709,6 +742,11 @@ async function generarImagenIA() {
     estado.portadaEleccion = url;
     $('ref-img-preview').innerHTML = `<img src="${url}" alt="Imagen generada" style="width:100%;display:block;border-radius:6px">`;
     renderPortada();
+    if (compositor) {
+      compositor.cargarFondo(url);
+      const sec = $('ref-canvas-seccion');
+      if (sec) sec.style.display = 'block';
+    }
     showToast(`✓ Imagen generada (${data.modelo || data.motor || 'IA'})`);
   } catch (err) {
     showToast('✗ ' + (err.message || 'No se pudo generar la imagen'));
@@ -716,6 +754,44 @@ async function generarImagenIA() {
     boton.disabled = false;
     $('spin-gen-img').style.display = 'none';
   }
+}
+
+function initCompositor() {
+  const canvas = $('ref-canvas');
+  if (!canvas || compositor) return;
+  compositor = crearCompositorCanvas({
+    canvas,
+    logoSrc: '../assets/logo.png',
+    alCambiar: () => {
+      const sec = $('ref-canvas-seccion');
+      if (sec) sec.style.display = 'block';
+    },
+  });
+  $('chk-logo')?.addEventListener('change', function () {
+    compositor?.toggleLogo(this.checked);
+  });
+  $('btn-reset-logo')?.addEventListener('click', () => {
+    compositor?.resetearLogo();
+  });
+  $('btn-descargar-imagen')?.addEventListener('click', () => {
+    descargarImagenFinal();
+  });
+}
+
+function descargarImagenFinal() {
+  if (!compositor || !compositor.tieneFondo()) {
+    return showToast('⚠ No hay imagen para descargar');
+  }
+  const titular = (estado.nota?.titular || estado.titulo || 'nota')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .slice(0, 40)
+    .replace(/^-|-$/g, '');
+  const ok = compositor.descargar({
+    nombre: `mediamendoza-${titular || Date.now()}.jpg`,
+    calidad: 0.93,
+  });
+  if (ok) showToast('✓ Imagen descargada');
 }
 
 function switchRefFuente(modo) {
@@ -889,6 +965,7 @@ function limpiarReformular() {
   ['badge-reformulada', 'btn-limpiar-r', 'origen-badge', 'fuentes-verificadas', 'badge-modelo-v2'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
   if ($('ref-imagen-section')) $('ref-imagen-section').style.display = 'none';
   if ($('ref-img-preview')) $('ref-img-preview').innerHTML = '<span style="font-size:11px;color:var(--muted)">Generá una imagen con IA</span>';
+  if ($('ref-canvas-seccion')) $('ref-canvas-seccion').style.display = 'none';
   estado.nota = null;
   estado.origen = null;
   estado.fuentes = [];
@@ -909,6 +986,7 @@ function limpiarTitulares() {
   estado.angulos = [];
   estado.nota = null;
   estado.imagen = '';
+  if ($('ref-canvas-seccion')) $('ref-canvas-seccion').style.display = 'none';
 }
 
 // ============================================================
@@ -1071,6 +1149,7 @@ function cargarBorrador() {
 function init() {
   aplicarAjustesVisuales();
   montarPanelImagen();
+  initCompositor();
   montarFuenteImagen({ extraer: extraerTextoDeImagenes, aplicar: aplicarTextoExtraido, alCambiar: switchRefFuente });
   cargarBorrador();
   cargarSalud();
@@ -1099,7 +1178,7 @@ Object.assign(window, {
   buscarNoticias, aplicarFiltros, limpiarFiltros, toggleAuto,
   abrirModalFuentes, cerrarModalFuentes, toggleAddForm, resetVerify, verificarFeed, agregarFuente,
   scrapearNota, buscarFuentes, reformularNota, guardarNota, switchRefFuente,
-  generarImagenIA, switchImgTab, toggleWebSearch,
+  generarImagenIA, switchImgTab, toggleWebSearch, descargarImagenFinal,
   cargarNotaGuardada, marcarCubierta, usarTitularMonitor, toggleNotasGuardadas, pedirLimpiarReformular, guardarYLimpiar, soloLimpiar, limpiarReformular,
   limpiarTitulares, cargarEditorial, guardarEditorial, toggleEditorial, copiarTexto,
 });
