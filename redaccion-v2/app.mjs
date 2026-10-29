@@ -2,7 +2,7 @@ import {
   resolverApiBase, crearEstadoInicial, validarEntradaReformular,
   construirPayloadReformular, fuentesSeguras, mensajeError, etiquetaModelo,
   normalizarSalud, normalizarHashtags, serializarBorrador, deserializarBorrador, CLAVE_BORRADOR,
-  imagenesSeguras, elegirPortada,
+  imagenesSeguras, elegirPortada, urlProxyImagen,
 } from './logic.mjs';
 import {
   escaparHtml, htmlTitulares, htmlFuentes, htmlNota,

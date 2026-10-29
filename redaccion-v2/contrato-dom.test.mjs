@@ -21,3 +21,8 @@ test('la app no incrusta la imagen generada en el índice de notas guardadas', (
   // El índice de KV guarda la nota completa: una portada base64 lo haría crecer de más.
   assert.equal(fuente.includes('data:image/jpeg;base64'), false);
 });
+
+test('app.mjs importa urlProxyImagen de logic.mjs para la carga del compositor y portadas', async () => {
+  const appSrc = await readFile(new URL('./app.mjs', import.meta.url), 'utf8');
+  assert.match(appSrc, /import\s*\{[^}]*urlProxyImagen[^}]*\}\s*from\s*['"]\.\/logic\.mjs['"]/);
+});
