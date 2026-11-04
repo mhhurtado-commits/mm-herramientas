@@ -12,14 +12,14 @@ import {
   normalizarNotaV2,
 } from './redaccion-v2.mjs';
 
-test('reformular usa el lite como primario y el 3.8 de respaldo, sin temperature', () => {
+test('reformular usa el lite como primario y el 3.1 de respaldo, sin temperature', () => {
   assert.equal(TAREAS.reformular.modelo, 'gemini-3.5-flash-lite');
-  assert.equal(TAREAS.reformular.respaldo, 'gemini-3.8-flash');
+  assert.equal(TAREAS.reformular.respaldo, 'gemini-3.1-flash-lite');
   assert.equal(TAREAS.reformular.maxOutputTokens, 8192);
   assert.equal(TAREAS.titulares.maxOutputTokens, 2048);
   assert.equal(TAREAS.reformular.thinkingLevel, 'low');
-  assert.equal(TAREAS.titulares.timeoutMs, 60000);
-  assert.equal(TAREAS.reformular.timeoutMs, 120000);
+  assert.equal(TAREAS.titulares.timeoutMs, 25000);
+  assert.equal(TAREAS.reformular.timeoutMs, 45000);
 });
 
 test('los esquemas no permiten que el modelo invente fuentes', () => {
@@ -196,8 +196,8 @@ test('pedirGemini cae al respaldo si el primario no existe', async () => {
     fetchImpl: fetchFalso,
   });
   assert.equal(r.ok, true);
-  assert.equal(r.modelo, 'gemini-3.8-flash');
-  assert.ok(urls.some(u => u.includes('gemini-3.8-flash')));
+  assert.equal(r.modelo, 'gemini-3.1-flash-lite');
+  assert.ok(urls.some(u => u.includes('gemini-3.1-flash-lite')));
 });
 
 test('pedirGemini no reintenta si la respuesta se cortó por tokens', async () => {

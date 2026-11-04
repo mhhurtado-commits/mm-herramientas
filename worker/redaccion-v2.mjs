@@ -1,14 +1,82 @@
+export const GEMINI_ENFRIAMIENTO_MS = 60000;
+export const GEMINI_INTENTOS_MAX = 2;
+export const GEMINI_DEADLINE_MS = 25000;
+export const GEMINI_TIMEOUT_INTENTO_MS = 12000;
+export const GEMINI_ENFRIAMIENTO = new Map();
+
+export function geminiKeyId(key) {
+  const s = String(key || '');
+  return s.length <= 8 ? s : s.slice(-8);
+}
+
+export function marcarGeminiEnfriamiento(key, ms = GEMINI_ENFRIAMIENTO_MS, ahora = Date.now()) {
+  if (!key) return;
+  const duracion = Math.max(0, Number(ms) || 0);
+  GEMINI_ENFRIAMIENTO.set(geminiKeyId(key), ahora + duracion);
+}
+
+export function geminiKeyEnfriada(key, ahora = Date.now()) {
+  const id = geminiKeyId(key);
+  const fin = GEMINI_ENFRIAMIENTO.get(id);
+  if (!fin) return false;
+  if (fin <= ahora) { GEMINI_ENFRIAMIENTO.delete(id); return false; }
+  return true;
+}
+
+export function reiniciarGeminiEnfriamiento() { GEMINI_ENFRIAMIENTO.clear(); }
+
+export function clasificarErrorGemini(status, cuerpo = '') {
+  const texto = String(cuerpo || '');
+  if (status === 429) return /MODEL_CAPACITY_EXHAUSTED|capacity/i.test(texto) ? 'capacidad' : 'cuota';
+  if (status === 401 || status === 403) return 'auth';
+  if (status === 404) return 'modelo';
+  if (status === 400) return 'cliente';
+  if (status >= 500) return 'servidor';
+  return 'otro';
+}
+
+export function esperaRetryAfterMs(headers, defectoMs = 0) {
+  const raw = headers?.get?.('Retry-After');
+  if (!raw) return defectoMs;
+  const segundos = Number(raw);
+  if (Number.isFinite(segundos)) return Math.min(Math.max(segundos, 0) * 1000, 30000);
+  const fecha = Date.parse(raw);
+  if (Number.isFinite(fecha)) return Math.max(0, Math.min(fecha - Date.now(), 30000));
+  return defectoMs;
+}
+
+export function senalConTimeout(senal, ms) {
+  const timeout = AbortSignal.timeout(Math.max(1, ms));
+  if (!senal) return timeout;
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([senal, timeout]);
+  const ctrl = new AbortController();
+  if (senal.aborted) ctrl.abort();
+  else senal.addEventListener('abort', () => ctrl.abort(), { once: true });
+  setTimeout(() => ctrl.abort(), Math.max(1, ms));
+  return ctrl.signal;
+}
+
+export function candidatosGemini(keys, modelos) {
+  const candidatos = [];
+  const vueltas = Math.max(keys.length, modelos.length, 1);
+  for (let i = 0; i < vueltas; i++) {
+    for (const modelo of modelos) candidatos.push({ modelo, key: keys[i % keys.length] });
+  }
+  return candidatos;
+}
+
 export const REDACCION_V2_VERSION = 1;
 // El primario es el lite porque el 3.8-flash tardó 101 s en reformular contra un
-// timeout de 120 s; el lite resuelve la misma nota en ~6 s. El 3.8 queda de
-// respaldo para cuando el lite falle o devuelva un formato inválido.
+// timeout de 120 s; el lite resuelve la misma nota en ~6 s.
 export const MODELO_PRIMARIO_V2 = 'gemini-3.5-flash-lite';
-export const MODELO_RESPALDO_V2 = 'gemini-3.8-flash';
+// El 3.8-flash tiene solo 5 RPM en free tier (el lite tiene 15): como respaldo
+// se saturaba con dos pedidos en paralelo y devolvía 429 en cascada.
+export const MODELO_RESPALDO_V2 = 'gemini-3.1-flash-lite';
 
 export const TAREAS = {
-  titulares: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 2048, thinkingLevel: 'low', timeoutMs: 60000 },
-  reformular: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 8192, thinkingLevel: 'low', timeoutMs: 120000 },
-  redactar: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 8192, thinkingLevel: 'low', timeoutMs: 120000 },
+  titulares: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 2048, thinkingLevel: 'low', timeoutMs: 25000, deadlineMs: 35000 },
+  reformular: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 8192, thinkingLevel: 'low', timeoutMs: 45000, deadlineMs: 85000 },
+  redactar: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 8192, thinkingLevel: 'low', timeoutMs: 45000, deadlineMs: 85000 },
 };
 
 export const FAMILIAS_V2 = [
@@ -297,75 +365,92 @@ export function validarRedaccion(data = {}) {
   return { ok: errors.length === 0, data: { ...base.data, bajada }, errors };
 }
 
-export async function pedirGemini({ payload = {}, keys = [], tarea = 'reformular', schema = null, fetchImpl = fetch, onLog = () => {} } = {}) {
+export async function pedirGemini({ payload = {}, keys = [], tarea = 'reformular', schema = null, fetchImpl = fetch, onLog = () => {}, signal = null } = {}) {
   const config = TAREAS[tarea] || TAREAS.reformular;
   const modelos = [config.modelo, config.respaldo].filter(Boolean);
   if (!keys.length) return { ok: false, error: 'sin_api_keys', details: [] };
   const inicio = Date.now();
+  const deadlineMs = config.deadlineMs || 45000;
   const errores = [];
   let errorFormato = null;
 
-  for (const modelo of modelos) {
-    for (const key of keys) {
-      try {
-        const body = {
-          ...payload,
-          generationConfig: {
-            responseMimeType: 'application/json',
-            ...(schema ? { responseSchema: schema } : {}),
-            ...(config.thinkingLevel ? { thinkingConfig: { thinkingLevel: config.thinkingLevel } } : {}),
-            maxOutputTokens: config.maxOutputTokens,
-          },
-        };
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(key)}`;
-        const res = await fetchImpl(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(config.timeoutMs),
-        });
+  const sanas = keys.filter(k => !geminiKeyEnfriada(k));
+  const pool = sanas.length ? sanas : keys.slice();
+  const arranque = Math.floor(Math.random() * pool.length);
+  const orden = [...pool.slice(arranque), ...pool.slice(0, arranque)];
+  let intentos = 0;
 
-        if (res.status === 429) {
-          errores.push(`${modelo}:429`);
-          onLog({ tarea, modelo, evento: 'rate_limit' });
-          continue;
-        }
-        if (!res.ok) {
-          const texto = await res.text().catch(() => '');
-          errores.push(`${modelo}:${res.status}:${texto.slice(0, 180)}`);
-          onLog({ tarea, modelo, evento: 'http_error', status: res.status });
-          break;
-        }
+  for (const cand of candidatosGemini(orden, modelos)) {
+    if (intentos >= GEMINI_INTENTOS_MAX) break;
+    const restante = deadlineMs - (Date.now() - inicio);
+    if (restante <= 0) { errores.push('deadline global agotado'); break; }
+    if (geminiKeyEnfriada(cand.key) && keys.some(k => !geminiKeyEnfriada(k))) continue;
+    intentos += 1;
+    const modelo = cand.modelo;
+    const key = cand.key;
+    try {
+      const body = {
+        ...payload,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          ...(schema ? { responseSchema: schema } : {}),
+          ...(config.thinkingLevel ? { thinkingConfig: { thinkingLevel: config.thinkingLevel } } : {}),
+          maxOutputTokens: config.maxOutputTokens,
+        },
+      };
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(key)}`;
+      const res = await fetchImpl(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: senalConTimeout(signal, Math.min(config.timeoutMs || 45000, restante)),
+      });
 
-        const data = await res.json();
-        const interpretado = interpretarRespuestaGemini(data);
-        const latenciaMs = Date.now() - inicio;
-        if (!interpretado.ok) {
-          errores.push(`${modelo}:${interpretado.error}`);
-          onLog({ tarea, modelo, evento: interpretado.error, finishReason: interpretado.finishReason, latenciaMs });
-          if (interpretado.error === 'respuesta_incompleta') {
-            return { ok: false, error: 'respuesta_incompleta', modelo, latenciaMs, raw: interpretado.raw || '', details: errores };
-          }
-          if (interpretado.error === 'json_invalido' || interpretado.error === 'respuesta_vacia') {
-            errorFormato = { error: interpretado.error, raw: interpretado.raw || '', modelo, latenciaMs };
-          }
-          break;
-        }
-
-        onLog({ tarea, modelo, evento: 'ok', finishReason: interpretado.finishReason, latenciaMs, usage: data?.usageMetadata || null });
-        return {
-          ok: true,
-          data: interpretado.data,
-          raw: interpretado.raw,
-          modelo,
-          finishReason: interpretado.finishReason,
-          usage: data?.usageMetadata || null,
-          latenciaMs,
-        };
-      } catch (err) {
-        errores.push(`${modelo}:${err?.name || 'error'}:${err?.message || ''}`);
-        onLog({ tarea, modelo, evento: 'exception', detalle: String(err?.message || err).slice(0, 180) });
+      if (res.status === 429) {
+        const texto = await res.text().catch(() => '');
+        const clase = clasificarErrorGemini(429, texto);
+        errores.push(`${modelo}:429:${clase}`);
+        onLog({ tarea, modelo, evento: clase === 'capacidad' ? 'capacidad' : 'rate_limit' });
+        marcarGeminiEnfriamiento(key, esperaRetryAfterMs(res.headers, GEMINI_ENFRIAMIENTO_MS));
+        continue;
       }
+      if (!res.ok) {
+        const texto = await res.text().catch(() => '');
+        errores.push(`${modelo}:${res.status}:${texto.slice(0, 180)}`);
+        onLog({ tarea, modelo, evento: 'http_error', status: res.status });
+        continue;
+      }
+
+      const data = await res.json();
+      const interpretado = interpretarRespuestaGemini(data);
+      const latenciaMs = Date.now() - inicio;
+      if (!interpretado.ok) {
+        errores.push(`${modelo}:${interpretado.error}`);
+        onLog({ tarea, modelo, evento: interpretado.error, finishReason: interpretado.finishReason, latenciaMs });
+        if (interpretado.error === 'respuesta_incompleta') {
+          return { ok: false, error: 'respuesta_incompleta', modelo, latenciaMs, raw: interpretado.raw || '', details: errores };
+        }
+        if (interpretado.error === 'json_invalido' || interpretado.error === 'respuesta_vacia') {
+          errorFormato = { error: interpretado.error, raw: interpretado.raw || '', modelo, latenciaMs };
+        }
+        continue;
+      }
+
+      GEMINI_ENFRIAMIENTO.delete(geminiKeyId(key));
+
+      onLog({ tarea, modelo, evento: 'ok', finishReason: interpretado.finishReason, latenciaMs, usage: data?.usageMetadata || null });
+      return {
+        ok: true,
+        data: interpretado.data,
+        raw: interpretado.raw,
+        modelo,
+        finishReason: interpretado.finishReason,
+        usage: data?.usageMetadata || null,
+        latenciaMs,
+      };
+    } catch (err) {
+      errores.push(`${modelo}:${err?.name || 'error'}:${err?.message || ''}`);
+      onLog({ tarea, modelo, evento: 'exception', detalle: String(err?.message || err).slice(0, 180) });
     }
   }
 

@@ -16,6 +16,7 @@ async function verifyCloudinaryWebhook({ body, timestamp, signature, apiSecret, 
 function createCloudinaryVideoJob({ id, format, framingMode, layers, origin, trim }) { if (!/^[A-Za-z0-9_-]+$/.test(String(id || ''))) throw new Error('Id de exportación inválido.'); const dimensions = format === '4:5' ? { width: 720, height: 900 } : { width: 720, height: 1280 }; const inputPublicId = `${CLOUDINARY_JOB_PREFIX}/input-${id}`; const normalizedLayers = normalizeCloudinaryVideoLayers(layers).map((layer, index) => ({ ...layer, publicId: `${CLOUDINARY_JOB_PREFIX}/overlay-${id}-${index}-${layer.id}` })); const normalizedTrim = (trim && Number.isFinite(Number(trim.start)) && Number.isFinite(Number(trim.end)) && Number(trim.end) > Number(trim.start) ? { start: Number(trim.start), end: Number(trim.end) } : null); return { id, status: 'esperando_subidas', format: format === '4:5' ? '4:5' : '9:16', framingMode: framingMode === 'cover' ? 'cover' : 'contain', ...dimensions, inputPublicId, layers: normalizedLayers, trim: normalizedTrim, webhookUrl: `${origin}/video-vertical/cloudinary/webhook`, createdAt: Date.now() }; }
 function normalizeCloudinaryVideoLayers(layers) { if (!Array.isArray(layers) || !layers.length || layers.length > 32) throw new Error('Capas editoriales inválidas.'); const normalized = layers.map((layer, index) => { const id = String(layer?.id || '').trim(); const kind = String(layer?.kind || '').trim(); const isFixed = kind === 'fixed'; const start = Number(layer?.start); const duration = layer?.duration === null ? null : Number(layer?.duration); if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || !['fixed', 'title', 'speaker'].includes(kind)) throw new Error('Capas editoriales inválidas.'); if (isFixed && (start !== 0 || duration !== null)) throw new Error('La capa fija es inválida.'); if (!isFixed && (!Number.isFinite(start) || start < 0 || !Number.isFinite(duration) || duration <= 0)) throw new Error('El intervalo de una capa es inválido.'); return { id, kind, start: isFixed ? 0 : start, duration: isFixed ? null : duration, index }; }); if (normalized.filter(layer => layer.kind === 'fixed').length !== 1) throw new Error('Falta la capa editorial fija.'); return normalized; }
 export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createCloudinaryVideoJob, parseCloudinaryVideoJobId, signCloudinaryParams, verifyCloudinaryWebhook };
+export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 
 function buildFluxKlein4bInput(prompt,seed){
   const form=new FormData();
@@ -510,17 +511,85 @@ const GEMINI_FALLBACK  = "gemini-3.5-flash-lite";
 const GEMINI_URL       = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // >>> REDACCION-V2 INLINE
+const GEMINI_ENFRIAMIENTO_MS = 60000;
+const GEMINI_INTENTOS_MAX = 2;
+const GEMINI_DEADLINE_MS = 25000;
+const GEMINI_TIMEOUT_INTENTO_MS = 12000;
+const GEMINI_ENFRIAMIENTO = new Map();
+
+function geminiKeyId(key) {
+  const s = String(key || '');
+  return s.length <= 8 ? s : s.slice(-8);
+}
+
+function marcarGeminiEnfriamiento(key, ms = GEMINI_ENFRIAMIENTO_MS, ahora = Date.now()) {
+  if (!key) return;
+  const duracion = Math.max(0, Number(ms) || 0);
+  GEMINI_ENFRIAMIENTO.set(geminiKeyId(key), ahora + duracion);
+}
+
+function geminiKeyEnfriada(key, ahora = Date.now()) {
+  const id = geminiKeyId(key);
+  const fin = GEMINI_ENFRIAMIENTO.get(id);
+  if (!fin) return false;
+  if (fin <= ahora) { GEMINI_ENFRIAMIENTO.delete(id); return false; }
+  return true;
+}
+
+function reiniciarGeminiEnfriamiento() { GEMINI_ENFRIAMIENTO.clear(); }
+
+function clasificarErrorGemini(status, cuerpo = '') {
+  const texto = String(cuerpo || '');
+  if (status === 429) return /MODEL_CAPACITY_EXHAUSTED|capacity/i.test(texto) ? 'capacidad' : 'cuota';
+  if (status === 401 || status === 403) return 'auth';
+  if (status === 404) return 'modelo';
+  if (status === 400) return 'cliente';
+  if (status >= 500) return 'servidor';
+  return 'otro';
+}
+
+function esperaRetryAfterMs(headers, defectoMs = 0) {
+  const raw = headers?.get?.('Retry-After');
+  if (!raw) return defectoMs;
+  const segundos = Number(raw);
+  if (Number.isFinite(segundos)) return Math.min(Math.max(segundos, 0) * 1000, 30000);
+  const fecha = Date.parse(raw);
+  if (Number.isFinite(fecha)) return Math.max(0, Math.min(fecha - Date.now(), 30000));
+  return defectoMs;
+}
+
+function senalConTimeout(senal, ms) {
+  const timeout = AbortSignal.timeout(Math.max(1, ms));
+  if (!senal) return timeout;
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([senal, timeout]);
+  const ctrl = new AbortController();
+  if (senal.aborted) ctrl.abort();
+  else senal.addEventListener('abort', () => ctrl.abort(), { once: true });
+  setTimeout(() => ctrl.abort(), Math.max(1, ms));
+  return ctrl.signal;
+}
+
+function candidatosGemini(keys, modelos) {
+  const candidatos = [];
+  const vueltas = Math.max(keys.length, modelos.length, 1);
+  for (let i = 0; i < vueltas; i++) {
+    for (const modelo of modelos) candidatos.push({ modelo, key: keys[i % keys.length] });
+  }
+  return candidatos;
+}
+
 const REDACCION_V2_VERSION = 1;
 // El primario es el lite porque el 3.8-flash tardó 101 s en reformular contra un
-// timeout de 120 s; el lite resuelve la misma nota en ~6 s. El 3.8 queda de
-// respaldo para cuando el lite falle o devuelva un formato inválido.
+// timeout de 120 s; el lite resuelve la misma nota en ~6 s.
 const MODELO_PRIMARIO_V2 = 'gemini-3.5-flash-lite';
-const MODELO_RESPALDO_V2 = 'gemini-3.8-flash';
+// El 3.8-flash tiene solo 5 RPM en free tier (el lite tiene 15): como respaldo
+// se saturaba con dos pedidos en paralelo y devolvía 429 en cascada.
+const MODELO_RESPALDO_V2 = 'gemini-3.1-flash-lite';
 
 const TAREAS = {
-  titulares: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 2048, thinkingLevel: 'low', timeoutMs: 60000 },
-  reformular: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 8192, thinkingLevel: 'low', timeoutMs: 120000 },
-  redactar: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 8192, thinkingLevel: 'low', timeoutMs: 120000 },
+  titulares: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 2048, thinkingLevel: 'low', timeoutMs: 25000, deadlineMs: 35000 },
+  reformular: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 8192, thinkingLevel: 'low', timeoutMs: 45000, deadlineMs: 85000 },
+  redactar: { modelo: MODELO_PRIMARIO_V2, respaldo: MODELO_RESPALDO_V2, maxOutputTokens: 8192, thinkingLevel: 'low', timeoutMs: 45000, deadlineMs: 85000 },
 };
 
 const FAMILIAS_V2 = [
@@ -809,75 +878,92 @@ function validarRedaccion(data = {}) {
   return { ok: errors.length === 0, data: { ...base.data, bajada }, errors };
 }
 
-async function pedirGemini({ payload = {}, keys = [], tarea = 'reformular', schema = null, fetchImpl = fetch, onLog = () => {} } = {}) {
+async function pedirGemini({ payload = {}, keys = [], tarea = 'reformular', schema = null, fetchImpl = fetch, onLog = () => {}, signal = null } = {}) {
   const config = TAREAS[tarea] || TAREAS.reformular;
   const modelos = [config.modelo, config.respaldo].filter(Boolean);
   if (!keys.length) return { ok: false, error: 'sin_api_keys', details: [] };
   const inicio = Date.now();
+  const deadlineMs = config.deadlineMs || 45000;
   const errores = [];
   let errorFormato = null;
 
-  for (const modelo of modelos) {
-    for (const key of keys) {
-      try {
-        const body = {
-          ...payload,
-          generationConfig: {
-            responseMimeType: 'application/json',
-            ...(schema ? { responseSchema: schema } : {}),
-            ...(config.thinkingLevel ? { thinkingConfig: { thinkingLevel: config.thinkingLevel } } : {}),
-            maxOutputTokens: config.maxOutputTokens,
-          },
-        };
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(key)}`;
-        const res = await fetchImpl(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(config.timeoutMs),
-        });
+  const sanas = keys.filter(k => !geminiKeyEnfriada(k));
+  const pool = sanas.length ? sanas : keys.slice();
+  const arranque = Math.floor(Math.random() * pool.length);
+  const orden = [...pool.slice(arranque), ...pool.slice(0, arranque)];
+  let intentos = 0;
 
-        if (res.status === 429) {
-          errores.push(`${modelo}:429`);
-          onLog({ tarea, modelo, evento: 'rate_limit' });
-          continue;
-        }
-        if (!res.ok) {
-          const texto = await res.text().catch(() => '');
-          errores.push(`${modelo}:${res.status}:${texto.slice(0, 180)}`);
-          onLog({ tarea, modelo, evento: 'http_error', status: res.status });
-          break;
-        }
+  for (const cand of candidatosGemini(orden, modelos)) {
+    if (intentos >= GEMINI_INTENTOS_MAX) break;
+    const restante = deadlineMs - (Date.now() - inicio);
+    if (restante <= 0) { errores.push('deadline global agotado'); break; }
+    if (geminiKeyEnfriada(cand.key) && keys.some(k => !geminiKeyEnfriada(k))) continue;
+    intentos += 1;
+    const modelo = cand.modelo;
+    const key = cand.key;
+    try {
+      const body = {
+        ...payload,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          ...(schema ? { responseSchema: schema } : {}),
+          ...(config.thinkingLevel ? { thinkingConfig: { thinkingLevel: config.thinkingLevel } } : {}),
+          maxOutputTokens: config.maxOutputTokens,
+        },
+      };
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(key)}`;
+      const res = await fetchImpl(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: senalConTimeout(signal, Math.min(config.timeoutMs || 45000, restante)),
+      });
 
-        const data = await res.json();
-        const interpretado = interpretarRespuestaGemini(data);
-        const latenciaMs = Date.now() - inicio;
-        if (!interpretado.ok) {
-          errores.push(`${modelo}:${interpretado.error}`);
-          onLog({ tarea, modelo, evento: interpretado.error, finishReason: interpretado.finishReason, latenciaMs });
-          if (interpretado.error === 'respuesta_incompleta') {
-            return { ok: false, error: 'respuesta_incompleta', modelo, latenciaMs, raw: interpretado.raw || '', details: errores };
-          }
-          if (interpretado.error === 'json_invalido' || interpretado.error === 'respuesta_vacia') {
-            errorFormato = { error: interpretado.error, raw: interpretado.raw || '', modelo, latenciaMs };
-          }
-          break;
-        }
-
-        onLog({ tarea, modelo, evento: 'ok', finishReason: interpretado.finishReason, latenciaMs, usage: data?.usageMetadata || null });
-        return {
-          ok: true,
-          data: interpretado.data,
-          raw: interpretado.raw,
-          modelo,
-          finishReason: interpretado.finishReason,
-          usage: data?.usageMetadata || null,
-          latenciaMs,
-        };
-      } catch (err) {
-        errores.push(`${modelo}:${err?.name || 'error'}:${err?.message || ''}`);
-        onLog({ tarea, modelo, evento: 'exception', detalle: String(err?.message || err).slice(0, 180) });
+      if (res.status === 429) {
+        const texto = await res.text().catch(() => '');
+        const clase = clasificarErrorGemini(429, texto);
+        errores.push(`${modelo}:429:${clase}`);
+        onLog({ tarea, modelo, evento: clase === 'capacidad' ? 'capacidad' : 'rate_limit' });
+        marcarGeminiEnfriamiento(key, esperaRetryAfterMs(res.headers, GEMINI_ENFRIAMIENTO_MS));
+        continue;
       }
+      if (!res.ok) {
+        const texto = await res.text().catch(() => '');
+        errores.push(`${modelo}:${res.status}:${texto.slice(0, 180)}`);
+        onLog({ tarea, modelo, evento: 'http_error', status: res.status });
+        continue;
+      }
+
+      const data = await res.json();
+      const interpretado = interpretarRespuestaGemini(data);
+      const latenciaMs = Date.now() - inicio;
+      if (!interpretado.ok) {
+        errores.push(`${modelo}:${interpretado.error}`);
+        onLog({ tarea, modelo, evento: interpretado.error, finishReason: interpretado.finishReason, latenciaMs });
+        if (interpretado.error === 'respuesta_incompleta') {
+          return { ok: false, error: 'respuesta_incompleta', modelo, latenciaMs, raw: interpretado.raw || '', details: errores };
+        }
+        if (interpretado.error === 'json_invalido' || interpretado.error === 'respuesta_vacia') {
+          errorFormato = { error: interpretado.error, raw: interpretado.raw || '', modelo, latenciaMs };
+        }
+        continue;
+      }
+
+      GEMINI_ENFRIAMIENTO.delete(geminiKeyId(key));
+
+      onLog({ tarea, modelo, evento: 'ok', finishReason: interpretado.finishReason, latenciaMs, usage: data?.usageMetadata || null });
+      return {
+        ok: true,
+        data: interpretado.data,
+        raw: interpretado.raw,
+        modelo,
+        finishReason: interpretado.finishReason,
+        usage: data?.usageMetadata || null,
+        latenciaMs,
+      };
+    } catch (err) {
+      errores.push(`${modelo}:${err?.name || 'error'}:${err?.message || ''}`);
+      onLog({ tarea, modelo, evento: 'exception', detalle: String(err?.message || err).slice(0, 180) });
     }
   }
 
@@ -1251,7 +1337,18 @@ async function listarObjetosKV(env,prefix){
 }
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function jsonOk(data){return new Response(JSON.stringify({ok:true,...data}),{headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
-function jsonError(msg,status=400){return new Response(JSON.stringify({ok:false,error:msg}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json"}})}
+function jsonError(msg,status=400,headers={}){return new Response(JSON.stringify({ok:false,error:msg}),{status,headers:{...CORS_HEADERS,"Content-Type":"application/json",...headers}})}
+
+// Traduce un fallo de IA a 503 con Retry-After cuando es saturacion o cuota.
+// Los errores de configuracion siguen siendo 500.
+function jsonErrorIA(r = {}) {
+  const detalle = String(r?.error || 'IA no disponible').slice(0, 300);
+  if (/sin_api_keys|No hay API keys/i.test(detalle)) return jsonError(detalle, 500);
+  const saturacion = /429|cuota|quota|rate limit|capacidad|capacity|sobrecarg|503|deadline|modelo_no_disponible|UNAVAILABLE/i.test(detalle);
+  if (!saturacion) return jsonError(detalle, 500);
+  const retryAfter = /429|cuota|quota|rate limit/i.test(detalle) ? '60' : '15';
+  return jsonError(detalle, 503, { 'Retry-After': retryAfter });
+}
 function escapeXml(s=""){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;")}
 function localeFromVoice(v=""){const m=String(v).match(/^([a-z]{2,3}-[A-Z]{2})-/);return m?m[1]:"es-AR"}
 function formatTimestamp(seconds) {
@@ -1549,7 +1646,7 @@ Respondé SOLO con JSON sin markdown:
 }`;
 
   const r = await callGemini(prompt + editorialText, env);
-  if (r.error) return jsonError(r.error, 500);
+  if (r.error) return jsonErrorIA(r);
   
   const notasConImagen = (r.data?.notas || []).map((nota, idx) => ({
     ...nota,
@@ -1583,7 +1680,7 @@ async function handleGenerarGuionReel(body, env) {
   Respondé SOLO con JSON: { "guion": "texto del guion limpio" }`;
 
   const r = await callGemini(prompt, env);
-  if (r.error) return jsonError(r.error, 500);
+  if (r.error) return jsonErrorIA(r);
   
   let guion = r.data?.guion || texto;
   guion = guion.replace(/[#*_`]/g, '').replace(/https?:\/\/[^\s]+/g, '').replace(/[🔗📱📣🎧✅⚠️✗✓★✦▶️⏸️🎬📋🗑✏️🕐📍📅📰💬⚡🔍🎵🎙️]/g, '');
@@ -5126,7 +5223,7 @@ async function handleReelGuion(body,env){
   if(!articulo) return jsonError("Falta campo: articulo",400);
   const promptBase = await env.KV.get(REEL_PROMPT_KEY,"text").catch(()=>null) || REEL_PROMPT_DEFAULT;
   const r = await callGemini(promptBase + `\n\nARTÍCULO:\n${articulo.substring(0,3000)}`, env);
-  if(r.error) return jsonError(r.error,500);
+  if(r.error) return jsonErrorIA(r);
   return jsonOk({titulo: r.data?.titulo||"", guion: r.data?.guion||""});
 }
 
@@ -5235,7 +5332,7 @@ async function handleSocialGenerar(body,env){
   const userMsg=String(body.userMsg||"").trim();
   if(!systemPrompt||!userMsg) return jsonError("Faltan campos",400);
   const r=await callGemini(`${systemPrompt}\n\nResponde SOLO con JSON sin backticks ni markdown.\n\n${userMsg}`,env);
-  if(r.error) return jsonError(r.error,500);
+  if(r.error) return jsonErrorIA(r);
   return jsonOk({result:r.data});
 }
 
@@ -5371,7 +5468,7 @@ async function handleTitulares(body,env){
   const instr=modo==="nota"?`Generá exactamente ${cantidad} titulares de este texto:\n"""\n${contenido}\n"""`:`Generá exactamente ${cantidad} titulares sobre:\n"""\n${contenido}\n"""`;
   const prompt=`Sos editor de Media Mendoza.\n${instr}\n${contexto?`\nCONTEXTO:\n${contexto}\n`:""}\nTono: ${tono}.\n${ed?`REGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titulares":["T1"],"angulos":[{"nombre":"N","descripcion":"D"}]}`;
   const r=await callGemini(prompt,env);
-  if(r.error) return jsonError(r.error,500);
+  if(r.error) return jsonErrorIA(r);
   return jsonOk(r.data);
 }
 async function handleReformular(body,env){
@@ -5380,7 +5477,7 @@ async function handleReformular(body,env){
   const ed=comprimirEditorial(await getEditorial(env));
   const prompt=`Sos redactor de Media Mendoza.\nReformulá completamente esta nota.\n\nTítulo original: "${titulo}"\nCuerpo:\n"""\n${contenido}\n"""\n${contexto?`\nINFO EXTRA:\n${contexto}\n`:""}\n${ESTILOS_DESC[estilo]||ESTILOS_DESC.formal}\n${ed?`\nREGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titular":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[]}`;
   const r=await callGemini(prompt,env);
-  if(r.error) return jsonError(r.error,500);
+  if(r.error) return jsonErrorIA(r);
   return jsonOk(r.data);
 }
 async function handleGenerarImagen(body,env){
@@ -5608,7 +5705,7 @@ async function handleRedactar(body,env){
   const ed=comprimirEditorial(await getEditorial(env));
   const prompt=`Sos redactor de Media Mendoza.\nRedactá una nota periodística.\n\nCONTENIDO:\n${ideas}\n\n${buscarWeb?"Buscá contexto en la web.":"Solo usá la info provista."}\n${ed?`\nREGLAS:\n${ed}\n`:""}\nRespondé SOLO con JSON sin backticks:\n{"titular":"","bajada":"","cuerpo":"P1...\n\nP2...","categoria_sugerida":"","hashtags":[],"fuentes":[]}`;
   const r=await callGemini(prompt,env,buscarWeb);
-  if(r.error) return jsonError(r.error,500);
+  if(r.error) return jsonErrorIA(r);
   return jsonOk(r.data);
 }
 
@@ -5642,7 +5739,7 @@ async function handleSugerirEfemerideDesc(body,env){
   const mes=parseInt(body.mes)||0; const dia=parseInt(body.dia)||0;
   const alcance=String(body.alcance||"local").trim();
   const prompt=`Sos editor de Media Mendoza. Escribí una descripción breve (2-3 líneas, máx 40 palabras) para esta efeméride del calendario del sur mendocino.\nTítulo: ${titulo}\nFecha: ${dia}/${mes}\nAlcance: ${alcance}\n\nResponde SOLO con JSON: {"descripcion":"..."}`;
-  const r=await callGemini(prompt,env); if(r.error) return jsonError(r.error,500);
+  const r=await callGemini(prompt,env); if(r.error) return jsonErrorIA(r);
   return jsonOk({descripcion:String(r.data?.descripcion||"").trim()});
 }
 async function handleAgendaAngulos(body,env){
@@ -5665,7 +5762,7 @@ INSTRUCCIONES:
 
 Responde SOLO con JSON sin backticks:
 {"angulos":["a1","a2","a3"],"preguntas":["p1","p2","p3"],"fuentes_sugeridas":["f1","f2","f3"],"consejo":"","gancho":""}`;
-  const r=await callGemini(prompt,env);if(r.error) return jsonError(r.error,500);
+  const r=await callGemini(prompt,env);if(r.error) return jsonErrorIA(r);
   const data={angulos:Array.isArray(r.data?.angulos)?r.data.angulos:[],preguntas:Array.isArray(r.data?.preguntas)?r.data.preguntas:[],fuentes_sugeridas:Array.isArray(r.data?.fuentes_sugeridas)?r.data.fuentes_sugeridas:[],consejo:String(r.data?.consejo||"").trim(),gancho:String(r.data?.gancho||"").trim()};
   return jsonOk(data);
 }
@@ -5737,7 +5834,7 @@ async function handlePlacasAI(request,env,body){
   const system=String(body.system||"").trim();const user=String(body.user||"").trim();
   if(!system||!user) return jsonError("Faltan campos",400);
   const r=await callGemini(`${system}\n\nResponde SOLO con JSON sin backticks:\n{"grupo":"...","canal":"..."}\n\n${user}`,env);
-  if(r.error) return jsonError(r.error,500);
+  if(r.error) return jsonErrorIA(r);
   const grupo=limpiarEspacios(r.data?.grupo||"");const canal=limpiarEspacios(r.data?.canal||"");
   if(!grupo&&!canal) return jsonError("IA no devolvió mensajes",502);
   return jsonOk({text:JSON.stringify({grupo,canal})});
@@ -6414,8 +6511,9 @@ async function handleWhatsappGenerar(body,env){
   if(paqueteOk){try{bloqueEd=buildEditorialPromptBlock(nota.editorial)}catch(e){}}
   prompt=`${pf}${nd}${contextoExtra?`\nContexto extra: ${contextoExtra}`:""}${bloqueEd?`\n${bloqueEd}`:""}\n\nRespondé SOLO con JSON sin backticks: {"grupo":"...","canal":"..."}`;
   }
-  const geminiPromise = callGemini(prompt,env);
-  const timeoutPromise = sleep(45000).then(() => ({ error: 'deadline 45s - IA lenta/caída', details: ['timeout global whatsapp 45s'] }));
+  const ctrlWa = new AbortController();
+  const geminiPromise = callGemini(prompt,env,false,true,null,{ signal: ctrlWa.signal, deadlineMs: 40000 });
+  const timeoutPromise = sleep(45000).then(() => { ctrlWa.abort(); return ({ error: 'deadline 45s - IA lenta/caída', details: ['timeout global whatsapp 45s'] }); });
   const r=await Promise.race([geminiPromise, timeoutPromise]);
   if(r.error) {
     console.warn("[whatsapp] IA no disponible, fallback determinístico:", r.error);
@@ -6515,17 +6613,22 @@ async function getEditorial(env){
   return null;
 }
 
-async function callGemini(prompt, env, searchEnabled = false, expectJson = true, modelOverride = null) {
-  return await fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }] }, { searchEnabled, expectJson, modelOverride });
+async function callGemini(prompt, env, searchEnabled = false, expectJson = true, modelOverride = null, options = {}) {
+  return await fetchGemini(env, { contents: [{ parts: [{ text: prompt }] }] }, { searchEnabled, expectJson, modelOverride, ...options });
 }
 
-async function fetchGemini(env, payload, { searchEnabled = false, expectJson = true, modelOverride = null } = {}) {
+async function fetchGemini(env, payload, { searchEnabled = false, expectJson = true, modelOverride = null, signal = null, deadlineMs = GEMINI_DEADLINE_MS, maxIntentos = GEMINI_INTENTOS_MAX } = {}) {
   const availableKeys = getGeminiKeys(env);
   if (!availableKeys.length) return { error: "No hay API keys de Gemini configuradas" };
-  const startIndex = Math.floor(Math.random() * availableKeys.length);
-  const keys = [...availableKeys.slice(startIndex), ...availableKeys.slice(0, startIndex)];
   const requestedModel = modelOverride || GEMINI_MODEL;
   const modelsToTry = requestedModel === GEMINI_FALLBACK ? [requestedModel] : [...new Set([requestedModel, GEMINI_FALLBACK])];
+  const inicio = Date.now();
+  const modelErrors = [];
+
+  const sanas = availableKeys.filter(k => !geminiKeyEnfriada(k));
+  const pool = sanas.length ? sanas : availableKeys.slice();
+  const arranque = Math.floor(Math.random() * pool.length);
+  const keys = [...pool.slice(arranque), ...pool.slice(0, arranque)];
 
   const makeBody = (s) => {
     const b = { ...payload, generationConfig: { temperature: 0.4, maxOutputTokens: 2048, ...payload.generationConfig } };
@@ -6533,111 +6636,69 @@ async function fetchGemini(env, payload, { searchEnabled = false, expectJson = t
     return b;
   };
 
-  const getRetryDelay = (intento, res) => {
-    const retryAfter = res?.headers?.get?.('Retry-After');
-    if (retryAfter) {
-      const secs = Number(retryAfter);
-      if (Number.isFinite(secs) && secs > 0 && secs < 60) return Math.ceil(secs * 1000);
-    }
-    return Math.floor(700 * Math.pow(1.9, intento - 1) + Math.random() * 400);
-  };
+  let search = searchEnabled;
+  let intentos = 0;
+  let ultimoError = '';
 
-  const get503Delay = (intento) => {
-    return Math.floor(2000 * Math.pow(2, intento - 1) + Math.random() * 1000);
-  };
+  for (const cand of candidatosGemini(keys, modelsToTry)) {
+    if (intentos >= maxIntentos) break;
+    const restante = deadlineMs - (Date.now() - inicio);
+    if (restante <= 0) { modelErrors.push('deadline global agotado'); break; }
+    if (geminiKeyEnfriada(cand.key) && availableKeys.some(k => !geminiKeyEnfriada(k))) continue;
 
-  const modelErrors = [];
-  const maxRetries = 2;
+    intentos += 1;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cand.modelo}:generateContent?key=${encodeURIComponent(cand.key)}`;
+    try {
+      const body = makeBody(search);
+      const res = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: senalConTimeout(signal, Math.min(GEMINI_TIMEOUT_INTENTO_MS, restante)),
+      });
 
-  for (const model of modelsToTry) {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-    let search = searchEnabled;
-    let hadModelNotFound = false;
-
-    for (let i = 0; i < keys.length; i++) {
-      for (let intento = 1; intento <= maxRetries; intento++) {
-        try {
-          const body = makeBody(search);
-          const res = await fetch(`${geminiUrl}?key=${keys[i]}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
-
-          if (!res.ok) {
-            const errBody = await res.text().catch(() => '');
-            const snippet = errBody ? `: ${errBody.substring(0, 300)}` : '';
-            if (res.status === 429) {
-              const msg = `[${model}] Key ${i + 1}/${keys.length} → 429 Rate Limit${snippet}`;
-              modelErrors.push(msg);
-              console.warn(`[fetchGemini] ${msg}`);
-              // No reintentamos con la misma key si hay 429, pasamos rápido a la siguiente
-              break;
-            }
-            if (res.status === 400) {
-              if (search) { search = false; continue; }
-              const msg = `[${model}] Key ${i + 1}/${keys.length} → 400 Bad Request${snippet}`;
-              modelErrors.push(msg);
-              console.warn(`[fetchGemini] ${msg}`);
-              break;
-            }
-            if (res.status === 404) {
-              const msg = `[${model}] Key ${i + 1}/${keys.length} → 404 Model Not Found${snippet}`;
-              modelErrors.push(msg);
-              console.warn(`[fetchGemini] ${msg}`);
-              if (model === requestedModel && modelsToTry.length > 1) hadModelNotFound = true;
-              i = keys.length; // Break el outer loop (keys) ya que un 404 es problema del modelo, no de la key
-              break;
-            }
-            if (res.status >= 500) {
-              const msg = `[${model}] Key ${i + 1}/${keys.length} → ${res.status} Gemini Down (intento ${intento})${snippet}`;
-              modelErrors.push(msg);
-              console.warn(`[fetchGemini] ${msg}`);
-              if (intento < maxRetries) { await sleep(get503Delay(intento)); continue; }
-              break;
-            }
-            if (res.status === 401 || res.status === 403) {
-              const msg = `[${model}] Key ${i + 1}/${keys.length} → HTTP ${res.status} Auth${snippet}`;
-              modelErrors.push(msg);
-              console.warn(`[fetchGemini] ${msg}`);
-              break;
-            }
-            modelErrors.push(`[${model}] Key ${i + 1}/${keys.length} → HTTP ${res.status}${snippet}`);
-            break;
-          }
-
-          const data = await res.json();
-          const candidate = data?.candidates?.[0];
-          if (!candidate) return { error: "No candidate: " + JSON.stringify(data), details: modelErrors };
-
-          const raw = candidate?.content?.parts?.[0]?.text || "";
-          if (!raw) return { error: "No text: " + JSON.stringify(candidate), details: modelErrors };
-
-          if (!expectJson) return { data: raw };
-
-          try {
-            return { data: JSON.parse(raw) };
-          } catch {
-            const match = raw.match(/\{[\s\S]*\}/);
-            if (match) {
-              try { return { data: JSON.parse(match[0]) }; } catch { }
-            }
-            return { error: "JSON parse failed. Raw: " + raw, details: modelErrors };
-          }
-        } catch (err) {
-          console.warn(`[fetchGemini] [${model}] Key ${i + 1} error: ${err.message}`);
-          modelErrors.push(`[${model}] Key ${i + 1} exception: ${err.message}`);
-          if (intento < maxRetries) await sleep(getRetryDelay(intento));
-          else break;
-        }
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        const clase = clasificarErrorGemini(res.status, errBody);
+        const snippet = errBody ? `: ${errBody.substring(0, 220)}` : '';
+        const msg = `[${cand.modelo}] ${res.status} ${clase}${snippet}`;
+        modelErrors.push(msg);
+        ultimoError = msg;
+        console.warn(`[fetchGemini] ${msg}`);
+        if (clase === 'cuota' || clase === 'capacidad') marcarGeminiEnfriamiento(cand.key, esperaRetryAfterMs(res.headers, GEMINI_ENFRIAMIENTO_MS));
+        if (clase === 'auth') marcarGeminiEnfriamiento(cand.key, GEMINI_ENFRIAMIENTO_MS * 5);
+        if (clase === 'cliente' && search) { search = false; intentos -= 1; }
+        continue;
       }
-    }
-    if (hadModelNotFound) {
-      console.warn(`[fetchGemini] Modelo ${model} no encontrado, probando fallback ${modelsToTry[modelsToTry.indexOf(model)+1] || ''}`);
-      continue;
-    }
-    if (model !== modelsToTry[modelsToTry.length - 1]) {
-      const hasOnlyAuthErrors = modelErrors.filter(m => m.includes(`[${model}]`)).every(m => m.includes('401') || m.includes('403') || m.includes('404'));
-      if (hasOnlyAuthErrors) continue;
+
+      const data = await res.json();
+      const candidate = data?.candidates?.[0];
+      if (!candidate) { modelErrors.push(`[${cand.modelo}] sin candidate`); continue; }
+
+      const raw = candidate?.content?.parts?.[0]?.text || "";
+      if (!raw) { modelErrors.push(`[${cand.modelo}] sin texto`); continue; }
+
+      GEMINI_ENFRIAMIENTO.delete(geminiKeyId(cand.key));
+
+      if (!expectJson) return { data: raw };
+
+      try {
+        return { data: JSON.parse(raw) };
+      } catch {
+        const match = raw.match(/\{[\s\S]*\}/);
+        if (match) { try { return { data: JSON.parse(match[0]) }; } catch { } }
+        return { error: "JSON parse failed. Raw: " + raw, details: modelErrors };
+      }
+    } catch (err) {
+      const msg = `[${cand.modelo}] excepcion: ${err?.message || err}`;
+      modelErrors.push(msg);
+      ultimoError = msg;
+      console.warn(`[fetchGemini] ${msg}`);
+      if (err?.name === 'AbortError' || err?.name === 'TimeoutError') break;
     }
   }
-  return { error: "Todas las keys de Gemini fallaron", details: modelErrors };
+
+  return { error: "Todas las keys de Gemini fallaron" + (ultimoError ? ` (${ultimoError})` : ''), details: modelErrors };
 }
 
 function logRedaccionV2(evento = {}) {
@@ -8333,64 +8394,29 @@ async function handleVisualGenerar(body, env) {
   const prompt = String(body.prompt || "").trim();
   if (!prompt) return jsonError("Falta prompt", 400);
 
-  const r = await callGemini(prompt, env);
-  if (r.error) return jsonError(r.error, 500);
+  const r = await callGemini(prompt, env, false, false);
+  if (r.error) return jsonErrorIA(r);
 
-  const raw = r.data ? JSON.stringify(r.data) : "";
+  const raw = typeof r.data === 'string' ? r.data : (r.data ? JSON.stringify(r.data) : "");
   return jsonOk({ texto: raw });
 }
 
 // ============================================================
-// VISUAL SUITE - Ilustración con MODELO DE IMAGEN (diferente al de la suite)
-// NO se toca GEMINI_MODEL (gemini-3.1-flash-lite) usado por el resto de la suite.
+// VISUAL SUITE - Ilustración
+// El modelo de imagen de Gemini no tiene cuota en free tier (429 limit:0),
+// así que se usa el mismo pipeline FLUX de Cloudflare que el resto de la suite.
 // ============================================================
-const GEMINI_IMAGEN_MODEL = "gemini-3-pro-image-preview";
-const GEMINI_IMAGEN_URL  = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGEN_MODEL}:generateContent`;
-
 async function handleVisualIlustrar(body, env) {
   const prompt = String(body.prompt || "").trim();
   if (!prompt) return jsonError("Falta prompt", 400);
 
-  const keys = getGeminiKeys(env);
-  if (!keys.length) return jsonError("No hay API keys de Gemini configuradas", 500);
-
-  const bodyReq = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { responseModalities: ["IMAGE", "TEXT"] }
-  };
-
-  const ilustrarErrors = [];
-  for (let i = 0; i < keys.length; i++) {
-    try {
-      const res = await fetch(`${GEMINI_IMAGEN_URL}?key=${keys[i]}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyReq)
-      });
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => "");
-        const msg = `Ilustrar ${res.status} key#${i + 1}: ${errBody.substring(0, 200)}`;
-        console.error(msg);
-        ilustrarErrors.push(msg);
-        if (res.status === 429) { await sleep(1500); }
-        else if (res.status >= 500) { await sleep(1000); }
-        continue;
-      }
-      const data = await res.json();
-      const parts = data?.candidates?.[0]?.content?.parts || [];
-      for (const p of parts) {
-        if (p.inlineData && p.inlineData.data) {
-          const mime = p.inlineData.mimeType || "image/png";
-          return jsonOk({ imagen: `data:${mime};base64,${p.inlineData.data}`, modelo: GEMINI_IMAGEN_MODEL });
-        }
-      }
-      return jsonError("El modelo no devolvió una imagen", 500);
-    } catch (err) {
-      console.error("Ilustrar error:", err);
-      ilustrarErrors.push(`key#${i + 1} exception: ${err.message}`);
-    }
+  const r = await generarImagenLibre(env, { prompt, negativePrompt: NEGATIVE_IMAGEN_V2 });
+  if (r.error) {
+    console.warn("[ilustrar] sin motor disponible:", (r.details || []).slice(0, 3).join(' | '));
+    return jsonError("No se pudo generar la ilustración", 502);
   }
-  return jsonError("No se pudo generar la ilustración (modelo de imagen agotado o no disponible): " + ilustrarErrors.slice(0,2).join(' | '), 500);
+  const imagen = `data:image/jpeg;base64,${bytesABase64(r.bytes)}`;
+  return jsonOk({ imagen, formato: 'image/jpeg', modelo: r.modelo, motor: r.motor, seed: r.seed });
 }
 
 async function handleVisualExtraer(body, env) {
@@ -8465,7 +8491,7 @@ REGLAS:
 Respondé SOLO con el JSON.`;
 
   const r = await callGemini(promptExtraer, env);
-  if (r.error) return jsonError(r.error, 500);
+  if (r.error) return jsonErrorIA(r);
   const raw = r.data || {};
   return jsonOk({
     titulo: raw.titulo || tema,
@@ -8543,7 +8569,7 @@ Formato JSON exacto:
 {"titulo_corto":"...","titulo_placa":"...","categoria":"...","para_entender":"Para entender: 1) ... 2) ... 3) ...","para_entender_datos":["dato1","dato2","dato3"],"que_paso_antes":[{"titulo":"...","fuente":"...","fecha":"...","url":"..."},{"titulo":"...","fuente":"...","fecha":"...","url":"..."},{"titulo":"...","fuente":"...","fecha":"...","url":"..."}],"gancho_whatsapp":"...","preguntas":["...","...","...","...","..."],"timeline":[{"label":"...","value":"...","sub":"..."},null],"chart":null,"infografia":null}`;
 
   const r = await callGemini(prompt, env, false, true);
-  if (r.error) return jsonError(r.error, 500);
+  if (r.error) return jsonErrorIA(r);
   const d = r.data || {};
 
   // Normalización defensiva
@@ -8786,8 +8812,9 @@ async function handlePlacasV2Generar(body, env) {
   }
   try {
     const prompt = buildPlateEditorialPrompt(note);
-    const aiPromise = callGemini(prompt, env, false, true, null);
-    const timeoutPromise = sleep(20000).then(() => ({ error: 'deadline 20s - IA lenta/caída, usando fallback determinístico', details: ['timeout global 20s'] }));
+    const ctrlPlacas = new AbortController();
+    const aiPromise = callGemini(prompt, env, false, true, null, { signal: ctrlPlacas.signal, deadlineMs: 18000 });
+    const timeoutPromise = sleep(20000).then(() => { ctrlPlacas.abort(); return ({ error: 'deadline 20s - IA lenta/caída, usando fallback determinístico', details: ['timeout global 20s'] }); });
     const result = await Promise.race([aiPromise, timeoutPromise]);
     if (result.error || !result.data || typeof result.data !== 'object') {
       console.warn('[handlePlacasV2Generar] IA no disponible:', result?.error);
@@ -8819,8 +8846,9 @@ async function handlePlacasV2Paquete(body, env) {
   let ia_error = null;
   let ia_details = [];
   try {
-    const aiPromise = callGemini(buildPlateEditorialPrompt(note), env, false, true, null);
-    const toP = sleep(20000).then(() => ({ error: 'deadline 20s - IA lenta/caída, usando fallback', details: ['timeout global 20s'] }));
+    const ctrlPaquete = new AbortController();
+    const aiPromise = callGemini(buildPlateEditorialPrompt(note), env, false, true, null, { signal: ctrlPaquete.signal, deadlineMs: 18000 });
+    const toP = sleep(20000).then(() => { ctrlPaquete.abort(); return ({ error: 'deadline 20s - IA lenta/caída, usando fallback', details: ['timeout global 20s'] }); });
     const result = await Promise.race([aiPromise, toP]);
     if (result.error || !result.data || typeof result.data !== 'object') {
       console.warn('[handlePlacasV2Paquete] IA no disponible:', result?.error);
