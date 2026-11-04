@@ -182,6 +182,57 @@ test('handleVisualGenerar acepta texto plano sin intentar parsearlo como JSON', 
   );
 });
 
+test('clasifica el 400 de API key inválida como auth', () => {
+  const cuerpo = '{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}';
+  assert.equal(clasificarErrorGemini(400, cuerpo), 'auth');
+  assert.equal(clasificarErrorGemini(400, '{"error":{"message":"bad request"}}'), 'cliente');
+});
+
+test('fetchGemini sobrevive a una key inválida y prueba otra del pool', async () => {
+  reiniciarGeminiEnfriamiento();
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  const cuerpoKeyInvalida = '{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}';
+  try {
+    await conFetchFalso(
+      async (url) => (keyDe(url) === KEYS[0] ? respuestaError(400, cuerpoKeyInvalida) : respuestaTexto('{"ok":true}')),
+      async (llamadas) => {
+        const r = await fetchGemini(envGemini(), { contents: [{ parts: [{ text: 'hola' }] }] });
+        assert.ok(r.data, 'debe recuperar el JSON usando otra key');
+        assert.equal(llamadas.length, 2);
+        assert.notEqual(llamadas[0].key, llamadas[1].key, 'el reintento debe usar otra key');
+        assert.equal(geminiKeyEnfriada(KEYS[0]), true, 'la key inválida queda en enfriamiento');
+      },
+    );
+  } finally {
+    Math.random = originalRandom;
+  }
+});
+
+test('pedirGemini sobrevive a una key inválida y prueba otra del pool', async () => {
+  reiniciarGeminiEnfriamiento();
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  const cuerpoKeyInvalida = '{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}';
+  try {
+    let llamadas = 0;
+    const r = await pedirGemini({
+      payload: { contents: [{ parts: [{ text: 'hola' }] }] },
+      keys: KEYS,
+      tarea: 'titulares',
+      fetchImpl: async (url) => {
+        llamadas += 1;
+        return keyDe(url) === KEYS[0] ? respuestaError(400, cuerpoKeyInvalida) : respuestaTexto('{"ok":true}');
+      },
+    });
+    assert.equal(r.ok, true);
+    assert.equal(llamadas, 2);
+    assert.equal(geminiKeyEnfriada(KEYS[0]), true, 'la key inválida queda en enfriamiento');
+  } finally {
+    Math.random = originalRandom;
+  }
+});
+
 test('handleVisualIlustrar usa Cloudflare FLUX sin tocar la cuota de imagen de Gemini', async () => {
   reiniciarGeminiEnfriamiento();
   let llamadasGemini = 0;

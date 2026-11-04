@@ -543,7 +543,12 @@ function clasificarErrorGemini(status, cuerpo = '') {
   if (status === 429) return /MODEL_CAPACITY_EXHAUSTED|capacity/i.test(texto) ? 'capacidad' : 'cuota';
   if (status === 401 || status === 403) return 'auth';
   if (status === 404) return 'modelo';
-  if (status === 400) return 'cliente';
+  if (status === 400) {
+    // Google devuelve 400 INVALID_ARGUMENT cuando la key fue revocada o es de
+    // otro proyecto. Se trata como auth para enfriarla y saltearla.
+    if (/API key not valid|API_KEY_INVALID|API key expired/i.test(texto)) return 'auth';
+    return 'cliente';
+  }
   if (status >= 500) return 'servidor';
   return 'otro';
 }
@@ -573,7 +578,12 @@ function candidatosGemini(keys, modelos) {
   const candidatos = [];
   const vueltas = Math.max(keys.length, modelos.length, 1);
   for (let i = 0; i < vueltas; i++) {
-    for (const modelo of modelos) candidatos.push({ modelo, key: keys[i % keys.length] });
+    // Cada candidato combina una key y un modelo distintos del anterior, para
+    // que dos intentos nunca repitan la misma key (una key inválida o agotada
+    // no debe consumir todo el presupuesto de reintentos).
+    for (let j = 0; j < modelos.length; j++) {
+      candidatos.push({ modelo: modelos[j], key: keys[(i + j) % keys.length] });
+    }
   }
   return candidatos;
 }
@@ -929,8 +939,10 @@ async function pedirGemini({ payload = {}, keys = [], tarea = 'reformular', sche
       }
       if (!res.ok) {
         const texto = await res.text().catch(() => '');
-        errores.push(`${modelo}:${res.status}:${texto.slice(0, 180)}`);
-        onLog({ tarea, modelo, evento: 'http_error', status: res.status });
+        const clase = clasificarErrorGemini(res.status, texto);
+        errores.push(`${modelo}:${res.status}:${clase}:${texto.slice(0, 180)}`);
+        onLog({ tarea, modelo, evento: 'http_error', status: res.status, clase });
+        if (clase === 'auth') marcarGeminiEnfriamiento(key, GEMINI_ENFRIAMIENTO_MS * 5);
         continue;
       }
 
