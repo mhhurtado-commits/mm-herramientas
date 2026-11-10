@@ -17,6 +17,20 @@ function createCloudinaryVideoJob({ id, format, framingMode, layers, origin, tri
 function normalizeCloudinaryVideoLayers(layers) { if (!Array.isArray(layers) || !layers.length || layers.length > 32) throw new Error('Capas editoriales inválidas.'); const normalized = layers.map((layer, index) => { const id = String(layer?.id || '').trim(); const kind = String(layer?.kind || '').trim(); const isFixed = kind === 'fixed'; const start = Number(layer?.start); const duration = layer?.duration === null ? null : Number(layer?.duration); if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || !['fixed', 'title', 'speaker'].includes(kind)) throw new Error('Capas editoriales inválidas.'); if (isFixed && (start !== 0 || duration !== null)) throw new Error('La capa fija es inválida.'); if (!isFixed && (!Number.isFinite(start) || start < 0 || !Number.isFinite(duration) || duration <= 0)) throw new Error('El intervalo de una capa es inválido.'); return { id, kind, start: isFixed ? 0 : start, duration: isFixed ? null : duration, index }; }); if (normalized.filter(layer => layer.kind === 'fixed').length !== 1) throw new Error('Falta la capa editorial fija.'); return normalized; }
 export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createCloudinaryVideoJob, parseCloudinaryVideoJobId, signCloudinaryParams, verifyCloudinaryWebhook };
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
+export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
+
+function fechaRedaccionMendoza(ahora = new Date()) {
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/Mendoza',
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(ahora);
+}
 
 function buildFluxKlein4bInput(prompt,seed){
   const form=new FormData();
@@ -415,15 +429,22 @@ function normalizeSyntheticTitle(value) {
   return words.slice(0, 10).join(' ').replace(/[,:;.!?]+$/, '');
 }
 
-function buildPlateEditorialPrompt(note = {}) {
+function buildPlateEditorialPrompt(note = {}, { fecha = '' } = {}) {
   const title = text(note.title || note.titulo);
   const category = text(note.category || note.categoria);
   const description = text(note.description || note.descripcion);
   const body = text(note.body || note.texto || note.contenido).slice(0, 12000);
+  const bloqueFecha = fecha ? [
+    `FECHA Y HORA ACTUAL (hora local Mendoza, Argentina): ${fecha}`,
+    '- Resolvé las referencias temporales relativas de la nota con esta fecha ("hoy" = este día, "ayer" = día anterior, "mañana" = día siguiente).',
+    '- Si la nota no precisa fecha ni hora del hecho, NO las inventes: omití ese dato.',
+  ].join('\n') : '';
   return `Sos editor de Media Mendoza, diario digital del sur de Mendoza, Argentina.
 Comparativa: si la nota presenta contrastes temporales, dos momentos (por ejemplo, viernes y domingo), escenarios o valores verificables, elegi comparativa y devolve esos dos lados respaldados por la nota. No inventes cifras ni relaciones y deja el campo vacio si no hay dos lados claros.
 Convertí una noticia en una propuesta editorial para una placa de redes.
-
+${bloqueFecha ? `
+${bloqueFecha}
+` : ''}
 NOTICIA:
 Título original: ${title}
 Categoría: ${category}
@@ -7215,14 +7236,7 @@ async function handleRedaccionV2Reformular(body, env) {
   const fuentes = Array.isArray(body?.fuentes)
     ? body.fuentes.filter(f => f && /^https?:\/\//i.test(String(f.url || ''))).slice(0, 5)
     : [];
-  const fecha = new Date().toLocaleString('es-AR', {
-    timeZone: 'America/Argentina/Mendoza',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const fecha = fechaRedaccionMendoza()
   const guia = await getEditorial(env);
   const payload = {
     systemInstruction: { parts: [{ text: construirSystemInstruction(guia) }] },
@@ -7254,14 +7268,7 @@ async function handleRedaccionV2Redactar(body, env) {
   const fuentes = Array.isArray(body?.fuentes)
     ? body.fuentes.filter(f => f && /^https?:\/\//i.test(String(f.url || ''))).slice(0, 5)
     : [];
-  const fecha = new Date().toLocaleString('es-AR', {
-    timeZone: 'America/Argentina/Mendoza',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const fecha = fechaRedaccionMendoza()
   const guia = await getEditorial(env);
   const payload = {
     systemInstruction: { parts: [{ text: construirSystemInstruction(guia) }] },
@@ -8823,7 +8830,7 @@ async function handlePlacasV2Generar(body, env) {
     try { const cached = await env.KV.get(cacheKey, 'json'); if (cached?.placa) return jsonOk({ placa: cached.placa, warnings: [], cached: true }); } catch {}
   }
   try {
-    const prompt = buildPlateEditorialPrompt(note);
+    const prompt = buildPlateEditorialPrompt(note, { fecha: fechaRedaccionMendoza() });
     const ctrlPlacas = new AbortController();
     const aiPromise = callGemini(prompt, env, false, true, null, { signal: ctrlPlacas.signal, deadlineMs: 18000 });
     const timeoutPromise = sleep(20000).then(() => { ctrlPlacas.abort(); return ({ error: 'deadline 20s - IA lenta/caída, usando fallback determinístico', details: ['timeout global 20s'] }); });
@@ -8859,7 +8866,7 @@ async function handlePlacasV2Paquete(body, env) {
   let ia_details = [];
   try {
     const ctrlPaquete = new AbortController();
-    const aiPromise = callGemini(buildPlateEditorialPrompt(note), env, false, true, null, { signal: ctrlPaquete.signal, deadlineMs: 18000 });
+    const aiPromise = callGemini(buildPlateEditorialPrompt(note, { fecha: fechaRedaccionMendoza() }), env, false, true, null, { signal: ctrlPaquete.signal, deadlineMs: 18000 });
     const toP = sleep(20000).then(() => { ctrlPaquete.abort(); return ({ error: 'deadline 20s - IA lenta/caída, usando fallback', details: ['timeout global 20s'] }); });
     const result = await Promise.race([aiPromise, toP]);
     if (result.error || !result.data || typeof result.data !== 'object') {
