@@ -26,3 +26,4 @@
 # Dependencias (instalación local de prueba)
 node_modules/
 .worktrees/
+.superpowers/
