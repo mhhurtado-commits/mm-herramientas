@@ -18,6 +18,7 @@ function normalizeCloudinaryVideoLayers(layers) { if (!Array.isArray(layers) || 
 export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createCloudinaryVideoJob, parseCloudinaryVideoJobId, signCloudinaryParams, verifyCloudinaryWebhook };
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
+export { repararAnioEfemerides };
 
 function fechaRedaccionMendoza(ahora = new Date()) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -8758,6 +8759,21 @@ function wikipediaDateUrl(date) {
   return day && month ? 'https://es.wikipedia.org/wiki/' + day + '_de_' + month : '';
 }
 
+// El modelo a veces devuelve como "anio" el año de la fecha pedida para todos
+// los items, o -1 si no lo sabe. Si el año del item no es un año histórico
+// plausible o coincide con el de la fecha, el año real solo puede salir del
+// texto: buscamos "de|en AAAA" (1500–2025) en ampliado, resumen y título.
+// Devuelve '' si no hay año verificable (el item se descarta).
+const ANIO_VALIDO_EF = /^(1[5-9]\d{2}|20[0-1]\d|202[0-5])$/;
+
+function repararAnioEfemerides(item, date) {
+  const anio = String(item?.anio ?? item?.año ?? '').trim();
+  if (anio && anio !== String(date).slice(0, 4) && ANIO_VALIDO_EF.test(anio)) return anio;
+  const texto = [item?.texto_ampliado, item?.resumen, item?.titulo].map(valor => String(valor || '')).join(' ');
+  const match = texto.match(/(?:de|en) (1[5-9]\d{2}|20[0-1]\d|202[0-5])\b/);
+  return match ? match[1] : '';
+}
+
 async function handlePlacasV2Efemerides(url, env) {
   const date = url.searchParams.get('fecha') || '';
   if (!validEfemeridesDate(date)) return jsonError('Fecha inválida. Usá YYYY-MM-DD.', 400);
@@ -8797,7 +8813,7 @@ async function handlePlacasV2Efemerides(url, env) {
   if (!sourceText) return jsonError('La fuente de efemérides no respondió.', 502);
   const sourceName = /wikipedia\.org/i.test(sourceUrl) ? 'Wikipedia' : 'TyC Sports';
   const imageCatalog = sourceImages.map((image, index) => index + ': ' + image).join('\n');
-  const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé entre 5 y 8 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, texto_ampliado de máximo 240 caracteres, icono, icono_descripcion, imagen_descripcion, imagen_indice y prioridad. imagen_indice solo puede apuntar a una imagen del catálogo si es pertinente para ese hecho; si no, usa -1. icono debe ser uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo o canal. icono_descripcion debe describir en 3 a 8 palabras el símbolo concreto que corresponde al hecho. imagen_descripcion debe describir una imagen documental posible, sin inventar que existe una fotografía. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nImágenes disponibles:\n' + imageCatalog + '\nTexto:\n' + sourceText;
+  const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé entre 5 y 8 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, texto_ampliado de máximo 240 caracteres, icono, icono_descripcion, imagen_descripcion, imagen_indice y prioridad. anio es el año histórico en que ocurrió el hecho (por ejemplo 1894, 1913, 2002): NUNCA pongas el año de la fecha pedida (' + date.slice(0, 4) + ') ni el año actual; si el texto no indica un año, pon -1. imagen_indice solo puede apuntar a una imagen del catálogo si es pertinente para ese hecho; si no, usa -1. icono debe ser uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo o canal. icono_descripcion debe describir en 3 a 8 palabras el símbolo concreto que corresponde al hecho. imagen_descripcion debe describir una imagen documental posible, sin inventar que existe una fotografía. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nImágenes disponibles:\n' + imageCatalog + '\nTexto:\n' + sourceText;
   const result = await callGemini(prompt, env);
   if (result.error || !Array.isArray(result.data?.items)) return jsonError('No se pudieron normalizar las efemérides.', 502);
   const rawItems = Array.isArray(result.data.items) ? result.data.items : [];
@@ -8810,7 +8826,7 @@ async function handlePlacasV2Efemerides(url, env) {
   }));
   const items = rawItems.map((item, index) => ({
     id: String(item.id || (date + '-' + (index + 1))).trim(), fecha: date, alcance: item.alcance === 'nacional' ? 'nacional' : 'internacional', categoria: String(item.categoria || 'historia').trim(), icono: String(item.icono || item.categoria || 'historia').trim(), icono_descripcion: String(item.icono_descripcion || item.icono || item.categoria || 'símbolo histórico').trim(), imagen_descripcion: String(item.imagen_descripcion || item.icono_descripcion || '').trim(), imagen: searchedImages[index]?.url || '', imagen_fuente: searchedImages[index]?.source || '',
-    año: String(item.anio || item.año || '').trim(), titulo: String(item.titulo || '').trim(), resumen: String(item.resumen || '').trim(), texto_ampliado: String(item.texto_ampliado || item.resumen || '').trim(), prioridad: Number(item.prioridad) || index + 1,
+    año: repararAnioEfemerides(item, date), titulo: String(item.titulo || '').trim(), resumen: String(item.resumen || '').trim(), texto_ampliado: String(item.texto_ampliado || item.resumen || '').trim(), prioridad: Number(item.prioridad) || index + 1,
     fuente: sourceName, url_fuente: sourceUrl, verificada: true, nivel_verificacion: 'fuente_secundaria', fuente_descubrimiento: sourceUrl,
   })).filter(item => item.titulo && item.año && item.resumen).sort((a, b) => (a.alcance === 'nacional' ? 0 : 1) - (b.alcance === 'nacional' ? 0 : 1) || a.prioridad - b.prioridad);
   if (items.length < 5) return jsonError('La fuente devolvió menos de cinco opciones utilizables.', 502);
