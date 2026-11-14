@@ -44,7 +44,8 @@ Entrada: payload `{ok, items[], meta}` del endpoint. Campos usados por item: `a�
 
 Normalización (`placa-model.mjs`):
 - Valida `ok`, `items` array, y por item strings no vacíos de `año`, `titulo`, `resumen`. Descarta items inválidos sin inventar relleno.
-- Reparo de año: si el `año` del item es igual al año de la fecha pedida y el texto (ampliado → resumen → título) contiene `de|en AAAA` con AAAA en 1500–2025, ese AAAA es el año real del hecho. Motivo: el worker (Gemini) a veces cachea en KV el año actual como "año" de todos los items de ese día.
+- Reparo de año: si el `año` del item es igual al año de la fecha pedida y el texto (ampliado → resumen → título) contiene `de|en AAAA` con AAAA en 1500–2025, ese AAAA es el año real del hecho. Motivo: el worker (Gemini) a veces cachea en KV el año actual como "año" de todos los items de ese día. El worker hace el mismo reparo en el servidor (helper `repararAnioEfemerides`) y su prompt exige `anio` histórico (nunca el año de la fecha; `-1` si el texto no lo indica, y el item con año no verificable se descarta; si quedan < 5 items válidos, el request falla con 502 sin cachear).
+- Deploy manual del worker: los cambios a `worker/worker.js` solo se aplican pegando el archivo completo en el dashboard de Cloudflare. Hasta entonces, el reparo en el cliente (abajo) protege la placa.
 - Si quedan < 5 items → estado error ("No alcanzaron hechos verificados para esa fecha").
 - Conserva el orden del endpoint (curado argentino-first). Héroe = `items[0]`; filas = siguientes hasta 5 (máx 6 eventos en placa). Si el payload trae más, el pie dice "M DE N HECHOS DEL DÍA" (M mostrados, N totales) — nada se pierde silenciosamente.
 - `etiquetaCategoria(icono|categoria)`: futbol→FÚTBOL, deportes→DEPORTES, aviacion→AVIACIÓN, musica→MÚSICA, teatro→TEATRO, politica→POLÍTICA, historia→HISTORIA, sociedad→SOCIEDAD, economia→ECONOMÍA, mundo→MUNDO, canal→CANAL; desconocido→`String(categoria).toUpperCase()`.
