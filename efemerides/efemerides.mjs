@@ -1,10 +1,11 @@
 // efemerides/efemerides.mjs — fetch + estados + canvas + export PNG
-import { hoyArgentina, normalizarPayload } from './placa-model.mjs';
+import { hoyArgentina, normalizarPayload, extraerCopysRespuesta } from './placa-model.mjs';
 
 const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const ANCHO = 1080;
 const ALTO = 1080;
 const TIMEOUT_MS = 45000;
+const TIMEOUT_COPYS_MS = 55000;
 const REINTENTOS = 1;
 const PAUSA_REINTENTO_MS = 1500;
 const COLOR = {
@@ -18,6 +19,10 @@ const ui = {
   cargando: $('estadoCargando'), error: $('estadoError'), lista: $('placaLista'),
   msgError: $('mensajeError'), reintentar: $('btnReintentar'), descargar: $('btnDescargar'),
   copiar: $('btnCopiar'), fecha: $('fechaInput'), canvas: $('placa'),
+  copys: $('btnCopys'), copysPanel: $('copysPanel'), copysTitulo: $('copysTitulo'),
+  copysWhats: $('copysWhats'), copysIg: $('copysIg'),
+  copiarWhats: $('btnCopiarWhats'), copiarIg: $('btnCopiarIg'),
+  copysError: $('copysError'), copysReintentar: $('btnCopysReintentar'),
 };
 
 let fechaActual = hoyArgentina();
@@ -39,6 +44,7 @@ function mostrar(cual, mensaje) {
   if (mensaje) ui.msgError.textContent = mensaje;
   ui.descargar.disabled = cual !== 'lista';
   ui.copiar.disabled = cual !== 'lista';
+  ui.copys.disabled = cual !== 'lista';
 }
 
 const CARAS = [
@@ -237,6 +243,76 @@ async function copiarPNG() {
   }
 }
 
+function ocultarCopysError() {
+  ui.copysError.hidden = true;
+  ui.copysReintentar.hidden = true;
+}
+
+function resetearCopys() {
+  ui.copysPanel.hidden = true;
+  ocultarCopysError();
+  ui.copys.textContent = 'COPYS REDES';
+  ui.copysWhats.value = '';
+  ui.copysIg.value = '';
+}
+
+async function pedirCopys(fecha) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_COPYS_MS);
+  try {
+    const res = await fetch(`${WORKER_URL}/placas/v2/efemerides/copys?fecha=${encodeURIComponent(fecha)}`, { signal: ctrl.signal });
+    const raw = await res.json().catch(() => null);
+    const modelo = extraerCopysRespuesta(raw);
+    if (!modelo.ok) throw new Error(modelo.error);
+    return modelo;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+let feedbackCopysTimer = null;
+function feedbackCopiarBoton(boton, texto) {
+  boton.textContent = texto;
+  clearTimeout(feedbackCopysTimer);
+  feedbackCopysTimer = setTimeout(() => { boton.textContent = 'COPIAR'; }, 2000);
+}
+
+async function copiarTexto(boton, texto) {
+  try {
+    if (!navigator.clipboard?.write) { feedbackCopiarBoton(boton, 'COPIAR NO DISPONIBLE'); return; }
+    await navigator.clipboard.writeText(texto);
+    feedbackCopiarBoton(boton, '¡COPIADO!');
+  } catch {
+    feedbackCopiarBoton(boton, 'NO SE PUDO COPIAR');
+  }
+}
+
+async function cargarCopys() {
+  ocultarCopysError();
+  ui.copys.disabled = true;
+  ui.copys.textContent = 'GENERANDO…';
+  try {
+    const copys = await pedirCopys(fechaActual);
+    ui.copysWhats.value = copys.whatsapp;
+    ui.copysIg.value = copys.instagram;
+    ui.copysTitulo.textContent = `COPYS PARA REDES — ${etiquetaFecha(fechaActual)}`;
+    ui.copysPanel.hidden = false;
+    ui.copys.textContent = 'COPYS REDES';
+    ui.copys.disabled = false;
+  } catch (err) {
+    const msg = err?.name === 'AbortError'
+      ? 'La respuesta tardó demasiado. Reintentá.'
+      : (err?.name === 'TypeError' || err?.message === 'Failed to fetch'
+          ? 'No se pudo conectar con el servicio. Reintentá.'
+          : (err?.message || 'No se pudieron generar los copys.'));
+    ui.copys.textContent = 'REINTENTAR';
+    ui.copys.disabled = false;
+    ui.copysError.textContent = `${msg} La placa sigue disponible.`;
+    ui.copysError.hidden = false;
+    ui.copysReintentar.hidden = false;
+  }
+}
+
 async function pedir(fecha) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
@@ -252,6 +328,7 @@ async function pedir(fecha) {
 }
 
 async function cargar(fecha) {
+  resetearCopys();
   mostrar('cargando');
   for (let intento = 0; intento <= REINTENTOS; intento += 1) {
     try {
@@ -278,6 +355,10 @@ async function cargar(fecha) {
 
 ui.reintentar.addEventListener('click', () => cargar(fechaActual));
 ui.copiar.addEventListener('click', copiarPNG);
+ui.copys.addEventListener('click', cargarCopys);
+ui.copysReintentar.addEventListener('click', cargarCopys);
+ui.copiarWhats.addEventListener('click', () => copiarTexto(ui.copiarWhats, ui.copysWhats.value));
+ui.copiarIg.addEventListener('click', () => copiarTexto(ui.copiarIg, ui.copysIg.value));
 ui.fecha.addEventListener('change', () => {
   const v = ui.fecha.value;
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { fechaActual = v; cargar(v); }
