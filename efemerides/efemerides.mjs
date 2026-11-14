@@ -17,7 +17,7 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   cargando: $('estadoCargando'), error: $('estadoError'), lista: $('placaLista'),
   msgError: $('mensajeError'), reintentar: $('btnReintentar'), descargar: $('btnDescargar'),
-  fecha: $('fechaInput'), canvas: $('placa'),
+  copiar: $('btnCopiar'), fecha: $('fechaInput'), canvas: $('placa'),
 };
 
 let fechaActual = hoyArgentina();
@@ -38,15 +38,20 @@ function mostrar(cual, mensaje) {
   ui.lista.hidden = cual !== 'lista';
   if (mensaje) ui.msgError.textContent = mensaje;
   ui.descargar.disabled = cual !== 'lista';
+  ui.copiar.disabled = cual !== 'lista';
 }
 
+const CARAS = [
+  ['Inter', '../assets/Inter-Variable.woff2', '100 900'],
+  ['Oswald', '../assets/Oswald-Variable.woff2', '200 700'],
+];
+
 function cargarFuentes() {
-  return Promise.all([['BebasNeue', '../assets/BebasNeue-Regular.ttf'], ['Economica', '../assets/Economica-Regular.ttf']]
-    .map(async ([nombre, ruta]) => {
-      const face = new FontFace(nombre, `url(${asset(ruta)})`);
-      await face.load();
-      document.fonts.add(face);
-    }));
+  return Promise.all(CARAS.map(async ([nombre, ruta, peso]) => {
+    const face = new FontFace(nombre, `url(${asset(ruta)}) format('woff2')`, { weight: peso });
+    await face.load();
+    document.fonts.add(face);
+  }));
 }
 
 function cargarLogo() {
@@ -59,7 +64,7 @@ function cargarLogo() {
 }
 
 async function garantizarAssets() {
-  if (logoImg && document.fonts.check('20px BebasNeue') && document.fonts.check('20px Economica')) return;
+  if (logoImg && document.fonts.check('600 20px Oswald') && document.fonts.check('500 20px Inter')) return;
   let ultimoError = null;
   for (let intento = 0; intento < 2; intento += 1) {
     try { await Promise.all([cargarFuentes(), cargarLogo()]); return; }
@@ -88,7 +93,7 @@ function unaLinea(ctx, texto, maxAncho) {
 }
 
 function chip(ctx, texto, x, y) {
-  ctx.font = '22px BebasNeue';
+  ctx.font = '600 20px Oswald';
   const w = Math.ceil(ctx.measureText(texto).width) + 40;
   ctx.strokeStyle = COLOR.dorado;
   ctx.lineWidth = 2;
@@ -111,7 +116,7 @@ function dibujarPlaca(modelo) {
   const logoW = Math.round(logoH * (logoImg.naturalWidth / logoImg.naturalHeight));
   ctx.drawImage(logoImg, 64, 44, logoW, logoH);
   ctx.fillStyle = COLOR.dorado;
-  ctx.font = '52px BebasNeue';
+  ctx.font = '600 46px Oswald';
   ctx.textAlign = 'right';
   ctx.fillText(etiquetaFecha(modelo.fecha || fechaActual), ANCHO - 64, 62);
   ctx.textAlign = 'left';
@@ -121,20 +126,21 @@ function dibujarPlaca(modelo) {
 
   let y = 160;
   ctx.fillStyle = COLOR.dorado;
-  ctx.font = '150px BebasNeue';
+  ctx.font = '700 150px Oswald';
   ctx.fillText(modelo.hero.año, 64, y);
-  y += 108;
+  const cajaAño = ctx.measureText(modelo.hero.año);
+  y += Math.round(cajaAño.actualBoundingBoxAscent + cajaAño.actualBoundingBoxDescent) + 14;
   ctx.fillStyle = COLOR.crema;
-  ctx.font = '44px Economica';
-  for (const linea of envolver(ctx, modelo.hero.titulo, ANCHO - 128)) { ctx.fillText(linea, 64, y); y += 44; }
+  ctx.font = '600 42px Inter';
+  for (const linea of envolver(ctx, modelo.hero.titulo, ANCHO - 128)) { ctx.fillText(linea, 64, y); y += 50; }
   y += 2;
   ctx.fillStyle = COLOR.atenuado;
-  ctx.font = '30px Economica';
+  ctx.font = '500 28px Inter';
   for (const linea of envolver(ctx, modelo.hero.resumen, ANCHO - 128)) { ctx.fillText(linea, 64, y); y += 34; }
   y += 4;
-  ctx.font = '24px Economica';
+  ctx.font = '400 22px Inter';
   ctx.fillStyle = COLOR.ampliado;
-  for (const linea of envolver(ctx, modelo.hero.ampliado, ANCHO - 128).slice(0, 4)) { ctx.fillText(linea, 64, y); y += 30; }
+  for (const linea of envolver(ctx, modelo.hero.ampliado, ANCHO - 128).slice(0, 4)) { ctx.fillText(linea, 64, y); y += 28; }
   y += 8;
   y += chip(ctx, modelo.hero.categoria, 64, y) + 10;
 
@@ -148,19 +154,19 @@ function dibujarPlaca(modelo) {
   const conResumen = altoFila >= 76;
   for (const fila of filas) {
     ctx.fillStyle = COLOR.dorado;
-    ctx.font = `${Math.min(44, Math.round(altoFila * 0.62))}px BebasNeue`;
+    ctx.font = `600 ${Math.min(40, Math.round(altoFila * 0.58))}px Oswald`;
     ctx.fillText(fila.año, 64, y + 4);
     const xTexto = 200;
     ctx.fillStyle = COLOR.crema;
-    ctx.font = '27px Economica';
+    ctx.font = '600 26px Inter';
     ctx.fillText(unaLinea(ctx, fila.titulo, ANCHO - xTexto - 128), xTexto, y + 4);
     if (conResumen) {
       ctx.fillStyle = COLOR.atenuado;
-      ctx.font = '21px Economica';
+      ctx.font = '400 20px Inter';
       ctx.fillText(unaLinea(ctx, fila.resumen, ANCHO - xTexto - 128), xTexto, y + 38);
     }
     ctx.fillStyle = COLOR.dorado;
-    ctx.font = '17px BebasNeue';
+    ctx.font = '600 16px Oswald';
     ctx.fillText(fila.categoria, xTexto, y + (conResumen ? 60 : 34));
     y += altoFila;
   }
@@ -168,30 +174,55 @@ function dibujarPlaca(modelo) {
   ctx.fillStyle = COLOR.regla;
   ctx.fillRect(64, yPie + 10, ANCHO - 128, 2);
   ctx.fillStyle = COLOR.atenuado;
-  ctx.font = '19px Economica';
+  ctx.font = '500 18px Inter';
   ctx.fillText(modelo.verificada ? 'FUENTE: WIKIPEDIA · VERIFICADA' : 'FUENTE: WIKIPEDIA', 64, yPie + 26);
   const etiqueta = modelo.total > modelo.totalMostrados
     ? `${modelo.totalMostrados} DE ${modelo.total} HECHOS DEL DÍA`
     : `${modelo.totalMostrados} HECHOS DEL DÍA`;
   ctx.fillStyle = COLOR.dorado;
-  ctx.font = '22px BebasNeue';
+  ctx.font = '600 20px Oswald';
   ctx.textAlign = 'right';
   ctx.fillText(etiqueta, ANCHO - 64, yPie + 24);
   ctx.textAlign = 'left';
 }
 
-function exportarPNG() {
-  ui.canvas.toBlob((blob) => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `efemerides-${fechaActual}.png`;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-  }, 'image/png');
+function placaBlob() {
+  return new Promise((resolver) => ui.canvas.toBlob(resolver, 'image/png'));
+}
+
+async function exportarPNG() {
+  const blob = await placaBlob();
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `efemerides-${fechaActual}.png`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+let feedbackTimer = null;
+function feedbackCopiar(texto) {
+  ui.copiar.textContent = texto;
+  clearTimeout(feedbackTimer);
+  feedbackTimer = setTimeout(() => { ui.copiar.textContent = 'COPIAR PNG'; }, 2000);
+}
+
+async function copiarPNG() {
+  try {
+    if (!('ClipboardItem' in window) || !navigator.clipboard?.write) {
+      feedbackCopiar('COPIAR NO DISPONIBLE');
+      return;
+    }
+    const blob = await placaBlob();
+    if (!blob) throw new Error('sin blob');
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    feedbackCopiar('¡COPIADA!');
+  } catch {
+    feedbackCopiar('NO SE PUDO COPIAR');
+  }
 }
 
 async function pedir(fecha) {
@@ -234,6 +265,7 @@ async function cargar(fecha) {
 }
 
 ui.reintentar.addEventListener('click', () => cargar(fechaActual));
+ui.copiar.addEventListener('click', copiarPNG);
 ui.fecha.addEventListener('change', () => {
   const v = ui.fecha.value;
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { fechaActual = v; cargar(v); }

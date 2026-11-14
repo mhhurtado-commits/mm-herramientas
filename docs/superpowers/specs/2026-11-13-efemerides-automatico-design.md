@@ -15,7 +15,7 @@ Hoy generar la placa de efemérides exige: elegir fecha → generar prompt con I
 - Superficie: app nueva de primer nivel `efemerides/` (enfoque A). Reusa el endpoint verificado existente `/placas/v2/efemerides?fecha=`. Cero infra nueva, cero cambios al worker.
 - Diseño de placa: **Portada editorial v4** (dirección A aprobada en el companion). Nada se conserva del diseño actual de `visual-suite`.
 - Formato de export: **1:1, 1080×1080 PNG** únicamente en v1.
-- Export: **solo botón "Descargar PNG"**. Sin botón de WhatsApp en v1 (el usuario decide qué hace con la imagen).
+- Export: **dos botones, "Copiar PNG" (imagen → portapapeles) y "Descargar PNG"**. Sin botón de WhatsApp en v1 (el usuario decide qué hace con la imagen).
 - No hay botón "regenerar": el endpoint cachea el día en KV; bypassar el cache exigiría tocar producción.
 - El campo `alcance` no se imprime ni se usa para filtrar (viene ruidoso: hoy etiqueta "internacional" a hechos argentinos). La curaduría argentina-first ya viene en el orden del endpoint y se respeta.
 
@@ -35,7 +35,7 @@ Patrón: app modular con `.mjs` al lado del HTML (como `placas-v2`, `carousel`, 
 1. Abrir `/efemerides/` → fecha de hoy en `America/Argentina/Mendoza` (cliente, `Intl`).
 2. `GET {WORKER_URL}/placas/v2/efemerides?fecha=YYYY-MM-DD` (URL hardcodeada como en el resto de las apps; timeout 45 s con `AbortController` — la generación en frío del worker puede tardar más de 15 s: Wikipedia 12 s + API 12 s + Gemini + búsqueda de imágenes). Si la respuesta es un error (red, timeout, 4xx/5xx, `ok:false` o <5 items), la app reintenta una vez automáticamente antes de mostrar el estado de error; los fallos del worker no se cachean en KV, así que el reintento puede resolverlo.
 3. Modelo normalizado → dibujo en canvas 1080×1080 (logo + fuentes locales cargadas antes del primer dibujo).
-4. Estados: `cargando` (indicador según el contrato de spinner de la suite, `shared/spinner-contract.test.mjs`) → `lista` (placa + botón Descargar PNG habilitado) | `error` (mensaje en criollo + botón Reintentar). Nunca pantalla en blanco.
+4. Estados: `cargando` (indicador según el contrato de spinner de la suite, `shared/spinner-contract.test.mjs`) → `lista` (placa + botones Copiar/Descargar PNG habilitados) | `error` (mensaje en criollo + botón Reintentar). Nunca pantalla en blanco.
 5. Opcional: selector de fecha (`input[type=date]`) → re-fetch y re-render del mismo flujo.
 
 ## 5. Contrato de datos
@@ -50,21 +50,21 @@ Normalización (`placa-model.mjs`):
 
 ## 6. Diseño visual (aprobado en companion)
 
-Canvas 1080×1080. Paleta: fondo `#0F1520`, dorado `#C8A24A`, crema `#F5F1E6`, reglas rgba(245,241,230,.25). Tipografía local: **Bebas Neue** (`/assets/BebasNeue-Regular.ttf`) para años, etiquetas y fecha; **Economica** (`/assets/Economica-Regular.ttf`) para títulos y cuerpos. Logo real `/assets/logo.png` arriba a la izquierda.
+Canvas 1080×1080. Paleta: fondo `#0F1520`, dorado `#C8A24A`, crema `#F5F1E6`, reglas rgba(245,241,230,.25). Tipografía local (OFL, variables): **Oswald** (`/assets/Oswald-Variable.woff2`) para años, etiquetas y fecha; **Inter** (`/assets/Inter-Variable.woff2`) para títulos y cuerpos (reemplaza a Economica/Bebas por legibilidad). Licencia: `assets/OFL.txt`. Logo real `/assets/logo.png` arriba a la izquierda.
 
 Layout (de arriba a abajo):
 1. Header: logo (altura ~64 px, aspecto real) izquierda; fecha "13 DE NOVIEMBRE" Bebas ~56 px dorada derecha.
 2. Regla dorada 4 px.
-3. Héroe (~42% del alto): año Bebas ~200 px dorado; título Economica ~52 px crema; resumen completo ~34 px; texto ampliado completo ~30 px (opacidad .75, máx 4 líneas); chip de categoría (borde dorado, Bebas, mayúsculas).
+3. Héroe (~42% del alto): año Oswald 700 ~150 px dorado; título Inter SemiBold ~42 px crema; resumen completo Inter Medium ~28 px; texto ampliado completo Inter Regular ~22 px (opacidad .72, máx 4 líneas); chip de categoría (borde dorado, Oswald 600 mayúsculas).
 4. Regla 2 px.
-5. Filas: año Bebas ~56 px dorado + título Economica ~34 px crema + resumen ~28 px + etiqueta de categoría dorada. **En todas las filas** (decisión del usuario).
+5. Filas: año Oswald 600 ~40 px dorado + título Inter SemiBold ~26 px crema + resumen Inter Regular ~20 px + etiqueta de categoría dorada Oswald 600 ~16 px. **En todas las filas** (decisión del usuario).
 6. Pie: izquierda "FUENTE: WIKIPEDIA · VERIFICADA"; derecha "N HECHOS DEL DÍA" (o "M DE N" si hay recorte).
 
 Reglas de texto anti-error: wrap por palabras con `measureText`; el héroe nunca se trunca (el texto ampliado cabe completo); si una fila no alcanza para su resumen (muchos eventos), la fila degrada a año+título+categoría — nunca se corta el héroe ni se inventa texto.
 
 ## 7. Export
 
-Botón único "Descargar PNG": `canvas.toBlob` → download `efemerides-YYYY-MM-DD.png` (fecha de la placa). Botón deshabilitado hasta estado `lista`. El canvas se escala por CSS en pantallas chicas; el PNG siempre sale a 1080×1080. Sin auto-publicación, sin WhatsApp en v1.
+Botones "Copiar PNG" y "Descargar PNG" (ambos deshabilitados hasta estado `lista`). Copiar: `canvas.toBlob` → `navigator.clipboard.write([ClipboardItem{'image/png': blob}])` con feedback en el botón ("¡COPIADA!" / "NO SE PUDO COPIAR" / "COPIAR NO DISPONIBLE"); Descargar: `canvas.toBlob` → download `efemerides-YYYY-MM-DD.png` (fecha de la placa). El canvas se escala por CSS en pantallas chicas; el PNG siempre sale a 1080×1080. Sin auto-publicación, sin WhatsApp en v1.
 
 ## 8. Errores
 
@@ -75,7 +75,7 @@ Botón único "Descargar PNG": `canvas.toBlob` → download `efemerides-YYYY-MM-
 
 - `node --test --test-isolation=none efemerides/placa-model.test.mjs`: fixture con forma real de payload de hoy; cubre orden preservado, héroe = items[0], descarte de item sin título/año/resumen, recorte a 6 con total correcto, etiquetas conocida/desconocida, formato de `hoyArgentina()`, payload `{ok:false}` → error, items<5 → error, y que `alcance` no viaja al modelo.
 - `node --check efemerides/efemerides.mjs efemerides/placa-model.mjs`.
-- QA manual en navegador (servidor local): abrir `/efemerides/`, placa lista sin clics, screenshot comparado contra la maqueta v4 aprobada, Descargar PNG abre archivo válido 1080×1080, selector de fecha re-renderiza, modo offline muestra error con Reintentar, consola limpia.
+- QA manual en navegador (servidor local): abrir `/efemerides/`, placa lista sin clics, screenshot comparado contra la maqueta v4 aprobada, Descargar PNG abre archivo válido 1080×1080, Copiar PNG escribe imagen en el portapapeles con feedback, selector de fecha re-renderiza, modo offline muestra error con Reintentar, consola limpia.
 
 ## 10. No objetivos (v1)
 
