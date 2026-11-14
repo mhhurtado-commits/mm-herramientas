@@ -44,6 +44,7 @@ Entrada: payload `{ok, items[], meta}` del endpoint. Campos usados por item: `a�
 
 Normalización (`placa-model.mjs`):
 - Valida `ok`, `items` array, y por item strings no vacíos de `año`, `titulo`, `resumen`. Descarta items inválidos sin inventar relleno.
+- Reparo de año: si el `año` del item es igual al año de la fecha pedida y el texto (ampliado → resumen → título) contiene `de|en AAAA` con AAAA en 1500–2025, ese AAAA es el año real del hecho. Motivo: el worker (Gemini) a veces cachea en KV el año actual como "año" de todos los items de ese día.
 - Si quedan < 5 items → estado error ("No alcanzaron hechos verificados para esa fecha").
 - Conserva el orden del endpoint (curado argentino-first). Héroe = `items[0]`; filas = siguientes hasta 5 (máx 6 eventos en placa). Si el payload trae más, el pie dice "M DE N HECHOS DEL DÍA" (M mostrados, N totales) — nada se pierde silenciosamente.
 - `etiquetaCategoria(icono|categoria)`: futbol→FÚTBOL, deportes→DEPORTES, aviacion→AVIACIÓN, musica→MÚSICA, teatro→TEATRO, politica→POLÍTICA, historia→HISTORIA, sociedad→SOCIEDAD, economia→ECONOMÍA, mundo→MUNDO, canal→CANAL; desconocido→`String(categoria).toUpperCase()`.
@@ -53,14 +54,14 @@ Normalización (`placa-model.mjs`):
 Canvas 1080×1080. Paleta: fondo `#0F1520`, dorado `#C8A24A`, crema `#F5F1E6`, reglas rgba(245,241,230,.25). Tipografía local (OFL, variables): **Oswald** (`/assets/Oswald-Variable.woff2`) para años, etiquetas y fecha; **Inter** (`/assets/Inter-Variable.woff2`) para títulos y cuerpos (reemplaza a Economica/Bebas por legibilidad). Licencia: `assets/OFL.txt`. Logo real `/assets/logo.png` arriba a la izquierda.
 
 Layout (de arriba a abajo):
-1. Header: logo (altura ~64 px, aspecto real) izquierda; fecha "13 DE NOVIEMBRE" Bebas ~56 px dorada derecha.
+1. Header: logo (altura ~64 px, aspecto real) izquierda; fecha "13 DE NOVIEMBRE DE 2026" Oswald 600 ~46 px dorada derecha.
 2. Regla dorada 4 px.
 3. Héroe (~42% del alto): año Oswald 700 ~150 px dorado; título Inter SemiBold ~42 px crema; resumen completo Inter Medium ~28 px; texto ampliado completo Inter Regular ~22 px (opacidad .72, máx 4 líneas); chip de categoría (borde dorado, Oswald 600 mayúsculas).
 4. Regla 2 px.
-5. Filas: año Oswald 600 ~40 px dorado + título Inter SemiBold ~26 px crema + resumen Inter Regular ~20 px + etiqueta de categoría dorada Oswald 600 ~16 px. **En todas las filas** (decisión del usuario).
-6. Pie: izquierda "FUENTE: WIKIPEDIA · VERIFICADA"; derecha "N HECHOS DEL DÍA" (o "M DE N" si hay recorte).
+5. Filas: año Oswald 600 ~40 px dorado + título Inter SemiBold ~25 px crema + resumen Inter Regular ~19 px **en hasta 2 líneas completas (nunca recortado con "…")** + etiqueta de categoría dorada Oswald 600 ~15 px. **En todas las filas** (decisión del usuario). Si las filas pierden alto (héroe muy alto), la tipografía de la fila baja en tres niveles (19/17/16 px) pero el resumen sigue completo.
+6. Pie: izquierda "FUENTE: WIKIPEDIA · VERIFICADA"; **centro "WWW.MEDIAMENDOZA.COM"** (Inter/Oswald crema); derecha "N HECHOS DEL DÍA" (o "M DE N" si hay recorte). El footer de la página también linkea a www.mediamendoza.com.
 
-Reglas de texto anti-error: wrap por palabras con `measureText`; el héroe nunca se trunca (el texto ampliado cabe completo); si una fila no alcanza para su resumen (muchos eventos), la fila degrada a año+título+categoría — nunca se corta el héroe ni se inventa texto.
+Reglas de texto anti-error: wrap por palabras con `measureText`; el héroe nunca se trunca (el texto ampliado cabe completo); el resumen de las filas nunca se recorta con "…" (hasta 2 líneas, con tres niveles tipográficos según el alto disponible); nunca se corta el héroe ni se inventa texto.
 
 ## 7. Export
 

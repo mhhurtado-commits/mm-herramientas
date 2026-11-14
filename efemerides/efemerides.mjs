@@ -150,24 +150,31 @@ function dibujarPlaca(modelo) {
 
   const yPie = ALTO - 84;
   const filas = modelo.rows.slice(0, 5);
-  const altoFila = Math.min(96, Math.floor((yPie - y) / filas.length));
-  const conResumen = altoFila >= 76;
+  const altoFila = Math.min(100, Math.floor((yPie - y) / filas.length));
+  // El resumen siempre se muestra completo en hasta 2 líneas: nunca se recorta con "…".
+  const nivel = altoFila >= 88 ? 0 : altoFila >= 78 ? 1 : 2;
+  const fTitulo = [25, 24, 22][nivel];
+  const fRes = [19, 17, 16][nivel];
+  const lhRes = [22, 19, 17][nivel];
+  const yRes = [30, 28, 26][nivel];
+  const yCat = [72, 64, 58][nivel];
+  const fCat = [15, 14, 14][nivel];
   for (const fila of filas) {
     ctx.fillStyle = COLOR.dorado;
-    ctx.font = `600 ${Math.min(40, Math.round(altoFila * 0.58))}px Oswald`;
-    ctx.fillText(fila.año, 64, y + 4);
+    ctx.font = `600 ${Math.min(40, Math.round(altoFila * 0.55))}px Oswald`;
+    ctx.fillText(fila.año, 64, y + 2);
     const xTexto = 200;
     ctx.fillStyle = COLOR.crema;
-    ctx.font = '600 26px Inter';
-    ctx.fillText(unaLinea(ctx, fila.titulo, ANCHO - xTexto - 128), xTexto, y + 4);
-    if (conResumen) {
-      ctx.fillStyle = COLOR.atenuado;
-      ctx.font = '400 20px Inter';
-      ctx.fillText(unaLinea(ctx, fila.resumen, ANCHO - xTexto - 128), xTexto, y + 38);
+    ctx.font = `600 ${fTitulo}px Inter`;
+    ctx.fillText(unaLinea(ctx, fila.titulo, ANCHO - xTexto - 128), xTexto, y + 2);
+    ctx.fillStyle = COLOR.atenuado;
+    ctx.font = `400 ${fRes}px Inter`;
+    for (const [k, linea] of envolver(ctx, fila.resumen, ANCHO - xTexto - 128).slice(0, 2).entries()) {
+      ctx.fillText(linea, xTexto, y + yRes + k * lhRes);
     }
     ctx.fillStyle = COLOR.dorado;
-    ctx.font = '600 16px Oswald';
-    ctx.fillText(fila.categoria, xTexto, y + (conResumen ? 60 : 34));
+    ctx.font = `600 ${fCat}px Oswald`;
+    ctx.fillText(fila.categoria, xTexto, y + yCat);
     y += altoFila;
   }
 
@@ -176,6 +183,11 @@ function dibujarPlaca(modelo) {
   ctx.fillStyle = COLOR.atenuado;
   ctx.font = '500 18px Inter';
   ctx.fillText(modelo.verificada ? 'FUENTE: WIKIPEDIA · VERIFICADA' : 'FUENTE: WIKIPEDIA', 64, yPie + 26);
+  ctx.fillStyle = COLOR.crema;
+  ctx.font = '600 18px Oswald';
+  ctx.textAlign = 'center';
+  ctx.fillText('WWW.MEDIAMENDOZA.COM', ANCHO / 2, yPie + 26);
+  ctx.textAlign = 'left';
   const etiqueta = modelo.total > modelo.totalMostrados
     ? `${modelo.totalMostrados} DE ${modelo.total} HECHOS DEL DÍA`
     : `${modelo.totalMostrados} HECHOS DEL DÍA`;

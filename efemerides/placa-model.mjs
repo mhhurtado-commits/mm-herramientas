@@ -23,6 +23,17 @@ export function etiquetaCategoria(item) {
 const MIN_ITEMS = 5;
 const MAX_ITEMS_PLACA = 6;
 
+// El worker a veces cachea el año actual como "año" de todos los items. Si el
+// item lo trae igual al año de la fecha pedida y el texto dice "de|en AAAA"
+// (1500-2025), ese es el año real del hecho.
+const ANIO_EN_TEXTO = /(?:de|en) (1[5-9]\d{2}|20[0-1]\d|202[0-5])\b/;
+
+function repararAnio(item, fechaIso) {
+  if (item.año !== String(fechaIso).slice(0, 4)) return item.año;
+  const m = `${item.ampliado} ${item.resumen} ${item.titulo}`.match(ANIO_EN_TEXTO);
+  return m ? m[1] : item.año;
+}
+
 function normalizarItem(item) {
   return {
     año: String(item?.año ?? item?.anio ?? '').trim(),
@@ -40,12 +51,13 @@ export function normalizarPayload(raw) {
     const delServidor = String(raw?.error || '').trim();
     return { ok: false, error: delServidor || 'La respuesta del servicio no es válida.' };
   }
+  const fechaIso = String(raw?.meta?.fecha ?? '').trim();
   const validos = raw.items.map(normalizarItem).filter(i => i.año && i.titulo && i.resumen);
   if (validos.length < MIN_ITEMS) {
     return { ok: false, error: 'No alcanzaron hechos verificados para esa fecha.' };
   }
   const total = validos.length;
-  const items = validos.slice(0, MAX_ITEMS_PLACA);
+  const items = validos.slice(0, MAX_ITEMS_PLACA).map(i => ({ ...i, año: repararAnio(i, fechaIso) }));
   const [hero, ...rows] = items;
   return {
     ok: true,

@@ -99,3 +99,38 @@ test('normalizarPayload: verificada es false si algún item mostrado no lo está
   const r = normalizarPayload(payloadValido(items));
   assert.equal(r.verificada, false);
 });
+
+test('normalizarPayload: repara año igual al de la fecha cuando el texto trae el real', () => {
+  const items = [1, 2, 3, 4, 5].map(n => ITEM(n, `Hecho ${n}`));
+  items[0].año = '2026';
+  items[0].texto_ampliado = 'El 14 de noviembre de 1894 nació en Argentina.';
+  items[1].año = '2026';
+  items[1].resumen = 'Se recuerda el default ocurrido en 2002.';
+  const r = normalizarPayload(payloadValido(items));
+  assert.equal(r.hero.año, '1894');
+  assert.equal(r.rows[0].año, '2002');
+});
+
+test('normalizarPayload: no repara cuando el año ya difiere del de la fecha', () => {
+  const items = [1, 2, 3, 4, 5].map(n => ITEM(n, `Hecho ${n}`));
+  items[0].texto_ampliado = 'Ocurrió en 1998 según el texto.';
+  const r = normalizarPayload(payloadValido(items));
+  assert.equal(r.hero.año, '1801');
+});
+
+test('normalizarPayload: conserva el año de la fecha si el texto no trae otro', () => {
+  const items = [1, 2, 3, 4, 5].map(n => ITEM(n, `Hecho ${n}`));
+  items[0].año = '2026';
+  items[0].texto_ampliado = 'Sucedió hoy, sin año en el texto.';
+  const r = normalizarPayload(payloadValido(items));
+  assert.equal(r.hero.año, '2026');
+});
+
+test('normalizarPayload: ampliado gana sobre resumen para el año reparado', () => {
+  const items = [1, 2, 3, 4, 5].map(n => ITEM(n, `Hecho ${n}`));
+  items[0].año = '2026';
+  items[0].texto_ampliado = 'Nacido el 14 de noviembre de 1913.';
+  items[0].resumen = 'Aniversario del hecho de 2002.';
+  const r = normalizarPayload(payloadValido(items));
+  assert.equal(r.hero.año, '1913');
+});
