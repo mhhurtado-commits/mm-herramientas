@@ -84,7 +84,7 @@ test('buildEfemeridesCopysFallback: lista con emojis, CTA comunidad y firma; sin
     ITEM('2026', 'Hecho cinco', 'Rodó en 2021.'),
   ], FECHA);
   const r = buildEfemeridesCopysFallback(items, FECHA, LINKS);
-  assert.match(r.whatsapp, /1894 — Hecho uno/);
+  assert.match(r.whatsapp, /1894 — Ocurrió en 1894\./);
   assert.doesNotMatch(r.whatsapp, /2026 —/);
   assert.match(r.whatsapp, /¡Sumate a nuestra comunidad!/);
   assert.match(r.whatsapp, /Mediamendoza - Noticias confiables del sur mendocino/);
@@ -99,7 +99,7 @@ test('normalizarEfemeridesCopys: salida de la IA pasa, quita URLs y agrega firma
     instagram: '¿Qué pasó un 14 de noviembre?\nhttps://ejemplo.com/x\n#MediaMendoza #Efemerides',
   }, { items, date: FECHA, links: LINKS });
   assert.match(r.whatsapp, /⚽ 1894 — Nació\./);
-  assert.doesNotMatch(r.whatsapp, /pages\.dev/);
+  assert.doesNotMatch(r.whatsapp, /^https?:\/\/\S+$/m);
   assert.match(r.whatsapp, /\*📰 Mediamendoza - Noticias confiables del sur mendocino\*/);
   assert.doesNotMatch(r.instagram, /https?:\/\//);
 });
@@ -107,7 +107,7 @@ test('normalizarEfemeridesCopys: salida de la IA pasa, quita URLs y agrega firma
 test('normalizarEfemeridesCopys: IA vacía o rota → fallback determinista', () => {
   const items = itemsCopysReparados([ITEM('2026', 'Hecho', 'Ocurrió en 1894.')], FECHA);
   const r = normalizarEfemeridesCopys({}, { items, date: FECHA, links: LINKS });
-  assert.match(r.whatsapp, /1894 — Hecho/);
+  assert.match(r.whatsapp, /1894 — Ocurrió en 1894\./);
   assert.match(r.instagram, /#MediaMendoza/);
 });
 ```
