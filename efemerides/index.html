@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Efemérides · Media Mendoza</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+  :root { --fondo:#0F1520; --dorado:#C8A24A; --crema:#F5F1E6; --atenuado:rgba(245,241,230,.78); }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--fondo); color:var(--crema); font-family:Economica, Georgia, serif; }
+  header { display:flex; align-items:center; gap:14px; padding:16px 24px; border-bottom:1px solid rgba(245,241,230,.15); }
+  header img { height:34px; }
+  header h1 { font-family:BebasNeue, sans-serif; font-weight:400; font-size:22px; letter-spacing:3px; color:var(--dorado); margin:0; }
+  main { max-width:640px; margin:0 auto; padding:24px 16px 40px; }
+  #placa { width:100%; height:auto; display:block; border-radius:6px; }
+  .estado { display:flex; flex-direction:column; align-items:center; gap:14px; padding:60px 0; text-align:center; }
+  .estado p { margin:0; color:var(--atenuado); }
+  #estadoError p { color:#e8b4a8; }
+  .controles { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin-top:16px; }
+  label { display:flex; align-items:center; gap:8px; color:var(--atenuado); font-size:15px; }
+  input[type="date"] { background:#141b2b; color:var(--crema); border:1px solid rgba(245,241,230,.25); border-radius:4px; padding:8px 10px; font:inherit; }
+  button { background:var(--dorado); color:#10151f; border:0; border-radius:4px; padding:12px 22px; font:inherit; font-weight:700; letter-spacing:1px; cursor:pointer; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  footer { text-align:center; padding:18px; color:var(--atenuado); font-size:13px; letter-spacing:1px; }
+  @font-face { font-family:'BebasNeue'; src:url('../assets/BebasNeue-Regular.ttf') format('truetype'); }
+  @font-face { font-family:'Economica'; src:url('../assets/Economica-Regular.ttf') format('truetype'); }
+</style>
+</head>
+<body>
+<header>
+  <img src="../assets/logo.png" alt="Media Mendoza">
+  <h1>EFEMÉRIDES</h1>
+</header>
+<main>
+  <section id="estadoCargando" class="estado" hidden>
+    <div class="mm-spinner is-active" role="status" aria-label="Cargando"></div>
+    <p>Cargando la placa del día…</p>
+  </section>
+  <section id="estadoError" class="estado" hidden>
+    <p id="mensajeError"></p>
+    <button id="btnReintentar" type="button">REINTENTAR</button>
+  </section>
+  <section id="placaLista" hidden>
+    <canvas id="placa" width="1080" height="1080"></canvas>
+    <div class="controles">
+      <label>Ver otro día <input type="date" id="fechaInput"></label>
+      <button id="btnDescargar" type="button" disabled>DESCARGAR PNG</button>
+    </div>
+  </section>
+</main>
+<footer>Datos verificados · Fuente: Wikipedia</footer>
+<script type="module" src="./efemerides.mjs"></script>
+</body>
+</html>
