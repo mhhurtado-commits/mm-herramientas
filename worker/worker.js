@@ -7617,6 +7617,7 @@ export default {
       if(path==="/agenda/eventos")                   return handleGetAgendaEventos(url,env);
       if(path==="/agenda/efemerides")                return handleGetAgendaEfemerides(env);
       if(path==="/placas/v2/efemerides")             return handlePlacasV2Efemerides(url, env);
+      if(path==="/placas/v2/efemerides/copys")       return handlePlacasV2EfemeridesCopys(url, env);
       if(path==="/agenda/angulos/cache")             return handleGetAngulosCache(url,env);
       if(path==="/resumen/obtener")                  return handleResumenObtener(url, env);
       if(path==="/studio/proyectos")                 return handleStudioObtenerProyectos(env);
@@ -8892,6 +8893,38 @@ async function handlePlacasV2Efemerides(url, env) {
   })).filter(item => item.titulo && item.año && item.resumen).sort((a, b) => (a.alcance === 'nacional' ? 0 : 1) - (b.alcance === 'nacional' ? 0 : 1) || a.prioridad - b.prioridad);
   if (items.length < 5) return jsonError('La fuente devolvió menos de cinco opciones utilizables.', 502);
   const payload = { items, meta: { fecha: date, fuente: sourceUrl, nivel_verificacion: 'fuente_secundaria', generatedAt: new Date().toISOString(), cached: false } };
+  if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: PLACAS_V2_EF_CACHE_TTL }); } catch {} }
+  return jsonOk(payload);
+}
+
+async function handlePlacasV2EfemeridesCopys(url, env) {
+  const date = url.searchParams.get('fecha') || '';
+  if (!validEfemeridesDate(date)) return jsonError('Fecha inválida. Usá YYYY-MM-DD.', 400);
+  const cacheKey = PLACAS_V2_EF_COPYS_CACHE_PREFIX + date;
+  if (env.KV) {
+    try {
+      const cached = await env.KV.get(cacheKey, 'json');
+      if (cached && cached.whatsapp && cached.instagram) {
+        return jsonOk({ ...cached, meta: { ...(cached.meta || {}), cached: true } });
+      }
+    } catch {}
+  }
+  let placaPayload = null;
+  if (env.KV) { try { placaPayload = await env.KV.get(PLACAS_V2_EF_CACHE_PREFIX + date, 'json'); } catch {} }
+  const items = itemsCopysReparados(placaPayload?.items, date);
+  if (items.length < 5) return jsonError('Esa fecha todavía no tiene placa: cargá la placa primero.', 502);
+  const links = { ...DEFAULT_WA_LINKS_EF };
+  try {
+    const l = await env.KV.get(WA_LINKS_KV_KEY, 'json');
+    if (l) { if (l.grupo) links.grupo = l.grupo; if (l.canal) links.canal = l.canal; }
+  } catch {}
+  const prompt = buildEfemeridesCopysPrompt(items, date, links);
+  const ctrl = new AbortController();
+  const geminiPromise = callGemini(prompt, env, false, true, null, { signal: ctrl.signal, deadlineMs: 40000 });
+  const timeoutPromise = sleep(45000).then(() => { ctrl.abort(); return ({ error: 'deadline 45s - IA lenta/caída', details: ['timeout global copys 45s'] }); });
+  const r = await Promise.race([geminiPromise, timeoutPromise]);
+  const copys = normalizarEfemeridesCopys(r?.data, { items, date, links });
+  const payload = { whatsapp: copys.whatsapp, instagram: copys.instagram, meta: { fecha: date, fuente: 'Wikipedia', cached: false } };
   if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: PLACAS_V2_EF_CACHE_TTL }); } catch {} }
   return jsonOk(payload);
 }
