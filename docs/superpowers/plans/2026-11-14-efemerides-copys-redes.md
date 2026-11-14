@@ -470,7 +470,7 @@ function feedbackCopiarBoton(boton, texto) {
 
 async function copiarTexto(boton, texto) {
   try {
-    if (!navigator.clipboard?.write) { feedbackCopiarBoton(boton, 'COPIAR NO DISPONIBLE'); return; }
+    if (!navigator.clipboard?.writeText) { feedbackCopiarBoton(boton, 'COPIAR NO DISPONIBLE'); return; }
     await navigator.clipboard.writeText(texto);
     feedbackCopiarBoton(boton, '¡COPIADO!');
   } catch {
