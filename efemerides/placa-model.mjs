@@ -70,3 +70,14 @@ export function normalizarPayload(raw) {
     total,
   };
 }
+
+export function extraerCopysRespuesta(raw) {
+  if (!raw || raw.ok !== true) {
+    const delServidor = String(raw?.error || '').trim();
+    return { ok: false, error: delServidor || 'La respuesta del servicio no es válida.' };
+  }
+  const whatsapp = String(raw.whatsapp || '').trim();
+  const instagram = String(raw.instagram || '').trim();
+  if (!whatsapp || !instagram) return { ok: false, error: 'El servicio no devolvió los copys.' };
+  return { ok: true, whatsapp, instagram };
+}

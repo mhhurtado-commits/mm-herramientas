@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hoyArgentina, etiquetaCategoria, normalizarPayload } from './placa-model.mjs';
+import { hoyArgentina, etiquetaCategoria, normalizarPayload, extraerCopysRespuesta } from './placa-model.mjs';
 
 test('hoyArgentina devuelve YYYY-MM-DD', () => {
   assert.match(hoyArgentina(), /^\d{4}-\d{2}-\d{2}$/);
@@ -124,6 +124,24 @@ test('normalizarPayload: conserva el año de la fecha si el texto no trae otro',
   items[0].texto_ampliado = 'Sucedió hoy, sin año en el texto.';
   const r = normalizarPayload(payloadValido(items));
   assert.equal(r.hero.año, '2026');
+});
+
+test('extraerCopysRespuesta: ok con ambos textos recortados', () => {
+  const r = extraerCopysRespuesta({ ok: true, whatsapp: '  📅 WA  ', instagram: '  IG  ', meta: { fecha: '2026-11-14' } });
+  assert.equal(r.ok, true);
+  assert.equal(r.whatsapp, '📅 WA');
+  assert.equal(r.instagram, 'IG');
+});
+
+test('extraerCopysRespuesta: error del servidor se pasa tal cual', () => {
+  const r = extraerCopysRespuesta({ ok: false, error: 'Esa fecha todavía no tiene placa' });
+  assert.equal(r.ok, false);
+  assert.match(r.error, /todavía no tiene placa/);
+});
+
+test('extraerCopysRespuesta: copys vacíos o sin meta → error legible', () => {
+  assert.equal(extraerCopysRespuesta({ ok: true, whatsapp: '', instagram: 'x' }).ok, false);
+  assert.equal(extraerCopysRespuesta(null).ok, false);
 });
 
 test('normalizarPayload: ampliado gana sobre resumen para el año reparado', () => {
