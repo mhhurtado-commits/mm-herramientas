@@ -74,6 +74,18 @@ test('normalizarPayload: raw inválido o ok:false devuelve error', () => {
   assert.equal(normalizarPayload({ ok: true, items: 'no-array' }).ok, false);
 });
 
+test('normalizarPayload: ok:false pasa el mensaje del servicio si lo trae', () => {
+  const r = normalizarPayload({ ok: false, error: 'La fuente devolvió menos de cinco opciones utilizables.' });
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'La fuente devolvió menos de cinco opciones utilizables.');
+});
+
+test('normalizarPayload: ok:false sin mensaje usa el genérico', () => {
+  const r = normalizarPayload({ ok: false });
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'La respuesta del servicio no es válida.');
+});
+
 test('normalizarPayload: texto_ampliado cae a resumen si falta', () => {
   const items = [1, 2, 3, 4, 5].map(n => ITEM(n, `Hecho ${n}`));
   delete items[0].texto_ampliado;

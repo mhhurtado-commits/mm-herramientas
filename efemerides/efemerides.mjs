@@ -4,6 +4,9 @@ import { hoyArgentina, normalizarPayload } from './placa-model.mjs';
 const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const ANCHO = 1080;
 const ALTO = 1080;
+const TIMEOUT_MS = 45000;
+const REINTENTOS = 1;
+const PAUSA_REINTENTO_MS = 1500;
 const COLOR = {
   fondo: '#0F1520', dorado: '#C8A24A', crema: '#F5F1E6',
   regla: 'rgba(245,241,230,.25)', atenuado: 'rgba(245,241,230,.78)', ampliado: 'rgba(245,241,230,.72)',
@@ -21,6 +24,8 @@ let fechaActual = hoyArgentina();
 let logoImg = null;
 
 const asset = (ruta) => new URL(ruta, import.meta.url).href;
+
+const esperar = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 
 const etiquetaFecha = (iso) => {
   const [y, m, d] = String(iso).split('-').map(Number);
@@ -189,26 +194,42 @@ function exportarPNG() {
   }, 'image/png');
 }
 
-async function cargar(fecha) {
-  mostrar('cargando');
+async function pedir(fecha) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 15000);
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(`${WORKER_URL}/placas/v2/efemerides?fecha=${encodeURIComponent(fecha)}`, { signal: ctrl.signal });
     const raw = await res.json().catch(() => null);
     const modelo = normalizarPayload(raw);
     if (!modelo.ok) throw new Error(modelo.error);
-    await garantizarAssets();
-    dibujarPlaca(modelo);
-    ui.fecha.value = fecha;
-    mostrar('lista');
-  } catch (err) {
-    const msg = err?.name === 'AbortError'
-      ? 'La respuesta tardó demasiado. Reintentá.'
-      : (err?.message || 'No se pudieron cargar las efemérides.');
-    mostrar('error', msg);
+    return modelo;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function cargar(fecha) {
+  mostrar('cargando');
+  for (let intento = 0; intento <= REINTENTOS; intento += 1) {
+    try {
+      const modelo = await pedir(fecha);
+      await garantizarAssets();
+      dibujarPlaca(modelo);
+      ui.fecha.value = fecha;
+      mostrar('lista');
+      return;
+    } catch (err) {
+      if (intento === REINTENTOS) {
+        const msg = err?.name === 'AbortError'
+          ? 'La respuesta tardó demasiado. Reintentá.'
+          : (err?.name === 'TypeError' || err?.message === 'Failed to fetch'
+              ? 'No se pudo conectar con el servicio. Reintentá.'
+              : (err?.message || 'No se pudieron cargar las efemérides.'));
+        mostrar('error', msg);
+        return;
+      }
+      await esperar(PAUSA_REINTENTO_MS);
+    }
   }
 }
 

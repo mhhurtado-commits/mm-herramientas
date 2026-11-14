@@ -37,7 +37,8 @@ function normalizarItem(item) {
 
 export function normalizarPayload(raw) {
   if (!raw || raw.ok !== true || !Array.isArray(raw.items)) {
-    return { ok: false, error: 'La respuesta del servicio no es válida.' };
+    const delServidor = String(raw?.error || '').trim();
+    return { ok: false, error: delServidor || 'La respuesta del servicio no es válida.' };
   }
   const validos = raw.items.map(normalizarItem).filter(i => i.año && i.titulo && i.resumen);
   if (validos.length < MIN_ITEMS) {

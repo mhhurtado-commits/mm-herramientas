@@ -33,7 +33,7 @@ Patrón: app modular con `.mjs` al lado del HTML (como `placas-v2`, `carousel`, 
 ## 4. Flujo y estados
 
 1. Abrir `/efemerides/` → fecha de hoy en `America/Argentina/Mendoza` (cliente, `Intl`).
-2. `GET {WORKER_URL}/placas/v2/efemerides?fecha=YYYY-MM-DD` (URL hardcodeada como en el resto de las apps; timeout 15 s con `AbortController`).
+2. `GET {WORKER_URL}/placas/v2/efemerides?fecha=YYYY-MM-DD` (URL hardcodeada como en el resto de las apps; timeout 45 s con `AbortController` — la generación en frío del worker puede tardar más de 15 s: Wikipedia 12 s + API 12 s + Gemini + búsqueda de imágenes). Si la respuesta es un error (red, timeout, 4xx/5xx, `ok:false` o <5 items), la app reintenta una vez automáticamente antes de mostrar el estado de error; los fallos del worker no se cachean en KV, así que el reintento puede resolverlo.
 3. Modelo normalizado → dibujo en canvas 1080×1080 (logo + fuentes locales cargadas antes del primer dibujo).
 4. Estados: `cargando` (indicador según el contrato de spinner de la suite, `shared/spinner-contract.test.mjs`) → `lista` (placa + botón Descargar PNG habilitado) | `error` (mensaje en criollo + botón Reintentar). Nunca pantalla en blanco.
 5. Opcional: selector de fecha (`input[type=date]`) → re-fetch y re-render del mismo flujo.
@@ -68,7 +68,7 @@ Botón único "Descargar PNG": `canvas.toBlob` → download `efemerides-YYYY-MM-
 
 ## 8. Errores
 
-- Fetch fallido / 400 / 502 / timeout 15 s / <5 items válidos → estado `error` con mensaje en criollo + Reintentar.
+- Fetch fallido / 400 / 502 / timeout 45 s / `ok:false` / <5 items válidos → un reintento automático (backoff de 1,5 s) y, si persiste, estado `error` con mensaje en criollo + Reintentar. Si el servicio trae `error` propio (p.ej. "La fuente devolvió menos de cinco opciones utilizables."), se muestra ese mensaje tal cual.
 - Logo o fuentes que no cargan tras 2 intentos → estado `error` ("No se pudo cargar el logo/las tipografías") + Reintentar. La placa nunca se exporta rota ni sin marca.
 
 ## 9. Testing
