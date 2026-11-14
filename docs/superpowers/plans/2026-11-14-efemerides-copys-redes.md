@@ -353,7 +353,7 @@ git commit -m "feat(efemerides): extraerCopysRespuesta (modelo puro del panel de
 ```html
     <section id="copysPanel" hidden>
       <h2 id="copysTitulo">COPYS PARA REDES</h2>
-      <div class="copys-grid">
+      <div class="copys-grid" id="copysGrid">
         <div class="copys-bloque">
           <h3>WHATSAPP</h3>
           <textarea id="copysWhats" readonly rows="12" aria-label="Copy de WhatsApp"></textarea>
@@ -417,6 +417,7 @@ const ui = {
   msgError: $('mensajeError'), reintentar: $('btnReintentar'), descargar: $('btnDescargar'),
   copiar: $('btnCopiar'), fecha: $('fechaInput'), canvas: $('placa'),
   copys: $('btnCopys'), copysPanel: $('copysPanel'), copysTitulo: $('copysTitulo'),
+  copysGrid: $('copysGrid'),
   copysWhats: $('copysWhats'), copysIg: $('copysIg'),
   copiarWhats: $('btnCopiarWhats'), copiarIg: $('btnCopiarIg'),
   copysError: $('copysError'), copysReintentar: $('btnCopysReintentar'),
@@ -435,6 +436,7 @@ const ui = {
 function ocultarCopysError() {
   ui.copysError.hidden = true;
   ui.copysReintentar.hidden = true;
+  ui.copysGrid.hidden = false;
 }
 
 function resetearCopys() {
@@ -485,6 +487,8 @@ async function cargarCopys() {
     ui.copysWhats.value = copys.whatsapp;
     ui.copysIg.value = copys.instagram;
     ui.copysTitulo.textContent = `COPYS PARA REDES — ${etiquetaFecha(fechaActual)}`;
+    ui.copysGrid.hidden = false;
+    ocultarCopysError();
     ui.copysPanel.hidden = false;
     ui.copys.textContent = 'COPYS REDES';
     ui.copys.disabled = false;
@@ -496,9 +500,11 @@ async function cargarCopys() {
           : (err?.message || 'No se pudieron generar los copys.'));
     ui.copys.textContent = 'REINTENTAR';
     ui.copys.disabled = false;
+    ui.copysGrid.hidden = true;
     ui.copysError.textContent = `${msg} La placa sigue disponible.`;
     ui.copysError.hidden = false;
     ui.copysReintentar.hidden = false;
+    ui.copysPanel.hidden = false;
   }
 }
 ```

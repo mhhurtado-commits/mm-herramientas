@@ -20,6 +20,7 @@ const ui = {
   msgError: $('mensajeError'), reintentar: $('btnReintentar'), descargar: $('btnDescargar'),
   copiar: $('btnCopiar'), fecha: $('fechaInput'), canvas: $('placa'),
   copys: $('btnCopys'), copysPanel: $('copysPanel'), copysTitulo: $('copysTitulo'),
+  copysGrid: $('copysGrid'),
   copysWhats: $('copysWhats'), copysIg: $('copysIg'),
   copiarWhats: $('btnCopiarWhats'), copiarIg: $('btnCopiarIg'),
   copysError: $('copysError'), copysReintentar: $('btnCopysReintentar'),
@@ -246,6 +247,7 @@ async function copiarPNG() {
 function ocultarCopysError() {
   ui.copysError.hidden = true;
   ui.copysReintentar.hidden = true;
+  ui.copysGrid.hidden = false;
 }
 
 function resetearCopys() {
@@ -296,6 +298,8 @@ async function cargarCopys() {
     ui.copysWhats.value = copys.whatsapp;
     ui.copysIg.value = copys.instagram;
     ui.copysTitulo.textContent = `COPYS PARA REDES — ${etiquetaFecha(fechaActual)}`;
+    ui.copysGrid.hidden = false;
+    ocultarCopysError();
     ui.copysPanel.hidden = false;
     ui.copys.textContent = 'COPYS REDES';
     ui.copys.disabled = false;
@@ -307,9 +311,11 @@ async function cargarCopys() {
           : (err?.message || 'No se pudieron generar los copys.'));
     ui.copys.textContent = 'REINTENTAR';
     ui.copys.disabled = false;
+    ui.copysGrid.hidden = true;
     ui.copysError.textContent = `${msg} La placa sigue disponible.`;
     ui.copysError.hidden = false;
     ui.copysReintentar.hidden = false;
+    ui.copysPanel.hidden = false;
   }
 }
 
