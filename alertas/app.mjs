@@ -9,7 +9,7 @@ const toast = (msg) => { toastEl.textContent = msg; toastEl.classList.add('show'
 
 const hoyCorto = () => new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
 const horaCorta = () => new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
-const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '').slice(0, 12);
+const stamp = () => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; };
 
 const state = { data: emptyReport(), format: '4:5', logoImg: null };
 
@@ -46,13 +46,20 @@ function recolectarFormulario() {
   }
   const lugar = getField('eta-lugar');
   const minutos = Number(getField('eta-minutos'));
-  if (lugar) d.eta = { lugar, detalle: getField('eta-detalle'), minutos: Number.isFinite(minutos) && minutos > 0 ? minutos : 10 };
+  // Sin minutos válidos no se inventa un ETA: la línea/banner se omite (regla editorial).
+  if (lugar && Number.isFinite(minutos) && minutos > 0) d.eta = { lugar, detalle: getField('eta-detalle'), minutos };
   return d;
 }
 
+// Reescribe el caption solo si sigue intacto el último generado por la app;
+// si el redactor lo editó a mano, su edición se respeta.
+let lastCaption = '';
 function actualizarCaption(d) {
   const captionEl = document.getElementById('captionText');
-  if (captionEl) captionEl.value = buildWhatsAppCaption(d || state.data);
+  if (!captionEl) return;
+  const next = buildWhatsAppCaption(d || state.data);
+  if (captionEl.value === '' || captionEl.value === lastCaption) captionEl.value = next;
+  lastCaption = next;
 }
 
 // ─── Render + export ─────────────────────────────────────────
@@ -130,6 +137,11 @@ async function generar() {
     render();
   } catch (err) {
     mostrarError(`No se pudo estructurar el parte con IA (${err.message}). Completá a mano y generá igual.`);
+    // El form no conserva datos rancios de un parte anterior bajo el banner de error.
+    const limpio = { ...emptyReport(), fecha: hoyCorto(), hora: horaCorta() };
+    state.data = limpio;
+    poblarFormulario(limpio);
+    render();
   } finally {
     document.getElementById('loading').hidden = true;
     btn.disabled = false;
@@ -165,4 +177,6 @@ state.data = initial;
 poblarFormulario(initial);
 cargarLogo();
 render();
+// Re-render cuando Inter termine de cargar (la primera pintura puede caer en fallback Arial).
+if (document.fonts?.ready) document.fonts.ready.then(() => render());
 document.getElementById('generarBtn').disabled = true;

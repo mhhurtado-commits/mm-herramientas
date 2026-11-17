@@ -101,7 +101,7 @@ Sin tocar el worker: se llama `POST /social/generar` con `{ systemPrompt, userMs
 - `fuente`: organismo/persona que emite; si no aparece, `Mediamendoza`.
 - `hora`: hora de emisión del parte en `HH:MM`; si no aparece, `""`.
 - `nivel`: uno de `gris|blanco|azul|verde|amarillo|naranja|rojo|violeta` (`gris` sin alerta · `blanco` informativo · `azul` vigilancia · `verde` leve · `amarillo` moderada · `naranja` fuerte · `rojo` severa · `violeta` máxima); si no se puede inferir, `naranja`.
-- `direccion`: `este|oeste|norte|sur` cuando el parte la marca; si no, `""`.
+- `direccion`: `este|oeste|norte|sur` cuando el parte la marca; si no, `""`. Se extrae y valida pero **no se imprime** en la placa ni va al caption (los pills de dirección usan `celda.hacia`); se conserva como campo editable para uso futuro.
 - `celdas`: **UN ítem por viñeta** del parte (máx. 3):
   `{ etiqueta: 'ahora'|'ruta'|'siguiente' }` según si el parte dice "comienza a afectar/ya está" (ahora), "cruza/desplaza hacia" (ruta) o "más tarde/podría/next" (siguiente).
   `zonas` = localidades/calles afectadas **copy-pasteadas** del parte (sin inventar), `detalle` = qué ocurre (lluvia fuerte / granizo / lluvia) y `hacia` = dirección que menciona.
@@ -130,7 +130,7 @@ Canvas `W×H` según formato. Fondo vertical `#10130f → #0a0c09`. Borde exteri
 1. **Header**: izquierda, chip `ALERTA` (bloque sólido `#f5c518`, texto `#141414`, tracking alto, peso 900); derecha, logo blanco pequeño (`new Image()`, `../assets/logo.png`) + `fecha · hora` en small caps gris.
 2. **Titular** (Inter/Arial Black, peso 800–900, `#f5f5ec`, 2 líneas): el `titular` de la IA. Espaciado controlado, mayúsculas.
 3. **Byline**: `fuente` en small caps `#f5c518` tracking (ej. `RADAR SAN RAFAEL-AEMSA · MARCELO PEÑA`).
-4. **Bloques dinámicos** (1–3): panel translúcido `rgba(245,197,24,.08)`, barra izquierda `#f5c518` 3px. Cada bloque: etiqueta uppercase (`AFECTANDO AHORA` / `EN CURSO` / `PRÓXIMO`), cuerpo `zonas — detalle` (`#f5f5ec`), y pill `→ ESTE` (amarilla, texto `#141414`) a la derecha cuando `hacia` está.
+4. **Bloques dinámicos** (1–3): panel translúcido `rgba(245,197,24,.08)`, barra izquierda `#f5c518` 3px. Cada bloque: etiqueta uppercase (`AFECTANDO AHORA` / `EN RUTA` / `PRÓXIMO`), cuerpo `zonas — detalle` (`#f5f5ec`), y pill `→ ESTE` (amarilla, texto `#141414`) a la derecha cuando `hacia` está.
 5. **Banner ETA** (solo si `eta != null`): bloque sólido `#c0392b`, ícono `⚡` + texto blanco `Valle Grande: llegada en 5–10 min · Embalse — lluvia fuerte y granizo`.
 6. **Footer**: línea fina `rgba(255,255,255,.12)`; izquierda wordmark texto `MEDIA MENDOZA`; derecha `mediamendoza.com · 17/11 · 11:00` en `#a7a896`. (El logo blanco va solo en el header; sin duplicidad de marca.)
 

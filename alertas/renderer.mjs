@@ -151,18 +151,22 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
 
   // Banner ETA (solo si eta != null)
   if (data.eta) {
-    const etaH = Math.round(W * 0.062);
+    const etaText = `⚡ ${data.eta.lugar}: llegada en ${data.eta.minutos} min — ${data.eta.detalle}`;
+    const etaFont = Math.round(W * 0.0175);
+    ctx.font = `800 ${etaFont}px Inter, Arial, sans-serif`;
+    const etaLines = wrapLines(ctx, etaText, W - pad * 2 - Math.round(W * 0.032)).slice(0, 3);
+    const lineH = W * 0.023;
+    const etaH = Math.round(etaLines.length * lineH + W * 0.017);
+    const footTop = H - Math.round(pad * 1.6) - Math.round(W * 0.021);
+    const etaTop = Math.min(y, Math.max(Math.round(pad * 1.15), footTop - etaH));
     ctx.fillStyle = '#c0392b';
-    roundRect(ctx, pad, y, W - pad * 2, etaH, W * 0.008);
+    roundRect(ctx, pad, etaTop, W - pad * 2, etaH, W * 0.008);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.font = `800 ${Math.round(W * 0.0175)}px Inter, Arial, sans-serif`;
-    const etaText = `⚡ ${data.eta.lugar}: llegada en ${data.eta.minutos} min — ${data.eta.detalle}`;
-    const etaLines = wrapLines(ctx, etaText, W - pad * 2 - Math.round(W * 0.03));
-    let etaY = y + etaH / 2 - ((etaLines.length - 1) * W * 0.022) / 2 + W * 0.006;
+    let etaY = etaTop + lineH * 0.78;
     for (const line of etaLines) {
       ctx.fillText(line, pad + Math.round(W * 0.016), etaY);
-      etaY += W * 0.022;
+      etaY += lineH;
     }
   }
 

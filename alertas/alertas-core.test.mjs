@@ -118,6 +118,20 @@ test('etiquetas duplicadas de la IA se reasignan a slots libres (ahora/ruta/sigu
   assert.deepEqual(data.celdas.map((c) => c.zonas), ['Calle Larga', 'Ruta 144', 'Las Aguaditas']);
 });
 
+test('validarEnFuente divide zonas también por → y recupera contenido verificable', () => {
+  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [{ etiqueta: 'ahora', zonas: 'Ruta 144 a la altura del Desvío → Cañón del Atuel, Bariloche', detalle: 'granizo', hacia: 'este' }], eta: null });
+  assert.deepEqual(validarEnFuente(data, PARTE1).celdas[0].zonas, 'Ruta 144 a la altura del Desvío, Cañón del Atuel');
+});
+
+test('normalizeAlertReport: hora/fecha con formato inválido quedan vacías', () => {
+  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: '', celdas: [], eta: null, hora: '19 hs.', fecha: '17 de noviembre' });
+  assert.equal(data.hora, '');
+  assert.equal(data.fecha, '');
+  const ok = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: '', celdas: [], eta: null, hora: '19:05', fecha: '17/11' });
+  assert.equal(ok.hora, '19:05');
+  assert.equal(ok.fecha, '17/11');
+});
+
 test('normalizeAlertReport tolera garbage/undefined (no throw)', () => {
   assert.deepEqual(normalizeAlertReport(''), emptyReport());
   assert.deepEqual(normalizeAlertReport(undefined), emptyReport());

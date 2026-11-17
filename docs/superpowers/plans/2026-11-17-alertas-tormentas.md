@@ -2,24 +2,24 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Construir una herramienta estÃ¡tica en `alertas/` que toma el parte meteorolÃ³gico pegado por el redactor y genera una placa PNG de alerta de tormentas (1:1, 4:5, 9:16) + caption de WhatsApp, sin tocar `placas-v2` ni el worker.
+**Goal:** Construir una herramienta estática en `alertas/` que toma el parte meteorológico pegado por el redactor y genera una placa PNG de alerta de tormentas (1:1, 4:5, 9:16) + caption de WhatsApp, sin tocar `placas-v2` ni el worker.
 
-**Architecture:** Vanilla HTML/CSS/JS (ESM), sin build ni dependencias. `alertas-core.mjs` puro (modelo + prompt IA + validadores + caption) testeado con `node --test`; `renderer.mjs` puro de canvas; `app.mjs` Ãºnica puerta al DOM/red; `index.html` estructura + estilos + gate.
+**Architecture:** Vanilla HTML/CSS/JS (ESM), sin build ni dependencias. `alertas-core.mjs` puro (modelo + prompt IA + validadores + caption) testeado con `node --test`; `renderer.mjs` puro de canvas; `app.mjs` única puerta al DOM/red; `index.html` estructura + estilos + gate.
 
-**Tech Stack:** Cloudflare Pages (estÃ¡tico), `<canvas>` 2D, `fetch` al worker `mm-herramientas-worker` (`POST /social/generar {systemPrompt, userMsg}`), Node 24 + `node --test`.
+**Tech Stack:** Cloudflare Pages (estático), `<canvas>` 2D, `fetch` al worker `mm-herramientas-worker` (`POST /social/generar {systemPrompt, userMsg}`), Node 24 + `node --test`.
 
 ## Global Constraints
 
-- Ruta pÃºblica: `alertas/index.html` (`/alertas/`), **sin** tarjeta en `index.html` del hub; `/placas-v2/` **intacto**; `worker/worker.js` **sin cambios**.
+- Ruta pública: `alertas/index.html` (`/alertas/`), **sin** tarjeta en `index.html` del hub; `/placas-v2/` **intacto**; `worker/worker.js` **sin cambios**.
 - Sin dependencias, sin bundler, sin `package.json`. ESM (`type="module"`).
-- PNG: **1600Ã—1600 (1:1)**, **1350Ã—1688 (4:5)**, **1080Ã—1920 (9:16)**.
+- PNG: **1600×1600 (1:1)**, **1350×1688 (4:5)**, **1080×1920 (9:16)**.
 - Colores: fondo `#10130f/#0a0c09`, panel `rgba(245,197,24,.08)`, yellow `#f5c518`, red `#c0392b`, text `#f5f5ec`, dim `#a7a896`.
-- TipografÃ­a: `Arial Black`/`Arial` (titulares), `Inter` (cuerpo; ya cargada por `style.css`).
-- Caption fija `âš¡ ALERTA | Media Mendoza`. Hora: ahora del navegador (editable). Fecha: `DD/MM`.
-- Regla editorial: **no inventar** ETA/direcciÃ³n/nivel que no estÃ©n en el parte; campos sin dato â†’ `null`/vacÃ­o, nunca placeholder inventado.
-- Gate de contraseÃ±a idÃ©ntico a la suite: `PROTECT_PASSWORD = "tomyjerry2008"`, `mm_auth` en localStorage, 7 dÃ­as.
+- Tipografía: `Arial Black`/`Arial` (titulares), `Inter` (cuerpo; ya cargada por `style.css`).
+- Caption fija `⚡ ALERTA | Media Mendoza`. Hora: ahora del navegador (editable). Fecha: `DD/MM`.
+- Regla editorial: **no inventar** ETA/dirección/nivel que no estén en el parte; campos sin dato → `null`/vacío, nunca placeholder inventado.
+- Gate de contraseña idéntico a la suite: `PROTECT_PASSWORD = "tomyjerry2008"`, `mm_auth` en localStorage, 7 días.
 - EOL LF en el repo; no normalizar; no tocar cambios preexistentes (`visual-suite/`, `worker/worker.js`, `.wrangler/`, `docs/superpowers/...` previos).
-- VerificaciÃ³n mÃ­nima: `node --check alertas/*.mjs` y `node --test --test-isolation=none ... alertas/*.test.mjs` con Node 24.
+- Verificación mínima: `node --check alertas/*.mjs` y `node --test --test-isolation=none ... alertas/*.test.mjs` con Node 24.
 - Commits solo de archivos propios (`alertas/`, el plan, el spec ya commiteado).
 
 ## Contratos entre tareas
@@ -48,11 +48,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeAlertReport, normalizeNivel, validarEnFuente, buildWhatsAppCaption, emptyReport, ALERTAS_SYSTEM_PROMPT } from './alertas-core.mjs';
 
-const PARTE1 = `Reporte MeteorolÃ³gico
-Informa el Sr. Marcelo PeÃ±a de Radar San Rafael-AEMSA:
--La tormenta comienza a afectar con lluvia fuerte y granizo a Calle Larga, Atuel Norte y Villa Atuel. Sigue desplazÃ¡ndose hacia el este, y podrÃ­a afectar mÃ¡s tarde a Las Aguaditas, Real del Padre y el sector norte de Jaime Prats.
--Otra tormenta con granizo comienza a cruzar la Ruta 144 a la altura del DesvÃ­o. Se desplaza al este, con direcciÃ³n al CaÃ±Ã³n del Atuel y Valle Grande.`;
-const PARTE2 = `-AtenciÃ³n para Valle Grande en 5-10 minutos. EstarÃ­a llegando al Embalse una tormenta con precipitaciÃ³n de lluvia fuerte y granizo.`;
+const PARTE1 = `Reporte Meteorológico
+Informa el Sr. Marcelo Peña de Radar San Rafael-AEMSA:
+-La tormenta comienza a afectar con lluvia fuerte y granizo a Calle Larga, Atuel Norte y Villa Atuel. Sigue desplazándose hacia el este, y podría afectar más tarde a Las Aguaditas, Real del Padre y el sector norte de Jaime Prats.
+-Otra tormenta con granizo comienza a cruzar la Ruta 144 a la altura del Desvío. Se desplaza al este, con dirección al Cañón del Atuel y Valle Grande.`;
+const PARTE2 = `-Atención para Valle Grande en 5-10 minutos. Estaría llegando al Embalse una tormenta con precipitación de lluvia fuerte y granizo.`;
 
 test('prompt del sistema documenta el contrato JSON', () => {
   assert.match(ALERTAS_SYSTEM_PROMPT, /SOLO/);
@@ -62,7 +62,7 @@ test('prompt del sistema documenta el contrato JSON', () => {
   assert.match(ALERTAS_SYSTEM_PROMPT, /violeta/);
 });
 
-test('normalizeNivel: niveles vÃ¡lidos y fallback naranja', () => {
+test('normalizeNivel: niveles válidos y fallback naranja', () => {
   assert.equal(normalizeNivel('rojo'), 'rojo');
   assert.equal(normalizeNivel('ROJO'), 'rojo');
   assert.equal(normalizeNivel('Amarillo'), 'amarillo');
@@ -70,27 +70,27 @@ test('normalizeNivel: niveles vÃ¡lidos y fallback naranja', () => {
   assert.equal(normalizeNivel('BLANCO'), 'blanco');
   assert.equal(normalizeNivel('Azul'), 'azul');
   assert.equal(normalizeNivel('violeta'), 'violeta');
-  assert.equal(normalizeNivel('huracÃ¡n'), 'naranja');
+  assert.equal(normalizeNivel('huracán'), 'naranja');
   assert.equal(normalizeNivel(''), 'naranja');
 });
 
-test('emptyReport es estable y vacÃ­o', () => {
+test('emptyReport es estable y vacío', () => {
   const r = emptyReport();
   assert.equal(r.nivel, 'naranja');
   assert.deepEqual(r.celdas, []);
   assert.equal(r.eta, null);
 });
 
-test('normaliza respuesta vÃ¡lida: 2 celdas ordenadas, direcciÃ³n este, eta con minutos 10', () => {
+test('normaliza respuesta válida: 2 celdas ordenadas, dirección este, eta con minutos 10', () => {
   const data = normalizeAlertReport({
     titular: 'Tormentas con granizo al este.',
-    fuente: 'Radar San Rafael-AEMSA Â· Marcelo PeÃ±a',
+    fuente: 'Radar San Rafael-AEMSA · Marcelo Peña',
     hora: '11:00', fecha: '17/11', nivel: 'naranja', direccion: 'este',
     celdas: [
       { etiqueta: 'ahora', zonas: 'Calle Larga, Atuel Norte y Villa Atuel', detalle: 'lluvia fuerte y granizo', hacia: 'este' },
-      { etiqueta: 'ruta', zonas: 'Ruta 144 a la altura del DesvÃ­o â†’ CaÃ±Ã³n del Atuel, Valle Grande', detalle: 'tormenta con granizo', hacia: 'este' },
+      { etiqueta: 'ruta', zonas: 'Ruta 144 a la altura del Desvío → Cañón del Atuel, Valle Grande', detalle: 'tormenta con granizo', hacia: 'este' },
     ],
-    eta: { lugar: 'Valle Grande Â· Embalse', detalle: 'lluvia fuerte y granizo', minutos: 10 },
+    eta: { lugar: 'Valle Grande · Embalse', detalle: 'lluvia fuerte y granizo', minutos: 10 },
   });
   assert.equal(data.titular, 'Tormentas con granizo al este'); // sin punto final
   assert.equal(data.celdas.length, 2);
@@ -100,14 +100,14 @@ test('normaliza respuesta vÃ¡lida: 2 celdas ordenadas, direcciÃ³n este, eta 
   assert.equal(data.direccion, 'este');
 });
 
-test('parte sin eta: eta === null y caption sin lÃ­nea de ETA', () => {
+test('parte sin eta: eta === null y caption sin línea de ETA', () => {
   const data = normalizeAlertReport({ titular: 'Tormentas al este', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [{ etiqueta: 'ahora', zonas: 'Villa Atuel', detalle: 'granizo', hacia: 'este' }], eta: null });
   assert.equal(data.eta, null);
   const caption = buildWhatsAppCaption(data);
-  assert.doesNotMatch(caption, /5â€“10|llegada en/);
+  assert.doesNotMatch(caption, /5–10|llegada en/);
 });
 
-test('validarEnFuente descarta direcciÃ³n no presente en el parte', () => {
+test('validarEnFuente descarta dirección no presente en el parte', () => {
   const data = normalizeAlertReport({ titular: 'Tormentas al oeste', fuente: 'Radar', nivel: 'naranja', direccion: 'oeste', celdas: [], eta: null });
   assert.equal(validarEnFuente(data, PARTE1).direccion, '');
 });
@@ -118,36 +118,36 @@ test('validarEnFuente descarta ETA cuyo lugar no aparece', () => {
 });
 
 test('validarEnFuente mantiene ETA compuesto cuando cada componente aparece en el parte', () => {
-  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [], eta: { lugar: 'Valle Grande Â· Embalse', detalle: 'granizo', minutos: 10 } });
+  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [], eta: { lugar: 'Valle Grande · Embalse', detalle: 'granizo', minutos: 10 } });
   assert.equal(validarEnFuente(data, PARTE1 + '\\n' + PARTE2).eta.minutos, 10);
 });
 
-test('validarEnFuente descarta ETA compuesto si algÃºn componente no aparece', () => {
-  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [], eta: { lugar: 'Valle Grande Â· Bariloche', detalle: 'granizo', minutos: 5 } });
+test('validarEnFuente descarta ETA compuesto si algún componente no aparece', () => {
+  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [], eta: { lugar: 'Valle Grande · Bariloche', detalle: 'granizo', minutos: 5 } });
   assert.equal(validarEnFuente(data, PARTE1 + '\\n' + PARTE2).eta, null);
 });
 
-test('validarEnFuente descarta ETA con lugar vacÃ­o', () => {
+test('validarEnFuente descarta ETA con lugar vacío', () => {
   const data = { titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: '', celdas: [], eta: { lugar: '', detalle: 'granizo', minutos: 5 } };
   assert.equal(validarEnFuente(data, PARTE2).eta, null);
 });
 
-test('caption: omite viÃ±etas inventadas si no hay celdas y mantiene encabezado fijo', () => {
+test('caption: omite viñetas inventadas si no hay celdas y mantiene encabezado fijo', () => {
   const data = normalizeAlertReport({ titular: 'Alerta de tormentas', fuente: 'Radar', nivel: 'naranja', direccion: '', celdas: [], eta: null });
   const caption = buildWhatsAppCaption(data);
-  assert.match(caption, /^âš¡ ALERTA \| Media Mendoza/);
-  assert.doesNotMatch(caption, /â€¢ /);
+  assert.match(caption, /^⚡ ALERTA \| Media Mendoza/);
+  assert.doesNotMatch(caption, /• /);
 });
 
-test('validarEnFuente descarta zonas no presentes en el parte (cadena vacÃ­a, nunca inventada)', () => {
+test('validarEnFuente descarta zonas no presentes en el parte (cadena vacía, nunca inventada)', () => {
   const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [{ etiqueta: 'ahora', zonas: 'Bariloche, Villa Gesell', detalle: 'granizo', hacia: 'este' }], eta: null });
   assert.equal(validarEnFuente(data, PARTE1).celdas[0].zonas, '');
 });
 
-test('caption: sin titular, encabezado fijo queda y no se imprime lÃ­nea de titular', () => {
+test('caption: sin titular, encabezado fijo queda y no se imprime línea de titular', () => {
   const data = normalizeAlertReport({ titular: '', fuente: 'Radar', nivel: 'naranja', direccion: '', celdas: [{ etiqueta: 'ahora', zonas: 'Villa Atuel', detalle: 'granizo', hacia: 'este' }], eta: null });
   const caption = buildWhatsAppCaption(data);
-  assert.match(caption, /^âš¡ ALERTA \| Media Mendoza\nâ€¢ Ahora: Villa Atuel/);
+  assert.match(caption, /^⚡ ALERTA \| Media Mendoza\n• Ahora: Villa Atuel/);
 });
 
 test('etiquetas duplicadas de la IA se reasignan a slots libres (ahora/ruta/siguiente)', () => {
@@ -170,26 +170,26 @@ test('normalizeAlertReport tolera garbage/undefined (no throw)', () => {
 - [ ] **Step 2: Correr y ver que falla**
 
 Run: `node --test --test-isolation=none alertas/alertas-core.test.mjs`
-Expected: FAIL (mÃ³dulo inexistente).
+Expected: FAIL (módulo inexistente).
 
-- [ ] **Step 3: Implementar `alertas/alertas-core.mjs` mÃ­nimo** (contrato exacto):
+- [ ] **Step 3: Implementar `alertas/alertas-core.mjs` mínimo** (contrato exacto):
 
 ```js
-// alertas-core.mjs â€” modelo del parte meteorolÃ³gico, prompt IA, validador, caption. Sin DOM.
+// alertas-core.mjs — modelo del parte meteorológico, prompt IA, validador, caption. Sin DOM.
 
-export const ALERTAS_SYSTEM_PROMPT = `Sos editor de servicio de Media Mendoza. RecibÃ­s el parte meteorolÃ³gico tal cual llega y devolvÃ©s JSON vÃ¡lido SIN backticks ni markdown:
-{ "titular": "TORMENTAS CON GRANIZO AL ESTE", "fuente": "Radar San Rafael-AEMSA Â· Marcelo PeÃ±a", "hora": "11:00", "nivel": "naranja", "direccion": "este", "celdas": [{ "etiqueta": "ahora", "zonas": "Calle Larga, Atuel Norte y Villa Atuel", "detalle": "lluvia fuerte y granizo", "hacia": "este" }], "eta": { "lugar": "Valle Grande Â· Embalse", "detalle": "lluvia fuerte y granizo", "minutos": 10 } }
+export const ALERTAS_SYSTEM_PROMPT = `Sos editor de servicio de Media Mendoza. Recibís el parte meteorológico tal cual llega y devolvés JSON válido SIN backticks ni markdown:
+{ "titular": "TORMENTAS CON GRANIZO AL ESTE", "fuente": "Radar San Rafael-AEMSA · Marcelo Peña", "hora": "11:00", "nivel": "naranja", "direccion": "este", "celdas": [{ "etiqueta": "ahora", "zonas": "Calle Larga, Atuel Norte y Villa Atuel", "detalle": "lluvia fuerte y granizo", "hacia": "este" }], "eta": { "lugar": "Valle Grande · Embalse", "detalle": "lluvia fuerte y granizo", "minutos": 10 } }
 
 Reglas:
-- titular: 2â€“5 palabras MAYÃšSCULAS, el hecho principal, sin punto final.
-- fuente: organismo/persona que emite; si no aparece, "Mediamendoza". Sin incluir firma ni ubicaciÃ³n del redactor si no aparece.
-- hora: hora de emisiÃ³n del parte en HH:MM; si no aparece, "".
-- nivel: UNO de gris|blanco|azul|verde|amarillo|naranja|rojo|violeta: gris = sin alerta, tiempo tranquilo; blanco = informativo, sin severidad; azul = vigilancia, tormenta posible; verde = alerta leve; amarillo = alerta moderada; naranja = alerta fuerte; rojo = alerta severa; violeta = alerta mÃ¡xima, mÃ¡s allÃ¡ del rojo. Si no se puede inferir, naranja.
+- titular: 2–5 palabras MAYÚSCULAS, el hecho principal, sin punto final.
+- fuente: organismo/persona que emite; si no aparece, "Mediamendoza". Sin incluir firma ni ubicación del redactor si no aparece.
+- hora: hora de emisión del parte en HH:MM; si no aparece, "".
+- nivel: UNO de gris|blanco|azul|verde|amarillo|naranja|rojo|violeta: gris = sin alerta, tiempo tranquilo; blanco = informativo, sin severidad; azul = vigilancia, tormenta posible; verde = alerta leve; amarillo = alerta moderada; naranja = alerta fuerte; rojo = alerta severa; violeta = alerta máxima, más allá del rojo. Si no se puede inferir, naranja.
 - direccion: este|oeste|norte|sur cuando el parte marca desplazamiento; si no hay, "".
-- celdas: UN Ã­tem por viÃ±eta del parte (mÃ¡x. 3). etiqueta: "ahora" si dice "comienza a afectar/ya estÃ¡", "ruta" si dice "cruza/se desplaza hacia", "siguiente" si dice "mÃ¡s tarde/podrÃ­a"/o no tiene secciÃ³n clara. zonas = localidades/calles AFECTADAS texto exacto del parte. detalle = fenÃ³meno (lluvia fuerte / granizo / lluvia). hacia = direcciÃ³n del Ã­tem o "".
+- celdas: UN ítem por viñeta del parte (máx. 3). etiqueta: "ahora" si dice "comienza a afectar/ya está", "ruta" si dice "cruza/se desplaza hacia", "siguiente" si dice "más tarde/podría"/o no tiene sección clara. zonas = localidades/calles AFECTADAS texto exacto del parte. detalle = fenómeno (lluvia fuerte / granizo / lluvia). hacia = dirección del ítem o "".
 - eta: SOLO si el parte anuncia llegada en MINUTOS a un lugar: { "lugar": ..., "detalle": ..., "minutos": N }. Si no, eta: null.
-- PROHIBIDO inventar calles, mezclar datos entre viÃ±etas o crear ETA/direcciÃ³n que el texto no tenga.
-RespondÃ© SOLO JSON.`;
+- PROHIBIDO inventar calles, mezclar datos entre viñetas o crear ETA/dirección que el texto no tenga.
+Respondé SOLO JSON.`;
 
 const NIVELES = ['gris', 'blanco', 'azul', 'verde', 'amarillo', 'naranja', 'rojo', 'violeta'];
 const ETIQUETAS = new Set(['ahora', 'ruta', 'siguiente']);
@@ -205,7 +205,9 @@ export function emptyReport() {
 
 const limpiaTitulo = (s) => String(s || '').trim().replace(/\s+/g, ' ').replace(/\.+$/, '');
 const limpia = (s) => String(s || '').trim().replace(/\s+/g, ' ');
-const canon = (s) => limpia(s).toLowerCase().normalize('NFD').replace(/[Ì€-Í¯]/g, '');
+const canon = (s) => limpia(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const FORMATO_HORA = /^\d{1,2}:\d{2}$/;
+const FORMATO_FECHA = /^\d{1,2}\/\d{1,2}$/;
 const DIRECCIONES = ['este', 'oeste', 'norte', 'sur'];
 
 export function normalizeAlertReport(raw) {
@@ -213,8 +215,8 @@ export function normalizeAlertReport(raw) {
   const out = {
     titular: limpiaTitulo(raw.titular),
     fuente: limpia(raw.fuente),
-    hora: limpia(raw.hora),
-    fecha: limpia(raw.fecha),
+    hora: FORMATO_HORA.test(limpia(raw.hora)) ? limpia(raw.hora) : '',
+    fecha: FORMATO_FECHA.test(limpia(raw.fecha)) ? limpia(raw.fecha) : '',
     nivel: normalizeNivel(raw.nivel),
     direccion: limpia(raw.direccion).toLowerCase(),
     celdas: [],
@@ -252,29 +254,29 @@ export function validarEnFuente(data, texto) {
     limpio.direccion = '';
   }
   for (const c of data.celdas || []) {
-    const zonas = String(c.zonas || '').split(/[,;]/).map((t) => t.trim()).filter(Boolean);
+    const zonas = String(c.zonas || '').replace(/->/g, '→').split(/[,;→]/).map((t) => t.trim()).filter(Boolean);
     const presentes = zonas.filter((t) => fuente.includes(canon(t)));
     const zonasFinal = presentes.length ? presentes.join(', ') : '';
     const haciaFinal = c.hacia && fuente.includes(canon(c.hacia)) ? c.hacia : '';
     limpio.celdas.push({ ...c, zonas: zonasFinal, hacia: haciaFinal });
   }
-  const tokensLugar = (s) => canon(s).split(/[,;Â·|â€“â€”\-/()&]/).map((t) => t.trim()).filter(Boolean);
+  const tokensLugar = (s) => canon(s).split(/[,;·|–—\-/()&]/).map((t) => t.trim()).filter(Boolean);
   const etaTokens = data.eta ? tokensLugar(data.eta.lugar) : [];
   if (data.eta && etaTokens.length && etaTokens.every((t) => fuente.includes(t))) limpio.eta = data.eta;
   return limpio;
 }
 
 export function buildWhatsAppCaption(data) {
-  const titulos = { ahora: 'Ahora', ruta: 'En ruta', siguiente: 'PrÃ³ximo' };
-  const lineas = ['âš¡ ALERTA | Media Mendoza'];
+  const titulos = { ahora: 'Ahora', ruta: 'En ruta', siguiente: 'Próximo' };
+  const lineas = ['⚡ ALERTA | Media Mendoza'];
   if (data.titular) lineas.push(data.titular);
   for (const c of data.celdas || []) {
     if (!c.zonas) continue;
-    const dir = c.hacia ? ` â†’ ${String(c.hacia).toUpperCase()}` : '';
-    lineas.push(`â€¢ ${titulos[c.etiqueta] || 'Zona'}: ${c.zonas}${dir} â€” ${c.detalle}`);
+    const dir = c.hacia ? ` → ${String(c.hacia).toUpperCase()}` : '';
+    lineas.push(`• ${titulos[c.etiqueta] || 'Zona'}: ${c.zonas}${dir} — ${c.detalle}`);
   }
-  if (data.eta) lineas.push(`â€¢ ${data.eta.lugar}: llegada en ${data.eta.minutos} min â€” ${data.eta.detalle}`);
-  lineas.push(`Fuente: ${data.fuente || 'Mediamendoza'} Â· mediamendoza.com`);
+  if (data.eta) lineas.push(`• ${data.eta.lugar}: llegada en ${data.eta.minutos} min — ${data.eta.detalle}`);
+  lineas.push(`Fuente: ${data.fuente || 'Mediamendoza'} · mediamendoza.com`);
   return lineas.join('\n');
 }
 ```
@@ -303,9 +305,9 @@ git commit -m "feat(alertas): modelo del parte, prompt IA, validador y caption"
 - Consumes: `../style.css` variables.
 - Produces: DOM consumido por `app.mjs` (ids) y por `renderer.mjs` (canvas). Ids: `reporteText`, `generarBtn`, `loading`, `errorBanner`, `formatoToggle` (botones `[data-formato]`), `plateCanvas`, `descargarPngBtn`, `copiarPngBtn`, `actualizarBtn`, `titularInput`, `fuenteInput`, `horaInput`, `fechaInput`, `nivelSelect`, `direccionInput`, `celda-ahora-zonas|detalle|hacia`, `celda-ruta-zonas|detalle|hacia`, `celda-siguiente-zonas|detalle|hacia`, `eta-lugar|detalle|minutos`, `captionText`, `copiarCaptionBtn`, `toast` (div. toast).
 
-- [ ] **Step 1: Crear el esqueleto completo de la pÃ¡gina**
+- [ ] **Step 1: Crear el esqueleto completo de la página**
 
-`alertas/index.html` debe contener (patrÃ³n `whatsapp/index.html` y `redaccion-v2/index.html` del suite):
+`alertas/index.html` debe contener (patrón `whatsapp/index.html` y `redaccion-v2/index.html` del suite):
 
 ```html
 <!DOCTYPE html>
@@ -313,7 +315,7 @@ git commit -m "feat(alertas): modelo del parte, prompt IA, validador y caption"
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Alertas de Tormentas â€” Media Mendoza</title>
+<title>Alertas de Tormentas — Media Mendoza</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <link rel="icon" type="image/png" href="../assets/logo-cuadrado.png">
@@ -345,18 +347,18 @@ legend{font-size:9px;letter-spacing:1.5px;color:var(--alertas-accent);font-weigh
 </style>
 </head>
 <body>
-<div class="login-overlay" id="loginOverlay"> â€¦ modal idÃ©ntico al suite â€¦ </div>
+<div class="login-overlay" id="loginOverlay"> … modal idéntico al suite … </div>
 <div class="content-protected" id="protectedContent">
-<header class="mm-header"> â€¦ marca + label "Alertas" + status Conectado â€¦ </header>
+<header class="mm-header"> … marca + label "Alertas" + status Conectado … </header>
 <div class="alertas-main">
   <section class="panel accent">
-    <h1 style="font-size:22px">âš¡ Alertas de Tormentas</h1>
-    <label for="reporteText">PegÃ¡ el reporte meteorolÃ³gico</label>
-    <textarea id="reporteText" rows="12" placeholder="Reporte MeteorolÃ³gico&#10;Informa el Sr. ... tal cual llegÃ³ por WhatsApp"></textarea>
-    <div class="loading" id="loading" hidden>Recibiendo el parte, estructurandoâ€¦</div>
+    <h1 style="font-size:22px">⚡ Alertas de Tormentas</h1>
+    <label for="reporteText">Pegá el reporte meteorológico</label>
+    <textarea id="reporteText" rows="12" placeholder="Reporte Meteorológico&#10;Informa el Sr. ... tal cual llegó por WhatsApp"></textarea>
+    <div class="loading" id="loading" hidden>Recibiendo el parte, estructurando…</div>
     <div class="error-banner" id="errorBanner" hidden></div>
     <button class="btn" id="generarBtn">Generar alerta</button>
-    <p class="contexto-hint">â€¦regla editorial: nada afirmado que no traiga el parteâ€¦</p>
+    <p class="contexto-hint">…regla editorial: nada afirmado que no traiga el parte…</p>
   </section>
   <section class="panel">
     <div class="format-toggle" id="formatoToggle">
@@ -372,25 +374,25 @@ legend{font-size:9px;letter-spacing:1.5px;color:var(--alertas-accent);font-weigh
       <div><label for="fechaInput">Fecha</label><input id="fechaInput" placeholder="17/11"></div>
       <div><label for="horaInput">Hora</label><input id="horaInput" placeholder="11:00"></div>
       <div><label for="nivelSelect">Nivel</label><select id="nivelSelect"><option>gris</option><option>blanco</option><option>azul</option><option>verde</option><option>amarillo</option><option selected>naranja</option><option>rojo</option><option>violeta</option></select></div>
-      <div><label for="direccionInput">DirecciÃ³n</label><input id="direccionInput" placeholder="este / oeste / norte / sur"></div>
+      <div><label for="direccionInput">Dirección</label><input id="direccionInput" placeholder="este / oeste / norte / sur"></div>
       <fieldset style="grid-column:1/-1"><legend>AHORA</legend>
-        <input id="celda-ahora-zonas" placeholder="Zonas"><input id="celda-ahora-detalle" placeholder="Detalle (fenÃ³meno)"><input id="celda-ahora-hacia" placeholder="hacia (este / '')">
+        <input id="celda-ahora-zonas" placeholder="Zonas"><input id="celda-ahora-detalle" placeholder="Detalle (fenómeno)"><input id="celda-ahora-hacia" placeholder="hacia (este / '')">
       </fieldset>
       <fieldset style="grid-column:1/-1"><legend>EN RUTA</legend>
         <input id="celda-ruta-zonas" placeholder="Zonas"><input id="celda-ruta-detalle" placeholder="Detalle"><input id="celda-ruta-hacia" placeholder="hacia">
       </fieldset>
-      <fieldset style="grid-column:1/-1"><legend>PRÃ“XIMO</legend>
+      <fieldset style="grid-column:1/-1"><legend>PRÓXIMO</legend>
         <input id="celda-siguiente-zonas" placeholder="Zonas"><input id="celda-siguiente-detalle" placeholder="Detalle"><input id="celda-siguiente-hacia" placeholder="hacia">
       </fieldset>
       <fieldset style="grid-column:1/-1"><legend>LLEGADA (opcional)</legend>
-        <input id="eta-lugar" placeholder="Lugar (Valle Grande Â· Embalse)"><input id="eta-detalle" placeholder="Detalle (lluvia fuerte y granizo)"><input id="eta-minutos" type="number" min="1" placeholder="Minutos">
+        <input id="eta-lugar" placeholder="Lugar (Valle Grande · Embalse)"><input id="eta-detalle" placeholder="Detalle (lluvia fuerte y granizo)"><input id="eta-minutos" type="number" min="1" placeholder="Minutos">
       </fieldset>
       <div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button type="button" class="btn" id="actualizarBtn">Actualizar placa</button></div>
     </form>
-    <div class="caption-box"><label for="captionText">Caption WhatsApp / Instagram</label><textarea id="captionText" readonly></textarea><button class="btn btn-secondary" id="copiarCaptionBtn">Copiar caption</button></div>
+    <div class="caption-box"><label for="captionText">Caption WhatsApp / Instagram</label><textarea id="captionText"></textarea><button class="btn btn-secondary" id="copiarCaptionBtn">Copiar caption</button></div>
   </section>
 </div>
-<script>/* gate idÃ©ntico al suite: PROTECT_PASSWORD, verificarSesion, verificarPassword, mm-auth 7 dÃ­as, Enter envÃ­a */</script>
+<script>/* gate idéntico al suite: PROTECT_PASSWORD, verificarSesion, verificarPassword, mm-auth 7 días, Enter envía */</script>
 <script type="module" src="app.mjs"></script>
 </div>
 <div class="toast" id="toast"></div>
@@ -398,22 +400,22 @@ legend{font-size:9px;letter-spacing:1.5px;color:var(--alertas-accent);font-weigh
 </html>
 ```
 
-Notas de implementaciÃ³n:
-- Copiar el bloque del gate desde `whatsapp/index.html` lÃ­neas ~589â€“652 tal cual (cambia solo el `<script>` marca/label â€œAlertasâ€).
+Notas de implementación:
+- Copiar el bloque del gate desde `whatsapp/index.html` líneas ~589–652 tal cual (cambia solo el `<script>` marca/label “Alertas”).
 - El `<canvas>` empieza como 4:5 (app lo sobreescribe al elegir formato).
 
-- [ ] **Step 2: VerificaciÃ³n visual manual**
+- [ ] **Step 2: Verificación visual manual**
 
-Run: `cd "C:\Users\Miguel\Documents\New project"; python -m http.server 8123` (o `npx serve .`). Abrir `http://localhost:8123/alertas/` con Playwright/browser; comprobar gate (`Acceso restringido` â†’ password `tomyjerry2008`) y que aparecen las dos columnas.
+Run: `cd "C:\Users\Miguel\Documents\New project"; python -m http.server 8123` (o `npx serve .`). Abrir `http://localhost:8123/alertas/` con Playwright/browser; comprobar gate (`Acceso restringido` → password `tomyjerry2008`) y que aparecen las dos columnas.
 
-Expected: pÃ¡gina protegida por gate, sin errores de consola 404 (logo/ assets ruta correcta).
+Expected: página protegida por gate, sin errores de consola 404 (logo/ assets ruta correcta).
 
 - [ ] **Step 3: Commit**
 
 ```powershell
 cd "C:\Users\Miguel\Documents\New project"
 git add alertas/index.html
-git commit -m "feat(alertas): scaffold de la pÃ¡gina (gate + layout)"
+git commit -m "feat(alertas): scaffold de la página (gate + layout)"
 ```
 
 ---
@@ -430,7 +432,7 @@ git commit -m "feat(alertas): scaffold de la pÃ¡gina (gate + layout)"
 - [ ] **Step 1: Implementar el renderizador completo**
 
 ```js
-// alertas/renderer.mjs â€” dibuja la placa en canvas. Sin DOM; ctx se recibe como argumento.
+// alertas/renderer.mjs — dibuja la placa en canvas. Sin DOM; ctx se recibe como argumento.
 
 export const FORMATS = {
   '1:1': { width: 1600, height: 1600 },
@@ -462,7 +464,7 @@ function wrapLines(ctx, text, maxWidth) {
   return lines;
 }
 
-const ETIQUETA_LABEL = { ahora: 'AFECTANDO AHORA', ruta: 'EN RUTA', siguiente: 'PRÃ“XIMO' };
+const ETIQUETA_LABEL = { ahora: 'AFECTANDO AHORA', ruta: 'EN RUTA', siguiente: 'PRÓXIMO' };
 
 export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null) {
   const cfg = FORMATS[formatKey] || FORMATS['4:5'];
@@ -482,7 +484,7 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
   roundRect(ctx, pad * 0.4, pad * 0.4, W - pad * 0.8, H - pad * 0.8, W * 0.02);
   ctx.stroke();
 
-  // Header: chip ALERTA + logo/wordmark + fechaÂ·hora
+  // Header: chip ALERTA + logo/wordmark + fecha·hora
   const chipW = Math.round(W * 0.155), chipH = Math.round(W * 0.036), chipY = pad;
   ctx.fillStyle = '#f5c518';
   roundRect(ctx, pad, chipY, chipW, chipH, chipH * 0.18);
@@ -506,7 +508,7 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
   ctx.fillStyle = '#a7a896';
   ctx.font = `600 ${Math.round(W * 0.0125)}px Inter, Arial, sans-serif`;
   ctx.textAlign = 'right';
-  ctx.fillText(`${data.fecha || ''} Â· ${data.hora || ''}`, W - pad, chipY + chipH + W * 0.014);
+  ctx.fillText(`${data.fecha || ''} · ${data.hora || ''}`, W - pad, chipY + chipH + W * 0.014);
 
   // Titular
   let y = chipY + chipH + W * 0.035;
@@ -514,7 +516,7 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
   ctx.font = `900 ${Math.round(W * 0.056)}px 'Arial Black', Arial, sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  const titleText = String(data.titular || '').toUpperCase(); // sin titular â†’ no se dibuja nada (nunca un rÃ³tulo inventado)
+  const titleText = String(data.titular || '').toUpperCase(); // sin titular → no se dibuja nada (nunca un rótulo inventado)
   for (const line of wrapLines(ctx, titleText, W - pad * 2)) {
     ctx.fillText(line, pad, y);
     y += W * 0.058;
@@ -529,7 +531,7 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
     y += W * 0.018;
   }
 
-  // Bloques de zona dinÃ¡micos (1â€“3)
+  // Bloques de zona dinámicos (1–3)
   const gap = Math.round(W * 0.016);
   const padV = Math.round(W * 0.0135);
   const labelH = Math.round(W * 0.020);
@@ -542,7 +544,7 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
     const towardPill = celda.hacia ? Math.round(W * 0.088) : 0;
     const bodyMax = W - pad * 2 - padV * 2 - towardPill - (towardPill ? Math.round(W * 0.014) : 0);
     ctx.font = `500 ${bodyFS}px Inter, Arial, sans-serif`;
-    const bodyLines = wrapLines(ctx, `${celda.zonas} â€” ${celda.detalle}`, bodyMax);
+    const bodyLines = wrapLines(ctx, `${celda.zonas} — ${celda.detalle}`, bodyMax);
     const blockH = padV * 2 + labelH + bodyLines.length * bodyLH + Math.round(W * 0.004);
     if (y + blockH > H - pad * 1.6) break; // nunca overflow
 
@@ -565,7 +567,7 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
       ctx.fillText(line, pad + padV, lineY);
       lineY += bodyLH;
     }
-    // Pill direcciÃ³n
+    // Pill dirección
     if (celda.hacia) {
       const pillW = Math.round(W * 0.078), pillH = Math.round(W * 0.026);
       const pillX = W - pad - padV - pillW, pillY = y + blockH / 2 - pillH / 2;
@@ -575,7 +577,7 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
       ctx.fillStyle = '#141414';
       ctx.font = `800 ${Math.round(W * 0.0125)}px Inter, Arial, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText(`â†’ ${String(celda.hacia).toUpperCase()}`, pillX + pillW / 2, pillY + pillH / 2 + 1);
+      ctx.fillText(`→ ${String(celda.hacia).toUpperCase()}`, pillX + pillW / 2, pillY + pillH / 2 + 1);
       ctx.textAlign = 'left';
     }
     y += blockH + gap;
@@ -589,7 +591,7 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
     ctx.fill();
     ctx.fillStyle = '#ffffff';
     ctx.font = `800 ${Math.round(W * 0.0175)}px Inter, Arial, sans-serif`;
-    const etaText = `âš¡ ${data.eta.lugar}: llegada en ${data.eta.minutos} min â€” ${data.eta.detalle}`;
+    const etaText = `⚡ ${data.eta.lugar}: llegada en ${data.eta.minutos} min — ${data.eta.detalle}`;
     const etaLines = wrapLines(ctx, etaText, W - pad * 2 - Math.round(W * 0.03));
     let etaY = y + etaH / 2 - ((etaLines.length - 1) * W * 0.022) / 2 + W * 0.006;
     for (const line of etaLines) {
@@ -613,12 +615,12 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
   ctx.fillStyle = '#a7a896';
   ctx.font = `400 ${Math.round(W * 0.0125)}px Inter, Arial, sans-serif`;
   ctx.textAlign = 'right';
-  ctx.fillText(`mediamendoza.com Â· ${data.fecha || ''} Â· ${data.hora || ''}`, W - pad, footY);
+  ctx.fillText(`mediamendoza.com · ${data.fecha || ''} · ${data.hora || ''}`, W - pad, footY);
   ctx.textAlign = 'left';
 }
 ```
 
-- [ ] **Step 2: Sintaxis vÃ¡lida**
+- [ ] **Step 2: Sintaxis válida**
 
 Run: `node --check alertas/renderer.mjs`
 Expected: sin output (0).
@@ -633,7 +635,7 @@ git commit -m "feat(alertas): renderer canvas de la placa (1:1, 4:5, 9:16)"
 
 ---
 
-### Task 4: Wiring de la aplicaciÃ³n (`app.mjs`)
+### Task 4: Wiring de la aplicación (`app.mjs`)
 
 **Files:**
 - Create: `alertas/app.mjs`
@@ -656,11 +658,11 @@ const toast = (msg) => { toastEl.textContent = msg; toastEl.classList.add('show'
 
 const hoyCorto = () => new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
 const horaCorta = () => new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
-const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '').slice(0, 12);
+const stamp = () => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; };
 
 const state = { data: emptyReport(), format: '4:5', logoImg: null };
 
-// â”€â”€â”€ Logo Media Mendoza â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Logo Media Mendoza ────────────────────────────────────────
 function cargarLogo() {
   const img = new Image();
   img.onload = () => { state.logoImg = img; render(); };
@@ -668,7 +670,7 @@ function cargarLogo() {
   img.src = '../assets/logo.png';
 }
 
-// â”€â”€â”€ Formulario â‡„ modelo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Formulario ⇄ modelo ───────────────────────────────────────
 function setField(id, value) { const el = document.getElementById(id); if (el) el.value = value ?? ''; }
 function getField(id) { return (document.getElementById(id)?.value || '').trim(); }
 const ETIQUETA_ID = { ahora: 'celda-ahora', ruta: 'celda-ruta', siguiente: 'celda-siguiente' };
@@ -693,16 +695,23 @@ function recolectarFormulario() {
   }
   const lugar = getField('eta-lugar');
   const minutos = Number(getField('eta-minutos'));
-  if (lugar) d.eta = { lugar, detalle: getField('eta-detalle'), minutos: Number.isFinite(minutos) && minutos > 0 ? minutos : 10 };
+  // Sin minutos válidos no se inventa un ETA: la línea/banner se omite (regla editorial).
+  if (lugar && Number.isFinite(minutos) && minutos > 0) d.eta = { lugar, detalle: getField('eta-detalle'), minutos };
   return d;
 }
 
+// Reescribe el caption solo si sigue intacto el último generado por la app;
+// si el redactor lo editó a mano, su edición se respeta.
+let lastCaption = '';
 function actualizarCaption(d) {
   const captionEl = document.getElementById('captionText');
-  if (captionEl) captionEl.value = buildWhatsAppCaption(d || state.data);
+  if (!captionEl) return;
+  const next = buildWhatsAppCaption(d || state.data);
+  if (captionEl.value === '' || captionEl.value === lastCaption) captionEl.value = next;
+  lastCaption = next;
 }
 
-// â”€â”€â”€ Render + export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Render + export ───────────────────────────────────────────
 function render() {
   const canvas = document.getElementById('plateCanvas');
   if (!canvas) return;
@@ -731,7 +740,7 @@ async function copiarPng() {
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     toast('PNG copiado.');
-  } catch { toast('No se pudo copiar; descargÃ¡ el PNG.'); }
+  } catch { toast('No se pudo copiar; descargá el PNG.'); }
 }
 
 function mostrarError(msg) {
@@ -741,7 +750,7 @@ function mostrarError(msg) {
   el.textContent = msg;
 }
 
-// â”€â”€â”€ Llamada al worker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Llamada al worker ──────────────────────────────────────────
 async function solicitarEstructura(texto) {
   const resp = await fetch(`${WORKER}/social/generar`, {
     method: 'POST',
@@ -749,19 +758,19 @@ async function solicitarEstructura(texto) {
     body: JSON.stringify({ systemPrompt: ALERTAS_SYSTEM_PROMPT, userMsg: texto }),
   });
   const payload = await resp.json().catch(() => null);
-  if (!payload) throw new Error('El worker no devolviÃ³ JSON.');
-  if (!resp.ok || payload?.ok === false) throw new Error(payload?.error || 'El worker rechazÃ³ el parte.');
+  if (!payload) throw new Error('El worker no devolvió JSON.');
+  if (!resp.ok || payload?.ok === false) throw new Error(payload?.error || 'El worker rechazó el parte.');
   let result = payload.result;
-  if (result === null || result === undefined) throw new Error('El worker no devolviÃ³ datos.');
+  if (result === null || result === undefined) throw new Error('El worker no devolvió datos.');
   if (typeof result === 'string') {
-    try { result = JSON.parse(result); } catch { throw new Error('La IA no devolviÃ³ JSON vÃ¡lido.'); }
+    try { result = JSON.parse(result); } catch { throw new Error('La IA no devolvió JSON válido.'); }
   }
   return result;
 }
 
 async function generar() {
   const texto = document.getElementById('reporteText').value.trim();
-  if (!texto) { toast('PegÃ¡ el reporte primero.'); return; }
+  if (!texto) { toast('Pegá el reporte primero.'); return; }
   const btn = document.getElementById('generarBtn');
   btn.disabled = true;
   document.getElementById('loading').hidden = false;
@@ -776,14 +785,19 @@ async function generar() {
     poblarFormulario(data);
     render();
   } catch (err) {
-    mostrarError(`No se pudo estructurar el parte con IA (${err.message}). CompletÃ¡ a mano y generÃ¡ igual.`);
+    mostrarError(`No se pudo estructurar el parte con IA (${err.message}). Completá a mano y generá igual.`);
+    // El form no conserva datos rancios de un parte anterior bajo el banner de error.
+    const limpio = { ...emptyReport(), fecha: hoyCorto(), hora: horaCorta() };
+    state.data = limpio;
+    poblarFormulario(limpio);
+    render();
   } finally {
     document.getElementById('loading').hidden = true;
     btn.disabled = false;
   }
 }
 
-// â”€â”€â”€ Wiring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Wiring ─────────────────────────────────────────────────────
 function syncFromForm() {
   state.data = recolectarFormulario();
   render();
@@ -803,7 +817,7 @@ $$('#formatoToggle [data-formato]').forEach((btn) => btn.addEventListener('click
 }));
 $$('#alertasForm input, #alertasForm select').forEach((el) => el.addEventListener('input', syncFromForm));
 
-// â”€â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Init ───────────────────────────────────────────────────────
 document.getElementById('reporteText').addEventListener('input', (e) => {
   document.getElementById('generarBtn').disabled = !e.target.value.trim();
 });
@@ -811,11 +825,12 @@ const initial = { ...emptyReport(), fecha: hoyCorto(), hora: horaCorta() };
 state.data = initial;
 poblarFormulario(initial);
 cargarLogo();
+if (document.fonts?.ready) document.fonts.ready.then(() => render()); // Re-render cuando Inter carga
 render();
 document.getElementById('generarBtn').disabled = true;
 ```
 
-- [ ] **Step 2: Sintaxis vÃ¡lida**
+- [ ] **Step 2: Sintaxis válida**
 
 Run: `node --check alertas/app.mjs`
 Expected: sin output (0).
@@ -825,14 +840,14 @@ Expected: sin output (0).
 ```powershell
 cd "C:\Users\Miguel\Documents\New project"
 git add alertas/app.mjs
-git commit -m "feat(alertas): wiring de generaciÃ³n, formulario, export PNG y caption"
+git commit -m "feat(alertas): wiring de generación, formulario, export PNG y caption"
 ```
 
 ---
 
-### Task 5: VerificaciÃ³n End-to-End y entrega
+### Task 5: Verificación End-to-End y entrega
 
-**Files:** ninguno (valida lo creado en Tasks 1â€“4).
+**Files:** ninguno (valida lo creado en Tasks 1–4).
 
 - [ ] **Step 1: Servir el repo y probar el flujo real**
 
@@ -842,18 +857,18 @@ python -m http.server 8123
 ```
 
 Abrir `http://localhost:8123/alertas/`:
-1. `Acceso restringido` â†’ contraseÃ±a `tomyjerry2008` â†’ entra.
+1. `Acceso restringido` → contraseña `tomyjerry2008` → entra.
 2. Pegar el parte del Radar San Rafael-AEMSA (partes 1 y 2 del spec) en el textarea.
-3. Click **Generar alerta** â†’ aparecen 2 bloques (AFECTANDO AHORA / EN RUTA) con `â†’ ESTE`, pill amarillo, byline `RADAR SAN RAFAEL-AEMSA Â· MARCELO PEÃ‘A` y banner rojo `Valle Grande Â· llegar en â€¦` (o con `llegada en 5â€“10 min`, segÃºn salida de la IA) **solo si el parte lo trae**.
-4. Cambiar formato 1:1 / 4:5 / 9:16 â†’ canvas re-renderiza con las medidas exactas (1600Ã—1600, 1350Ã—1688, 1080Ã—1920).
-5. **Descargar PNG** â†’ archivo `alerta-tormentas-*.png` visualmente idÃ©ntico al preview, sin overflow de texto.
-6. **Copiar caption** â†’ texto en portapapeles con el formato `âš¡ ALERTA | Media Mendoza`.
+3. Click **Generar alerta** → aparecen 2 bloques (AFECTANDO AHORA / EN RUTA) con `→ ESTE`, pill amarillo, byline `RADAR SAN RAFAEL-AEMSA · MARCELO PEÑA` y banner rojo `Valle Grande · llegar en …` (o con `llegada en 5–10 min`, según salida de la IA) **solo si el parte lo trae**.
+4. Cambiar formato 1:1 / 4:5 / 9:16 → canvas re-renderiza con las medidas exactas (1600×1600, 1350×1688, 1080×1920).
+5. **Descargar PNG** → archivo `alerta-tormentas-*.png` visualmente idéntico al preview, sin overflow de texto.
+6. **Copiar caption** → texto en portapapeles con el formato `⚡ ALERTA | Media Mendoza`.
 
 - [ ] **Step 2: Camino offline/manual**
 
-Con el worker caÃ­do o sin red: click **Generar alerta** â†’ banner rojo "No se pudo estructurarâ€¦ completÃ¡ a mano"; rellenar campos a mano; **Actualizar placa** produce PNG igual; caption se actualiza en vivo al tipear.
+Con el worker caído o sin red: click **Generar alerta** → banner rojo "No se pudo estructurar… completá a mano"; rellenar campos a mano; **Actualizar placa** produce PNG igual; caption se actualiza en vivo al tipear.
 
-- [ ] **Step 3: VerificaciÃ³n formal de la suite**
+- [ ] **Step 3: Verificación formal de la suite**
 
 ```powershell
 cd "C:\Users\Miguel\Documents\New project"
@@ -869,28 +884,28 @@ Expected: tests verdes (incluye los 15 tests de Task 1); `worker/worker.js` sin 
 - [ ] **Step 4: Comprobar que no tocaste archivos ajenos**
 
 Run: `git status --porcelain`
-Expected: solo `alertas/`, `docs/superpowers/plans/2026-11-17-alertas-tormentas.md` y (nada mÃ¡s propio); `visual-suite/`, `worker/worker.js`, `.wrangler/` intactos e indesejados.
+Expected: solo `alertas/`, `docs/superpowers/plans/2026-11-17-alertas-tormentas.md` y (nada más propio); `visual-suite/`, `worker/worker.js`, `.wrangler/` intactos e indesejados.
 
 - [ ] **Step 5: Commit del plan**
 
 ```powershell
 cd "C:\Users\Miguel\Documents\New project"
 git add docs/superpowers/plans/2026-11-17-alertas-tormentas.md
-git commit -m "docs: plan de implementaciÃ³n de /alertas/"
+git commit -m "docs: plan de implementación de /alertas/"
 ```
 
 ## Acceptance Criteria
 
 - [ ] `/alertas/` carga tras password y no hay tarjeta en el hub.
-- [ ] El parte del Radar San Rafael-AEMSA produce placa renderizada con 2 celdas y ETA detectada solo si estÃ¡ en el texto.
+- [ ] El parte del Radar San Rafael-AEMSA produce placa renderizada con 2 celdas y ETA detectada solo si está en el texto.
 - [ ] Los 3 formatos exportan PNG a sus dimensiones exactas.
-- [ ] Caption incluye `âš¡ ALERTA | Media Mendoza`, fuentes y solo viÃ±etas reales.
+- [ ] Caption incluye `⚡ ALERTA | Media Mendoza`, fuentes y solo viñetas reales.
 - [ ] `node --test alertas/*.test.mjs` verde; resto de la suite verde; `worker/worker.js` sin modificar.
 
 ## Self-Review (para quien ejecuta)
 
-1. **Cobertura del spec:** ruta/sin tarjeta (Task 2), salida 3 tamaÃ±os (Tasks 2â€“4), worker sin cambios (Task 4 STEP 3 idÃ©ntico a placas-v2), formulario editable (Task 4), caption WhatsApp (Tasks 1, 4), nivel IA+editable (Tasks 1, 4), bloques dinÃ¡micos (Tasks 1, 3), hora del navegador editable (Tasks 2, 4), logo + mediamendoza.com (Tasks 3, 4, cargarLogo), gate (Task 2), honestidad ETA (Tasks 1, 3). Cubierto.
-2. **Placeholders:** ninguno; todos los pasos muestran cÃ³digo y comandos.
+1. **Cobertura del spec:** ruta/sin tarjeta (Task 2), salida 3 tamaños (Tasks 2–4), worker sin cambios (Task 4 STEP 3 idéntico a placas-v2), formulario editable (Task 4), caption WhatsApp (Tasks 1, 4), nivel IA+editable (Tasks 1, 4), bloques dinámicos (Tasks 1, 3), hora del navegador editable (Tasks 2, 4), logo + mediamendoza.com (Tasks 3, 4, cargarLogo), gate (Task 2), honestidad ETA (Tasks 1, 3). Cubierto.
+2. **Placeholders:** ninguno; todos los pasos muestran código y comandos.
 3. **Consistencia de tipos/firmas:** `renderAlertasPlaca(ctx,data,formatKey,logoImg)`; `normalizeAlertReport(raw)`; `validarEnFuente(data, texto)`; `buildWhatsAppCaption(data)`; `FORMATS[key].width/height`. Coherente entre Tarea 1 y 4.
 
 <!-- PLAN-END -->

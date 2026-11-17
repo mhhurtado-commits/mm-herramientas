@@ -29,6 +29,8 @@ export function emptyReport() {
 const limpiaTitulo = (s) => String(s || '').trim().replace(/\s+/g, ' ').replace(/\.+$/, '');
 const limpia = (s) => String(s || '').trim().replace(/\s+/g, ' ');
 const canon = (s) => limpia(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const FORMATO_HORA = /^\d{1,2}:\d{2}$/;
+const FORMATO_FECHA = /^\d{1,2}\/\d{1,2}$/;
 const tokensLugar = (s) => canon(s).split(/[,;·|–—\-/()&]/).map((t) => t.trim()).filter(Boolean);
 const DIRECCIONES = ['este', 'oeste', 'norte', 'sur'];
 
@@ -37,8 +39,8 @@ export function normalizeAlertReport(raw) {
   const out = {
     titular: limpiaTitulo(raw.titular),
     fuente: limpia(raw.fuente),
-    hora: limpia(raw.hora),
-    fecha: limpia(raw.fecha),
+    hora: FORMATO_HORA.test(limpia(raw.hora)) ? limpia(raw.hora) : '',
+    fecha: FORMATO_FECHA.test(limpia(raw.fecha)) ? limpia(raw.fecha) : '',
     nivel: normalizeNivel(raw.nivel),
     direccion: limpia(raw.direccion).toLowerCase(),
     celdas: [],
@@ -72,7 +74,7 @@ export function validarEnFuente(data, texto) {
     limpio.direccion = '';
   }
   for (const c of data.celdas || []) {
-    const zonas = String(c.zonas || '').split(/[,;]/).map((t) => t.trim()).filter(Boolean);
+    const zonas = String(c.zonas || '').replace(/->/g, '→').split(/[,;→]/).map((t) => t.trim()).filter(Boolean);
     const presentes = zonas.filter((t) => fuente.includes(canon(t)));
     const zonasFinal = presentes.length ? presentes.join(', ') : '';
     const haciaFinal = c.hacia && fuente.includes(canon(c.hacia)) ? c.hacia : '';
