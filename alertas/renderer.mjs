@@ -77,7 +77,7 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
   ctx.fillText(`${data.fecha || ''} · ${data.hora || ''}`, W - pad, chipY + chipH + W * 0.014);
 
   // Titular
-  let y = chipY + chipH + W * 0.035;
+  let y = chipY + chipH + W * 0.068;
   ctx.fillStyle = '#f5f5ec';
   ctx.font = `900 ${Math.round(W * 0.056)}px 'Arial Black', Arial, sans-serif`;
   ctx.textAlign = 'left';
