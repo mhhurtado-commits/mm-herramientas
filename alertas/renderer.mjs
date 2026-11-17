@@ -70,9 +70,9 @@ function metricasCuerpo(W, f) {
 
 const textoEta = (eta) => `⚡ ${eta.lugar}: llegada en ${eta.minutos} min — ${eta.detalle}`;
 
-function altoNaturalCuerpo(ctx, celdas, eta, W) {
+function altoCuerpo(ctx, celdas, eta, W, f) {
   const pad = padOf(W);
-  const m = metricasCuerpo(W, 1);
+  const m = metricasCuerpo(W, f);
   let total = 0;
   for (const celda of celdas) {
     if (!celda.zonas) continue;
@@ -80,7 +80,7 @@ function altoNaturalCuerpo(ctx, celdas, eta, W) {
     const bodyMax = Math.max(1, W - pad * 2 - m.padV * 2 - towardPill);
     ctx.font = `500 ${m.bodyFS}px Inter, Arial, sans-serif`;
     const lines = wrapLines(ctx, `${celda.zonas} — ${celda.detalle}`, bodyMax).length || 1;
-    total += m.padV * 2 + m.labelH + lines * m.bodyLH + Math.round(W * 0.004) + m.gap;
+    total += m.padV * 2 + m.labelH + lines * m.bodyLH + Math.round(W * 0.004 * f) + m.gap;
   }
   if (eta && eta.lugar) {
     ctx.font = `800 ${m.etaFS}px Inter, Arial, sans-serif`;
@@ -88,6 +88,24 @@ function altoNaturalCuerpo(ctx, celdas, eta, W) {
     total += lines * m.etaLH + m.etaPadV + m.gap;
   }
   return total;
+}
+
+// Calcula el factor de escala del cuerpo iterando: la medida de saltos de línea
+// depende del tamaño de fuente, así que el factor se ajusta hasta que el total
+// dibujado entre en el espacio disponible (sin cortar ningún bloque).
+function factorCuerpo(ctx, celdas, eta, W, disponible) {
+  if (!Number.isFinite(disponible) || disponible <= 0) return PISO_ESCALA;
+  let f = calcularFactor(altoCuerpo(ctx, celdas, eta, W, 1), disponible);
+  for (let i = 0; i < 6; i++) {
+    const total = altoCuerpo(ctx, celdas, eta, W, f);
+    if (total <= 0) return f;
+    const next = Math.min(TOPE_ESCALA, Math.max(PISO_ESCALA, f * (disponible / total)));
+    if (Math.abs(next - f) < 0.01) return Math.min(next, f);
+    f = next;
+    if (f <= PISO_ESCALA) return PISO_ESCALA;
+    if (f >= TOPE_ESCALA) return TOPE_ESCALA;
+  }
+  return f;
 }
 
 export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null) {
@@ -158,11 +176,10 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
     y += W * 0.018;
   }
 
-  // Cuerpo dinámico: factor = disponible / natural, con piso 0.55 y tope 2.4
+  // Cuerpo dinámico: factor iterativo disponible/natural (sin desbordar ni cortar bloques)
   const bottomLimit = H - Math.round(pad * 1.6) - Math.round(W * 0.021);
   const disponible = Math.max(0, bottomLimit - y);
-  const natural = altoNaturalCuerpo(ctx, celdas, data.eta, W);
-  const f = calcularFactor(natural, disponible);
+  const f = factorCuerpo(ctx, celdas, data.eta, W, disponible);
   const m = metricasCuerpo(W, f);
 
   for (const celda of celdas) {
