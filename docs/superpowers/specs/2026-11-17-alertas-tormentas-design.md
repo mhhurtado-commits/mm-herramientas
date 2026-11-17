@@ -108,7 +108,7 @@ Sin tocar el worker: se llama `POST /social/generar` con `{ systemPrompt, userMs
 - `eta`: **solo si el parte anuncia llegada en minutos** a un lugar (ej. "5-10 minutos", "llegando al Embalse"): `{ lugar, detalle, minutos }`. Si no, `eta: null`.
 - Prohibido inventar calles, mezclar datos entre viñetas o crear ETA/dirección que el texto no tenga.
 
-`validarEnFuente(data, textoOriginal)` descarta/limpia zonas, direcciones y ETA que no aparezcan en el texto original (misma filosofía que `validarDetallesContraFuente` de `placas-v2`).
+`validarEnFuente(data, textoOriginal)` descarta/limpia zonas, direcciones y ETA que no aparezcan en el texto original (misma filosofía que `validarDetallesContraFuente` de `placas-v2`). Para ETA, el `lugar` se verifica **por tokens** (`Valle Grande · Embalse` → `Valle Grande` + `Embalse` deben aparecer ambos); así un lugar compuesto legítimo se conserva y uno solo con algún componente ausente se descarta.
 
 ## UI y flujo de interacción (`index.html` + `app.mjs`)
 
