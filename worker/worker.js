@@ -8776,7 +8776,7 @@ function repararAnioEfemerides(item, date) {
   return match ? match[1] : '';
 }
 
-const PLACAS_V2_EF_COPYS_CACHE_PREFIX = 'placas-v2:efemerides:v5:copys:';
+const PLACAS_V2_EF_COPYS_CACHE_PREFIX = 'placas-v2:efemerides:v6:copys:';
 const EMOJOS_POR_ICONO_EF = { futbol: '⚽', deportes: '🏆', aviacion: '✈️', musica: '🎵', teatro: '🎭', politica: '🏛️', historia: '📜', sociedad: '🗞️', economia: '💹', mundo: '🌎', canal: '📺' };
 const DEFAULT_WA_LINKS_EF = { grupo: 'https://mediamendoza.pages.dev/grupo', canal: 'https://mediamendoza.pages.dev/canal' };
 
@@ -8800,14 +8800,16 @@ function itemsCopysReparados(items, date) {
 }
 
 function buildEfemeridesCopysPrompt(items, date, links) {
+  const año = String(date).slice(0, 4);
   const hechos = items.map(i => `${emojiPorIconoEf(i.icono)} ${i.año} — ${i.resumen || i.titulo}`).join('\n');
   return `Sos community manager de Media Mendoza, diario digital del sur de Mendoza, Argentina.
-Escribí los copys para acompañar la placa de efemérides del ${fechaLargaEf(date)}. Usá SOLO estos hechos, en este orden, sin inventar nada:
+Escribí los copys para acompañar la placa de efemérides del ${fechaLargaEf(date)} de ${año}. Usá SOLO estos hechos, en este orden, sin inventar nada:
 
 ${hechos}
 
 REGLAS:
 - Español rioplatense, tono didáctico, sin inventar datos ni años.
+- NUNCA calcules antigüedades ni escribas frases tipo "hace N años", "se cumplen N años" ni "hace siete años": el año de referencia es ${año} y ese cálculo es invariablemente incorrecto. Si querés nombrar el paso del tiempo, usá solo el año del hecho (ej. "en 1913"), nunca una antigüedad calculada.
 - "whatsapp": encabezado "📅 Efemérides del ${fechaLargaEf(date)}" y una línea por hecho con el emoji provisto. NO agregues firma, CTA, enlaces ni hashtags: el sistema los agrega.
 - "instagram": primera línea gancho con el hecho principal; 3 a 5 líneas con los hechos; cierre con "La placa completa, más arriba 👆" y "👉 Leé más en mediamendoza.com"; última línea con un punto y 8 a 12 hashtags empezando por #MediaMendoza #Efemerides.
 - Máximo 2200 caracteres por copy.
@@ -8824,12 +8826,18 @@ function buildEfemeridesCopysFallback(items, date, links) {
   return { whatsapp, instagram };
 }
 
+const PATRON_ANTIGUEDAD_EF = /\bhace\s+(?:un|una|unos|unas|\d{1,4}|[a-záéíóúüñ]+)\s+a[ñn]os?\b/i;
+
 function normalizarEfemeridesCopys(data, { items, date, links }) {
   const fb = () => buildEfemeridesCopysFallback(items, date, links);
   let whatsapp = String(data?.whatsapp || '').trim().slice(0, 1500);
   whatsapp = whatsapp.replace(/^https?:\/\/\S+$/gm, '').replace(/^www\.\S+$/gm, '').trim();
   let instagram = String(data?.instagram || '').trim().replace(/\n{3,}/g, '\n\n').slice(0, 2200);
   if (!whatsapp || !instagram) return fb();
+  // La IA tiende a calcular antigüedades ("hace siete años") contra un año que
+  // no conoce: siempre son incorrectas. Si aparece ese patrón, se usa el
+  // fallback determinista, que solo usa años absolutos del payload.
+  if (PATRON_ANTIGUEDAD_EF.test(whatsapp) || PATRON_ANTIGUEDAD_EF.test(instagram)) return fb();
   try { whatsapp = normalizeWhatsappCopy(whatsapp, { tipo: 'grupo', url: '', links }); } catch { return fb(); }
   instagram = instagram.replace(/https?:\/\/\S+/g, '').replace(/www\.\S+/g, '').replace(/\n{3,}/g, '\n\n').trim();
   if (!/(^|\s)#\S+/.test(instagram)) instagram += '\n\n#MediaMendoza #Efemerides #HistoriaArgentina #Mendoza #HoyEnLaHistoria #Historia #Argentina #SurMendocino';

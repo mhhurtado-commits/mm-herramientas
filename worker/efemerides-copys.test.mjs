@@ -72,3 +72,21 @@ test('normalizarEfemeridesCopys: IA vacía o rota → fallback determinista', ()
   assert.match(r.whatsapp, /1894 — Ocurrió en 1894\./);
   assert.match(r.instagram, /#MediaMendoza/);
 });
+
+test('buildEfemeridesCopysPrompt: fija el año actual y prohíbe calcular antigüedades', () => {
+  const items = itemsCopysReparados([ITEM('2026', 'Hecho', 'Ocurrió en 1900.')], FECHA);
+  const p = buildEfemeridesCopysPrompt(items, FECHA, LINKS);
+  assert.match(p, /2026/);
+  assert.match(p, /NUNCA.*hace/);
+});
+
+test('normalizarEfemeridesCopys: gancho con antigüedad calculada ("hace siete años") → fallback', () => {
+  const items = itemsCopysReparados([ITEM('2026', 'ARA San Juan', 'Desapareció en 2017.')], FECHA);
+  const r = normalizarEfemeridesCopys({
+    whatsapp: '📅 Efemérides del 14 de noviembre\n\n📜 2017 — Desapareció el ARA San Juan.',
+    instagram: 'Un día como hoy, hace siete años, el ARA San Juan desaparecía.\n\nHechos.\n\n#MediaMendoza #Efemerides',
+  }, { items, date: FECHA, links: LINKS });
+  assert.doesNotMatch(r.instagram, /hace \w+ años/i);
+  assert.match(r.instagram, /2017/);
+  assert.match(r.instagram, /#MediaMendoza/);
+});
