@@ -63,6 +63,26 @@ function actualizarCaption(d) {
 }
 
 // ─── Render + export ─────────────────────────────────────────
+// La resolución del canvas es fija (la del formato exportado). En pantalla lo
+// mostramos limitado por el ancho del panel y por 78vh de alto, manteniendo
+// SIEMPRE la proporción exacta — nunca se estira.
+function fitCanvasToPanel() {
+  const canvas = document.getElementById('plateCanvas');
+  if (!canvas) return;
+  const panel = canvas.parentElement;
+  if (!panel) return;
+  const cs = getComputedStyle(panel);
+  const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  const maxW = Math.max(1, panel.clientWidth - padX);
+  const maxH = Math.max(1, Math.floor(window.innerHeight * 0.78));
+  const ratio = canvas.width / canvas.height;
+  let w = maxW;
+  let h = Math.round(w / ratio);
+  if (h > maxH) { h = maxH; w = Math.round(h * ratio); }
+  canvas.style.width = `${w}px`;
+  canvas.style.height = `${h}px`;
+}
+
 function render() {
   const canvas = document.getElementById('plateCanvas');
   if (!canvas) return;
@@ -70,6 +90,7 @@ function render() {
   canvas.width = cfg.width; canvas.height = cfg.height;
   const ctx = canvas.getContext('2d');
   renderAlertasPlaca(ctx, state.data, state.format, state.logoImg);
+  fitCanvasToPanel();
   actualizarCaption(state.data);
 }
 
@@ -177,6 +198,7 @@ state.data = initial;
 poblarFormulario(initial);
 cargarLogo();
 render();
+window.addEventListener('resize', fitCanvasToPanel);
 // Re-render cuando Inter termine de cargar (la primera pintura puede caer en fallback Arial).
 if (document.fonts?.ready) document.fonts.ready.then(() => render());
 document.getElementById('generarBtn').disabled = true;
