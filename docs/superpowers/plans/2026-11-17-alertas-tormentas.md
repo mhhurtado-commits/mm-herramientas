@@ -160,6 +160,20 @@ test('etiquetas duplicadas de la IA se reasignan a slots libres (ahora/ruta/sigu
   assert.deepEqual(data.celdas.map((c) => c.zonas), ['Calle Larga', 'Ruta 144', 'Las Aguaditas']);
 });
 
+test('validarEnFuente divide zonas también por → y recupera contenido verificable', () => {
+  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [{ etiqueta: 'ahora', zonas: 'Ruta 144 a la altura del Desvío → Cañón del Atuel, Bariloche', detalle: 'granizo', hacia: 'este' }], eta: null });
+  assert.deepEqual(validarEnFuente(data, PARTE1).celdas[0].zonas, 'Ruta 144 a la altura del Desvío, Cañón del Atuel');
+});
+
+test('normalizeAlertReport: hora/fecha con formato inválido quedan vacías', () => {
+  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: '', celdas: [], eta: null, hora: '19 hs.', fecha: '17 de noviembre' });
+  assert.equal(data.hora, '');
+  assert.equal(data.fecha, '');
+  const ok = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: '', celdas: [], eta: null, hora: '19:05', fecha: '17/11' });
+  assert.equal(ok.hora, '19:05');
+  assert.equal(ok.fecha, '17/11');
+});
+
 test('normalizeAlertReport tolera garbage/undefined (no throw)', () => {
   assert.deepEqual(normalizeAlertReport(''), emptyReport());
   assert.deepEqual(normalizeAlertReport(undefined), emptyReport());
@@ -284,7 +298,7 @@ export function buildWhatsAppCaption(data) {
 - [ ] **Step 4: Correr tests, verde**
 
 Run: `node --test --test-isolation=none alertas/alertas-core.test.mjs`
-Expected: 15 tests pass.
+Expected: 17 tests pass.
 
 - [ ] **Step 5: Commit**
 
@@ -585,18 +599,22 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
 
   // Banner ETA (solo si eta != null)
   if (data.eta) {
-    const etaH = Math.round(W * 0.062);
+    const etaText = `⚡ ${data.eta.lugar}: llegada en ${data.eta.minutos} min — ${data.eta.detalle}`;
+    const etaFont = Math.round(W * 0.0175);
+    ctx.font = `800 ${etaFont}px Inter, Arial, sans-serif`;
+    const etaLines = wrapLines(ctx, etaText, W - pad * 2 - Math.round(W * 0.032)).slice(0, 3);
+    const lineH = W * 0.023;
+    const etaH = Math.round(etaLines.length * lineH + W * 0.017);
+    const footTop = H - Math.round(pad * 1.6) - Math.round(W * 0.021);
+    const etaTop = Math.min(y, Math.max(Math.round(pad * 1.15), footTop - etaH));
     ctx.fillStyle = '#c0392b';
-    roundRect(ctx, pad, y, W - pad * 2, etaH, W * 0.008);
+    roundRect(ctx, pad, etaTop, W - pad * 2, etaH, W * 0.008);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.font = `800 ${Math.round(W * 0.0175)}px Inter, Arial, sans-serif`;
-    const etaText = `⚡ ${data.eta.lugar}: llegada en ${data.eta.minutos} min — ${data.eta.detalle}`;
-    const etaLines = wrapLines(ctx, etaText, W - pad * 2 - Math.round(W * 0.03));
-    let etaY = y + etaH / 2 - ((etaLines.length - 1) * W * 0.022) / 2 + W * 0.006;
+    let etaY = etaTop + lineH * 0.78;
     for (const line of etaLines) {
       ctx.fillText(line, pad + Math.round(W * 0.016), etaY);
-      etaY += W * 0.022;
+      etaY += lineH;
     }
   }
 
@@ -825,8 +843,9 @@ const initial = { ...emptyReport(), fecha: hoyCorto(), hora: horaCorta() };
 state.data = initial;
 poblarFormulario(initial);
 cargarLogo();
-if (document.fonts?.ready) document.fonts.ready.then(() => render()); // Re-render cuando Inter carga
 render();
+// Re-render cuando Inter termine de cargar (la primera pintura puede caer en fallback Arial).
+if (document.fonts?.ready) document.fonts.ready.then(() => render());
 document.getElementById('generarBtn').disabled = true;
 ```
 
@@ -879,7 +898,7 @@ node --test --test-isolation=none shared/editorial-package.test.mjs shared/edito
 node --check worker/worker.js
 ```
 
-Expected: tests verdes (incluye los 15 tests de Task 1); `worker/worker.js` sin cambios (`git status` no lo lista).
+Expected: tests verdes (incluye los 17 tests de Task 1); `worker/worker.js` sin cambios (`git status` no lo lista).
 
 - [ ] **Step 4: Comprobar que no tocaste archivos ajenos**
 
