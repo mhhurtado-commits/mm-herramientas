@@ -46,12 +46,15 @@ export function normalizeAlertReport(raw) {
   };
   if (!DIRECCIONES.includes(out.direccion)) out.direccion = '';
   const celdas = Array.isArray(raw.celdas) ? raw.celdas.slice(0, 3) : [];
-  out.celdas = celdas.map((c) => ({
-    etiqueta: ETIQUETAS.has(String(c?.etiqueta || '').toLowerCase()) ? String(c.etiqueta).toLowerCase() : 'ahora',
-    zonas: limpia(c?.zonas),
-    detalle: limpia(c?.detalle),
-    hacia: limpia(c?.hacia).toLowerCase(),
-  }));
+  const usados = new Set();
+  out.celdas = celdas.map((c) => {
+    let etiqueta = ETIQUETAS.has(String(c?.etiqueta || '').toLowerCase()) ? String(c.etiqueta).toLowerCase() : 'ahora';
+    if (usados.has(etiqueta)) {
+      etiqueta = ['ahora', 'ruta', 'siguiente'].find((e) => !usados.has(e)) || etiqueta;
+    }
+    usados.add(etiqueta);
+    return { etiqueta, zonas: limpia(c?.zonas), detalle: limpia(c?.detalle), hacia: limpia(c?.hacia).toLowerCase() };
+  });
   const eta = raw.eta && typeof raw.eta === 'object' ? raw.eta : null;
   const minutos = eta ? Number(eta.minutos) : NaN;
   if (eta && limpia(eta.lugar) && Number.isFinite(minutos)) {

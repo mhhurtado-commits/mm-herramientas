@@ -104,6 +104,20 @@ test('caption: sin titular, encabezado fijo queda y no se imprime línea de titu
   assert.match(caption, /^⚡ ALERTA \| Media Mendoza\n• Ahora: Villa Atuel/);
 });
 
+test('etiquetas duplicadas de la IA se reasignan a slots libres (ahora/ruta/siguiente)', () => {
+  const data = normalizeAlertReport({
+    titular: 'T', fuente: 'R', nivel: 'naranja', direccion: 'este',
+    celdas: [
+      { etiqueta: 'ahora', zonas: 'Calle Larga', detalle: 'granizo', hacia: 'este' },
+      { etiqueta: 'ahora', zonas: 'Ruta 144', detalle: 'granizo', hacia: 'este' },
+      { etiqueta: 'ahora', zonas: 'Las Aguaditas', detalle: 'lluvia', hacia: 'este' },
+    ],
+    eta: null,
+  });
+  assert.deepEqual(data.celdas.map((c) => c.etiqueta), ['ahora', 'ruta', 'siguiente']);
+  assert.deepEqual(data.celdas.map((c) => c.zonas), ['Calle Larga', 'Ruta 144', 'Las Aguaditas']);
+});
+
 test('normalizeAlertReport tolera garbage/undefined (no throw)', () => {
   assert.deepEqual(normalizeAlertReport(''), emptyReport());
   assert.deepEqual(normalizeAlertReport(undefined), emptyReport());
