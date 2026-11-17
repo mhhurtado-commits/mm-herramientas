@@ -35,7 +35,7 @@ function poblarFormulario(d) {
     setField(`${prefix}-zonas`, c.zonas); setField(`${prefix}-detalle`, c.detalle); setField(`${prefix}-hacia`, c.hacia);
   }
   setField('eta-lugar', d.eta?.lugar || ''); setField('eta-detalle', d.eta?.detalle || ''); setField('eta-minutos', d.eta?.minutos ?? '');
-  actualizarCaption();
+  actualizarCaption(d);
 }
 
 function recolectarFormulario() {
@@ -50,9 +50,9 @@ function recolectarFormulario() {
   return d;
 }
 
-function actualizarCaption() {
+function actualizarCaption(d) {
   const captionEl = document.getElementById('captionText');
-  if (captionEl) captionEl.value = buildWhatsAppCaption(state.data);
+  if (captionEl) captionEl.value = buildWhatsAppCaption(d || state.data);
 }
 
 // ─── Render + export ─────────────────────────────────────────
@@ -63,7 +63,7 @@ function render() {
   canvas.width = cfg.width; canvas.height = cfg.height;
   const ctx = canvas.getContext('2d');
   renderAlertasPlaca(ctx, state.data, state.format, state.logoImg);
-  actualizarCaption();
+  actualizarCaption(state.data);
 }
 
 function descargarPng() {
@@ -74,7 +74,7 @@ function descargarPng() {
     a.href = URL.createObjectURL(blob);
     a.download = `alerta-tormentas-${stamp()}.png`;
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }, 'image/png');
 }
 
@@ -102,8 +102,10 @@ async function solicitarEstructura(texto) {
     body: JSON.stringify({ systemPrompt: ALERTAS_SYSTEM_PROMPT, userMsg: texto }),
   });
   const payload = await resp.json().catch(() => null);
+  if (!payload) throw new Error('El worker no devolvió JSON.');
   if (!resp.ok || payload?.ok === false) throw new Error(payload?.error || 'El worker rechazó el parte.');
-  let result = payload?.result ?? {};
+  let result = payload.result;
+  if (result === null || result === undefined) throw new Error('El worker no devolvió datos.');
   if (typeof result === 'string') {
     try { result = JSON.parse(result); } catch { throw new Error('La IA no devolvió JSON válido.'); }
   }
@@ -158,8 +160,9 @@ $$('#alertasForm input, #alertasForm select').forEach((el) => el.addEventListene
 document.getElementById('reporteText').addEventListener('input', (e) => {
   document.getElementById('generarBtn').disabled = !e.target.value.trim();
 });
-setField('fechaInput', hoyCorto()); setField('horaInput', horaCorta());
-poblarFormulario(emptyReport());
+const initial = { ...emptyReport(), fecha: hoyCorto(), hora: horaCorta() };
+state.data = initial;
+poblarFormulario(initial);
 cargarLogo();
 render();
 document.getElementById('generarBtn').disabled = true;
