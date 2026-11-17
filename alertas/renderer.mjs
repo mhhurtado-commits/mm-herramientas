@@ -6,6 +6,17 @@ export const FORMATS = {
   '9:16': { width: 1080, height: 1920 },
 };
 
+// Escalado dinámico del cuerpo: llena la altura restante entre byline y footer.
+// 1 celda corta → factor alto (placa llena); 3 celdas largas + ETA → factor bajo (nunca se corta un bloque).
+export const PISO_ESCALA = 0.55;
+export const TOPE_ESCALA = 2.4;
+
+export function calcularFactor(natural, disponible) {
+  if (!Number.isFinite(natural) || natural <= 0) return TOPE_ESCALA;
+  if (!Number.isFinite(disponible) || disponible <= 0) return PISO_ESCALA;
+  return Math.min(TOPE_ESCALA, Math.max(PISO_ESCALA, disponible / natural));
+}
+
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
