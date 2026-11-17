@@ -41,13 +41,13 @@ Decisiones del brainstorming:
 ### WhatsApp (lista de hechos + firma real)
 
 ```
-📅 Efemérides del 14 de noviembre
+📅 *Efemérides del 14 de noviembre de 2026*
 
-⚽ 1894 — Nacimiento del escritor y dramaturgo Samuel Eichelbaum.
-🎭 1913 — Nacimiento del arquitecto Mario Roberto Álvarez.
-🏛️ 2021 — Se cumplen 5 años de las elecciones legislativas donde el peronismo perdió el quórum en el Senado.
-💹 2002 — El default con el Banco Mundial.
-📜 1784 — Nacimiento de Francisco Pérez de Uriondo.
+⚽ *1894* — Nacimiento del escritor y dramaturgo Samuel Eichelbaum.
+🎭 *1913* — Nacimiento del arquitecto Mario Roberto Álvarez.
+🏛️ *2021* — Se cumplen 5 años de las elecciones legislativas donde el peronismo perdió el quórum en el Senado.
+💹 *2002* — El default con el Banco Mundial.
+📜 *1784* — Nacimiento de Francisco Pérez de Uriondo.
 
 ¡Sumate a nuestra comunidad!
 📱 Grupo de Noticias: https://mediamendoza.pages.dev/grupo
@@ -58,6 +58,7 @@ Decisiones del brainstorming:
 
 - Una línea por hecho (héroe primero, máx 6): `• {año} — {resumen}`; si el resumen no cabe, el título.
 - Emoji por hecho: mapa determinista `icono → emoji` (`futbol→⚽ deportes→🏆 aviacion→✈️ musica→🎵 teatro→🎭 politica→🏛️ historia→📜 sociedad→🗞️ economia→💹 mundo→🌎 canal→📺`; desconocido→📜). El emoji lo pone el worker, no la IA: el prompt entrega cada línea ya con su emoji y el normalizador garantiza que cada línea de hecho empiece con emoji.
+- **Negritas**: encabezado `*Efemérides del ...*`; cada línea pone el año en `*año*`; la IA pone además 1–2 palabras clave del hecho en `*palabra*` (asterisco simple, como la firma). El worker garantiza determinísticamente que encabezado y año tengan negrita aunque la IA las omita.
 - CTA comunidad + firma: **reutiliza** `buildCtaComunidad(links)` y `WA_FIRMA` ya inline en el worker. `links` se lee de KV `config:wa_links` (como `/whatsapp/generar`); default si KV falla: grupo `https://mediamendoza.pages.dev/grupo`, canal `https://mediamendoza.pages.dev/canal`.
 - Sin URLs extra ni hashtags en WA; español rioplatense.
 

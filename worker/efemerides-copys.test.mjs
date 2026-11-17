@@ -46,7 +46,7 @@ test('buildEfemeridesCopysFallback: lista con emojis, CTA comunidad y firma; sin
     ITEM('2026', 'Hecho cinco', 'Rodó en 2021.'),
   ], FECHA);
   const r = buildEfemeridesCopysFallback(items, FECHA, LINKS);
-  assert.match(r.whatsapp, /1894 — Ocurrió en 1894\./);
+  assert.match(r.whatsapp, /\*1894\* — Ocurrió en 1894\./);
   assert.doesNotMatch(r.whatsapp, /2026 —/);
   assert.match(r.whatsapp, /¡Sumate a nuestra comunidad!/);
   assert.match(r.whatsapp, /Mediamendoza - Noticias confiables del sur mendocino/);
@@ -60,7 +60,7 @@ test('normalizarEfemeridesCopys: salida de la IA pasa, quita URLs y agrega firma
     whatsapp: '📅 Efemérides del 14 de noviembre\n\n⚽ 1894 — Nació.\nhttps://mediamendoza.pages.dev/grupo',
     instagram: '¿Qué pasó un 14 de noviembre?\nhttps://ejemplo.com/x\n#MediaMendoza #Efemerides',
   }, { items, date: FECHA, links: LINKS });
-  assert.match(r.whatsapp, /⚽ 1894 — Nació\./);
+  assert.match(r.whatsapp, /⚽ \*1894\* — Nació\./);
   assert.doesNotMatch(r.whatsapp, /^https?:\/\/\S+$/m);
   assert.match(r.whatsapp, /\*📰 Mediamendoza - Noticias confiables del sur mendocino\*/);
   assert.doesNotMatch(r.instagram, /https?:\/\//);
@@ -69,7 +69,7 @@ test('normalizarEfemeridesCopys: salida de la IA pasa, quita URLs y agrega firma
 test('normalizarEfemeridesCopys: IA vacía o rota → fallback determinista', () => {
   const items = itemsCopysReparados([ITEM('2026', 'Hecho', 'Ocurrió en 1894.')], FECHA);
   const r = normalizarEfemeridesCopys({}, { items, date: FECHA, links: LINKS });
-  assert.match(r.whatsapp, /1894 — Ocurrió en 1894\./);
+  assert.match(r.whatsapp, /\*1894\* — Ocurrió en 1894\./);
   assert.match(r.instagram, /#MediaMendoza/);
 });
 
@@ -89,4 +89,43 @@ test('normalizarEfemeridesCopys: gancho con antigüedad calculada ("hace siete a
   assert.doesNotMatch(r.instagram, /hace \w+ años/i);
   assert.match(r.instagram, /2017/);
   assert.match(r.instagram, /#MediaMendoza/);
+});
+
+test('buildEfemeridesCopysFallback: WhatsApp con encabezado y años en negrita', () => {
+  const items = itemsCopysReparados([
+    ITEM('2026', 'Hecho uno', 'Ocurrió en 1894.'), ITEM('2026', 'Hecho dos', 'Sucedió en 1913.'),
+    ITEM('2026', 'Hecho tres', 'Pasó en 2002.'), ITEM('2026', 'Hecho cuatro', 'Fue en 1784.'),
+    ITEM('2026', 'Hecho cinco', 'Rodó en 2021.'),
+  ], FECHA);
+  const r = buildEfemeridesCopysFallback(items, FECHA, LINKS);
+  assert.match(r.whatsapp, /📅 \*Efemérides del 14 de noviembre\*/);
+  assert.match(r.whatsapp, /\*1894\* — /);
+});
+
+test('buildEfemeridesCopysPrompt: pide palabras clave en negrita para WhatsApp', () => {
+  const items = itemsCopysReparados([ITEM('2026', 'Hecho', 'Ocurrió en 1900.')], FECHA);
+  const p = buildEfemeridesCopysPrompt(items, FECHA, LINKS);
+  assert.match(p, /negrita/);
+  assert.match(p, /\*Efemérides del/);
+});
+
+test('normalizarEfemeridesCopys: si la IA no puso negritas, las agrega en encabezado y años', () => {
+  const items = itemsCopysReparados([ITEM('2026', 'Hecho', 'Ocurrió en 1894.')], FECHA);
+  const r = normalizarEfemeridesCopys({
+    whatsapp: '📅 Efemérides del 14 de noviembre\n\n⚽ 1894 — Nació Samuel Eichelbaum.\n🎭 1913 — Nació un arquitecto.',
+    instagram: 'Gancho sin negritas\n\n#MediaMendoza #Efemerides',
+  }, { items, date: FECHA, links: LINKS });
+  assert.match(r.whatsapp, /📅 \*Efemérides del 14 de noviembre\*/);
+  assert.match(r.whatsapp, /⚽ \*1894\* — Nació Samuel Eichelbaum\./);
+  assert.match(r.whatsapp, /🎭 \*1913\* — Nació un arquitecto\./);
+});
+
+test('normalizarEfemeridesCopys: respeta las negritas que ya puso la IA', () => {
+  const items = itemsCopysReparados([ITEM('2026', 'Hecho', 'Ocurrió en 1894.')], FECHA);
+  const r = normalizarEfemeridesCopys({
+    whatsapp: '📅 *Efemérides del 14 de noviembre*\n\n⚽ 1894 — Nació *Samuel Eichelbaum*.',
+    instagram: 'Gancho\n\n#MediaMendoza #Efemerides',
+  }, { items, date: FECHA, links: LINKS });
+  assert.match(r.whatsapp, /Nació \*Samuel Eichelbaum\*/);
+  assert.match(r.whatsapp, /📅 \*Efemérides del 14 de noviembre\*/);
 });

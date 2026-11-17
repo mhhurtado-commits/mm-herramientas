@@ -8810,7 +8810,7 @@ ${hechos}
 REGLAS:
 - Español rioplatense, tono didáctico, sin inventar datos ni años.
 - NUNCA calcules antigüedades ni escribas frases tipo "hace N años", "se cumplen N años" ni "hace siete años": el año de referencia es ${año} y ese cálculo es invariablemente incorrecto. Si querés nombrar el paso del tiempo, usá solo el año del hecho (ej. "en 1913"), nunca una antigüedad calculada.
-- "whatsapp": encabezado "📅 Efemérides del ${fechaLargaEf(date)}" y una línea por hecho con el emoji provisto. NO agregues firma, CTA, enlaces ni hashtags: el sistema los agrega.
+- "whatsapp": encabezado "📅 *Efemérides del ${fechaLargaEf(date)}*" y una línea por hecho con el emoji provisto; en cada línea poné en negrita, con asterisco simple y pegado a la palabra (ej. *Samuel Eichelbaum*), las 1 o 2 palabras clave del hecho (nombre propio, lugar o hecho central). No pongas toda la línea en negrita ni uses negrita en el año. NO agregues firma, CTA, enlaces ni hashtags: el sistema los agrega.
 - "instagram": primera línea gancho con el hecho principal; 3 a 5 líneas con los hechos; cierre con "La placa completa, más arriba 👆" y "👉 Leé más en mediamendoza.com"; última línea con un punto y 8 a 12 hashtags empezando por #MediaMendoza #Efemerides.
 - Máximo 2200 caracteres por copy.
 
@@ -8818,15 +8818,24 @@ Respondé SOLO JSON válido: {"whatsapp":"...","instagram":"..."}`;
 }
 
 function buildEfemeridesCopysFallback(items, date, links) {
-  const lineas = items.map(i => `${emojiPorIconoEf(i.icono)} ${i.año} — ${i.resumen || i.titulo}`).join('\n');
+  const lineas = items.map(i => `${emojiPorIconoEf(i.icono)} *${i.año}* — ${i.resumen || i.titulo}`).join('\n');
   const cuerpoIg = items.slice(0, 3).map(i => `${i.año}: ${i.resumen || i.titulo}`).join('; ');
   const cta = buildCtaComunidad(links);
-  const whatsapp = `📅 Efemérides del ${fechaLargaEf(date)}\n\n${lineas}\n\n${cta}${cta ? '\n\n' : ''}${WA_FIRMA}`.trim();
+  const whatsapp = `📅 *Efemérides del ${fechaLargaEf(date)}*\n\n${lineas}\n\n${cta}${cta ? '\n\n' : ''}${WA_FIRMA}`.trim();
   const instagram = `📅 ¿Qué pasó un ${fechaLargaEf(date)}? ${cuerpoIg}.\n\nLa placa completa, más arriba 👆\n👉 Leé más en mediamendoza.com\n.\n#MediaMendoza #Efemerides #HistoriaArgentina #Mendoza #HoyEnLaHistoria #Historia #Argentina #SurMendocino`;
   return { whatsapp, instagram };
 }
 
 const PATRON_ANTIGUEDAD_EF = /\bhace\s+(?:un|una|unos|unas|\d{1,4}|[a-záéíóúüñ]+)\s+a[ñn]os?\b/i;
+
+function garantizarNegritasEf(texto) {
+  return String(texto).split('\n').map(linea => {
+    if (linea.includes('*')) return linea;
+    const conEncabezado = linea.replace(/^(📅\s+)(?!\*)(.+)$/, (m, pre, resto) => `${pre}*${resto.trim()}*`);
+    if (conEncabezado !== linea) return conEncabezado;
+    return linea.replace(/(\d{3,4})(\s+—\s+)/, '*$1*$2');
+  }).join('\n');
+}
 
 function normalizarEfemeridesCopys(data, { items, date, links }) {
   const fb = () => buildEfemeridesCopysFallback(items, date, links);
@@ -8839,6 +8848,7 @@ function normalizarEfemeridesCopys(data, { items, date, links }) {
   // fallback determinista, que solo usa años absolutos del payload.
   if (PATRON_ANTIGUEDAD_EF.test(whatsapp) || PATRON_ANTIGUEDAD_EF.test(instagram)) return fb();
   try { whatsapp = normalizeWhatsappCopy(whatsapp, { tipo: 'grupo', url: '', links }); } catch { return fb(); }
+  whatsapp = garantizarNegritasEf(whatsapp);
   instagram = instagram.replace(/https?:\/\/\S+/g, '').replace(/www\.\S+/g, '').replace(/\n{3,}/g, '\n\n').trim();
   if (!/(^|\s)#\S+/.test(instagram)) instagram += '\n\n#MediaMendoza #Efemerides #HistoriaArgentina #Mendoza #HoyEnLaHistoria #Historia #Argentina #SurMendocino';
   return { whatsapp, instagram };
