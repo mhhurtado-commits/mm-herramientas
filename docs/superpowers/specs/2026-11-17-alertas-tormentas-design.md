@@ -46,7 +46,7 @@ Informa el Sr. Marcelo Peña de Radar San Rafael-AEMSA:
 | Extracción | Worker con IA (`/social/generar` con `systemPrompt` propio). Sin cambio al worker. |
 | Edición | Formulario editable tras IA + botón "Actualizar placa". |
 | Caption | Se genera texto de WhatsApp (también sirve de caption IG) + botón copiar. |
-| Nivel | IA sugiere verde/amarillo/naranja/rojo; usuario edita; default naranja si no se infiere. |
+| Nivel | IA sugiere gris/blanco/azul/verde/amarillo/naranja/rojo/violeta; usuario edita; default naranja si no se infiere. `gris` sin alerta · `blanco` informativo · `azul` vigilancia · `verde` leve · `amarillo` moderada · `naranja` fuerte · `rojo` severa · `violeta` máxima. |
 | Estructura | Bloques dinámicos según el parte: 1–3 bloques de zona, dirección `→ ESTE` cuando aplica, banner ETA solo si el parte lo trae. |
 | Hora impresa | Ahora del navegador, editable. |
 | Marca | Logo blanco `assets/logo.png` + wordmark `MEDIA MENDOZA` + `mediamendoza.com`. |
@@ -75,7 +75,7 @@ No se crea `style.css` dentro de `alertas/`; se usa `../style.css` (variables gl
   fuente: string,                         // ej. "Radar San Rafael-AEMSA · Marcelo Peña"
   hora: string,                           // "11:00" (hora del parte; si no, hora del navegador al montar el formulario)
   fecha: string,                          // "17/11"
-  nivel: 'verde' | 'amarillo' | 'naranja' | 'rojo',  // default naranja
+  nivel: 'gris' | 'blanco' | 'azul' | 'verde' | 'amarillo' | 'naranja' | 'rojo' | 'violeta',  // default naranja
   direccion: string,                      // "este" | "oeste" | "norte" | "sur" | ""
   celdas: [                               // 1 a 3, derivados de las viñetas del parte
     { etiqueta: 'ahora' | 'ruta' | 'siguiente',
@@ -100,7 +100,7 @@ Sin tocar el worker: se llama `POST /social/generar` con `{ systemPrompt, userMs
 - `titular`: 2–5 palabras en mayúsculas, hecho principal, sin punto final.
 - `fuente`: organismo/persona que emite; si no aparece, `Mediamendoza`.
 - `hora`: hora de emisión del parte en `HH:MM`; si no aparece, `""`.
-- `nivel`: uno de `verde|amarillo|naranja|rojo`; si no se puede inferir, `naranja`.
+- `nivel`: uno de `gris|blanco|azul|verde|amarillo|naranja|rojo|violeta` (`gris` sin alerta · `blanco` informativo · `azul` vigilancia · `verde` leve · `amarillo` moderada · `naranja` fuerte · `rojo` severa · `violeta` máxima); si no se puede inferir, `naranja`.
 - `direccion`: `este|oeste|norte|sur` cuando el parte la marca; si no, `""`.
 - `celdas`: **UN ítem por viñeta** del parte (máx. 3):
   `{ etiqueta: 'ahora'|'ruta'|'siguiente' }` según si el parte dice "comienza a afectar/ya está" (ahora), "cruza/desplaza hacia" (ruta) o "más tarde/podría/next" (siguiente).
@@ -160,6 +160,8 @@ Fuente: {fuente} · mediamendoza.com
 - Solo se incluyen las viñetas/ETA presentes; si no hay `eta`, no se imprime la línea.
 - Si no hay `celdas`, la sección de viñetas se omite por completo (solo encabezado + titular + fuente).
 - La cabecera `⚡ ALERTA | Media Mendoza` es fija.
+- Si la IA devuelve un titular vacío, no se imprime ninguna línea de titular (solo encabezado fijo + viñetas reales + fuente); nunca se sustituye por un rótulo inventado (`TORMENTAS EN LA ZONA` eliminado).
+- `zonas` no verificables contra el texto original quedan en `''` y la viñeta se omite.
 
 ## Manejo de errores
 
@@ -180,7 +182,7 @@ Fuente: {fuente} · mediamendoza.com
 1. Parte del Radar San Rafael-AEMSA (partes 1 y 2) → 2 celdas en orden, `direccion: 'este'`, `eta` = `{lugar: 'Valle Grande · Embalse', minutos: 10}` (detectada de "5-10 minutos").
 2. Parte sin ETA (solo viñetas 1–2) → `eta === null`, sin banner.
 3. JSON con `nivel: 'huracán'` → se normaliza a `'naranja'`.
-4. `zonas` con calles inventadas (no en el texto original) → `validarEnFuente` las limpia/reemplaza por `'Mendoza'`.
+4. `zonas` con calles inventadas (no en el texto original) → `validarEnFuente` las deja como cadena vacía (`''`); nunca `'Mendoza'` ni un placeholder inventado. El caption y el renderer omiten las celdas sin zonas.
 5. `buildWhatsAppCaption` sin `eta` → no imprime la línea del Embalse; con `celdas: []` → sin bullets.
 6. `titular` con punto final → se elimina.
 7. `hora` ausente en el parte → `''` (la UI la rellena con `now()` al montar el formulario).

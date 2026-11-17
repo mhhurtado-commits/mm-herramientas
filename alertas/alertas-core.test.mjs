@@ -12,12 +12,18 @@ test('prompt del sistema documenta el contrato JSON', () => {
   assert.match(ALERTAS_SYSTEM_PROMPT, /SOLO/);
   assert.match(ALERTAS_SYSTEM_PROMPT, /celdas/);
   assert.match(ALERTAS_SYSTEM_PROMPT, /eta/);
+  assert.match(ALERTAS_SYSTEM_PROMPT, /gris/);
+  assert.match(ALERTAS_SYSTEM_PROMPT, /violeta/);
 });
 
 test('normalizeNivel: niveles válidos y fallback naranja', () => {
   assert.equal(normalizeNivel('rojo'), 'rojo');
   assert.equal(normalizeNivel('ROJO'), 'rojo');
   assert.equal(normalizeNivel('Amarillo'), 'amarillo');
+  assert.equal(normalizeNivel('gris'), 'gris');
+  assert.equal(normalizeNivel('BLANCO'), 'blanco');
+  assert.equal(normalizeNivel('Azul'), 'azul');
+  assert.equal(normalizeNivel('violeta'), 'violeta');
   assert.equal(normalizeNivel('huracán'), 'naranja');
   assert.equal(normalizeNivel(''), 'naranja');
 });
@@ -70,6 +76,17 @@ test('caption: omite viñetas inventadas si no hay celdas y mantiene encabezado 
   const caption = buildWhatsAppCaption(data);
   assert.match(caption, /^⚡ ALERTA \| Media Mendoza/);
   assert.doesNotMatch(caption, /• /);
+});
+
+test('validarEnFuente descarta zonas no presentes en el parte (cadena vacía, nunca inventada)', () => {
+  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [{ etiqueta: 'ahora', zonas: 'Bariloche, Villa Gesell', detalle: 'granizo', hacia: 'este' }], eta: null });
+  assert.equal(validarEnFuente(data, PARTE1).celdas[0].zonas, '');
+});
+
+test('caption: sin titular, encabezado fijo queda y no se imprime línea de titular', () => {
+  const data = normalizeAlertReport({ titular: '', fuente: 'Radar', nivel: 'naranja', direccion: '', celdas: [{ etiqueta: 'ahora', zonas: 'Villa Atuel', detalle: 'granizo', hacia: 'este' }], eta: null });
+  const caption = buildWhatsAppCaption(data);
+  assert.match(caption, /^⚡ ALERTA \| Media Mendoza\n• Ahora: Villa Atuel/);
 });
 
 test('normalizeAlertReport tolera garbage/undefined (no throw)', () => {

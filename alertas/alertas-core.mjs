@@ -7,14 +7,14 @@ Reglas:
 - titular: 2–5 palabras MAYÚSCULAS, el hecho principal, sin punto final.
 - fuente: organismo/persona que emite; si no aparece, "Mediamendoza". Sin incluir firma ni ubicación del redactor si no aparece.
 - hora: hora de emisión del parte en HH:MM; si no aparece, "".
-- nivel: UNO de verde|amarillo|naranja|rojo. Si no se puede inferir, naranja.
+- nivel: UNO de gris|blanco|azul|verde|amarillo|naranja|rojo|violeta: gris = sin alerta, tiempo tranquilo; blanco = informativo, sin severidad; azul = vigilancia, tormenta posible; verde = alerta leve; amarillo = alerta moderada; naranja = alerta fuerte; rojo = alerta severa; violeta = alerta máxima, más allá del rojo. Si no se puede inferir, naranja.
 - direccion: este|oeste|norte|sur cuando el parte marca desplazamiento; si no hay, "".
 - celdas: UN ítem por viñeta del parte (máx. 3). etiqueta: "ahora" si dice "comienza a afectar/ya está", "ruta" si dice "cruza/se desplaza hacia", "siguiente" si dice "más tarde/podría"/o no tiene sección clara. zonas = localidades/calles AFECTADAS texto exacto del parte. detalle = fenómeno (lluvia fuerte / granizo / lluvia). hacia = dirección del ítem o "".
 - eta: SOLO si el parte anuncia llegada en MINUTOS a un lugar: { "lugar": ..., "detalle": ..., "minutos": N }. Si no, eta: null.
 - PROHIBIDO inventar calles, mezclar datos entre viñetas o crear ETA/dirección que el texto no tenga.
 Respondé SOLO JSON.`;
 
-const NIVELES = ['verde', 'amarillo', 'naranja', 'rojo'];
+const NIVELES = ['gris', 'blanco', 'azul', 'verde', 'amarillo', 'naranja', 'rojo', 'violeta'];
 const ETIQUETAS = new Set(['ahora', 'ruta', 'siguiente']);
 
 export function normalizeNivel(raw) {
@@ -33,7 +33,6 @@ const DIRECCIONES = ['este', 'oeste', 'norte', 'sur'];
 
 export function normalizeAlertReport(raw) {
   if (!raw || typeof raw !== 'object') return emptyReport();
-  const base = emptyReport();
   const out = {
     titular: limpiaTitulo(raw.titular),
     fuente: limpia(raw.fuente),
@@ -71,7 +70,7 @@ export function validarEnFuente(data, texto) {
   for (const c of data.celdas || []) {
     const zonas = String(c.zonas || '').split(/[,;]/).map((t) => t.trim()).filter(Boolean);
     const presentes = zonas.filter((t) => fuente.includes(canon(t)));
-    const zonasFinal = presentes.length ? presentes.join(', ') : 'Mendoza';
+    const zonasFinal = presentes.length ? presentes.join(', ') : '';
     const haciaFinal = c.hacia && fuente.includes(canon(c.hacia)) ? c.hacia : '';
     limpio.celdas.push({ ...c, zonas: zonasFinal, hacia: haciaFinal });
   }
@@ -81,7 +80,8 @@ export function validarEnFuente(data, texto) {
 
 export function buildWhatsAppCaption(data) {
   const titulos = { ahora: 'Ahora', ruta: 'En ruta', siguiente: 'Próximo' };
-  const lineas = ['⚡ ALERTA | Media Mendoza', data.titular || 'TORMENTAS EN LA ZONA'];
+  const lineas = ['⚡ ALERTA | Media Mendoza'];
+  if (data.titular) lineas.push(data.titular);
   for (const c of data.celdas || []) {
     if (!c.zonas) continue;
     const dir = c.hacia ? ` → ${String(c.hacia).toUpperCase()}` : '';
