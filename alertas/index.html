@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Alertas de Tormentas — Media Mendoza</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" type="image/png" href="../assets/logo-cuadrado.png">
+<style>
+/* Registro propio de la herramienta: grid 2 columnas, tema oscuro por defecto */
+:root { --alertas-accent:#f5c518; }
+.alertas-main{max-width:1200px;margin:0 auto;padding:calc(var(--header-h) + 16px) 20px calc(var(--footer-h) + 16px);display:grid;grid-template-columns:minmax(320px,400px) 1fr;gap:16px;align-items:start}
+@media(max-width:960px){.alertas-main{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius-xl);padding:16px;display:flex;flex-direction:column;gap:12px}
+.panel.accent{border-top:3px solid var(--alertas-accent)}
+textarea,input,select{background:var(--surface2);border:1px solid var(--line2);border-radius:var(--radius);color:var(--text);font-family:var(--font-body);font-size:13px;padding:10px 12px;outline:none}
+textarea:focus,input:focus,select:focus{border-color:var(--alertas-accent)}
+label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);font-weight:700}
+.btn{background:var(--alertas-accent);color:#141414;border:none;border-radius:var(--radius);padding:12px 18px;font-family:var(--font-body);font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer}
+.btn-secondary{background:transparent;color:var(--text);border:1px solid var(--line2)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.error-banner{background:#c0392b;color:#fff;padding:10px 12px;border-radius:var(--radius);font-size:12px;line-height:1.5}
+.loading{font-size:12px;color:var(--dim)}
+.contexto-hint{font-size:11px;color:var(--dim);line-height:1.5}
+.format-toggle{display:flex;gap:6px}
+.format-btn{background:transparent;border:1px solid var(--line2);color:var(--dim);border-radius:var(--radius);padding:8px 12px;cursor:pointer;font-weight:700}
+.format-btn.active{background:var(--alertas-accent);border-color:var(--alertas-accent);color:#141414}
+canvas#plateCanvas{width:100%;max-height:78vh;background:#0a0c09;border-radius:var(--radius-lg);border:1px solid var(--line)}
+.fld-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+fieldset{border:1px solid var(--line2);border-radius:var(--radius);padding:8px 10px;display:flex;flex-direction:column;gap:8px}
+legend{font-size:9px;letter-spacing:1.5px;color:var(--alertas-accent);font-weight:800}
+.caption-box textarea{width:100%;min-height:150px;font-size:12px}
+.toast{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);background:var(--alertas-accent);color:#141414;padding:10px 16px;border-radius:var(--radius);font-size:12px;font-weight:700;display:none;z-index:400}
+.toast.show{display:block}
+</style>
+</head>
+<body class="dark-theme">
+  <!-- ============================================================ -->
+<!-- PROTECCIÓN CON CONTRASEÑA (copiar este bloque completo) -->
+<!-- ============================================================ -->
+<style>
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+.login-modal {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.3s ease;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.login-logo { margin-bottom: 24px; }
+.login-logo img { height: 48px; width: auto; }
+body.dark-theme .login-logo img { filter: brightness(0) invert(1); opacity: 0.9; }
+.login-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.login-sub {
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 24px;
+}
+.login-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  color: var(--white);
+  font-size: 14px;
+  margin-bottom: 20px;
+  outline: none;
+}
+.login-input:focus { border-color: var(--v); }
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--v);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.login-btn:hover { opacity: 0.85; }
+.login-error {
+  font-size: 11px;
+  color: var(--red);
+  margin-top: 12px;
+  display: none;
+}
+.login-error.show { display: block; }
+.content-protected { display: none; }
+.content-protected.show { display: block; }
+</style>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-modal">
+    <div class="login-logo">
+      <img src="../assets/logo.png" alt="Media Mendoza" onerror="this.style.display='none'">
+    </div>
+    <div class="login-title">Acceso restringido</div>
+    <div class="login-sub">Ingresá la contraseña para continuar</div>
+    <input type="password" id="passwordInput" class="login-input" placeholder="Contraseña" autofocus>
+    <button class="login-btn" onclick="verificarPassword()">Ingresar</button>
+    <div class="login-error" id="loginError">Contraseña incorrecta</div>
+  </div>
+</div>
+
+<div class="content-protected" id="protectedContent">
+
+<header class="mm-header">
+  <a href="/" class="mm-header-brand">
+    <img src="../assets/logo.png" alt="Media Mendoza" class="mm-header-logo" onerror="this.style.display='none'">
+    <span class="mm-header-name">Media Mendoza</span>
+  </a>
+  <div class="mm-header-section">
+    <span class="mm-header-label">Alertas</span>
+  </div>
+  <div class="mm-header-status">
+    <div class="mm-status-dot"></div>
+    <span class="mm-status-txt">Conectado</span>
+  </div>
+</header>
+
+<div class="alertas-main">
+  <section class="panel accent">
+    <h1 style="font-size:22px">⚡ Alertas de Tormentas</h1>
+    <label for="reporteText">Pegá el reporte meteorológico</label>
+    <textarea id="reporteText" rows="12" placeholder="Reporte Meteorológico&#10;Informa el Sr. ... tal cual llegó por WhatsApp"></textarea>
+    <div class="loading" id="loading" hidden>Recibiendo el parte, estructurando…</div>
+    <div class="error-banner" id="errorBanner" hidden></div>
+    <button class="btn" id="generarBtn">Generar alerta</button>
+    <p class="contexto-hint">Regla editorial: nada se afirma que no traiga el parte. Si falta un dato, la celda queda vacía — no se inventa.</p>
+  </section>
+  <section class="panel">
+    <div class="format-toggle" id="formatoToggle">
+      <button class="format-btn active" data-formato="1:1">1:1</button>
+      <button class="format-btn" data-formato="4:5">4:5</button>
+      <button class="format-btn" data-formato="9:16">9:16</button>
+    </div>
+    <canvas id="plateCanvas" width="1350" height="1688"></canvas>
+    <div style="display:flex;gap:8px"><button class="btn" id="descargarPngBtn">Descargar PNG</button><button class="btn btn-secondary" id="copiarPngBtn">Copiar PNG</button></div>
+    <form id="alertasForm" class="fld-grid" style="width:100%">
+      <div style="grid-column:1/-1"><label for="titularInput">Titular</label><input id="titularInput" style="width:100%"></div>
+      <div style="grid-column:1/-1"><label for="fuenteInput">Fuente</label><input id="fuenteInput" style="width:100%"></div>
+      <div><label for="fechaInput">Fecha</label><input id="fechaInput" placeholder="17/11"></div>
+      <div><label for="horaInput">Hora</label><input id="horaInput" placeholder="11:00"></div>
+      <div><label for="nivelSelect">Nivel</label><select id="nivelSelect"><option>gris</option><option>blanco</option><option>azul</option><option>verde</option><option>amarillo</option><option selected>naranja</option><option>rojo</option><option>violeta</option></select></div>
+      <div><label for="direccionInput">Dirección</label><input id="direccionInput" placeholder="este / oeste / norte / sur"></div>
+      <fieldset style="grid-column:1/-1"><legend>AHORA</legend>
+        <input id="celda-ahora-zonas" placeholder="Zonas"><input id="celda-ahora-detalle" placeholder="Detalle (fenómeno)"><input id="celda-ahora-hacia" placeholder="hacia (este / '')">
+      </fieldset>
+      <fieldset style="grid-column:1/-1"><legend>EN RUTA</legend>
+        <input id="celda-ruta-zonas" placeholder="Zonas"><input id="celda-ruta-detalle" placeholder="Detalle"><input id="celda-ruta-hacia" placeholder="hacia">
+      </fieldset>
+      <fieldset style="grid-column:1/-1"><legend>PRÓXIMO</legend>
+        <input id="celda-siguiente-zonas" placeholder="Zonas"><input id="celda-siguiente-detalle" placeholder="Detalle"><input id="celda-siguiente-hacia" placeholder="hacia">
+      </fieldset>
+      <fieldset style="grid-column:1/-1"><legend>LLEGADA (opcional)</legend>
+        <input id="eta-lugar" placeholder="Lugar (Valle Grande · Embalse)"><input id="eta-detalle" placeholder="Detalle (lluvia fuerte y granizo)"><input id="eta-minutos" type="number" min="1" placeholder="Minutos">
+      </fieldset>
+      <div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button type="button" class="btn" id="actualizarBtn">Actualizar placa</button></div>
+    </form>
+    <div class="caption-box"><label for="captionText">Caption WhatsApp / Instagram</label><textarea id="captionText" readonly></textarea><button class="btn btn-secondary" id="copiarCaptionBtn">Copiar caption</button></div>
+  </section>
+</div>
+
+<script>
+const PROTECT_PASSWORD = "tomyjerry2008";
+
+function verificarPassword() {
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('loginError');
+  const password = input.value.trim();
+
+  if (password === PROTECT_PASSWORD) {
+    const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
+    localStorage.setItem('mm_auth', JSON.stringify({ autenticado: true, expires: expiry }));
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('protectedContent').classList.add('show');
+    input.value = '';
+    error.classList.remove('show');
+  } else {
+    error.classList.add('show');
+    input.value = '';
+    input.focus();
+  }
+}
+
+function verificarSesion() {
+  const authData = localStorage.getItem('mm_auth');
+  if (authData) {
+    try {
+      const { autenticado, expires } = JSON.parse(authData);
+      if (autenticado && expires && Date.now() < expires) {
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('protectedContent').classList.add('show');
+        return true;
+      } else {
+        localStorage.removeItem('mm_auth');
+      }
+    } catch(e) { localStorage.removeItem('mm_auth'); }
+  }
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('protectedContent').classList.remove('show');
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  verificarSesion();
+  document.getElementById('passwordInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') verificarPassword();
+  });
+});
+</script>
+<!-- FIN DEL BLOQUE DE PROTECCIÓN -->
+
+<script type="module" src="app.mjs"></script>
+</div>
+<div class="toast" id="toast"></div>
+</body>
+</html>
