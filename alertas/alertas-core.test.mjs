@@ -71,6 +71,21 @@ test('validarEnFuente descarta ETA cuyo lugar no aparece', () => {
   assert.equal(validarEnFuente(data, PARTE1).eta, null);
 });
 
+test('validarEnFuente mantiene ETA compuesto cuando cada componente aparece en el parte', () => {
+  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [], eta: { lugar: 'Valle Grande · Embalse', detalle: 'granizo', minutos: 10 } });
+  assert.equal(validarEnFuente(data, PARTE1 + '\n' + PARTE2).eta.minutos, 10);
+});
+
+test('validarEnFuente descarta ETA compuesto si algún componente no aparece', () => {
+  const data = normalizeAlertReport({ titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: 'este', celdas: [], eta: { lugar: 'Valle Grande · Bariloche', detalle: 'granizo', minutos: 5 } });
+  assert.equal(validarEnFuente(data, PARTE1 + '\n' + PARTE2).eta, null);
+});
+
+test('validarEnFuente descarta ETA con lugar vacío', () => {
+  const data = { titular: 'T', fuente: 'Radar', nivel: 'naranja', direccion: '', celdas: [], eta: { lugar: '', detalle: 'granizo', minutos: 5 } };
+  assert.equal(validarEnFuente(data, PARTE2).eta, null);
+});
+
 test('caption: omite viñetas inventadas si no hay celdas y mantiene encabezado fijo', () => {
   const data = normalizeAlertReport({ titular: 'Alerta de tormentas', fuente: 'Radar', nivel: 'naranja', direccion: '', celdas: [], eta: null });
   const caption = buildWhatsAppCaption(data);

@@ -29,6 +29,7 @@ export function emptyReport() {
 const limpiaTitulo = (s) => String(s || '').trim().replace(/\s+/g, ' ').replace(/\.+$/, '');
 const limpia = (s) => String(s || '').trim().replace(/\s+/g, ' ');
 const canon = (s) => limpia(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const tokensLugar = (s) => canon(s).split(/[,;·|–—\-/()&]/).map((t) => t.trim()).filter(Boolean);
 const DIRECCIONES = ['este', 'oeste', 'norte', 'sur'];
 
 export function normalizeAlertReport(raw) {
@@ -74,7 +75,8 @@ export function validarEnFuente(data, texto) {
     const haciaFinal = c.hacia && fuente.includes(canon(c.hacia)) ? c.hacia : '';
     limpio.celdas.push({ ...c, zonas: zonasFinal, hacia: haciaFinal });
   }
-  if (data.eta && fuente.includes(canon(data.eta.lugar))) limpio.eta = data.eta;
+  const etaTokens = data.eta ? tokensLugar(data.eta.lugar) : [];
+  if (data.eta && etaTokens.length && etaTokens.every((t) => fuente.includes(t))) limpio.eta = data.eta;
   return limpio;
 }
 
