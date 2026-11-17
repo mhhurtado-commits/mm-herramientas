@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Alertas de Tormentas — Media Mendoza</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <link rel="icon" type="image/png" href="../assets/logo-cuadrado.png">
 <style>
@@ -26,13 +25,15 @@ label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--dim
 .format-toggle{display:flex;gap:6px}
 .format-btn{background:transparent;border:1px solid var(--line2);color:var(--dim);border-radius:var(--radius);padding:8px 12px;cursor:pointer;font-weight:700}
 .format-btn.active{background:var(--alertas-accent);border-color:var(--alertas-accent);color:#141414}
-canvas#plateCanvas{display:block;margin:0 auto;background:#0a0c09;border-radius:var(--radius-lg);border:1px solid var(--line)}
+canvas#plateCanvas{display:block;margin:0 auto;background:#0F1520;border-radius:var(--radius-lg);border:1px solid var(--line)}
 .fld-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 fieldset{border:1px solid var(--line2);border-radius:var(--radius);padding:8px 10px;display:flex;flex-direction:column;gap:8px}
 legend{font-size:9px;letter-spacing:1.5px;color:var(--alertas-accent);font-weight:800}
 .caption-box textarea{width:100%;min-height:150px;font-size:12px}
 .toast{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);background:var(--alertas-accent);color:#141414;padding:10px 16px;border-radius:var(--radius);font-size:12px;font-weight:700;display:none;z-index:400}
 .toast.show{display:block}
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap; src:url('../assets/Inter-Variable.woff2') format('woff2'); }
+  @font-face { font-family:'Oswald'; font-style:normal; font-weight:200 700; font-display:swap; src:url('../assets/Oswald-Variable.woff2') format('woff2'); }
 </style>
 </head>
 <body class="dark-theme">

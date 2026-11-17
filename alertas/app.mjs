@@ -83,6 +83,21 @@ function fitCanvasToPanel() {
   canvas.style.height = `${h}px`;
 }
 
+// ─── Fuentes locales (mismo mecanismo que /efemerides/) ───
+// El canvas necesita las caras cargadas explícitamente; el <style> las declara para la UI.
+const CARAS = [
+  ['Inter', '../assets/Inter-Variable.woff2', '100 900'],
+  ['Oswald', '../assets/Oswald-Variable.woff2', '200 700'],
+];
+
+function cargarFuentes() {
+  return Promise.all(CARAS.map(async ([nombre, ruta, peso]) => {
+    const face = new FontFace(nombre, `url(${new URL(ruta, import.meta.url).href}) format('woff2')`, { weight: peso });
+    await face.load();
+    document.fonts.add(face);
+  }));
+}
+
 function render() {
   const canvas = document.getElementById('plateCanvas');
   if (!canvas) return;
@@ -199,6 +214,7 @@ poblarFormulario(initial);
 cargarLogo();
 render();
 window.addEventListener('resize', fitCanvasToPanel);
-// Re-render cuando Inter termine de cargar (la primera pintura puede caer en fallback Arial).
+cargarFuentes().then(() => render()).catch(() => {});
+// Re-render cuando las fuentes terminen de cargar (la primera pintura puede caer en fallback Arial).
 if (document.fonts?.ready) document.fonts.ready.then(() => render());
 document.getElementById('generarBtn').disabled = true;
