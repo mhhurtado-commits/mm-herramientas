@@ -1,4 +1,6 @@
 // alertas/renderer.mjs — dibuja la placa en canvas. Sin DOM; ctx se recibe como argumento.
+// Lenguaje visual coherente con /efemerides/ (fondo #0F1520, neutros, footer 3 columnas,
+// regla de acento bajo la banda) conservando la firma de urgencia (borde amarillo, chip ALERTA).
 
 export const FORMATS = {
   '1:1': { width: 1600, height: 1600 },
@@ -16,6 +18,15 @@ export function calcularFactor(natural, disponible) {
   if (!Number.isFinite(disponible) || disponible <= 0) return PISO_ESCALA;
   return Math.min(TOPE_ESCALA, Math.max(PISO_ESCALA, disponible / natural));
 }
+
+const CREMA = '#F5F1E6';
+const ATENUADO = 'rgba(245,241,230,.78)';
+const REGLA = 'rgba(245,241,230,.25)';
+const ACENTO = '#f5c518';
+const ACENTO_FONDO = 'rgba(245,197,24,.08)';
+const FONDO = '#0F1520';
+const NEGRO = '#141414';
+const ROJO = '#c0392b';
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -42,160 +53,192 @@ function wrapLines(ctx, text, maxWidth) {
 }
 
 const ETIQUETA_LABEL = { ahora: 'AFECTANDO AHORA', ruta: 'EN RUTA', siguiente: 'PRÓXIMO' };
+const padOf = (W) => Math.round(W * 0.042);
+
+function metricasCuerpo(W, f) {
+  return {
+    gap: Math.round(W * 0.016 * f), padV: Math.round(W * 0.0135 * f),
+    labelH: Math.round(W * 0.020 * f), bodyFS: Math.round(W * 0.0245 * f),
+    bodyLH: Math.round(W * 0.031 * f), labelFS: Math.round(W * 0.0125 * f),
+    pillW: Math.round(W * 0.084 * f), pillH: Math.round(W * 0.028 * f),
+    pillFS: Math.round(W * 0.0135 * f),
+    etaFS: Math.round(W * 0.0175 * f), etaLH: Math.round(W * 0.023 * f),
+    etaPadV: Math.round(W * 0.017 * f), etaPadL: Math.round(W * 0.016 * f),
+    bar: Math.max(4, Math.round(W * 0.004 * f)),
+  };
+}
+
+const textoEta = (eta) => `⚡ ${eta.lugar}: llegada en ${eta.minutos} min — ${eta.detalle}`;
+
+function altoNaturalCuerpo(ctx, celdas, eta, W) {
+  const pad = padOf(W);
+  const m = metricasCuerpo(W, 1);
+  let total = 0;
+  for (const celda of celdas) {
+    if (!celda.zonas) continue;
+    const towardPill = celda.hacia ? m.pillW + Math.round(W * 0.014) : 0;
+    const bodyMax = Math.max(1, W - pad * 2 - m.padV * 2 - towardPill);
+    ctx.font = `500 ${m.bodyFS}px Inter, Arial, sans-serif`;
+    const lines = wrapLines(ctx, `${celda.zonas} — ${celda.detalle}`, bodyMax).length || 1;
+    total += m.padV * 2 + m.labelH + lines * m.bodyLH + Math.round(W * 0.004) + m.gap;
+  }
+  if (eta && eta.lugar) {
+    ctx.font = `800 ${m.etaFS}px Inter, Arial, sans-serif`;
+    const lines = wrapLines(ctx, textoEta(eta), W - pad * 2 - Math.round(W * 0.032)).slice(0, 3).length;
+    total += lines * m.etaLH + m.etaPadV + m.gap;
+  }
+  return total;
+}
 
 export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null) {
   const cfg = FORMATS[formatKey] || FORMATS['4:5'];
   const W = cfg.width, H = cfg.height;
-  const pad = Math.round(W * 0.042);
+  const pad = padOf(W);
+  const celdas = (data.celdas || []).filter((c) => c && c.zonas);
 
-  // Fondo vertical oscuro
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#10130f');
-  bg.addColorStop(1, '#0a0c09');
-  ctx.fillStyle = bg;
+  // Fondo plano azul-noche (igual al de /efemerides/)
+  ctx.fillStyle = FONDO;
   ctx.fillRect(0, 0, W, H);
 
   // Borde exterior amarillo redondeado
   ctx.lineWidth = Math.max(3, Math.round(W * 0.0032));
-  ctx.strokeStyle = '#f5c518';
+  ctx.strokeStyle = ACENTO;
   roundRect(ctx, pad * 0.4, pad * 0.4, W - pad * 0.8, H - pad * 0.8, W * 0.02);
   ctx.stroke();
 
-  // Header: chip ALERTA + logo/wordmark + fecha·hora
-  const chipW = Math.round(W * 0.155), chipH = Math.round(W * 0.036), chipY = pad;
-  ctx.fillStyle = '#f5c518';
+  // Header banda: chip ALERTA izq + logo/fecha der (fijo, más grande)
+  const chipW = Math.round(W * 0.19), chipH = Math.round(W * 0.047), chipY = pad;
+  ctx.fillStyle = ACENTO;
   roundRect(ctx, pad, chipY, chipW, chipH, chipH * 0.18);
   ctx.fill();
-  ctx.fillStyle = '#141414';
-  ctx.font = `900 ${Math.round(W * 0.0185)}px 'Arial Black', Arial, sans-serif`;
+  ctx.fillStyle = NEGRO;
+  ctx.font = `600 ${Math.round(W * 0.026)}px Oswald, Arial, sans-serif`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   ctx.fillText('ALERTA', pad + chipW / 2, chipY + chipH / 2 + 1);
 
   if (logoImg) {
-    const logoH = Math.round(chipH * 1.5);
+    const logoH = Math.round(chipH * 1.32);
     const logoW = Math.round(logoH * (logoImg.width / logoImg.height));
     ctx.drawImage(logoImg, W - pad - logoW, chipY + chipH / 2 - logoH / 2, logoW, logoH);
   } else {
-    ctx.fillStyle = '#f5f5ec';
-    ctx.font = `800 ${Math.round(W * 0.0135)}px Inter, Arial, sans-serif`;
+    ctx.fillStyle = CREMA;
+    ctx.font = `600 ${Math.round(W * 0.017)}px Oswald, Arial, sans-serif`;
     ctx.textAlign = 'right';
-    ctx.fillText('MEDIA MENDOZA', W - pad, chipY + chipH / 2 + 1);
+    ctx.fillText('MEDIA MENDOZA', W - pad, chipY + chipH / 2);
   }
-  ctx.fillStyle = '#a7a896';
-  ctx.font = `600 ${Math.round(W * 0.0125)}px Inter, Arial, sans-serif`;
+  ctx.fillStyle = ACENTO;
+  ctx.font = `600 ${Math.round(W * 0.0175)}px Oswald, Arial, sans-serif`;
   ctx.textAlign = 'right';
-  ctx.fillText(`${data.fecha || ''} · ${data.hora || ''}`, W - pad, chipY + chipH + W * 0.014);
-
-  // Titular
-  let y = chipY + chipH + W * 0.068;
-  ctx.fillStyle = '#f5f5ec';
-  ctx.font = `900 ${Math.round(W * 0.056)}px 'Arial Black', Arial, sans-serif`;
-  ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  const titleText = String(data.titular || '').toUpperCase(); // sin titular → no se dibuja nada (nunca un rótulo inventado)
-  for (const line of wrapLines(ctx, titleText, W - pad * 2)) {
+  ctx.fillText(`${data.fecha || ''} · ${data.hora || ''}`, W - pad, chipY + chipH + W * 0.026);
+
+  // Regla de acento 4px full-width (patrón efemérides, acento alerta)
+  const ruleH = Math.max(3, Math.round(W * 0.0035));
+  const ruleY = chipY + chipH + W * 0.038;
+  ctx.fillStyle = ACENTO;
+  ctx.fillRect(pad, ruleY, W - pad * 2, ruleH);
+
+  // Titular (Oswald 700, caps)
+  let y = ruleY + W * 0.075;
+  ctx.fillStyle = CREMA;
+  ctx.font = `700 ${Math.round(W * 0.06)}px Oswald, Arial, sans-serif`;
+  ctx.textAlign = 'left';
+  for (const line of wrapLines(ctx, String(data.titular || '').toUpperCase(), W - pad * 2)) {
     ctx.fillText(line, pad, y);
-    y += W * 0.058;
+    y += W * 0.061;
   }
 
-  // Byline fuente
-  y += W * 0.006;
-  ctx.fillStyle = '#f5c518';
+  // Byline fuente (Inter caps acento)
+  y += W * 0.004;
+  ctx.fillStyle = ACENTO;
   ctx.font = `700 ${Math.round(W * 0.0135)}px Inter, Arial, sans-serif`;
   for (const line of wrapLines(ctx, (data.fuente || '').toUpperCase(), W - pad * 2)) {
     ctx.fillText(line, pad, y);
     y += W * 0.018;
   }
 
-  // Bloques de zona dinámicos (1–3)
-  const gap = Math.round(W * 0.016);
-  const padV = Math.round(W * 0.0135);
-  const labelH = Math.round(W * 0.020);
-  const bodyFS = Math.round(W * 0.0245);
-  const bodyLH = Math.round(W * 0.031);
-  const leftBar = Math.max(4, Math.round(W * 0.004));
+  // Cuerpo dinámico: factor = disponible / natural, con piso 0.55 y tope 2.4
+  const bottomLimit = H - Math.round(pad * 1.6) - Math.round(W * 0.021);
+  const disponible = Math.max(0, bottomLimit - y);
+  const natural = altoNaturalCuerpo(ctx, celdas, data.eta, W);
+  const f = calcularFactor(natural, disponible);
+  const m = metricasCuerpo(W, f);
 
-  for (const celda of data.celdas || []) {
-    if (!celda.zonas) continue;
-    const towardPill = celda.hacia ? Math.round(W * 0.088) : 0;
-    const bodyMax = W - pad * 2 - padV * 2 - towardPill - (towardPill ? Math.round(W * 0.014) : 0);
-    ctx.font = `500 ${bodyFS}px Inter, Arial, sans-serif`;
+  for (const celda of celdas) {
+    const towardPill = celda.hacia ? m.pillW + Math.round(W * 0.014) : 0;
+    const bodyMax = Math.max(1, W - pad * 2 - m.padV * 2 - towardPill);
+    ctx.font = `500 ${m.bodyFS}px Inter, Arial, sans-serif`;
     const bodyLines = wrapLines(ctx, `${celda.zonas} — ${celda.detalle}`, bodyMax);
-    const blockH = padV * 2 + labelH + bodyLines.length * bodyLH + Math.round(W * 0.004);
-    if (y + blockH > H - pad * 1.6) break; // nunca overflow
+    const blockH = m.padV * 2 + m.labelH + bodyLines.length * m.bodyLH + Math.round(W * 0.004 * f);
 
-    // Panel
-    ctx.fillStyle = 'rgba(245,197,24,.08)';
+    ctx.fillStyle = ACENTO_FONDO;
     roundRect(ctx, pad, y, W - pad * 2, blockH, W * 0.008);
     ctx.fill();
-    // Barra izquierda
-    ctx.fillStyle = '#f5c518';
-    ctx.fillRect(pad, y + W * 0.010, leftBar, blockH - W * 0.020);
-    // Etiqueta
-    ctx.fillStyle = '#f5c518';
-    ctx.font = `800 ${Math.round(W * 0.0125)}px Inter, Arial, sans-serif`;
-    ctx.fillText(ETIQUETA_LABEL[celda.etiqueta] || 'ZONA', pad + padV, y + padV + labelH * 0.55);
-    // Cuerpo
-    ctx.fillStyle = '#f5f5ec';
-    let lineY = y + padV + labelH + bodyLH * 0.75;
-    ctx.font = `500 ${bodyFS}px Inter, Arial, sans-serif`;
+    ctx.fillStyle = ACENTO;
+    ctx.fillRect(pad, y + W * 0.010 * f, m.bar, blockH - W * 0.020 * f);
+    ctx.font = `600 ${m.labelFS}px Oswald, Arial, sans-serif`;
+    ctx.fillText(ETIQUETA_LABEL[celda.etiqueta] || 'ZONA', pad + m.padV, y + m.padV + m.labelH * 0.55);
+    ctx.fillStyle = CREMA;
+    let lineY = y + m.padV + m.labelH + m.bodyLH * 0.75;
+    ctx.font = `500 ${m.bodyFS}px Inter, Arial, sans-serif`;
     for (const line of bodyLines) {
-      ctx.fillText(line, pad + padV, lineY);
-      lineY += bodyLH;
+      ctx.fillText(line, pad + m.padV, lineY);
+      lineY += m.bodyLH;
     }
-    // Pill dirección
     if (celda.hacia) {
-      const pillW = Math.round(W * 0.078), pillH = Math.round(W * 0.026);
-      const pillX = W - pad - padV - pillW, pillY = y + blockH / 2 - pillH / 2;
-      ctx.fillStyle = '#f5c518';
-      roundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+      const pillX = W - pad - m.padV - m.pillW, pillY = y + blockH / 2 - m.pillH / 2;
+      ctx.fillStyle = ACENTO;
+      roundRect(ctx, pillX, pillY, m.pillW, m.pillH, m.pillH / 2);
       ctx.fill();
-      ctx.fillStyle = '#141414';
-      ctx.font = `800 ${Math.round(W * 0.0125)}px Inter, Arial, sans-serif`;
+      ctx.fillStyle = NEGRO;
+      ctx.font = `600 ${m.pillFS}px Oswald, Arial, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText(`→ ${String(celda.hacia).toUpperCase()}`, pillX + pillW / 2, pillY + pillH / 2 + 1);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`→ ${String(celda.hacia).toUpperCase()}`, pillX + m.pillW / 2, pillY + m.pillH / 2 + 1);
+      ctx.textBaseline = 'alphabetic';
       ctx.textAlign = 'left';
     }
-    y += blockH + gap;
+    y += blockH + m.gap;
   }
 
   // Banner ETA (solo si eta != null)
   if (data.eta) {
-    const etaText = `⚡ ${data.eta.lugar}: llegada en ${data.eta.minutos} min — ${data.eta.detalle}`;
-    const etaFont = Math.round(W * 0.0175);
-    ctx.font = `800 ${etaFont}px Inter, Arial, sans-serif`;
-    const etaLines = wrapLines(ctx, etaText, W - pad * 2 - Math.round(W * 0.032)).slice(0, 3);
-    const lineH = W * 0.023;
-    const etaH = Math.round(etaLines.length * lineH + W * 0.017);
-    const footTop = H - Math.round(pad * 1.6) - Math.round(W * 0.021);
-    const etaTop = Math.min(y, Math.max(Math.round(pad * 1.15), footTop - etaH));
-    ctx.fillStyle = '#c0392b';
-    roundRect(ctx, pad, etaTop, W - pad * 2, etaH, W * 0.008);
+    ctx.font = `800 ${m.etaFS}px Inter, Arial, sans-serif`;
+    const etaLines = wrapLines(ctx, textoEta(data.eta), W - pad * 2 - Math.round(W * 0.032)).slice(0, 3);
+    const etaH = etaLines.length * m.etaLH + m.etaPadV;
+    ctx.fillStyle = ROJO;
+    roundRect(ctx, pad, y, W - pad * 2, etaH, W * 0.008);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    let etaY = etaTop + lineH * 0.78;
+    let etaY = y + m.etaLH * 0.72 + m.etaPadV * 0.25;
     for (const line of etaLines) {
-      ctx.fillText(line, pad + Math.round(W * 0.016), etaY);
-      etaY += lineH;
+      ctx.fillText(line, pad + m.etaPadL, etaY);
+      etaY += m.etaLH;
     }
+    y += etaH + m.gap;
   }
 
-  // Footer
-  const footY = H - Math.round(pad * 0.78);
-  ctx.strokeStyle = 'rgba(255,255,255,.14)';
-  ctx.lineWidth = 1;
+  // Footer 3 columnas (patrón efemérides): FUENTE izq · dominio centro · etiqueta der
+  const footRuleY = H - Math.round(pad * 0.92);
+  ctx.strokeStyle = REGLA;
+  ctx.lineWidth = Math.max(1, Math.round(W * 0.0012));
   ctx.beginPath();
-  ctx.moveTo(pad, footY - W * 0.021);
-  ctx.lineTo(W - pad, footY - W * 0.021);
+  ctx.moveTo(pad, footRuleY);
+  ctx.lineTo(W - pad, footRuleY);
   ctx.stroke();
-  ctx.fillStyle = '#f5f5ec';
-  ctx.font = `800 ${Math.round(W * 0.016)}px Inter, Arial, sans-serif`;
+  const footY = H - Math.round(pad * 0.45);
+  ctx.fillStyle = ATENUADO;
+  ctx.font = `500 ${Math.round(W * 0.0135)}px Inter, Arial, sans-serif`;
   ctx.textAlign = 'left';
-  ctx.fillText('MEDIA MENDOZA', pad, footY);
-  ctx.fillStyle = '#a7a896';
-  ctx.font = `400 ${Math.round(W * 0.0125)}px Inter, Arial, sans-serif`;
+  ctx.fillText(`FUENTE: ${String(data.fuente || '').toUpperCase()}`, pad, footY);
+  ctx.fillStyle = CREMA;
+  ctx.font = `600 ${Math.round(W * 0.0155)}px Oswald, Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('WWW.MEDIAMENDOZA.COM', W / 2, footY);
+  ctx.fillStyle = ACENTO;
+  ctx.font = `600 ${Math.round(W * 0.016)}px Oswald, Arial, sans-serif`;
   ctx.textAlign = 'right';
-  ctx.fillText(`mediamendoza.com · ${data.fecha || ''} · ${data.hora || ''}`, W - pad, footY);
+  ctx.fillText('ALERTA DE TORMENTAS', W - pad, footY);
   ctx.textAlign = 'left';
 }
