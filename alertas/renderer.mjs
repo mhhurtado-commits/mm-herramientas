@@ -108,6 +108,13 @@ function factorCuerpo(ctx, celdas, eta, W, disponible) {
   return f;
 }
 
+function unaLinea(ctx, texto, maxAncho) {
+  if (ctx.measureText(texto).width <= maxAncho) return texto;
+  let t = texto;
+  while (t.length > 1 && ctx.measureText(`${t}…`).width > maxAncho) t = t.slice(0, -1);
+  return `${t.trimEnd()}…`;
+}
+
 export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null) {
   const cfg = FORMATS[formatKey] || FORMATS['4:5'];
   const W = cfg.width, H = cfg.height;
@@ -136,20 +143,20 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
   ctx.fillText('ALERTA', pad + chipW / 2, chipY + chipH / 2 + 1);
 
   if (logoImg) {
-    const logoH = Math.round(chipH * 1.32);
+    const logoH = Math.round(chipH * 1.5);
     const logoW = Math.round(logoH * (logoImg.width / logoImg.height));
     ctx.drawImage(logoImg, W - pad - logoW, chipY + chipH / 2 - logoH / 2, logoW, logoH);
   } else {
     ctx.fillStyle = CREMA;
-    ctx.font = `600 ${Math.round(W * 0.017)}px Oswald, Arial, sans-serif`;
+    ctx.font = `600 ${Math.round(W * 0.019)}px Oswald, Arial, sans-serif`;
     ctx.textAlign = 'right';
     ctx.fillText('MEDIA MENDOZA', W - pad, chipY + chipH / 2);
   }
   ctx.fillStyle = ACENTO;
-  ctx.font = `600 ${Math.round(W * 0.0175)}px Oswald, Arial, sans-serif`;
+  ctx.font = `600 ${Math.round(W * 0.0225)}px Oswald, Arial, sans-serif`;
   ctx.textAlign = 'right';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(`${data.fecha || ''} · ${data.hora || ''}`, W - pad, chipY + chipH + W * 0.026);
+  ctx.fillText(`${data.fecha || ''} · ${data.hora || ''}`, W - pad, chipY + chipH + W * 0.030);
 
   // Regla de acento 4px full-width (patrón efemérides, acento alerta)
   const ruleH = Math.max(3, Math.round(W * 0.0035));
@@ -170,10 +177,10 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
   // Byline fuente (Inter caps acento)
   y += W * 0.004;
   ctx.fillStyle = ACENTO;
-  ctx.font = `700 ${Math.round(W * 0.0135)}px Inter, Arial, sans-serif`;
+  ctx.font = `700 ${Math.round(W * 0.018)}px Inter, Arial, sans-serif`;
   for (const line of wrapLines(ctx, (data.fuente || '').toUpperCase(), W - pad * 2)) {
     ctx.fillText(line, pad, y);
-    y += W * 0.018;
+    y += W * 0.024;
   }
 
   // Cuerpo dinámico: factor iterativo disponible/natural (sin desbordar ni cortar bloques)
@@ -237,24 +244,25 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
   }
 
   // Footer 3 columnas (patrón efemérides): FUENTE izq · dominio centro · etiqueta der
-  const footRuleY = H - Math.round(pad * 0.92);
+  const footRuleY = H - Math.round(pad * 0.99);
   ctx.strokeStyle = REGLA;
-  ctx.lineWidth = Math.max(1, Math.round(W * 0.0012));
+  ctx.lineWidth = Math.max(1.5, Math.round(W * 0.0016));
   ctx.beginPath();
   ctx.moveTo(pad, footRuleY);
   ctx.lineTo(W - pad, footRuleY);
   ctx.stroke();
-  const footY = H - Math.round(pad * 0.45);
+  const footY = H - Math.round(pad * 0.42);
   ctx.fillStyle = ATENUADO;
-  ctx.font = `500 ${Math.round(W * 0.0135)}px Inter, Arial, sans-serif`;
+  ctx.font = `600 ${Math.round(W * 0.0185)}px Inter, Arial, sans-serif`;
   ctx.textAlign = 'left';
-  ctx.fillText(`FUENTE: ${String(data.fuente || '').toUpperCase()}`, pad, footY);
+  const maxIzq = Math.round(W * 0.5) - pad - Math.round(W * 0.155);
+  ctx.fillText(unaLinea(ctx, `FUENTE: ${String(data.fuente || '').toUpperCase()}`, maxIzq), pad, footY);
   ctx.fillStyle = CREMA;
-  ctx.font = `600 ${Math.round(W * 0.0155)}px Oswald, Arial, sans-serif`;
+  ctx.font = `600 ${Math.round(W * 0.022)}px Oswald, Arial, sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillText('WWW.MEDIAMENDOZA.COM', W / 2, footY);
   ctx.fillStyle = ACENTO;
-  ctx.font = `600 ${Math.round(W * 0.016)}px Oswald, Arial, sans-serif`;
+  ctx.font = `600 ${Math.round(W * 0.0225)}px Oswald, Arial, sans-serif`;
   ctx.textAlign = 'right';
   ctx.fillText('ALERTA DE TORMENTAS', W - pad, footY);
   ctx.textAlign = 'left';
