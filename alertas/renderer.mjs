@@ -40,6 +40,7 @@ const NIVEL_COLOR = {
   rojo: '#c0392b',
   violeta: '#8e44ad',
 };
+
 // Texto del chip: negro sobre fondos claros, blanco sobre fondos oscuros (contraste).
 const NIVEL_TEXTO = {
   gris: NEGRO, blanco: NEGRO, azul: '#ffffff', verde: '#ffffff',
@@ -88,6 +89,7 @@ function metricasCuerpo(W, f) {
 
 const textoEta = (eta) => `⚡ ${eta.lugar}: llegada en ${eta.minutos} min — ${eta.detalle}`;
 
+// Calcula el alto natural del cuerpo (para iteración de factor).
 function altoCuerpo(ctx, celdas, eta, W, f) {
   const pad = padOf(W);
   const m = metricasCuerpo(W, f);
@@ -108,22 +110,19 @@ function altoCuerpo(ctx, celdas, eta, W, f) {
   return total;
 }
 
-// Calcula el factor de escala del cuerpo iterando: la medida de saltos de línea
-// depende del tamaño de fuente, así que el factor se ajusta hasta que el total
-// dibujado entre en el espacio disponible (sin cortar ningún bloque).
+// Calcula el factor de escala del cuerpo por bisección: la medida de saltos de línea
+// depende del tamaño de fuente (función con saltos), así que iterar con
+// f*disponible/total oscila entre el tope y un valor válido. La bisección siempre
+// devuelve el mayor factor cuyo contenido entra en el alto disponible.
 function factorCuerpo(ctx, celdas, eta, W, disponible) {
   if (!Number.isFinite(disponible) || disponible <= 0) return PISO_ESCALA;
-  let f = calcularFactor(altoCuerpo(ctx, celdas, eta, W, 1), disponible);
-  for (let i = 0; i < 6; i++) {
+  let lo = PISO_ESCALA, hi = TOPE_ESCALA, mejor = PISO_ESCALA;
+  for (let i = 0; i < 10; i++) {
+    const f = (lo + hi) / 2;
     const total = altoCuerpo(ctx, celdas, eta, W, f);
-    if (total <= 0) return f;
-    const next = Math.min(TOPE_ESCALA, Math.max(PISO_ESCALA, f * (disponible / total)));
-    if (Math.abs(next - f) < 0.01) return Math.min(next, f);
-    f = next;
-    if (f <= PISO_ESCALA) return PISO_ESCALA;
-    if (f >= TOPE_ESCALA) return TOPE_ESCALA;
+    if (total <= disponible + 0.5) { mejor = f; lo = f; } else { hi = f; }
   }
-  return f;
+  return mejor;
 }
 
 function unaLinea(ctx, texto, maxAncho) {
