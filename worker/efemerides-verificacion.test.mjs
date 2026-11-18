@@ -63,3 +63,53 @@ test('emparejarEsEn sintético: mismo año NO alcanza; año distinto NO; token c
   assert.equal(emparejarEsEn(mk('1966', 'un escritor de Madrid'), mk('1965', 'an inventor in Madrid')).length, 0);
   assert.equal(emparejarEsEn(mk('1978', 'mueren en Jonestown'), mk('1978', 'Jonestown massacre happens')).length, 1);
 });
+
+import { handlePlacasV2Efemerides } from './worker.js';
+
+const FECHA = '2026-11-18';
+const fetcherStub = ({ es = ES, en = EN, curadas = null, esStatus = 200, enStatus = 200 } = {}) => async (url) => {
+  const u = String(url);
+  const mk = (status, body) => ({ ok: status >= 200 && status < 300, status, text: async () => body, json: async () => JSON.parse(body) });
+  if (u.includes('es.wikipedia.org')) return mk(esStatus, es);
+  if (u.includes('en.wikipedia.org')) return mk(enStatus, en);
+  if (u.includes('efemerides-curadas.json')) return curadas ? mk(200, JSON.stringify(curadas)) : mk(404, '{}');
+  throw new Error('url no stubbed: ' + u);
+};
+const req = (fecha = FECHA) => new URL('https://x/placas/v2/efemerides?fecha=' + fecha);
+const envSinKV = {};
+const KV_OK = { KV: { _m: new Map(), async get(k){ return this._m.get(k) ?? null; }, async put(k, v){ this._m.set(k, JSON.parse(v)); } } };
+
+test('handler: solo verificados + curados; Sabatini fuera', async () => {
+  const curadas = { '11-18': [{ año: '1845', titulo: 'Vuelta de Obligado', resumen: 'r', texto_ampliado: 'a', icono: 'historia', fuente: 'ARCHIVO.AR' }] };
+  const gemini = async () => ({ data: { items: [{ indice: 0, alcance: 'nacional', categoria: 'historia', icono: 'historia', resumen: 'curado', texto_ampliado: 'curado' }] } });
+  const res = await handlePlacasV2Efemerides(req(), envSinKV, fetcherStub({ curadas }), gemini);
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.ok(!data.items.some(i => /Sabatini/i.test(i.titulo + ' ' + i.resumen)));
+  assert.ok(data.items.every(i => i.verificada === true));
+  const obligado = data.items.find(i => i.año === '1845');
+  assert.ok(obligado && obligado.fuente === 'ARCHIVO.AR');
+});
+
+test('handler: si EN cae -> ultima buena o 502 (nunca placa sin verificar)', async () => {
+  const sinCache = await handlePlacasV2Efemerides(req(), envSinKV, fetcherStub({ enStatus: 500 }), async () => ({ data: { items: [] } }));
+  assert.equal(sinCache.status, 502);
+  KV_OK.KV._m.set('placas-v2:efemerides:v5:' + FECHA, { items: [{ titulo: 'vieja', resumen: 'x', texto_ampliado: 'y', año: '1900', icono: 'historia' }], meta: { fecha: FECHA } });
+  const conCache = await handlePlacasV2Efemerides(req(), KV_OK, fetcherStub({ enStatus: 500 }), async () => ({ data: { items: [] } }));
+  const data = await conCache.json();
+  assert.equal(data.meta.fallback, true);
+});
+
+test('handler: Gemini roto -> seleccion deterministica con verificados', async () => {
+  const geminiRoto = async () => ({ error: 'sin respuesta' });
+  const res = await handlePlacasV2Efemerides(req(), envSinKV, fetcherStub(), geminiRoto);
+  const data = await res.json();
+  assert.equal(res.status, 200);
+  assert.ok(data.items.length >= 1);
+  assert.ok(data.items.every(i => i.verificada === true));
+});
+
+test('handler: curados de Pages caidos no tumban la placa', async () => {
+  const res = await handlePlacasV2Efemerides(req(), envSinKV, fetcherStub(), async () => ({ data: { items: [{ indice: 0, alcance: 'nacional', categoria: 'historia', icono: 'historia', resumen: 'ok', texto_ampliado: 'ok' }] } }));
+  assert.equal(res.status, 200);
+});

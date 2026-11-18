@@ -19,7 +19,7 @@ export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createClou
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
 export { repararAnioEfemerides };
-export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn };
+export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2Efemerides, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn, urlsEfemeridesRaw, itemPlacaDesdePool, seleccionDeterministicaEF, normalizarItemsGeminiEF };
 
 function fechaRedaccionMendoza(ahora = new Date()) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -9016,7 +9016,89 @@ async function obtenerUltimaBuenaEfemerides(env, date) {
   return null;
 }
 
-async function handlePlacasV2Efemerides(url, env) {
+// URLs crudas wikitext (sin HTML) para una fecha YYYY-MM-DD.
+function urlsEfemeridesRaw(date) {
+  const mesesEs = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const mesesEn = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const m = Number(String(date).slice(5, 7));
+  const d = Number(String(date).slice(8, 10));
+  if (!mesesEs[m]) return { esUrl: '', enUrl: '', esWikiUrl: '', enWikiUrl: '' };
+  return {
+    esUrl: 'https://es.wikipedia.org/w/index.php?title=' + d + '_de_' + mesesEs[m] + '&action=raw',
+    enUrl: 'https://en.wikipedia.org/w/index.php?title=' + mesesEn[m] + '_' + d + '&action=raw',
+    esWikiUrl: 'https://es.wikipedia.org/wiki/' + d + '_de_' + mesesEs[m],
+    enWikiUrl: 'https://en.wikipedia.org/wiki/' + mesesEn[m] + '_' + d,
+  };
+}
+
+const CURADAS_EF_URL = 'https://mediamendoza.pages.dev/efemerides/efemerides-curadas.json';
+const RE_KW_AR_EF = /argent|mendoza|patria|obligado|malvin|sarmiento|belgrano|guemes|san mart|tucum|rosas|urquiza|moreno/i;
+
+function puntuarPlacaEF(item) {
+  let p = 0;
+  if (RE_KW_AR_EF.test(item.texto)) p += 3;
+  if (item.seccion === 'acontecimiento') p += 2;
+  else if (item.seccion === 'fallecimiento') p += 1;
+  return p;
+}
+
+// Construye el item de placa desde un item del pool (verificado o curado),
+// pisando cualquier dato de Gemini: el año y el texto vienen SIEMPRE del parseo.
+// extra trae lo que redactó Gemini (resumen/ampliado/icono/alcance/categoria).
+function itemPlacaDesdePool(item, index, extra = {}) {
+  const texto = String(item.texto || '').trim();
+  const resumen = extra.resumen || item.resumenCurado || texto;
+  const ampliado = extra.texto_ampliado || item.ampliadoCurado || resumen;
+  const iconoPref = extra.icono || item.iconoCurado;
+  return {
+    id: 'ef-' + index,
+    fecha: '',
+    año: String(item.año || '').trim(),
+    titulo: texto.slice(0, 160),
+    resumen: String(resumen).slice(0, 140),
+    texto_ampliado: String(ampliado).slice(0, 240),
+    alcance: extra.alcance === 'nacional' ? 'nacional' : 'internacional',
+    categoria: String(extra.categoria || 'historia').slice(0, 60),
+    icono: Object.prototype.hasOwnProperty.call(EMOJOS_POR_ICONO_EF, iconoPref) ? iconoPref : 'historia',
+    icono_descripcion: String(extra.icono || iconoPref || 'historia').slice(0, 100),
+    imagen_descripcion: '',
+    imagen: '',
+    imagen_fuente: '',
+    prioridad: index + 1,
+    fuente: item.fuente || 'Wikipedia',
+    url_fuente: item.fuenteUrl || '',
+    verificada: true,
+    nivel_verificacion: item.curado ? 'curada' : 'cruzada',
+    fuente_descubrimiento: item.fuenteUrl || '',
+    curado: !!item.curado,
+  };
+}
+
+function seleccionDeterministicaEF(pool, max = 12) {
+  return [...pool]
+    .map(item => ({ item, p: puntuarPlacaEF(item) }))
+    .sort((a, b) => b.p - a.p)
+    .slice(0, max)
+    .map(x => x.item);
+}
+
+// Valida la salida de Gemini: índices enteros en rango, sin repetidos, hasta 15.
+// El año FINAL es siempre el parseado — Gemini no puede alterarlo.
+function normalizarItemsGeminiEF(data, pool) {
+  const pedidos = Array.isArray(data?.items) ? data.items : [];
+  const usados = new Set();
+  const out = [];
+  for (const it of pedidos) {
+    const indice = Number(it?.indice);
+    if (!Number.isInteger(indice) || indice < 0 || indice >= pool.length || usados.has(indice)) continue;
+    usados.add(indice);
+    out.push(itemPlacaDesdePool(pool[indice], out.length, it));
+    if (out.length >= 15) break;
+  }
+  return out;
+}
+
+async function handlePlacasV2Efemerides(url, env, fetcher = globalThis.fetch, gemini = null) {
   const date = url.searchParams.get('fecha') || '';
   if (!validEfemeridesDate(date)) return jsonError('Fecha inválida. Usá YYYY-MM-DD.', 400);
   const cacheKey = PLACAS_V2_EF_CACHE_PREFIX + date;
@@ -9024,53 +9106,54 @@ async function handlePlacasV2Efemerides(url, env) {
     const cached = await obtenerUltimaBuenaEfemerides(env, date);
     return cached ? jsonOk({ ...cached, meta: { ...(cached.meta || {}), cached: true, fallback: true } }) : null;
   };
-  // La página diaria de Wikipedia es determinística y existe para todos los
-  // días válidos del calendario. Se usa primero para que una búsqueda lenta o
-  // intermitente de TyC no deje al editor sin datos; TyC queda como rescate.
-  const sourceUrl = wikipediaDateUrl(date) || await discoverTyCEfemeridesUrl(date);
-  if (!sourceUrl) return (await servirUltimaBuena()) || jsonError('No se encontró una fuente de efemérides para esa fecha.', 502);
-  let sourceText = '';
-  let sourceImages = [];
+  const geminiFn = gemini || (prompt => callGemini(prompt, env));
+  const { esUrl, enUrl, esWikiUrl, enWikiUrl } = urlsEfemeridesRaw(date);
+  const UA = { 'User-Agent': 'MediaMendoza-Efemerides/1.0 (+https://mediamendoza.pages.dev/)' };
+  let esRaw = '', enRaw = '';
   try {
-    const response = await fetch(sourceUrl, { headers: { ...BROWSER_HEADERS, Accept: 'text/html', 'User-Agent': 'MediaMendoza-Efemerides/1.0' }, redirect: 'follow', signal: AbortSignal.timeout(12000) });
-    if (response.ok) {
-      const html = await response.text();
-      sourceText = stripHtmlForEfemerides(html).slice(0, 18000);
-      sourceImages = [...html.matchAll(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/gi), ...html.matchAll(/<img[^>]+src=["'](https?:\/\/[^"']+)/gi)].map(match => match[1]).filter((image, index, images) => image && images.indexOf(image) === index).slice(0, 8);
+    const [esRes, enRes] = await Promise.all([
+      fetcher(esUrl, { headers: UA, signal: AbortSignal.timeout(12000) }),
+      fetcher(enUrl, { headers: UA, signal: AbortSignal.timeout(12000) }),
+    ]);
+    if (esRes?.ok) esRaw = await esRes.text();
+    if (enRes?.ok) enRaw = await enRes.text();
+  } catch {}
+  if (!esRaw || !enRaw) return (await servirUltimaBuena()) || jsonError('No se pudo verificar la placa para esa fecha.', 502);
+  const verificados = emparejarEsEn(
+    parseEfemeridesWikitexto(esRaw, 'es', esWikiUrl),
+    parseEfemeridesWikitexto(enRaw, 'en', enWikiUrl),
+  );
+  // Curados del repo (JSON servido por Pages): confianza humana, siempre válidos.
+  let curados = [];
+  try {
+    const r = await fetcher(CURADAS_EF_URL, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
+    if (r?.ok) {
+      const data = await r.json();
+      const clave = String(date).slice(5); // MM-DD
+      curados = (Array.isArray(data?.[clave]) ? data[clave] : []).map(h => ({
+        año: String(h.año || ''),
+        texto: String(h.titulo || ''),
+        seccion: 'acontecimiento',
+        fuente: h.fuente || 'Media Mendoza',
+        fuenteUrl: h.fuente === 'ARCHIVO.AR' ? 'https://archivo.ar/efemerides/' : '',
+        curado: true, verificado: true,
+        resumenCurado: h.resumen, ampliadoCurado: h.texto_ampliado, iconoCurado: h.icono,
+      }));
     }
   } catch {}
-  if (!sourceText && /wikipedia\.org\/wiki\//i.test(sourceUrl)) {
-    try {
-      const page = sourceUrl.split('/wiki/')[1] || '';
-      const apiUrl = 'https://es.wikipedia.org/w/api.php?action=parse&page=' + encodeURIComponent(page) + '&prop=text&format=json&origin=*';
-      const response = await fetch(apiUrl, { headers: { Accept: 'application/json', 'User-Agent': 'MediaMendoza-Efemerides/1.0' }, signal: AbortSignal.timeout(12000) });
-      if (response.ok) {
-        const data = await response.json();
-        sourceText = stripHtmlForEfemerides(data?.parse?.text?.['*'] || '').slice(0, 18000);
-      }
-    } catch {}
-  }
-  if (!sourceText) return (await servirUltimaBuena()) || jsonError('La fuente de efemérides no respondió.', 502);
-  const sourceName = /wikipedia\.org/i.test(sourceUrl) ? 'Wikipedia' : 'TyC Sports';
-  const imageCatalog = sourceImages.map((image, index) => index + ': ' + image).join('\n');
-  const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé todas las opciones argentinas e internacionales razonables: entre 8 y 15 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, texto_ampliado de máximo 240 caracteres, icono, icono_descripcion, imagen_descripcion, imagen_indice y prioridad. anio es el año histórico en que ocurrió el hecho (por ejemplo 1894, 1913, 2002): NUNCA pongas el año de la fecha pedida (' + date.slice(0, 4) + ') ni el año actual; si el texto no indica un año, pon -1. imagen_indice solo puede apuntar a una imagen del catálogo si es pertinente para ese hecho; si no, usa -1. icono debe ser uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo o canal. icono_descripcion debe describir en 3 a 8 palabras el símbolo concreto que corresponde al hecho. imagen_descripcion debe describir una imagen documental posible, sin inventar que existe una fotografía. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nImágenes disponibles:\n' + imageCatalog + '\nTexto:\n' + sourceText;
-  const result = await callGemini(prompt, env);
-  if (result.error || !Array.isArray(result.data?.items)) return (await servirUltimaBuena()) || jsonError('No se pudieron normalizar las efemérides.', 502);
-  const rawItems = Array.isArray(result.data.items) ? result.data.items : [];
-  const searchedImages = await Promise.all(rawItems.map(async item => {
-    const index = Number(item.imagen_indice);
-    if (Number.isInteger(index) && index >= 0 && sourceImages[index]) return { url: sourceImages[index], source: 'Fuente original' };
-    const title = String(item.titulo || '').replace(/^(paso a la inmortalidad de|nacimiento de|muere|debuta|debut de|se funda|día de)\s+/i, '').trim();
-    const searchTitle = /san mart[ií]n/i.test(title) ? 'José de San Martín' : /messi/i.test(title) ? 'Lionel Messi' : title;
-    return (await findEfemerideImage(searchTitle + ' ' + String(item.imagen_descripcion || ''))) || findWikipediaImage(searchTitle);
-  }));
-  const items = rawItems.map((item, index) => ({
-    id: String(item.id || (date + '-' + (index + 1))).trim(), fecha: date, alcance: item.alcance === 'nacional' ? 'nacional' : 'internacional', categoria: String(item.categoria || 'historia').trim(), icono: String(item.icono || item.categoria || 'historia').trim(), icono_descripcion: String(item.icono_descripcion || item.icono || item.categoria || 'símbolo histórico').trim(), imagen_descripcion: String(item.imagen_descripcion || item.icono_descripcion || '').trim(), imagen: searchedImages[index]?.url || '', imagen_fuente: searchedImages[index]?.source || '',
-    año: repararAnioEfemerides(item, date), titulo: String(item.titulo || '').trim(), resumen: String(item.resumen || '').trim(), texto_ampliado: String(item.texto_ampliado || item.resumen || '').trim(), prioridad: Number(item.prioridad) || index + 1,
-    fuente: sourceName, url_fuente: sourceUrl, verificada: true, nivel_verificacion: 'fuente_secundaria', fuente_descubrimiento: sourceUrl,
-  })).filter(item => item.titulo && item.año && item.resumen).sort((a, b) => (a.alcance === 'nacional' ? 0 : 1) - (b.alcance === 'nacional' ? 0 : 1) || a.prioridad - b.prioridad);
-  if (items.length < 5) return (await servirUltimaBuena()) || jsonError('La fuente devolvió menos de cinco opciones utilizables.', 502);
-  const payload = { items, meta: { fecha: date, fuente: sourceUrl, nivel_verificacion: 'fuente_secundaria', generatedAt: new Date().toISOString(), cached: false } };
+  const pool = [...curados, ...verificados];
+  if (!pool.length) return (await servirUltimaBuena()) || jsonError('No se encontraron hechos verificados para esa fecha.', 502);
+  // Gemini «elige y redacta»: SOLO ve el pool verificado; no puede cambiar años ni inventar.
+  const lista = pool.map((item, i) => ({ indice: i, anio: item.año, hecho: String(item.texto).slice(0, 240), fuente: item.fuente || 'Wikipedia' }));
+  const prompt = 'Sos documentalista de Media Mendoza. Recibís SOLO hechos VERIFICADOS para el ' + date + '.'
+    + ' Devolvé entre 8 y 15 ítems (o todos si son menos), priorizando Argentina > América Latina > hispanohablantes > mundo; acontecimientos por sobre nacimientos y fallecimientos simbólicos.'
+    + ' Para cada ítem devolvé: "indice" (el mismo de la lista; NUNCA inventes índices ni hechos), "alcance" ("nacional" para argentino/latinoamericano, si no "internacional"), "categoria", "icono" (uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo, canal), "resumen" (máx 100 caracteres), "texto_ampliado" (máx 240).'
+    + ' No calcules antigüedades ni cambies años. Respondé SOLO JSON válido con {"items":[...]}.\nLista:\n' + JSON.stringify(lista);
+  const result = await geminiFn(prompt);
+  let items = normalizarItemsGeminiEF(result?.data, pool);
+  if (items.length < 3) items = seleccionDeterministicaEF(pool, 12).map((item, i) => itemPlacaDesdePool(item, i));
+  items = items.map((it, i) => ({ ...it, fecha: date, prioridad: i + 1 }));
+  const payload = { items, meta: { fecha: date, fuente: esUrl, nivel_verificacion: 'cruzada', generatedAt: new Date().toISOString(), cached: false, verificados: verificados.length } };
   if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: PLACAS_V2_EF_CACHE_TTL }); } catch {} }
   return jsonOk(payload);
 }
@@ -9151,7 +9234,7 @@ async function handlePlacasV2EfemeridesCopys(url, env) {
   let placaPayload = null;
   if (env.KV) { try { placaPayload = await env.KV.get(PLACAS_V2_EF_CACHE_PREFIX + date, 'json'); } catch {} }
   const items = itemsCopysReparados(placaPayload?.items, date);
-  if (items.length < 5) return jsonError('Esa fecha todavía no tiene placa: cargá la placa primero.', 502);
+  if (items.length < 1) return jsonError('Esa fecha todavía no tiene placa: cargá la placa primero.', 502);
   const links = await obtenerLinksWaEf(env);
   const payload = await generarCopysEf(items, date, links, env, 'Wikipedia');
   if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: PLACAS_V2_EF_CACHE_TTL }); } catch {} }
