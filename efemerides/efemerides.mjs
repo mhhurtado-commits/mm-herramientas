@@ -26,7 +26,7 @@ const ui = {
   copysError: $('copysError'), copysReintentar: $('btnCopysReintentar'),
   editor: $('editorPlaca'), editorLista: $('editorLista'), editorCount: $('editorCount'),
   restablecer: $('btnRestablecer'), formAgregar: $('formAgregar'),
-  banco: $('bancoPanel'), btnBanco: $('btnBanco'), bancoCount: $('bancoCount'),
+  bancoPanel: $('bancoPanel'), btnBanco: $('btnBanco'), bancoCount: $('bancoCount'),
   bancoListaWrap: $('bancoListaWrap'), bancoLista: $('bancoLista'), bancoVacio: $('bancoVacio'),
   altaAño: $('altaAño'), altaTitulo: $('altaTitulo'), altaResumen: $('altaResumen'),
   altaAmpliado: $('altaAmpliado'), altaIcono: $('altaIcono'), altaError: $('altaError'),
