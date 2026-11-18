@@ -225,3 +225,36 @@ test('validarHechoPropio: ampliado vacío cae al resumen; hecho normalizado', ()
   assert.equal(r.hecho.ampliado, 'Cumple años.');
   assert.equal(r.hecho.icono, 'mundo');
 });
+
+test('normalizarPayload: expone candidatos completos (sin slice) además de items de 6', () => {
+  const items = Array.from({ length: 9 }, (_, i) => ITEM(i + 1, `Hecho ${i + 1}`));
+  const r = normalizarPayload(payloadValido(items));
+  assert.equal(r.items.length, 6);
+  assert.equal(r.candidatos.length, 9);
+});
+
+test('construirModeloPlaca: feriado sin año muestra DD MMM en hero y AR en filas', () => {
+  const items = [
+    { año: '', fecha: '2026-11-23', titulo: 'Día de la Soberanía Nacional', resumen: 'Feriado nacional.', icono: 'historia', categoria: 'EFEMÉRIDE ARGENTINA', oculto: false },
+    { ...ITEM(7, 'Normal'), fecha: '2026-11-23' },
+  ];
+  const m = construirModeloPlaca(items, '2026-11-18');
+  assert.equal(m.hero.añoTexto, '23 NOV');
+  assert.equal(m.rows[0].filaTexto, String(1800 + 7));
+});
+
+test('construirModeloPlaca: item sin año en filas muestra AR', () => {
+  const items = [
+    { ...ITEM(1, 'Primero') },
+    { año: '', fecha: '2026-11-23', titulo: 'Feriado', resumen: 'Feriado.', icono: 'historia', oculto: false },
+  ];
+  const m = construirModeloPlaca(items, '2026-11-18');
+  assert.equal(m.rows[0].filaTexto, 'AR');
+});
+
+test('construirModeloPlaca: item sin año y sin fecha → hero sin crash (AR)', () => {
+  const items = [{ año: '', titulo: 'Feriado raro', resumen: 'Sin fecha.', icono: 'historia', oculto: false }];
+  const m = construirModeloPlaca(items, '2026-11-18');
+  assert.equal(m.hero.añoTexto, 'AR');
+});
+

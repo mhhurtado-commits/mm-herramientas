@@ -28,6 +28,12 @@ export function etiquetaCategoria(item) {
 
 const MIN_ITEMS = 5;
 const MAX_ITEMS_PLACA = 6;
+const MESES_ABREV_EF = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+function etiquetaFechaHero(fechaIso) {
+  const f = String(fechaIso || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) return 'AR';
+  return String(Number(f.slice(8, 10))) + ' ' + MESES_ABREV_EF[Number(f.slice(5, 7)) - 1];
+}
 
 // El worker a veces cachea el año actual como "año" de todos los items. Si el
 // item lo trae igual al año de la fecha pedida y el texto dice "de|en AAAA"
@@ -78,6 +84,7 @@ export function normalizarPayload(raw) {
     totalMostrados: items.length,
     total,
     items,
+    candidatos: validos,
   };
 }
 
@@ -86,9 +93,12 @@ export function normalizarPayload(raw) {
 export function construirModeloPlaca(items, fecha = '') {
   const lista = Array.isArray(items) ? items : [];
   const visibles = lista.filter(i => i && !i.oculto);
-  const [hero, ...rows] = visibles;
+  const hero = visibles[0]
+    ? { ...visibles[0], añoTexto: visibles[0].año || etiquetaFechaHero(visibles[0].fecha) }
+    : null;
+  const rows = visibles.slice(1).map(i => ({ ...i, filaTexto: i.año || 'AR' }));
   const verificada = visibles.length > 0 && visibles.every(i => i.verificada !== false);
-  return { ok: !!hero, fecha, hero: hero || null, rows, totalMostrados: visibles.length, total: lista.length, verificada };
+  return { ok: !!hero, fecha, hero, rows, totalMostrados: visibles.length, total: lista.length, verificada };
 }
 
 export function itemsVisiblesCopys(items) {
