@@ -28,6 +28,24 @@ const FONDO = '#0F1520';
 const NEGRO = '#141414';
 const ROJO = '#c0392b';
 
+// Colores por nivel (semántica del prompt): gris=tranquilo, blanco=info, azul=vigilancia,
+// verde=leve, amarillo=moderada, naranja=fuerte, rojo=severa, violeta=máxima
+const NIVEL_COLOR = {
+  gris: '#95a5a6',
+  blanco: '#ecf0f1',
+  azul: '#3498db',
+  verde: '#27ae60',
+  amarillo: '#f1c40f',
+  naranja: '#e67e22',
+  rojo: '#c0392b',
+  violeta: '#8e44ad',
+};
+// Texto del chip: negro sobre fondos claros, blanco sobre fondos oscuros (contraste).
+const NIVEL_TEXTO = {
+  gris: NEGRO, blanco: NEGRO, azul: '#ffffff', verde: '#ffffff',
+  amarillo: NEGRO, naranja: NEGRO, rojo: '#ffffff', violeta: '#ffffff',
+};
+
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -60,8 +78,8 @@ function metricasCuerpo(W, f) {
     gap: Math.round(W * 0.016 * f), padV: Math.round(W * 0.0135 * f),
     labelH: Math.round(W * 0.020 * f), bodyFS: Math.round(W * 0.0245 * f),
     bodyLH: Math.round(W * 0.031 * f), labelFS: Math.round(W * 0.0125 * f),
-    pillW: Math.round(W * 0.084 * f), pillH: Math.round(W * 0.028 * f),
-    pillFS: Math.round(W * 0.0135 * f),
+    pillW: Math.round(W * 0.11 * f), pillH: Math.round(W * 0.034 * f),
+    pillFS: Math.round(W * 0.016 * f),
     etaFS: Math.round(W * 0.0175 * f), etaLH: Math.round(W * 0.023 * f),
     etaPadV: Math.round(W * 0.017 * f), etaPadL: Math.round(W * 0.016 * f),
     bar: Math.max(4, Math.round(W * 0.004 * f)),
@@ -132,11 +150,13 @@ export function renderAlertasPlaca(ctx, data, formatKey = '4:5', logoImg = null)
   ctx.stroke();
 
   // Header banda: chip ALERTA izq + logo/fecha der (fijo, más grande)
+  const nivel = NIVEL_COLOR[String(data.nivel || 'naranja').trim().toLowerCase()] || NIVEL_COLOR.naranja;
+  const textoNivel = NIVEL_TEXTO[String(data.nivel || 'naranja').trim().toLowerCase()] || NEGRO;
   const chipW = Math.round(W * 0.19), chipH = Math.round(W * 0.047), chipY = pad;
-  ctx.fillStyle = ACENTO;
+  ctx.fillStyle = nivel;
   roundRect(ctx, pad, chipY, chipW, chipH, chipH * 0.18);
   ctx.fill();
-  ctx.fillStyle = NEGRO;
+  ctx.fillStyle = textoNivel;
   ctx.font = `600 ${Math.round(W * 0.026)}px Oswald, Arial, sans-serif`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';

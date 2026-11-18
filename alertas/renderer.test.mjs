@@ -25,8 +25,12 @@ test('calcularFactor: degenerados nunca devuelven NaN', () => {
 
 function mockCtx() {
   const texts = [];
+  const fillStyles = [];
   const ctx = {
-    font: '10px Inter', fillStyle: '', strokeStyle: '', lineWidth: 1,
+    _fillStyle: '',
+    get fillStyle() { return this._fillStyle; },
+    set fillStyle(v) { this._fillStyle = v; fillStyles.push(v); },
+    font: '10px Inter', strokeStyle: '', lineWidth: 1,
     textAlign: 'left', textBaseline: 'alphabetic',
     fillRect() {}, beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, arcTo() {},
     fill() {}, stroke() {}, drawImage() {},
@@ -40,7 +44,7 @@ function mockCtx() {
       texts.push({ text: String(t), size: px });
     },
   };
-  return { ctx, texts };
+  return { ctx, texts, fillStyles };
 }
 const celda = (etiqueta, zonas, detalle, hacia = '') => ({ etiqueta, zonas, detalle, hacia });
 const datos = (celdas, extra = {}) => ({
@@ -81,5 +85,25 @@ test('footer coherente: FUENTE izq, dominio centro, etiqueta der; ETA nula → s
   assert.ok(texto.includes('WWW.MEDIAMENDOZA.COM'));
   assert.ok(texto.includes('ALERTA DE TORMENTAS'));
   assert.ok(!texto.includes('llegada en'), 'ETA nula no debe dibujar banner');
+});
+
+test('nivel conectado: el chip ALERTA cambia de color según el nivel', () => {
+  const { ctx, fillStyles } = mockCtx();
+  renderAlertasPlaca(ctx, datos([], { nivel: 'rojo' }), '1:1', null);
+  assert.equal(fillStyles[0], '#0F1520'); // fondo
+  assert.equal(fillStyles[1], '#c0392b'); // chip rojo (severidad)
+  const { ctx: ctx2, fillStyles: fs2 } = mockCtx();
+  renderAlertasPlaca(ctx2, datos([], { nivel: 'azul' }), '1:1', null);
+  assert.equal(fs2[1], '#3498db'); // chip azul (vigilancia)
+});
+
+test('pill de dirección: se dibuja con texto → E STE y tamaño legible', () => {
+  const { ctx, texts } = mockCtx();
+  const d = datos([celda('ahora', 'Atuel Norte', 'lluvia', 'este')]);
+  renderAlertasPlaca(ctx, d, '4:5', null);
+  const pill = texts.find((t) => t.text.startsWith('→'));
+  assert.ok(pill, 'no se dibujó la pill de dirección');
+  assert.ok(pill.text.includes('ESTE'), 'la pill debe contener la dirección');
+  assert.ok(pill.size >= 10, `pill demasiado chica: ${pill.size}px`);
 });
 
