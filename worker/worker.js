@@ -19,7 +19,7 @@ export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createClou
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
 export { repararAnioEfemerides };
-export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides };
+export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn };
 
 function fechaRedaccionMendoza(ahora = new Date()) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -8776,6 +8776,98 @@ function repararAnioEfemerides(item, date) {
   const texto = [item?.texto_ampliado, item?.resumen, item?.titulo].map(valor => String(valor || '')).join(' ');
   const match = texto.match(/(?:de|en) (1[5-9]\d{2}|20[0-1]\d|202[0-5])\b/);
   return match ? match[1] : '';
+}
+
+// --- Efemérides: wikitext crudo + verificación cruzada es↔en ---
+function normTitSecEf(s) {
+  return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+}
+const MAPA_SECCIONES_EF = new Map([
+  ['acontecimientos', 'acontecimiento'], ['events', 'acontecimiento'],
+  ['nacimientos', 'nacimiento'], ['births', 'nacimiento'],
+  ['fallecimientos', 'fallecimiento'], ['deaths', 'fallecimiento'],
+]);
+
+// Texto plano desde wikitext de línea de efemérides: quita refs, comentarios,
+// plantillas y enlaces ([[a|b]] → b, [[a]] → a). La línea de bullets de Wikipedia
+// trae <ref> con URLs llenas de pipes: DEBEN removerse antes de procesar links.
+function textoPlanoWikitext(s) {
+  return String(s || '')
+    .replace(/<ref[^>]*>[\s\S]*?<\/ref>/gi, ' ')
+    .replace(/<ref[^>]*\/>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/\{\{[^{}]*\}\}/g, ' ')
+    .replace(/\{\{[^{}]*\}\}/g, ' ')
+    .replace(/\[\[([^\[\]|]+)\|([^\[\]]+)\]\]/g, '$2')
+    .replace(/\[\[([^\[\]]+)\]\]/g, '$1')
+    .replace(/\[https?:[^\s\]]+\s*([^\]]*)\]/g, '$1')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&ndash;|&#8211;|&#x2013;/gi, '–')
+    .replace(/&mdash;|&#8212;/gi, '—')
+    .replace(/&amp;/gi, '&')
+    .replace(/''+/g, '')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Parseo línea a línea de una página diaria (ES: «18 de noviembre»; EN: «November 18»).
+// Secciones mapeadas: Acontecimientos|Events, Nacimientos|Births, Fallecimientos|Deaths.
+// Cabeceras de nivel 2 no mapeadas CORTAN la sección (Holidays/Observances, Véanse, etc.).
+// Cabeceras de nivel 3 (===Pre-1600===) son inertes.
+// Formato de bullet tolerado: «* [[YYYY]]:», «* YYYY:», «*[[YYYY]] &ndash;», «*  YYYY   &ndash;»,
+// «* [[YYYY]] (domingo):», año con o sin corchetes.
+function parseEfemeridesWikitexto(raw, idioma, urlPagina) {
+  const out = [];
+  let seccion = null;
+  for (const linea of String(raw || '').split(/\r?\n/)) {
+    const h = linea.match(/^(={2,3})\s*(.+?)\s*\1\s*$/);
+    if (h) {
+      if (h[1].length === 2) seccion = MAPA_SECCIONES_EF.get(normTitSecEf(h[2])) || null;
+      continue;
+    }
+    if (!seccion) continue;
+    const m = linea.match(/^\s*\*\s*\[?\[?(\d{3,4})\]?\]?(?:\s*\([^)]*\))?\s*(?::|--|-|–|&ndash;|&#8211;)\s*(.+?)\s*$/u);
+    if (!m) continue;
+    const año = m[1];
+    const texto = textoPlanoWikitext(m[2]);
+    if (!texto) continue;
+    const m2 = String(m[2]).match(/\[\[([^\[\]|#]+)(?:\|[^\]]*)?\]\]/);
+    const base = idioma === 'en' ? 'https://en.wikipedia.org/wiki/' : 'https://es.wikipedia.org/wiki/';
+    const fuenteEs = m2 ? base + encodeURIComponent(m2[1].trim().replace(/\s+/g, '_')) : String(urlPagina || '');
+    out.push({ año, texto, seccion, fuenteEs });
+  }
+  return out;
+}
+
+const EF_STOPWORDS = new Set(('el la los las de del en y a que se por para con un una al lo su sus es son fue como esta este estos estas tras sobre entre hasta desde contra cada todos todas unos unas the of and to in on at by for an from his her its was were is be that this with as it he she they who which after before during under over into first via about more than over their there here both each either another other such own same different').split(' '));
+// Tokens de letras (≥4, no stopwords, sin acentos). Los dígitos se IGNORAN acá:
+// el match exige mismo año, así que compartir «1996» no cuenta como evidencia.
+function tokensLetrasEf(texto) {
+  const m = String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[a-z0-9]+/g) || [];
+  return new Set(m.filter(t => /[a-z]/.test(t) && t.length >= 4 && !EF_STOPWORDS.has(t)));
+}
+
+// Un item ES «verificado» si existe un item EN con el MISMO año y al menos una
+// palabra distintiva compartida. Sin match → fuera (regla dura).
+function emparejarEsEn(esItems, enItems) {
+  const enLetras = enItems.map(i => tokensLetrasEf(i.texto));
+  const enPorAnio = new Map();
+  enItems.forEach((en, i) => {
+    const lista = enPorAnio.get(en.año) || [];
+    lista.push(i);
+    enPorAnio.set(en.año, lista);
+  });
+  const out = [];
+  for (const es of esItems) {
+    const letras = tokensLetrasEf(es.texto);
+    if (!letras.size) continue;
+    const candidatos = enPorAnio.get(es.año) || [];
+    const idx = candidatos.find(i => [...letras].some(t => enLetras[i].has(t)));
+    if (idx === undefined) continue;
+    out.push({ ...es, verificado: true, fuenteUrl: es.fuenteEs });
+  }
+  return out;
 }
 
 const PLACAS_V2_EF_COPYS_CACHE_PREFIX = 'placas-v2:efemerides:v6:copys:';
