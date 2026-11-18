@@ -412,13 +412,14 @@ function cargarCandidatosWikipedia(candidatos) {
       titulo: String(c.titulo || ''), resumen: String(c.resumen || ''),
       ampliado: String(c.ampliado || c.resumen || ''),
       icono: c.icono || 'historia', categoria: String(c.categoria || 'HISTORIA'),
-      fuente: 'Wikipedia', feria: false,
+      fuente: String(c.fuente || 'Wikipedia'), fuenteUrl: String(c.fuenteUrl || c.url_fuente || ''),
+      verificada: c.verificada === true, feria: false,
     }));
 }
 
 async function candidatosMendoza(desdeISO) {
   try {
-    const res = await fetch(new URL('./efemerides-mza.json', import.meta.url).href, { cache: 'no-store' });
+    const res = await fetch(new URL('./efemerides-curadas.json', import.meta.url).href, { cache: 'no-store' });
     if (!res.ok) return [];
     const data = await res.json();
     const [y, mo, d] = String(desdeISO).split('-').map(Number);
@@ -432,7 +433,7 @@ async function candidatosMendoza(desdeISO) {
       .filter(([clave, lista]) => fechas.has(clave) && Array.isArray(lista))
       .flatMap(([, lista]) => lista
         .filter(h => h && h.titulo && h.resumen && h.año)
-        .map(h => ({ id: `mza-${h.año}-${String(h.titulo)}`, año: String(h.año), fecha: '', titulo: h.titulo, resumen: h.resumen, ampliado: h.texto_ampliado || h.resumen, icono: h.icono || 'historia', categoria: 'MENDOZA', fuente: 'Mendoza', feria: false })));
+        .map(h => ({ id: `cur-${h.año}-${String(h.titulo)}`, año: String(h.año), fecha: '', titulo: h.titulo, resumen: h.resumen, ampliado: h.texto_ampliado || h.resumen, icono: h.icono || 'historia', categoria: h.fuente === 'ARCHIVO.AR' ? 'ARGENTINA' : 'MENDOZA', fuente: h.fuente || 'Media Mendoza', fuenteUrl: h.fuente === 'ARCHIVO.AR' ? 'https://archivo.ar/efemerides/' : '', feria: false })));
   } catch { return []; }
 }
 
@@ -466,10 +467,14 @@ const MESES_ABREV = ['', 'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO',
 function crearTarjetaBanco(c) {
   const li = document.createElement('li');
   li.className = 'banco-card';
-  const fuente = String(c.fuente || 'Wikipedia').toUpperCase();
+  const fuenteCruda = String(c.fuente || 'Wikipedia');
+  const fuente = fuenteCruda.toUpperCase();
   const badge = document.createElement('span');
-  badge.className = 'fuente-badge' + (fuente === 'MENDOZA' ? ' mendoza' : '');
-  badge.textContent = c.feria ? 'EFEMÉRIDE AR' : fuente;
+  const esCurada = fuente === 'ARCHIVO.AR' || fuente === 'MEDIA MENDOZA' || fuente === 'MENDOZA';
+  badge.className = 'fuente-badge' + (esCurada ? ' mendoza' : '');
+  badge.textContent = c.feria
+    ? 'EFEMÉRIDE AR'
+    : (fuente === 'ARCHIVO.AR' ? 'CURADA AR' : (esCurada ? 'MENDOZA' : fuente));
   const anio = document.createElement('span');
   anio.className = 'banco-anio';
   if (c.año) anio.textContent = c.año;
@@ -505,8 +510,9 @@ function agregarDesdeBanco(c) {
     año: String(c.año || ''), fecha: String(c.fecha || ''), titulo: String(c.titulo),
     resumen: String(c.resumen), ampliado: String(c.ampliado || c.resumen),
     icono: String(c.icono || 'historia'), categoria: String(c.categoria || 'EFEMÉRIDE ARGENTINA'),
-    oculto: false, verificada: false,
-    fuente: c.feria ? 'argentinadatos.com' : (String(c.fuente || '').toLowerCase() === 'mendoza' ? 'Media Mendoza' : 'Wikipedia'),
+    oculto: false, verificada: c.verificada === true,
+    fuente: c.feria ? 'argentinadatos.com' : (String(c.fuente || '').toLowerCase() === 'mendoza' ? 'Media Mendoza' : String(c.fuente || 'Wikipedia')),
+    fuenteUrl: String(c.fuenteUrl || c.url_fuente || ''),
   };
   itemsPlaca.push(hecho);
   idsBancoAgregados.add(c.id);

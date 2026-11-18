@@ -3,27 +3,276 @@
     {
       "año": "1817",
       "titulo": "El Cruce de los Andes",
-      "resumen": "El Ejército de los Andes, al mando de José de San Martín, cruza la cordillera hacia Chile.",
-      "texto_ampliado": "El 12 de enero de 1817 el Ejército de los Andes, bajo el mando del General José de San Martín, inició el Cruce de los Andes desde Mendoza rumbo a Chile: una de las hazañas militares más grandes de la historia americana.",
-      "icono": "historia"
+      "resumen": "El Ejército de los Andes, al mando de San Martín, cruza la cordillera hacia Chile.",
+      "texto_ampliado": "El 12 de enero de 1817 el Ejército de los Andes, bajo el mando del general José de San Martín, inició el Cruce de los Andes desde Mendoza rumbo a Chile: una de las hazañas militares más grandes de la historia americana.",
+      "icono": "historia",
+      "fuente": "Media Mendoza"
+    }
+  ],
+  "02-03": [
+    {
+      "año": "1813",
+      "titulo": "Combate de San Lorenzo",
+      "resumen": "San Martín y los Granaderos a Caballo rechazan un desembarco realista.",
+      "texto_ampliado": "El 3 de febrero de 1813 el Regimiento de Granaderos a Caballo, al mando del coronel José de San Martín, derrotó en San Lorenzo a las tropas realistas que desembarcaban del Paraná: el primer triunfo patrio en combate.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    },
+    {
+      "año": "1852",
+      "titulo": "Batalla de Caseros",
+      "resumen": "Urquiza derrota a Rosas en Caseros y se abre el camino a la Constitución.",
+      "texto_ampliado": "El 3 de febrero de 1852 el Ejército Grande, al mando de Justo José de Urquiza, derrotó a Juan Manuel de Rosas en la batalla de Caseros: cayó la Confederación rosista y se abrió el camino a la Constitución de 1853.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "02-18": [
+    {
+      "año": "1812",
+      "titulo": "Creación de la escarapela",
+      "resumen": "El Triunvirato aprueba la escarapela celeste y blanca, a pedido de Belgrano.",
+      "texto_ampliado": "El 18 de febrero de 1812 el Primer Triunvirato aprobó, a pedido de Manuel Belgrano, la escarapela con los colores celeste y blanco que distingue a las tropas y autoridades patrias.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "02-27": [
+    {
+      "año": "1812",
+      "titulo": "Primera izada de la bandera",
+      "resumen": "Belgrano iza la bandera en Rosario, a orillas del Paraná.",
+      "texto_ampliado": "El 27 de febrero de 1812 Manuel Belgrano izó por primera vez la bandera celeste y blanca en las barrancas de Rosario, a orillas del río Paraná.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
     }
   ],
   "03-02": [
     {
       "año": "1561",
       "titulo": "Fundación de Mendoza",
-      "resumen": "Pedro del Castillo funda la Ciudad de Mendoza, en honor al gobernador García Hurtado de Mendoza.",
-      "texto_ampliado": "El 2 de marzo de 1561, Pedro del Castillo fundó la ciudad de Mendoza del Nuevo Valle de Rioja, junto al río que hoy lleva su nombre: la primera y única ciudad fundada en nombre de un gobernador del Perú, García Hurtado de Mendoza.",
-      "icono": "historia"
+      "resumen": "Pedro del Castillo funda la Ciudad de Mendoza, hoy capital.",
+      "texto_ampliado": "El 2 de marzo de 1561, Pedro del Castillo fundó la ciudad de Mendoza del Nuevo Valle de Rioja, junto al río que hoy lleva su nombre: la única ciudad fundada en nombre de un gobernador del Perú, García Hurtado de Mendoza.",
+      "icono": "historia",
+      "fuente": "Media Mendoza"
     }
   ],
   "03-20": [
     {
       "año": "1861",
       "titulo": "El terremoto que destruyó Mendoza",
-      "resumen": "Un devastador terremoto destruye la ciudad colonial de Mendoza en un minuto 27 segundos.",
-      "texto_ampliado": "El 20 de marzo de 1861 la ciudad de Mendoza fue arrasada por un terremoto de magnitud estimada 7,2: en poco más de un minuto murieron alrededor de 6.000 personas y la ciudad colonial quedó destruida; la planificación de la ciudad nueva fue dirigida por Domingo Faustino Sarmiento.",
-      "icono": "historia"
+      "resumen": "Un terremoto arrasa la ciudad colonial de Mendoza en poco más de un minuto.",
+      "texto_ampliado": "El 20 de marzo de 1861 la ciudad de Mendoza fue arrasada por un terremoto de magnitud 7,2: murieron unas 6.000 personas y la ciudad colonial quedó destruida. La planificación de la ciudad nueva la dirigió Sarmiento.",
+      "icono": "historia",
+      "fuente": "Media Mendoza"
+    }
+  ],
+  "03-24": [
+    {
+      "año": "1976",
+      "titulo": "Día Nacional de la Memoria",
+      "resumen": "El golpe de 1976 inicia la última dictadura militar.",
+      "texto_ampliado": "El 24 de marzo de 1976 las Fuerzas Armadas derrocaron a Isabel Perón e instauraron la última dictadura militar, que se prolongó hasta 1983 y dejó miles de desaparecidos. Hoy es el Día de la Memoria por la Verdad y la Justicia.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "04-02": [
+    {
+      "año": "1982",
+      "titulo": "Día del Veterano y de los Caídos en Malvinas",
+      "resumen": "Las tropas argentinas desembarcan en las Islas Malvinas.",
+      "texto_ampliado": "El 2 de abril de 1982 tropas argentinas recuperaron las Islas Malvinas e iniciaron la Guerra de Malvinas, que terminó el 14 de junio con la rendición argentina. Hoy es el Día del Veterano y de los Caídos.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "05-01": [
+    {
+      "año": "1853",
+      "titulo": "Día de la Constitución Nacional",
+      "resumen": "El Congreso General Constituyente sanciona la Constitución en Santa Fe.",
+      "texto_ampliado": "El 1 de mayo de 1853 el Congreso reunido en Santa Fe sancionó la Constitución de la Nación Argentina, base del orden constitucional vigente. Buenos Aires la juró en 1860.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "05-11": [
+    {
+      "año": "1813",
+      "titulo": "Día del Himno Nacional",
+      "resumen": "La Asamblea del Año XIII aprueba la Marcha Patriótica.",
+      "texto_ampliado": "El 11 de mayo de 1813 la Asamblea General Constituyente aprobó la Marcha Patriótica, con letra de Vicente López y Planes y música de Blas Parera: el futuro Himno Nacional Argentino.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "05-25": [
+    {
+      "año": "1810",
+      "titulo": "Revolución de Mayo",
+      "resumen": "Asume la Primera Junta: el primer gobierno patrio de la Argentina.",
+      "texto_ampliado": "El 25 de mayo de 1810 el pueblo reunido en el Cabildo Abierto devolvió el mando: asumió la Primera Junta, el primer gobierno patrio independiente de la metrópoli.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "06-07": [
+    {
+      "año": "1810",
+      "titulo": "Día del Periodista",
+      "resumen": "Mariano Moreno funda la Gazeta de Buenos Ayres.",
+      "texto_ampliado": "El 7 de junio de 1810 salió el primer número de la Gazeta de Buenos Ayres, fundada por Mariano Moreno: el primer periódico de Buenos Aires y origen del Día del Periodista.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "06-11": [
+    {
+      "año": "1580",
+      "titulo": "Fundación de Buenos Aires",
+      "resumen": "Juan de Garay funda la ciudad de la Santísima Trinidad y Puerto de Bs. Aires.",
+      "texto_ampliado": "El 11 de junio de 1580 Juan de Garay fundó la ciudad de la Santísima Trinidad y su puerto de Buenos Aires: la segunda fundación, definitiva, tras el primer establecimiento de 1536.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "06-17": [
+    {
+      "año": "1821",
+      "titulo": "Paso a la Inmortalidad del General Güemes",
+      "resumen": "Martín Miguel de Güemes muere defendiendo el norte argentino.",
+      "texto_ampliado": "El 17 de junio de 1821 murió Martín Miguel de Güemes, gobernador de Salta y jefe de los Infernales gauches, figura clave en la defensa del norte contra las invasiones realistas.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "06-20": [
+    {
+      "año": "1820",
+      "titulo": "Día de la Bandera: muere Manuel Belgrano",
+      "resumen": "Muere Manuel Belgrano, creador de la bandera argentina.",
+      "texto_ampliado": "El 20 de junio de 1820 murió Manuel Belgrano, creador de la bandera: héroe del Éxodo Jujeño y vencedor de Tucumán y Salta, arquitecto de la independencia americana.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "07-09": [
+    {
+      "año": "1816",
+      "titulo": "Día de la Independencia",
+      "resumen": "El Congreso de Tucumán declara la independencia de las Provincias Unidas.",
+      "texto_ampliado": "El 9 de julio de 1816 el Congreso reunido en Tucumán declaró la independencia de las Provincias Unidas en Sud América: la Argentina nació como nación soberana.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "07-26": [
+    {
+      "año": "1952",
+      "titulo": "Fallecimiento de Eva Perón",
+      "resumen": "Muere Eva Perón, la abanderada de los humildes.",
+      "texto_ampliado": "El 26 de julio de 1952 murió Evita, esposa de Juan Domingo Perón, referente del voto femenino, los derechos laborales y la ayuda social. Su velatorio conmovió al país durante 16 días.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "08-17": [
+    {
+      "año": "1850",
+      "titulo": "Paso a la Inmortalidad del General San Martín",
+      "resumen": "Muere José de San Martín en Boulogne-sur-Mer, Francia.",
+      "texto_ampliado": "El 17 de agosto de 1850 murió José de San Martín en Boulogne-sur-Mer. Libertó la Argentina, Chile y el Perú; su sepulcro está en la Catedral de Buenos Aires.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "09-11": [
+    {
+      "año": "1888",
+      "titulo": "Día del Maestro",
+      "resumen": "Muere Domingo Faustino Sarmiento, educador y presidente.",
+      "texto_ampliado": "El 11 de septiembre de 1888 murió Domingo Faustino Sarmiento, educador sanjuanino y presidente (1868-1874): por eso el Día del Maestro homenajea a los docentes de la escuela pública.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "09-13": [
+    {
+      "año": "1810",
+      "titulo": "Día del Bibliotecario",
+      "resumen": "La Primera Junta crea la Biblioteca Pública de Buenos Aires.",
+      "texto_ampliado": "El 13 de septiembre de 1810 la Primera Junta creó la Biblioteca Pública de Buenos Aires, hoy Biblioteca Nacional Mariano Moreno: primer antecedente de la institución.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "10-12": [
+    {
+      "año": "1492",
+      "titulo": "Día del Respeto a la Diversidad Cultural",
+      "resumen": "Llegada de Colón a América.",
+      "texto_ampliado": "El 12 de octubre de 1492 las expediciones al mando de Cristóbal Colón llegaron a América. En la Argentina el feriado se celebra como Día del Respeto a la Diversidad Cultural.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "10-17": [
+    {
+      "año": "1945",
+      "titulo": "17 de octubre de 1945",
+      "resumen": "El pueblo libera a Perón en la Plaza de Mayo.",
+      "texto_ampliado": "El 17 de octubre de 1945 miles de trabajadores se concentraron en la Plaza de Mayo y lograron la libertad de Juan Domingo Perón. Días después, Perón ganó las elecciones del 24 de febrero de 1946.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "11-10": [
+    {
+      "año": "1834",
+      "titulo": "Día de la Tradición",
+      "resumen": "Nace José Hernández, autor de Martín Fierro.",
+      "texto_ampliado": "El 10 de noviembre de 1834 nació José Hernández, autor de Martín Fierro (1872-1879), la obra gauchesca fundacional de la literatura argentina. Hoy es el Día de la Tradición.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "11-20": [
+    {
+      "año": "1845",
+      "titulo": "Día de la Soberanía Nacional: Vuelta de Obligado",
+      "resumen": "La Argentina resiste el bloqueo anglo-francés en Obligado.",
+      "texto_ampliado": "El 20 de noviembre de 1845 la Confederación Argentina resistió el bloqueo anglo-francés del río Paraná en la batalla de la Vuelta de Obligado. Es el Día de la Soberanía Nacional.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "12-10": [
+    {
+      "año": "1983",
+      "titulo": "Recuperación de la democracia",
+      "resumen": "Raúl Alfonsín asume la presidencia y termina la dictadura.",
+      "texto_ampliado": "El 10 de diciembre de 1983 Raúl Alfonsín asumió la presidencia de la Nación: terminó la última dictadura militar e inició la etapa democrática vigente. También es el Día Internacional de los Derechos Humanos.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    }
+  ],
+  "12-11": [
+    {
+      "año": "1890",
+      "titulo": "Día Nacional del Tango: nace Gardel",
+      "resumen": "Nace Carlos Gardel, el Zorzal Criollo.",
+      "texto_ampliado": "El 11 de diciembre de 1890 nació Carlos Gardel, el Zorzal Criollo, figura máxima del tango. Hoy se celebra el Día Nacional del Tango.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
+    },
+    {
+      "año": "1899",
+      "titulo": "Día Nacional del Tango: nace De Caro",
+      "resumen": "Nace Julio De Caro, renovador del tango de cámara.",
+      "texto_ampliado": "El 11 de diciembre de 1899 nació Julio De Caro, director, compositor y renovador del tango de cámara: su orquesta marcó la llamada Edad de Oro del tango.",
+      "icono": "historia",
+      "fuente": "ARCHIVO.AR"
     }
   ]
 }
