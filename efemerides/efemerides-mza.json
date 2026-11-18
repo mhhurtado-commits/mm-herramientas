@@ -1,0 +1,29 @@
+{
+  "01-12": [
+    {
+      "año": "1817",
+      "titulo": "El Cruce de los Andes",
+      "resumen": "El Ejército de los Andes, al mando de José de San Martín, cruza la cordillera hacia Chile.",
+      "texto_ampliado": "El 12 de enero de 1817 el Ejército de los Andes, bajo el mando del General José de San Martín, inició el Cruce de los Andes desde Mendoza rumbo a Chile: una de las hazañas militares más grandes de la historia americana.",
+      "icono": "historia"
+    }
+  ],
+  "03-02": [
+    {
+      "año": "1561",
+      "titulo": "Fundación de Mendoza",
+      "resumen": "Pedro del Castillo funda la Ciudad de Mendoza, en honor al gobernador García Hurtado de Mendoza.",
+      "texto_ampliado": "El 2 de marzo de 1561, Pedro del Castillo fundó la ciudad de Mendoza del Nuevo Valle de Rioja, junto al río que hoy lleva su nombre: la primera y única ciudad fundada en nombre de un gobernador del Perú, García Hurtado de Mendoza.",
+      "icono": "historia"
+    }
+  ],
+  "03-20": [
+    {
+      "año": "1861",
+      "titulo": "El terremoto que destruyó Mendoza",
+      "resumen": "Un devastador terremoto destruye la ciudad colonial de Mendoza en un minuto 27 segundos.",
+      "texto_ampliado": "El 20 de marzo de 1861 la ciudad de Mendoza fue arrasada por un terremoto de magnitud estimada 7,2: en poco más de un minuto murieron alrededor de 6.000 personas y la ciudad colonial quedó destruida; la planificación de la ciudad nueva fue dirigida por Domingo Faustino Sarmiento.",
+      "icono": "historia"
+    }
+  ]
+}

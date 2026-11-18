@@ -61,6 +61,19 @@
   .alta-grid input, .alta-grid select { width:100%; background:#141b2b; color:var(--crema); border:1px solid rgba(245,241,230,.25); border-radius:4px; padding:9px 10px; font:inherit; font-size:14px; }
   .opcional { color:var(--atenuado); font-size:10px; }
   .alta-error { margin:0; color:#e8b4a8; font-size:13px; }
+  #bancoPanel { margin-top:20px; padding-top:18px; border-top:1px solid rgba(245,241,230,.15); display:flex; flex-direction:column; gap:10px; }
+  .banco-toggle { align-self:flex-start; }
+  .banco-count { color:var(--atenuado); font-size:12px; }
+  .banco-lista-wrap { border:1px dashed rgba(245,241,230,.25); border-radius:6px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .banco-lista { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .banco-card { display:flex; align-items:center; gap:12px; border:1px solid rgba(245,241,230,.14); border-radius:6px; padding:8px 12px; }
+  .fuente-badge { flex-shrink:0; font-size:10px; letter-spacing:1px; border-radius:3px; padding:4px 8px; font-family:Oswald, sans-serif; border:1px solid var(--dorado); color:var(--dorado); }
+  .fuente-badge.mendoza { background:var(--dorado); color:#10151f; font-weight:700; border-color:var(--dorado); }
+  .banco-anio { flex-shrink:0; width:72px; text-align:center; font-family:Oswald, sans-serif; font-weight:700; font-size:20px; line-height:1.15; color:var(--crema); }
+  .banco-info { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .banco-titulo { font-weight:600; font-size:13px; color:var(--crema); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .banco-resumen { color:var(--atenuado); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .banco-vacio { margin:0; color:var(--atenuado); font-size:13px; }
   @font-face { font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap; src:url('../assets/Inter-Variable.woff2') format('woff2'); }
   @font-face { font-family:'Oswald'; font-style:normal; font-weight:200 700; font-display:swap; src:url('../assets/Oswald-Variable.woff2') format('woff2'); }
 </style>
@@ -123,6 +136,14 @@
         </div>
         <p id="altaError" class="alta-error" hidden></p>
       </form>
+    </section>
+    <section id="bancoPanel" hidden>
+      <button id="btnBanco" type="button" class="secundario chico banco-toggle">BANCO DE CANDIDATOS <span id="bancoCount" class="banco-count"></span></button>
+      <div id="bancoListaWrap" class="banco-lista-wrap" hidden>
+        <p class="editor-hint">Agregá a la placa lo que hoy quedó afuera. Los marcados con ✓ ya están.</p>
+        <ul id="bancoLista" class="banco-lista"></ul>
+        <p id="bancoVacio" class="banco-vacio" hidden>Sin candidatos extra para esta fecha.</p>
+      </div>
     </section>
     <section id="copysPanel" hidden>
       <h2 id="copysTitulo">COPYS PARA REDES</h2>

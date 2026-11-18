@@ -26,6 +26,8 @@ const ui = {
   copysError: $('copysError'), copysReintentar: $('btnCopysReintentar'),
   editor: $('editorPlaca'), editorLista: $('editorLista'), editorCount: $('editorCount'),
   restablecer: $('btnRestablecer'), formAgregar: $('formAgregar'),
+  banco: $('bancoPanel'), btnBanco: $('btnBanco'), bancoCount: $('bancoCount'),
+  bancoListaWrap: $('bancoListaWrap'), bancoLista: $('bancoLista'), bancoVacio: $('bancoVacio'),
   altaAño: $('altaAño'), altaTitulo: $('altaTitulo'), altaResumen: $('altaResumen'),
   altaAmpliado: $('altaAmpliado'), altaIcono: $('altaIcono'), altaError: $('altaError'),
 };
@@ -35,6 +37,10 @@ let logoImg = null;
 let itemsPlaca = [];      // hechos visibles/ocultos + propios; la destacada es el primer visible
 let itemsOriginales = []; // snapshot del servidor para RESTABLECER
 let editado = false;
+let candidatosWikipedia = []; // extras del GET más allá de los 6 de la placa
+let idsBancoAgregados = new Set();
+let bancoPool = [];
+let bancoListLoaded = false;
 let localSeq = 0;
 const nuevoIdLocal = () => { localSeq += 1; return `local-${Date.now().toString(36)}-${localSeq}`; };
 
@@ -143,8 +149,9 @@ function dibujarPlaca(modelo) {
   let y = 160;
   ctx.fillStyle = COLOR.dorado;
   ctx.font = '700 150px Oswald';
-  ctx.fillText(modelo.hero.año, 64, y);
-  const cajaAño = ctx.measureText(modelo.hero.año);
+  const añoHero = modelo.hero.añoTexto || modelo.hero.año;
+  ctx.fillText(añoHero, 64, y);
+  const cajaAño = ctx.measureText(añoHero);
   y += Math.round(cajaAño.actualBoundingBoxAscent + cajaAño.actualBoundingBoxDescent) + 14;
   ctx.fillStyle = COLOR.crema;
   ctx.font = '600 42px Inter';
@@ -178,7 +185,7 @@ function dibujarPlaca(modelo) {
   for (const fila of filas) {
     ctx.fillStyle = COLOR.dorado;
     ctx.font = `600 ${Math.min(40, Math.round(altoFila * 0.55))}px Oswald`;
-    ctx.fillText(fila.año, 64, y + 2);
+    ctx.fillText(fila.filaTexto || fila.año, 64, y + 2);
     const xTexto = 200;
     ctx.fillStyle = COLOR.crema;
     ctx.font = `600 ${fTitulo}px Inter`;
@@ -375,6 +382,8 @@ async function cargar(fecha) {
       redibujarPlaca();
       ui.editor.hidden = false;
       renderEditor();
+      ui.bancoPanel.hidden = false;
+      cargarCandidatosWikipedia(modelo.candidatos || []);
       ui.fecha.value = fecha;
       mostrar('lista');
       return;
@@ -391,6 +400,120 @@ async function cargar(fecha) {
       await esperar(PAUSA_REINTENTO_MS);
     }
   }
+}
+
+function cargarCandidatosWikipedia(candidatos) {
+  const enPlaca = new Set(itemsPlaca.map(i => i.id));
+  candidatosWikipedia = (Array.isArray(candidatos) ? candidatos : [])
+    .filter(c => c && !enPlaca.has(c.id))
+    .map(c => ({
+      id: String(c.id || nuevoIdLocal()),
+      año: String(c.año || ''), fecha: String(c.fecha || ''),
+      titulo: String(c.titulo || ''), resumen: String(c.resumen || ''),
+      ampliado: String(c.ampliado || c.resumen || ''),
+      icono: c.icono || 'historia', categoria: String(c.categoria || 'HISTORIA'),
+      fuente: 'Wikipedia', feria: false,
+    }));
+}
+
+async function candidatosMendoza(desdeISO) {
+  try {
+    const res = await fetch(new URL('./efemerides-mza.json', import.meta.url).href, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const [y, mo, d] = String(desdeISO).split('-').map(Number);
+    const inicio = Date.UTC(y, mo - 1, d);
+    const fechas = new Set();
+    for (let i = 0; i <= 7; i += 1) {
+      const dia = new Date(inicio + i * 86400000);
+      fechas.add(String(dia.getUTCMonth() + 1).padStart(2, '0') + '-' + String(dia.getUTCDate()).padStart(2, '0'));
+    }
+    return Object.entries(data || {})
+      .filter(([clave, lista]) => fechas.has(clave) && Array.isArray(lista))
+      .flatMap(([, lista]) => lista
+        .filter(h => h && h.titulo && h.resumen && h.año)
+        .map(h => ({ id: `mza-${h.año}-${String(h.titulo)}`, año: String(h.año), fecha: '', titulo: h.titulo, resumen: h.resumen, ampliado: h.texto_ampliado || h.resumen, icono: h.icono || 'historia', categoria: 'MENDOZA', fuente: 'Mendoza', feria: false })));
+  } catch { return []; }
+}
+
+async function candidatosFeriados(desdeISO) {
+  try {
+    const res = await fetch(`${WORKER_URL}/placas/v2/efemerides/banco?fecha=${encodeURIComponent(desdeISO)}&dias=7`);
+    const raw = await res.json().catch(() => null);
+    return Array.isArray(raw?.feriados) ? raw.feriados : [];
+  } catch { return []; }
+}
+
+async function abrirBanco() {
+  ui.bancoListaWrap.hidden = false;
+  if (bancoListLoaded) { renderBancoPool(); return; }
+  bancoListLoaded = true;
+  ui.bancoCount.textContent = '…';
+  const [feriados, mendoza] = await Promise.all([candidatosFeriados(fechaActual), candidatosMendoza(fechaActual)]);
+  bancoPool = [...candidatosWikipedia, ...feriados, ...mendoza];
+  renderBancoPool();
+}
+
+function renderBancoPool() {
+  ui.bancoLista.replaceChildren();
+  ui.bancoVacio.hidden = bancoPool.length > 0;
+  ui.bancoCount.textContent = bancoPool.length ? `(${bancoPool.length})` : '';
+  for (const c of bancoPool) ui.bancoLista.append(crearTarjetaBanco(c));
+}
+
+const MESES_ABREV = ['', 'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+function crearTarjetaBanco(c) {
+  const li = document.createElement('li');
+  li.className = 'banco-card';
+  const fuente = String(c.fuente || 'Wikipedia').toUpperCase();
+  const badge = document.createElement('span');
+  badge.className = 'fuente-badge' + (fuente === 'MENDOZA' ? ' mendoza' : '');
+  badge.textContent = c.feria ? 'EFEMÉRIDE AR' : fuente;
+  const anio = document.createElement('span');
+  anio.className = 'banco-anio';
+  if (c.año) anio.textContent = c.año;
+  else {
+    const f = String(c.fecha || '');
+    anio.textContent = `${String(Number(f.slice(8, 10)))} ${MESES_ABREV[Number(f.slice(5, 7))] || ''}`.trim();
+  }
+  const info = document.createElement('div');
+  info.className = 'banco-info';
+  const titulo = document.createElement('span');
+  titulo.className = 'banco-titulo';
+  titulo.textContent = c.titulo;
+  const resumen = document.createElement('span');
+  resumen.className = 'banco-resumen';
+  resumen.textContent = c.resumen;
+  info.append(titulo, resumen);
+  const agregado = idsBancoAgregados.has(c.id);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'chico' + (agregado || itemsPlaca.length >= 6 ? ' secundario' : '');
+  btn.textContent = agregado ? '✓ EN LA PLACA' : '+ AGREGAR';
+  btn.disabled = agregado || itemsPlaca.length >= 6;
+  if (btn.disabled && !agregado) btn.title = 'La placa ya tiene 6 hechos';
+  btn.addEventListener('click', () => agregarDesdeBanco(c));
+  li.append(badge, anio, info, btn);
+  return li;
+}
+
+function agregarDesdeBanco(c) {
+  if (itemsPlaca.length >= 6 || idsBancoAgregados.has(c.id)) return;
+  const hecho = {
+    id: `banco-${c.id || nuevoIdLocal()}`,
+    año: String(c.año || ''), fecha: String(c.fecha || ''), titulo: String(c.titulo),
+    resumen: String(c.resumen), ampliado: String(c.ampliado || c.resumen),
+    icono: String(c.icono || 'historia'), categoria: String(c.categoria || 'EFEMÉRIDE ARGENTINA'),
+    oculto: false, verificada: false,
+    fuente: c.feria ? 'argentinadatos.com' : (String(c.fuente || '').toLowerCase() === 'mendoza' ? 'Media Mendoza' : 'Wikipedia'),
+  };
+  itemsPlaca.push(hecho);
+  idsBancoAgregados.add(c.id);
+  editado = true;
+  redibujarPlaca();
+  renderEditor();
+  renderBancoPool();
 }
 
 function redibujarPlaca() {
@@ -429,7 +552,7 @@ function renderEditor() {
     linea.append(document.createTextNode(`${emojiIconoEf(item.icono)}`));
     const anio = document.createElement('span');
     anio.className = 'anio';
-    anio.textContent = item.año;
+    anio.textContent = item.año || 'AR';
     linea.append(anio, document.createTextNode(item.titulo));
     const resumen = document.createElement('span');
     resumen.className = 'hecho-resumen';
@@ -481,11 +604,25 @@ function onToggleOcultar(id) {
 
 function onRestablecer() {
   itemsPlaca = itemsOriginales.map(i => ({ ...i, oculto: false }));
+  idsBancoAgregados = new Set();
   editado = false;
   ui.formAgregar.reset();
   ui.altaError.hidden = true;
   redibujarPlaca();
   renderEditor();
+  renderBancoPool();
+}
+
+function limpiarBanco() {
+  candidatosWikipedia = [];
+  idsBancoAgregados = new Set();
+  bancoPool = [];
+  bancoListLoaded = false;
+  ui.bancoLista.replaceChildren();
+  ui.bancoVacio.hidden = true;
+  ui.bancoCount.textContent = '';
+  ui.bancoListaWrap.hidden = true;
+  ui.bancoPanel.hidden = true;
 }
 
 function resetearEditor() {
@@ -498,6 +635,7 @@ function resetearEditor() {
   ui.editor.hidden = true;
   ui.formAgregar.reset();
   ui.altaError.hidden = true;
+  limpiarBanco();
 }
 
 ui.reintentar.addEventListener('click', () => cargar(fechaActual));
@@ -512,6 +650,9 @@ ui.fecha.addEventListener('change', () => {
 });
 ui.descargar.addEventListener('click', exportarPNG);
 ui.restablecer.addEventListener('click', onRestablecer);
+ui.btnBanco.addEventListener('click', () => {
+  if (ui.bancoListaWrap.hidden) abrirBanco(); else ui.bancoListaWrap.hidden = true;
+});
 ui.formAgregar.addEventListener('submit', (ev) => {
   ev.preventDefault();
   const r = validarHechoPropio({ año: ui.altaAño.value, titulo: ui.altaTitulo.value, resumen: ui.altaResumen.value, ampliado: ui.altaAmpliado.value, icono: ui.altaIcono.value });
