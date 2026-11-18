@@ -25,6 +25,7 @@ const ui = {
   copiarWhats: $('btnCopiarWhats'), copiarIg: $('btnCopiarIg'),
   copysError: $('copysError'), copysReintentar: $('btnCopysReintentar'),
   editor: $('editorPlaca'), editorLista: $('editorLista'), editorCount: $('editorCount'),
+  pocosHechos: $('pocosHechos'), respaldo: $('respaldo'),
   restablecer: $('btnRestablecer'), formAgregar: $('formAgregar'),
   bancoPanel: $('bancoPanel'), btnBanco: $('btnBanco'), bancoCount: $('bancoCount'),
   bancoListaWrap: $('bancoListaWrap'), bancoLista: $('bancoLista'), bancoVacio: $('bancoVacio'),
@@ -38,6 +39,7 @@ let itemsPlaca = [];      // hechos visibles/ocultos + propios; la destacada es 
 let itemsOriginales = []; // snapshot del servidor para RESTABLECER
 let editado = false;
 let candidatosWikipedia = []; // extras del GET más allá de los 6 de la placa
+let placaEnRespaldo = false;  // true cuando el worker sirvió última buena (meta.fallback)
 let idsBancoAgregados = new Set();
 let bancoPool = [];
 let bancoListLoaded = false;
@@ -375,6 +377,7 @@ async function cargar(fecha) {
   for (let intento = 0; intento <= REINTENTOS; intento += 1) {
     try {
       const modelo = await pedir(fecha);
+      placaEnRespaldo = modelo.fallback === true;
       itemsOriginales = modelo.items.map(i => ({ ...i, oculto: false }));
       itemsPlaca = itemsOriginales.map(i => ({ ...i }));
       editado = false;
@@ -548,6 +551,11 @@ function renderEditor() {
   const visibles = itemsPlaca.filter(i => !i.oculto);
   const hero = visibles[0];
   const ocultos = itemsPlaca.length - visibles.length;
+  const poco = visibles.length > 0 && visibles.length < 5;
+  ui.pocosHechos.hidden = !poco;
+  ui.pocosHechos.textContent = poco ? `⚠ SOLO ${visibles.length} HECHO${visibles.length > 1 ? 'S' : ''} VERIFICADO${visibles.length > 1 ? 'S' : ''} PARA ESTA FECHA` : '';
+  ui.respaldo.hidden = !placaEnRespaldo;
+  ui.respaldo.textContent = placaEnRespaldo ? '⚠ PLACA DE RESPALDO — VERIFICÁ ANTES DE PUBLICAR' : '';
   for (const item of itemsPlaca) {
     const li = document.createElement('li');
     li.className = 'hecho-card' + (item.oculto ? ' oculto' : '');
@@ -564,6 +572,17 @@ function renderEditor() {
     resumen.className = 'hecho-resumen';
     resumen.textContent = item.resumen;
     info.append(linea, resumen);
+    const fuenteUrl = String(item.fuenteUrl || '').trim();
+    if (fuenteUrl) {
+      const a = document.createElement('a');
+      a.className = 'fuente-link';
+      a.href = fuenteUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.title = 'Abrir la fuente para verificar antes de publicar';
+      a.textContent = 'fuente ↗';
+      info.append(a);
+    }
     const acciones = document.createElement('div');
     acciones.className = 'hecho-acciones';
     if (item.oculto) {
@@ -635,6 +654,9 @@ function resetearEditor() {
   itemsPlaca = [];
   itemsOriginales = [];
   editado = false;
+  placaEnRespaldo = false;
+  if (ui.pocosHechos) ui.pocosHechos.hidden = true;
+  if (ui.respaldo) ui.respaldo.hidden = true;
   ui.editorLista.replaceChildren();
   ui.editorCount.textContent = '';
   ui.restablecer.hidden = true;

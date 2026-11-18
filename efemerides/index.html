@@ -53,6 +53,9 @@
   .badge { font-size:11px; letter-spacing:1px; border-radius:3px; padding:4px 8px; font-family:Oswald, sans-serif; }
   .badge-destacada { background:var(--dorado); color:#10151f; font-weight:700; }
   .badge-oculto { border:1px solid var(--dorado); color:var(--dorado); }
+  .badge-pocos { background:#b45309; color:#fff; font-weight:700; }
+  .fuente-link { font-size:11px; letter-spacing:.5px; color:var(--dorado); text-decoration:none; margin-left:8px; }
+  .fuente-link:hover { text-decoration:underline; }
   .alta-hecho { display:flex; flex-direction:column; gap:10px; border:1px dashed rgba(245,241,230,.25); border-radius:6px; padding:12px; }
   .alta-hecho h3 { margin:0; font-family:Oswald, sans-serif; font-size:13px; letter-spacing:2px; color:var(--atenuado); font-weight:600; }
   .alta-grid { display:flex; flex-wrap:wrap; gap:10px; }
@@ -106,6 +109,8 @@
       <div class="editor-header">
         <h2>EDITAR LA PLACA</h2>
         <span id="editorCount" class="editor-count"></span>
+        <span id="respaldo" class="badge badge-pocos" hidden></span>
+        <span id="pocosHechos" class="badge badge-pocos" hidden></span>
         <span class="editor-hint">Cambios solo en esta ventana</span>
       </div>
       <ul id="editorLista" class="editor-lista"></ul>
