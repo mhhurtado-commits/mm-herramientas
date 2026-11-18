@@ -19,7 +19,7 @@ export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createClou
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
 export { repararAnioEfemerides };
-export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco };
+export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides };
 
 function fechaRedaccionMendoza(ahora = new Date()) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -8911,21 +8911,32 @@ function normalizarEfemeridesCopys(data, { items, date, links }) {
   return { whatsapp, instagram };
 }
 
+// KV queda solo como "última buena" (stale-if-error): la placa se genera
+// fresca en cada pedido — la apertura es 1-2 veces por día. Nunca se sirve
+// como fuente en el camino feliz; se usa únicamente si la generación falla
+// (y para el GET de copys, que lee los items cacheados).
+async function obtenerUltimaBuenaEfemerides(env, date) {
+  if (!env?.KV) return null;
+  try {
+    const cached = await env.KV.get(PLACAS_V2_EF_CACHE_PREFIX + date, 'json');
+    if (cached && cached.items && cached.items.length) return cached;
+  } catch {}
+  return null;
+}
+
 async function handlePlacasV2Efemerides(url, env) {
   const date = url.searchParams.get('fecha') || '';
   if (!validEfemeridesDate(date)) return jsonError('Fecha inválida. Usá YYYY-MM-DD.', 400);
   const cacheKey = PLACAS_V2_EF_CACHE_PREFIX + date;
-  if (env.KV) {
-    try {
-      const cached = await env.KV.get(cacheKey, 'json');
-      if (cached && cached.items && cached.items.length) return jsonOk({ ...cached, meta: { ...(cached.meta || {}), cached: true } });
-    } catch {}
-  }
+  const servirUltimaBuena = async () => {
+    const cached = await obtenerUltimaBuenaEfemerides(env, date);
+    return cached ? jsonOk({ ...cached, meta: { ...(cached.meta || {}), cached: true, fallback: true } }) : null;
+  };
   // La página diaria de Wikipedia es determinística y existe para todos los
   // días válidos del calendario. Se usa primero para que una búsqueda lenta o
   // intermitente de TyC no deje al editor sin datos; TyC queda como rescate.
   const sourceUrl = wikipediaDateUrl(date) || await discoverTyCEfemeridesUrl(date);
-  if (!sourceUrl) return jsonError('No se encontró una fuente de efemérides para esa fecha.', 502);
+  if (!sourceUrl) return (await servirUltimaBuena()) || jsonError('No se encontró una fuente de efemérides para esa fecha.', 502);
   let sourceText = '';
   let sourceImages = [];
   try {
@@ -8947,12 +8958,12 @@ async function handlePlacasV2Efemerides(url, env) {
       }
     } catch {}
   }
-  if (!sourceText) return jsonError('La fuente de efemérides no respondió.', 502);
+  if (!sourceText) return (await servirUltimaBuena()) || jsonError('La fuente de efemérides no respondió.', 502);
   const sourceName = /wikipedia\.org/i.test(sourceUrl) ? 'Wikipedia' : 'TyC Sports';
   const imageCatalog = sourceImages.map((image, index) => index + ': ' + image).join('\n');
   const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé todas las opciones argentinas e internacionales razonables: entre 8 y 15 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, texto_ampliado de máximo 240 caracteres, icono, icono_descripcion, imagen_descripcion, imagen_indice y prioridad. anio es el año histórico en que ocurrió el hecho (por ejemplo 1894, 1913, 2002): NUNCA pongas el año de la fecha pedida (' + date.slice(0, 4) + ') ni el año actual; si el texto no indica un año, pon -1. imagen_indice solo puede apuntar a una imagen del catálogo si es pertinente para ese hecho; si no, usa -1. icono debe ser uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo o canal. icono_descripcion debe describir en 3 a 8 palabras el símbolo concreto que corresponde al hecho. imagen_descripcion debe describir una imagen documental posible, sin inventar que existe una fotografía. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nImágenes disponibles:\n' + imageCatalog + '\nTexto:\n' + sourceText;
   const result = await callGemini(prompt, env);
-  if (result.error || !Array.isArray(result.data?.items)) return jsonError('No se pudieron normalizar las efemérides.', 502);
+  if (result.error || !Array.isArray(result.data?.items)) return (await servirUltimaBuena()) || jsonError('No se pudieron normalizar las efemérides.', 502);
   const rawItems = Array.isArray(result.data.items) ? result.data.items : [];
   const searchedImages = await Promise.all(rawItems.map(async item => {
     const index = Number(item.imagen_indice);
@@ -8966,7 +8977,7 @@ async function handlePlacasV2Efemerides(url, env) {
     año: repararAnioEfemerides(item, date), titulo: String(item.titulo || '').trim(), resumen: String(item.resumen || '').trim(), texto_ampliado: String(item.texto_ampliado || item.resumen || '').trim(), prioridad: Number(item.prioridad) || index + 1,
     fuente: sourceName, url_fuente: sourceUrl, verificada: true, nivel_verificacion: 'fuente_secundaria', fuente_descubrimiento: sourceUrl,
   })).filter(item => item.titulo && item.año && item.resumen).sort((a, b) => (a.alcance === 'nacional' ? 0 : 1) - (b.alcance === 'nacional' ? 0 : 1) || a.prioridad - b.prioridad);
-  if (items.length < 5) return jsonError('La fuente devolvió menos de cinco opciones utilizables.', 502);
+  if (items.length < 5) return (await servirUltimaBuena()) || jsonError('La fuente devolvió menos de cinco opciones utilizables.', 502);
   const payload = { items, meta: { fecha: date, fuente: sourceUrl, nivel_verificacion: 'fuente_secundaria', generatedAt: new Date().toISOString(), cached: false } };
   if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: PLACAS_V2_EF_CACHE_TTL }); } catch {} }
   return jsonOk(payload);

@@ -4,7 +4,7 @@ import {
   emojiPorIconoEf, fechaLargaEf, itemsCopysReparados,
   buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys,
   normalizarItemsEditados, handlePlacasV2EfemeridesCopysPost, handlePlacasV2EfemeridesCopys,
-  normalizarFeriadosAR, handlePlacasV2EfemeridesBanco,
+  normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides,
 } from './worker.js';
 
 const FECHA = '2026-11-14';
@@ -277,5 +277,22 @@ test('buildEfemeridesCopysFallback: ítem sin año no rompe ni emite ** ni -1', 
   assert.ok(!whatsapp.includes('**'), 'sin pareja de asteriscos vacía');
   assert.ok(!whatsapp.includes('undefined') && !whatsapp.includes('-1'));
   assert.ok(!instagram.includes('undefined') && !instagram.includes('-1') && !instagram.includes(': Feriado'));
+});
+
+
+test('obtenerUltimaBuenaEfemerides: devuelve la última placa buena cuando existe', async () => {
+  const env = { KV: { get: async () => ({ items: [{ id: 'x', año: '1899' }], meta: { fecha: '2026-01-12' } }) } };
+  const r = await obtenerUltimaBuenaEfemerides(env, '2026-01-12');
+  assert.equal(r.items[0].id, 'x');
+});
+
+test('obtenerUltimaBuenaEfemerides: null si KV falla, no existe o trae items vacíos', async () => {
+  const envRoto = { KV: { get: async () => { throw new Error('kv caído'); } } };
+  assert.equal(await obtenerUltimaBuenaEfemerides(envRoto, '2026-01-12'), null);
+  const envVacio = { KV: { get: async () => null } };
+  assert.equal(await obtenerUltimaBuenaEfemerides(envVacio, '2026-01-12'), null);
+  const envSinItems = { KV: { get: async () => ({ items: [] }) } };
+  assert.equal(await obtenerUltimaBuenaEfemerides(envSinItems, '2026-01-12'), null);
+  assert.equal(await obtenerUltimaBuenaEfemerides({}, '2026-01-12'), null);
 });
 
