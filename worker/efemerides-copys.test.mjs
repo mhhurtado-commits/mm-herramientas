@@ -206,15 +206,27 @@ const FERIADOS_2026 = [
   { fecha: '2027-01-01', tipo: 'inamovible', nombre: 'Año nuevo' },
 ];
 
-test('normalizarFeriadosAR: filtra por rango [desde, desde+dias], limpia (dd/mm) y arma items sin año', () => {
+test('normalizarFeriadosAR: feriado trasladado se ancla a la fecha histórica (20/11), no al día no laborable (23/11)', () => {
   const r = normalizarFeriadosAR(FERIADOS_2026, '2026-11-18', 7);
-  assert.deepEqual(r.map(i => i.id), ['feriado-2026-11-23']);
+  assert.deepEqual(r.map(i => i.id), ['feriado-2026-11-20']);
+  assert.equal(r[0].fecha, '2026-11-20');
   assert.equal(r[0].titulo, 'Día de la Soberanía Nacional');
   assert.equal(r[0].año, '');
   assert.equal(r[0].feria, true);
   assert.equal(r[0].categoria, 'EFEMÉRIDE ARGENTINA');
   assert.equal(r[0].icono, 'historia');
-  assert.match(r[0].resumen, /23 de noviembre/);
+  assert.match(r[0].resumen, /20 de noviembre/);
+});
+
+test('normalizarFeriadosAR: no lista el feriado en el día no laborable observado', () => {
+  const r = normalizarFeriadosAR([FERIADOS_2026[1]], '2026-11-23', 7);
+  assert.deepEqual(r, []);
+});
+
+test('normalizarFeriadosAR: inamovible sin (dd/mm) se mantiene en su fecha oficial', () => {
+  const r = normalizarFeriadosAR([FERIADOS_2026[0], FERIADOS_2026[2]], '2026-11-05', 10);
+  assert.deepEqual(r.map(i => i.id), ['feriado-2026-11-09']);
+  assert.equal(r[0].titulo, 'Visita del papa León XIV');
 });
 
 test('normalizarFeriadosAR: rango cruzando fin de año incluye el año siguiente', () => {
@@ -231,7 +243,7 @@ test('handlePlacasV2EfemeridesBanco: 200 ok con feriados mapeados', async () => 
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.ok, true);
-  assert.deepEqual(body.feriados.map(f => f.id), ['feriado-2026-11-23']);
+  assert.deepEqual(body.feriados.map(f => f.id), ['feriado-2026-11-20']);
 });
 
 test('handlePlacasV2EfemeridesBanco: fetch caído → 200 con feriados: []', async () => {

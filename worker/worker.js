@@ -8973,7 +8973,10 @@ async function handlePlacasV2Efemerides(url, env) {
 }
 
 // Feriados argentinos vía api.argentinadatos.com: sin año histórico (la fuente
-// no lo trae). Se limpia el sufijo "(dd/mm)" del nombre oficial.
+// no lo trae). Si el nombre oficial trae "(dd/mm)" — la fecha histórica, ej.
+// "Día de la Soberanía Nacional (20/11)" — el candidato se ancla a ESA fecha y
+// no al día no laborable observado (traslado/puente). Los feriados sin sufijo
+// (inamovibles y puentes) se mantienen en su fecha oficial.
 function normalizarFeriadosAR(data, desdeISO, dias = 7) {
   const desde = String(desdeISO || '');
   const diasN = Math.max(0, Math.min(30, Number(dias) || 7));
@@ -8982,13 +8985,31 @@ function normalizarFeriadosAR(data, desdeISO, dias = 7) {
   const hasta = new Date(inicio.getTime() + diasN * 86400000);
   const pad = n => String(n).padStart(2, '0');
   const hastaISO = hasta.getUTCFullYear() + '-' + pad(hasta.getUTCMonth() + 1) + '-' + pad(hasta.getUTCDate());
-  return (Array.isArray(data) ? data : [])
-    .filter(f => f && f.fecha && f.fecha >= desde && f.fecha <= hastaISO)
-    .map(f => {
-      const nombre = String(f.nombre || '').replace(/\s*\(\d{1,2}\/\d{1,2}\)\s*$/, '').trim();
+  const years = inicio.getUTCFullYear() === hasta.getUTCFullYear()
+    ? [inicio.getUTCFullYear()]
+    : [inicio.getUTCFullYear(), hasta.getUTCFullYear()];
+  const out = [];
+  for (const f of (Array.isArray(data) ? data : [])) {
+    if (!f || !f.fecha) continue;
+    const nombreBruto = String(f.nombre || '').trim();
+    const m = nombreBruto.match(/^(.*?)\s*\((\d{1,2})\/(\d{1,2})\)\s*$/);
+    if (m) {
+      const nombre = m[1].trim();
+      for (const y of years) {
+        const histISO = `${y}-${pad(Number(m[3]))}-${pad(Number(m[2]))}`;
+        if (histISO >= desde && histISO <= hastaISO) {
+          const texto = 'Efeméride argentina — ' + fechaLargaEf(histISO);
+          out.push({ id: 'feriado-' + histISO, fecha: histISO, año: '', titulo: nombre, resumen: texto, texto_ampliado: texto, icono: 'historia', categoria: 'EFEMÉRIDE ARGENTINA', alcance: 'nacional', feria: true });
+        }
+      }
+    } else if (f.fecha >= desde && f.fecha <= hastaISO) {
       const resumen = 'Feriado nacional — ' + fechaLargaEf(f.fecha) + ' de ' + f.fecha.slice(0, 4);
-      return { id: 'feriado-' + f.fecha, fecha: f.fecha, año: '', titulo: nombre, resumen, texto_ampliado: resumen, icono: 'historia', categoria: 'EFEMÉRIDE ARGENTINA', alcance: 'nacional', feria: true };
-    })
+      out.push({ id: 'feriado-' + f.fecha, fecha: f.fecha, año: '', titulo: nombreBruto, resumen, texto_ampliado: resumen, icono: 'historia', categoria: 'EFEMÉRIDE ARGENTINA', alcance: 'nacional', feria: true });
+    }
+  }
+  const vistos = new Set();
+  return out
+    .filter(i => (vistos.has(i.id) ? false : (vistos.add(i.id), true)))
     .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
 }
 

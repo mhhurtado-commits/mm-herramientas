@@ -27,10 +27,11 @@ La placa diaria de `/efemerides/` se arma hoy con una llamada a Gemini sobre la 
 
 - GET `/placas/v2/efemerides/banco?fecha=YYYY-MM-DD&dias=7` → `{ ok: true, feriados: [...] }`.
 - El worker pide `https://api.argentinadatos.com/v1/feriados/{year}` (y el siguiente año si el rango cruza fin de año), filtra los que caen entre `fecha` y `fecha + dias` días inclusive.
-- Se devuelven como hechos sin año histórico: `{ id: 'feriado-<fecha>-<slug>', año: '', titulo: nombreOficial, resumen: '<fecha> de <nombreOficial>', texto_ampliado: igual al resumen, icono: 'historia', categoria: 'EFEMÉRIDE ARGENTINA', alcance: 'nacional', feria: true }`.
+- Se devuelven como hechos sin año histórico: `{ id: 'feriado-<fecha>', año: '', titulo: nombreOficial, resumen: '…', texto_ampliado: igual al resumen, icono: 'historia', categoria: 'EFEMÉRIDE ARGENTINA', alcance: 'nacional', feria: true }`.
+- **Anclaje a la fecha histórica, no al día no laborable**: si el nombre oficial trae el sufijo `(dd/mm)` (ej. `Día de la Soberanía Nacional (20/11)`), el candidato se ancla a **esa** fecha histórica — el sufijo tiene prioridad sobre el `fecha` observado de la API (traslado o puente). Los feriados sin sufijo (inamovibles y puentes) se mantienen en su fecha oficial.
 - `fetcher` inyectable con default `globalThis.fetch` para testeo (mismo patrón que `gemini` en copys).
 - Sin KV ni cache propia; respuesta chica; errores → `feriados: []` con `ok: true` (no rompe el banco). Timeout 8s por llamada (AbortController).
-- Caso borde 2026 documentado: Día de la Soberanía Nacional = 2026-11-23 (trasladable desde 20/11). El banco lo muestra desde 7 días antes con `feria: true`.
+- Caso borde 2026 documentado: Día de la Soberanía Nacional = 2026-11-23 (trasladable desde 20/11). Con el anclaje a la fecha histórica, el banco lo propone desde el **20/11** (o antes si la ventana de 7 días desde la fecha elegida lo cubre), y NO lo propone el 23/11, aunque ese sea el día no laborable observado.
 
 ### 3.3 Efemérides mendocinas (archivo estático del repo)
 
@@ -48,10 +49,10 @@ La placa diaria de `/efemerides/` se arma hoy con una llamada a Gemini sobre la 
 
 - Sección plegable **BANCO DE CANDIDATOS** debajo del panel AGREGAR UN HECHO, plegada por defecto; el encabezado lleva el contador (`N CANDIDATOS`).
 - Al expandir por primera vez, se hace fetch perezoso: (a) `candidatos` de la respuesta GET ya en memoria, (b) feriados (worker), (c) `efemerides-mza.json`. Los errores parciales no tapan sección: cada fuente que falla simplemente no aporta.
-- Tarjeta: badge de fuente (`WIKIPEDIA` / `EFEMÉRIDE AR` / `MENDOZA`), año grande (o `DD MMM` en dorado para feriados, ej. `23 NOV`), título, resumen de 1 línea, botón `+ AGREGAR`.
+- Tarjeta: badge de fuente (`WIKIPEDIA` / `EFEMÉRIDE AR` / `MENDOZA`), año grande (o `DD MMM` en dorado para feriados, ej. `20 NOV`), título, resumen de 1 línea, botón `+ AGREGAR`.
 - Al agregar: el candidato entra al final de `itemsPlaca` (con id nuevo `local-…` si viene de feriados/Mendoza; mantiene su id si viene de Wikipedia), se marca de inmediato y el botón pasa a `✓ EN LA PLACA` con mismo estilo que RESTABLECER. Reabrir/cerrar el banco no duplica (se recuerdan los ids ya agregados en la sesión).
 - El editor existente (destacar/ocultar/contador/restablecer) y la destacada=primera visible funcionan sin cambios.
-- La placa dibujada: hecho con `año:''` → celda grande muestra `DD MMM` (ej. `23 NOV`) en dorado; en filas, la columna de año muestra `AR`; en el pie, sin cambios.
+- La placa dibujada: hecho con `año:''` → celda grande muestra `DD MMM` (ej. `20 NOV`) en dorado; en filas, la columna de año muestra `AR`; en el pie, sin cambios.
 - Copys: si el banco agregó un feriado sin año, el prompt recibe ese ítem con `año:''` — `buildEfemeridesCopysPrompt` y `garantizarNegritasEf` deben tolerar año vacío (línea sin año, no romper: ya existe el fallback por año ausente).
 
 ## 5. Arquitectura y archivos
@@ -82,7 +83,7 @@ La placa diaria de `/efemerides/` se arma hoy con una llamada a Gemini sobre la 
 
 1. Con edición sin tocar nada, el flujo es idéntico al actual (mismos 6 hechos, misma placa, mismos copys).
 2. Abrir el banco muestra ≥ 3 fuentes posibles según la fecha; feriados muestran el oficial del año actual.
-3. Agregar un feriado con año vacío a la placa → el PNG lo muestra con `23 NOV` grande, sin año numérico, fuente WIKIPEDIA intacta para el resto.
+3. Agregar un feriado con año vacío a la placa → el PNG lo muestra con `20 NOV` grande, sin año numérico, fuente WIKIPEDIA intacta para el resto.
 4. Copys con un feriado sin año en la edición → sin crash, sin `-1`, sin "hace N años".
 5. `node --check worker/worker.js` verde; suites `worker/efemerides-copys.test.mjs` y `efemerides/placa-model.test.mjs` verdes; suite completa del repo verde.
 6. Deploy manual del worker (usuario) activa `/banco` y el prompt ampliado para uso real; la edición/PNG/agregado desde la sesión actual no depende del deploy hasta que el redactor lo use.
