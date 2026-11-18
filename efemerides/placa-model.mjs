@@ -8,6 +8,12 @@ const ETIQUETAS = {
   economia: 'ECONOMÍA', mundo: 'MUNDO', canal: 'CANAL',
 };
 
+export const ICONOS_EF = ['futbol', 'deportes', 'aviacion', 'musica', 'teatro', 'politica', 'historia', 'sociedad', 'economia', 'mundo', 'canal'];
+const EMOJIS_EF = { futbol: '⚽', deportes: '🏆', aviacion: '✈️', musica: '🎵', teatro: '🎭', politica: '🏛️', historia: '📜', sociedad: '🗞️', economia: '💹', mundo: '🌎', canal: '📺' };
+export function emojiIconoEf(icono) {
+  return EMOJIS_EF[String(icono || '').trim().toLowerCase()] || '📜';
+}
+
 export function hoyArgentina() {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -35,11 +41,14 @@ function repararAnio(item, fechaIso) {
 }
 
 function normalizarItem(item) {
+  const icono = String(item?.icono ?? '').trim().toLowerCase();
   return {
+    id: String(item?.id ?? '').trim(),
     año: String(item?.año ?? item?.anio ?? '').trim(),
     titulo: String(item?.titulo ?? '').trim(),
     resumen: String(item?.resumen ?? '').trim(),
     ampliado: String(item?.texto_ampliado ?? item?.resumen ?? '').trim(),
+    icono: ICONOS_EF.includes(icono) ? icono : 'historia',
     categoria: etiquetaCategoria(item),
     verificada: item?.verificada === true,
     fuente: String(item?.fuente ?? 'Wikipedia').trim(),
@@ -68,7 +77,46 @@ export function normalizarPayload(raw) {
     rows,
     totalMostrados: items.length,
     total,
+    items,
   };
+}
+
+// La destacada es SIEMPRE el primer hecho visible: no hay heroIndex aparte.
+// Con 0 visibles devuelve ok:false; la UI deshabilita OCULTAR en el último visible.
+export function construirModeloPlaca(items, fecha = '') {
+  const lista = Array.isArray(items) ? items : [];
+  const visibles = lista.filter(i => i && !i.oculto);
+  const [hero, ...rows] = visibles;
+  const verificada = visibles.length > 0 && visibles.every(i => i.verificada !== false);
+  return { ok: !!hero, fecha, hero: hero || null, rows, totalMostrados: visibles.length, total: lista.length, verificada };
+}
+
+export function itemsVisiblesCopys(items) {
+  return (Array.isArray(items) ? items : [])
+    .filter(i => i && !i.oculto)
+    .slice(0, 6)
+    .map(i => ({
+      id: String(i.id || ''), año: String(i.año || ''),
+      titulo: String(i.titulo || ''), resumen: String(i.resumen || ''),
+      texto_ampliado: String(i.ampliado || i.resumen || ''),
+      icono: ICONOS_EF.includes(String(i.icono || '').toLowerCase()) ? String(i.icono).toLowerCase() : 'historia',
+    }));
+}
+
+export function validarHechoPropio({ año, titulo, resumen, ampliado, icono } = {}) {
+  const a = String(año ?? '').trim();
+  if (!/^(1[0-9]{3}|20[0-9]{2})$/.test(a)) return { ok: false, error: 'Año inválido: usá 4 dígitos entre 1000 y 2099.' };
+  const t = String(titulo ?? '').trim();
+  if (!t) return { ok: false, error: 'Falta el título.' };
+  if (t.length > 160) return { ok: false, error: 'Título demasiado largo (máx 160).' };
+  const r = String(resumen ?? '').trim();
+  if (!r) return { ok: false, error: 'Falta el resumen.' };
+  if (r.length > 140) return { ok: false, error: 'Resumen demasiado largo (máx 140).' };
+  const am = String(ampliado ?? '').trim();
+  if (am.length > 240) return { ok: false, error: 'Texto ampliado demasiado largo (máx 240).' };
+  const ic = String(icono ?? '').trim().toLowerCase();
+  if (!ICONOS_EF.includes(ic)) return { ok: false, error: 'Elegí un icono válido.' };
+  return { ok: true, hecho: { año: a, titulo: t, resumen: r, ampliado: am || r, icono: ic } };
 }
 
 export function extraerCopysRespuesta(raw) {

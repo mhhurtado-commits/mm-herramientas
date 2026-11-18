@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hoyArgentina, etiquetaCategoria, normalizarPayload, extraerCopysRespuesta } from './placa-model.mjs';
+import { hoyArgentina, etiquetaCategoria, normalizarPayload, extraerCopysRespuesta, construirModeloPlaca, itemsVisiblesCopys, validarHechoPropio } from './placa-model.mjs';
 
 test('hoyArgentina devuelve YYYY-MM-DD', () => {
   assert.match(hoyArgentina(), /^\d{4}-\d{2}-\d{2}$/);
@@ -151,4 +151,77 @@ test('normalizarPayload: ampliado gana sobre resumen para el año reparado', () 
   items[0].resumen = 'Aniversario del hecho de 2002.';
   const r = normalizarPayload(payloadValido(items));
   assert.equal(r.hero.año, '1913');
+});
+
+test('normalizarPayload: conserva id, icono y devuelve items normalizados', () => {
+  const items = [1, 2, 3, 4, 5].map(n => ({ ...ITEM(n, `Hecho ${n}`), id: `id-${n}`, icono: 'politica' }));
+  const r = normalizarPayload(payloadValido(items));
+  assert.equal(r.items.length, 5);
+  assert.deepEqual(r.items.map(i => i.id), ['id-1', 'id-2', 'id-3', 'id-4', 'id-5']);
+  assert.equal(r.items[0].icono, 'politica');
+});
+
+test('construirModeloPlaca: hero = primer visible, ocultos fuera, etiqueta N DE M', () => {
+  const items = [
+    { ...ITEM(1, 'A'), oculto: true, verificada: true },
+    { ...ITEM(2, 'B'), verificada: true },
+    { ...ITEM(3, 'C'), verificada: true },
+  ];
+  const m = construirModeloPlaca(items, '2026-11-18');
+  assert.equal(m.ok, true);
+  assert.equal(m.hero.titulo, 'B');
+  assert.deepEqual(m.rows.map(i => i.titulo), ['C']);
+  assert.equal(m.totalMostrados, 2);
+  assert.equal(m.total, 3);
+  assert.equal(m.verificada, true);
+});
+
+test('construirModeloPlaca: 1 visible → hero solo, 0 filas (sin división por cero)', () => {
+  const m = construirModeloPlaca([{ ...ITEM(1, 'Único'), verificada: true }], '2026-11-18');
+  assert.equal(m.ok, true);
+  assert.equal(m.rows.length, 0);
+  assert.equal(m.totalMostrados, 1);
+});
+
+test('construirModeloPlaca: 0 visibles → ok:false (la UI impide este estado)', () => {
+  const m = construirModeloPlaca([{ ...ITEM(1, 'A'), oculto: true }], '2026-11-18');
+  assert.equal(m.ok, false);
+});
+
+test('construirModeloPlaca: verificada false si algún visible no lo está', () => {
+  const items = [{ ...ITEM(1, 'A'), verificada: true }, { ...ITEM(2, 'B'), verificada: false }];
+  assert.equal(construirModeloPlaca(items, '2026-11-18').verificada, false);
+});
+
+test('itemsVisiblesCopys: sin ocultos, orden, ampliado→texto_ampliado, tope 6', () => {
+  const items = Array.from({ length: 7 }, (_, i) => ({ ...ITEM(i + 1, `H${i + 1}`), id: `x${i + 1}`, icono: 'economia', ampliado: i === 0 ? '' : `Amp ${i + 1}`, oculto: i === 1 }));
+  const r = itemsVisiblesCopys(items);
+  assert.equal(r.length, 6);
+  assert.deepEqual(r.map(i => i.id), ['x1', 'x3', 'x4', 'x5', 'x6', 'x7']);
+  assert.equal(r[0].texto_ampliado, 'Resumen del hecho 1.');
+  assert.equal(r[1].texto_ampliado, 'Amp 3');
+  assert.equal(r[0].icono, 'economia');
+});
+
+test('validarHechoPropio: acepta año 2026 y 1000; rechaza 0999, 3000, letras', () => {
+  const base = { titulo: 'San Rafael cumple 150 años', resumen: 'La ciudad celebra.', ampliado: '', icono: 'mundo' };
+  assert.equal(validarHechoPropio({ ...base, año: '2026' }).ok, true);
+  assert.equal(validarHechoPropio({ ...base, año: '1000' }).ok, true);
+  assert.equal(validarHechoPropio({ ...base, año: '0999' }).ok, false);
+  assert.equal(validarHechoPropio({ ...base, año: '3000' }).ok, false);
+  assert.equal(validarHechoPropio({ ...base, año: 'abc' }).ok, false);
+});
+
+test('validarHechoPropio: faltan título/resumen o icono inválido → error', () => {
+  const base = { año: '2026', resumen: 'r', icono: 'mundo' };
+  assert.match(validarHechoPropio({ ...base, titulo: '  ' }).error, /título/i);
+  assert.match(validarHechoPropio({ ...base, titulo: 't', resumen: '' }).error, /resumen/i);
+  assert.match(validarHechoPropio({ ...base, titulo: 't', resumen: 'r', icono: 'nuclear' }).error, /icono/i);
+});
+
+test('validarHechoPropio: ampliado vacío cae al resumen; hecho normalizado', () => {
+  const r = validarHechoPropio({ año: '2026', titulo: 'San Rafael 150', resumen: 'Cumple años.', ampliado: '  ', icono: 'mundo' });
+  assert.equal(r.ok, true);
+  assert.equal(r.hecho.ampliado, 'Cumple años.');
+  assert.equal(r.hecho.icono, 'mundo');
 });
