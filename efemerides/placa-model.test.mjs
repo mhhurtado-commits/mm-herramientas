@@ -62,8 +62,8 @@ test('normalizarPayload: descarta items sin título sin inventar relleno', () =>
   assert.deepEqual(r.rows.map(i => i.titulo), ['Dos', 'Cuatro', 'Cinco', 'Seis']);
 });
 
-test('normalizarPayload: con menos de 5 items válidos devuelve error', () => {
-  const r = normalizarPayload(payloadValido([ITEM(1, 'Uno'), { titulo: 'sin año ni resumen' }]));
+test('normalizarPayload: con 0 items válidos devuelve error (contrato nuevo: mín 1)', () => {
+  const r = normalizarPayload(payloadValido([{ titulo: 'sin año ni resumen' }]));
   assert.equal(r.ok, false);
   assert.match(r.error, /hechos verificados/i);
 });
@@ -256,5 +256,29 @@ test('construirModeloPlaca: item sin año y sin fecha → hero sin crash (AR)', 
   const items = [{ año: '', titulo: 'Feriado raro', resumen: 'Sin fecha.', icono: 'historia', oculto: false }];
   const m = construirModeloPlaca(items, '2026-11-18');
   assert.equal(m.hero.añoTexto, 'AR');
+});
+
+test('normalizarPayload: acepta 1-4 hechos y expone pocosHechos', () => {
+  const rawMenos5 = {
+    ok: true,
+    items: [1, 2, 3].map(n => ({
+      año: '191' + n, titulo: 'Hecho ' + n, resumen: 'Resumen ' + n,
+      texto_ampliado: 'Ampliado ' + n, icono: 'historia', verificada: true,
+      fuente: 'Wikipedia', url_fuente: 'https://es.wikipedia.org/wiki/X',
+    })),
+    meta: { fecha: '2026-11-18', fallback: true },
+  };
+  const r = normalizarPayload(rawMenos5);
+  assert.equal(r.ok, true);
+  assert.equal(r.totalMostrados, 3);
+  assert.equal(r.pocosHechos, true);
+  assert.equal(r.fallback, true);
+  assert.equal(r.items[0].fuenteUrl, 'https://es.wikipedia.org/wiki/X');
+  const r6 = normalizarPayload({ ...rawMenos5, meta: { fecha: '2026-11-18' }, items: [1, 2, 3, 4, 5, 6].map(n => ({
+    año: '190' + n, titulo: 'H' + n, resumen: 'R' + n, texto_ampliado: 'A' + n, icono: 'historia', verificada: true,
+  })) });
+  assert.equal(r6.pocosHechos, false);
+  const r0 = normalizarPayload({ ok: true, items: [], meta: { fecha: '2026-11-18' } });
+  assert.equal(r0.ok, false);
 });
 

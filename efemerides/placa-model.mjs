@@ -26,7 +26,7 @@ export function etiquetaCategoria(item) {
   return String(item?.categoria || 'efeméride').trim().toUpperCase();
 }
 
-const MIN_ITEMS = 5;
+const MIN_ITEMS = 1;
 const MAX_ITEMS_PLACA = 6;
 const MESES_ABREV_EF = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
 function etiquetaFechaHero(fechaIso) {
@@ -56,8 +56,9 @@ function normalizarItem(item) {
     ampliado: String(item?.texto_ampliado ?? item?.resumen ?? '').trim(),
     icono: ICONOS_EF.includes(icono) ? icono : 'historia',
     categoria: etiquetaCategoria(item),
-    verificada: item?.verificada === true,
+    verificada: item?.verificada === true || item?.verificado === true,
     fuente: String(item?.fuente ?? 'Wikipedia').trim(),
+    fuenteUrl: String(item?.url_fuente ?? item?.fuenteUrl ?? '').trim(),
   };
 }
 
@@ -72,6 +73,7 @@ export function normalizarPayload(raw) {
     return { ok: false, error: 'No alcanzaron hechos verificados para esa fecha.' };
   }
   const total = validos.length;
+  const pocosHechos = validos.length < 5;
   const reparados = validos.map(i => ({ ...i, año: repararAnio(i, fechaIso) }));
   const items = reparados.slice(0, MAX_ITEMS_PLACA);
   const [hero, ...rows] = items;
@@ -86,6 +88,8 @@ export function normalizarPayload(raw) {
     total,
     items,
     candidatos: reparados,
+    pocosHechos,
+    fallback: raw?.meta?.fallback === true,
   };
 }
 
@@ -99,7 +103,7 @@ export function construirModeloPlaca(items, fecha = '') {
     : null;
   const rows = visibles.slice(1).map(i => ({ ...i, filaTexto: i.año || 'AR' }));
   const verificada = visibles.length > 0 && visibles.every(i => i.verificada !== false);
-  return { ok: !!hero, fecha, hero, rows, totalMostrados: visibles.length, total: lista.length, verificada };
+  return { ok: !!hero, fecha, hero, rows, totalMostrados: visibles.length, total: lista.length, verificada, pocosHechos: visibles.length > 0 && visibles.length < 5 };
 }
 
 export function itemsVisiblesCopys(items) {
