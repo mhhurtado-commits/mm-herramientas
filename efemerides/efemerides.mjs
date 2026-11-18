@@ -373,7 +373,7 @@ async function cargar(fecha) {
       editado = false;
       await garantizarAssets();
       redibujarPlaca();
-      ui.editorPlaca.hidden = false;
+      ui.editor.hidden = false;
       renderEditor();
       ui.fecha.value = fecha;
       mostrar('lista');
@@ -495,7 +495,7 @@ function resetearEditor() {
   ui.editorLista.replaceChildren();
   ui.editorCount.textContent = '';
   ui.restablecer.hidden = true;
-  ui.editorPlaca.hidden = true;
+  ui.editor.hidden = true;
   ui.formAgregar.reset();
   ui.altaError.hidden = true;
 }
