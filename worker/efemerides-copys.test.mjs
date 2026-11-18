@@ -4,6 +4,7 @@ import {
   emojiPorIconoEf, fechaLargaEf, itemsCopysReparados,
   buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys,
   normalizarItemsEditados, handlePlacasV2EfemeridesCopysPost, handlePlacasV2EfemeridesCopys,
+  normalizarFeriadosAR, handlePlacasV2EfemeridesBanco,
 } from './worker.js';
 
 const FECHA = '2026-11-14';
@@ -196,5 +197,54 @@ test('GET copys: sin placa en KV → 502 (regresión de comportamiento)', async 
   const env = { KV: { get: async () => null, put: async () => {} } };
   const res = await handlePlacasV2EfemeridesCopys(new URL(`https://x/?fecha=${FECHA}`), env);
   assert.equal(res.status, 502);
+});
+
+
+const FERIADOS_2026 = [
+  { fecha: '2026-11-09', tipo: 'inamovible', nombre: 'Visita del papa León XIV' },
+  { fecha: '2026-11-23', tipo: 'trasladable', nombre: 'Día de la Soberanía Nacional (20/11)' },
+  { fecha: '2027-01-01', tipo: 'inamovible', nombre: 'Año nuevo' },
+];
+
+test('normalizarFeriadosAR: filtra por rango [desde, desde+dias], limpia (dd/mm) y arma items sin año', () => {
+  const r = normalizarFeriadosAR(FERIADOS_2026, '2026-11-18', 7);
+  assert.deepEqual(r.map(i => i.id), ['feriado-2026-11-23']);
+  assert.equal(r[0].titulo, 'Día de la Soberanía Nacional');
+  assert.equal(r[0].año, '');
+  assert.equal(r[0].feria, true);
+  assert.equal(r[0].categoria, 'EFEMÉRIDE ARGENTINA');
+  assert.equal(r[0].icono, 'historia');
+  assert.match(r[0].resumen, /23 de noviembre/);
+});
+
+test('normalizarFeriadosAR: rango cruzando fin de año incluye el año siguiente', () => {
+  const r = normalizarFeriadosAR([...FERIADOS_2026, { fecha: '2026-12-30', tipo: 'inamovible', nombre: 'X' }], '2026-12-29', 4);
+  assert.deepEqual(r.map(i => i.id), ['feriado-2026-12-30', 'feriado-2027-01-01']);
+});
+
+test('handlePlacasV2EfemeridesBanco: 200 ok con feriados mapeados', async () => {
+  const fetcher = async (url) => {
+    const year = String(url).match(/feriados\/(\d{4})/)?.[1];
+    return { ok: true, json: async () => FERIADOS_2026.filter(f => f.fecha.startsWith(year)) };
+  };
+  const res = await handlePlacasV2EfemeridesBanco(new URL('https://x/?fecha=2026-11-18&dias=7'), {}, fetcher);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.deepEqual(body.feriados.map(f => f.id), ['feriado-2026-11-23']);
+});
+
+test('handlePlacasV2EfemeridesBanco: fetch caído → 200 con feriados: []', async () => {
+  const fetcher = async () => { throw new Error('red caída'); };
+  const res = await handlePlacasV2EfemeridesBanco(new URL('https://x/?fecha=2026-11-18'), {}, fetcher);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.deepEqual(body.feriados, []);
+});
+
+test('handlePlacasV2EfemeridesBanco: fecha inválida → 400', async () => {
+  const res = await handlePlacasV2EfemeridesBanco(new URL('https://x/?fecha=hoy'), {}, async () => { throw new Error('no llamar'); });
+  assert.equal(res.status, 400);
 });
 

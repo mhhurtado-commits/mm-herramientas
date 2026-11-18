@@ -19,7 +19,7 @@ export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createClou
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
 export { repararAnioEfemerides };
-export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost };
+export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco };
 
 function fechaRedaccionMendoza(ahora = new Date()) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -7618,6 +7618,7 @@ export default {
       if(path==="/agenda/efemerides")                return handleGetAgendaEfemerides(env);
       if(path==="/placas/v2/efemerides")             return handlePlacasV2Efemerides(url, env);
       if(path==="/placas/v2/efemerides/copys")       return handlePlacasV2EfemeridesCopys(url, env);
+      if(path==="/placas/v2/efemerides/banco")        return handlePlacasV2EfemeridesBanco(url, env);
       if(path==="/agenda/angulos/cache")             return handleGetAngulosCache(url,env);
       if(path==="/resumen/obtener")                  return handleResumenObtener(url, env);
       if(path==="/studio/proyectos")                 return handleStudioObtenerProyectos(env);
@@ -8943,7 +8944,7 @@ async function handlePlacasV2Efemerides(url, env) {
   if (!sourceText) return jsonError('La fuente de efemérides no respondió.', 502);
   const sourceName = /wikipedia\.org/i.test(sourceUrl) ? 'Wikipedia' : 'TyC Sports';
   const imageCatalog = sourceImages.map((image, index) => index + ': ' + image).join('\n');
-  const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé entre 5 y 8 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, texto_ampliado de máximo 240 caracteres, icono, icono_descripcion, imagen_descripcion, imagen_indice y prioridad. anio es el año histórico en que ocurrió el hecho (por ejemplo 1894, 1913, 2002): NUNCA pongas el año de la fecha pedida (' + date.slice(0, 4) + ') ni el año actual; si el texto no indica un año, pon -1. imagen_indice solo puede apuntar a una imagen del catálogo si es pertinente para ese hecho; si no, usa -1. icono debe ser uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo o canal. icono_descripcion debe describir en 3 a 8 palabras el símbolo concreto que corresponde al hecho. imagen_descripcion debe describir una imagen documental posible, sin inventar que existe una fotografía. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nImágenes disponibles:\n' + imageCatalog + '\nTexto:\n' + sourceText;
+  const prompt = 'Sos documentalista de Media Mendoza. Extraé exclusivamente hechos que aparezcan en la fuente para el ' + date + '. No inventes datos. Devolvé todas las opciones argentinas e internacionales razonables: entre 8 y 15 opciones, priorizando hechos argentinos. Cada objeto debe tener id, fecha, alcance, categoria, anio, titulo breve, resumen de máximo 100 caracteres, texto_ampliado de máximo 240 caracteres, icono, icono_descripcion, imagen_descripcion, imagen_indice y prioridad. anio es el año histórico en que ocurrió el hecho (por ejemplo 1894, 1913, 2002): NUNCA pongas el año de la fecha pedida (' + date.slice(0, 4) + ') ni el año actual; si el texto no indica un año, pon -1. imagen_indice solo puede apuntar a una imagen del catálogo si es pertinente para ese hecho; si no, usa -1. icono debe ser uno de: futbol, deportes, aviacion, musica, teatro, politica, historia, sociedad, economia, mundo o canal. icono_descripcion debe describir en 3 a 8 palabras el símbolo concreto que corresponde al hecho. imagen_descripcion debe describir una imagen documental posible, sin inventar que existe una fotografía. Respondé SOLO JSON válido con {"items":[...]}. Fuente: ' + sourceUrl + '\nImágenes disponibles:\n' + imageCatalog + '\nTexto:\n' + sourceText;
   const result = await callGemini(prompt, env);
   if (result.error || !Array.isArray(result.data?.items)) return jsonError('No se pudieron normalizar las efemérides.', 502);
   const rawItems = Array.isArray(result.data.items) ? result.data.items : [];
@@ -8963,6 +8964,46 @@ async function handlePlacasV2Efemerides(url, env) {
   const payload = { items, meta: { fecha: date, fuente: sourceUrl, nivel_verificacion: 'fuente_secundaria', generatedAt: new Date().toISOString(), cached: false } };
   if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: PLACAS_V2_EF_CACHE_TTL }); } catch {} }
   return jsonOk(payload);
+}
+
+// Feriados argentinos vía api.argentinadatos.com: sin año histórico (la fuente
+// no lo trae). Se limpia el sufijo "(dd/mm)" del nombre oficial.
+function normalizarFeriadosAR(data, desdeISO, dias = 7) {
+  const desde = String(desdeISO || '');
+  const diasN = Math.max(0, Math.min(30, Number(dias) || 7));
+  const inicio = new Date(desde + 'T12:00:00Z');
+  if (Number.isNaN(inicio.getTime())) return [];
+  const hasta = new Date(inicio.getTime() + diasN * 86400000);
+  const pad = n => String(n).padStart(2, '0');
+  const hastaISO = hasta.getUTCFullYear() + '-' + pad(hasta.getUTCMonth() + 1) + '-' + pad(hasta.getUTCDate());
+  return (Array.isArray(data) ? data : [])
+    .filter(f => f && f.fecha && f.fecha >= desde && f.fecha <= hastaISO)
+    .map(f => {
+      const nombre = String(f.nombre || '').replace(/\s*\(\d{1,2}\/\d{1,2}\)\s*$/, '').trim();
+      const resumen = 'Feriado nacional — ' + fechaLargaEf(f.fecha) + ' de ' + f.fecha.slice(0, 4);
+      return { id: 'feriado-' + f.fecha, fecha: f.fecha, año: '', titulo: nombre, resumen, texto_ampliado: resumen, icono: 'historia', categoria: 'EFEMÉRIDE ARGENTINA', alcance: 'nacional', feria: true };
+    })
+    .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
+}
+
+async function handlePlacasV2EfemeridesBanco(url, env, fetcher = globalThis.fetch) {
+  const date = url.searchParams.get('fecha') || '';
+  if (!validEfemeridesDate(date)) return jsonError('Fecha inválida. Usá YYYY-MM-DD.', 400);
+  const dias = Math.max(1, Math.min(30, Number(url.searchParams.get('dias')) || 7));
+  const inicio = new Date(date + 'T12:00:00Z');
+  const hasta = new Date(inicio.getTime() + dias * 86400000);
+  const years = inicio.getUTCFullYear() === hasta.getUTCFullYear() ? [inicio.getUTCFullYear()] : [inicio.getUTCFullYear(), hasta.getUTCFullYear()];
+  let feriados = [];
+  try {
+    const respuestas = await Promise.all(years.map(async y => {
+      const r = await fetcher('https://api.argentinadatos.com/v1/feriados/' + y, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+      if (!r?.ok) return [];
+      const data = await r.json();
+      return normalizarFeriadosAR(data, date, dias);
+    }));
+    feriados = respuestas.flat().filter((f, i, arr) => arr.findIndex(x => x.id === f.id) === i);
+  } catch { feriados = []; }
+  return jsonOk({ feriados });
 }
 
 async function handlePlacasV2EfemeridesCopys(url, env) {
