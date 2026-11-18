@@ -19,7 +19,7 @@ export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createClou
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
 export { repararAnioEfemerides };
-export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys };
+export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost };
 
 function fechaRedaccionMendoza(ahora = new Date()) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -8395,6 +8395,7 @@ export default {
     if(path==="/visual/ilustrar")                    return handleVisualIlustrar(body, env);
     if(path==="/contexto/generar")                   return handleContextoGenerar(body, env);
     if(path==="/placas/v2/generar")                  return handlePlacasV2Generar(body, env);
+    if(path==="/placas/v2/efemerides/copys")         return handlePlacasV2EfemeridesCopysPost(body, env);
     if(path==="/placas/v2/paquete")                  return handlePlacasV2Paquete(body, env);
     if(path==="/video-vertical/cloudinary/crear")    return handleCloudinaryVideoCreate(body, url, env);
     if(path.startsWith('/video-vertical/cloudinary/render/')) return handleCloudinaryVideoRender(body, path.split('/').pop(), env);
@@ -8799,6 +8800,55 @@ function itemsCopysReparados(items, date) {
     .slice(0, 6);
 }
 
+const ANIO_SIMPLE_EF = /^(1[0-9]{3}|20[0-9]{2})$/;
+
+// Items editados desde el navegador (agregar/destacar/ocultar). A diferencia
+// del GET, el año se acepta 1000–2099 SIN reparar: un hecho de 2026 es válido en
+// una placa editada a mano. Máximo 6, mismo contrato que la placa.
+function normalizarItemsEditados(items) {
+  return (Array.isArray(items) ? items : [])
+    .map(item => {
+      const año = String(item?.año ?? item?.anio ?? '').trim();
+      const titulo = String(item?.titulo || '').trim().slice(0, 160);
+      const resumen = String(item?.resumen || '').trim().slice(0, 140);
+      const amplio = String(item?.texto_ampliado ?? item?.ampliado ?? '').trim().slice(0, 240);
+      const iconoCrudo = String(item?.icono || '').trim().toLowerCase();
+      const icono = Object.prototype.hasOwnProperty.call(EMOJOS_POR_ICONO_EF, iconoCrudo) ? iconoCrudo : 'historia';
+      const texto_ampliado = amplio || resumen;
+      return { id: String(item?.id || '').trim(), año, titulo, resumen, texto_ampliado, ampliado: texto_ampliado, icono };
+    })
+    .filter(item => item.titulo && item.resumen && ANIO_SIMPLE_EF.test(item.año))
+    .slice(0, 6);
+}
+
+async function obtenerLinksWaEf(env) {
+  const links = { ...DEFAULT_WA_LINKS_EF };
+  if (env && env.KV) {
+    try {
+      const l = await env.KV.get(WA_LINKS_KV_KEY, 'json');
+      if (l) { if (l.grupo) links.grupo = l.grupo; if (l.canal) links.canal = l.canal; }
+    } catch {}
+  }
+  return links;
+}
+
+async function generarTextoGeminiCopys(prompt, env) {
+  const ctrl = new AbortController();
+  const geminiPromise = callGemini(prompt, env, false, true, null, { signal: ctrl.signal, deadlineMs: 40000 });
+  const timeoutPromise = sleep(45000).then(() => {
+    ctrl.abort();
+    return { error: 'deadline 45s - IA lenta/caída', details: ['timeout global copys 45s'] };
+  });
+  return Promise.race([geminiPromise, timeoutPromise]);
+}
+
+async function generarCopysEf(items, date, links, env, fuente, gemini = generarTextoGeminiCopys) {
+  const prompt = buildEfemeridesCopysPrompt(items, date, links);
+  const r = await gemini(prompt, env);
+  const copys = normalizarEfemeridesCopys(r?.data, { items, date, links });
+  return { whatsapp: copys.whatsapp, instagram: copys.instagram, meta: { fecha: date, fuente, cached: false } };
+}
+
 function buildEfemeridesCopysPrompt(items, date, links) {
   const año = String(date).slice(0, 4);
   const hechos = items.map(i => `${emojiPorIconoEf(i.icono)} ${i.año} — ${i.resumen || i.titulo}`).join('\n');
@@ -8931,19 +8981,19 @@ async function handlePlacasV2EfemeridesCopys(url, env) {
   if (env.KV) { try { placaPayload = await env.KV.get(PLACAS_V2_EF_CACHE_PREFIX + date, 'json'); } catch {} }
   const items = itemsCopysReparados(placaPayload?.items, date);
   if (items.length < 5) return jsonError('Esa fecha todavía no tiene placa: cargá la placa primero.', 502);
-  const links = { ...DEFAULT_WA_LINKS_EF };
-  try {
-    const l = await env.KV.get(WA_LINKS_KV_KEY, 'json');
-    if (l) { if (l.grupo) links.grupo = l.grupo; if (l.canal) links.canal = l.canal; }
-  } catch {}
-  const prompt = buildEfemeridesCopysPrompt(items, date, links);
-  const ctrl = new AbortController();
-  const geminiPromise = callGemini(prompt, env, false, true, null, { signal: ctrl.signal, deadlineMs: 40000 });
-  const timeoutPromise = sleep(45000).then(() => { ctrl.abort(); return ({ error: 'deadline 45s - IA lenta/caída', details: ['timeout global copys 45s'] }); });
-  const r = await Promise.race([geminiPromise, timeoutPromise]);
-  const copys = normalizarEfemeridesCopys(r?.data, { items, date, links });
-  const payload = { whatsapp: copys.whatsapp, instagram: copys.instagram, meta: { fecha: date, fuente: 'Wikipedia', cached: false } };
+  const links = await obtenerLinksWaEf(env);
+  const payload = await generarCopysEf(items, date, links, env, 'Wikipedia');
   if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: PLACAS_V2_EF_CACHE_TTL }); } catch {} }
+  return jsonOk(payload);
+}
+
+async function handlePlacasV2EfemeridesCopysPost(body, env, gemini) {
+  const date = String(body?.fecha || '');
+  if (!validEfemeridesDate(date)) return jsonError('Fecha inválida. Usá YYYY-MM-DD.', 400);
+  const items = normalizarItemsEditados(body?.items);
+  if (items.length === 0) return jsonError('La lista de hechos editados no es válida.', 400);
+  const links = await obtenerLinksWaEf(env);
+  const payload = await generarCopysEf(items, date, links, env, 'placa editada', gemini);
   return jsonOk(payload);
 }
 
