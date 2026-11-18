@@ -16,7 +16,7 @@ Decisiones del brainstorming:
 
 1. La app sigue 0-clics: al abrir `/efemerides/`, la placa queda lista como hoy.
 2. Botón nuevo **"COPYS REDES"** en `.acciones` (estilo `.secundario`), `disabled` hasta estado `lista`.
-3. Clic → botón "GENERANDO…" → `GET /placas/v2/efemerides/copys?fecha=YYYY-MM-DD` (fecha de la placa activa; timeout cliente 55s, sin auto-reintento: el usuario reintenta con REINTENTAR).
+3. Clic → botón "GENERANDO…" → `GET /placas/v2/efemerides/copys?fecha=YYYY-MM-DD` (sin edición) o `POST` con `{ fecha, items }` cuando el redactor editó la placa (generación fresca, sin cache ni KV). Fecha de la placa activa; timeout cliente 55s, sin auto-reintento: el usuario reintenta con REINTENTAR).
 4. Respuesta OK → panel debajo de la placa con los 2 bloques (Sección 5).
 5. Fallo → panel con mensaje en criollo + REINTENTAR. **La placa nunca se toca**: los copys son un añadido, un fallo ahí no la afecta.
 6. Recargar no regenera: cache KV 24h del lado del worker (misma política anti-regeneración que la placa).
