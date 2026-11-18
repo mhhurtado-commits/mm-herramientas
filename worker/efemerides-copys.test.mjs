@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   emojiPorIconoEf, fechaLargaEf, itemsCopysReparados,
@@ -246,5 +246,24 @@ test('handlePlacasV2EfemeridesBanco: fetch caído → 200 con feriados: []', asy
 test('handlePlacasV2EfemeridesBanco: fecha inválida → 400', async () => {
   const res = await handlePlacasV2EfemeridesBanco(new URL('https://x/?fecha=hoy'), {}, async () => { throw new Error('no llamar'); });
   assert.equal(res.status, 400);
+});
+
+
+
+const FERIADO_ITEM = { id: 'feriado-2026-11-23', año: '', icono: 'historia', resumen: 'Feriado nacional — 23 de noviembre de 2026', titulo: 'Día de la Soberanía Nacional' };
+
+test('buildEfemeridesCopysPrompt: ítem sin año no emite año vacío ni hueco roto', () => {
+  const p = buildEfemeridesCopysPrompt([FERIADO_ITEM], FECHA, LINKS);
+  assert.ok(p.includes('Feriado nacional — 23 de noviembre de 2026'));
+  assert.ok(!p.includes('📜  —'), 'sin doble espacio antes del guion');
+  assert.ok(!p.includes('undefined') && !p.includes('NaN'));
+});
+
+test('buildEfemeridesCopysFallback: ítem sin año no rompe ni emite ** ni -1', () => {
+  const { whatsapp, instagram } = buildEfemeridesCopysFallback([FERIADO_ITEM], FECHA, LINKS);
+  assert.ok(whatsapp.includes('23 de noviembre de 2026'));
+  assert.ok(!whatsapp.includes('**'), 'sin pareja de asteriscos vacía');
+  assert.ok(!whatsapp.includes('undefined') && !whatsapp.includes('-1'));
+  assert.ok(!instagram.includes('undefined') && !instagram.includes('-1') && !instagram.includes(': Feriado'));
 });
 

@@ -8852,7 +8852,10 @@ async function generarCopysEf(items, date, links, env, fuente, gemini = generarT
 
 function buildEfemeridesCopysPrompt(items, date, links) {
   const año = String(date).slice(0, 4);
-  const hechos = items.map(i => `${emojiPorIconoEf(i.icono)} ${i.año} — ${i.resumen || i.titulo}`).join('\n');
+  const hechos = items.map(i => {
+    const texto = i.resumen || i.titulo;
+    return i.año ? `${emojiPorIconoEf(i.icono)} ${i.año} — ${texto}` : `${emojiPorIconoEf(i.icono)} ${texto}`;
+  }).join('\n');
   return `Sos community manager de Media Mendoza, diario digital del sur de Mendoza, Argentina.
 Escribí los copys para acompañar la placa de efemérides del ${fechaLargaEf(date)} de ${año}. Usá SOLO estos hechos, en este orden, sin inventar nada:
 
@@ -8869,8 +8872,11 @@ Respondé SOLO JSON válido: {"whatsapp":"...","instagram":"..."}`;
 }
 
 function buildEfemeridesCopysFallback(items, date, links) {
-  const lineas = items.map(i => `${emojiPorIconoEf(i.icono)} *${i.año}* — ${i.resumen || i.titulo}`).join('\n');
-  const cuerpoIg = items.slice(0, 3).map(i => `${i.año}: ${i.resumen || i.titulo}`).join('; ');
+  const lineas = items.map(i => {
+    const texto = i.resumen || i.titulo;
+    return i.año ? `${emojiPorIconoEf(i.icono)} *${i.año}* — ${texto}` : `${emojiPorIconoEf(i.icono)} ${texto}`;
+  }).join('\n');
+  const cuerpoIg = items.slice(0, 3).map(i => (i.año ? `${i.año}: ${i.resumen || i.titulo}` : `${i.resumen || i.titulo}`)).join('; ');
   const cta = buildCtaComunidad(links);
   const whatsapp = `📅 *Efemérides del ${fechaLargaEf(date)}*\n\n${lineas}\n\n${cta}${cta ? '\n\n' : ''}${WA_FIRMA}`.trim();
   const instagram = `📅 ¿Qué pasó un ${fechaLargaEf(date)}? ${cuerpoIg}.\n\nLa placa completa, más arriba 👆\n👉 Leé más en mediamendoza.com\n.\n#MediaMendoza #Efemerides #HistoriaArgentina #Mendoza #HoyEnLaHistoria #Historia #Argentina #SurMendocino`;
