@@ -72,7 +72,8 @@ export function normalizarPayload(raw) {
     return { ok: false, error: 'No alcanzaron hechos verificados para esa fecha.' };
   }
   const total = validos.length;
-  const items = validos.slice(0, MAX_ITEMS_PLACA).map(i => ({ ...i, año: repararAnio(i, fechaIso) }));
+  const reparados = validos.map(i => ({ ...i, año: repararAnio(i, fechaIso) }));
+  const items = reparados.slice(0, MAX_ITEMS_PLACA);
   const [hero, ...rows] = items;
   return {
     ok: true,
@@ -84,7 +85,7 @@ export function normalizarPayload(raw) {
     totalMostrados: items.length,
     total,
     items,
-    candidatos: validos,
+    candidatos: reparados,
   };
 }
 
