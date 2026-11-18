@@ -179,3 +179,12 @@ Ejemplo: «1996: se despide del tenis la argentina Gabriela Sabatini» (ES) vs E
 - Mínimo de la placa: 1 hecho (`MIN_ITEMS`); el panel avisa «SOLO N HECHOS
   VERIFICADOS» y, si viene de respaldo, «PLACA DE RESPALDO — VERIFICÁ ANTES DE
   PUBLICAR».
+- (2026-11-18, fix tras review en producción) Gemini falló la priorización y
+  no eligió NINGÚN hecho argentino: alcance y títulos ya no se confían a él.
+  El worker computa `alcance` (regex AR + curados → nacional) y aplica
+  BACKSTOP: garantiza ≥2 nacionales en la placa (si existen en el pool),
+  orden nacional-primero (Gemini sigue eligiendo quiénes y redactando
+  resumen/ampliado/icono). Puente: `aplicarBackstopNacionalEF`.
+- Títulos/resumen/ampliado se truncan en frontera de palabra + «…»
+  (`cortePalabraEF`), nunca a mitad de palabra. Siguen sin inventar títulos:
+  el texto visible es el del hecho verificado.

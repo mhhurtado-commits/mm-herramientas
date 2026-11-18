@@ -19,7 +19,7 @@ export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createClou
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
 export { repararAnioEfemerides };
-export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2Efemerides, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn, urlsEfemeridesRaw, itemPlacaDesdePool, seleccionDeterministicaEF, normalizarItemsGeminiEF };
+export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2Efemerides, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn, urlsEfemeridesRaw, itemPlacaDesdePool, seleccionDeterministicaEF, normalizarItemsGeminiEF, aplicarBackstopNacionalEF, cortePalabraEF };
 
 function fechaRedaccionMendoza(ahora = new Date()) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -9042,22 +9042,37 @@ function puntuarPlacaEF(item) {
   return p;
 }
 
+// Corte a frontera de palabra: si entra, entero; si no, último espacio ≤ max,
+// limpiando puntuación colgante y agregando «…». Nunca corta a mitad de palabra.
+function cortePalabraEF(texto, max = 160) {
+  const t = String(texto || '').trim();
+  if (t.length <= max) return t;
+  const corte = t.lastIndexOf(' ', max);
+  const base = t.slice(0, corte > 0 ? corte : max).replace(/[\s.,;:—–-]+$/, '');
+  return base + '…';
+}
+
+// Un hecho es «nacional» si es un curado argentino o menciona a la Argentina /
+// un hito nacional (dichos/años de la Confederación). Gemini NUNCA define alcance.
+const esNacionalPlacaEF = item => !!item && (item.curado === true || RE_KW_AR_EF.test(String(item.texto || '')));
+
 // Construye el item de placa desde un item del pool (verificado o curado),
 // pisando cualquier dato de Gemini: el año y el texto vienen SIEMPRE del parseo.
-// extra trae lo que redactó Gemini (resumen/ampliado/icono/alcance/categoria).
+// extra trae lo que redactó Gemini (resumen/ampliado/icono/categoria).
 function itemPlacaDesdePool(item, index, extra = {}) {
   const texto = String(item.texto || '').trim();
   const resumen = extra.resumen || item.resumenCurado || texto;
   const ampliado = extra.texto_ampliado || item.ampliadoCurado || resumen;
   const iconoPref = extra.icono || item.iconoCurado;
+  const nacional = esNacionalPlacaEF(item);
   return {
     id: 'ef-' + index,
     fecha: '',
     año: String(item.año || '').trim(),
-    titulo: texto.slice(0, 160),
-    resumen: String(resumen).slice(0, 140),
-    texto_ampliado: String(ampliado).slice(0, 240),
-    alcance: extra.alcance === 'nacional' ? 'nacional' : 'internacional',
+    titulo: cortePalabraEF(texto, 160),
+    resumen: cortePalabraEF(String(resumen).trim(), 140),
+    texto_ampliado: cortePalabraEF(String(ampliado).trim(), 240),
+    alcance: nacional ? 'nacional' : 'internacional',
     categoria: String(extra.categoria || 'historia').slice(0, 60),
     icono: Object.prototype.hasOwnProperty.call(EMOJOS_POR_ICONO_EF, iconoPref) ? iconoPref : 'historia',
     icono_descripcion: String(extra.icono || iconoPref || 'historia').slice(0, 100),
@@ -9084,6 +9099,33 @@ function seleccionDeterministicaEF(pool, max = 12) {
 
 // Valida la salida de Gemini: índices enteros en rango, sin repetidos, hasta 15.
 // El año FINAL es siempre el parseado — Gemini no puede alterarlo.
+// Crea el item normalizado GUARDANDO el índice del pool en __poolIndex (temporal).
+function itemDesdePoolConIndice(item, index, extra = {}) {
+  return { ...itemPlacaDesdePool(item, index, extra), __poolIndex: index };
+}
+
+// Backstop nacional: si hay hechos argentinos/curados en el pool, el resultado
+// final lleva AL MENOS `minimo` (default 2) y van PRIMERO (orden estable dentro
+// de cada grupo). Nunca rompe curados seleccionados por Gemini.
+function aplicarBackstopNacionalEF(pool, items, minimo = 2) {
+  const usados = new Set(items.map(i => i.__poolIndex));
+  const totalNacionales = pool.filter(esNacionalPlacaEF).length;
+  const tienen = items.filter(i => i.alcance === 'nacional');
+  const faltan = Math.max(0, Math.min(minimo, totalNacionales) - tienen.length);
+  if (faltan > 0) {
+    const extraPool = pool
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ item, idx }) => esNacionalPlacaEF(item) && !usados.has(idx))
+      .sort((a, b) => puntuarPlacaEF(b.item) - puntuarPlacaEF(a.item))
+      .slice(0, faltan);
+    items = [...items, ...extraPool.map(({ item, idx }) => itemDesdePoolConIndice(item, idx))];
+  }
+  const nacionales = items.filter(i => i.alcance === 'nacional');
+  const restantes = items.filter(i => i.alcance !== 'nacional');
+  return [...nacionales, ...restantes]
+    .map((it, i) => { const { __poolIndex, ...sinIndice } = it; return { ...sinIndice, id: 'ef-' + i, prioridad: i + 1 }; });
+}
+
 function normalizarItemsGeminiEF(data, pool) {
   const pedidos = Array.isArray(data?.items) ? data.items : [];
   const usados = new Set();
@@ -9092,7 +9134,7 @@ function normalizarItemsGeminiEF(data, pool) {
     const indice = Number(it?.indice);
     if (!Number.isInteger(indice) || indice < 0 || indice >= pool.length || usados.has(indice)) continue;
     usados.add(indice);
-    out.push(itemPlacaDesdePool(pool[indice], out.length, it));
+    out.push(itemDesdePoolConIndice(pool[indice], indice, it));
     if (out.length >= 15) break;
   }
   return out;
@@ -9151,8 +9193,12 @@ async function handlePlacasV2Efemerides(url, env, fetcher = globalThis.fetch, ge
     + ' No calcules antigüedades ni cambies años. Respondé SOLO JSON válido con {"items":[...]}.\nLista:\n' + JSON.stringify(lista);
   const result = await geminiFn(prompt);
   let items = normalizarItemsGeminiEF(result?.data, pool);
-  if (items.length < 3) items = seleccionDeterministicaEF(pool, 12).map((item, i) => itemPlacaDesdePool(item, i));
-  items = items.map((it, i) => ({ ...it, fecha: date, prioridad: i + 1 }));
+  if (items.length < 3) {
+    items = seleccionDeterministicaEF(pool, 12).map(item => itemDesdePoolConIndice(item, pool.indexOf(item)));
+  }
+  // Garantiza al menos 2 nacionales (si existen) y orden nacional-primero.
+  items = aplicarBackstopNacionalEF(pool, items);
+  items = items.map(it => ({ ...it, fecha: date }));
   const payload = { items, meta: { fecha: date, fuente: esUrl, nivel_verificacion: 'cruzada', generatedAt: new Date().toISOString(), cached: false, verificados: verificados.length } };
   if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: PLACAS_V2_EF_CACHE_TTL }); } catch {} }
   return jsonOk(payload);

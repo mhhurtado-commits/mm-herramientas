@@ -64,7 +64,7 @@ test('emparejarEsEn sintético: mismo año NO alcanza; año distinto NO; token c
   assert.equal(emparejarEsEn(mk('1978', 'mueren en Jonestown'), mk('1978', 'Jonestown massacre happens')).length, 1);
 });
 
-import { handlePlacasV2Efemerides } from './worker.js';
+import { handlePlacasV2Efemerides, itemPlacaDesdePool } from './worker.js';
 
 const FECHA = '2026-11-18';
 const fetcherStub = ({ es = ES, en = EN, curadas = null, esStatus = 200, enStatus = 200 } = {}) => async (url) => {
@@ -112,4 +112,57 @@ test('handler: Gemini roto -> seleccion deterministica con verificados', async (
 test('handler: curados de Pages caidos no tumban la placa', async () => {
   const res = await handlePlacasV2Efemerides(req(), envSinKV, fetcherStub(), async () => ({ data: { items: [{ indice: 0, alcance: 'nacional', categoria: 'historia', icono: 'historia', resumen: 'ok', texto_ampliado: 'ok' }] } }));
   assert.equal(res.status, 200);
+});
+
+const RE_TEST = /argent|mendoza|patria|obligado|malvin|sarmiento|belgrano|guemes|san mart|tucum|rosas|urquiza|moreno/i;
+
+test('handler: backstop — Gemini internacional no deja sin Argentina; nacionales primero', async () => {
+  const curadas = { '11-18': [{ año: '1845', titulo: 'Vuelta de Obligado', resumen: 'r', texto_ampliado: 'a', icono: 'historia', fuente: 'ARCHIVO.AR' }] };
+  const verificados = emparejarEsEn(parseEfemeridesWikitexto(ES, 'es', URL_ES), parseEfemeridesWikitexto(EN, 'en', URL_EN));
+  // Simula exactamente lo que pasó en producción: Gemini eligiendo SOLO internacionales.
+  const intlIndices = verificados
+    .map((v, i) => ({ v, idx: i + 1 }))
+    .filter(({ v }) => !RE_TEST.test(v.texto))
+    .slice(0, 6)
+    .map(({ idx }) => ({ indice: idx, alcance: 'internacional', categoria: 'mundo', icono: 'mundo', resumen: 'r', texto_ampliado: 'a' }));
+  const gemini = async () => ({ data: { items: intlIndices } });
+  const res = await handlePlacasV2Efemerides(req(), envSinKV, fetcherStub({ curadas }), gemini);
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  const nacionales = data.items.filter(i => i.alcance === 'nacional');
+  assert.ok(nacionales.length >= 2, `nacionales=${nacionales.length}`);
+  assert.equal(data.items[0].alcance, 'nacional', 'los hechos argentinos van primero');
+  assert.equal(data.items[0].año, '1845', 'Obligado (curado) encabeza');
+  const marcas = data.items.map(i => i.alcance !== 'nacional');
+  const primerInter = marcas.indexOf(true);
+  const ultimoNac = marcas.lastIndexOf(false);
+  assert.ok(primerInter === -1 || ultimoNac < primerInter, 'nacionales van antes que internacionales');
+});
+
+test('handler: alcance lo computa el worker, no Gemini', async () => {
+  const curadas = { '11-18': [{ año: '1845', titulo: 'Vuelta de Obligado', resumen: 'r', texto_ampliado: 'a', icono: 'historia', fuente: 'ARCHIVO.AR' }] };
+  const verificados = emparejarEsEn(parseEfemeridesWikitexto(ES, 'es', URL_ES), parseEfemeridesWikitexto(EN, 'en', URL_EN));
+  const intlIdx = verificados.findIndex(v => !RE_TEST.test(v.texto)) + 1; // +1: pool[0] es el curado
+  const intlIdx2 = verificados.findIndex((v, i) => i > intlIdx - 1 && !RE_TEST.test(v.texto)) + 1;
+  const intlIdx3 = verificados.findIndex((v, i) => i > intlIdx2 - 1 && !RE_TEST.test(v.texto)) + 1;
+  const gemini = async () => ({ data: { items: [
+    { indice: 0, alcance: 'internacional', categoria: 'historia', icono: 'historia', resumen: 'curado', texto_ampliado: 'curado' },
+    { indice: intlIdx, alcance: 'nacional', categoria: 'mundo', icono: 'mundo', resumen: 'intl', texto_ampliado: 'intl' },
+    { indice: intlIdx2, alcance: 'internacional', categoria: 'mundo', icono: 'mundo', resumen: 'i2', texto_ampliado: 'i2' },
+    { indice: intlIdx3, alcance: 'internacional', categoria: 'mundo', icono: 'mundo', resumen: 'i3', texto_ampliado: 'i3' },
+  ] } });
+  const res = await handlePlacasV2Efemerides(req(), envSinKV, fetcherStub({ curadas }), gemini);
+  const data = await res.json();
+  const obligado = data.items.find(i => i.año === '1845');
+  assert.equal(obligado.alcance, 'nacional', 'curado AR es nacional aunque Gemini diga lo contrario');
+  const intl = data.items.find(i => i.categoria === 'mundo');
+  assert.equal(intl.alcance, 'internacional', 'hecho no-argentino no es nacional aunque Gemini diga lo contrario');
+});
+
+test('itemPlacaDesdePool: título se corta en frontera de palabra ≤160, nunca a mitad de palabra', async () => {
+  const largo = 'en ' + 'palabra '.repeat(40) + 'final';
+  const it = itemPlacaDesdePool({ año: '1990', texto: largo, seccion: 'acontecimiento', fuente: 'Wikipedia', fuenteUrl: 'x' }, 0);
+  assert.ok(it.titulo.endsWith('…'), `titulo=${it.titulo}`);
+  assert.ok(it.titulo.length <= 161, `length=${it.titulo.length}`);
+  assert.doesNotMatch(it.titulo.slice(0, -1), /\s[a-záéíóúñ]{1,3}$/i, 'no debe quedar colgando un fragmento de ≤3 letras');
 });
