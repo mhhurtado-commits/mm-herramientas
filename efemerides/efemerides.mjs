@@ -1,5 +1,5 @@
 // efemerides/efemerides.mjs — fetch + estados + canvas + export PNG
-import { hoyArgentina, normalizarPayload, extraerCopysRespuesta } from './placa-model.mjs';
+import { hoyArgentina, normalizarPayload, extraerCopysRespuesta, construirModeloPlaca, itemsVisiblesCopys, validarHechoPropio, emojiIconoEf, etiquetaCategoria } from './placa-model.mjs';
 
 const WORKER_URL = 'https://mm-herramientas-worker.mhhurtado.workers.dev';
 const ANCHO = 1080;
@@ -24,10 +24,19 @@ const ui = {
   copysWhats: $('copysWhats'), copysIg: $('copysIg'),
   copiarWhats: $('btnCopiarWhats'), copiarIg: $('btnCopiarIg'),
   copysError: $('copysError'), copysReintentar: $('btnCopysReintentar'),
+  editor: $('editorPlaca'), editorLista: $('editorLista'), editorCount: $('editorCount'),
+  restablecer: $('btnRestablecer'), formAgregar: $('formAgregar'),
+  altaAño: $('altaAño'), altaTitulo: $('altaTitulo'), altaResumen: $('altaResumen'),
+  altaAmpliado: $('altaAmpliado'), altaIcono: $('altaIcono'), altaError: $('altaError'),
 };
 
 let fechaActual = hoyArgentina();
 let logoImg = null;
+let itemsPlaca = [];      // hechos visibles/ocultos + propios; la destacada es el primer visible
+let itemsOriginales = []; // snapshot del servidor para RESTABLECER
+let editado = false;
+let localSeq = 0;
+const nuevoIdLocal = () => { localSeq += 1; return `local-${Date.now().toString(36)}-${localSeq}`; };
 
 const asset = (ruta) => new URL(ruta, import.meta.url).href;
 
@@ -258,6 +267,25 @@ function resetearCopys() {
   ui.copysIg.value = '';
 }
 
+async function pedirCopysPost(fecha) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_COPYS_MS);
+  try {
+    const res = await fetch(`${WORKER_URL}/placas/v2/efemerides/copys`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({ fecha, items: itemsVisiblesCopys(itemsPlaca) }),
+    });
+    const raw = await res.json().catch(() => null);
+    const modelo = extraerCopysRespuesta(raw);
+    if (!modelo.ok) throw new Error(modelo.error);
+    return modelo;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function pedirCopys(fecha) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_COPYS_MS);
@@ -294,7 +322,7 @@ async function cargarCopys() {
   ui.copys.disabled = true;
   ui.copys.textContent = 'GENERANDO…';
   try {
-    const copys = await pedirCopys(fechaActual);
+    const copys = editado ? await pedirCopysPost(fechaActual) : await pedirCopys(fechaActual);
     ui.copysWhats.value = copys.whatsapp;
     ui.copysIg.value = copys.instagram;
     ui.copysTitulo.textContent = `COPYS PARA REDES — ${etiquetaFecha(fechaActual)}`;
@@ -335,12 +363,18 @@ async function pedir(fecha) {
 
 async function cargar(fecha) {
   resetearCopys();
+  resetearEditor();
   mostrar('cargando');
   for (let intento = 0; intento <= REINTENTOS; intento += 1) {
     try {
       const modelo = await pedir(fecha);
+      itemsOriginales = modelo.items.map(i => ({ ...i, oculto: false }));
+      itemsPlaca = itemsOriginales.map(i => ({ ...i }));
+      editado = false;
       await garantizarAssets();
-      dibujarPlaca(modelo);
+      redibujarPlaca();
+      ui.editorPlaca.hidden = false;
+      renderEditor();
       ui.fecha.value = fecha;
       mostrar('lista');
       return;
@@ -359,6 +393,113 @@ async function cargar(fecha) {
   }
 }
 
+function redibujarPlaca() {
+  const modelo = construirModeloPlaca(itemsPlaca, fechaActual);
+  if (modelo.ok) dibujarPlaca(modelo);
+}
+
+function crearBoton(texto, clase, onClick) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = clase;
+  b.textContent = texto;
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function crearBadge(texto, clase) {
+  const s = document.createElement('span');
+  s.className = `badge ${clase}`;
+  s.textContent = texto;
+  return s;
+}
+
+function renderEditor() {
+  ui.editorLista.replaceChildren();
+  const visibles = itemsPlaca.filter(i => !i.oculto);
+  const hero = visibles[0];
+  const ocultos = itemsPlaca.length - visibles.length;
+  for (const item of itemsPlaca) {
+    const li = document.createElement('li');
+    li.className = 'hecho-card' + (item.oculto ? ' oculto' : '');
+    const info = document.createElement('div');
+    info.className = 'hecho-info';
+    const linea = document.createElement('span');
+    linea.className = 'hecho-linea';
+    linea.append(document.createTextNode(`${emojiIconoEf(item.icono)}`));
+    const anio = document.createElement('span');
+    anio.className = 'anio';
+    anio.textContent = item.año;
+    linea.append(anio, document.createTextNode(item.titulo));
+    const resumen = document.createElement('span');
+    resumen.className = 'hecho-resumen';
+    resumen.textContent = item.resumen;
+    info.append(linea, resumen);
+    const acciones = document.createElement('div');
+    acciones.className = 'hecho-acciones';
+    if (item.oculto) {
+      acciones.append(crearBadge('OCULTO', 'badge-oculto'), crearBoton('MOSTRAR', 'secundario chico', () => onToggleOcultar(item.id)));
+    } else {
+      if (hero === item) acciones.append(crearBadge('★ DESTACADA', 'badge-destacada'));
+      else acciones.append(crearBoton('★ DESTACAR', 'secundario chico', () => onDestacar(item.id)));
+      if (visibles.length === 1) {
+        const b = crearBoton('OCULTAR', 'chico', () => {});
+        b.disabled = true;
+        b.title = 'La placa necesita al menos un hecho';
+        acciones.append(b);
+      } else {
+        acciones.append(crearBoton('OCULTAR', 'chico', () => onToggleOcultar(item.id)));
+      }
+    }
+    li.append(info, acciones);
+    ui.editorLista.append(li);
+  }
+  ui.editorCount.textContent = `${itemsPlaca.length} HECHOS${ocultos ? ` · ${ocultos} OCULTO${ocultos > 1 ? 'S' : ''}` : ''}`;
+  ui.restablecer.hidden = !editado;
+}
+
+function onDestacar(id) {
+  const i = itemsPlaca.findIndex(x => x.id === id);
+  if (i <= 0) return;
+  const [item] = itemsPlaca.splice(i, 1);
+  itemsPlaca.unshift(item);
+  editado = true;
+  redibujarPlaca();
+  renderEditor();
+}
+
+function onToggleOcultar(id) {
+  const item = itemsPlaca.find(x => x.id === id);
+  if (!item) return;
+  const visibles = itemsPlaca.filter(x => !x.oculto);
+  if (!item.oculto && visibles.length === 1) return; // guarda: la placa necesita ≥1
+  item.oculto = !item.oculto;
+  editado = true;
+  redibujarPlaca();
+  renderEditor();
+}
+
+function onRestablecer() {
+  itemsPlaca = itemsOriginales.map(i => ({ ...i, oculto: false }));
+  editado = false;
+  ui.formAgregar.reset();
+  ui.altaError.hidden = true;
+  redibujarPlaca();
+  renderEditor();
+}
+
+function resetearEditor() {
+  itemsPlaca = [];
+  itemsOriginales = [];
+  editado = false;
+  ui.editorLista.replaceChildren();
+  ui.editorCount.textContent = '';
+  ui.restablecer.hidden = true;
+  ui.editorPlaca.hidden = true;
+  ui.formAgregar.reset();
+  ui.altaError.hidden = true;
+}
+
 ui.reintentar.addEventListener('click', () => cargar(fechaActual));
 ui.copiar.addEventListener('click', copiarPNG);
 ui.copys.addEventListener('click', cargarCopys);
@@ -370,4 +511,21 @@ ui.fecha.addEventListener('change', () => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { fechaActual = v; cargar(v); }
 });
 ui.descargar.addEventListener('click', exportarPNG);
+ui.restablecer.addEventListener('click', onRestablecer);
+ui.formAgregar.addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const r = validarHechoPropio({ año: ui.altaAño.value, titulo: ui.altaTitulo.value, resumen: ui.altaResumen.value, ampliado: ui.altaAmpliado.value, icono: ui.altaIcono.value });
+  if (!r.ok) { ui.altaError.textContent = r.error; ui.altaError.hidden = false; return; }
+  ui.altaError.hidden = true;
+  itemsPlaca.push({
+    id: nuevoIdLocal(), ...r.hecho,
+    categoria: etiquetaCategoria({ icono: r.hecho.icono }),
+    verificada: false, fuente: 'Media Mendoza', oculto: false,
+  });
+  ui.formAgregar.reset();
+  ui.altaIcono.value = 'historia';
+  editado = true;
+  redibujarPlaca();
+  renderEditor();
+});
 cargar(fechaActual);

@@ -36,6 +36,31 @@
   .copys-bloque h3 { margin:0; font-family:Oswald, sans-serif; font-weight:600; font-size:13px; letter-spacing:2px; color:var(--atenuado); }
   .copys-bloque textarea { background:#141b2b; color:var(--crema); border:1px solid rgba(245,241,230,.25); border-radius:4px; padding:10px; font:inherit; font-size:14px; line-height:1.5; min-height:160px; resize:vertical; }
   .copys-error { color:#e8b4a8; margin:0; font-size:14px; }
+  #editorPlaca { margin-top:20px; padding-top:18px; border-top:1px solid rgba(245,241,230,.15); display:flex; flex-direction:column; gap:12px; }
+  .editor-header { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .editor-header h2 { font-family:Oswald, sans-serif; font-weight:600; font-size:18px; letter-spacing:2px; color:var(--dorado); margin:0; }
+  .editor-count { color:var(--crema); font-size:13px; letter-spacing:1px; }
+  .editor-hint { color:var(--atenuado); font-size:12px; }
+  .editor-lista { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .hecho-card { display:flex; justify-content:space-between; align-items:center; gap:12px; border:1px solid rgba(245,241,230,.18); border-radius:6px; padding:10px 12px; }
+  .hecho-card.oculto { opacity:.45; }
+  .hecho-info { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .hecho-linea { font-weight:600; font-size:14px; }
+  .hecho-linea .anio { color:var(--dorado); font-family:Oswald, sans-serif; margin:0 6px; }
+  .hecho-resumen { color:var(--atenuado); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hecho-acciones { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+  button.chico { padding:8px 14px; font-size:12px; }
+  .badge { font-size:11px; letter-spacing:1px; border-radius:3px; padding:4px 8px; font-family:Oswald, sans-serif; }
+  .badge-destacada { background:var(--dorado); color:#10151f; font-weight:700; }
+  .badge-oculto { border:1px solid var(--dorado); color:var(--dorado); }
+  .alta-hecho { display:flex; flex-direction:column; gap:10px; border:1px dashed rgba(245,241,230,.25); border-radius:6px; padding:12px; }
+  .alta-hecho h3 { margin:0; font-family:Oswald, sans-serif; font-size:13px; letter-spacing:2px; color:var(--atenuado); font-weight:600; }
+  .alta-grid { display:flex; flex-wrap:wrap; gap:10px; }
+  .alta-grid label { font-size:12px; display:flex; flex-direction:column; gap:6px; flex:1 1 180px; }
+  .alta-grid label.ancho { flex:1 1 100%; }
+  .alta-grid input, .alta-grid select { width:100%; background:#141b2b; color:var(--crema); border:1px solid rgba(245,241,230,.25); border-radius:4px; padding:9px 10px; font:inherit; font-size:14px; }
+  .opcional { color:var(--atenuado); font-size:10px; }
+  .alta-error { margin:0; color:#e8b4a8; font-size:13px; }
   @font-face { font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap; src:url('../assets/Inter-Variable.woff2') format('woff2'); }
   @font-face { font-family:'Oswald'; font-style:normal; font-weight:200 700; font-display:swap; src:url('../assets/Oswald-Variable.woff2') format('woff2'); }
 </style>
@@ -64,6 +89,41 @@
         <button id="btnCopys" type="button" class="secundario" disabled>COPYS REDES</button>
       </div>
     </div>
+    <section id="editorPlaca" hidden>
+      <div class="editor-header">
+        <h2>EDITAR LA PLACA</h2>
+        <span id="editorCount" class="editor-count"></span>
+        <span class="editor-hint">Cambios solo en esta ventana</span>
+      </div>
+      <ul id="editorLista" class="editor-lista"></ul>
+      <button id="btnRestablecer" type="button" class="secundario chico" hidden>RESTABLECER PLACA ORIGINAL</button>
+      <form id="formAgregar" class="alta-hecho" novalidate>
+        <h3>AGREGAR UN HECHO</h3>
+        <div class="alta-grid">
+          <label>Año <input id="altaAño" inputmode="numeric" maxlength="4" placeholder="2026" required></label>
+          <label class="ancho">Título <input id="altaTitulo" maxlength="160" placeholder="Ej. San Rafael festeja sus 150 años" required></label>
+          <label class="ancho">Resumen <input id="altaResumen" maxlength="140" placeholder="Qué pasó y por qué importa (1 línea)" required></label>
+          <label class="ancho">Texto ampliado <span class="opcional">(opcional)</span> <input id="altaAmpliado" maxlength="240" placeholder="Si tu hecho queda destacado, va acá"></label>
+          <label>Icono
+            <select id="altaIcono">
+              <option value="futbol">⚽ Fútbol</option>
+              <option value="deportes">🏆 Deportes</option>
+              <option value="aviacion">✈️ Aviación</option>
+              <option value="musica">🎵 Música</option>
+              <option value="teatro">🎭 Teatro</option>
+              <option value="politica">🏛️ Política</option>
+              <option value="historia" selected>📜 Historia</option>
+              <option value="sociedad">🗞️ Sociedad</option>
+              <option value="economia">💹 Economía</option>
+              <option value="mundo">🌎 Mundo</option>
+              <option value="canal">📺 Canal</option>
+            </select>
+          </label>
+          <button type="submit" class="chico">AGREGAR HECHO</button>
+        </div>
+        <p id="altaError" class="alta-error" hidden></p>
+      </form>
+    </section>
     <section id="copysPanel" hidden>
       <h2 id="copysTitulo">COPYS PARA REDES</h2>
       <div class="copys-grid" id="copysGrid">
