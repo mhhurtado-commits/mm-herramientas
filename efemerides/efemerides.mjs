@@ -31,6 +31,10 @@ const ui = {
   bancoListaWrap: $('bancoListaWrap'), bancoLista: $('bancoLista'), bancoVacio: $('bancoVacio'),
   altaAño: $('altaAño'), altaTitulo: $('altaTitulo'), altaResumen: $('altaResumen'),
   altaAmpliado: $('altaAmpliado'), altaIcono: $('altaIcono'), altaError: $('altaError'),
+  tycPanel: $('tycPanel'), btnTyc: $('btnTyc'), tycUrl: $('tycUrl'), tycLista: $('tycLista'),
+  tycVacio: $('tycVacio'), tycError: $('tycError'), tycMeta: $('tycMeta'),
+  tycFuenteLink: $('tycFuenteLink'),
+  tycFiltros: document.querySelectorAll('.tyc-filtro'),
 };
 
 let fechaActual = hoyArgentina();
@@ -356,6 +360,98 @@ async function cargarCopys() {
   }
 }
 
+// ── Candidatas TyC Sports (solo revisión, no entra a la placa) ──────────────
+let tycItems = [];
+let tycFiltro = 'todas';
+const crearFilaTyc = (i) => {
+  const li = document.createElement('li');
+  li.className = 'tyc-fila';
+  li.dataset.estado = i.estado;
+  const anio = document.createElement('span');
+  anio.className = 'tyc-anio';
+  anio.textContent = i.año;
+  const info = document.createElement('div');
+  info.className = 'tyc-info';
+  const titulo = document.createElement('span');
+  titulo.className = 'tyc-titulo';
+  titulo.textContent = i.titulo;
+  titulo.title = i.texto || i.titulo;
+  const alcance = document.createElement('span');
+  alcance.className = 'tyc-alcance';
+  alcance.textContent = String(i.alcance || '').toUpperCase();
+  info.append(titulo, alcance);
+  const estado = document.createElement('span');
+  estado.className = 'tyc-estado ' + i.estado;
+  estado.textContent = i.estado === 'en-banco' ? 'EN BANCO' : String(i.estado).toUpperCase();
+  const enlace = document.createElement('a');
+  enlace.className = 'tyc-enlace';
+  if (i.fuenteEs) {
+    enlace.href = i.fuenteEs;
+    enlace.target = '_blank';
+    enlace.rel = 'noopener';
+    enlace.textContent = 'Wikipedia ↗';
+  } else {
+    enlace.textContent = '—';
+  }
+  li.append(anio, info, estado, enlace);
+  return li;
+};
+const renderTyc = () => {
+  ui.tycLista.replaceChildren();
+  const vistos = tycItems.filter(i => tycFiltro === 'todas' || i.estado === tycFiltro);
+  ui.tycVacio.hidden = tycItems.length > 0;
+  for (const i of vistos) ui.tycLista.append(crearFilaTyc(i));
+  ui.tycFiltros.forEach(b => b.classList.toggle('activo', b.dataset.f === tycFiltro));
+};
+async function cargarTyc() {
+  ui.tycError.hidden = true;
+  ui.tycVacio.hidden = true;
+  ui.tycLista.replaceChildren();
+  ui.btnTyc.disabled = true;
+  ui.btnTyc.textContent = 'CARGANDO…';
+  try {
+    const urlExtra = ui.tycUrl.value.trim();
+    const qs = '?fecha=' + encodeURIComponent(fechaActual) + (urlExtra ? '&url=' + encodeURIComponent(urlExtra) : '');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    let res;
+    try {
+      res = await fetch(WORKER_URL + '/placas/v2/efemerides/tyc' + qs, { signal: ctrl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+    const raw = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg = raw?.error || raw?.message || ('Error ' + res.status);
+      throw new Error(typeof msg === 'string' ? msg : 'Error ' + res.status);
+    }
+    ui.tycFuenteLink.href = raw.articulo;
+    ui.tycMeta.textContent = `${raw.meta.hechos} hechos · ${raw.meta.cruzados} cruzados · ${raw.meta.enBanco} en banco · ${raw.meta.candidatos} candidatos`;
+    tycItems = raw.items || [];
+    renderTyc();
+    ui.tycPanel.hidden = false;
+  } catch (err) {
+    ui.tycPanel.hidden = false;
+    ui.tycError.textContent = err?.name === 'AbortError'
+      ? 'La respuesta tardó demasiado. Reintentá.'
+      : (err?.message || 'No se pudieron traer las candidatas de TyC.');
+    ui.tycError.hidden = false;
+  } finally {
+    ui.btnTyc.disabled = false;
+    ui.btnTyc.textContent = 'VER CANDIDATAS TYC';
+  }
+}
+function resetearTyc() {
+  tycItems = [];
+  tycFiltro = 'todas';
+  ui.tycLista.replaceChildren();
+  ui.tycError.hidden = true;
+  ui.tycVacio.hidden = true;
+  ui.tycUrl.value = '';
+  ui.tycMeta.textContent = '';
+  ui.tycPanel.hidden = true;
+}
+
 async function pedir(fecha) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
@@ -663,6 +759,7 @@ function resetearEditor() {
   ui.editor.hidden = true;
   ui.formAgregar.reset();
   ui.altaError.hidden = true;
+  resetearTyc();
   limpiarBanco();
 }
 
@@ -672,6 +769,8 @@ ui.copys.addEventListener('click', cargarCopys);
 ui.copysReintentar.addEventListener('click', cargarCopys);
 ui.copiarWhats.addEventListener('click', () => copiarTexto(ui.copiarWhats, ui.copysWhats.value));
 ui.copiarIg.addEventListener('click', () => copiarTexto(ui.copiarIg, ui.copysIg.value));
+ui.btnTyc.addEventListener('click', cargarTyc);
+ui.tycFiltros.forEach(b => b.addEventListener('click', () => { tycFiltro = b.dataset.f; renderTyc(); }));
 ui.fecha.addEventListener('change', () => {
   const v = ui.fecha.value;
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { fechaActual = v; cargar(v); }
