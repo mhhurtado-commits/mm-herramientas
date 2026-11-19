@@ -166,13 +166,14 @@ const TYC_HTML = '<html><article><ul>'
 const WIKI_ES = '== Acontecimientos ==\n* [[1845]]: batalla de la [[Vuelta de Obligado]]\n';
 const WIKI_EN = '== Events ==\n* [[1845]]: [[Battle of the Vuelta de Obligado]]\n';
 const TYC_URL = 'https://www.tycsports.com/interes-general/efemerides/efemerides-del-18-de-noviembre-test-id999.html';
+const ORDER_DATE_18_11 = Math.floor(Date.UTC(2026, 10, 18) / 1000);
 
 function stub({ poolEs = WIKI_ES, poolEn = WIKI_EN, curadas = { '11-18': [{ año: '1845', titulo: 'Vuelta de Obligado', resumen: '', texto_ampliado: '', icono: 'historia', fuente: 'ARCHIVO.AR' }] } } = {}) {
   return async (url) => {
     const u = String(url);
     if (u.includes('tycsports.com')) return { ok: true, status: 200, text: async () => TYC_HTML };
     if (u.includes('xke6pkwdfrhfvirq5lt5br2m4m')) {
-      return { ok: true, status: 200, json: async () => ({ data: { search: { hits: [{ order_date: 1780049955, title: 'Efemérides del 18 de noviembre', url: TYC_URL }] } } }) };
+      return { ok: true, status: 200, json: async () => ({ data: { search: { hits: [{ order_date: ORDER_DATE_18_11, title: 'Efemérides del 18 de noviembre', url: TYC_URL }] } } }) };
     }
     if (u.includes('es.wikipedia.org')) return { ok: true, status: 200, text: async () => poolEs };
     if (u.includes('en.wikipedia.org')) return { ok: true, status: 200, text: async () => poolEn };

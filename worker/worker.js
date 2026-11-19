@@ -19,7 +19,7 @@ export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createClou
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
 export { repararAnioEfemerides };
-export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2Efemerides, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn, urlsEfemeridesRaw, itemPlacaDesdePool, seleccionDeterministicaEF, normalizarItemsGeminiEF, aplicarBackstopNacionalEF, cortePalabraEF };
+export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2Efemerides, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn, urlsEfemeridesRaw, itemPlacaDesdePool, seleccionDeterministicaEF, normalizarItemsGeminiEF, aplicarBackstopNacionalEF, cortePalabraEF, tokensTyc, alcanceTyc, cotejarItemsTyc };
 
 function fechaRedaccionMendoza(ahora = new Date()) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -9263,6 +9263,50 @@ async function handlePlacasV2EfemeridesBanco(url, env, fetcher = globalThis.fetc
     feriados = respuestas.flat().filter((f, i, arr) => arr.findIndex(x => x.id === f.id) === i);
   } catch { feriados = []; }
   return jsonOk({ feriados });
+}
+
+// ═══ Sincronizador TyC Sports — espejo de tyc-efemerides/tyc-cotejo.mjs. Si ese
+//     módulo cambia, ACTUALIZAR ESTA COPIA (worker/tyc-equivalencia.test.mjs lo detecta). ═══
+const TYC_STOPWORDS = new Set([
+  'para', 'como', 'entre', 'desde', 'sobre', 'este', 'esta', 'esto', 'otro', 'otra',
+  'tras', 'ante', 'bajo', 'contra', 'hasta', 'segun', 'según', 'todo', 'toda',
+  'todos', 'todas', 'cada', 'mismo', 'misma', 'dentro', 'fuera', 'donde', 'cuando',
+  'the', 'and', 'with', 'from', 'that', 'this', 'were', 'was', 'has', 'have', 'into',
+  'their', 'after', 'before', 'during', 'about', 'than', 'then', 'also', 'which',
+  'nacion', 'nación', 'pais', 'país', 'estado', 'provincia', 'república', 'republica',
+  'ciudad', 'america', 'americano', 'americana', 'estadounidense', 'argentino',
+  'argentina', 'española', 'espanol', 'ingles', 'inglesa', 'alemana',
+  'francesa', 'italiano', 'italiana', 'brasileño', 'brasileno', 'latinoamericano',
+  'latina', 'mundial', 'actor', 'actriz', 'escritor', 'escritora', 'piloto', 'atleta',
+  'deportista', 'jinete', 'persona', 'presidente', 'gobernador',
+]);
+// Normalización estricta: minúsculas, sin acentos/diacríticos, sin puntuación.
+function normalizarTyc(texto) {
+  return String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ');
+}
+// Tokens de letras ≥4 sin stopwords. Los dígitos se EXCLUYEN: el match exige mismo año.
+function tokensTyc(texto) {
+  return normalizarTyc(texto).split(' ').filter(t => t.length >= 4 && /^[a-z]+$/.test(t) && !TYC_STOPWORDS.has(t));
+}
+// ¿Comparten al menos un token distintivo?
+function tokensCompartidosTyc(a, b) {
+  const ta = new Set(tokensTyc(a));
+  return tokensTyc(b).some(t => ta.has(t));
+}
+// Alcance: usa la MISMA señal que la placa en producción (RE_KW_AR_EF).
+function alcanceTyc(texto) { return RE_KW_AR_EF.test(String(texto || '')) ? 'nacional' : 'internacional'; }
+// Recibe items [{ año, titulo, texto }] y devuelve una copia con estado/alcance/fuenteEs.
+// Estado: 'cruzado' (pool es∩en coincide en año+token) · 'en-banco' (curada del
+// mismo MM-DD con año+token) · 'candidato' (requiere revisión humana).
+function cotejarItemsTyc(items, pool = [], curadasDelDia = []) {
+  return items.map(item => {
+    const alcance = alcanceTyc(item.texto);
+    const enPool = pool.find(p => String(p.año) === String(item.año) && tokensCompartidosTyc(item.texto, p.texto));
+    const enBanco = curadasDelDia.find(c => String(c.año) === String(item.año)
+      && tokensCompartidosTyc(item.titulo + ' ' + item.texto, String(c.titulo || '')));
+    const estado = enPool ? 'cruzado' : (enBanco ? 'en-banco' : 'candidato');
+    return { ...item, alcance, estado, fuenteEs: enPool?.fuenteEs || null };
+  });
 }
 
 async function handlePlacasV2EfemeridesCopys(url, env) {
