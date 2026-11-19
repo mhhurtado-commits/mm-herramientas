@@ -123,7 +123,8 @@ const restoVisibleEf = (textoCompleto, yaVisto) => {
     if (w === nw[jv]) { i += 1; jv += 1; continue; }
     break;
   }
-  if (jv < Math.ceil(nw.length * 0.9)) return completo; // divergió pronto: no era el prefijo
+  if (i >= palabras.length && jv > 0) return ''; // completo era prefijo de yaVisto
+  if (jv < Math.ceil(nw.length * 0.9)) return completo; // divergió pronto: no era prefijo
   return palabras.slice(i).join(' ').trim();
 };
 
@@ -191,24 +192,15 @@ function dibujarPlaca(modelo) {
   ctx.fillText(añoHero, 64, y);
   const cajaAño = ctx.measureText(añoHero);
   y += Math.round(cajaAño.actualBoundingBoxAscent + cajaAño.actualBoundingBoxDescent) + 14;
+  // CUERPO ÚNICO del hero: el texto completo del hecho, una sola vez. Los
+  // cortes cortePalabraEF (160/140/240) derivan del MISMO texto crudo: pintar
+  // título+resumen+ampliado repite el mismo enunciado tres veces y deja
+  // colas huérfanas («…1809…» / «mediante la firma…»).
+  const cuerpoHero = String(modelo.hero.ampliado || modelo.hero.resumen || modelo.hero.titulo || '').trim();
   ctx.fillStyle = COLOR.crema;
-  ctx.font = '600 42px Inter';
-  for (const linea of envolver(ctx, modelo.hero.titulo, ANCHO - 128)) { ctx.fillText(linea, 64, y); y += 50; }
-  y += 2;
-  const bajadaHero = restoVisibleEf(modelo.hero.resumen, modelo.hero.titulo);
-  if (bajadaHero) {
-    ctx.fillStyle = COLOR.atenuado;
-    ctx.font = '500 28px Inter';
-    for (const linea of envolver(ctx, bajadaHero, ANCHO - 128)) { ctx.fillText(linea, 64, y); y += 34; }
-    y += 4;
-  }
-  ctx.font = '400 22px Inter';
-  ctx.fillStyle = COLOR.ampliado;
-  const ampliadoHero = restoVisibleEf(restoVisibleEf(modelo.hero.ampliado, modelo.hero.titulo), bajadaHero);
-  if (ampliadoHero) {
-    for (const linea of envolver(ctx, ampliadoHero, ANCHO - 128).slice(0, 4)) { ctx.fillText(linea, 64, y); y += 28; }
-  }
-  y += 8;
+  ctx.font = '600 30px Inter';
+  for (const linea of envolver(ctx, cuerpoHero, ANCHO - 128).slice(0, 5)) { ctx.fillText(linea, 64, y); y += 38; }
+  y += 4;
   y += chip(ctx, modelo.hero.categoria, 64, y) + 10;
 
   ctx.fillStyle = COLOR.regla;
