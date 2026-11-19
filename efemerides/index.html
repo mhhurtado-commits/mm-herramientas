@@ -47,7 +47,7 @@
   .hecho-info { display:flex; flex-direction:column; gap:2px; min-width:0; }
   .hecho-linea { font-weight:600; font-size:14px; }
   .hecho-linea .anio { color:var(--dorado); font-family:Oswald, sans-serif; margin:0 6px; }
-  .hecho-resumen { color:var(--atenuado); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hecho-resumen { color:var(--atenuado); font-size:12px; white-space:normal; }
   .hecho-acciones { display:flex; gap:8px; align-items:center; flex-shrink:0; }
   button.chico { padding:8px 14px; font-size:12px; }
   .badge { font-size:11px; letter-spacing:1px; border-radius:3px; padding:4px 8px; font-family:Oswald, sans-serif; }
@@ -74,8 +74,8 @@
   .fuente-badge.mendoza { background:var(--dorado); color:#10151f; font-weight:700; border-color:var(--dorado); }
   .banco-anio { flex-shrink:0; width:72px; text-align:center; font-family:Oswald, sans-serif; font-weight:700; font-size:20px; line-height:1.15; color:var(--crema); }
   .banco-info { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
-  .banco-titulo { font-weight:600; font-size:13px; color:var(--crema); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .banco-resumen { color:var(--atenuado); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .banco-titulo { font-weight:600; font-size:13px; color:var(--crema); white-space:normal; }
+  .banco-resumen { color:var(--atenuado); font-size:12px; white-space:normal; }
   .banco-vacio { margin:0; color:var(--atenuado); font-size:13px; }
   #tycPanel { margin-top:20px; padding-top:18px; border-top:1px solid rgba(245,241,230,.15); display:flex; flex-direction:column; gap:10px; }
   .tyc-encabezado { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
@@ -91,7 +91,7 @@
   .tyc-fila { display:grid; grid-template-columns:60px 1fr auto auto; gap:10px; align-items:center; border:1px solid rgba(245,241,230,.14); border-radius:6px; padding:8px 12px; }
   .tyc-anio { font-family:Oswald, sans-serif; font-weight:700; font-size:18px; color:var(--crema); }
   .tyc-info { min-width:0; display:flex; flex-direction:column; gap:2px; }
-  .tyc-titulo { font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tyc-titulo { font-weight:600; font-size:13px; white-space:normal; }
   .tyc-alcance { font-size:11px; letter-spacing:1px; color:var(--atenuado); }
   .tyc-estado { font-size:10px; letter-spacing:1px; border-radius:3px; padding:4px 8px; font-family:Oswald, sans-serif; white-space:nowrap; justify-self:end; }
   .tyc-estado.cruzado { background:var(--dorado); color:#10151f; font-weight:700; }
@@ -188,7 +188,7 @@
       <p id="copysError" class="copys-error" hidden></p>
       <button id="btnCopysReintentar" type="button" class="secundario" hidden>REINTENTAR</button>
     </section>
-    <section id="tycPanel" hidden>
+    <section id="tycPanel">
       <div class="tyc-encabezado">
         <h2>CANDIDATAS TYC — REVISIÓN</h2>
         <span class="editor-hint">TyC sólo orienta qué mirar; verificá con Wikipedia/Archivo.ar antes de agregar al banco</span>
@@ -206,7 +206,7 @@
         <button class="badge tyc-filtro" data-f="candidato" type="button">CANDIDATAS</button>
       </div>
       <ul id="tycLista" class="banco-lista"></ul>
-      <p id="tycVacio" class="banco-vacio" hidden>Sin candidatas: pegá la URL del artículo TyC y reintentá.</p>
+      <p id="tycVacio" class="banco-vacio">Pegá la URL del artículo TyC (o dejá la fecha) y tocá VER CANDIDATAS TYC.</p>
       <p id="tycError" class="copys-error" hidden></p>
     </section>
   </section>

@@ -113,11 +113,17 @@ function envolver(ctx, texto, maxAncho) {
   return lineas;
 }
 
-function unaLinea(ctx, texto, maxAncho) {
-  if (ctx.measureText(texto).width <= maxAncho) return texto;
-  let t = texto;
-  while (t.length > 1 && ctx.measureText(`${t}…`).width > maxAncho) t = t.slice(0, -1);
-  return `${t.trimEnd()}…`;
+// Título de fila COMPLETO: encoge la fuente hasta que entre en una línea
+// (mínimo 15px); sólo por debajo de eso recorta con "…".
+function tituloFila(ctx, texto, maxAncho, fontBase) {
+  const t = String(texto || '');
+  for (let f = fontBase; f >= 12.5; f -= 1.5) {
+    ctx.font = `600 ${f}px Inter`;
+    if (ctx.measureText(t).width <= maxAncho) return t;
+  }
+  let s = t;
+  while (s.length > 1 && ctx.measureText(`${s}…`).width > maxAncho) s = s.slice(0, -1);
+  return `${s.trimEnd()}…`;
 }
 
 function chip(ctx, texto, x, y) {
@@ -194,8 +200,7 @@ function dibujarPlaca(modelo) {
     ctx.fillText(fila.filaTexto || fila.año, 64, y + 2);
     const xTexto = 200;
     ctx.fillStyle = COLOR.crema;
-    ctx.font = `600 ${fTitulo}px Inter`;
-    ctx.fillText(unaLinea(ctx, fila.titulo, ANCHO - xTexto - 128), xTexto, y + 2);
+    ctx.fillText(tituloFila(ctx, fila.titulo, ANCHO - xTexto - 128, fTitulo), xTexto, y + 2);
     ctx.fillStyle = COLOR.atenuado;
     ctx.font = `400 ${fRes}px Inter`;
     for (const [k, linea] of envolver(ctx, fila.resumen, ANCHO - xTexto - 128).slice(0, 2).entries()) {
@@ -449,7 +454,6 @@ function resetearTyc() {
   ui.tycVacio.hidden = true;
   ui.tycUrl.value = '';
   ui.tycMeta.textContent = '';
-  ui.tycPanel.hidden = true;
 }
 
 async function pedir(fecha) {
