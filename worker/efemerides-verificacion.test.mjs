@@ -114,7 +114,7 @@ test('handler: curados de Pages caidos no tumban la placa', async () => {
   assert.equal(res.status, 200);
 });
 
-const RE_TEST = /argent|mendoza|patria|obligado|malvin|sarmiento|belgrano|guemes|san mart|tucum|rosas|urquiza|moreno/i;
+const RE_TEST = /\b(argentina|argentino|argentinos|argentinas|mendoz\w*|mendocin\w+|patria|vuelta de obligado|malvin\w*|sarmiento|belgrano|guemes|san mart\w*|tucum\w*|rosas|urquiza|moreno)\b/i;
 
 test('handler: backstop — Gemini internacional no deja sin Argentina; nacionales primero', async () => {
   const curadas = { '11-18': [{ año: '1845', titulo: 'Vuelta de Obligado', resumen: 'r', texto_ampliado: 'a', icono: 'historia', fuente: 'ARCHIVO.AR' }] };

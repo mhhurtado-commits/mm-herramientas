@@ -9033,7 +9033,7 @@ function urlsEfemeridesRaw(date) {
 }
 
 const CURADAS_EF_URL = 'https://mediamendoza.pages.dev/efemerides/efemerides-curadas.json';
-const RE_KW_AR_EF = /argent|mendoza|patria|obligado|malvin|sarmiento|belgrano|guemes|san mart|tucum|rosas|urquiza|moreno/i;
+const RE_KW_AR_EF = /\b(argentina|argentino|argentinos|argentinas|mendoz\w*|mendocin\w+|patria|vuelta de obligado|malvin\w*|sarmiento|belgrano|guemes|san mart\w*|tucum\w*|rosas|urquiza|moreno)\b/i;
 
 function puntuarPlacaEF(item) {
   let p = 0;
@@ -9299,6 +9299,37 @@ function alcanceTyc(texto) { return RE_KW_AR_EF.test(String(texto || '')) ? 'nac
 // Recibe items [{ año, titulo, texto }] y devuelve una copia con estado/alcance/fuenteEs.
 // Estado: 'cruzado' (pool es∩en coincide en año+token) · 'en-banco' (curada del
 // mismo MM-DD con año+token) · 'candidato' (requiere revisión humana).
+function verificadoDesdeCotejoTyc(enPool, enBanco) {
+  if (enPool) {
+    const texto = String(enPool.texto || '').trim();
+    return {
+      año: String(enPool.año || ''),
+      titulo: cortePalabraEF(texto, 160),
+      resumen: cortePalabraEF(String(enPool.resumenCurado || texto).trim(), 140),
+      ampliado: cortePalabraEF(String(enPool.ampliadoCurado || texto).trim(), 240),
+      icono: enPool.iconoCurado || 'historia',
+      categoria: 'historia',
+      fuente: enPool.fuente || 'Wikipedia',
+      fuenteUrl: enPool.fuenteUrl || '',
+      curado: !!enPool.curado,
+    };
+  }
+  if (enBanco) {
+    return {
+      año: String(enBanco.año || ''),
+      titulo: cortePalabraEF(String(enBanco.texto || '').trim(), 160),
+      resumen: cortePalabraEF(String(enBanco.resumenCurado || enBanco.texto || '').trim(), 140),
+      ampliado: cortePalabraEF(String(enBanco.ampliadoCurado || enBanco.texto || '').trim(), 240),
+      icono: enBanco.iconoCurado || 'historia',
+      categoria: 'historia',
+      fuente: enBanco.fuente || 'Media Mendoza',
+      fuenteUrl: enBanco.fuenteUrl || '',
+      curado: true,
+    };
+  }
+  return null;
+}
+
 function cotejarItemsTyc(items, pool = [], curadasDelDia = []) {
   return items.map(item => {
     const alcance = alcanceTyc(item.texto);
@@ -9306,7 +9337,7 @@ function cotejarItemsTyc(items, pool = [], curadasDelDia = []) {
     const enBanco = curadasDelDia.find(c => String(c.año) === String(item.año)
       && tokensCompartidosTyc(item.titulo + ' ' + item.texto, String(c.titulo || '')));
     const estado = enPool ? 'cruzado' : (enBanco ? 'en-banco' : 'candidato');
-    return { ...item, alcance, estado, fuenteEs: enPool?.fuenteEs || null };
+    return { ...item, alcance, estado, fuenteEs: enPool?.fuenteEs || enBanco?.fuenteUrl || null, verificado: verificadoDesdeCotejoTyc(enPool, enBanco) };
   });
 }
 

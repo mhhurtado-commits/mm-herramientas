@@ -45,6 +45,7 @@ let editado = false;
 let candidatosWikipedia = []; // extras del GET más allá de los 6 de la placa
 let placaEnRespaldo = false;  // true cuando el worker sirvió última buena (meta.fallback)
 let idsBancoAgregados = new Set();
+let idsTycUsados = new Set();
 let bancoPool = [];
 let bancoListLoaded = false;
 let localSeq = 0;
@@ -100,6 +101,31 @@ async function garantizarAssets() {
   }
   throw ultimoError || new Error('No se pudieron cargar los recursos');
 }
+
+// ¿Un texto repite AGREGADO/BAJADA? Normaliza y detecta igualdad o contenido parcial.
+// Evita pintar tres veces la misma frase en la placa cuando el "resumen" es el crudo.
+const normalizarTextoEf = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+// restoVisibleEf: devuelve la parte de `textoCompleto` que EXCEDE al prefijo ya
+// visible (`yaVisto`), comparando palabra a palabra normalizada. Si el texto
+// diverge pronto (hecho curado/manual), devuelve `textoCompleto` entero.
+const restoVisibleEf = (textoCompleto, yaVisto) => {
+  const completo = String(textoCompleto || '').trim();
+  if (!completo) return '';
+  const visto = String(yaVisto || '').trim();
+  if (!visto) return completo;
+  const nw = normalizarTextoEf(visto).split(' ').filter(Boolean);
+  if (!nw.length) return completo;
+  const palabras = completo.split(/\s+/);
+  let i = 0, jv = 0;
+  while (i < palabras.length && jv < nw.length) {
+    const w = normalizarTextoEf(palabras[i]);
+    if (!w) { i += 1; continue; }
+    if (w === nw[jv]) { i += 1; jv += 1; continue; }
+    break;
+  }
+  if (jv < Math.ceil(nw.length * 0.9)) return completo; // divergió pronto: no era el prefijo
+  return palabras.slice(i).join(' ').trim();
+};
 
 function envolver(ctx, texto, maxAncho) {
   const lineas = [];
@@ -169,13 +195,19 @@ function dibujarPlaca(modelo) {
   ctx.font = '600 42px Inter';
   for (const linea of envolver(ctx, modelo.hero.titulo, ANCHO - 128)) { ctx.fillText(linea, 64, y); y += 50; }
   y += 2;
-  ctx.fillStyle = COLOR.atenuado;
-  ctx.font = '500 28px Inter';
-  for (const linea of envolver(ctx, modelo.hero.resumen, ANCHO - 128)) { ctx.fillText(linea, 64, y); y += 34; }
-  y += 4;
+  const bajadaHero = restoVisibleEf(modelo.hero.resumen, modelo.hero.titulo);
+  if (bajadaHero) {
+    ctx.fillStyle = COLOR.atenuado;
+    ctx.font = '500 28px Inter';
+    for (const linea of envolver(ctx, bajadaHero, ANCHO - 128)) { ctx.fillText(linea, 64, y); y += 34; }
+    y += 4;
+  }
   ctx.font = '400 22px Inter';
   ctx.fillStyle = COLOR.ampliado;
-  for (const linea of envolver(ctx, modelo.hero.ampliado, ANCHO - 128).slice(0, 4)) { ctx.fillText(linea, 64, y); y += 28; }
+  const ampliadoHero = restoVisibleEf(restoVisibleEf(modelo.hero.ampliado, modelo.hero.titulo), bajadaHero);
+  if (ampliadoHero) {
+    for (const linea of envolver(ctx, ampliadoHero, ANCHO - 128).slice(0, 4)) { ctx.fillText(linea, 64, y); y += 28; }
+  }
   y += 8;
   y += chip(ctx, modelo.hero.categoria, 64, y) + 10;
 
@@ -201,10 +233,13 @@ function dibujarPlaca(modelo) {
     const xTexto = 200;
     ctx.fillStyle = COLOR.crema;
     ctx.fillText(tituloFila(ctx, fila.titulo, ANCHO - xTexto - 128, fTitulo), xTexto, y + 2);
-    ctx.fillStyle = COLOR.atenuado;
-    ctx.font = `400 ${fRes}px Inter`;
-    for (const [k, linea] of envolver(ctx, fila.resumen, ANCHO - xTexto - 128).slice(0, 2).entries()) {
-      ctx.fillText(linea, xTexto, y + yRes + k * lhRes);
+    const restoFila = restoVisibleEf(fila.ampliado || fila.resumen, fila.titulo);
+    if (restoFila) {
+      ctx.fillStyle = COLOR.atenuado;
+      ctx.font = `400 ${fRes}px Inter`;
+      for (const [k, linea] of envolver(ctx, restoFila, ANCHO - xTexto - 128).slice(0, 2).entries()) {
+        ctx.fillText(linea, xTexto, y + yRes + k * lhRes);
+      }
     }
     ctx.fillStyle = COLOR.dorado;
     ctx.font = `600 ${fCat}px Oswald`;
@@ -368,6 +403,8 @@ async function cargarCopys() {
 // ── Candidatas TyC Sports (solo revisión, no entra a la placa) ──────────────
 let tycItems = [];
 let tycFiltro = 'todas';
+const idTyc = (i) => `tyc-${i.año}-${String(i.titulo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 40)}`;
+const tycLlena = () => itemsPlaca.filter(x => !x.oculto).length >= 6;
 const crearFilaTyc = (i) => {
   const li = document.createElement('li');
   li.className = 'tyc-fila';
@@ -398,9 +435,47 @@ const crearFilaTyc = (i) => {
   } else {
     enlace.textContent = '—';
   }
-  li.append(anio, info, estado, enlace);
+  const puedeUsar = (i.estado === 'cruzado' || i.estado === 'en-banco') && !!i.verificado;
+  const usarBtn = document.createElement('button');
+  usarBtn.type = 'button';
+  usarBtn.className = 'chico tyc-usar';
+  const yaUsado = idsTycUsados.has(idTyc(i));
+  usarBtn.textContent = yaUsado ? '✓ EN LA PLACA' : '+ USAR';
+  if (!puedeUsar) {
+    if (i.estado === 'candidato') { usarBtn.hidden = true; }
+    else { usarBtn.disabled = true; usarBtn.title = 'Actualizá el worker (pegá worker.js en el dashboard) y volvé a consultar'; }
+  } else if (yaUsado) {
+    usarBtn.disabled = true;
+  } else if (tycLlena()) {
+    usarBtn.disabled = true;
+    usarBtn.title = 'La placa tiene 6 hechos visibles. Ocultá uno para hacer lugar.';
+  } else {
+    usarBtn.title = i.estado === 'cruzado'
+      ? 'Hecho verificado en Wikipedia (es∩en). Agrega los datos verificados a la placa.'
+      : 'Hecho curado (Archivo.ar / Media Mendoza). Agrega los datos verificados a la placa.';
+    usarBtn.addEventListener('click', () => usarDesdeTyc(i));
+  }
+  li.append(anio, info, estado, enlace, usarBtn);
   return li;
 };
+function usarDesdeTyc(i) {
+  const id = idTyc(i);
+  if (idsTycUsados.has(id) || tycLlena()) return;
+  const v = i.verificado;
+  if (!v) return;
+  itemsPlaca.push({
+    id, año: String(v.año || ''), fecha: fechaActual,
+    titulo: v.titulo, resumen: v.resumen, ampliado: v.ampliado,
+    icono: v.icono, categoria: v.categoria, oculto: false, verificada: true,
+    fuente: v.fuente, fuenteUrl: v.fuenteUrl,
+  });
+  idsTycUsados.add(id);
+  editado = true;
+  redibujarPlaca();
+  renderEditor();
+  renderBancoPool();
+  renderTyc();
+}
 const renderTyc = () => {
   ui.tycLista.replaceChildren();
   const vistos = tycItems.filter(i => tycFiltro === 'todas' || i.estado === tycFiltro);
@@ -597,17 +672,19 @@ function crearTarjetaBanco(c) {
   const agregado = idsBancoAgregados.has(c.id);
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'chico' + (agregado || itemsPlaca.length >= 6 ? ' secundario' : '');
+  const placaLlena = itemsPlaca.filter(i => !i.oculto).length >= 6;
+  btn.className = 'chico' + (agregado || placaLlena ? ' secundario' : '');
   btn.textContent = agregado ? '✓ EN LA PLACA' : '+ AGREGAR';
-  btn.disabled = agregado || itemsPlaca.length >= 6;
-  if (btn.disabled && !agregado) btn.title = 'La placa ya tiene 6 hechos';
+  btn.disabled = agregado || placaLlena;
+  if (btn.disabled && !agregado) btn.title = 'La placa tiene 6 hechos visibles. Ocultá uno para hacer lugar.';
   btn.addEventListener('click', () => agregarDesdeBanco(c));
   li.append(badge, anio, info, btn);
   return li;
 }
 
 function agregarDesdeBanco(c) {
-  if (itemsPlaca.length >= 6 || idsBancoAgregados.has(c.id)) return;
+  const visibles = itemsPlaca.filter(i => !i.oculto).length;
+  if (visibles >= 6 || idsBancoAgregados.has(c.id)) return;
   const hecho = {
     id: `banco-${c.id || nuevoIdLocal()}`,
     año: String(c.año || ''), fecha: String(c.fecha || ''), titulo: String(c.titulo),
@@ -668,10 +745,14 @@ function renderEditor() {
     anio.className = 'anio';
     anio.textContent = item.año || 'AR';
     linea.append(anio, document.createTextNode(item.titulo));
-    const resumen = document.createElement('span');
-    resumen.className = 'hecho-resumen';
-    resumen.textContent = item.resumen;
-    info.append(linea, resumen);
+    info.append(linea);
+    const restoCard = restoVisibleEf(item.ampliado || item.resumen, item.titulo);
+    if (restoCard) {
+      const resumen = document.createElement('span');
+      resumen.className = 'hecho-resumen';
+      resumen.textContent = restoCard;
+      info.append(resumen);
+    }
     const fuenteUrl = String(item.fuenteUrl || '').trim();
     if (fuenteUrl) {
       const a = document.createElement('a');
@@ -714,6 +795,8 @@ function onDestacar(id) {
   editado = true;
   redibujarPlaca();
   renderEditor();
+  renderBancoPool();
+  renderTyc();
 }
 
 function onToggleOcultar(id) {
@@ -725,22 +808,27 @@ function onToggleOcultar(id) {
   editado = true;
   redibujarPlaca();
   renderEditor();
+  renderBancoPool();
+  renderTyc();
 }
 
 function onRestablecer() {
   itemsPlaca = itemsOriginales.map(i => ({ ...i, oculto: false }));
   idsBancoAgregados = new Set();
+  idsTycUsados = new Set();
   editado = false;
   ui.formAgregar.reset();
   ui.altaError.hidden = true;
   redibujarPlaca();
   renderEditor();
   renderBancoPool();
+  renderTyc();
 }
 
 function limpiarBanco() {
   candidatosWikipedia = [];
   idsBancoAgregados = new Set();
+  idsTycUsados = new Set();
   bancoPool = [];
   bancoListLoaded = false;
   ui.bancoLista.replaceChildren();

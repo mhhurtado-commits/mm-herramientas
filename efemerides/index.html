@@ -88,7 +88,7 @@
   .tyc-filtros { display:flex; gap:8px; flex-wrap:wrap; }
   .tyc-filtro { background:transparent; border:1px solid var(--dorado); color:var(--dorado); cursor:pointer; font-family:Oswald, sans-serif; }
   .tyc-filtro.activo { background:var(--dorado); color:#10151f; }
-  .tyc-fila { display:grid; grid-template-columns:60px 1fr auto auto; grid-template-areas: "anio info estado enlace"; gap:10px; align-items:center; border:1px solid rgba(245,241,230,.14); border-radius:6px; padding:8px 12px; }
+  .tyc-fila { display:grid; grid-template-columns:60px 1fr auto auto auto; grid-template-areas: "anio info estado enlace usar"; gap:10px; align-items:center; border:1px solid rgba(245,241,230,.14); border-radius:6px; padding:8px 12px; }
   .tyc-anio { grid-area: anio; font-family:Oswald, sans-serif; font-weight:700; font-size:18px; color:var(--crema); }
   .tyc-info { grid-area: info; min-width:0; display:flex; flex-direction:column; gap:2px; }
   .tyc-titulo { font-weight:600; font-size:13px; white-space:normal; }
@@ -98,6 +98,7 @@
   .tyc-estado.en-banco { border:1px solid rgba(245,241,230,.4); color:var(--crema); }
   .tyc-estado.candidato { border:1px solid var(--dorado); color:var(--dorado); }
   .tyc-enlace { grid-area: enlace; font-size:11px; color:var(--dorado); text-decoration:none; white-space:nowrap; }
+  .tyc-usar { grid-area: usar; }
   @media (max-width: 600px) {
     header { padding:12px 16px; gap:10px; }
     header img { height:26px; }
@@ -118,9 +119,10 @@
     .banco-card { gap:8px; padding:8px 10px; }
     .banco-anio { width:52px; font-size:17px; }
     .fuente-badge { font-size:9px; padding:4px 6px; }
-    .tyc-fila { grid-template-columns:auto 1fr; grid-template-areas: "anio info" "anio estado" "anio enlace"; row-gap:6px; }
+    .tyc-fila { grid-template-columns:auto 1fr; grid-template-areas: "anio info" "anio estado" "anio enlace" "anio usar"; row-gap:6px; }
     .tyc-estado { justify-self:start; }
     .tyc-enlace { justify-self:start; }
+    .tyc-usar { justify-self:start; }
     .tyc-controles input[type=url] { flex:1 1 100%; }
     .tyc-controles button { width:100%; }
     .tyc-filtros .tyc-filtro { padding:10px 12px; font-size:12px; }
