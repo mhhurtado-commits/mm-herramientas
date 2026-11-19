@@ -8418,7 +8418,7 @@ async function handleVisualGenerar(body, env) {
   const prompt = String(body.prompt || "").trim();
   if (!prompt) return jsonError("Falta prompt", 400);
 
-  const r = await callGemini(prompt, env, false, false);
+  const r = await callGemini(prompt, env, true, false); // grounding con Google Search: datos reales o {error}; si el modelo no soporta búsqueda, cae solo a modo sin búsqueda
   if (r.error) return jsonErrorIA(r);
 
   const raw = typeof r.data === 'string' ? r.data : (r.data ? JSON.stringify(r.data) : "");
