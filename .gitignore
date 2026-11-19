@@ -1,4 +1,4 @@
-```
+﻿```
 # Compressed files
 *.zip
 *.gz
@@ -27,3 +27,7 @@
 node_modules/
 .worktrees/
 .superpowers/
+
+# TyC sync: outputs de barrido (mantener sólo ejemplo)
+tyc-efemerides/out/
+

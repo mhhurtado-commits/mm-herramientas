@@ -43,7 +43,7 @@ tyc-efemerides/
   tyc-client.mjs     # red: GET artículo + AppSync search (timeout 10s, UA propia)
   tyc-sync.test.mjs  # tests
   fixtures/          # HTML de 2 artículos reales (2024-11-18, 2026-05-29)
-  candidatas-ejemplo-18-11-2026.json  # ejemplo commiteado
+  candidatas-ejemplo-11-11-2026.json  # ejemplo commiteado (2026-11-18 no tiene artículo TyC; índice congelado en 2026-05-29, último publicado: 2026-11-11)
 ```
 
 ## 4. CLI
@@ -84,7 +84,7 @@ tyc-efemerides/
   al informe (solo el año, el nombre y hasta ~120 caracteres del hecho como
   referencia; el resto se lee en la fuente).
 - Los archivos de barrido real son gitignored; solo se commitea el ejemplo
-  `candidatas-ejemplo-18-11-2026.json`.
+  `candidatas-ejemplo-11-11-2026.json`.
 
 ## 7. Tests
 
