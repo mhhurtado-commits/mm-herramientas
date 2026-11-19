@@ -8,6 +8,22 @@ import { parsearEfemeridesTyc } from './tyc-parse.mjs';
 const FIX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const FIX_2024 = readFileSync(path.join(FIX, '18-11-2024.html'), 'utf8');
 const FIX_2026 = readFileSync(path.join(FIX, '29-05-2026.html'), 'utf8');
+const FIX_2026_11_19 = readFileSync(path.join(FIX, '19-11-2026.html'), 'utf8');
+
+test('parse 2026-11-19 (<p> con <b> resaltado): extrae hechos y títulos completos', () => {
+  const items = parsearEfemeridesTyc(FIX_2026_11_19);
+  assert.equal(items.length, 11);
+  const años = items.map(i => i.año);
+  for (const a of ['1828', '1882', '1890', '1906', '1933', '1942', '1962', '1972', '2006', '2024']) {
+    assert.ok(años.includes(a), `falta año ${a} en ${años}`);
+  }
+  const schubert = items.find(i => i.año === '1828');
+  assert.equal(schubert.titulo, 'FRANZ P. SCHUBERT'); // inicial con punto no corta el título
+  assert.ok(schubert.texto.startsWith('FRANZ P. SCHUBERT. A la edad'));
+  const plata = items.find(i => i.año === '1882');
+  assert.equal(plata.titulo, 'CIUDAD LA PLATA');
+  assert.ok(plata.texto.includes('Dardo Rocha'));
+});
 
 test('parse 2024-11-18: extrae hechos con años y títulos', () => {
   const items = parsearEfemeridesTyc(FIX_2024);

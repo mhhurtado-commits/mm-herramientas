@@ -19,7 +19,7 @@ export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createClou
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
 export { repararAnioEfemerides };
-export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2Efemerides, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn, urlsEfemeridesRaw, itemPlacaDesdePool, seleccionDeterministicaEF, normalizarItemsGeminiEF, aplicarBackstopNacionalEF, cortePalabraEF, tokensTyc, alcanceTyc, cotejarItemsTyc, handlePlacasV2EfemeridesTyc };
+export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2Efemerides, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn, urlsEfemeridesRaw, itemPlacaDesdePool, seleccionDeterministicaEF, normalizarItemsGeminiEF, aplicarBackstopNacionalEF, cortePalabraEF, tokensTyc, alcanceTyc, cotejarItemsTyc, parsearEfemeridesTyc, handlePlacasV2EfemeridesTyc };
 
 function fechaRedaccionMendoza(ahora = new Date()) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -9359,19 +9359,41 @@ function htmlATextoTyc(html) {
     .replace(/\s+/g, ' ').trim();
 }
 // Parser determinista: hechos = <li> con «AÑO - NOMBRE.» + texto. Conmemorativos sin año: fuera.
+const RE_HECHO_TYC = /^\s*(\d{3,4})\s*[-–—.]\s*(.+)$/;
+function hechoDesdeBloqueTyc(bloque) {
+  const texto = htmlATextoTyc(bloque);
+  if (/background-color/i.test(bloque)) {
+    const bm = bloque.match(/<b\b[^>]*>([\s\S]*?)<\/b>/i);
+    const bold = bm ? htmlATextoTyc(bm[1]).replace(/\.+$/, '').trim() : '';
+    const mb = bold.match(/^(\d{3,4})\s*[-–—.]\s*(.+)$/);
+    if (mb) {
+      const año = mb[1]; const titulo = mb[2].trim();
+      const idx = texto.indexOf(titulo);
+      let detalle = idx >= 0 ? texto.slice(idx + titulo.length) : '';
+      detalle = detalle.replace(/^[\s.]+/, '').trim();
+      return { año, titulo, texto: (titulo + (detalle ? '. ' + detalle : '')).trim() };
+    }
+  }
+  const m = texto.match(RE_HECHO_TYC);
+  if (!m) return null;
+  const año = m[1]; const resto = m[2].trim(); const corte = resto.indexOf('. ');
+  const titulo = (corte > 0 ? resto.slice(0, corte) : resto).trim();
+  const detalle = (corte > 0 ? resto.slice(corte + 2) : '').trim();
+  return { año, titulo, texto: (titulo + (detalle ? '. ' + detalle : '')).replace(/\.+$/, '') };
+}
 function parsearEfemeridesTyc(html) {
-  const items = []; const lis = String(html || '').match(/<li\b[^>]*>[\s\S]*?<\/li>/gi) || []; const vistos = new Set();
-  for (const li of lis) {
-    const texto = htmlATextoTyc(li);
-    const m = texto.match(/^\s*(\d{3,4})\s*[-–—.]\s*(.+?)\s*$/);
-    if (!m) continue;
-    const año = m[1]; const resto = m[2].trim(); const corte = resto.indexOf('. ');
-    const titulo = (corte > 0 ? resto.slice(0, corte) : resto).trim();
-    const detalle = (corte > 0 ? resto.slice(corte + 2) : '').trim();
-    const full = (titulo + (detalle ? '. ' + detalle : '')).replace(/\.+$/, '');
-    const clave = año + '|' + titulo.toLowerCase();
+  const src = String(html || '');
+  const bloques = [
+    ...(src.match(/<li\b[^>]*>[\s\S]*?<\/li>/gi) || []),
+    ...(src.match(/<p\b[^>]*>[\s\S]*?<\/p>/gi) || []),
+  ];
+  const items = []; const vistos = new Set();
+  for (const bloque of bloques) {
+    const hecho = hechoDesdeBloqueTyc(bloque);
+    if (!hecho) continue;
+    const clave = hecho.año + '|' + hecho.titulo.toLowerCase();
     if (vistos.has(clave)) continue; vistos.add(clave);
-    items.push({ año, titulo: titulo.slice(0, 90).trim(), texto: full.trim() });
+    items.push({ año: hecho.año, titulo: hecho.titulo.slice(0, 90).trim(), texto: hecho.texto.trim() });
   }
   return items;
 }

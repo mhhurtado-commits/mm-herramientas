@@ -7,6 +7,13 @@ const TYC_HTML = '<html><article><ul>'
   + '<li>1845 - VUELTA DE OBLIGADO. La Confederación derrota al anglo-francés.</li>'
   + '<li>Día de la Tradición (conmemorativo, sin año)</li>'
   + '</ul></article></html>';
+
+const TYC_HTML_P = '<html><article>'
+  + '<p><h2>Efemérides del 19 de noviembre: ¿qué se conmemora?</h2>'
+  + '<p><span style="background-color: rgb(255, 255, 0);"><b>1828 - FRANZ P. SCHUBERT.</b></span> Muere en Viena el compositor austríaco.</p>'
+  + '<p><b style="background-color: rgb(255, 255, 0);">1882 - CIUDAD LA PLATA</b>. Se funda la ciudad de La Plata.</p>'
+  + '<p class="alsoReadLabel">Mirá también</p>'
+  + '</article></html>';
 const WIKI_ES = '== Acontecimientos ==\n* [[1845]]: batalla de la [[Vuelta de Obligado]]\n';
 const WIKI_EN = '== Events ==\n* [[1845]]: [[Battle of the Vuelta de Obligado]]\n';
 const TYC_URL = 'https://www.tycsports.com/interes-general/efemerides/efemerides-del-18-de-noviembre-test-id999.html';
@@ -88,4 +95,19 @@ test('parser 0 hechos → 502', async () => {
   };
   const res = await handlePlacasV2EfemeridesTyc(req('https://worker.test/placas/v2/efemerides/tyc?fecha=2026-11-18&url=' + encodeURIComponent(TYC_URL)), {}, vacio);
   assert.equal(res.status, 502);
+});
+
+test('formato <p> con <b> resaltado (artículo 2026-11) → 200 con hechos', async () => {
+  const base = stub();
+  const fetcher = async (u, o) => {
+    if (String(u).includes('tycsports.com')) return { ok: true, status: 200, text: async () => TYC_HTML_P };
+    return base(u, o);
+  };
+  const res = await handlePlacasV2EfemeridesTyc(req('https://worker.test/placas/v2/efemerides/tyc?fecha=2026-11-18&url=' + encodeURIComponent(TYC_URL)), {}, fetcher);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.meta.hechos, 2);
+  assert.equal(body.items[0].año, '1828');
+  assert.equal(body.items[0].titulo, 'FRANZ P. SCHUBERT');
+  assert.equal(body.items[1].año, '1882');
 });
