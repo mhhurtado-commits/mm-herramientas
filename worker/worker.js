@@ -19,7 +19,7 @@ export { buildCloudinaryEagerTransform, canonicalizeCloudinaryParams, createClou
 export { fetchGemini, pedirGemini, handleVisualGenerar, handleVisualIlustrar, clasificarErrorGemini, esperaRetryAfterMs, jsonErrorIA, marcarGeminiEnfriamiento, geminiKeyEnfriada, reiniciarGeminiEnfriamiento, TAREAS };
 export { buildPlateEditorialPrompt, fechaRedaccionMendoza };
 export { repararAnioEfemerides };
-export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2Efemerides, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn, urlsEfemeridesRaw, itemPlacaDesdePool, seleccionDeterministicaEF, normalizarItemsGeminiEF, aplicarBackstopNacionalEF, cortePalabraEF, tokensTyc, alcanceTyc, cotejarItemsTyc };
+export { emojiPorIconoEf, fechaLargaEf, itemsCopysReparados, buildEfemeridesCopysPrompt, buildEfemeridesCopysFallback, normalizarEfemeridesCopys, normalizarItemsEditados, handlePlacasV2Efemerides, handlePlacasV2EfemeridesCopys, handlePlacasV2EfemeridesCopysPost, normalizarFeriadosAR, handlePlacasV2EfemeridesBanco, obtenerUltimaBuenaEfemerides, parseEfemeridesWikitexto, textoPlanoWikitext, tokensLetrasEf, emparejarEsEn, urlsEfemeridesRaw, itemPlacaDesdePool, seleccionDeterministicaEF, normalizarItemsGeminiEF, aplicarBackstopNacionalEF, cortePalabraEF, tokensTyc, alcanceTyc, cotejarItemsTyc, handlePlacasV2EfemeridesTyc };
 
 function fechaRedaccionMendoza(ahora = new Date()) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -7619,6 +7619,7 @@ export default {
       if(path==="/placas/v2/efemerides")             return handlePlacasV2Efemerides(url, env);
       if(path==="/placas/v2/efemerides/copys")       return handlePlacasV2EfemeridesCopys(url, env);
       if(path==="/placas/v2/efemerides/banco")        return handlePlacasV2EfemeridesBanco(url, env);
+      if(path==="/placas/v2/efemerides/tyc")          return handlePlacasV2EfemeridesTyc(url, env);
       if(path==="/agenda/angulos/cache")             return handleGetAngulosCache(url,env);
       if(path==="/resumen/obtener")                  return handleResumenObtener(url, env);
       if(path==="/studio/proyectos")                 return handleStudioObtenerProyectos(env);
@@ -9307,6 +9308,115 @@ function cotejarItemsTyc(items, pool = [], curadasDelDia = []) {
     const estado = enPool ? 'cruzado' : (enBanco ? 'en-banco' : 'candidato');
     return { ...item, alcance, estado, fuenteEs: enPool?.fuenteEs || null };
   });
+}
+
+// ═══ Sincronizador TyC Sports — cliente. Espejo de tyc-efemerides/tyc-client.mjs +
+//     tyc-parse.mjs. Si esos módulos cambian, ACTUALIZAR ESTA COPIA. ═══
+const TYC_APPSYNC_URL = 'https://xke6pkwdfrhfvirq5lt5br2m4m.appsync-api.us-east-1.amazonaws.com/graphql';
+const TYC_APPSYNC_KEY = 'da2-qlssafeqdzdrldlwnzqblraswu';
+const TYC_UA = { 'User-Agent': 'MediaMendoza-Efemerides-TycSync/1.0 (+https://mediamendoza.pages.dev/)' };
+const TYC_ENTIDADES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', aacute: 'á', eacute: 'é', iacute: 'í', oacute: 'ó', uacute: 'ú', uuml: 'ü', ntilde: 'ñ', ccedil: 'ç', Aacute: 'Á', Eacute: 'É', Iacute: 'Í', Oacute: 'Ó', Uacute: 'Ú', Ntilde: 'Ñ', iexcl: '¡', iquest: '¿', laquo: '«', raquo: '»', ndash: '–', mdash: '—', hellip: '…' };
+function decodificarEntidadesTyc(html) {
+  return String(html || '')
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+    .replace(/&([a-zA-Z]+);/g, (m, name) => TYC_ENTIDADES[name] ?? m);
+}
+function htmlATextoTyc(html) {
+  return decodificarEntidadesTyc(String(html || '')
+    .replace(/<br\s*\/?>/gi, '. ').replace(/<\/(p|div|li|ul|ol|h[1-6])>/gi, '. ').replace(/<[^>]*>/g, ' '))
+    .replace(/\s+/g, ' ').trim();
+}
+// Parser determinista: hechos = <li> con «AÑO - NOMBRE.» + texto. Conmemorativos sin año: fuera.
+function parsearEfemeridesTyc(html) {
+  const items = []; const lis = String(html || '').match(/<li\b[^>]*>[\s\S]*?<\/li>/gi) || []; const vistos = new Set();
+  for (const li of lis) {
+    const texto = htmlATextoTyc(li);
+    const m = texto.match(/^\s*(\d{3,4})\s*[-–—.]\s*(.+?)\s*$/);
+    if (!m) continue;
+    const año = m[1]; const resto = m[2].trim(); const corte = resto.indexOf('. ');
+    const titulo = (corte > 0 ? resto.slice(0, corte) : resto).trim();
+    const detalle = (corte > 0 ? resto.slice(corte + 2) : '').trim();
+    const full = (titulo + (detalle ? '. ' + detalle : '')).replace(/\.+$/, '');
+    const clave = año + '|' + titulo.toLowerCase();
+    if (vistos.has(clave)) continue; vistos.add(clave);
+    items.push({ año, titulo: titulo.slice(0, 90).trim(), texto: full.trim() });
+  }
+  return items;
+}
+function resumirTyc(texto, max = 120) {
+  const t = String(texto || '').replace(/\s+/g, ' ').trim();
+  if (t.length <= max) return t;
+  return cortePalabraEF(t, max);
+}
+async function buscarEfemeridesTycWorker(fetcher = globalThis.fetch) {
+  const res = await fetcher(TYC_APPSYNC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': TYC_APPSYNC_KEY, ...TYC_UA },
+    body: JSON.stringify({ query: 'query { search(hitsPerPage: 100, searchAbout: "efemerides") { hits { order_date title url } } }' }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res?.ok) return [];
+  const data = await res.json().catch(() => null);
+  const hits = data?.data?.search?.hits || [];
+  return hits
+    .filter(h => typeof h.url === 'string' && h.url.includes('/efemerides/') && /efem[eé]rides/i.test(String(h.title || '')))
+    .map(h => ({ fecha: new Date(h.order_date * 1000).toISOString().slice(0, 10), url: h.url }));
+}
+async function bajarArticuloTycWorker(url, fetcher = globalThis.fetch) {
+  const res = await fetcher(url, { headers: { ...TYC_UA }, signal: AbortSignal.timeout(10000) });
+  if (!res?.ok) throw new Error('TyC respondió ' + (res?.status ?? 0));
+  return res.text();
+}
+
+// Endpoint de revisión: candidatas TyC cotejadas contra pool es∩en y curadas.
+// Sin KV, sin cron, sin escritura: solo lectura. TyC sólo orienta qué mirar.
+async function handlePlacasV2EfemeridesTyc(url, env, fetcher = globalThis.fetch) {
+  const date = url.searchParams.get('fecha') || '';
+  if (!validEfemeridesDate(date)) return jsonError('Fecha inválida. Usá YYYY-MM-DD.', 400);
+  const urlManual = (url.searchParams.get('url') || '').trim();
+  let articulo = null;
+  if (urlManual) {
+    articulo = urlManual;
+  } else {
+    let hits = [];
+    try { hits = await buscarEfemeridesTycWorker(fetcher); } catch { return jsonError('No se pudo consultar el índice de TyC. Reintentá o pegá la URL manualmente.', 502); }
+    articulo = hits.find(h => h.fecha === date)?.url || null;
+    if (!articulo) return jsonError('No hay artículo TyC para esa fecha en el índice; pegá la URL manualmente.', 502);
+  }
+  let html = '';
+  try { html = await bajarArticuloTycWorker(articulo, fetcher); } catch (e) {
+    return jsonError('No se pudo bajar el artículo de TyC (' + (e?.message || 'error') + ').', 502);
+  }
+  const { esUrl, enUrl, esWikiUrl, enWikiUrl } = urlsEfemeridesRaw(date);
+  const UA = { 'User-Agent': 'MediaMendoza-Efemerides/1.0 (+https://mediamendoza.pages.dev/)' };
+  let pool = [];
+  try {
+    const [esRes, enRes] = await Promise.all([
+      fetcher(esUrl, { headers: UA, signal: AbortSignal.timeout(12000) }),
+      fetcher(enUrl, { headers: UA, signal: AbortSignal.timeout(12000) }),
+    ]);
+    const esRaw = esRes?.ok ? await esRes.text() : '';
+    const enRaw = enRes?.ok ? await enRes.text() : '';
+    if (esRaw && enRaw) pool = emparejarEsEn(parseEfemeridesWikitexto(esRaw, 'es', esWikiUrl), parseEfemeridesWikitexto(enRaw, 'en', enWikiUrl));
+  } catch {}
+  let curadasDelDia = [];
+  try {
+    const clave = date.slice(5);
+    const r = await fetcher(CURADAS_EF_URL, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
+    if (r?.ok) { const data = await r.json(); curadasDelDia = Array.isArray(data?.[clave]) ? data[clave] : []; }
+  } catch {}
+  const hechos = parsearEfemeridesTyc(html);
+  if (hechos.length === 0) return jsonError('El parser no detectó hechos (posible cambio de estructura de TyC).', 502);
+  const items = cotejarItemsTyc(hechos, pool, curadasDelDia)
+    .map(i => ({ ...i, texto: resumirTyc(i.texto, 120) }));
+  const meta = {
+    hechos: items.length,
+    cruzados: items.filter(i => i.estado === 'cruzado').length,
+    enBanco: items.filter(i => i.estado === 'en-banco').length,
+    candidatos: items.filter(i => i.estado === 'candidato').length,
+  };
+  return jsonOk({ fecha: date, articulo, obtenido: new Date().toISOString(), items, meta });
 }
 
 async function handlePlacasV2EfemeridesCopys(url, env) {
